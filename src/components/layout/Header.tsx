@@ -22,9 +22,9 @@ export function Header() {
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     useEffect(() => {
-        // 获取当前用户
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            setUser(user);
+        // 使用 getSession 从本地缓存读取（比 getUser 快得多）
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
         });
 
         // 监听认证状态变化

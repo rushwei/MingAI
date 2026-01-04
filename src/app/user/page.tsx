@@ -34,16 +34,16 @@ const menuItems = [
     {
         section: '我的服务',
         items: [
-            { icon: FileText, label: '我的命盘', href: '/bazi', badge: '1' },
-            { icon: History, label: '对话历史', href: '/chat' },
-            { icon: CreditCard, label: '订单记录', href: '#' },
+            { icon: FileText, label: '我的命盘', href: '/user/charts' },
+            { icon: History, label: '对话历史', href: '/chat', badge: 'P2' },
+            { icon: CreditCard, label: '订单记录', href: '/user/orders' },
         ],
     },
     {
         section: '账户设置',
         items: [
-            { icon: User, label: '个人资料', href: '#' },
-            { icon: Settings, label: '偏好设置', href: '#' },
+            { icon: User, label: '个人资料', href: '/user/profile' },
+            { icon: Settings, label: '偏好设置', href: '/user/settings' },
         ],
     },
 ];
@@ -71,47 +71,50 @@ export default function UserPage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
 
-    // 获取用户信息
+    // 获取用户信息 - 优化版本：只使用 onAuthStateChange
     useEffect(() => {
-        const fetchUser = async () => {
-            setLoading(true);
+        let isMounted = true;
+        let lastUserId: string | null = null;
 
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-
-            if (user) {
-                const [profileData, membershipData] = await Promise.all([
-                    getUserProfile(user.id),
-                    getMembershipInfo(user.id),
-                ]);
-                setProfile(profileData);
-                setMembership(membershipData);
-            }
-
-            setLoading(false);
-        };
-
-        fetchUser();
-
-        // 监听认证状态变化
+        // 使用 onAuthStateChange 统一处理（包含 INITIAL_SESSION 事件）
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
-                setUser(session?.user ?? null);
-                if (session?.user) {
-                    const [profileData, membershipData] = await Promise.all([
-                        getUserProfile(session.user.id),
-                        getMembershipInfo(session.user.id),
-                    ]);
-                    setProfile(profileData);
-                    setMembership(membershipData);
-                } else {
+                if (!isMounted) return;
+
+                const currentUser = session?.user ?? null;
+                setUser(currentUser);
+
+                // 避免重复请求（相同用户ID不重复加载）
+                if (currentUser && currentUser.id !== lastUserId) {
+                    lastUserId = currentUser.id;
+                    setLoading(false); // 先显示页面
+
+                    // 异步加载详细信息
+                    try {
+                        const [profileData, membershipData] = await Promise.all([
+                            getUserProfile(currentUser.id),
+                            getMembershipInfo(currentUser.id),
+                        ]);
+                        if (isMounted) {
+                            setProfile(profileData);
+                            setMembership(membershipData);
+                        }
+                    } catch (error) {
+                        console.error('Error loading user data:', error);
+                    }
+                } else if (!currentUser) {
+                    lastUserId = null;
                     setProfile(null);
                     setMembership(null);
+                    setLoading(false);
                 }
             }
         );
 
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const handleSignOut = async () => {
@@ -157,31 +160,7 @@ export default function UserPage() {
                     </button>
                 </div>
 
-                {/* 主题切换 */}
-                <div className="bg-background-secondary rounded-xl p-4 border border-border">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {theme === 'dark' ? (
-                                <Moon className="w-5 h-5 text-accent" />
-                            ) : (
-                                <Sun className="w-5 h-5 text-accent" />
-                            )}
-                            <span>深色模式</span>
-                        </div>
-                        <button
-                            onClick={toggleTheme}
-                            className={`
-                                w-12 h-6 rounded-full transition-colors relative
-                                ${theme === 'dark' ? 'bg-accent' : 'bg-border'}
-                            `}
-                        >
-                            <div className={`
-                                w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform
-                                ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'}
-                            `} />
-                        </button>
-                    </div>
-                </div>
+
 
                 {/* 版本信息 */}
                 <p className="text-center text-xs text-foreground-secondary mt-6">
@@ -233,31 +212,7 @@ export default function UserPage() {
                 )}
             </div>
 
-            {/* 主题切换 */}
-            <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {theme === 'dark' ? (
-                            <Moon className="w-5 h-5 text-accent" />
-                        ) : (
-                            <Sun className="w-5 h-5 text-accent" />
-                        )}
-                        <span>深色模式</span>
-                    </div>
-                    <button
-                        onClick={toggleTheme}
-                        className={`
-                            w-12 h-6 rounded-full transition-colors relative
-                            ${theme === 'dark' ? 'bg-accent' : 'bg-border'}
-                        `}
-                    >
-                        <div className={`
-                            w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform
-                            ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'}
-                        `} />
-                    </button>
-                </div>
-            </div>
+
 
             {/* 菜单列表 */}
             {menuItems.map((section, sectionIndex) => (
