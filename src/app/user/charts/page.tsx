@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     ArrowLeft,
@@ -33,11 +33,7 @@ export default function ChartsPage() {
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchCharts();
-    }, []);
-
-    const fetchCharts = async () => {
+    const fetchCharts = useCallback(async () => {
         // 使用 getSession 从本地缓存读取
         const { data: { session } } = await supabase.auth.getSession();
 
@@ -56,7 +52,12 @@ export default function ChartsPage() {
             setCharts(data);
         }
         setLoading(false);
-    };
+    }, [router]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchCharts();
+    }, [fetchCharts]);
 
     const handleDelete = async (chartId: string) => {
         if (!confirm('确定要删除这个命盘吗？此操作无法撤销。')) {

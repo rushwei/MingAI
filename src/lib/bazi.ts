@@ -71,16 +71,6 @@ const HIDDEN_STEMS: Record<EarthlyBranch, HeavenlyStem[]> = {
     '亥': ['壬', '甲'],
 };
 
-/** 十神计算规则 - 基于日主与其他天干的关系 */
-const TEN_GOD_RULES: Record<string, TenGod> = {
-    '同阳': '比肩', '同阴': '比肩',
-    '异阳': '劫财', '异阴': '劫财',
-    '生阳': '食神', '生阴': '伤官',
-    '克阳': '偏财', '克阴': '正财',
-    '被克阳': '七杀', '被克阴': '正官',
-    '被生阳': '偏印', '被生阴': '正印',
-};
-
 // ===== 工具函数 =====
 
 /**
@@ -492,7 +482,7 @@ export function calculateProfessionalData(
             const days = remainingDays % 30;
             startAgeDetail = `${years}年${months}月${days}天起运`;
         }
-    } catch (e) {
+    } catch {
         // 无法获取精确时间，使用默认
     }
 

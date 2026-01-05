@@ -38,7 +38,6 @@ export default function OrdersPage() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -50,7 +49,6 @@ export default function OrdersPage() {
                 return;
             }
 
-            setUserId(session.user.id);
             const orderList = await getOrderHistory(session.user.id);
             setOrders(orderList as Order[]);
             setLoading(false);

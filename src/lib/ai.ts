@@ -172,9 +172,6 @@ export async function callGLM4(
  * 生成模拟响应（用于演示和测试）
  */
 function generateMockResponse(messages: ChatMessage[], personality: AIPersonality): string {
-    const lastMessage = messages[messages.length - 1];
-    const config = AI_PERSONALITIES[personality];
-
     const responses: Record<AIPersonality, string[]> = {
         master: [
             `观您所问，老夫直言相告。根据命理分析，您目前正处于运势转折之际。\n\n《子平真诠》有云："日主旺相，事业可期。"您的命局中有此征兆。\n\n建议您：\n1. 把握当前机遇，主动出击\n2. 注意人际关系，贵人相助\n3. 养精蓄锐，厚积薄发\n\n切记：命由己造，运自天成。`,

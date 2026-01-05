@@ -31,30 +31,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // useState 用于管理当前主题状态
-  // 默认使用浅色主题，后续会从 localStorage 读取用户偏好
+  // 先使用稳定的默认值，避免服务端/客户端首屏不一致
   const [theme, setTheme] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
 
-  // useEffect 用于在组件挂载时执行副作用
-  // 这里用于：1. 读取用户保存的主题偏好 2. 监听系统主题变化
+  // useEffect 用于在客户端读取偏好并更新主题
   useEffect(() => {
-    // 从 localStorage 读取保存的主题
     const savedTheme = localStorage.getItem('theme') as Theme | null;
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    const nextTheme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : systemTheme;
 
-    // 如果没有保存的偏好，则检测系统主题
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-    }
-
-    setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(nextTheme);
   }, []);
 
   // 当主题变化时，更新 DOM 和 localStorage
   useEffect(() => {
-    if (!mounted) return;
-
     const root = document.documentElement;
 
     // 切换 dark class
@@ -66,7 +57,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     // 保存用户偏好到 localStorage
     localStorage.setItem('theme', theme);
-  }, [theme, mounted]);
+  }, [theme]);
 
   // 切换主题的函数
   const toggleTheme = () => {
@@ -74,12 +65,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   // 始终提供 Context，避免 useTheme 在 SSR 时报错
-  // 在挂载前使用隐藏样式避免闪烁
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
-      <div style={!mounted ? { visibility: 'hidden' } : undefined}>
-        {children}
-      </div>
+      {children}
     </ThemeContext.Provider>
   );
 }

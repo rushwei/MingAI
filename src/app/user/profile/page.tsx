@@ -7,25 +7,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    ArrowLeft,
-    User as UserIcon,
-    Mail,
     Loader2,
-    Check,
-    Camera,
-    Lock,
-    Eye,
-    EyeOff,
-    AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getUserProfile, updateNickname } from '@/lib/auth';
 import type { User } from '@supabase/supabase-js';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { AvatarSection } from '@/components/profile/AvatarSection';
+import { StatusBanner } from '@/components/profile/StatusBanner';
+import { NicknameField } from '@/components/profile/NicknameField';
+import { EmailField } from '@/components/profile/EmailField';
+import { PasswordSection } from '@/components/profile/PasswordSection';
+import { CreatedAtField } from '@/components/profile/CreatedAtField';
 
 export default function ProfilePage() {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // useState 管理用户档案与表单状态，确保交互时及时刷新 UI
     const [user, setUser] = useState<User | null>(null);
     const [nickname, setNickname] = useState('');
     const [originalNickname, setOriginalNickname] = useState('');
@@ -46,6 +45,7 @@ export default function ProfilePage() {
     // 头像上传状态
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+    // useEffect 用于首次加载用户资料与头像信息
     useEffect(() => {
         const fetchProfile = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -200,206 +200,52 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 头部 */}
-            <div className="flex items-center gap-3 mb-6">
-                <button
-                    onClick={() => router.back()}
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-xl font-bold">个人资料</h1>
-            </div>
+            <ProfileHeader onBack={() => router.back()} />
 
-            {/* 头像区域 */}
-            <div className="flex justify-center mb-8">
-                <div className="relative">
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                    />
-                    <div
-                        className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden cursor-pointer"
-                        onClick={handleAvatarClick}
-                    >
-                        {uploadingAvatar ? (
-                            <Loader2 className="w-8 h-8 animate-spin text-accent" />
-                        ) : avatarUrl ? (
-                            <img src={avatarUrl} alt="头像" className="w-full h-full object-cover" />
-                        ) : (
-                            <UserIcon className="w-12 h-12 text-accent" />
-                        )}
-                    </div>
-                    <button
-                        onClick={handleAvatarClick}
-                        disabled={uploadingAvatar}
-                        className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
-                    >
-                        <Camera className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
+            <AvatarSection
+                fileInputRef={fileInputRef}
+                avatarUrl={avatarUrl}
+                uploadingAvatar={uploadingAvatar}
+                onAvatarClick={handleAvatarClick}
+                onAvatarChange={handleAvatarChange}
+            />
 
             {/* 表单 */}
             <div className="space-y-6">
-                {/* 错误/成功提示 */}
-                {error && (
-                    <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-sm flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div className="p-3 rounded-lg bg-green-500/10 text-green-500 text-sm flex items-center gap-2">
-                        <Check className="w-4 h-4 flex-shrink-0" />
-                        {success}
-                    </div>
-                )}
+                <StatusBanner error={error} success={success} />
 
-                {/* 昵称 */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground-secondary">
-                        昵称
-                    </label>
-                    <div className="relative">
-                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                        <input
-                            type="text"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
-                            placeholder="输入您的昵称"
-                            maxLength={20}
-                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs text-foreground-secondary">
-                            最多20个字符
-                        </p>
-                        {hasNicknameChanges && (
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="text-sm text-accent hover:text-accent/80 disabled:opacity-50"
-                            >
-                                {saving ? '保存中...' : '保存'}
-                            </button>
-                        )}
-                    </div>
-                </div>
+                <NicknameField
+                    nickname={nickname}
+                    onChange={setNickname}
+                    hasChanges={hasNicknameChanges}
+                    onSave={handleSave}
+                    saving={saving}
+                />
 
-                {/* 邮箱（只读） */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground-secondary">
-                        邮箱
-                    </label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                        <input
-                            type="email"
-                            value={user?.email || ''}
-                            disabled
-                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border text-foreground-secondary cursor-not-allowed"
-                        />
-                    </div>
-                </div>
+                <EmailField email={user?.email || ''} />
 
-                {/* 修改密码 */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground-secondary">
-                        密码
-                    </label>
-                    {!showPasswordSection ? (
-                        <button
-                            onClick={() => setShowPasswordSection(true)}
-                            className="w-full px-4 py-3 rounded-xl bg-background-secondary border border-border text-left flex items-center gap-3 hover:border-accent transition-colors"
-                        >
-                            <Lock className="w-5 h-5 text-foreground-secondary" />
-                            <span>修改密码</span>
-                        </button>
-                    ) : (
-                        <div className="space-y-3 p-4 rounded-xl bg-background-secondary border border-border">
-                            {/* 新密码 */}
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                <input
-                                    type={showNewPassword ? 'text' : 'password'}
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    placeholder="新密码（至少6位）"
-                                    className="w-full pl-10 pr-10 py-3 rounded-lg bg-background border border-border focus:border-accent focus:outline-none transition-colors"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowNewPassword(!showNewPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary"
-                                >
-                                    {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                </button>
-                            </div>
-                            {/* 确认密码 */}
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                <input
-                                    type={showConfirmPassword ? 'text' : 'password'}
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="确认新密码"
-                                    className="w-full pl-10 pr-10 py-3 rounded-lg bg-background border border-border focus:border-accent focus:outline-none transition-colors"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary"
-                                >
-                                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                </button>
-                            </div>
-                            {/* 操作按钮 */}
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => {
-                                        setShowPasswordSection(false);
-                                        setNewPassword('');
-                                        setConfirmPassword('');
-                                        setError('');
-                                    }}
-                                    className="flex-1 py-2 rounded-lg border border-border hover:border-foreground-secondary transition-colors"
-                                >
-                                    取消
-                                </button>
-                                <button
-                                    onClick={handlePasswordChange}
-                                    disabled={changingPassword || !newPassword || !confirmPassword}
-                                    className="flex-1 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    {changingPassword ? '修改中...' : '确认修改'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <PasswordSection
+                    showPasswordSection={showPasswordSection}
+                    onToggleSection={() => setShowPasswordSection(true)}
+                    newPassword={newPassword}
+                    confirmPassword={confirmPassword}
+                    showNewPassword={showNewPassword}
+                    showConfirmPassword={showConfirmPassword}
+                    onChangeNewPassword={setNewPassword}
+                    onChangeConfirmPassword={setConfirmPassword}
+                    onToggleShowNewPassword={() => setShowNewPassword((prev) => !prev)}
+                    onToggleShowConfirmPassword={() => setShowConfirmPassword((prev) => !prev)}
+                    onCancel={() => {
+                        setShowPasswordSection(false);
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setError('');
+                    }}
+                    onSubmit={handlePasswordChange}
+                    changingPassword={changingPassword}
+                />
 
-                {/* 注册时间 */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground-secondary">
-                        注册时间
-                    </label>
-                    <div className="px-4 py-3 rounded-xl bg-background-secondary border border-border text-foreground-secondary">
-                        {user?.created_at
-                            ? new Date(user.created_at).toLocaleDateString('zh-CN', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                            })
-                            : '未知'
-                        }
-                    </div>
-                </div>
+                <CreatedAtField createdAt={user?.created_at || null} />
             </div>
         </div>
     );
