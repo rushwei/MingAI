@@ -10,7 +10,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getUserProfile, updateNickname } from '@/lib/auth';
+import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
 import type { User } from '@supabase/supabase-js';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
@@ -45,6 +45,23 @@ export default function ProfilePage() {
     // 头像上传状态
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+    const readProfileCache = (userId: string) => {
+        if (typeof window === 'undefined') return null;
+        const raw = window.localStorage.getItem(`mingai.profile.${userId}`);
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw) as { nickname: string | null; avatar_url: string | null };
+        } catch {
+            return null;
+        }
+    };
+
+    const writeProfileCache = (userId: string, nicknameValue: string | null, avatarValue: string | null) => {
+        if (typeof window === 'undefined') return;
+        const payload = { nickname: nicknameValue, avatar_url: avatarValue };
+        window.localStorage.setItem(`mingai.profile.${userId}`, JSON.stringify(payload));
+    };
+
     // useEffect 用于首次加载用户资料与头像信息
     useEffect(() => {
         const fetchProfile = async () => {
@@ -56,12 +73,20 @@ export default function ProfilePage() {
             }
 
             setUser(session.user);
+            const cachedProfile = readProfileCache(session.user.id);
+            if (cachedProfile) {
+                setNickname(cachedProfile.nickname || '');
+                setOriginalNickname(cachedProfile.nickname || '');
+                setAvatarUrl(cachedProfile.avatar_url || null);
+            }
 
+            await ensureUserRecord(session.user);
             const profile = await getUserProfile(session.user.id);
             if (profile) {
                 setNickname(profile.nickname || '');
                 setOriginalNickname(profile.nickname || '');
                 setAvatarUrl(profile.avatar_url || null);
+                writeProfileCache(session.user.id, profile.nickname || null, profile.avatar_url || null);
             }
 
             setLoading(false);
@@ -81,6 +106,10 @@ export default function ProfilePage() {
 
         if (result.success) {
             setOriginalNickname(nickname.trim());
+            writeProfileCache(user.id, nickname.trim(), avatarUrl);
+            supabase.auth.updateUser({ data: { nickname: nickname.trim() } }).catch(() => {
+                // 更新失败不影响页面展示
+            });
             setSuccess('昵称已更新');
             setTimeout(() => setSuccess(''), 3000);
         } else {
@@ -137,6 +166,10 @@ export default function ProfilePage() {
             if (updateError) throw updateError;
 
             setAvatarUrl(publicUrl);
+            writeProfileCache(user.id, nickname || null, publicUrl);
+            supabase.auth.updateUser({ data: { avatar_url: publicUrl } }).catch(() => {
+                // 更新失败不影响页面展示
+            });
             setSuccess('头像已更新');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {

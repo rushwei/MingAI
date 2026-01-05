@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type AuthError = {
     message: string;
@@ -113,7 +114,7 @@ export async function getUserProfile(userId: string) {
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('Error fetching user profile:', error);
@@ -121,6 +122,30 @@ export async function getUserProfile(userId: string) {
     }
 
     return data;
+}
+
+/**
+ * 确保用户扩展信息存在
+ */
+export async function ensureUserRecord(user: SupabaseUser) {
+    const payload = {
+        id: user.id,
+        nickname: (user.user_metadata?.nickname as string | undefined) || '命理爱好者',
+        avatar_url: (user.user_metadata?.avatar_url as string | undefined) || null,
+        membership: 'free',
+        ai_chat_count: 3,
+    };
+
+    const { error } = await supabase
+        .from('users')
+        .upsert(payload, {
+            onConflict: 'id',
+            ignoreDuplicates: true,
+        });
+
+    if (error) {
+        console.error('Error ensuring user profile:', error);
+    }
 }
 
 /**
@@ -140,6 +165,14 @@ export async function updateNickname(userId: string, nickname: string): Promise<
                 code: error.message,
             },
         };
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+        data: { nickname },
+    });
+
+    if (authError) {
+        console.warn('Failed to sync auth nickname:', authError.message);
     }
 
     return { success: true };

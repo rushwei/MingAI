@@ -83,25 +83,36 @@ export async function getMembershipInfo(userId: string): Promise<MembershipInfo 
         .from('users')
         .select('membership, membership_expires_at, ai_chat_count')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
         console.error('Error fetching membership:', error);
         return null;
     }
 
+    if (!data) {
+        return {
+            type: 'free',
+            expiresAt: null,
+            isActive: true,
+            aiChatCount: 3,
+        };
+    }
+
+    const membershipType = data.membership ? (data.membership as MembershipType) : 'free';
+    const aiChatCount = typeof data.ai_chat_count === 'number' ? data.ai_chat_count : 3;
     const expiresAt = data.membership_expires_at
         ? new Date(data.membership_expires_at)
         : null;
 
-    const isActive = data.membership === 'free' ||
+    const isActive = membershipType === 'free' ||
         (expiresAt !== null && expiresAt > new Date());
 
     return {
-        type: data.membership as MembershipType,
+        type: membershipType,
         expiresAt,
         isActive,
-        aiChatCount: data.ai_chat_count,
+        aiChatCount,
     };
 }
 

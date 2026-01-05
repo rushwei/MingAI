@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
     User,
     CreditCard,
@@ -23,7 +24,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { PricingModal } from '@/components/membership/PricingModal';
 import { PaymentModal } from '@/components/membership/PaymentModal';
 import { supabase } from '@/lib/supabase';
-import { signOut, getUserProfile } from '@/lib/auth';
+import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -53,15 +54,72 @@ const membershipLabels: Record<string, string> = {
     yearly: '年度会员',
 };
 
+type ProfileSnapshot = {
+    nickname: string | null;
+    avatar_url: string | null;
+};
+
+type MembershipSnapshot = {
+    type: MembershipInfo['type'];
+    aiChatCount: number;
+    expiresAt: string | null;
+};
+
+const getProfileCacheKey = (userId: string) => `mingai.profile.${userId}`;
+const getMembershipCacheKey = (userId: string) => `mingai.membership.${userId}`;
+
+const readProfileCache = (userId: string): ProfileSnapshot | null => {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(getProfileCacheKey(userId));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as ProfileSnapshot;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const writeProfileCache = (userId: string, snapshot: ProfileSnapshot) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(getProfileCacheKey(userId), JSON.stringify(snapshot));
+};
+
+const readMembershipCache = (userId: string): MembershipInfo | null => {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(getMembershipCacheKey(userId));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as MembershipSnapshot;
+        const expiresAt = parsed.expiresAt ? new Date(parsed.expiresAt) : null;
+        return {
+            type: parsed.type,
+            expiresAt,
+            isActive: parsed.type === 'free' || (expiresAt !== null && expiresAt > new Date()),
+            aiChatCount: parsed.aiChatCount,
+        };
+    } catch {
+        return null;
+    }
+};
+
+const writeMembershipCache = (userId: string, info: MembershipInfo) => {
+    if (typeof window === 'undefined') return;
+    const snapshot: MembershipSnapshot = {
+        type: info.type,
+        aiChatCount: info.aiChatCount,
+        expiresAt: info.expiresAt ? info.expiresAt.toISOString() : null,
+    };
+    window.localStorage.setItem(getMembershipCacheKey(userId), JSON.stringify(snapshot));
+};
+
 export default function UserPage() {
     const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
-    const [profile, setProfile] = useState<{
-        nickname: string | null;
-        avatar_url: string | null;
-    } | null>(null);
+    const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [detailsLoading, setDetailsLoading] = useState(false);
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -69,43 +127,86 @@ export default function UserPage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
 
-    // 获取用户信息 - 优化版本：只使用 onAuthStateChange
+    // 获取用户信息 - 先读取本地 session，再监听后续变更
     useEffect(() => {
         let isMounted = true;
         let lastUserId: string | null = null;
 
-        // 使用 onAuthStateChange 统一处理（包含 INITIAL_SESSION 事件）
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                if (!isMounted) return;
-
-                const currentUser = session?.user ?? null;
-                setUser(currentUser);
-
-                // 避免重复请求（相同用户ID不重复加载）
-                if (currentUser && currentUser.id !== lastUserId) {
-                    lastUserId = currentUser.id;
-                    setLoading(false); // 先显示页面
-
-                    // 异步加载详细信息
-                    try {
-                        const [profileData, membershipData] = await Promise.all([
-                            getUserProfile(currentUser.id),
-                            getMembershipInfo(currentUser.id),
-                        ]);
-                        if (isMounted) {
-                            setProfile(profileData);
-                            setMembership(membershipData);
-                        }
-                    } catch (error) {
-                        console.error('Error loading user data:', error);
+        const loadUserDetails = async (currentUser: SupabaseUser) => {
+            if (!isMounted) return;
+            try {
+                await ensureUserRecord(currentUser);
+                const [profileData, membershipData] = await Promise.all([
+                    getUserProfile(currentUser.id),
+                    getMembershipInfo(currentUser.id),
+                ]);
+                if (isMounted) {
+                    setProfile(profileData);
+                    setMembership(membershipData);
+                    if (profileData) {
+                        writeProfileCache(currentUser.id, profileData);
                     }
-                } else if (!currentUser) {
-                    lastUserId = null;
-                    setProfile(null);
-                    setMembership(null);
+                    if (membershipData) {
+                        writeMembershipCache(currentUser.id, membershipData);
+                    }
+                    if (profileData?.nickname
+                        && profileData.nickname !== currentUser.user_metadata?.nickname) {
+                        supabase.auth.updateUser({ data: { nickname: profileData.nickname } }).catch(() => {
+                            // 更新失败不影响页面展示
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            } finally {
+                if (isMounted) {
+                    setDetailsLoading(false);
+                }
+            }
+        };
+
+        const handleSession = (session: { user: SupabaseUser } | null) => {
+            if (!isMounted) return;
+
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            setLoading(false);
+
+            if (currentUser) {
+                if (currentUser.id !== lastUserId) {
+                    lastUserId = currentUser.id;
+                    const cachedProfile = readProfileCache(currentUser.id);
+                    const cachedMembership = readMembershipCache(currentUser.id);
+                    if (cachedProfile) {
+                        setProfile(cachedProfile);
+                    }
+                    if (cachedMembership) {
+                        setMembership(cachedMembership);
+                    }
+                    setDetailsLoading(true);
+                    loadUserDetails(currentUser);
+                }
+            } else {
+                lastUserId = null;
+                setProfile(null);
+                setMembership(null);
+                setDetailsLoading(false);
+            }
+        };
+
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                handleSession(session);
+            })
+            .catch(() => {
+                if (isMounted) {
                     setLoading(false);
                 }
+            });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event, session) => {
+                handleSession(session);
             }
         );
 
@@ -186,24 +287,39 @@ export default function UserPage() {
         );
     }
 
+    const displayName = profile?.nickname
+        || user.user_metadata?.nickname
+        || '命理爱好者';
+    const membershipLabel = membership?.type
+        ? membershipLabels[membership.type]
+        : membershipLabels.free;
+    const showAiChatCount = membership?.type === 'free'
+        && membership.aiChatCount !== undefined
+        && !detailsLoading;
+
     // 已登录状态
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
             {/* 用户信息卡片 */}
             <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-6 border border-accent/20 mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
-                        <User className="w-8 h-8 text-accent" />
+                    <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden">
+                        {profile?.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={profile.avatar_url} alt="用户头像" className="w-full h-full object-cover" />
+                        ) : (
+                            <User className="w-8 h-8 text-accent" />
+                        )}
                     </div>
                     <div className="flex-1">
-                        <h1 className="text-xl font-bold">{profile?.nickname || '命理爱好者'}</h1>
+                        <h1 className="text-xl font-bold">{displayName}</h1>
                         <p className="text-sm text-foreground-secondary mb-1">{user.email}</p>
                         <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs">
                                 <Crown className="w-3 h-3" />
-                                {membershipLabels[membership?.type || 'free']}
+                                {membershipLabel}
                             </span>
-                            {membership?.type === 'free' && membership.aiChatCount !== undefined && (
+                            {showAiChatCount && (
                                 <span className="text-xs text-foreground-secondary">
                                     剩余 {membership.aiChatCount} 次AI对话
                                 </span>
@@ -235,7 +351,7 @@ export default function UserPage() {
                         {section.items.map((item, itemIndex) => {
                             const Icon = item.icon;
                             return (
-                                <a
+                                <Link
                                     key={itemIndex}
                                     href={item.href}
                                     className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors border-b border-border last:border-b-0"
@@ -252,7 +368,7 @@ export default function UserPage() {
                                         )}
                                         <ChevronRight className="w-4 h-4 text-foreground-secondary" />
                                     </div>
-                                </a>
+                                </Link>
                             );
                         })}
                     </div>
