@@ -14,7 +14,7 @@ export function ChatMessageList({
     isLoading: boolean;
     quickQuestions: string[];
     onQuickQuestion: (question: string) => void;
-    messagesEndRef: React.RefObject<HTMLDivElement>;
+    messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
     if (messages.length === 0) {
         return (

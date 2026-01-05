@@ -27,7 +27,7 @@ export default function ChatPage() {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [personality, setPersonality] = useState<AIPersonality>('master');
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
     // 滚动到最新消息
     const scrollToBottom = () => {
