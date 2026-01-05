@@ -8,7 +8,7 @@
  * - 也可以在客户端使用，lunar-javascript 支持浏览器环境
  */
 
-import { Solar, Lunar, EightChar } from 'lunar-javascript';
+import { Solar, Lunar, DaYun, LiuNian } from 'lunar-javascript';
 import type {
     BaziFormData,
     BaziChart,
@@ -24,7 +24,7 @@ import type {
 // ===== 常量定义 =====
 
 /** 天干五行对应表 */
-const STEM_ELEMENTS: Record<HeavenlyStem, FiveElement> = {
+export const STEM_ELEMENTS: Record<HeavenlyStem, FiveElement> = {
     '甲': '木', '乙': '木',
     '丙': '火', '丁': '火',
     '戊': '土', '己': '土',
@@ -33,13 +33,27 @@ const STEM_ELEMENTS: Record<HeavenlyStem, FiveElement> = {
 };
 
 /** 地支五行对应表 */
-const BRANCH_ELEMENTS: Record<EarthlyBranch, FiveElement> = {
+export const BRANCH_ELEMENTS: Record<EarthlyBranch, FiveElement> = {
     '寅': '木', '卯': '木',
     '巳': '火', '午': '火',
     '辰': '土', '戌': '土', '丑': '土', '未': '土',
     '申': '金', '酉': '金',
     '亥': '水', '子': '水',
 };
+
+/**
+ * 获取天干的五行
+ */
+export function getStemElement(stem: string): FiveElement | null {
+    return STEM_ELEMENTS[stem as HeavenlyStem] || null;
+}
+
+/**
+ * 获取地支的五行
+ */
+export function getBranchElement(branch: string): FiveElement | null {
+    return BRANCH_ELEMENTS[branch as EarthlyBranch] || null;
+}
 
 /** 地支藏干表 */
 const HIDDEN_STEMS: Record<EarthlyBranch, HeavenlyStem[]> = {
@@ -298,4 +312,242 @@ export function getDayMasterDescription(dayMaster: HeavenlyStem): string {
         '癸': '如雨露甘霖，细腻敏感，善解人意，富有同情心',
     };
     return descriptions[dayMaster];
+}
+
+// ===== 专业排盘相关类型 =====
+
+export interface DaYunInfo {
+    startYear: number;
+    startAge: number;
+    ganZhi: string;
+    gan: string;
+    zhi: string;
+    liuNian: LiuNianInfo[];  // 该大运内的流年
+}
+
+export interface LiuNianInfo {
+    year: number;
+    age: number;
+    ganZhi: string;
+    gan: string;
+    zhi: string;
+}
+
+export interface LiuYueInfo {
+    month: number;  // 1-12月
+    ganZhi: string;
+    jieQi: string;  // 节气名
+}
+
+export interface ProfessionalBaziData {
+    // 纳音
+    naYin: {
+        year: string;
+        month: string;
+        day: string;
+        hour: string;
+    };
+    // 十二长生
+    diShi: {
+        year: string;
+        month: string;
+        day: string;
+        hour: string;
+    };
+    // 十神（天干）
+    shiShenGan: {
+        year: string;
+        month: string;
+        hour: string;
+    };
+    // 十神（地支藏干）
+    shiShenZhi: {
+        year: string[];
+        month: string[];
+        day: string[];
+        hour: string[];
+    };
+    // 大运列表（每个大运包含其流年）
+    daYun: DaYunInfo[];
+    // 当前大运索引
+    currentDaYunIndex: number;
+    // 起运年龄（精确到年月日）
+    startAge: number;
+    // 精确起运描述（如：8年5月3天）
+    startAgeDetail: string;
+}
+
+/**
+ * 计算专业排盘数据
+ */
+export function calculateProfessionalData(
+    formData: BaziFormData,
+    currentYear: number = new Date().getFullYear()
+): ProfessionalBaziData {
+    const solar = Solar.fromYmdHms(
+        formData.birthYear,
+        formData.birthMonth,
+        formData.birthDay,
+        formData.birthHour,
+        formData.birthMinute,
+        0
+    );
+
+    let lunar: Lunar;
+    if (formData.calendarType === 'lunar') {
+        lunar = Lunar.fromYmd(formData.birthYear, formData.birthMonth, formData.birthDay);
+    } else {
+        lunar = solar.getLunar();
+    }
+
+    const eightChar = lunar.getEightChar();
+    const gender = formData.gender === 'male' ? 1 : 0;
+
+    const yun = eightChar.getYun(gender);
+    const daYunList = yun.getDaYun();
+
+    // 纳音
+    const naYin = {
+        year: eightChar.getYearNaYin(),
+        month: eightChar.getMonthNaYin(),
+        day: eightChar.getDayNaYin(),
+        hour: eightChar.getTimeNaYin(),
+    };
+
+    // 十二长生
+    const diShi = {
+        year: eightChar.getYearDiShi(),
+        month: eightChar.getMonthDiShi(),
+        day: eightChar.getDayDiShi(),
+        hour: eightChar.getTimeDiShi(),
+    };
+
+    // 十神（天干）
+    const shiShenGan = {
+        year: eightChar.getYearShiShenGan(),
+        month: eightChar.getMonthShiShenGan(),
+        hour: eightChar.getTimeShiShenGan(),
+    };
+
+    // 十神（地支藏干）
+    const shiShenZhi = {
+        year: eightChar.getYearShiShenZhi() || [],
+        month: eightChar.getMonthShiShenZhi() || [],
+        day: eightChar.getDayShiShenZhi() || [],
+        hour: eightChar.getTimeShiShenZhi() || [],
+    };
+
+    // 处理大运数据 - 每个大运包含其流年
+    const daYun: DaYunInfo[] = daYunList.slice(0, 10).map((dy: DaYun) => {
+        const ganZhi = dy.getGanZhi();
+        const liuNianList = dy.getLiuNian();
+
+        return {
+            startYear: dy.getStartYear(),
+            startAge: dy.getStartAge(),
+            ganZhi: ganZhi || '',
+            gan: ganZhi ? ganZhi[0] : '',
+            zhi: ganZhi ? ganZhi[1] : '',
+            liuNian: liuNianList.map((ln: LiuNian) => ({
+                year: ln.getYear(),
+                age: ln.getAge(),
+                ganZhi: ln.getGanZhi(),
+                gan: ln.getGanZhi()[0],
+                zhi: ln.getGanZhi()[1],
+            })),
+        };
+    }).filter((d: DaYunInfo) => d.ganZhi); // 过滤掉空的大运
+
+    // 找到当前所在大运
+    let currentDaYunIndex = daYun.findIndex((dy, index) => {
+        const nextDy = daYun[index + 1];
+        if (!nextDy) return dy.startYear <= currentYear;
+        return dy.startYear <= currentYear && currentYear < nextDy.startYear;
+    });
+    if (currentDaYunIndex < 0) currentDaYunIndex = 0;
+
+    // 计算精确起运时间
+    let startAgeDetail = yun.getStartYear() + '岁起运';
+    try {
+        const startSolar = yun.getStartSolar();
+        if (startSolar) {
+            const birthDate = new Date(
+                formData.birthYear,
+                formData.birthMonth - 1,
+                formData.birthDay,
+                formData.birthHour,
+                formData.birthMinute
+            );
+            const qiyunDate = new Date(
+                startSolar.getYear(),
+                startSolar.getMonth() - 1,
+                startSolar.getDay(),
+                startSolar.getHour(),
+                startSolar.getMinute()
+            );
+            const diffDays = Math.floor((qiyunDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+            const years = Math.floor(diffDays / 365);
+            const remainingDays = diffDays % 365;
+            const months = Math.floor(remainingDays / 30);
+            const days = remainingDays % 30;
+            startAgeDetail = `${years}年${months}月${days}天起运`;
+        }
+    } catch (e) {
+        // 无法获取精确时间，使用默认
+    }
+
+    return {
+        naYin,
+        diShi,
+        shiShenGan,
+        shiShenZhi,
+        daYun,
+        currentDaYunIndex,
+        startAge: yun.getStartYear(),
+        startAgeDetail,
+    };
+}
+
+/**
+ * 计算流月
+ * 注意：立春在2月，对应寅月（正月）
+ * 节气顺序：立春(寅月)->惊蛰(卯月)->清明(辰月)->立夏(巳月)->芒种(午月)->小暑(未月)
+ *          ->立秋(申月)->白露(酉月)->寒露(戌月)->立冬(亥月)->大雪(子月)->小寒(丑月)
+ */
+export function calculateLiuYue(year: number): LiuYueInfo[] {
+    // 节气对应的公历月份和月干支
+    const jieQiConfig = [
+        { month: 2, jieQi: '立春' },   // 寅月
+        { month: 3, jieQi: '惊蛰' },   // 卯月
+        { month: 4, jieQi: '清明' },   // 辰月
+        { month: 5, jieQi: '立夏' },   // 巳月
+        { month: 6, jieQi: '芒种' },   // 午月
+        { month: 7, jieQi: '小暑' },   // 未月
+        { month: 8, jieQi: '立秋' },   // 申月
+        { month: 9, jieQi: '白露' },   // 酉月
+        { month: 10, jieQi: '寒露' },  // 戌月
+        { month: 11, jieQi: '立冬' },  // 亥月
+        { month: 12, jieQi: '大雪' },  // 子月
+        { month: 1, jieQi: '小寒' },   // 丑月（下一年1月）
+    ];
+
+    const liuYue: LiuYueInfo[] = [];
+
+    for (let i = 0; i < 12; i++) {
+        const config = jieQiConfig[i];
+        // 小寒在下一年1月才算该年最后一个月
+        const targetYear = config.month === 1 ? year + 1 : year;
+
+        // 使用每月中旬来获取准确的月干支
+        const monthSolar = Solar.fromYmd(targetYear, config.month, 15);
+        const monthLunar = monthSolar.getLunar();
+
+        liuYue.push({
+            month: i + 1,  // 1-12月（正月到腊月）
+            ganZhi: monthLunar.getMonthInGanZhiExact(),
+            jieQi: config.jieQi,
+        });
+    }
+
+    return liuYue;
 }

@@ -6,21 +6,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     User,
     CreditCard,
     Settings,
     ChevronRight,
     LogOut,
-    Moon,
-    Sun,
     Crown,
     History,
     FileText,
     Loader2,
     LogIn
 } from 'lucide-react';
-import { useTheme } from '@/components/ui/ThemeProvider';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { PricingModal } from '@/components/membership/PricingModal';
 import { PaymentModal } from '@/components/membership/PaymentModal';
@@ -56,7 +54,7 @@ const membershipLabels: Record<string, string> = {
 };
 
 export default function UserPage() {
-    const { theme, toggleTheme } = useTheme();
+    const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profile, setProfile] = useState<{
         nickname: string | null;
@@ -117,11 +115,24 @@ export default function UserPage() {
         };
     }, []);
 
+    // 退出登录状态
+    const [signingOut, setSigningOut] = useState(false);
+
     const handleSignOut = async () => {
-        await signOut();
-        setUser(null);
-        setProfile(null);
-        setMembership(null);
+        if (signingOut) return; // 防止重复点击
+
+        setSigningOut(true);
+        try {
+            await signOut();
+            setUser(null);
+            setProfile(null);
+            setMembership(null);
+            router.refresh(); // 强制刷新页面状态
+        } catch (error) {
+            console.error('Sign out error:', error);
+        } finally {
+            setSigningOut(false);
+        }
     };
 
     const handleSelectPlan = (plan: PricingPlan) => {
@@ -251,10 +262,15 @@ export default function UserPage() {
             {/* 退出登录 */}
             <button
                 onClick={handleSignOut}
-                className="w-full py-3 rounded-xl border border-border text-foreground-secondary hover:border-red-500 hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                disabled={signingOut}
+                className="w-full py-3 rounded-xl border border-border text-foreground-secondary hover:border-red-500 hover:text-red-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <LogOut className="w-4 h-4" />
-                退出登录
+                {signingOut ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <LogOut className="w-4 h-4" />
+                )}
+                {signingOut ? '正在退出...' : '退出登录'}
             </button>
 
             {/* 版本信息 */}

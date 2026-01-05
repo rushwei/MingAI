@@ -7,8 +7,8 @@
  */
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Calendar,
     Clock,
@@ -16,7 +16,8 @@ import {
     MapPin,
     Sparkles,
     ArrowRight,
-    Info
+    Info,
+    Loader2
 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 
@@ -46,11 +47,13 @@ const hours = [
     { value: 21, name: '亥时', time: '21:00-23:00' },
 ];
 
-export default function BaziPage() {
+function BaziPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [unknownTime, setUnknownTime] = useState(false); // 不确定出生时间
 
-    // 表单状态
+    // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
     const [formData, setFormData] = useState<Partial<BaziFormData>>({
         name: '',
         gender: 'male',
@@ -63,6 +66,34 @@ export default function BaziPage() {
         birthPlace: '',
     });
 
+    // 从 URL 参数预填充表单
+    useEffect(() => {
+        const name = searchParams.get('name');
+        const gender = searchParams.get('gender') as Gender;
+        const year = searchParams.get('year');
+        const month = searchParams.get('month');
+        const day = searchParams.get('day');
+        const hour = searchParams.get('hour');
+        const minute = searchParams.get('minute');
+        const calendar = searchParams.get('calendar') as CalendarType;
+        const place = searchParams.get('place');
+
+        // 如果有 URL 参数，则预填充
+        if (name || year) {
+            setFormData({
+                name: name || '',
+                gender: gender || 'male',
+                birthYear: year ? Number(year) : 1990,
+                birthMonth: month ? Number(month) : 1,
+                birthDay: day ? Number(day) : 1,
+                birthHour: hour ? Number(hour) : 12,
+                birthMinute: minute ? Number(minute) : 0,
+                calendarType: calendar || 'solar',
+                birthPlace: place || '',
+            });
+        }
+    }, [searchParams]);
+
     // 更新表单字段
     const updateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -74,15 +105,13 @@ export default function BaziPage() {
         setIsSubmitting(true);
 
         try {
-            // 将表单数据通过 URL 参数传递到结果页面
-            // 实际项目中应该保存到数据库并返回 ID
             const params = new URLSearchParams();
             params.set('name', formData.name || '');
             params.set('gender', formData.gender || 'male');
             params.set('year', String(formData.birthYear));
             params.set('month', String(formData.birthMonth));
             params.set('day', String(formData.birthDay));
-            params.set('hour', String(formData.birthHour));
+            params.set('hour', unknownTime ? '-1' : String(formData.birthHour)); // -1 表示未知
             params.set('minute', String(formData.birthMinute || 0));
             params.set('calendar', formData.calendarType || 'solar');
             params.set('place', formData.birthPlace || '');
@@ -254,31 +283,57 @@ export default function BaziPage() {
                         出生时辰
                     </h2>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {hours.map(({ value, name, time }) => (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => updateField('birthHour', value)}
-                                className={`
-                  py-2 px-3 rounded-lg border text-sm transition-all duration-200
-                  flex flex-col items-center
-                  ${formData.birthHour === value
-                                        ? 'bg-accent/10 border-accent text-accent'
-                                        : 'bg-background border-border hover:border-accent/50'
-                                    }
-                `}
-                            >
-                                <span className="font-medium">{name}</span>
-                                <span className="text-xs opacity-70">({time})</span>
-                            </button>
-                        ))}
+                    {/* 不确定时间按钮 */}
+                    <div className="mb-4">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setUnknownTime(!unknownTime);
+                            }}
+                            className={`
+                                w-full py-3 px-4 rounded-lg border text-sm transition-all duration-200
+                                ${unknownTime
+                                    ? 'bg-amber-500/10 border-amber-500 text-amber-600'
+                                    : 'bg-background border-border hover:border-accent/50'
+                                }
+                            `}
+                        >
+                            {unknownTime ? '✓ 已标记为不确定时辰' : '🤔 不确定出生时辰？'}
+                        </button>
                     </div>
+
+                    {/* 时辰选择 - 不确定时隐藏 */}
+                    {!unknownTime && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {hours.map(({ value, name, time }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => updateField('birthHour', value)}
+                                    className={`
+                                        py-2 px-3 rounded-lg border text-sm transition-all duration-200
+                                        flex flex-col items-center
+                                        ${formData.birthHour === value
+                                            ? 'bg-accent/10 border-accent text-accent'
+                                            : 'bg-background border-border hover:border-accent/50'
+                                        }
+                                    `}
+                                >
+                                    <span className="font-medium">{name}</span>
+                                    <span className="text-xs opacity-70">({time})</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* 提示 */}
                     <div className="mt-4 flex items-start gap-2 text-sm text-foreground-secondary">
                         <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <p>如果不确定具体时辰，可选择最可能的时间范围，系统会进行智能推算</p>
+                        <p>
+                            {unknownTime
+                                ? '时辰将以"*"标注，部分需要精确时辰的功能可能受限'
+                                : '如果不确定具体时辰，点击上方按钮标记'}
+                        </p>
                     </div>
                 </div>
 
@@ -339,5 +394,19 @@ export default function BaziPage() {
                 </p>
             </form>
         </div>
+    );
+}
+
+// 主导出组件 - 使用 Suspense 包装
+export default function BaziPage() {
+    return (
+        <Suspense fallback={
+            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            </div>
+        }>
+            <BaziPageContent />
+        </Suspense>
     );
 }

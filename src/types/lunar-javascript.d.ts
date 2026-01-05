@@ -91,6 +91,11 @@ declare module 'lunar-javascript' {
          * 获取农历日
          */
         getDay(): number;
+
+        /**
+         * 获取月干支（精确到节气）
+         */
+        getMonthInGanZhiExact(): string;
     }
 
     /**
@@ -156,5 +161,72 @@ declare module 'lunar-javascript' {
          * 获取时柱
          */
         getTime(): string;
+
+        // ===== 纳音 =====
+        getYearNaYin(): string;
+        getMonthNaYin(): string;
+        getDayNaYin(): string;
+        getTimeNaYin(): string;
+
+        // ===== 十二长生 =====
+        getYearDiShi(): string;
+        getMonthDiShi(): string;
+        getDayDiShi(): string;
+        getTimeDiShi(): string;
+
+        // ===== 十神（天干） =====
+        getYearShiShenGan(): string;
+        getMonthShiShenGan(): string;
+        getTimeShiShenGan(): string;
+
+        // ===== 十神（地支藏干） =====
+        getYearShiShenZhi(): string[];
+        getMonthShiShenZhi(): string[];
+        getDayShiShenZhi(): string[];
+        getTimeShiShenZhi(): string[];
+
+        // ===== 大运 =====
+        getYun(gender: number): Yun;
+    }
+
+    /**
+     * 运类
+     */
+    export class Yun {
+        /**
+         * 获取起运年龄
+         */
+        getStartYear(): number;
+
+        /**
+         * 获取精确起运时间
+         */
+        getStartSolar(): Solar;
+
+        /**
+         * 获取大运列表
+         */
+        getDaYun(): DaYun[];
+    }
+
+    /**
+     * 大运类
+     */
+    export class DaYun {
+        getStartYear(): number;
+        getStartAge(): number;
+        getGanZhi(): string;
+        getGan(): string;
+        getZhi(): string;
+        getLiuNian(): LiuNian[];
+    }
+
+    /**
+     * 流年类
+     */
+    export class LiuNian {
+        getYear(): number;
+        getAge(): number;
+        getGanZhi(): string;
     }
 }
