@@ -7,7 +7,7 @@ export function AvatarSection({
     onAvatarClick,
     onAvatarChange,
 }: {
-    fileInputRef: React.RefObject<HTMLInputElement>;
+    fileInputRef: React.RefObject<HTMLInputElement | null>;
     avatarUrl: string | null;
     uploadingAvatar: boolean;
     onAvatarClick: () => void;
