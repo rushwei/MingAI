@@ -13,7 +13,8 @@ import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import {
     Sparkles,
     Loader2,
-    LogIn
+    LogIn,
+    Orbit
 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
@@ -263,9 +264,9 @@ function BaziPageContent() {
             {/* 页面标题 */}
             <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-                    <Sparkles className="w-8 h-8 text-accent" />
+                    <Orbit className="w-8 h-8 text-accent" />
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-bold mb-2">AI 八字精批</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold mb-2">八字排盘</h1>
                 <p className="text-foreground-secondary">
                     请填写您的出生信息，我们将为您生成专业的八字命盘分析
                 </p>

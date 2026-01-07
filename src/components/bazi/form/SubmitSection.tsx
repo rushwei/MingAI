@@ -26,7 +26,7 @@ export function SubmitSection({ isSubmitting }: { isSubmitting: boolean }) {
                     </>
                 ) : (
                     <>
-                        开始八字精批
+                        排盘
                         <ArrowRight className="w-5 h-5" />
                     </>
                 )}

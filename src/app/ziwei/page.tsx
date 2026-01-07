@@ -7,7 +7,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Star, Loader2 } from 'lucide-react';
+import { Star, Loader2, Sparkles } from 'lucide-react';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
@@ -202,7 +202,7 @@ function ZiweiPageContent() {
             {/* 页面标题 */}
             <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-                    <Star className="w-8 h-8 text-accent" />
+                    <Sparkles className="w-8 h-8 text-accent" />
                 </div>
                 <h1 className="text-2xl lg:text-3xl font-bold mb-2">紫微斗数排盘</h1>
                 <p className="text-foreground-secondary">

@@ -36,7 +36,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 const navItems = [
     {
         href: '/bazi',
-        label: '八字命理',
+        label: '八字',
         icon: Orbit,
         available: true,
         emoji: '🔮',

@@ -70,23 +70,24 @@ export function ChatComposer({
                                     <button
                                         type="button"
                                         onClick={() => onSelectChart('bazi')}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${hasBazi
-                                            ? 'bg-orange-500/10 text-orange-600'
-                                            : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${isDisabled
+                                                ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
+                                                : hasBazi
+                                                    ? 'bg-orange-500/10 text-orange-600'
+                                                    : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
                                             }`}
-                                        title="选择八字命盘"
+                                        title={isDisabled ? "请充值后使用" : "选择八字命盘"}
                                         disabled={isDisabled}
                                     >
                                         <Orbit className="w-4.5 h-4.5" />
                                         <span className="max-w-[50px] truncate">{hasBazi?.name || '八字'}</span>
                                     </button>
-                                    {hasBazi && (
+                                    {hasBazi && !isDisabled && (
                                         <button
                                             type="button"
                                             onClick={() => onClearChart?.('bazi')}
                                             className="p-1.5 rounded-lg hover:bg-orange-500/10 text-orange-600"
                                             title="清除八字命盘"
-                                            disabled={isDisabled}
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
@@ -103,23 +104,24 @@ export function ChatComposer({
                                     <button
                                         type="button"
                                         onClick={() => onSelectChart('ziwei')}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${hasZiwei
-                                            ? 'bg-purple-500/10 text-purple-600'
-                                            : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${isDisabled
+                                                ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
+                                                : hasZiwei
+                                                    ? 'bg-purple-500/10 text-purple-600'
+                                                    : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
                                             }`}
-                                        title="选择紫微命盘"
+                                        title={isDisabled ? "请充值后使用" : "选择紫微命盘"}
                                         disabled={isDisabled}
                                     >
                                         <Sparkles className="w-4.5 h-4.5" />
                                         <span className="max-w-[50px] truncate">{hasZiwei?.name || '紫微'}</span>
                                     </button>
-                                    {hasZiwei && (
+                                    {hasZiwei && !isDisabled && (
                                         <button
                                             type="button"
                                             onClick={() => onClearChart?.('ziwei')}
                                             className="p-1.5 rounded-lg hover:bg-purple-500/10 text-purple-600"
                                             title="清除紫微命盘"
-                                            disabled={isDisabled}
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
