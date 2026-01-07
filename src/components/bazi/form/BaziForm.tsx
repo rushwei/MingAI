@@ -4,7 +4,7 @@ import { BirthDateSection } from './BirthDateSection';
 import { BirthTimeSection } from './BirthTimeSection';
 import { BirthPlaceSection } from './BirthPlaceSection';
 import { SubmitSection } from './SubmitSection';
-import { DAY_OPTIONS, HOUR_OPTIONS, MONTH_OPTIONS, YEAR_OPTIONS } from './options';
+import { HOUR_OPTIONS, MONTH_OPTIONS, YEAR_OPTIONS } from './options';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 
@@ -14,6 +14,7 @@ export function BaziForm({
     unknownTime,
     onToggleUnknownTime,
     onSubmit,
+    onSetToday,
     isSubmitting,
 }: {
     formData: BaziFormData;
@@ -21,6 +22,7 @@ export function BaziForm({
     unknownTime: boolean;
     onToggleUnknownTime: () => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+    onSetToday: () => void;
     isSubmitting: boolean;
 }) {
     return (
@@ -31,7 +33,7 @@ export function BaziForm({
                 onUpdate={onUpdate}
                 years={YEAR_OPTIONS}
                 months={MONTH_OPTIONS}
-                days={DAY_OPTIONS}
+                onSetToday={onSetToday}
             />
             <BirthTimeSection
                 formData={formData}

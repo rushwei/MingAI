@@ -7,15 +7,20 @@
  */
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import {
     Sparkles,
-    Loader2
+    Loader2,
+    LogIn
 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -35,22 +40,30 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
     const minute = searchParams.get('minute');
     const calendar = searchParams.get('calendar') as CalendarType | null;
     const place = searchParams.get('place');
+    const leap = searchParams.get('leap');
 
     if (!name && !year) {
         return { ...DEFAULT_BAZI_FORM_DATA };
     }
 
     const isUnknownTime = hour === '-1';
+    const birthYear = parseNumber(year, DEFAULT_BAZI_FORM_DATA.birthYear);
+    const birthMonth = parseNumber(month, DEFAULT_BAZI_FORM_DATA.birthMonth);
+    const isLeapRequested = calendar === 'lunar' && leap === '1';
+    const leapMonthOfYear = calendar === 'lunar'
+        ? LunarYear.fromYear(birthYear).getLeapMonth()
+        : 0;
 
     return {
         name: name || '',
         gender: gender === 'female' ? 'female' : 'male',
-        birthYear: parseNumber(year, DEFAULT_BAZI_FORM_DATA.birthYear),
-        birthMonth: parseNumber(month, DEFAULT_BAZI_FORM_DATA.birthMonth),
+        birthYear,
+        birthMonth,
         birthDay: parseNumber(day, DEFAULT_BAZI_FORM_DATA.birthDay),
         birthHour: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthHour : parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
         birthMinute: parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
         calendarType: calendar === 'lunar' ? 'lunar' : 'solar',
+        isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
         birthPlace: place || '',
     };
 };
@@ -59,19 +72,168 @@ function BaziPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [unknownTime, setUnknownTime] = useState(() => searchParams.get('hour') === '-1'); // 不确定出生时间
+    const [unknownTime, setUnknownTime] = useState(() => {
+        const hourParam = searchParams.get('hour');
+        return hourParam === null || hourParam === '-1';
+    });
+    const [user, setUser] = useState<User | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
+
+    // 检查登录状态
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
+            setAuthChecked(true);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_, session) => setUser(session?.user ?? null)
+        );
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
     const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
 
-    // 更新表单字段
+    const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
+        if (calendarType === 'lunar') {
+            try {
+                const lunarMonth = isLeapMonth ? -Math.abs(month) : month;
+                return LunarMonth.fromYm(year, lunarMonth).getDayCount();
+            } catch {
+                return 30;
+            }
+        }
+        return new Date(year, month, 0).getDate();
+    };
+
+    const clampDay = (calendarType: CalendarType, year: number, month: number, day: number, isLeapMonth?: boolean) => {
+        const maxDay = getDayCount(calendarType, year, month, isLeapMonth);
+        if (day < 1) return 1;
+        if (day > maxDay) return maxDay;
+        return day;
+    };
+
+    // 更新表单字段（含历法切换与日期校准）
     const updateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'calendarType') {
+            setFormData(prev => {
+                if (value === prev.calendarType) return prev;
+
+                if (value === 'lunar') {
+                    const solar = Solar.fromYmdHms(
+                        prev.birthYear,
+                        prev.birthMonth,
+                        prev.birthDay,
+                        prev.birthHour,
+                        prev.birthMinute,
+                        0
+                    );
+                    const lunar = solar.getLunar();
+                    const lunarMonth = Math.abs(lunar.getMonth());
+                    const isLeapMonth = lunar.getMonth() < 0;
+                    const lunarDay = clampDay('lunar', lunar.getYear(), lunarMonth, lunar.getDay(), isLeapMonth);
+                    return {
+                        ...prev,
+                        calendarType: 'lunar',
+                        birthYear: lunar.getYear(),
+                        birthMonth: lunarMonth,
+                        birthDay: lunarDay,
+                        isLeapMonth,
+                    };
+                }
+
+                const lunar = Lunar.fromYmdHms(
+                    prev.birthYear,
+                    prev.isLeapMonth ? -Math.abs(prev.birthMonth) : prev.birthMonth,
+                    clampDay('lunar', prev.birthYear, prev.birthMonth, prev.birthDay, prev.isLeapMonth),
+                    prev.birthHour,
+                    prev.birthMinute,
+                    0
+                );
+                const solar = lunar.getSolar();
+                return {
+                    ...prev,
+                    calendarType: 'solar',
+                    birthYear: solar.getYear(),
+                    birthMonth: solar.getMonth(),
+                    birthDay: clampDay('solar', solar.getYear(), solar.getMonth(), solar.getDay()),
+                    isLeapMonth: false,
+                };
+            });
+            return;
+        }
+
+        setFormData(prev => {
+            const next = { ...prev, [field]: value };
+
+            if ((field === 'birthYear' || field === 'birthMonth' || field === 'isLeapMonth') && prev.calendarType) {
+                next.birthDay = clampDay(
+                    prev.calendarType,
+                    field === 'birthYear' ? (value as number) : next.birthYear,
+                    field === 'birthMonth' ? (value as number) : next.birthMonth,
+                    next.birthDay,
+                    field === 'isLeapMonth' ? (value as boolean) : next.isLeapMonth
+                );
+            }
+
+            if (next.calendarType === 'lunar') {
+                const leapMonth = LunarYear.fromYear(next.birthYear).getLeapMonth();
+                if (next.isLeapMonth && leapMonth !== next.birthMonth) {
+                    next.isLeapMonth = false;
+                }
+            } else {
+                next.isLeapMonth = false;
+            }
+
+            return next;
+        });
+    };
+
+    // 设置今天
+    const handleSetToday = () => {
+        const today = new Date();
+        if (formData.calendarType === 'solar') {
+            setFormData(prev => ({
+                ...prev,
+                birthYear: today.getFullYear(),
+                birthMonth: today.getMonth() + 1,
+                birthDay: today.getDate(),
+            }));
+        } else {
+            const solar = Solar.fromYmdHms(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                today.getDate(),
+                today.getHours(),
+                today.getMinutes(),
+                0
+            );
+            const lunar = solar.getLunar();
+            const lunarMonth = Math.abs(lunar.getMonth());
+            const isLeapMonth = lunar.getMonth() < 0;
+            setFormData(prev => ({
+                ...prev,
+                birthYear: lunar.getYear(),
+                birthMonth: lunarMonth,
+                birthDay: lunar.getDay(),
+                isLeapMonth,
+            }));
+        }
     };
 
     // 提交表单
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 检查登录状态
+        if (!user) {
+            setShowAuthModal(true);
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -84,6 +246,9 @@ function BaziPageContent() {
             params.set('hour', unknownTime ? '-1' : String(formData.birthHour)); // -1 表示未知
             params.set('minute', String(formData.birthMinute || 0));
             params.set('calendar', formData.calendarType || 'solar');
+            if (formData.calendarType === 'lunar') {
+                params.set('leap', formData.isLeapMonth ? '1' : '0');
+            }
             params.set('place', formData.birthPlace || '');
 
             router.push(`/bazi/result?${params.toString()}`);
@@ -106,13 +271,37 @@ function BaziPageContent() {
                 </p>
             </div>
 
+            {/* 未登录提示 */}
+            {authChecked && !user && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                    <LogIn className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                    <div className="flex-1">
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                            您当前未登录，提交排盘时需要先登录账号
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setShowAuthModal(true)}
+                        className="px-4 py-1.5 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                    >
+                        登录
+                    </button>
+                </div>
+            )}
+
             <BaziForm
                 formData={formData}
                 onUpdate={updateField}
                 unknownTime={unknownTime}
                 onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
                 onSubmit={handleSubmit}
+                onSetToday={handleSetToday}
                 isSubmitting={isSubmitting}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
             />
         </div>
     );

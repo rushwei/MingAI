@@ -62,6 +62,8 @@ export type Database = {
                     birth_date: string;
                     birth_time: string | null;
                     birth_place: string | null;
+                    calendar_type: string | null;
+                    is_leap_month: boolean | null;
                     chart_data: Record<string, unknown> | null;
                     created_at: string;
                 };
@@ -73,6 +75,8 @@ export type Database = {
                     birth_date: string;
                     birth_time?: string | null;
                     birth_place?: string | null;
+                    calendar_type?: string | null;
+                    is_leap_month?: boolean | null;
                     chart_data?: Record<string, unknown> | null;
                 };
                 Update: {
@@ -81,7 +85,76 @@ export type Database = {
                     birth_date?: string;
                     birth_time?: string | null;
                     birth_place?: string | null;
+                    calendar_type?: string | null;
+                    is_leap_month?: boolean | null;
                     chart_data?: Record<string, unknown> | null;
+                };
+            };
+            ziwei_charts: {
+                Row: {
+                    id: string;
+                    user_id: string | null;
+                    name: string;
+                    gender: 'male' | 'female' | null;
+                    birth_date: string;
+                    birth_time: string | null;
+                    birth_place: string | null;
+                    calendar_type: string | null;
+                    is_leap_month: boolean | null;
+                    chart_data: Record<string, unknown> | null;
+                    created_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id?: string | null;
+                    name: string;
+                    gender?: 'male' | 'female' | null;
+                    birth_date: string;
+                    birth_time?: string | null;
+                    birth_place?: string | null;
+                    calendar_type?: string | null;
+                    is_leap_month?: boolean | null;
+                    chart_data?: Record<string, unknown> | null;
+                };
+                Update: {
+                    name?: string;
+                    gender?: 'male' | 'female' | null;
+                    birth_date?: string;
+                    birth_time?: string | null;
+                    birth_place?: string | null;
+                    calendar_type?: string | null;
+                    is_leap_month?: boolean | null;
+                    chart_data?: Record<string, unknown> | null;
+                };
+            };
+            conversations: {
+                Row: {
+                    id: string;
+                    user_id: string | null;
+                    bazi_chart_id: string | null;
+                    ziwei_chart_id: string | null;
+                    personality: string | null;
+                    title: string | null;
+                    messages: Record<string, unknown>[] | null;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id?: string | null;
+                    bazi_chart_id?: string | null;
+                    ziwei_chart_id?: string | null;
+                    personality?: string | null;
+                    title?: string | null;
+                    messages?: Record<string, unknown>[] | null;
+                };
+                Update: {
+                    bazi_chart_id?: string | null;
+                    ziwei_chart_id?: string | null;
+                    personality?: string | null;
+                    title?: string | null;
+                    messages?: Record<string, unknown>[] | null;
+                    updated_at?: string;
                 };
             };
             orders: {

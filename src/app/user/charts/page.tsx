@@ -13,7 +13,8 @@ import {
     Loader2,
     Orbit,
     User as UserIcon,
-    Calendar
+    Calendar,
+    Star
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -27,12 +28,26 @@ interface BaziChart {
     created_at: string;
 }
 
+interface ZiweiChart {
+    id: string;
+    name: string;
+    gender: 'male' | 'female' | null;
+    birth_date: string;
+    birth_time: string | null;
+    birth_place: string | null;
+    calendar_type: string | null;
+    created_at: string;
+}
+
 export default function ChartsPage() {
     const router = useRouter();
-    const [charts, setCharts] = useState<BaziChart[]>([]);
+    // useState 保存命盘列表与加载/删除状态，驱动页面交互反馈。
+    const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
+    const [ziweiCharts, setZiweiCharts] = useState<ZiweiChart[]>([]);
     const [loading, setLoading] = useState(true);
-    const [deleting, setDeleting] = useState<string | null>(null);
+    const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
+    // useCallback 让获取命盘函数稳定，避免 useEffect 反复触发。
     const fetchCharts = useCallback(async () => {
         // 使用 getSession 从本地缓存读取
         const { data: { session } } = await supabase.auth.getSession();
@@ -42,39 +57,54 @@ export default function ChartsPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('bazi_charts')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false });
+        const [baziResult, ziweiResult] = await Promise.all([
+            supabase
+                .from('bazi_charts')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false }),
+            supabase
+                .from('ziwei_charts')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false }),
+        ]);
 
-        if (!error && data) {
-            setCharts(data);
+        if (!baziResult.error && baziResult.data) {
+            setBaziCharts(baziResult.data);
+        }
+        if (!ziweiResult.error && ziweiResult.data) {
+            setZiweiCharts(ziweiResult.data);
         }
         setLoading(false);
     }, [router]);
 
+    // useEffect 在页面加载时拉取用户命盘列表。
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCharts();
     }, [fetchCharts]);
 
-    const handleDelete = async (chartId: string) => {
-        if (!confirm('确定要删除这个命盘吗？此操作无法撤销。')) {
+    const handleDelete = async (kind: 'bazi' | 'ziwei', chartId: string) => {
+        const label = kind === 'bazi' ? '八字' : '紫微';
+        if (!confirm(`确定要删除这个${label}命盘吗？此操作无法撤销。`)) {
             return;
         }
 
-        setDeleting(chartId);
+        const key = `${kind}:${chartId}`;
+        setDeletingKey(key);
 
-        const { error } = await supabase
-            .from('bazi_charts')
-            .delete()
-            .eq('id', chartId);
+        const tableName = kind === 'bazi' ? 'bazi_charts' : 'ziwei_charts';
+        const { error } = await supabase.from(tableName).delete().eq('id', chartId);
 
         if (!error) {
-            setCharts(charts.filter(c => c.id !== chartId));
+            if (kind === 'bazi') {
+                setBaziCharts((prev) => prev.filter(c => c.id !== chartId));
+            } else {
+                setZiweiCharts((prev) => prev.filter(c => c.id !== chartId));
+            }
         }
-        setDeleting(null);
+        setDeletingKey(null);
     };
 
     const formatDate = (dateStr: string) => {
@@ -108,17 +138,26 @@ export default function ChartsPage() {
                     </button>
                     <h1 className="text-xl font-bold">我的命盘</h1>
                 </div>
-                <button
-                    onClick={() => router.push('/bazi')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                    新建命盘
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => router.push('/bazi')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        新建八字
+                    </button>
+                    <button
+                        onClick={() => router.push('/ziwei')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-foreground-secondary hover:text-foreground hover:border-accent/50 transition-colors"
+                    >
+                        <Star className="w-4 h-4" />
+                        新建紫微
+                    </button>
+                </div>
             </div>
 
             {/* 命盘列表 */}
-            {charts.length === 0 ? (
+            {baziCharts.length === 0 && ziweiCharts.length === 0 ? (
                 <div className="text-center py-16">
                     <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
                         <Orbit className="w-8 h-8 text-accent" />
@@ -133,63 +172,130 @@ export default function ChartsPage() {
                     </button>
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {charts.map((chart) => (
-                        <div
-                            key={chart.id}
-                            className="bg-background-secondary rounded-xl p-4 border border-border"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                                        <Orbit className="w-6 h-6 text-accent" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-lg">{chart.name}</h3>
-                                        <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-1">
-                                            <span className="flex items-center gap-1">
-                                                <UserIcon className="w-3 h-3" />
-                                                {getGenderLabel(chart.gender)}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                {formatDate(chart.birth_date)}
-                                                {chart.birth_time && ` ${chart.birth_time}`}
-                                            </span>
+                <div className="space-y-6">
+                    {baziCharts.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-sm font-medium text-foreground-secondary">八字命盘</h2>
+                            {baziCharts.map((chart) => (
+                                <div
+                                    key={`bazi-${chart.id}`}
+                                    className="bg-background-secondary rounded-xl p-4 border border-border"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                                                <Orbit className="w-6 h-6 text-accent" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg">{chart.name}</h3>
+                                                <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-1">
+                                                    <span className="flex items-center gap-1">
+                                                        <UserIcon className="w-3 h-3" />
+                                                        {getGenderLabel(chart.gender)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(chart.birth_date)}
+                                                        {chart.birth_time && ` ${chart.birth_time}`}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => router.push(`/bazi/result?chart=${chart.id}`)}
+                                                className="p-2 rounded-lg text-accent hover:bg-accent/10 transition-colors"
+                                                title="查看详情"
+                                            >
+                                                <Eye className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete('bazi', chart.id)}
+                                                disabled={deletingKey === `bazi:${chart.id}`}
+                                                className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                                title="删除"
+                                            >
+                                                {deletingKey === `bazi:${chart.id}` ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-5 h-5" />
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => router.push(`/bazi/result?chart=${chart.id}`)}
-                                        className="p-2 rounded-lg text-accent hover:bg-accent/10 transition-colors"
-                                        title="查看详情"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(chart.id)}
-                                        disabled={deleting === chart.id}
-                                        className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                                        title="删除"
-                                    >
-                                        {deleting === chart.id ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <Trash2 className="w-5 h-5" />
-                                        )}
-                                    </button>
+                                    {chart.birth_place && (
+                                        <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
+                                            出生地: {chart.birth_place}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-
-                            {chart.birth_place && (
-                                <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
-                                    出生地: {chart.birth_place}
-                                </div>
-                            )}
+                            ))}
                         </div>
-                    ))}
+                    )}
+
+                    {ziweiCharts.length > 0 && (
+                        <div className="space-y-4">
+                            <h2 className="text-sm font-medium text-foreground-secondary">紫微命盘</h2>
+                            {ziweiCharts.map((chart) => (
+                                <div
+                                    key={`ziwei-${chart.id}`}
+                                    className="bg-background-secondary rounded-xl p-4 border border-border"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                                                <Star className="w-6 h-6 text-accent" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg">{chart.name}</h3>
+                                                <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-1">
+                                                    <span className="flex items-center gap-1">
+                                                        <UserIcon className="w-3 h-3" />
+                                                        {getGenderLabel(chart.gender)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(chart.birth_date)}
+                                                        {chart.birth_time && ` ${chart.birth_time}`}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => router.push(`/ziwei/result?chart=${chart.id}`)}
+                                                className="p-2 rounded-lg text-accent hover:bg-accent/10 transition-colors"
+                                                title="查看详情"
+                                            >
+                                                <Eye className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete('ziwei', chart.id)}
+                                                disabled={deletingKey === `ziwei:${chart.id}`}
+                                                className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                                title="删除"
+                                            >
+                                                {deletingKey === `ziwei:${chart.id}` ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-5 h-5" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {chart.birth_place && (
+                                        <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
+                                            出生地: {chart.birth_place}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

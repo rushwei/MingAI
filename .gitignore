@@ -46,7 +46,11 @@ next-env.d.ts
 .LSOverride
 
 # 配置文件（包含敏感信息）
-docs/一些配置.md
+docs/review
+docs/AGENT_CHANGES.md
 docs/plans
 docs/resource
-docs/deliverables
+
+# AI
+.cluade
+AGENT.md

@@ -50,7 +50,7 @@ const features = [
 // 命理体系
 const systems = [
   { name: "八字命理", emoji: "🔮", available: true, href: "/bazi" },
-  { name: "紫微斗数", emoji: "⭐", available: false },
+  { name: "紫微斗数", emoji: "⭐", available: true, href: "/ziwei" },
   { name: "塔罗占卜", emoji: "🃏", available: false },
   { name: "六爻占卜", emoji: "☯️", available: false },
   { name: "面相分析", emoji: "👤", available: false },
@@ -93,7 +93,7 @@ export default function HomePage() {
             </p>
             <p className="text-lg text-foreground-secondary max-w-2xl mx-auto mb-10">
               将传统命理文化与前沿AI技术深度融合，
-              <br className="hidden sm:block" />
+              {/* <br className="hidden sm:block" /> */}
               为您提供专业、私密、便捷的命理咨询服务
             </p>
 

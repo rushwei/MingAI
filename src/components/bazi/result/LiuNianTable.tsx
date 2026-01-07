@@ -3,12 +3,10 @@ import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 
 export function LiuNianTable({
     liuNian,
-    currentYear,
     selectedYear,
     onSelect,
 }: {
     liuNian: LiuNianInfo[];
-    currentYear: number;
     selectedYear: number;
     onSelect: (year: number) => void;
 }) {
@@ -17,7 +15,6 @@ export function LiuNianTable({
             <div className="flex gap-2 min-w-max pb-2">
                 {liuNian.map((ln, index) => {
                     const isSelected = selectedYear === ln.year;
-                    const isCurrent = ln.year === currentYear;
                     const ganElement = getStemElement(ln.gan);
                     const zhiElement = getBranchElement(ln.zhi);
 
@@ -29,9 +26,7 @@ export function LiuNianTable({
                                 flex-shrink-0 w-12 sm:w-14 text-center p-1.5 sm:p-2 rounded-lg border-2 transition-all
                                 ${isSelected
                                     ? 'border-accent bg-accent/10'
-                                    : isCurrent
-                                        ? 'border-accent/50 bg-accent/5'
-                                        : 'border-transparent bg-background-secondary hover:bg-background'
+                                    : 'border-transparent bg-background-secondary hover:bg-background'
                                 }
                             `}
                         >

@@ -165,7 +165,7 @@ export default function UserPage() {
             }
         };
 
-        const handleSession = (session: { user: SupabaseUser } | null) => {
+        const handleSession = (session: { user: SupabaseUser } | null, forceReload = false) => {
             if (!isMounted) return;
 
             const currentUser = session?.user ?? null;
@@ -173,7 +173,7 @@ export default function UserPage() {
             setLoading(false);
 
             if (currentUser) {
-                if (currentUser.id !== lastUserId) {
+                if (currentUser.id !== lastUserId || forceReload) {
                     lastUserId = currentUser.id;
                     const cachedProfile = readProfileCache(currentUser.id);
                     const cachedMembership = readMembershipCache(currentUser.id);
@@ -206,7 +206,8 @@ export default function UserPage() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
-                handleSession(session);
+                const shouldReload = event === 'USER_UPDATED' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION';
+                handleSession(session, shouldReload);
             }
         );
 
@@ -276,7 +277,7 @@ export default function UserPage() {
 
                 {/* 版本信息 */}
                 <p className="text-center text-xs text-foreground-secondary mt-6">
-                    MingAI v1.0.0 · MVP 版本
+                    MingAI v1.2.0 · MVP 版本
                 </p>
 
                 <AuthModal
@@ -288,8 +289,11 @@ export default function UserPage() {
     }
 
     const displayName = profile?.nickname
-        || user.user_metadata?.nickname
+        || (user.user_metadata?.nickname as string | undefined)
         || '命理爱好者';
+    const avatarUrl = profile?.avatar_url
+        || (user.user_metadata?.avatar_url as string | undefined)
+        || null;
     const membershipLabel = membership?.type
         ? membershipLabels[membership.type]
         : membershipLabels.free;
@@ -304,9 +308,9 @@ export default function UserPage() {
             <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-6 border border-accent/20 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden">
-                        {profile?.avatar_url ? (
+                        {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={profile.avatar_url} alt="用户头像" className="w-full h-full object-cover" />
+                            <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
                         ) : (
                             <User className="w-8 h-8 text-accent" />
                         )}
@@ -391,7 +395,7 @@ export default function UserPage() {
 
             {/* 版本信息 */}
             <p className="text-center text-xs text-foreground-secondary mt-6">
-                MingAI v1.0.0 · MVP 版本
+                MingAI v1.2.0 · MVP 版本
             </p>
 
             {/* 弹窗 */}

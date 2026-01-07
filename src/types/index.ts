@@ -67,6 +67,7 @@ export interface BaziChart {
     birthPlace?: string;  // 出生地点
     timezone: number;     // 时区偏移
     calendarType: CalendarType; // 农历或公历
+    isLeapMonth?: boolean; // 农历闰月标记
 
     // 排盘结果
     fourPillars: FourPillars;
@@ -89,6 +90,7 @@ export interface BaziFormData {
     birthMinute: number;
     birthPlace?: string;
     calendarType: CalendarType;
+    isLeapMonth?: boolean;
 }
 
 // ===== AI 对话相关类型 =====
@@ -104,6 +106,10 @@ export interface AIPersonalityConfig {
     description: string; // 风格描述
     emoji: string;       // 图标
     systemPrompt: string; // 系统提示词
+    // 扩展字段（可选）
+    color?: string;      // 主题色
+    greeting?: string;   // 欢迎语
+    traits?: string[];   // 人格特征标签
 }
 
 /** 消息角色 */

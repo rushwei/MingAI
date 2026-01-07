@@ -190,11 +190,19 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
         formData.birthMinute,
         0
     );
+    const lunarMonth = formData.isLeapMonth ? -Math.abs(formData.birthMonth) : formData.birthMonth;
 
     // 如果输入的是农历，需要先转换
     let lunar: Lunar;
     if (formData.calendarType === 'lunar') {
-        lunar = Lunar.fromYmd(formData.birthYear, formData.birthMonth, formData.birthDay);
+        lunar = Lunar.fromYmdHms(
+            formData.birthYear,
+            lunarMonth,
+            formData.birthDay,
+            formData.birthHour,
+            formData.birthMinute,
+            0
+        );
     } else {
         lunar = solar.getLunar();
     }
@@ -231,6 +239,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
         birthPlace: formData.birthPlace,
         timezone: 8, // 默认东八区
         calendarType: formData.calendarType,
+        isLeapMonth: formData.isLeapMonth,
         fourPillars,
         dayMaster: dayStem,
         fiveElements,
@@ -327,6 +336,443 @@ export interface LiuYueInfo {
     month: number;  // 1-12月
     ganZhi: string;
     jieQi: string;  // 节气名
+    startDate: string; // YYYY-MM-DD
+    endDate: string; // YYYY-MM-DD
+}
+
+export interface LiuRiInfo {
+    date: string;  // YYYY-MM-DD
+    day: number;
+    ganZhi: string;
+    gan: string;
+    zhi: string;
+}
+/**
+ * 神煞信息（按柱分类）
+ */
+export interface PillarShenSha {
+    year: string[];   // 年柱神煞
+    month: string[];  // 月柱神煞
+    day: string[];    // 日柱神煞
+    hour: string[];   // 时柱神煞
+}
+
+export interface ShenShaInfo {
+    /** 吉神宜趋 */
+    jiShen: string[];
+    /** 凶神宜忌 */
+    xiongSha: string[];
+    /** 今日宜 */
+    dayYi: string[];
+    /** 今日忌 */
+    dayJi: string[];
+    /** 按柱分类的神煞星 */
+    pillarShenSha: PillarShenSha;
+}
+
+// 天乙贵人规则：日干 -> 贵人所在地支
+const TIAN_YI_GUI_REN: Record<HeavenlyStem, EarthlyBranch[]> = {
+    '甲': ['丑', '未'], '乙': ['子', '申'], '丙': ['亥', '酉'], '丁': ['亥', '酉'],
+    '戊': ['丑', '未'], '己': ['子', '申'], '庚': ['丑', '未'], '辛': ['寅', '午'],
+    '壬': ['卯', '巳'], '癸': ['卯', '巳'],
+};
+
+// 羊刃规则：日干 -> 羊刃所在地支
+const YANG_REN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '卯', '乙': '辰', '丙': '午', '丁': '未',
+    '戊': '午', '己': '未', '庚': '酉', '辛': '戌',
+    '壬': '子', '癸': '丑',
+};
+
+// 文昌规则：日干 -> 文昌所在地支
+const WEN_CHANG: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '巳', '乙': '午', '丙': '申', '丁': '酉',
+    '戊': '申', '己': '酉', '庚': '亥', '辛': '子',
+    '壬': '寅', '癸': '卯',
+};
+
+// 驿马规则：日支 -> 驿马所在地支（三合局长生之冲）
+const YI_MA: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '申', '午': '申', '戌': '申',
+    '申': '寅', '子': '寅', '辰': '寅',
+    '巳': '亥', '酉': '亥', '丑': '亥',
+    '亥': '巳', '卯': '巳', '未': '巳',
+};
+
+// 桃花规则：日支 -> 桃花所在地支
+const TAO_HUA: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '卯', '午': '卯', '戌': '卯',
+    '申': '酉', '子': '酉', '辰': '酉',
+    '巳': '午', '酉': '午', '丑': '午',
+    '亥': '子', '卯': '子', '未': '子',
+};
+
+// 华盖规则：日支 -> 华盖所在地支
+const HUA_GAI: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '戌', '午': '戌', '戌': '戌',
+    '申': '辰', '子': '辰', '辰': '辰',
+    '巳': '丑', '酉': '丑', '丑': '丑',
+    '亥': '未', '卯': '未', '未': '未',
+};
+
+// 禄神规则：日干 -> 禄神所在地支
+const LU_SHEN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午',
+    '戊': '巳', '己': '午', '庚': '申', '辛': '酉',
+    '壬': '亥', '癸': '子',
+};
+
+// 太极贵人规则：日干 -> 太极贵人所在地支
+const TAI_JI_GUI_REN: Record<HeavenlyStem, EarthlyBranch[]> = {
+    '甲': ['子', '午'], '乙': ['子', '午'], '丙': ['卯', '酉'], '丁': ['卯', '酉'],
+    '戊': ['辰', '戌', '丑', '未'], '己': ['辰', '戌', '丑', '未'],
+    '庚': ['寅', '亥'], '辛': ['寅', '亥'], '壬': ['巳', '申'], '癸': ['巳', '申'],
+};
+
+// 月德贵人规则：月支 -> 月德天干
+const YUE_DE: Record<EarthlyBranch, HeavenlyStem> = {
+    '寅': '丙', '午': '丙', '戌': '丙',
+    '申': '壬', '子': '壬', '辰': '壬',
+    '亥': '甲', '卯': '甲', '未': '甲',
+    '巳': '庚', '酉': '庚', '丑': '庚',
+};
+
+// 天德贵人规则：月支 -> 天德天干/地支
+const TIAN_DE: Record<EarthlyBranch, string> = {
+    '寅': '丁', '卯': '申', '辰': '壬', '巳': '辛',
+    '午': '亥', '未': '甲', '申': '癸', '酉': '寅',
+    '戌': '丙', '亥': '乙', '子': '巳', '丑': '庚',
+};
+
+// 金舆规则：日干 -> 金舆地支
+const JIN_YU: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '辰', '乙': '巳', '丙': '未', '丁': '申',
+    '戊': '未', '己': '申', '庚': '戌', '辛': '亥',
+    '壬': '丑', '癸': '寅',
+};
+
+// 劫煞规则：日支 -> 劫煞地支
+const JIE_SHA: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '巳', '午': '巳', '戌': '巳',
+    '申': '亥', '子': '亥', '辰': '亥',
+    '亥': '申', '卯': '申', '未': '申',
+    '巳': '寅', '酉': '寅', '丑': '寅',
+};
+
+// 亡神规则：日支 -> 亡神地支
+const WANG_SHEN: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '亥', '午': '亥', '戌': '亥',
+    '申': '巳', '子': '巳', '辰': '巳',
+    '亥': '寅', '卯': '寅', '未': '寅',
+    '巳': '申', '酉': '申', '丑': '申',
+};
+
+// 孤辰规则：年支 -> 孤辰地支
+const GU_CHEN: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '巳', '卯': '巳', '辰': '巳',
+    '巳': '申', '午': '申', '未': '申',
+    '申': '亥', '酉': '亥', '戌': '亥',
+    '亥': '寅', '子': '寅', '丑': '寅',
+};
+
+// 寡宿规则：年支 -> 寡宿地支
+const GUA_SU: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '丑', '卯': '丑', '辰': '丑',
+    '巳': '辰', '午': '辰', '未': '辰',
+    '申': '未', '酉': '未', '戌': '未',
+    '亥': '戌', '子': '戌', '丑': '戌',
+};
+
+// 将星规则：年支 -> 将星地支
+const JIANG_XING: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '午', '午': '午', '戌': '午',
+    '申': '子', '子': '子', '辰': '子',
+    '巳': '酉', '酉': '酉', '丑': '酉',
+    '亥': '卯', '卯': '卯', '未': '卯',
+};
+
+// 天厨规则：日干 -> 天厨地支
+const TIAN_CHU: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '巳', '乙': '午', '丙': '巳', '丁': '午',
+    '戊': '巳', '己': '午', '庚': '亥', '辛': '子',
+    '壬': '亥', '癸': '子',
+};
+
+// 国印贵人规则：日干 -> 国印地支
+const GUO_YIN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '戌', '乙': '亥', '丙': '丑', '丁': '寅',
+    '戊': '丑', '己': '寅', '庚': '辰', '辛': '巳',
+    '壬': '未', '癸': '申',
+};
+
+// 学堂规则：年干 -> 学堂地支
+const XUE_TANG: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '亥', '乙': '午', '丙': '寅', '丁': '酉',
+    '戊': '寅', '己': '酉', '庚': '巳', '辛': '子',
+    '壬': '申', '癸': '卯',
+};
+
+// 词馆规则：日干 -> 词馆地支
+const CI_GUAN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午',
+    '戊': '辰', '己': '未', '庚': '申', '辛': '酉',
+    '壬': '亥', '癸': '子',
+};
+
+// 红鸾规则：年支 -> 红鸾地支
+const HONG_LUAN: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
+    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
+    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
+};
+
+// 天喜规则：年支 -> 天喜地支
+const TIAN_XI: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '酉', '丑': '申', '寅': '未', '卯': '午',
+    '辰': '巳', '巳': '辰', '午': '卯', '未': '寅',
+    '申': '丑', '酉': '子', '戌': '亥', '亥': '戌',
+};
+
+// 天医规则：月支 -> 天医地支
+const TIAN_YI: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '丑', '卯': '寅', '辰': '卯', '巳': '辰',
+    '午': '巳', '未': '午', '申': '未', '酉': '申',
+    '戌': '酉', '亥': '戌', '子': '亥', '丑': '子',
+};
+
+// 吊客规则：年支 -> 吊客地支
+const DIAO_KE: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '酉', '丑': '戌', '寅': '亥', '卯': '子',
+    '辰': '丑', '巳': '寅', '午': '卯', '未': '辰',
+    '申': '巳', '酉': '午', '戌': '未', '亥': '申',
+};
+
+// 丧门规则：年支 -> 丧门地支
+const SANG_MEN: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '寅', '丑': '卯', '寅': '辰', '卯': '巳',
+    '辰': '午', '巳': '未', '午': '申', '未': '酉',
+    '申': '戌', '酉': '亥', '戌': '子', '亥': '丑',
+};
+
+/**
+ * 计算神煞信息（含按柱分类的神煞星）
+ */
+export function calculateShenSha(formData: BaziFormData): ShenShaInfo {
+    const solar = Solar.fromYmdHms(
+        formData.birthYear,
+        formData.birthMonth,
+        formData.birthDay,
+        formData.birthHour,
+        formData.birthMinute,
+        0
+    );
+    const lunarMonth = formData.isLeapMonth ? -Math.abs(formData.birthMonth) : formData.birthMonth;
+
+    let lunar: Lunar;
+    if (formData.calendarType === 'lunar') {
+        lunar = Lunar.fromYmdHms(
+            formData.birthYear,
+            lunarMonth,
+            formData.birthDay,
+            formData.birthHour,
+            formData.birthMinute,
+            0
+        );
+    } else {
+        lunar = solar.getLunar();
+    }
+
+    // 获取四柱（使用 EightChar 类的方法）
+    const eightChar = lunar.getEightChar();
+
+    const yearStem = eightChar.getYearGan() as HeavenlyStem;
+    const yearBranch = eightChar.getYearZhi() as EarthlyBranch;
+    const monthStem = eightChar.getMonthGan() as HeavenlyStem;
+    const monthBranch = eightChar.getMonthZhi() as EarthlyBranch;
+    const dayStem = eightChar.getDayGan() as HeavenlyStem;
+    const dayBranch = eightChar.getDayZhi() as EarthlyBranch;
+    const hourStem = eightChar.getTimeGan() as HeavenlyStem;
+    const hourBranch = eightChar.getTimeZhi() as EarthlyBranch;
+
+    // 计算各柱神煞
+    const pillarShenSha: PillarShenSha = { year: [], month: [], day: [], hour: [] };
+
+    // 天乙贵人（日干查）
+    const guiRenBranches = TIAN_YI_GUI_REN[dayStem] || [];
+    if (guiRenBranches.includes(yearBranch)) pillarShenSha.year.push('天乙贵人');
+    if (guiRenBranches.includes(monthBranch)) pillarShenSha.month.push('天乙贵人');
+    if (guiRenBranches.includes(dayBranch)) pillarShenSha.day.push('天乙贵人');
+    if (guiRenBranches.includes(hourBranch)) pillarShenSha.hour.push('天乙贵人');
+
+    // 太极贵人（日干查）
+    const taiJiBranches = TAI_JI_GUI_REN[dayStem] || [];
+    if (taiJiBranches.includes(yearBranch)) pillarShenSha.year.push('太极贵人');
+    if (taiJiBranches.includes(monthBranch)) pillarShenSha.month.push('太极贵人');
+    if (taiJiBranches.includes(dayBranch)) pillarShenSha.day.push('太极贵人');
+    if (taiJiBranches.includes(hourBranch)) pillarShenSha.hour.push('太极贵人');
+
+    // 禄神（日干查）
+    const luShenBranch = LU_SHEN[dayStem];
+    if (luShenBranch === yearBranch) pillarShenSha.year.push('禄神');
+    if (luShenBranch === monthBranch) pillarShenSha.month.push('禄神');
+    if (luShenBranch === dayBranch) pillarShenSha.day.push('禄神');
+    if (luShenBranch === hourBranch) pillarShenSha.hour.push('禄神');
+
+    // 羊刃（日干查）
+    const yangRenBranch = YANG_REN[dayStem];
+    if (yangRenBranch === yearBranch) pillarShenSha.year.push('羊刃');
+    if (yangRenBranch === monthBranch) pillarShenSha.month.push('羊刃');
+    if (yangRenBranch === dayBranch) pillarShenSha.day.push('羊刃');
+    if (yangRenBranch === hourBranch) pillarShenSha.hour.push('羊刃');
+
+    // 文昌（日干查）
+    const wenChangBranch = WEN_CHANG[dayStem];
+    if (wenChangBranch === yearBranch) pillarShenSha.year.push('文昌');
+    if (wenChangBranch === monthBranch) pillarShenSha.month.push('文昌');
+    if (wenChangBranch === dayBranch) pillarShenSha.day.push('文昌');
+    if (wenChangBranch === hourBranch) pillarShenSha.hour.push('文昌');
+
+    // 金舆（日干查）
+    const jinYuBranch = JIN_YU[dayStem];
+    if (jinYuBranch === yearBranch) pillarShenSha.year.push('金舆');
+    if (jinYuBranch === monthBranch) pillarShenSha.month.push('金舆');
+    if (jinYuBranch === dayBranch) pillarShenSha.day.push('金舆');
+    if (jinYuBranch === hourBranch) pillarShenSha.hour.push('金舆');
+
+    // 驿马（日支查）
+    const yiMaBranch = YI_MA[dayBranch];
+    if (yiMaBranch === yearBranch) pillarShenSha.year.push('驿马');
+    if (yiMaBranch === monthBranch) pillarShenSha.month.push('驿马');
+    if (yiMaBranch === hourBranch) pillarShenSha.hour.push('驿马');
+
+    // 桃花（日支查）
+    const taoHuaBranch = TAO_HUA[dayBranch];
+    if (taoHuaBranch === yearBranch) pillarShenSha.year.push('桃花');
+    if (taoHuaBranch === monthBranch) pillarShenSha.month.push('桃花');
+    if (taoHuaBranch === hourBranch) pillarShenSha.hour.push('桃花');
+
+    // 华盖（日支查）
+    const huaGaiBranch = HUA_GAI[dayBranch];
+    if (huaGaiBranch === yearBranch) pillarShenSha.year.push('华盖');
+    if (huaGaiBranch === monthBranch) pillarShenSha.month.push('华盖');
+    if (huaGaiBranch === dayBranch) pillarShenSha.day.push('华盖');
+    if (huaGaiBranch === hourBranch) pillarShenSha.hour.push('华盖');
+
+    // 劫煞（日支查）
+    const jiEShaBranch = JIE_SHA[dayBranch];
+    if (jiEShaBranch === yearBranch) pillarShenSha.year.push('劫煞');
+    if (jiEShaBranch === monthBranch) pillarShenSha.month.push('劫煞');
+    if (jiEShaBranch === hourBranch) pillarShenSha.hour.push('劫煞');
+
+    // 亡神（日支查）
+    const wangShenBranch = WANG_SHEN[dayBranch];
+    if (wangShenBranch === yearBranch) pillarShenSha.year.push('亡神');
+    if (wangShenBranch === monthBranch) pillarShenSha.month.push('亡神');
+    if (wangShenBranch === hourBranch) pillarShenSha.hour.push('亡神');
+
+    // 月德贵人（月支查年干、日干、时干）
+    const yueDeStem = YUE_DE[monthBranch];
+    if (yueDeStem === yearStem) pillarShenSha.year.push('月德贵人');
+    if (yueDeStem === dayStem) pillarShenSha.day.push('月德贵人');
+    if (yueDeStem === hourStem) pillarShenSha.hour.push('月德贵人');
+
+    // 天德贵人（月支查）
+    const tianDeChar = TIAN_DE[monthBranch];
+    if (tianDeChar === yearStem || tianDeChar === yearBranch) pillarShenSha.year.push('天德贵人');
+    if (tianDeChar === dayStem || tianDeChar === dayBranch) pillarShenSha.day.push('天德贵人');
+    if (tianDeChar === hourStem || tianDeChar === hourBranch) pillarShenSha.hour.push('天德贵人');
+
+    // 孤辰（年支查）
+    const guChenBranch = GU_CHEN[yearBranch];
+    if (guChenBranch === monthBranch) pillarShenSha.month.push('孤辰');
+    if (guChenBranch === dayBranch) pillarShenSha.day.push('孤辰');
+    if (guChenBranch === hourBranch) pillarShenSha.hour.push('孤辰');
+
+    // 寡宿（年支查）
+    const guaSuBranch = GUA_SU[yearBranch];
+    if (guaSuBranch === monthBranch) pillarShenSha.month.push('寡宿');
+    if (guaSuBranch === dayBranch) pillarShenSha.day.push('寡宿');
+    if (guaSuBranch === hourBranch) pillarShenSha.hour.push('寡宿');
+
+    // 将星（年支查）
+    const jiangXingBranch = JIANG_XING[yearBranch];
+    if (jiangXingBranch === monthBranch) pillarShenSha.month.push('将星');
+    if (jiangXingBranch === dayBranch) pillarShenSha.day.push('将星');
+    if (jiangXingBranch === hourBranch) pillarShenSha.hour.push('将星');
+
+    // 天厨（日干查）
+    const tianChuBranch = TIAN_CHU[dayStem];
+    if (tianChuBranch === yearBranch) pillarShenSha.year.push('天厨');
+    if (tianChuBranch === monthBranch) pillarShenSha.month.push('天厨');
+    if (tianChuBranch === hourBranch) pillarShenSha.hour.push('天厨');
+
+    // 国印贵人（日干查）
+    const guoYinBranch = GUO_YIN[dayStem];
+    if (guoYinBranch === yearBranch) pillarShenSha.year.push('国印贵人');
+    if (guoYinBranch === monthBranch) pillarShenSha.month.push('国印贵人');
+    if (guoYinBranch === dayBranch) pillarShenSha.day.push('国印贵人');
+    if (guoYinBranch === hourBranch) pillarShenSha.hour.push('国印贵人');
+
+    // 学堂（年干查）
+    const xueTangBranch = XUE_TANG[yearStem];
+    if (xueTangBranch === monthBranch) pillarShenSha.month.push('学堂');
+    if (xueTangBranch === dayBranch) pillarShenSha.day.push('学堂');
+    if (xueTangBranch === hourBranch) pillarShenSha.hour.push('学堂');
+
+    // 词馆（日干查）
+    const ciGuanBranch = CI_GUAN[dayStem];
+    if (ciGuanBranch === yearBranch) pillarShenSha.year.push('词馆');
+    if (ciGuanBranch === monthBranch) pillarShenSha.month.push('词馆');
+    if (ciGuanBranch === hourBranch) pillarShenSha.hour.push('词馆');
+
+    // 红鸾（年支查）
+    const hongLuanBranch = HONG_LUAN[yearBranch];
+    if (hongLuanBranch === monthBranch) pillarShenSha.month.push('红鸾');
+    if (hongLuanBranch === dayBranch) pillarShenSha.day.push('红鸾');
+    if (hongLuanBranch === hourBranch) pillarShenSha.hour.push('红鸾');
+
+    // 天喜（年支查）
+    const tianXiBranch = TIAN_XI[yearBranch];
+    if (tianXiBranch === monthBranch) pillarShenSha.month.push('天喜');
+    if (tianXiBranch === dayBranch) pillarShenSha.day.push('天喜');
+    if (tianXiBranch === hourBranch) pillarShenSha.hour.push('天喜');
+
+    // 天医（月支查）
+    const tianYiBranch = TIAN_YI[monthBranch];
+    if (tianYiBranch === yearBranch) pillarShenSha.year.push('天医');
+    if (tianYiBranch === dayBranch) pillarShenSha.day.push('天医');
+    if (tianYiBranch === hourBranch) pillarShenSha.hour.push('天医');
+
+    // 吊客（年支查）
+    const diaoKeBranch = DIAO_KE[yearBranch];
+    if (diaoKeBranch === monthBranch) pillarShenSha.month.push('吊客');
+    if (diaoKeBranch === dayBranch) pillarShenSha.day.push('吊客');
+    if (diaoKeBranch === hourBranch) pillarShenSha.hour.push('吊客');
+
+    // 丧门（年支查）
+    const sangMenBranch = SANG_MEN[yearBranch];
+    if (sangMenBranch === monthBranch) pillarShenSha.month.push('丧门');
+    if (sangMenBranch === dayBranch) pillarShenSha.day.push('丧门');
+    if (sangMenBranch === hourBranch) pillarShenSha.hour.push('丧门');
+
+    // 获取日级别神煞数据
+    let jiShen: string[] = [];
+    let xiongSha: string[] = [];
+    let dayYi: string[] = [];
+    let dayJi: string[] = [];
+
+    try { jiShen = lunar.getDayJiShen() || []; } catch { /* ignore */ }
+    try { xiongSha = lunar.getDayXiongSha() || []; } catch { /* ignore */ }
+    try { dayYi = lunar.getDayYi() || []; } catch { /* ignore */ }
+    try { dayJi = lunar.getDayJi() || []; } catch { /* ignore */ }
+
+    return {
+        jiShen,
+        xiongSha,
+        dayYi,
+        dayJi,
+        pillarShenSha,
+    };
 }
 
 export interface ProfessionalBaziData {
@@ -382,10 +828,18 @@ export function calculateProfessionalData(
         formData.birthMinute,
         0
     );
+    const lunarMonth = formData.isLeapMonth ? -Math.abs(formData.birthMonth) : formData.birthMonth;
 
     let lunar: Lunar;
     if (formData.calendarType === 'lunar') {
-        lunar = Lunar.fromYmd(formData.birthYear, formData.birthMonth, formData.birthDay);
+        lunar = Lunar.fromYmdHms(
+            formData.birthYear,
+            lunarMonth,
+            formData.birthDay,
+            formData.birthHour,
+            formData.birthMinute,
+            0
+        );
     } else {
         lunar = solar.getLunar();
     }
@@ -505,7 +959,6 @@ export function calculateProfessionalData(
  *          ->立秋(申月)->白露(酉月)->寒露(戌月)->立冬(亥月)->大雪(子月)->小寒(丑月)
  */
 export function calculateLiuYue(year: number): LiuYueInfo[] {
-    // 节气对应的公历月份和月干支
     const jieQiConfig = [
         { month: 2, jieQi: '立春' },   // 寅月
         { month: 3, jieQi: '惊蛰' },   // 卯月
@@ -522,22 +975,71 @@ export function calculateLiuYue(year: number): LiuYueInfo[] {
     ];
 
     const liuYue: LiuYueInfo[] = [];
+    const jieQiTable = Solar.fromYmd(year, 6, 15).getLunar().getJieQiTable();
+    const nextYearJieQiTable = Solar.fromYmd(year + 1, 6, 15).getLunar().getJieQiTable();
+
+    const formatYmd = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const toDate = (solar: Solar) => new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
 
     for (let i = 0; i < 12; i++) {
         const config = jieQiConfig[i];
-        // 小寒在下一年1月才算该年最后一个月
-        const targetYear = config.month === 1 ? year + 1 : year;
+        const segmentYear = config.month === 1 ? year + 1 : year;
+        const startTable = segmentYear === year ? jieQiTable : nextYearJieQiTable;
+        const startSolar = startTable[config.jieQi] || Solar.fromYmd(segmentYear, config.month, 15);
 
-        // 使用每月中旬来获取准确的月干支
-        const monthSolar = Solar.fromYmd(targetYear, config.month, 15);
-        const monthLunar = monthSolar.getLunar();
+        const nextConfig = jieQiConfig[(i + 1) % 12];
+        const nextSegmentYear = config.month === 1
+            ? year + 1
+            : (nextConfig.month === 1 ? year + 1 : year);
+        const nextTable = nextSegmentYear === year ? jieQiTable : nextYearJieQiTable;
+        const nextStartSolar = nextTable[nextConfig.jieQi] || Solar.fromYmd(nextSegmentYear, nextConfig.month, 15);
+
+        const startDate = toDate(startSolar);
+        const endDate = new Date(toDate(nextStartSolar).getTime() - 24 * 60 * 60 * 1000);
+
+        const monthLunar = startSolar.getLunar();
 
         liuYue.push({
             month: i + 1,  // 1-12月（正月到腊月）
             ganZhi: monthLunar.getMonthInGanZhiExact(),
             jieQi: config.jieQi,
+            startDate: formatYmd(startDate),
+            endDate: formatYmd(endDate),
         });
     }
 
     return liuYue;
+}
+
+export function calculateLiuRi(startDate: string, endDate: string): LiuRiInfo[] {
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    const days: LiuRiInfo[] = [];
+
+    for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+        const year = cursor.getFullYear();
+        const month = cursor.getMonth() + 1;
+        const day = cursor.getDate();
+        const solar = Solar.fromYmd(year, month, day);
+        const lunar = solar.getLunar();
+        const ganZhi = lunar.getDayInGanZhi();
+
+        days.push({
+            date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+            day,
+            ganZhi,
+            gan: ganZhi[0],
+            zhi: ganZhi[1],
+        });
+    }
+
+    return days;
 }

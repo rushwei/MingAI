@@ -210,3 +210,63 @@ export async function callAI(
         return generateMockResponse(messages, personality);
     }
 }
+
+/**
+ * 流式调用 DeepSeek API
+ */
+export async function callAIStream(
+    messages: ChatMessage[],
+    personality: AIPersonality = 'master'
+): Promise<ReadableStream<Uint8Array>> {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const config = AI_PERSONALITIES[personality];
+
+    if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
+        // 没有配置 API，返回模拟流式响应
+        const mockContent = generateMockResponse(messages, personality);
+        return new ReadableStream({
+            start(controller) {
+                const encoder = new TextEncoder();
+                const words = mockContent.split('');
+                let index = 0;
+
+                const sendNextChar = () => {
+                    if (index < words.length) {
+                        const chunk = { choices: [{ delta: { content: words[index] } }] };
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                        index++;
+                        setTimeout(sendNextChar, 30); // 模拟打字效果
+                    } else {
+                        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                        controller.close();
+                    }
+                };
+                sendNextChar();
+            }
+        });
+    }
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+                { role: 'system', content: config.systemPrompt },
+                ...messages.map(m => ({ role: m.role, content: m.content })),
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+            stream: true,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    return response.body!;
+}

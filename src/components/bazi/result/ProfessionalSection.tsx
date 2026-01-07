@@ -1,45 +1,68 @@
 import { Calendar, TrendingUp } from 'lucide-react';
-import { calculateBazi, calculateProfessionalData, type LiuNianInfo, type LiuYueInfo } from '@/lib/bazi';
+import { calculateBazi, calculateProfessionalData, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/bazi';
 import type { Gender } from '@/types';
 import { DaYunTable } from './DaYunTable';
 import { LiuNianTable } from './LiuNianTable';
 import { LiuYueTable } from './LiuYueTable';
+import { LiuRiTable } from './LiuRiTable';
 import { ProfessionalTable } from './ProfessionalTable';
+import { ShenShaSection } from './ShenShaSection';
 
 export function ProfessionalSection({
     baziResult,
     proData,
     gender,
+    isUnknownTime = false,
     selectedDaYunIndex,
     onSelectDaYun,
     currentLiuNian,
-    currentYear,
     selectedLiuNianYear,
     onSelectLiuNian,
     liuYue,
-    currentMonth,
+    selectedLiuYueMonth,
+    onSelectLiuYue,
+    liuRi,
+    selectedLiuRiDate,
+    onSelectLiuRi,
+    activeLiuYue,
+    shenSha,
 }: {
     baziResult: ReturnType<typeof calculateBazi>;
     proData: ReturnType<typeof calculateProfessionalData>;
     gender: Gender;
+    isUnknownTime?: boolean;
     selectedDaYunIndex: number;
     onSelectDaYun: (index: number) => void;
     currentLiuNian: LiuNianInfo[];
-    currentYear: number;
     selectedLiuNianYear: number;
     onSelectLiuNian: (year: number) => void;
     liuYue: LiuYueInfo[];
-    currentMonth: number;
+    selectedLiuYueMonth: number;
+    onSelectLiuYue: (month: number) => void;
+    liuRi: LiuRiInfo[];
+    selectedLiuRiDate: string;
+    onSelectLiuRi: (date: string) => void;
+    activeLiuYue: LiuYueInfo | null;
+    shenSha?: ShenShaInfo;
 }) {
     return (
         <div className="space-y-4">
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3">四柱详解</h2>
-                <ProfessionalTable baziResult={baziResult} proData={proData} gender={gender} />
+                <ProfessionalTable
+                    baziResult={baziResult}
+                    proData={proData}
+                    gender={gender}
+                    isUnknownTime={isUnknownTime}
+                    pillarShenSha={shenSha?.pillarShenSha}
+                />
                 <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
                     起运：{proData.startAgeDetail}
                 </div>
             </section>
+
+            {/* 神煞宜忌 - 可折叠展示 */}
+            {shenSha && <ShenShaSection shenSha={shenSha} />}
 
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
@@ -61,7 +84,6 @@ export function ProfessionalSection({
                     </h2>
                     <LiuNianTable
                         liuNian={currentLiuNian}
-                        currentYear={currentYear}
                         selectedYear={selectedLiuNianYear}
                         onSelect={onSelectLiuNian}
                     />
@@ -76,7 +98,25 @@ export function ProfessionalSection({
                     </h2>
                     <LiuYueTable
                         liuYue={liuYue}
-                        currentMonth={selectedLiuNianYear === currentYear ? currentMonth : 0}
+                        selectedMonth={selectedLiuYueMonth}
+                        onSelect={onSelectLiuYue}
+                    />
+                    <p className="mt-2 text-xs text-foreground-secondary">
+                        点击流月可查看对应的流日
+                    </p>
+                </section>
+            )}
+
+            {liuRi.length > 0 && activeLiuYue && (
+                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                    <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-accent" />
+                        流日（{activeLiuYue.startDate} ~ {activeLiuYue.endDate}）
+                    </h2>
+                    <LiuRiTable
+                        liuRi={liuRi}
+                        selectedDate={selectedLiuRiDate}
+                        onSelect={onSelectLiuRi}
                     />
                 </section>
             )}

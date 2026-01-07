@@ -12,6 +12,8 @@ import {
     calculateBazi,
     calculateProfessionalData,
     calculateLiuYue,
+    calculateLiuRi,
+    calculateShenSha,
     getDayMasterDescription,
 } from '@/lib/bazi';
 import { supabase } from '@/lib/supabase';
@@ -37,10 +39,14 @@ function BaziResultContent() {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate();
 
     // 大运流年状态
     const [selectedDaYunIndex, setSelectedDaYunIndex] = useState<number>(0);
     const [selectedLiuNianYear, setSelectedLiuNianYear] = useState<number>(currentYear);
+    // useState 保持流月/流日选择，驱动下方明细展示
+    const [selectedLiuYueMonth, setSelectedLiuYueMonth] = useState<number>(1);
+    const [selectedLiuRiDate, setSelectedLiuRiDate] = useState<string>('');
 
     const chartId = searchParams.get('chart');
 
@@ -66,7 +72,8 @@ function BaziResultContent() {
                             birthDay: day,
                             birthHour: hour,
                             birthMinute: minute || 0,
-                            calendarType: 'solar',
+                            calendarType: (data.calendar_type as CalendarType) || 'solar',
+                            isLeapMonth: data.is_leap_month || false,
                             birthPlace: data.birth_place || undefined,
                         });
                         setSaved(true);
@@ -92,6 +99,7 @@ function BaziResultContent() {
             birthHour: isUnknownTime ? 12 : (Number(hourParam) || 12), // 未知时默认用午时计算
             birthMinute: Number(searchParams.get('minute')) || 0,
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
+            isLeapMonth: searchParams.get('leap') === '1',
             birthPlace: searchParams.get('place') || undefined,
         };
     }, [searchParams, chartFromDb]);
@@ -145,6 +153,77 @@ function BaziResultContent() {
         }
     }, [selectedLiuNianYear]);
 
+    // useEffect 根据流年变化重置流月选中项，保证展示一致
+    useEffect(() => {
+        if (liuYue.length === 0) {
+            setSelectedLiuYueMonth(1);
+            return;
+        }
+
+        if (selectedLiuNianYear === currentYear) {
+            const currentDate = new Date(currentYear, currentMonth - 1, currentDay);
+            const currentLiuYue = liuYue.find((item) => {
+                const [sy, sm, sd] = item.startDate.split('-').map(Number);
+                const [ey, em, ed] = item.endDate.split('-').map(Number);
+                const start = new Date(sy, sm - 1, sd);
+                const end = new Date(ey, em - 1, ed);
+                return currentDate >= start && currentDate <= end;
+            });
+            if (currentLiuYue) {
+                setSelectedLiuYueMonth(currentLiuYue.month);
+                return;
+            }
+        }
+
+        setSelectedLiuYueMonth(liuYue[0].month);
+    }, [liuYue, selectedLiuNianYear, currentYear, currentMonth, currentDay]);
+
+    const activeLiuYue = useMemo(
+        () => liuYue.find((item) => item.month === selectedLiuYueMonth) || null,
+        [liuYue, selectedLiuYueMonth]
+    );
+
+    const liuRi = useMemo(() => {
+        if (!activeLiuYue) return [];
+        try {
+            return calculateLiuRi(activeLiuYue.startDate, activeLiuYue.endDate);
+        } catch (error) {
+            console.error('流日计算错误:', error);
+            return [];
+        }
+    }, [activeLiuYue]);
+
+    // useEffect 在流月切换时同步默认流日
+    useEffect(() => {
+        if (!activeLiuYue) {
+            setSelectedLiuRiDate('');
+            return;
+        }
+
+        const todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+        const todayMatch = selectedLiuNianYear === currentYear
+            && activeLiuYue.startDate <= todayStr
+            && activeLiuYue.endDate >= todayStr;
+
+        if (todayMatch) {
+            setSelectedLiuRiDate(todayStr);
+            return;
+        }
+
+        setSelectedLiuRiDate(activeLiuYue.startDate);
+    }, [activeLiuYue, selectedLiuNianYear, currentYear, currentMonth, currentDay]);
+
+    // 计算神煞
+    const shenSha = useMemo(() => {
+        try {
+            return calculateShenSha(formData);
+        } catch (error) {
+            console.error('神煞计算错误:', error);
+            return null;
+        }
+    }, [formData]);
+
+
     // 保存命盘
     const handleSave = async () => {
         if (saving || saved) return;
@@ -165,6 +244,8 @@ function BaziResultContent() {
                 birth_date: `${formData.birthYear}-${String(formData.birthMonth).padStart(2, '0')}-${String(formData.birthDay).padStart(2, '0')}`,
                 birth_time: `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
                 birth_place: formData.birthPlace || null,
+                calendar_type: formData.calendarType,
+                is_leap_month: formData.isLeapMonth || false,
                 chart_data: baziResult,
             });
 
@@ -209,6 +290,9 @@ function BaziResultContent() {
             minute: String(formData.birthMinute),
             calendar: formData.calendarType,
         });
+        if (formData.isLeapMonth) {
+            params.set('leap', '1');
+        }
         if (formData.birthPlace) {
             params.set('place', formData.birthPlace);
         }
@@ -229,6 +313,15 @@ function BaziResultContent() {
     // 选择流年
     const handleSelectLiuNian = (year: number) => {
         setSelectedLiuNianYear(year);
+    };
+
+    // 选择流月/流日
+    const handleSelectLiuYue = (month: number) => {
+        setSelectedLiuYueMonth(month);
+    };
+
+    const handleSelectLiuRi = (date: string) => {
+        setSelectedLiuRiDate(date);
     };
 
     if (loading) {
@@ -286,14 +379,20 @@ function BaziResultContent() {
                     baziResult={baziResult}
                     proData={proData}
                     gender={formData.gender}
+                    isUnknownTime={isUnknownTime}
                     selectedDaYunIndex={selectedDaYunIndex}
                     onSelectDaYun={handleSelectDaYun}
                     currentLiuNian={currentLiuNian}
-                    currentYear={currentYear}
                     selectedLiuNianYear={selectedLiuNianYear}
                     onSelectLiuNian={handleSelectLiuNian}
                     liuYue={liuYue}
-                    currentMonth={currentMonth}
+                    selectedLiuYueMonth={selectedLiuYueMonth}
+                    onSelectLiuYue={handleSelectLiuYue}
+                    liuRi={liuRi}
+                    selectedLiuRiDate={selectedLiuRiDate}
+                    onSelectLiuRi={handleSelectLiuRi}
+                    activeLiuYue={activeLiuYue}
+                    shenSha={shenSha || undefined}
                 />
             )}
 

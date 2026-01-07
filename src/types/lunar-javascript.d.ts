@@ -56,6 +56,11 @@ declare module 'lunar-javascript' {
          * 获取分
          */
         getMinute(): number;
+
+        /**
+         * 获取指定天数后的日期（负数为之前）
+         */
+        next(days: number, onlyWorkday?: boolean): Solar;
     }
 
     /**
@@ -66,6 +71,18 @@ declare module 'lunar-javascript' {
          * 从农历年月日创建 Lunar 对象
          */
         static fromYmd(year: number, month: number, day: number): Lunar;
+
+        /**
+         * 从农历年月日时分秒创建 Lunar 对象
+         */
+        static fromYmdHms(
+            year: number,
+            month: number,
+            day: number,
+            hour?: number,
+            minute?: number,
+            second?: number
+        ): Lunar;
 
         /**
          * 获取公历日期
@@ -93,9 +110,96 @@ declare module 'lunar-javascript' {
         getDay(): number;
 
         /**
+         * 获取日干支
+         */
+        getDayInGanZhi(): string;
+
+        /**
          * 获取月干支（精确到节气）
          */
         getMonthInGanZhiExact(): string;
+
+        /**
+         * 获取节气表
+         */
+        getJieQiTable(): Record<string, Solar>;
+
+        /**
+         * 获取节气列表
+         */
+        getJieQiList(): string[];
+
+        // ===== 神煞相关 =====
+        
+        /**
+         * 获取当日吉神宜趋
+         */
+        getDayJiShen(): string[];
+
+        /**
+         * 获取当日凶神宜忌
+         */
+        getDayXiongSha(): string[];
+
+        /**
+         * 获取当日宜
+         */
+        getDayYi(): string[];
+
+        /**
+         * 获取当日忌
+         */
+        getDayJi(): string[];
+
+        /**
+         * 获取年神煞（以年柱计算）
+         */
+        getYearShenSha(): string[];
+
+        /**
+         * 获取月神煞
+         */
+        getMonthShenSha(): string[];
+    }
+
+    /**
+     * 农历月类
+     */
+    export class LunarMonth {
+        /**
+         * 从农历年月获取 LunarMonth 对象
+         */
+        static fromYm(year: number, month: number): LunarMonth;
+
+        /**
+         * 获取该月天数
+         */
+        getDayCount(): number;
+
+        /**
+         * 获取农历年
+         */
+        getYear(): number;
+
+        /**
+         * 获取农历月（闰月为负数）
+         */
+        getMonth(): number;
+    }
+
+    /**
+     * 农历年类
+     */
+    export class LunarYear {
+        /**
+         * 从年份创建 LunarYear 对象
+         */
+        static fromYear(year: number): LunarYear;
+
+        /**
+         * 获取闰月月份（无闰月返回 0）
+         */
+        getLeapMonth(): number;
     }
 
     /**
