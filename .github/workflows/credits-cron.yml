@@ -1,0 +1,20 @@
+name: credits-cron
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # hourly
+    - cron: "0 21 * * *" # daily 05:00(UTC+8)
+
+jobs:
+  call-credits-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore hourly credits
+        run: |
+          curl -sS -X GET "${{ secrets.CRON_BASE_URL }}/api/credits/restore?period=hourly" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+      - name: Restore daily credits
+        run: |
+          curl -sS -X GET "${{ secrets.CRON_BASE_URL }}/api/credits/restore?period=daily" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

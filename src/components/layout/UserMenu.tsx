@@ -22,6 +22,7 @@ import {
 import { signOut, getUserProfile } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { getUnreadCount } from '@/lib/notification';
+import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface SidebarUserCardProps {
@@ -92,7 +93,40 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
             }
         });
         getMembershipInfo(user.id).then(setMembership);
-        getUnreadCount(user.id).then(setUnreadCount);
+    }, [user.id]);
+
+    // 实时更新未读通知数
+    useEffect(() => {
+        let isActive = true;
+        const fetchCount = async () => {
+            const count = await getUnreadCount(user.id);
+            if (isActive) {
+                setUnreadCount(count);
+            }
+        };
+
+        fetchCount();
+
+        const channel = supabase
+            .channel(`user-menu-notifications:${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                () => {
+                    fetchCount();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            isActive = false;
+            supabase.removeChannel(channel);
+        };
     }, [user.id]);
 
     // 点击外部关闭菜单
