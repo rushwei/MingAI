@@ -11,13 +11,13 @@ import Link from 'next/link';
 import {
     ArrowLeft,
     Bell,
-    Check,
     CheckCheck,
     Loader2,
     ExternalLink,
     Trash2,
     Square,
     CheckSquare,
+    MailOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { BottomBar } from '@/components/layout/BottomBar';
@@ -95,6 +95,12 @@ export default function NotificationsPage() {
     const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications]);
     const selectedCount = selectedIds.size;
     const allSelected = notifications.length > 0 && selectedIds.size === notifications.length;
+
+    useEffect(() => {
+        window.dispatchEvent(
+            new CustomEvent('mingai:notifications-unread', { detail: { count: unreadCount } })
+        );
+    }, [unreadCount]);
 
     // 切换选择模式
     const toggleSelectMode = () => {
@@ -329,14 +335,14 @@ export default function NotificationsPage() {
 
                                     {/* 单条操作按钮 - 右侧居中 */}
                                     {!selectMode && (
-                                        <div className="flex flex-col items-center justify-center gap-1">
+                                        <div className="flex items-center justify-center gap-2">
                                             {!notification.is_read && (
                                                 <button
                                                     onClick={(e) => handleMarkRead(notification, e)}
                                                     className="p-1.5 rounded-lg text-foreground-tertiary hover:text-accent hover:bg-accent/10 transition-colors"
                                                     title="标记已读"
                                                 >
-                                                    <Check className="w-4 h-4" />
+                                                    <MailOpen className="w-5 h-5" />
                                                 </button>
                                             )}
                                             <button
@@ -344,7 +350,7 @@ export default function NotificationsPage() {
                                                 className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
                                                 title="删除"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-5 h-5" />
                                             </button>
                                         </div>
                                     )}

@@ -129,6 +129,21 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
         };
     }, [user.id]);
 
+    // 通知页面主动同步未读数
+    useEffect(() => {
+        const handleUnreadUpdate = (event: Event) => {
+            const detail = (event as CustomEvent<{ count?: number }>).detail;
+            if (typeof detail?.count === 'number') {
+                setUnreadCount(detail.count);
+            }
+        };
+
+        window.addEventListener('mingai:notifications-unread', handleUnreadUpdate);
+        return () => {
+            window.removeEventListener('mingai:notifications-unread', handleUnreadUpdate);
+        };
+    }, []);
+
     // 点击外部关闭菜单
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

@@ -265,6 +265,20 @@ export default function UserPage() {
         };
     }, [user]);
 
+    useEffect(() => {
+        const handleUnreadUpdate = (event: Event) => {
+            const detail = (event as CustomEvent<{ count?: number }>).detail;
+            if (typeof detail?.count === 'number') {
+                setUnreadCount(detail.count);
+            }
+        };
+
+        window.addEventListener('mingai:notifications-unread', handleUnreadUpdate);
+        return () => {
+            window.removeEventListener('mingai:notifications-unread', handleUnreadUpdate);
+        };
+    }, []);
+
     // 退出登录状态
     const [signingOut, setSigningOut] = useState(false);
 
