@@ -8,7 +8,8 @@
 
 import { useState } from 'react';
 import { X, CreditCard, Loader2, CheckCircle, QrCode } from 'lucide-react';
-import { type PricingPlan, upgradeMembership, purchaseCredits } from '@/lib/membership';
+import { type PricingPlan } from '@/lib/membership';
+import { supabase } from '@/lib/supabase';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -46,25 +47,57 @@ export function PaymentModal({
         // 模拟支付处理延迟
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        let result: { success: boolean; error?: string };
+        try {
+            // 使用 supabase.auth.getSession() 获取 access token
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token || '';
 
-        if (isPayPerUse) {
-            // 按量付费
-            result = await purchaseCredits(userId, creditCount, plan.price);
-        } else {
-            // 订阅套餐
-            result = await upgradeMembership(userId, plan.id);
-        }
+            if (!accessToken) {
+                setError('请先登录');
+                setStep('select');
+                return;
+            }
 
-        if (result.success) {
-            setStep('success');
-            setTimeout(() => {
-                onSuccess?.();
-                onClose();
-                window.location.reload();
-            }, 1500);
-        } else {
-            setError(result.error || '支付失败');
+            let response: Response;
+
+            if (isPayPerUse) {
+                // 按量付费 - 调用服务端 API
+                response = await fetch('/api/membership/purchase-credits', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                    body: JSON.stringify({ count: creditCount, amount: plan.price }),
+                });
+            } else {
+                // 订阅套餐 - 调用服务端 API
+                response = await fetch('/api/membership/upgrade', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                    body: JSON.stringify({ planId: plan.id }),
+                });
+            }
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                setStep('success');
+                setTimeout(() => {
+                    onSuccess?.();
+                    onClose();
+                    window.location.reload();
+                }, 1500);
+            } else {
+                setError(result.error || '支付失败');
+                setStep('select');
+            }
+        } catch (err) {
+            console.error('Payment error:', err);
+            setError('网络错误，请重试');
             setStep('select');
         }
     };

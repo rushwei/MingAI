@@ -46,9 +46,9 @@ next-env.d.ts
 .LSOverride
 
 # 配置文件（包含敏感信息）
-docs/review
-docs/AGENT_CHANGES.md
+docs/review/log
 docs/resource
+docs/plans/PRD-MingAI-v1.5_addendum-roadmap-ideas.md
 
 # AI
 .cluade

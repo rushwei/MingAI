@@ -46,8 +46,8 @@ interface ChartContext {
     };
 }
 
-// 加载命盘上下文
-async function loadChartContext(chartIds: ChartIds): Promise<ChartContext> {
+// 加载命盘上下文（仅加载属于当前用户的命盘）
+async function loadChartContext(chartIds: ChartIds, userId: string): Promise<ChartContext> {
     const supabase = getSupabase();
     const context: ChartContext = {};
 
@@ -56,6 +56,7 @@ async function loadChartContext(chartIds: ChartIds): Promise<ChartContext> {
             .from('bazi_charts')
             .select('name, gender, birth_date, birth_time, chart_data')
             .eq('id', chartIds.baziId)
+            .eq('user_id', userId)
             .single();
 
         if (data) {
@@ -74,6 +75,7 @@ async function loadChartContext(chartIds: ChartIds): Promise<ChartContext> {
             .from('ziwei_charts')
             .select('name, gender, birth_date, birth_time, chart_data')
             .eq('id', chartIds.ziweiId)
+            .eq('user_id', userId)
             .single();
 
         if (data) {
@@ -232,8 +234,8 @@ export async function POST(request: NextRequest) {
 
         // 加载命盘上下文
         let chartContextPrompt = '';
-        if (chartIds && (chartIds.baziId || chartIds.ziweiId)) {
-            const chartContext = await loadChartContext(chartIds);
+        if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
+            const chartContext = await loadChartContext(chartIds, userId);
             chartContextPrompt = formatChartContextPrompt(chartContext);
         }
 
