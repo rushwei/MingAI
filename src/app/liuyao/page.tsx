@@ -6,6 +6,7 @@ export default function LiuyaoPage() {
             title="六爻占卜"
             emoji="☯️"
             description="六爻占卜源自《易经》，通过卦象变化预测事物发展趋势。"
+            featureKey="liuyao"
             features={[
                 'AI 起卦解卦',
                 '传统铜钱起卦模拟',

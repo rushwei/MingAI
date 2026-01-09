@@ -4,19 +4,15 @@
  * 支持多实例部署，数据持久化
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from './supabase-server';
 
-const getServiceClient = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!url || !serviceKey) {
+// 尝试获取服务端客户端，失败返回null
+const getServiceClientSafe = () => {
+    try {
+        return getServiceClient();
+    } catch {
         return null;
     }
-
-    return createClient(url, serviceKey, {
-        auth: { persistSession: false }
-    });
 };
 
 interface RateLimitConfig {
@@ -38,7 +34,7 @@ export async function checkRateLimit(
     endpoint: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
-    const supabase = getServiceClient();
+    const supabase = getServiceClientSafe();
 
     // 如果没有 Supabase 配置，回退到内存限制（开发环境）
     if (!supabase) {

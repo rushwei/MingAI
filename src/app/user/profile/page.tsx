@@ -16,7 +16,7 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
 import { StatusBanner } from '@/components/profile/StatusBanner';
 import { NicknameField } from '@/components/profile/NicknameField';
-import { EmailField } from '@/components/profile/EmailField';
+import { EmailSection } from '@/components/profile/EmailSection';
 import { PasswordSection } from '@/components/profile/PasswordSection';
 import { CreatedAtField } from '@/components/profile/CreatedAtField';
 
@@ -33,14 +33,6 @@ export default function ProfilePage() {
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
-
-    // 密码修改状态
-    const [showPasswordSection, setShowPasswordSection] = useState(false);
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [changingPassword, setChangingPassword] = useState(false);
 
     // 头像上传状态
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -180,47 +172,6 @@ export default function ProfilePage() {
         }
     };
 
-    const handlePasswordChange = async () => {
-        if (!newPassword || !confirmPassword) {
-            setError('请填写新密码');
-            return;
-        }
-        if (newPassword.length < 6) {
-            setError('密码至少需要6个字符');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('两次输入的密码不一致');
-            return;
-        }
-
-        setChangingPassword(true);
-        setError('');
-
-        try {
-            const { error } = await supabase.auth.updateUser({
-                password: newPassword
-            });
-
-            if (error) throw error;
-
-            setSuccess('密码已更新');
-            setNewPassword('');
-            setConfirmPassword('');
-            setShowPasswordSection(false);
-            setTimeout(() => setSuccess(''), 3000);
-        } catch (err: unknown) {
-            console.error('Password change error:', err);
-            if (err instanceof Error) {
-                setError(err.message || '密码修改失败');
-            } else {
-                setError('密码修改失败');
-            }
-        } finally {
-            setChangingPassword(false);
-        }
-    };
-
     const hasNicknameChanges = nickname !== originalNickname;
 
     if (loading) {
@@ -255,28 +206,9 @@ export default function ProfilePage() {
                     saving={saving}
                 />
 
-                <EmailField email={user?.email || ''} />
+                <EmailSection currentEmail={user?.email || ''} />
 
-                <PasswordSection
-                    showPasswordSection={showPasswordSection}
-                    onToggleSection={() => setShowPasswordSection(true)}
-                    newPassword={newPassword}
-                    confirmPassword={confirmPassword}
-                    showNewPassword={showNewPassword}
-                    showConfirmPassword={showConfirmPassword}
-                    onChangeNewPassword={setNewPassword}
-                    onChangeConfirmPassword={setConfirmPassword}
-                    onToggleShowNewPassword={() => setShowNewPassword((prev) => !prev)}
-                    onToggleShowConfirmPassword={() => setShowConfirmPassword((prev) => !prev)}
-                    onCancel={() => {
-                        setShowPasswordSection(false);
-                        setNewPassword('');
-                        setConfirmPassword('');
-                        setError('');
-                    }}
-                    onSubmit={handlePasswordChange}
-                    changingPassword={changingPassword}
-                />
+                <PasswordSection email={user?.email || ''} />
 
                 <CreatedAtField createdAt={user?.created_at || null} />
             </div>

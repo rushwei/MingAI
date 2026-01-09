@@ -17,6 +17,7 @@ import {
     Star
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface BaziChart {
     id: string;
@@ -39,17 +40,21 @@ interface ZiweiChart {
     created_at: string;
 }
 
+interface DeleteTarget {
+    kind: 'bazi' | 'ziwei';
+    chartId: string;
+    chartName: string;
+}
+
 export default function ChartsPage() {
     const router = useRouter();
-    // useState 保存命盘列表与加载/删除状态，驱动页面交互反馈。
     const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
     const [ziweiCharts, setZiweiCharts] = useState<ZiweiChart[]>([]);
     const [loading, setLoading] = useState(true);
     const [deletingKey, setDeletingKey] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
-    // useCallback 让获取命盘函数稳定，避免 useEffect 反复触发。
     const fetchCharts = useCallback(async () => {
-        // 使用 getSession 从本地缓存读取
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session?.user) {
@@ -79,18 +84,19 @@ export default function ChartsPage() {
         setLoading(false);
     }, [router]);
 
-    // useEffect 在页面加载时拉取用户命盘列表。
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchCharts();
     }, [fetchCharts]);
 
-    const handleDelete = async (kind: 'bazi' | 'ziwei', chartId: string) => {
-        const label = kind === 'bazi' ? '八字' : '紫微';
-        if (!confirm(`确定要删除这个${label}命盘吗？此操作无法撤销。`)) {
-            return;
-        }
+    const handleDeleteClick = (kind: 'bazi' | 'ziwei', chartId: string, chartName: string) => {
+        setDeleteTarget({ kind, chartId, chartName });
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget) return;
+
+        const { kind, chartId } = deleteTarget;
         const key = `${kind}:${chartId}`;
         setDeletingKey(key);
 
@@ -105,6 +111,7 @@ export default function ChartsPage() {
             }
         }
         setDeletingKey(null);
+        setDeleteTarget(null);
     };
 
     const formatDate = (dateStr: string) => {
@@ -211,7 +218,7 @@ export default function ChartsPage() {
                                                 <Eye className="w-5 h-5" />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete('bazi', chart.id)}
+                                                onClick={() => handleDeleteClick('bazi', chart.id, chart.name)}
                                                 disabled={deletingKey === `bazi:${chart.id}`}
                                                 className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                                                 title="删除"
@@ -273,7 +280,7 @@ export default function ChartsPage() {
                                                 <Eye className="w-5 h-5" />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete('ziwei', chart.id)}
+                                                onClick={() => handleDeleteClick('ziwei', chart.id, chart.name)}
                                                 disabled={deletingKey === `ziwei:${chart.id}`}
                                                 className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                                                 title="删除"
@@ -298,6 +305,19 @@ export default function ChartsPage() {
                     )}
                 </div>
             )}
+
+            {/* 删除确认弹窗 */}
+            <ConfirmDialog
+                isOpen={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleConfirmDelete}
+                title="确认删除命盘"
+                description={`确定要删除「${deleteTarget?.chartName || ''}」的${deleteTarget?.kind === 'bazi' ? '八字' : '紫微'}命盘吗？此操作无法撤销。`}
+                confirmText="删除"
+                cancelText="取消"
+                variant="danger"
+                loading={!!deletingKey}
+            />
         </div>
     );
 }

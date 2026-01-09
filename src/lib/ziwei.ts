@@ -22,9 +22,11 @@ export interface ZiweiFormData {
     birthMonth: number;
     birthDay: number;
     birthHour: number;
+    birthMinute: number;
     calendarType: CalendarType;
     isLeapMonth?: boolean; // 是否闰月
     birthPlace?: string; // 出生地点（不参与排盘，仅用于存储）
+    isUnknownTime?: boolean; // 是否未知时辰
 }
 
 /** 星曜信息 */
@@ -92,7 +94,7 @@ function hourToTimeIndex(hour: number): number {
     // ...
     // 12: 晚子时 (23:00-24:00)
 
-    if (hour === 23) return 12; // 晚子时
+    if (hour >= 23) return 12; // 晚子时
     if (hour >= 0 && hour < 1) return 0; // 早子时
     return Math.floor((hour + 1) / 2);
 }
@@ -107,7 +109,8 @@ function hourToTimeIndex(hour: number): number {
  */
 export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
     const dateStr = `${formData.birthYear}-${formData.birthMonth}-${formData.birthDay}`;
-    const timeIndex = hourToTimeIndex(formData.birthHour);
+    const hourValue = formData.birthHour + (formData.birthMinute || 0) / 60;
+    const timeIndex = hourToTimeIndex(hourValue);
     const genderStr = formData.gender === 'male' ? '男' : '女';
 
     let astrolabe: Astrolabe;
@@ -164,6 +167,14 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         };
     });
 
+    // 从 iztro 获取四柱信息
+    // chineseDate 格式: "癸未 庚申 戊寅 乙卯" (年 月 日 时)
+    const pillars = (astrolabe.chineseDate || '').split(' ');
+    const yearPillar = pillars[0] || '';
+    const monthPillar = pillars[1] || '';
+    const dayPillar = pillars[2] || '';
+    const hourPillar = pillars[3] || '';
+
     return {
         solarDate: astrolabe.solarDate,
         lunarDate: astrolabe.lunarDate,
@@ -171,14 +182,14 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         sign: astrolabe.sign,
         zodiac: astrolabe.zodiac,
 
-        yearStem: astrolabe.chineseDate?.slice(0, 1) || '',
-        yearBranch: astrolabe.chineseDate?.slice(1, 2) || '',
-        monthStem: astrolabe.chineseDate?.slice(2, 3) || '',
-        monthBranch: astrolabe.chineseDate?.slice(3, 4) || '',
-        dayStem: astrolabe.chineseDate?.slice(4, 5) || '',
-        dayBranch: astrolabe.chineseDate?.slice(5, 6) || '',
-        hourStem: astrolabe.chineseDate?.slice(6, 7) || '',
-        hourBranch: astrolabe.chineseDate?.slice(7, 8) || '',
+        yearStem: yearPillar?.slice?.(0, 1) || '',
+        yearBranch: yearPillar?.slice?.(1, 2) || '',
+        monthStem: monthPillar?.slice?.(0, 1) || '',
+        monthBranch: monthPillar?.slice?.(1, 2) || '',
+        dayStem: dayPillar?.slice?.(0, 1) || '',
+        dayBranch: dayPillar?.slice?.(1, 2) || '',
+        hourStem: hourPillar?.slice?.(0, 1) || '',
+        hourBranch: hourPillar?.slice?.(1, 2) || '',
 
         soul: astrolabe.soul,
         body: astrolabe.body,

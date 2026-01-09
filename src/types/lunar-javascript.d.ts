@@ -130,7 +130,7 @@ declare module 'lunar-javascript' {
         getJieQiList(): string[];
 
         // ===== 神煞相关 =====
-        
+
         /**
          * 获取当日吉神宜趋
          */
@@ -160,6 +160,229 @@ declare module 'lunar-javascript' {
          * 获取月神煞
          */
         getMonthShenSha(): string[];
+
+        // ===== 黄历信息 =====
+
+        /**
+         * 获取冲什么生肖
+         */
+        getChongShengXiao(): string;
+
+        /**
+         * 获取冲的描述（如 "冲牛(丁丑)煞西"）
+         */
+        getChongDesc(): string;
+
+        /**
+         * 获取煞方位
+         */
+        getSha(): string;
+
+        /**
+         * 获取天神/值神（如 "玄武"）
+         */
+        getDayTianShen(): string;
+
+        /**
+         * 获取天神类型（黄道/黑道）
+         */
+        getDayTianShenType(): string;
+
+        /**
+         * 获取天神吉凶（吉/凶）
+         */
+        getDayTianShenLuck(): string;
+
+        /**
+         * 获取胎神方位（如 "房床厕 外西北"）
+         */
+        getDayPositionTai(): string;
+
+        /**
+         * 获取财神方位描述
+         */
+        getDayPositionCaiDesc(): string;
+
+        /**
+         * 获取喜神方位描述
+         */
+        getDayPositionXiDesc(): string;
+
+        /**
+         * 获取福神方位描述
+         */
+        getDayPositionFuDesc(): string;
+
+        /**
+         * 获取阳贵神方位描述
+         */
+        getDayPositionYangGuiDesc(): string;
+
+        /**
+         * 获取阴贵神方位描述
+         */
+        getDayPositionYinGuiDesc(): string;
+
+
+        /**
+         * 获取二十八宿
+         */
+        getXiu(): string;
+
+        /**
+         * 获取二十八宿详情（如 "东宫 亢金 (凶)"）
+         */
+        getXiuLuck(): string;
+
+        /**
+         * 获取宿宫
+         */
+        getGong(): string;
+
+        /**
+         * 获取兽（如 "龙"）
+         */
+        getShou(): string;
+
+        /**
+         * 获取星宿吉凶
+         */
+        getZheng(): string;
+
+        /**
+         * 获取月相
+         */
+        getYueXiang(): string;
+
+        /**
+         * 获取物候
+         */
+        getWuHou(): string;
+
+        /**
+         * 获取物候索引
+         */
+        getHou(): string;
+
+        /**
+         * 获取六曜
+         */
+        getLiuYao(): string;
+
+        /**
+         * 获取日九星
+         */
+        getDayNineStar(): NineStar;
+
+        /**
+         * 获取空亡（旬空）
+         */
+        getDayXunKong(): string;
+
+        /**
+         * 获取年生肖
+         */
+        getYearShengXiao(): string;
+
+        /**
+         * 获取月生肖
+         */
+        getMonthShengXiao(): string;
+
+        /**
+         * 获取日生肖
+         */
+        getDayShengXiao(): string;
+
+        /**
+         * 获取农历年中文（如 "二〇二六"）
+         */
+        getYearInChinese(): string;
+
+        /**
+         * 获取农历月中文（如 "冬月"）
+         */
+        getMonthInChinese(): string;
+
+        /**
+         * 获取农历日中文（如 "廿一"）
+         */
+        getDayInChinese(): string;
+
+        /**
+         * 获取当前节气
+         */
+        getJieQi(): string | null;
+
+        /**
+         * 获取上一个节气
+         */
+        getPrevJieQi(): JieQi | null;
+
+        /**
+         * 获取下一个节气
+         */
+        getNextJieQi(): JieQi | null;
+
+        /**
+         * 获取当前节令
+         */
+        getCurrentJie(): JieQi | null;
+
+        /**
+         * 获取当前节
+         */
+        getCurrentQi(): JieQi | null;
+    }
+
+    /**
+     * 节气类
+     */
+    export class JieQi {
+        /**
+         * 获取节气名称
+         */
+        getName(): string;
+
+        /**
+         * 获取节气对应的公历日期
+         */
+        getSolar(): Solar;
+    }
+
+    /**
+     * 九星类
+     */
+    export class NineStar {
+        /**
+         * 转为字符串（如 "二黑土天璇"）
+         */
+        toString(): string;
+
+        /**
+         * 转为完整字符串
+         */
+        toFullString(): string;
+
+        /**
+         * 获取数字
+         */
+        getNumber(): number;
+
+        /**
+         * 获取颜色
+         */
+        getColor(): string;
+
+        /**
+         * 获取五行
+         */
+        getWuXing(): string;
+
+        /**
+         * 获取方位描述
+         */
+        getPositionDesc(): string;
     }
 
     /**

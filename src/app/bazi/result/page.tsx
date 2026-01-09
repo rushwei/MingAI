@@ -35,6 +35,9 @@ function BaziResultContent() {
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(false);
     const [chartFromDb, setChartFromDb] = useState<BaziFormData | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+    const [savedWuxingAnalysis, setSavedWuxingAnalysis] = useState<string | null>(null);
+    const [savedPersonalityAnalysis, setSavedPersonalityAnalysis] = useState<string | null>(null);
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -49,10 +52,24 @@ function BaziResultContent() {
     const [selectedLiuRiDate, setSelectedLiuRiDate] = useState<string>('');
 
     const chartId = searchParams.get('chart');
+    const hasFormParams = useMemo(() => {
+        const params = ['name', 'gender', 'year', 'month', 'day', 'hour', 'minute', 'calendar', 'leap', 'place'];
+        return params.some((key) => searchParams.has(key));
+    }, [searchParams]);
 
-    // 从数据库加载命盘
+    // 编辑模式：优先使用 URL 参数，避免覆盖为数据库旧数据
     useEffect(() => {
-        if (chartId) {
+        if (hasFormParams) {
+            setChartFromDb(null);
+            setSaved(false);
+            setSavedWuxingAnalysis(null);
+            setSavedPersonalityAnalysis(null);
+        }
+    }, [hasFormParams]);
+
+    // 从数据库加载命盘（仅查看已保存命盘时）
+    useEffect(() => {
+        if (chartId && !hasFormParams) {
             setLoading(true);
             supabase
                 .from('bazi_charts')
@@ -62,6 +79,7 @@ function BaziResultContent() {
                 .then(({ data, error }) => {
                     if (data && !error) {
                         const [year, month, day] = data.birth_date.split('-').map(Number);
+                        const hasTime = Boolean(data.birth_time);
                         const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
 
                         setChartFromDb({
@@ -72,16 +90,25 @@ function BaziResultContent() {
                             birthDay: day,
                             birthHour: hour,
                             birthMinute: minute || 0,
+                            isUnknownTime: !hasTime,
                             calendarType: (data.calendar_type as CalendarType) || 'solar',
                             isLeapMonth: data.is_leap_month || false,
                             birthPlace: data.birth_place || undefined,
                         });
+                        // 加载已保存的AI分析结果
+                        setSavedWuxingAnalysis(data.ai_wuxing_analysis || null);
+                        setSavedPersonalityAnalysis(data.ai_personality_analysis || null);
                         setSaved(true);
                     }
                     setLoading(false);
                 });
         }
-    }, [chartId]);
+
+        // 获取当前用户ID
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUserId(session?.user?.id || null);
+        });
+    }, [chartId, hasFormParams]);
 
     // 表单数据
     const formData: BaziFormData = useMemo(() => {
@@ -101,11 +128,12 @@ function BaziResultContent() {
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
             isLeapMonth: searchParams.get('leap') === '1',
             birthPlace: searchParams.get('place') || undefined,
+            isUnknownTime,
         };
     }, [searchParams, chartFromDb]);
 
     // 是否不确定时辰
-    const isUnknownTime = searchParams.get('hour') === '-1';
+    const isUnknownTime = formData.isUnknownTime ?? false;
 
     // 计算八字
     const baziResult = useMemo(() => {
@@ -226,7 +254,7 @@ function BaziResultContent() {
 
     // 保存命盘
     const handleSave = async () => {
-        if (saving || saved) return;
+        if (saving) return;
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
@@ -237,20 +265,50 @@ function BaziResultContent() {
 
         setSaving(true);
         try {
-            const { error } = await supabase.from('bazi_charts').insert({
-                user_id: session.user.id,
+            const payload = {
                 name: formData.name,
                 gender: formData.gender,
                 birth_date: `${formData.birthYear}-${String(formData.birthMonth).padStart(2, '0')}-${String(formData.birthDay).padStart(2, '0')}`,
-                birth_time: `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
+                birth_time: formData.isUnknownTime
+                    ? null
+                    : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`,
                 birth_place: formData.birthPlace || null,
                 calendar_type: formData.calendarType,
                 is_leap_month: formData.isLeapMonth || false,
                 chart_data: baziResult,
-            });
+            };
+            let error = null;
+            if (chartId) {
+                const response = await fetch('/api/bazi/charts/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ chartId, payload }),
+                });
+                if (!response.ok) {
+                    const result = await response.json().catch(() => null);
+                    throw new Error(result?.error || '更新失败');
+                }
+            } else {
+                const { data: inserted, error: insertError } = await supabase
+                    .from('bazi_charts')
+                    .insert({ ...payload, user_id: session.user.id })
+                    .select('id')
+                    .maybeSingle();
+                error = insertError;
+                if (inserted?.id) {
+                    router.replace(`/bazi/result?chart=${inserted.id}`);
+                }
+            }
 
             if (error) throw error;
             setSaved(true);
+            setChartFromDb(formData);
+            if (chartId) {
+                router.replace(`/bazi/result?chart=${chartId}`);
+            }
         } catch (error) {
             console.error('保存失败:', error);
             alert('保存失败，请重试');
@@ -286,8 +344,8 @@ function BaziResultContent() {
             year: String(formData.birthYear),
             month: String(formData.birthMonth),
             day: String(formData.birthDay),
-            hour: String(formData.birthHour),
-            minute: String(formData.birthMinute),
+            hour: formData.isUnknownTime ? '-1' : String(formData.birthHour),
+            minute: formData.isUnknownTime ? '0' : String(formData.birthMinute),
             calendar: formData.calendarType,
         });
         if (formData.isLeapMonth) {
@@ -295,6 +353,9 @@ function BaziResultContent() {
         }
         if (formData.birthPlace) {
             params.set('place', formData.birthPlace);
+        }
+        if (chartId) {
+            params.set('chart', chartId);
         }
         router.push(`/bazi?${params.toString()}`);
     };
@@ -370,6 +431,23 @@ function BaziResultContent() {
                 <BasicInfoSection
                     baziResult={baziResult}
                     dayMasterDescription={dayMasterDescription}
+                    chartId={chartId}
+                    userId={userId}
+                    savedWuxingAnalysis={savedWuxingAnalysis}
+                    savedPersonalityAnalysis={savedPersonalityAnalysis}
+                    onSaveWuxingAnalysis={async (analysis) => {
+                        setSavedWuxingAnalysis(analysis);
+                        if (chartId) {
+                            await supabase.from('bazi_charts').update({ ai_wuxing_analysis: analysis }).eq('id', chartId);
+                        }
+                    }}
+                    onSavePersonalityAnalysis={async (analysis) => {
+                        setSavedPersonalityAnalysis(analysis);
+                        if (chartId) {
+                            await supabase.from('bazi_charts').update({ ai_personality_analysis: analysis }).eq('id', chartId);
+                        }
+                    }}
+                    onLoginRequired={() => router.push('/user')}
                 />
             )}
 

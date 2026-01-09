@@ -6,6 +6,7 @@ export default function PalmPage() {
             title="手相分析"
             emoji="🖐️"
             description="手相学通过掌纹分析，揭示先天禀赋与后天发展。"
+            featureKey="palm"
             features={[
                 'AI 掌纹识别',
                 '生命线、智慧线、感情线解读',

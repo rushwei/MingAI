@@ -1,9 +1,11 @@
 /**
  * 每月运势页面
+ * 
+ * 支持个性化运势（基于用户八字命盘）和通用运势
  */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -11,62 +13,124 @@ import {
     TrendingUp,
     TrendingDown,
     Minus,
-    Star
+    Star,
+    Loader2,
+    Sparkles,
+    User,
+    ChevronDown,
+    Check,
+    X
 } from 'lucide-react';
 import Link from 'next/link';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
+import { ChartSelectorModal } from '@/components/ChartSelectorModal';
+import { supabase } from '@/lib/supabase';
+import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, type MonthlyFortune } from '@/lib/fortune';
+import type { BaziChart } from '@/types';
 
-// 基于日期的伪随机函数
+const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+
+// 基于日期的伪随机函数（通用运势用）
 function seededRandom(seed: number, offset: number): number {
     const x = Math.sin(seed + offset) * 10000;
     return x - Math.floor(x);
 }
 
-// 生成月度运势数据（基于年月的确定性计算）
-function generateMonthlyFortune(year: number, month: number) {
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const baseSeed = year * 100 + month;
-    const days = [];
-
-    for (let day = 1; day <= daysInMonth; day++) {
-        const daySeed = baseSeed * 100 + day;
-        const score = Math.floor(seededRandom(daySeed, 1) * 40) + 55; // 55-95
-        days.push({
-            day,
-            score,
-            trend: score >= 80 ? 'up' : score <= 65 ? 'down' : 'neutral',
-        });
-    }
-
-    // 确定性生成重点日期
-    const highlightDays = [
-        Math.floor(seededRandom(baseSeed, 10) * 8) + 5,   // 5-12
-        Math.floor(seededRandom(baseSeed, 20) * 7) + 13,  // 13-19
-        Math.floor(seededRandom(baseSeed, 30) * 8) + 20,  // 20-27
-    ];
-
-    const highlightLabels = ['贵人日', '财运旺', '宜决策', '桃花运', '健康佳'];
-
-    return {
-        year,
-        month,
-        days,
-        average: Math.floor(days.reduce((sum, d) => sum + d.score, 0) / days.length),
-        highlights: highlightDays.map((day, i) => ({
-            day,
-            label: highlightLabels[i % highlightLabels.length],
-        })),
-    };
-}
-
-const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-
 function MonthlyPageContent() {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
+    const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
+    const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showChartSelector, setShowChartSelector] = useState(false);
 
-    const fortune = useMemo(() => generateMonthlyFortune(year, month), [year, month]);
+    // 加载用户所有八字命盘
+    const loadUserCharts = useCallback(async (uid: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('bazi_charts')
+                .select('*')
+                .eq('user_id', uid)
+                .order('created_at', { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                // 从 chart_data 中提取完整的八字数据
+                const charts = data.map(row => {
+                    const chartData = row.chart_data as Record<string, unknown> || {};
+                    return {
+                        id: row.id,
+                        name: row.name,
+                        gender: row.gender,
+                        birthDate: row.birth_date,
+                        birthTime: row.birth_time,
+                        birthPlace: row.birth_place,
+                        calendarType: row.calendar_type,
+                        isLeapMonth: row.is_leap_month,
+                        // 从 chart_data 中读取排盘结果
+                        fourPillars: chartData.fourPillars,
+                        dayMaster: chartData.dayMaster,
+                        fiveElements: chartData.fiveElements,
+                        createdAt: row.created_at,
+                    } as BaziChart;
+                });
+                setBaziCharts(charts);
+                setBaziChart(charts[0]);
+            }
+        } catch (err) {
+            console.error('加载命盘失败:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 初始化
+    useEffect(() => {
+        const init = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await loadUserCharts(session.user.id);
+            } else {
+                setLoading(false);
+            }
+        };
+        init();
+    }, [loadUserCharts]);
+
+    // 计算月度运势
+    const fortune = useMemo((): MonthlyFortune | null => {
+        if (baziChart) {
+            return calculateMonthlyFortune(baziChart, year, month);
+        }
+        return null;
+    }, [baziChart, year, month]);
+
+    // 计算日历数据
+    const calendarData = useMemo(() => {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const days = [];
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month - 1, day);
+            let score: number;
+
+            if (baziChart) {
+                const dayFortune = calculateDailyFortune(baziChart, date);
+                score = dayFortune.overall;
+            } else {
+                const generic = calculateGenericDailyFortune(date);
+                score = generic.overall;
+            }
+
+            days.push({
+                day,
+                score,
+                trend: score >= 80 ? 'up' : score <= 65 ? 'down' : 'neutral',
+            });
+        }
+
+        return days;
+    }, [baziChart, year, month]);
 
     const changeMonth = (delta: number) => {
         let newMonth = month + delta;
@@ -90,6 +154,7 @@ function MonthlyPageContent() {
     };
 
     const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
+    const isPersonalized = !!baziChart;
 
     const getTrendIcon = (trend: string) => {
         if (trend === 'up') return <TrendingUp className="w-3 h-3 text-green-500" />;
@@ -103,8 +168,62 @@ function MonthlyPageContent() {
         return 'bg-red-500';
     };
 
+    const average = Math.floor(calendarData.reduce((sum, d) => sum + d.score, 0) / calendarData.length);
+
+    const handleSelectChart = (chart: BaziChart) => {
+        setBaziChart(chart);
+        setShowChartSelector(false);
+    };
+
+    if (loading) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
+            {/* 个性化提示 - 可点击切换命盘 */}
+            {isPersonalized ? (
+                <button
+                    onClick={() => setShowChartSelector(true)}
+                    className="flex items-center justify-center gap-2 mb-4 text-accent hover:opacity-80 transition-opacity w-full"
+                >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-sm">八字运势 · 基于「{baziChart.name}」</span>
+                    <ChevronDown className="w-4 h-4" />
+                </button>
+            ) : (
+                <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-amber-600">
+                            <User className="w-4 h-4" />
+                            <span className="text-sm">当前为通用运势</span>
+                        </div>
+                        <Link
+                            href="/bazi"
+                            className="text-sm text-accent hover:underline"
+                        >
+                            添加命盘获取个性化分析 →
+                        </Link>
+                    </div>
+                </div>
+            )}
+
+            {/* 命盘选择器弹窗 */}
+            {showChartSelector && (
+                <ChartSelectorModal
+                    charts={baziCharts}
+                    selectedId={baziChart?.id}
+                    onSelect={handleSelectChart}
+                    onClose={() => setShowChartSelector(false)}
+                />
+            )}
+
+
             {/* 月份选择器 */}
             <div className="flex items-center justify-between mb-6">
                 <button
@@ -121,7 +240,7 @@ function MonthlyPageContent() {
                     </div>
                     <div className="text-sm text-foreground-secondary">
                         {isCurrentMonth ? (
-                            <span>本月综合运势：<span className="font-semibold text-accent">{fortune.average}分</span></span>
+                            <span>本月综合运势：<span className="font-semibold text-accent">{average}分</span></span>
                         ) : (
                             <button
                                 onClick={goToCurrentMonth}
@@ -140,6 +259,18 @@ function MonthlyPageContent() {
                     <ChevronRight className="w-5 h-5" />
                 </button>
             </div>
+
+            {/* 月度总结（仅个性化时显示） */}
+            {isPersonalized && fortune && (
+                <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 mb-6">
+                    <div className="flex items-center gap-4 mb-3 text-sm text-foreground-secondary">
+                        <span>流月：{fortune.monthStem}{fortune.monthBranch}</span>
+                        <span>•</span>
+                        <span>十神：{fortune.tenGod}</span>
+                    </div>
+                    <p className="text-foreground">{fortune.summary}</p>
+                </div>
+            )}
 
             {/* 运势热力图 */}
             <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
@@ -160,11 +291,10 @@ function MonthlyPageContent() {
                         <div key={`empty-${i}`} />
                     ))}
 
-                    {fortune.days.map(day => {
+                    {calendarData.map(day => {
                         const isToday = year === today.getFullYear() &&
                             month === today.getMonth() + 1 &&
                             day.day === today.getDate();
-                        const highlight = fortune.highlights.find(h => h.day === day.day);
 
                         return (
                             <Link
@@ -181,31 +311,30 @@ function MonthlyPageContent() {
                                     <div className={`w-2 h-2 rounded-full ${getScoreColor(day.score)}`} />
                                     {getTrendIcon(day.trend)}
                                 </div>
-                                {highlight && (
-                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
-                                )}
                             </Link>
                         );
                     })}
                 </div>
             </div>
 
-            {/* 重点日期 */}
-            <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
-                <h2 className="font-semibold mb-3">本月重点日期</h2>
-                <div className="grid grid-cols-3 gap-3">
-                    {fortune.highlights.map(h => (
-                        <Link
-                            key={h.day}
-                            href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.day).padStart(2, '0')}`}
-                            className="p-3 bg-accent/10 rounded-lg text-center hover:bg-accent/20 transition-colors"
-                        >
-                            <div className="text-2xl font-bold text-accent">{h.day}</div>
-                            <div className="text-xs text-foreground-secondary">{h.label}</div>
-                        </Link>
-                    ))}
+            {/* 重点日期（仅个性化时显示） */}
+            {isPersonalized && fortune && fortune.keyDates.length > 0 && (
+                <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
+                    <h2 className="font-semibold mb-3">本月吉日</h2>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                        {fortune.keyDates.map(h => (
+                            <Link
+                                key={h.date}
+                                href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.date).padStart(2, '0')}`}
+                                className="p-3 bg-accent/10 rounded-lg text-center hover:bg-accent/20 transition-colors"
+                            >
+                                <div className="text-2xl font-bold text-accent">{h.date}</div>
+                                <div className="text-xs text-foreground-secondary">{h.desc}</div>
+                            </Link>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* 图例 */}
             <div className="flex items-center justify-center gap-6 text-xs text-foreground-secondary mb-4">
@@ -223,14 +352,15 @@ function MonthlyPageContent() {
                 </div>
             </div>
 
-            {/* 提示 */}
-            <p className="text-center text-sm text-foreground-secondary">
-                运势分析基于您的八字命盘，
-                <Link href="/bazi" className="text-accent hover:underline">
-                    先完成八字排盘
-                </Link>
-                获取个性化运势
-            </p>
+            {/* 底部提示 */}
+            {!isPersonalized && (
+                <p className="text-center text-sm text-foreground-secondary">
+                    <Link href="/bazi" className="text-accent hover:underline">
+                        完成八字排盘
+                    </Link>
+                    {' '}获取更精准的个性化运势分析
+                </p>
+            )}
         </div>
     );
 }
@@ -242,3 +372,4 @@ export default function MonthlyPage() {
         </LoginOverlay>
     );
 }
+

@@ -554,6 +554,155 @@ const SANG_MEN: Record<EarthlyBranch, EarthlyBranch> = {
     '申': '戌', '酉': '亥', '戌': '子', '亥': '丑',
 };
 
+// 空亡规则（旬空）：根据日柱确定空亡地支
+// 甲子旬空戌亥，甲戌旬空申酉，甲申旬空午未，甲午旬空辰巳，甲辰旬空寅卯，甲寅旬空子丑
+const XUN_KONG: Record<string, EarthlyBranch[]> = {
+    '甲子': ['戌', '亥'], '乙丑': ['戌', '亥'], '丙寅': ['戌', '亥'], '丁卯': ['戌', '亥'], '戊辰': ['戌', '亥'], '己巳': ['戌', '亥'], '庚午': ['戌', '亥'], '辛未': ['戌', '亥'], '壬申': ['戌', '亥'], '癸酉': ['戌', '亥'],
+    '甲戌': ['申', '酉'], '乙亥': ['申', '酉'], '丙子': ['申', '酉'], '丁丑': ['申', '酉'], '戊寅': ['申', '酉'], '己卯': ['申', '酉'], '庚辰': ['申', '酉'], '辛巳': ['申', '酉'], '壬午': ['申', '酉'], '癸未': ['申', '酉'],
+    '甲申': ['午', '未'], '乙酉': ['午', '未'], '丙戌': ['午', '未'], '丁亥': ['午', '未'], '戊子': ['午', '未'], '己丑': ['午', '未'], '庚寅': ['午', '未'], '辛卯': ['午', '未'], '壬辰': ['午', '未'], '癸巳': ['午', '未'],
+    '甲午': ['辰', '巳'], '乙未': ['辰', '巳'], '丙申': ['辰', '巳'], '丁酉': ['辰', '巳'], '戊戌': ['辰', '巳'], '己亥': ['辰', '巳'], '庚子': ['辰', '巳'], '辛丑': ['辰', '巳'], '壬寅': ['辰', '巳'], '癸卯': ['辰', '巳'],
+    '甲辰': ['寅', '卯'], '乙巳': ['寅', '卯'], '丙午': ['寅', '卯'], '丁未': ['寅', '卯'], '戊申': ['寅', '卯'], '己酉': ['寅', '卯'], '庚戌': ['寅', '卯'], '辛亥': ['寅', '卯'], '壬子': ['寅', '卯'], '癸丑': ['寅', '卯'],
+    '甲寅': ['子', '丑'], '乙卯': ['子', '丑'], '丙辰': ['子', '丑'], '丁巳': ['子', '丑'], '戊午': ['子', '丑'], '己未': ['子', '丑'], '庚申': ['子', '丑'], '辛酉': ['子', '丑'], '壬戌': ['子', '丑'], '癸亥': ['子', '丑'],
+};
+
+// 魁罡：庚辰、庚戌、壬辰、戊戌四日为魁罡
+const KUI_GANG = ['庚辰', '庚戌', '壬辰', '戊戌'];
+
+// 天罗地网：辰见巳为天罗，戌见亥为地网
+// 简化规则：火命人辰月日时见巳，水土命人戌月日时见亥
+const TIAN_LUO_DI_WANG: Partial<Record<EarthlyBranch, EarthlyBranch>> = {
+    '辰': '巳', // 天罗
+    '戌': '亥', // 地网
+};
+
+// 阴差阳错日：丙子、丁丑、戊寅、辛卯、壬辰、癸巳、丙午、丁未、戊申、辛酉、壬戌、癸亥
+const YIN_CHA_YANG_CUO = ['丙子', '丁丑', '戊寅', '辛卯', '壬辰', '癸巳', '丙午', '丁未', '戊申', '辛酉', '壬戌', '癸亥'];
+
+// 十恶大败日：甲辰乙巳与壬申、丙申丁亥及庚辰、戊戌癸亥加辛巳、己丑都来十位中
+const SHI_E_DA_BAI = ['甲辰', '乙巳', '壬申', '丙申', '丁亥', '庚辰', '戊戌', '癸亥', '辛巳', '己丑'];
+
+// 血刃：日干 -> 血刃地支
+const XUE_REN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '卯', '乙': '辰', '丙': '午', '丁': '未',
+    '戊': '午', '己': '未', '庚': '酉', '辛': '戌',
+    '壬': '子', '癸': '丑',
+};
+
+// 披头（披麻）：年支 -> 披头地支
+const PI_TOU: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '巳', '丑': '午', '寅': '未', '卯': '申',
+    '辰': '酉', '巳': '戌', '午': '亥', '未': '子',
+    '申': '丑', '酉': '寅', '戌': '卯', '亥': '辰',
+};
+
+// 天赦日：春戊寅、夏甲午、秋戊申、冬甲子
+const TIAN_SHE = {
+    spring: ['戊寅'],
+    summer: ['甲午'],
+    autumn: ['戊申'],
+    winter: ['甲子'],
+};
+
+// 福星贵人：日干 -> 福星地支
+const FU_XING: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '寅', '乙': '丑', '丙': '子', '丁': '亥',
+    '戊': '申', '己': '未', '庚': '午', '辛': '巳',
+    '壬': '辰', '癸': '卯',
+};
+
+// 灾煞规则：年支 -> 灾煞地支
+const ZAI_SHA: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '午', '午': '午', '戌': '午',
+    '申': '子', '子': '子', '辰': '子',
+    '巳': '酉', '酉': '酉', '丑': '酉',
+    '亥': '卯', '卯': '卯', '未': '卯',
+};
+
+// 流霞规则：日干 -> 流霞地支
+const LIU_XIA: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '酉', '乙': '戌', '丙': '未', '丁': '申',
+    '戊': '巳', '己': '午', '庚': '辰', '辛': '卯',
+    '壬': '亥', '癸': '寅',
+};
+
+// 红艳煞规则：日干 -> 红艳地支
+const HONG_YAN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '午', '乙': '午', '丙': '寅', '丁': '未',
+    '戊': '辰', '己': '辰', '庚': '戌', '辛': '酉',
+    '壬': '子', '癸': '申',
+};
+
+// 八专日：日柱
+const BA_ZHUAN = ['甲寅', '乙卯', '丙午', '丁未', '戊戌', '戊辰', '己未', '己丑', '庚申', '辛酉', '壬子', '癸丑'];
+
+// 金神：日柱含"金"气
+const JIN_SHEN = ['己丑', '己巳', '癸酉'];
+
+// 德秀贵人规则：月支 -> 德秀天干
+const DE_XIU: Record<EarthlyBranch, HeavenlyStem[]> = {
+    '寅': ['丙', '甲'], '卯': ['甲', '乙'], '辰': ['壬', '癸'], '巳': ['丙', '庚'],
+    '午': ['丁', '己'], '未': ['甲', '己'], '申': ['庚', '壬'], '酉': ['辛', '庚'],
+    '戌': ['丙', '戊'], '亥': ['壬', '甲'], '子': ['癸', '壬'], '丑': ['辛', '己'],
+};
+
+// 元辰规则：年支与日支的关系
+const YUAN_CHEN_MALE: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '酉', '丑': '申', '寅': '未', '卯': '午',
+    '辰': '巳', '巳': '辰', '午': '卯', '未': '寅',
+    '申': '丑', '酉': '子', '戌': '亥', '亥': '戌',
+};
+
+const YUAN_CHEN_FEMALE: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
+    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
+    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
+};
+
+// 孤鸾煞规则：日柱
+const GU_LUAN = ['乙巳', '丁巳', '辛亥', '戊申', '甲寅', '丙午', '戊午', '壬子'];
+
+// 勾绞煞规则：年支 -> 勾煞地支、绞煞地支
+const GOU_SHA: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '酉', '丑': '戌', '寅': '亥', '卯': '子',
+    '辰': '丑', '巳': '寅', '午': '卯', '未': '辰',
+    '申': '巳', '酉': '午', '戌': '未', '亥': '申',
+};
+
+const JIAO_SHA: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
+    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
+    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
+};
+
+// 白虎煞规则：月支 -> 白虎地支
+const BAI_HU: Record<EarthlyBranch, EarthlyBranch> = {
+    '寅': '午', '卯': '未', '辰': '申', '巳': '酉',
+    '午': '戌', '未': '亥', '申': '子', '酉': '丑',
+    '戌': '寅', '亥': '卯', '子': '辰', '丑': '巳',
+};
+
+// 飞刃规则：日干 -> 飞刃地支（羊刃对冲）
+const FEI_REN: Record<HeavenlyStem, EarthlyBranch> = {
+    '甲': '酉', '乙': '申', '丙': '子', '丁': '亥',
+    '戊': '子', '己': '亥', '庚': '卯', '辛': '寅',
+    '壬': '午', '癸': '巳',
+};
+
+// 天月二德合规则
+const TIAN_DE_HE: Record<EarthlyBranch, string> = {
+    '寅': '壬', '卯': '癸', '辰': '丁', '巳': '丙',
+    '午': '寅', '未': '己', '申': '戊', '酉': '丁',
+    '戌': '辛', '亥': '庚', '子': '庚', '丑': '乙',
+};
+
+const YUE_DE_HE: Record<EarthlyBranch, HeavenlyStem> = {
+    '寅': '辛', '午': '辛', '戌': '辛',
+    '申': '丁', '子': '丁', '辰': '丁',
+    '亥': '己', '卯': '己', '未': '己',
+    '巳': '乙', '酉': '乙', '丑': '乙',
+};
+
+
 /**
  * 计算神煞信息（含按柱分类的神煞星）
  */
@@ -754,6 +903,141 @@ export function calculateShenSha(formData: BaziFormData): ShenShaInfo {
     if (sangMenBranch === monthBranch) pillarShenSha.month.push('丧门');
     if (sangMenBranch === dayBranch) pillarShenSha.day.push('丧门');
     if (sangMenBranch === hourBranch) pillarShenSha.hour.push('丧门');
+
+    // 空亡（日柱查，遇空地支）
+    const dayPillar = `${dayStem}${dayBranch}`;
+    const kongWangBranches = XUN_KONG[dayPillar] || [];
+    if (kongWangBranches.includes(yearBranch)) pillarShenSha.year.push('空亡');
+    if (kongWangBranches.includes(monthBranch)) pillarShenSha.month.push('空亡');
+    if (kongWangBranches.includes(hourBranch)) pillarShenSha.hour.push('空亡');
+
+    // 魁罡（日柱）
+    if (KUI_GANG.includes(dayPillar)) {
+        pillarShenSha.day.push('魁罡');
+    }
+
+    // 阴差阳错（日柱）
+    if (YIN_CHA_YANG_CUO.includes(dayPillar)) {
+        pillarShenSha.day.push('阴差阳错');
+    }
+
+    // 十恶大败（日柱）
+    if (SHI_E_DA_BAI.includes(dayPillar)) {
+        pillarShenSha.day.push('十恶大败');
+    }
+
+    // 血刃（日干查）
+    const xueRenBranch = XUE_REN[dayStem];
+    if (xueRenBranch === yearBranch) pillarShenSha.year.push('血刃');
+    if (xueRenBranch === monthBranch) pillarShenSha.month.push('血刃');
+    if (xueRenBranch === dayBranch) pillarShenSha.day.push('血刃');
+    if (xueRenBranch === hourBranch) pillarShenSha.hour.push('血刃');
+
+    // 披头/披麻（年支查）
+    const piTouBranch = PI_TOU[yearBranch];
+    if (piTouBranch === monthBranch) pillarShenSha.month.push('披头');
+    if (piTouBranch === dayBranch) pillarShenSha.day.push('披头');
+    if (piTouBranch === hourBranch) pillarShenSha.hour.push('披头');
+
+    // 福星贵人（日干查）
+    const fuXingBranch = FU_XING[dayStem];
+    if (fuXingBranch === yearBranch) pillarShenSha.year.push('福星贵人');
+    if (fuXingBranch === monthBranch) pillarShenSha.month.push('福星贵人');
+    if (fuXingBranch === dayBranch) pillarShenSha.day.push('福星贵人');
+    if (fuXingBranch === hourBranch) pillarShenSha.hour.push('福星贵人');
+
+    // 天罗地网（基于地支关系）
+    // 辰见巳为天罗
+    if (yearBranch === '辰' && (monthBranch === '巳' || dayBranch === '巳' || hourBranch === '巳')) {
+        pillarShenSha.year.push('天罗');
+    }
+    if (monthBranch === '辰' && (yearBranch === '巳' || dayBranch === '巳' || hourBranch === '巳')) {
+        pillarShenSha.month.push('天罗');
+    }
+    // 戌见亥为地网
+    if (yearBranch === '戌' && (monthBranch === '亥' || dayBranch === '亥' || hourBranch === '亥')) {
+        pillarShenSha.year.push('地网');
+    }
+    if (monthBranch === '戌' && (yearBranch === '亥' || dayBranch === '亥' || hourBranch === '亥')) {
+        pillarShenSha.month.push('地网');
+    }
+
+    // 灾煞（年支查）
+    const zaiShaBranch = ZAI_SHA[yearBranch];
+    if (zaiShaBranch === monthBranch) pillarShenSha.month.push('灾煞');
+    if (zaiShaBranch === dayBranch) pillarShenSha.day.push('灾煞');
+    if (zaiShaBranch === hourBranch) pillarShenSha.hour.push('灾煞');
+
+    // 流霞（日干查）
+    const liuXiaBranch = LIU_XIA[dayStem];
+    if (liuXiaBranch === yearBranch) pillarShenSha.year.push('流霞');
+    if (liuXiaBranch === monthBranch) pillarShenSha.month.push('流霞');
+    if (liuXiaBranch === dayBranch) pillarShenSha.day.push('流霞');
+    if (liuXiaBranch === hourBranch) pillarShenSha.hour.push('流霞');
+
+    // 红艳煞（日干查）
+    const hongYanBranch = HONG_YAN[dayStem];
+    if (hongYanBranch === yearBranch) pillarShenSha.year.push('红艳煞');
+    if (hongYanBranch === monthBranch) pillarShenSha.month.push('红艳煞');
+    if (hongYanBranch === dayBranch) pillarShenSha.day.push('红艳煞');
+    if (hongYanBranch === hourBranch) pillarShenSha.hour.push('红艳煞');
+
+    // 八专日（日柱）
+    if (BA_ZHUAN.includes(dayPillar)) {
+        pillarShenSha.day.push('八专');
+    }
+
+    // 金神（日柱）
+    if (JIN_SHEN.includes(dayPillar)) {
+        pillarShenSha.day.push('金神');
+    }
+
+    // 孤鸾煞（日柱）
+    if (GU_LUAN.includes(dayPillar)) {
+        pillarShenSha.day.push('孤鸾煞');
+    }
+
+    // 德秀贵人（月支查日干）
+    const deXiuStems = DE_XIU[monthBranch] || [];
+    if (deXiuStems.includes(dayStem)) pillarShenSha.day.push('德秀贵人');
+    if (deXiuStems.includes(hourStem)) pillarShenSha.hour.push('德秀贵人');
+
+    // 勾煞（年支查）
+    const gouShaBranch = GOU_SHA[yearBranch];
+    if (gouShaBranch === monthBranch) pillarShenSha.month.push('勾煞');
+    if (gouShaBranch === dayBranch) pillarShenSha.day.push('勾煞');
+    if (gouShaBranch === hourBranch) pillarShenSha.hour.push('勾煞');
+
+    // 绞煞（年支查）
+    const jiaoShaBranch = JIAO_SHA[yearBranch];
+    if (jiaoShaBranch === monthBranch) pillarShenSha.month.push('绞煞');
+    if (jiaoShaBranch === dayBranch) pillarShenSha.day.push('绞煞');
+    if (jiaoShaBranch === hourBranch) pillarShenSha.hour.push('绞煞');
+
+    // 白虎煞（月支查）
+    const baiHuBranch = BAI_HU[monthBranch];
+    if (baiHuBranch === yearBranch) pillarShenSha.year.push('白虎');
+    if (baiHuBranch === dayBranch) pillarShenSha.day.push('白虎');
+    if (baiHuBranch === hourBranch) pillarShenSha.hour.push('白虎');
+
+    // 飞刃（日干查）
+    const feiRenBranch = FEI_REN[dayStem];
+    if (feiRenBranch === yearBranch) pillarShenSha.year.push('飞刃');
+    if (feiRenBranch === monthBranch) pillarShenSha.month.push('飞刃');
+    if (feiRenBranch === dayBranch) pillarShenSha.day.push('飞刃');
+    if (feiRenBranch === hourBranch) pillarShenSha.hour.push('飞刃');
+
+    // 天德合（月支查）
+    const tianDeHeChar = TIAN_DE_HE[monthBranch];
+    if (tianDeHeChar === yearStem || tianDeHeChar === yearBranch) pillarShenSha.year.push('天德合');
+    if (tianDeHeChar === dayStem || tianDeHeChar === dayBranch) pillarShenSha.day.push('天德合');
+    if (tianDeHeChar === hourStem || tianDeHeChar === hourBranch) pillarShenSha.hour.push('天德合');
+
+    // 月德合（月支查）
+    const yueDeHeStem = YUE_DE_HE[monthBranch];
+    if (yueDeHeStem === yearStem) pillarShenSha.year.push('月德合');
+    if (yueDeHeStem === dayStem) pillarShenSha.day.push('月德合');
+    if (yueDeHeStem === hourStem) pillarShenSha.hour.push('月德合');
 
     // 获取日级别神煞数据
     let jiShen: string[] = [];

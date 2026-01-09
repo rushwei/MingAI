@@ -1,0 +1,12 @@
+{
+    "crons": [
+        {
+            "path": "/api/credits/restore?period=daily",
+            "schedule": "0 5 * * *"
+        },
+        {
+            "path": "/api/credits/restore?period=hourly",
+            "schedule": "0 * * * *"
+        }
+    ]
+}

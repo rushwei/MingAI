@@ -18,12 +18,15 @@ import {
     History,
     FileText,
     Loader2,
-    LogIn
+    LogIn,
+    Bell,
+    Megaphone,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { PricingModal } from '@/components/membership/PricingModal';
+
 import { PaymentModal } from '@/components/membership/PaymentModal';
 import { supabase } from '@/lib/supabase';
+import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -34,7 +37,8 @@ const menuItems = [
         section: '我的服务',
         items: [
             { icon: FileText, label: '我的命盘', href: '/user/charts' },
-            { icon: History, label: '对话历史', href: '/chat', badge: 'P2' },
+            { icon: Bell, label: '消息通知', href: '/user/notifications', showBadge: true },
+            { icon: History, label: '对话历史', href: '/chat' },
             { icon: CreditCard, label: '订单记录', href: '/user/orders' },
         ],
     },
@@ -48,15 +52,15 @@ const menuItems = [
 ];
 
 const membershipLabels: Record<string, string> = {
-    free: '免费用户',
-    single: '单次解锁',
-    monthly: '月度会员',
-    yearly: '年度会员',
+    free: 'Free',
+    plus: 'Plus',
+    pro: 'Pro',
 };
 
 type ProfileSnapshot = {
     nickname: string | null;
     avatar_url: string | null;
+    is_admin?: boolean;
 };
 
 type MembershipSnapshot = {
@@ -74,7 +78,11 @@ const readProfileCache = (userId: string): ProfileSnapshot | null => {
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw) as ProfileSnapshot;
-        return parsed;
+        return {
+            nickname: parsed.nickname ?? null,
+            avatar_url: parsed.avatar_url ?? null,
+            is_admin: parsed.is_admin ?? false,
+        };
     } catch {
         return null;
     }
@@ -97,6 +105,7 @@ const readMembershipCache = (userId: string): MembershipInfo | null => {
             expiresAt,
             isActive: parsed.type === 'free' || (expiresAt !== null && expiresAt > new Date()),
             aiChatCount: parsed.aiChatCount,
+            lastCreditRestoreAt: null,
         };
     } catch {
         return null;
@@ -120,10 +129,11 @@ export default function UserPage() {
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [detailsLoading, setDetailsLoading] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [showPricingModal, setShowPricingModal] = useState(false);
+
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
 
@@ -217,6 +227,44 @@ export default function UserPage() {
         };
     }, []);
 
+    useEffect(() => {
+        if (!user) {
+            setUnreadCount(0);
+            return;
+        }
+
+        let isActive = true;
+        const fetchCount = async () => {
+            const count = await getUnreadCount(user.id);
+            if (isActive) {
+                setUnreadCount(count);
+            }
+        };
+
+        fetchCount();
+
+        const channel = supabase
+            .channel(`user-center-notifications:${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                () => {
+                    fetchCount();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            isActive = false;
+            supabase.removeChannel(channel);
+        };
+    }, [user]);
+
     // 退出登录状态
     const [signingOut, setSigningOut] = useState(false);
 
@@ -226,20 +274,16 @@ export default function UserPage() {
         setSigningOut(true);
         try {
             await signOut();
-            setUser(null);
-            setProfile(null);
-            setMembership(null);
-            router.refresh(); // 强制刷新页面状态
+            // 强制刷新整个页面以确保所有状态重置
+            window.location.reload();
         } catch (error) {
             console.error('Sign out error:', error);
-        } finally {
             setSigningOut(false);
         }
     };
 
     const handleSelectPlan = (plan: PricingPlan) => {
         setSelectedPlan(plan);
-        setShowPricingModal(false);
         setShowPaymentModal(true);
     };
 
@@ -294,90 +338,117 @@ export default function UserPage() {
     const avatarUrl = profile?.avatar_url
         || (user.user_metadata?.avatar_url as string | undefined)
         || null;
+    const isAdmin = profile?.is_admin ?? false;
     const membershipLabel = membership?.type
         ? membershipLabels[membership.type]
         : membershipLabels.free;
-    const showAiChatCount = membership?.type === 'free'
-        && membership.aiChatCount !== undefined
-        && !detailsLoading;
+
+    // 格式化到期时间
+    const formatExpiryDate = (date: Date | null) => {
+        if (!date) return null;
+        const now = new Date();
+        const diff = date.getTime() - now.getTime();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+        if (days < 0) return '已过期';
+        if (days === 0) return '今日到期';
+        if (days <= 7) return `${days}天后到期`;
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const expiryText = membership?.type !== 'free' && membership?.expiresAt
+        ? formatExpiryDate(membership.expiresAt)
+        : null;
 
     // 已登录状态
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
             {/* 用户信息卡片 */}
-            <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-6 border border-accent/20 mb-6">
+            <div className="bg-background rounded-2xl p-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden">
+                    <div className="w-14 h-14 rounded-full bg-background flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
                         {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
                         ) : (
-                            <User className="w-8 h-8 text-accent" />
+                            <User className="w-7 h-7 text-foreground-secondary" />
                         )}
                     </div>
-                    <div className="flex-1">
-                        <h1 className="text-xl font-bold">{displayName}</h1>
-                        <p className="text-sm text-foreground-secondary mb-1">{user.email}</p>
-                        <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs">
-                                <Crown className="w-3 h-3" />
-                                {membershipLabel}
-                            </span>
-                            {showAiChatCount && (
-                                <span className="text-xs text-foreground-secondary">
-                                    剩余 {membership.aiChatCount} 次AI对话
-                                </span>
-                            )}
-                        </div>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-lg font-bold truncate">{displayName}</h1>
+                        <p className="text-sm text-foreground-secondary truncate">{user.email}</p>
+                        {expiryText && (
+                            <p className="text-xs text-foreground-secondary mt-0.5">{expiryText}</p>
+                        )}
                     </div>
+                    <span className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
+                        ? 'bg-purple-500/10 text-purple-500'
+                        : membership?.type === 'plus'
+                            ? 'bg-amber-500/10 text-amber-500'
+                            : 'bg-gray-500/10 text-gray-500'
+                        }`}>
+                        {membershipLabel}
+                    </span>
                 </div>
 
                 {/* 升级会员入口 */}
                 {membership?.type === 'free' && (
-                    <button
-                        onClick={() => setShowPricingModal(true)}
-                        className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                    <Link
+                        href="/user/upgrade"
+                        className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors block text-center"
                     >
                         升级会员，解锁全部功能
-                    </button>
+                    </Link>
                 )}
             </div>
 
 
 
             {/* 菜单列表 */}
-            {menuItems.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-6">
-                    <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
-                        {section.section}
-                    </h2>
-                    <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
-                        {section.items.map((item, itemIndex) => {
-                            const Icon = item.icon;
-                            return (
-                                <Link
-                                    key={itemIndex}
-                                    href={item.href}
-                                    className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors border-b border-border last:border-b-0"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Icon className="w-5 h-5 text-foreground-secondary" />
-                                        <span>{item.label}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {item.badge && (
-                                            <span className="w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                        <ChevronRight className="w-4 h-4 text-foreground-secondary" />
-                                    </div>
-                                </Link>
-                            );
-                        })}
+            {
+                [...menuItems,
+                ...(isAdmin
+                    ? [{
+                        section: '管理',
+                        items: [
+                            { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
+                        ],
+                    }]
+                    : [])
+                ].map((section, sectionIndex) => (
+                    <div key={sectionIndex} className="mb-6">
+                        <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
+                            {section.section}
+                        </h2>
+                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                            {section.items.map((item, itemIndex) => {
+                                const Icon = item.icon;
+                                const showUnread = item.href === '/user/notifications' && unreadCount > 0;
+                                return (
+                                    <Link
+                                        key={itemIndex}
+                                        href={item.href}
+                                        className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors border-b border-border last:border-b-0"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icon className="w-5 h-5 text-foreground-secondary" />
+                                            <span>{item.label}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {showUnread && (
+                                                <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
+                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                </span>
+                                            )}
+                                            <ChevronRight className="w-4 h-4 text-foreground-secondary" />
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))
+            }
 
             {/* 退出登录 */}
             <button
@@ -399,12 +470,6 @@ export default function UserPage() {
             </p>
 
             {/* 弹窗 */}
-            <PricingModal
-                isOpen={showPricingModal}
-                onClose={() => setShowPricingModal(false)}
-                onSelectPlan={handleSelectPlan}
-                currentPlan={membership?.type}
-            />
 
             <PaymentModal
                 isOpen={showPaymentModal}
@@ -415,6 +480,6 @@ export default function UserPage() {
                     setShowPaymentModal(false);
                 }}
             />
-        </div>
+        </div >
     );
 }

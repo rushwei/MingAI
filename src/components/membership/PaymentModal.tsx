@@ -2,12 +2,13 @@
  * 模拟支付弹窗
  * 
  * MVP阶段使用模拟支付流程
+ * 支持订阅套餐和按量付费
  */
 'use client';
 
 import { useState } from 'react';
 import { X, CreditCard, Loader2, CheckCircle, QrCode } from 'lucide-react';
-import { type PricingPlan, upgradeMembership } from '@/lib/membership';
+import { type PricingPlan, upgradeMembership, purchaseCredits } from '@/lib/membership';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -15,11 +16,23 @@ interface PaymentModalProps {
     plan: PricingPlan | null;
     userId: string;
     onSuccess?: () => void;
+    /** 是否为按量付费模式 */
+    isPayPerUse?: boolean;
+    /** 按量付费的次数 */
+    creditCount?: number;
 }
 
 type PaymentStep = 'select' | 'processing' | 'success';
 
-export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: PaymentModalProps) {
+export function PaymentModal({
+    isOpen,
+    onClose,
+    plan,
+    userId,
+    onSuccess,
+    isPayPerUse = false,
+    creditCount = 0,
+}: PaymentModalProps) {
     const [step, setStep] = useState<PaymentStep>('select');
     const [paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay'>('wechat');
     const [error, setError] = useState('');
@@ -33,8 +46,15 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
         // 模拟支付处理延迟
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 调用升级会员
-        const result = await upgradeMembership(userId, plan.id);
+        let result: { success: boolean; error?: string };
+
+        if (isPayPerUse) {
+            // 按量付费
+            result = await purchaseCredits(userId, creditCount, plan.price);
+        } else {
+            // 订阅套餐
+            result = await upgradeMembership(userId, plan.id);
+        }
 
         if (result.success) {
             setStep('success');
@@ -56,6 +76,10 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
             onClose();
         }
     };
+
+    const successMessage = isPayPerUse
+        ? `已获得 ${creditCount} 次对话额度`
+        : `已成功开通 ${plan.name}`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -91,7 +115,7 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
                             </div>
                             <h3 className="text-xl font-bold mb-2">支付成功！</h3>
                             <p className="text-foreground-secondary">
-                                已成功开通 {plan.name}
+                                {successMessage}
                             </p>
                         </div>
                     )}
@@ -120,7 +144,9 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
                             {/* 订单信息 */}
                             <div className="bg-background-secondary rounded-xl p-4 mb-6">
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-foreground-secondary">套餐</span>
+                                    <span className="text-foreground-secondary">
+                                        {isPayPerUse ? '商品' : '套餐'}
+                                    </span>
                                     <span className="font-medium">{plan.name}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -136,8 +162,8 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
                                 <button
                                     onClick={() => setPaymentMethod('wechat')}
                                     className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-colors ${paymentMethod === 'wechat'
-                                            ? 'border-green-500 bg-green-500/5'
-                                            : 'border-border hover:border-green-500/50'
+                                        ? 'border-green-500 bg-green-500/5'
+                                        : 'border-border hover:border-green-500/50'
                                         }`}
                                 >
                                     <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center">
@@ -152,8 +178,8 @@ export function PaymentModal({ isOpen, onClose, plan, userId, onSuccess }: Payme
                                 <button
                                     onClick={() => setPaymentMethod('alipay')}
                                     className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-colors ${paymentMethod === 'alipay'
-                                            ? 'border-blue-500 bg-blue-500/5'
-                                            : 'border-border hover:border-blue-500/50'
+                                        ? 'border-blue-500 bg-blue-500/5'
+                                        : 'border-border hover:border-blue-500/50'
                                         }`}
                                 >
                                     <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">

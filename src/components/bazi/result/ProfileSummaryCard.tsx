@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { User, MapPinned } from 'lucide-react';
 import type { BaziFormData } from '@/types';
 
 export function ProfileSummaryCard({
@@ -10,6 +10,10 @@ export function ProfileSummaryCard({
     isUnknownTime: boolean;
     dayMaster: string;
 }) {
+    const timeText = isUnknownTime
+        ? '时辰未知'
+        : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute || 0).padStart(2, '0')}`;
+
     return (
         <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-4 border border-accent/20 mb-4">
             <div className="flex items-center gap-3">
@@ -23,11 +27,19 @@ export function ProfileSummaryCard({
                         <span>•</span>
                         <span>
                             {formData.birthYear}年{formData.birthMonth}月{formData.birthDay}日
-                            {isUnknownTime && <span className="text-amber-500 ml-1">(*时辰未知)</span>}
+                            <span className="ml-2">{timeText}</span>
                         </span>
                         <span>•</span>
                         <span>日主 {dayMaster}</span>
                     </div>
+                    {formData.birthPlace && (
+                        <div className="text-sm text-foreground-secondary mt-0.5">
+                            <span className="inline-flex items-center gap-1">
+                                <MapPinned className="w-4 h-4 text-foreground-secondary" />
+                                {formData.birthPlace}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -25,10 +25,12 @@ import {
     PanelLeft,
     LogIn,
     Bot,
+    BotMessageSquare,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { SidebarUserCard } from './UserMenu';
+import { useSidebarSafe } from './SidebarContext';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -86,14 +88,14 @@ const navItems = [
 
 // 工具项配置 - 使用不同图标区分每日/每月
 const toolItems = [
-    { href: '/chat', label: 'AI 对话', icon: Bot, available: true },
+    { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, available: true },
 ];
 
 export function Sidebar() {
     const pathname = usePathname();
-    const [collapsed, setCollapsed] = useState(false);
+    const { collapsed, setCollapsed } = useSidebarSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);

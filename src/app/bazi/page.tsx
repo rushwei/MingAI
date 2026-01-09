@@ -77,6 +77,7 @@ function BaziPageContent() {
         const hourParam = searchParams.get('hour');
         return hourParam === null || hourParam === '-1';
     });
+    const autoFillTime = searchParams.get('hour') === null;
     const [user, setUser] = useState<User | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authChecked, setAuthChecked] = useState(false);
@@ -239,18 +240,22 @@ function BaziPageContent() {
 
         try {
             const params = new URLSearchParams();
+            const chartId = searchParams.get('chart');
             params.set('name', formData.name || '');
             params.set('gender', formData.gender || 'male');
             params.set('year', String(formData.birthYear));
             params.set('month', String(formData.birthMonth));
             params.set('day', String(formData.birthDay));
             params.set('hour', unknownTime ? '-1' : String(formData.birthHour)); // -1 表示未知
-            params.set('minute', String(formData.birthMinute || 0));
+            params.set('minute', unknownTime ? '0' : String(formData.birthMinute || 0));
             params.set('calendar', formData.calendarType || 'solar');
             if (formData.calendarType === 'lunar') {
                 params.set('leap', formData.isLeapMonth ? '1' : '0');
             }
             params.set('place', formData.birthPlace || '');
+            if (chartId) {
+                params.set('chart', chartId);
+            }
 
             router.push(`/bazi/result?${params.toString()}`);
         } catch (error) {
@@ -262,14 +267,18 @@ function BaziPageContent() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
             {/* 页面标题 */}
-            <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-                    <Orbit className="w-8 h-8 text-accent" />
+            <div className="mb-8">
+                <div className="flex items-center justify-center gap-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl">
+                        <Orbit className="w-12 h-12 text-accent" />
+                    </div>
+                    <div className="text-left">
+                        <h1 className="text-2xl lg:text-3xl font-bold mb-1">八字排盘</h1>
+                        <p className="text-foreground-secondary">
+                            请填写您的出生信息，我们将为您生成八字命盘
+                        </p>
+                    </div>
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-bold mb-2">八字排盘</h1>
-                <p className="text-foreground-secondary">
-                    请填写您的出生信息，我们将为您生成专业的八字命盘分析
-                </p>
             </div>
 
             {/* 未登录提示 */}
@@ -298,6 +307,7 @@ function BaziPageContent() {
                 onSubmit={handleSubmit}
                 onSetToday={handleSetToday}
                 isSubmitting={isSubmitting}
+                autoFillTime={autoFillTime}
             />
 
             <AuthModal

@@ -95,7 +95,8 @@ export const AI_PERSONALITIES: Record<AIPersonality, AIPersonalityConfig> = {
  */
 export async function callDeepSeek(
     messages: ChatMessage[],
-    personality: AIPersonality = 'master'
+    personality: AIPersonality = 'master',
+    chartContext: string = ''
 ): Promise<string> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
@@ -105,6 +106,7 @@ export async function callDeepSeek(
     }
 
     const config = AI_PERSONALITIES[personality];
+    const systemPrompt = config.systemPrompt + chartContext;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -115,7 +117,7 @@ export async function callDeepSeek(
         body: JSON.stringify({
             model: 'deepseek-chat',
             messages: [
-                { role: 'system', content: config.systemPrompt },
+                { role: 'system', content: systemPrompt },
                 ...messages.map(m => ({ role: m.role, content: m.content })),
             ],
             temperature: 0.7,
@@ -136,12 +138,14 @@ export async function callDeepSeek(
  */
 export async function callGLM4(
     messages: ChatMessage[],
-    personality: AIPersonality = 'master'
+    personality: AIPersonality = 'master',
+    chartContext: string = ''
 ): Promise<string> {
     const apiKey = process.env.GLM_API_KEY;
     const baseUrl = process.env.GLM_API_BASE_URL || 'https://api.siliconflow.cn/v1';
 
     const config = AI_PERSONALITIES[personality];
+    const systemPrompt = config.systemPrompt + chartContext;
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -152,7 +156,7 @@ export async function callGLM4(
         body: JSON.stringify({
             model: 'zai-org/GLM-4.6',  // 硅基流动的 GLM-4.6 模型
             messages: [
-                { role: 'system', content: config.systemPrompt },
+                { role: 'system', content: systemPrompt },
                 ...messages.map(m => ({ role: m.role, content: m.content })),
             ],
             temperature: 0.7,
@@ -197,13 +201,14 @@ function generateMockResponse(messages: ChatMessage[], personality: AIPersonalit
 export async function callAI(
     messages: ChatMessage[],
     personality: AIPersonality = 'master',
-    preferredModel: 'deepseek' | 'glm' = 'deepseek'
+    preferredModel: 'deepseek' | 'glm' = 'deepseek',
+    chartContext: string = ''
 ): Promise<string> {
     try {
         if (preferredModel === 'deepseek') {
-            return await callDeepSeek(messages, personality);
+            return await callDeepSeek(messages, personality, chartContext);
         } else {
-            return await callGLM4(messages, personality);
+            return await callGLM4(messages, personality, chartContext);
         }
     } catch (error) {
         console.error('AI API 调用失败，使用模拟响应:', error);
@@ -212,38 +217,165 @@ export async function callAI(
 }
 
 /**
- * 流式调用 DeepSeek API
+ * 创建模拟流式响应
+ */
+function createMockStream(messages: ChatMessage[], personality: AIPersonality): ReadableStream<Uint8Array> {
+    const mockContent = generateMockResponse(messages, personality);
+    return new ReadableStream({
+        start(controller) {
+            const encoder = new TextEncoder();
+            const words = mockContent.split('');
+            let index = 0;
+
+            const sendNextChar = () => {
+                if (index < words.length) {
+                    const chunk = { choices: [{ delta: { content: words[index] } }] };
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                    index++;
+                    setTimeout(sendNextChar, 30);
+                } else {
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                }
+            };
+            sendNextChar();
+        }
+    });
+}
+
+/**
+ * 流式调用 AI API (支持 DeepSeek、GLM 和 Gemini)
  */
 export async function callAIStream(
     messages: ChatMessage[],
-    personality: AIPersonality = 'master'
+    personality: AIPersonality = 'master',
+    chartContext: string = '',
+    model: 'deepseek' | 'glm' | 'gemini' = 'deepseek'
 ): Promise<ReadableStream<Uint8Array>> {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
     const config = AI_PERSONALITIES[personality];
+    const systemPrompt = config.systemPrompt + chartContext;
+
+    // Gemini
+    if (model === 'gemini') {
+        const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            return createMockStream(messages, personality);
+        }
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse&key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [
+                    { role: 'user', parts: [{ text: systemPrompt }] },
+                    ...messages.map(m => ({
+                        role: m.role === 'assistant' ? 'model' : 'user',
+                        parts: [{ text: m.content }]
+                    })),
+                ],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 2000,
+                },
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Gemini API error:', response.status, errorText);
+            throw new Error(`Gemini API error: ${response.status}`);
+        }
+
+        // 直接返回 Gemini 流，由前端处理转换
+        const reader = response.body!.getReader();
+        return new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                            controller.close();
+                            break;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data:')) {
+                                const jsonStr = trimmedLine.slice(5).trim();
+                                if (!jsonStr) continue;
+                                try {
+                                    const data = JSON.parse(jsonStr);
+                                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                                    if (text) {
+                                        const chunk = { choices: [{ delta: { content: text } }] };
+                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                                    }
+                                } catch (e) {
+                                    console.error('Gemini parse error:', e, jsonStr);
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Gemini stream error:', e);
+                    controller.error(e);
+                }
+            }
+        });
+    }
+
+    // GLM
+    if (model === 'glm') {
+        const apiKey = process.env.GLM_API_KEY;
+        const baseUrl = process.env.GLM_API_BASE_URL || 'https://api.siliconflow.cn/v1';
+
+        if (!apiKey) {
+            return createMockStream(messages, personality);
+        }
+
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: 'THUDM/GLM-4-9B-0414',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...messages.map(m => ({ role: m.role, content: m.content })),
+                ],
+                temperature: 0.7,
+                max_tokens: 2000,
+                stream: true,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`GLM API error: ${response.status}`);
+        }
+
+        return response.body!;
+    }
+
+    // DeepSeek (默认)
+    const apiKey = process.env.DEEPSEEK_API_KEY;
 
     if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
         // 没有配置 API，返回模拟流式响应
-        const mockContent = generateMockResponse(messages, personality);
-        return new ReadableStream({
-            start(controller) {
-                const encoder = new TextEncoder();
-                const words = mockContent.split('');
-                let index = 0;
-
-                const sendNextChar = () => {
-                    if (index < words.length) {
-                        const chunk = { choices: [{ delta: { content: words[index] } }] };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
-                        index++;
-                        setTimeout(sendNextChar, 30); // 模拟打字效果
-                    } else {
-                        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                        controller.close();
-                    }
-                };
-                sendNextChar();
-            }
-        });
+        return createMockStream(messages, personality);
     }
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -255,7 +387,7 @@ export async function callAIStream(
         body: JSON.stringify({
             model: 'deepseek-chat',
             messages: [
-                { role: 'system', content: config.systemPrompt },
+                { role: 'system', content: systemPrompt },
                 ...messages.map(m => ({ role: m.role, content: m.content })),
             ],
             temperature: 0.7,

@@ -1,7 +1,13 @@
+/**
+ * 出生日神煞展示组件
+ * 
+ * 显示出生当日的吉神宜趋和凶神宜忌
+ * 注意：这是基于出生日期的黄历信息，不是基于八字命盘计算的神煞星
+ */
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Sparkles, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Sparkles, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import type { ShenShaInfo } from '@/lib/bazi';
 
 interface ShenShaSectionProps {
@@ -11,10 +17,8 @@ interface ShenShaSectionProps {
 export function ShenShaSection({ shenSha }: ShenShaSectionProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const hasData = shenSha.jiShen.length > 0 ||
-        shenSha.xiongSha.length > 0 ||
-        shenSha.dayYi.length > 0 ||
-        shenSha.dayJi.length > 0;
+    // 只检查吉神和凶煞（出生日的神煞）
+    const hasData = shenSha.jiShen.length > 0 || shenSha.xiongSha.length > 0;
 
     if (!hasData) {
         return null;
@@ -29,7 +33,7 @@ export function ShenShaSection({ shenSha }: ShenShaSectionProps) {
             >
                 <h2 className="text-base font-semibold flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-accent" />
-                    神煞宜忌
+                    出生日神煞
                 </h2>
                 <div className="flex items-center gap-2 text-foreground-secondary">
                     <span className="text-xs">
@@ -46,6 +50,12 @@ export function ShenShaSection({ shenSha }: ShenShaSectionProps) {
             {/* 展开内容 */}
             {isExpanded && (
                 <div className="px-4 pb-4 space-y-4 animate-fade-in">
+                    {/* 说明提示 */}
+                    <div className="flex items-start gap-2 text-xs text-foreground-secondary bg-background p-2 rounded-lg">
+                        <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>以下神煞基于出生当日的黄历信息，如需查看今日宜忌请使用「每日运势」功能</span>
+                    </div>
+
                     {/* 吉神宜趋 */}
                     {shenSha.jiShen.length > 0 && (
                         <div>
@@ -78,46 +88,6 @@ export function ShenShaSection({ shenSha }: ShenShaSectionProps) {
                                     <span
                                         key={idx}
                                         className="px-2 py-0.5 text-xs rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                                    >
-                                        {item}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 今日宜 */}
-                    {shenSha.dayYi.length > 0 && (
-                        <div>
-                            <h3 className="text-sm font-medium text-sky-500 flex items-center gap-1.5 mb-2">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                今日宜
-                            </h3>
-                            <div className="flex flex-wrap gap-1.5">
-                                {shenSha.dayYi.map((item, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-2 py-0.5 text-xs rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20"
-                                    >
-                                        {item}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 今日忌 */}
-                    {shenSha.dayJi.length > 0 && (
-                        <div>
-                            <h3 className="text-sm font-medium text-amber-500 flex items-center gap-1.5 mb-2">
-                                <XCircle className="w-3.5 h-3.5" />
-                                今日忌
-                            </h3>
-                            <div className="flex flex-wrap gap-1.5">
-                                {shenSha.dayJi.map((item, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-2 py-0.5 text-xs rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                                     >
                                         {item}
                                     </span>

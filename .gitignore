@@ -48,9 +48,9 @@ next-env.d.ts
 # 配置文件（包含敏感信息）
 docs/review
 docs/AGENT_CHANGES.md
-docs/plans
 docs/resource
 
 # AI
 .cluade
 AGENT.md
+CLAUDE.md

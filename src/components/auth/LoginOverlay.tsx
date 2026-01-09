@@ -44,7 +44,7 @@ export function LoginOverlay({ children, message = '登录后查看完整内容'
             </div>
 
             {/* 覆盖层 */}
-            <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-start justify-center pt-32 bg-background/60 backdrop-blur-sm">
                 <div className="text-center p-6 max-w-sm">
                     <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
                         <Lock className="w-8 h-8 text-accent" />

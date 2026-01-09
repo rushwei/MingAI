@@ -1,28 +1,27 @@
 /**
  * 升级套餐页面
  * 
- * 使用与 PricingModal 相同的套餐配置，但作为独立页面展示
+ * 包含订阅套餐和按量付费两部分
  */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    Check,
     Crown,
-    Sparkles,
     Loader2,
     ArrowLeft
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMembershipInfo, pricingPlans, type MembershipInfo, type PricingPlan } from '@/lib/membership';
+import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { PaymentModal } from '@/components/membership/PaymentModal';
+import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
+import { PayPerUse } from '@/components/membership/PayPerUse';
+import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export default function UpgradePage() {
-    const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
@@ -30,19 +29,27 @@ export default function UpgradePage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
 
+    const refreshMembership = async (userId: string) => {
+        const info = await getMembershipInfo(userId);
+        setMembership(info);
+        return info;
+    };
+
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const init = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user ?? null);
             if (session?.user) {
-                getMembershipInfo(session.user.id).then(setMembership);
+                await refreshMembership(session.user.id);
             }
             setLoading(false);
-        });
+        };
+        init();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
             setUser(session?.user ?? null);
             if (session?.user) {
-                getMembershipInfo(session.user.id).then(setMembership);
+                await refreshMembership(session.user.id);
             }
         });
 
@@ -64,13 +71,24 @@ export default function UpgradePage() {
     const handlePaymentSuccess = () => {
         setShowPaymentModal(false);
         setSelectedPlan(null);
-        // 刷新会员信息
         if (user) {
-            getMembershipInfo(user.id).then(setMembership);
+            refreshMembership(user.id);
+        }
+    };
+
+    const handlePayPerUseSuccess = () => {
+        if (user) {
+            refreshMembership(user.id);
         }
     };
 
     const currentPlan = membership?.type || 'free';
+
+    // 格式化到期时间
+    const formatExpiryDate = (date: Date | null) => {
+        if (!date) return null;
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
 
     if (loading) {
         return (
@@ -91,95 +109,87 @@ export default function UpgradePage() {
                 返回用户中心
             </Link>
 
-            {/* 头部 */}
-            <div className="flex items-center gap-3 mb-8">
-                <div className="p-2 rounded-xl bg-accent/10">
-                    <Crown className="w-6 h-6 text-accent" />
+            {/* 头部 - 包含当前套餐 */}
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-accent to-accent/80 text-white">
+                        <Crown className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold">升级会员</h1>
+                        <p className="text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="text-2xl font-bold">升级会员</h1>
-                    <p className="text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
-                </div>
+                {user && membership && (
+                    <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${membership.type === 'pro'
+                            ? 'bg-purple-500/10 text-purple-500'
+                            : membership.type === 'plus'
+                                ? 'bg-amber-500/10 text-amber-500'
+                                : 'bg-gray-500/10 text-gray-500'
+                            }`}>
+                            {currentPlan.toUpperCase()}
+                        </span>
+                        {membership.type !== 'free' && membership.expiresAt && (
+                            <span className="text-sm text-foreground-secondary">
+                                {formatExpiryDate(membership.expiresAt)}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* 套餐列表 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {pricingPlans.map((plan) => (
-                    <div
-                        key={plan.id}
-                        className={`relative rounded-2xl border-2 p-6 transition-all ${plan.popular
-                            ? 'border-accent bg-accent/5'
-                            : 'border-border hover:border-accent/50'
-                            } ${currentPlan === plan.id
-                                ? 'ring-2 ring-accent ring-offset-2 ring-offset-background'
-                                : ''
-                            }`}
-                    >
-                        {/* 推荐标签 */}
-                        {plan.popular && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent text-white text-xs font-medium flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" />
-                                推荐
-                            </div>
-                        )}
+            {/* 积分进度条 */}
+            {user && membership && (
+                <div className="mb-8">
+                    <CreditProgressBar
+                        credits={membership.aiChatCount}
+                        membershipType={membership.type}
+                        lastRestoreAt={membership.lastCreditRestoreAt}
+                    />
+                </div>
+            )}
 
-                        {/* 当前套餐标签 */}
-                        {currentPlan === plan.id && (
-                            <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
-                                当前
-                            </div>
-                        )}
+            {/* 订阅套餐 */}
+            <div className="mb-12">
+                <h2 className="text-xl font-bold mb-6">订阅套餐</h2>
+                <SubscriptionPlans
+                    currentPlan={currentPlan}
+                    onSelectPlan={handleSelectPlan}
+                />
+                <p className="text-center text-sm text-foreground-secondary mt-4">
+                    支付后可随时取消续订
+                </p>
+            </div>
 
-                        {/* 套餐名称 */}
-                        <h3 className="text-lg font-bold mb-2">{plan.name}</h3>
+            {/* 分隔线 */}
+            <div className="flex items-center gap-4 my-8">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-foreground-secondary text-sm">或者</span>
+                <div className="flex-1 h-px bg-border" />
+            </div>
 
-                        {/* 价格 */}
-                        <div className="mb-4">
-                            <span className="text-3xl font-bold">
-                                ¥{plan.price}
-                            </span>
-                            <span className="text-foreground-secondary text-sm">
-                                /{plan.period}
-                            </span>
-                        </div>
-
-                        {/* 功能列表 */}
-                        <ul className="space-y-2 mb-6">
-                            {plan.features.map((feature, index) => (
-                                <li key={index} className="flex items-start gap-2 text-sm">
-                                    <Check className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-
-                        {/* 选择按钮 */}
+            {/* 按量付费 */}
+            <div className="mb-8">
+                <h2 className="text-xl font-bold mb-6">按量付费</h2>
+                {user ? (
+                    <PayPerUse
+                        userId={user.id}
+                        currentCredits={membership?.aiChatCount || 0}
+                        onSuccess={handlePayPerUseSuccess}
+                    />
+                ) : (
+                    <div className="rounded-2xl border border-border p-8 text-center">
+                        <p className="text-foreground-secondary mb-4">登录后即可按量购买对话次数</p>
                         <button
-                            onClick={() => handleSelectPlan(plan)}
-                            disabled={currentPlan === plan.id || plan.id === 'free'}
-                            className={`w-full py-3 rounded-xl font-medium transition-colors ${plan.id === 'free'
-                                ? 'bg-background-secondary text-foreground-secondary cursor-not-allowed'
-                                : currentPlan === plan.id
-                                    ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
-                                    : plan.popular
-                                        ? 'bg-accent text-white hover:bg-accent/90'
-                                        : 'bg-background-secondary hover:bg-accent hover:text-white'
-                                }`}
+                            onClick={() => setShowAuthModal(true)}
+                            className="px-6 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
                         >
-                            {plan.id === 'free'
-                                ? '免费使用'
-                                : currentPlan === plan.id
-                                    ? '已开通'
-                                    : '立即开通'}
+                            立即登录
                         </button>
                     </div>
-                ))}
+                )}
             </div>
-
-            {/* 提示信息 */}
-            <p className="text-center text-sm text-foreground-secondary">
-                支付後可随时取消续订 · 7天无理由退款
-            </p>
 
             {/* 登录弹窗 */}
             <AuthModal

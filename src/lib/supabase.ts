@@ -34,6 +34,7 @@ export type Database = {
                     membership: 'free' | 'single' | 'monthly' | 'yearly';
                     membership_expires_at: string | null;
                     ai_chat_count: number;
+                    is_admin: boolean;
                     created_at: string;
                     updated_at: string;
                 };
@@ -44,6 +45,7 @@ export type Database = {
                     membership?: 'free' | 'single' | 'monthly' | 'yearly';
                     membership_expires_at?: string | null;
                     ai_chat_count?: number;
+                    is_admin?: boolean;
                 };
                 Update: {
                     nickname?: string | null;
@@ -51,6 +53,7 @@ export type Database = {
                     membership?: 'free' | 'single' | 'monthly' | 'yearly';
                     membership_expires_at?: string | null;
                     ai_chat_count?: number;
+                    is_admin?: boolean;
                 };
             };
             bazi_charts: {

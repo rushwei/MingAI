@@ -6,6 +6,7 @@ export default function FacePage() {
             title="面相分析"
             emoji="👤"
             description="面相学通过分析五官轮廓，洞察性格特质与运势走向。"
+            featureKey="face"
             features={[
                 'AI 面部特征识别',
                 '五官运势分析',

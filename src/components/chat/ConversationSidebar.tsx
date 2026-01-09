@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Edit2, Search, ChevronDown, ChevronRight, Plus, SquarePen, Pencil } from 'lucide-react';
+import { MessageSquare, Trash2, X, Check, Edit2, Search, ChevronDown, ChevronRight, Plus, SquarePen, Pencil, Loader2 } from 'lucide-react';
 import type { Conversation } from '@/types';
 
 interface ConversationSidebarProps {
@@ -13,6 +13,7 @@ interface ConversationSidebarProps {
     onRename?: (id: string, title: string) => void;
     isOpen: boolean;
     onClose: () => void;
+    isLoading?: boolean;
 }
 
 export function ConversationSidebar({
@@ -24,6 +25,7 @@ export function ConversationSidebar({
     onRename,
     isOpen,
     onClose,
+    isLoading = false,
 }: ConversationSidebarProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -154,7 +156,12 @@ export function ConversationSidebar({
                 {/* 对话列表 */}
                 {!isHistoryCollapsed && (
                     <div className="flex-1 overflow-y-auto p-2">
-                        {filteredConversations.length === 0 ? (
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span>加载中...</span>
+                            </div>
+                        ) : filteredConversations.length === 0 ? (
                             <div className="text-center text-foreground-secondary text-sm py-8">
                                 {searchQuery ? '未找到匹配的对话' : '暂无对话记录'}
                             </div>

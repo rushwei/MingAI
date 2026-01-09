@@ -1,0 +1,99 @@
+/**
+ * 通知铃铛组件
+ * 
+ * 显示未读通知数量，点击展开通知列表
+ */
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { Bell } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { getUnreadCount } from '@/lib/notification';
+import { NotificationDropdown } from './NotificationDropdown';
+
+interface NotificationBellProps {
+    userId: string | null;
+}
+
+export function NotificationBell({ userId }: NotificationBellProps) {
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // 获取未读数量
+    useEffect(() => {
+        if (!userId) {
+            setUnreadCount(0);
+            return;
+        }
+
+        const fetchCount = async () => {
+            const count = await getUnreadCount(userId);
+            setUnreadCount(count);
+        };
+
+        fetchCount();
+
+        // 订阅实时更新
+        const channel = supabase
+            .channel(`notifications:${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${userId}`,
+                },
+                () => {
+                    fetchCount();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId]);
+
+    // 点击外部关闭
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (!userId) {
+        return null;
+    }
+
+    return (
+        <div ref={containerRef} className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="relative p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                aria-label="通知"
+            >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                )}
+            </button>
+
+            {isOpen && (
+                <NotificationDropdown
+                    userId={userId}
+                    onClose={() => setIsOpen(false)}
+                    onReadCountChange={(change: number) => setUnreadCount(prev => Math.max(0, prev + change))}
+                />
+            )}
+        </div>
+    );
+}

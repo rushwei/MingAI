@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react';
+import { MapPin, MapPinned } from 'lucide-react';
 import type { BaziFormData } from '@/types';
 import { LocationAutocomplete } from './LocationAutocomplete';
 
@@ -21,9 +21,9 @@ export function BirthPlaceSection({
     ];
 
     return (
-        <div className="bg-background-secondary rounded-xl p-6 border border-border">
+        <div className="bg-background rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-accent" />
+                <MapPinned className="w-5 h-5 text-accent" />
                 出生地点 <span className="text-sm font-normal text-foreground-secondary">(可选)</span>
             </h2>
 

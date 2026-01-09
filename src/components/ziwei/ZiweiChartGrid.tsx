@@ -4,12 +4,12 @@ import { useState } from 'react';
 import type { ZiweiChart } from '@/lib/ziwei';
 import { getBranchIndex } from '@/lib/ziwei';
 import { PalaceCard } from './PalaceCard';
-import type { HoroscopeInfo } from './ZiweiHoroscopePanel';
+import type { HoroscopeInfo, HoroscopeHighlight } from './ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface ZiweiChartProps {
     chart: ZiweiChart;
-    highlightedPalaces?: number[];
+    horoscopeHighlight?: HoroscopeHighlight;
     horoscopeInfo?: HoroscopeInfo;
 }
 
@@ -28,7 +28,7 @@ function getSanFangSiZheng(palaceIndex: number): number[] {
 /**
  * 紫微斗数命盘 12 宫位图
  */
-export function ZiweiChartGrid({ chart, highlightedPalaces = [], horoscopeInfo }: ZiweiChartProps) {
+export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }: ZiweiChartProps) {
     const [selectedPalace, setSelectedPalace] = useState<number | null>(null);
     const [showAdjStars, setShowAdjStars] = useState(false);
 
@@ -41,6 +41,16 @@ export function ZiweiChartGrid({ chart, highlightedPalaces = [], horoscopeInfo }
 
     // 计算三方四正高亮
     const sanFangSiZhengPalaces = selectedPalace !== null ? getSanFangSiZheng(selectedPalace) : [];
+
+    // 获取宫位高亮类型（多色支持）
+    const getHighlightTypes = (palaceIndex: number) => {
+        const types: string[] = [];
+        if (horoscopeHighlight.decadalIndex === palaceIndex) types.push('decadal');
+        if (horoscopeHighlight.yearlyIndex === palaceIndex) types.push('yearly');
+        if (horoscopeHighlight.monthlyIndex === palaceIndex) types.push('monthly');
+        if (horoscopeHighlight.dailyIndex === palaceIndex) types.push('daily');
+        return types;
+    };
 
     // 生成宫位的流年流月信息
     const getFlowInfoForPalace = (palaceIndex: number) => {
@@ -92,112 +102,192 @@ export function ZiweiChartGrid({ chart, highlightedPalaces = [], horoscopeInfo }
                 <button
                     onClick={() => setShowAdjStars(!showAdjStars)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${showAdjStars
-                            ? 'bg-accent/10 text-accent'
-                            : 'bg-background-secondary text-foreground-secondary hover:bg-background-tertiary'
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-background-secondary text-foreground-secondary hover:bg-background-tertiary'
                         }`}
                 >
                     {showAdjStars ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                     {showAdjStars ? '隐藏杂曜' : '显示杂曜'}
                 </button>
             </div>
+            {/* 三方四正连线SVG层 */}
+            <div className="relative">
+                {selectedPalace !== null && (
+                    <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none z-10"
+                        style={{ aspectRatio: '4/4' }}
+                    >
+                        {(() => {
+                            // 宫位在网格中的位置映射 (branchIndex -> {row, col})
+                            const positionMap: Record<number, { row: number; col: number }> = {
+                                5: { row: 0, col: 0 }, 6: { row: 0, col: 1 }, 7: { row: 0, col: 2 }, 8: { row: 0, col: 3 },
+                                4: { row: 1, col: 0 }, 9: { row: 1, col: 3 },
+                                3: { row: 2, col: 0 }, 10: { row: 2, col: 3 },
+                                2: { row: 3, col: 0 }, 1: { row: 3, col: 1 }, 0: { row: 3, col: 2 }, 11: { row: 3, col: 3 },
+                            };
 
-            <div className="grid grid-cols-4 gap-1 sm:gap-2">
-                {gridLayout.map((row, rowIdx) =>
-                    row.map((branchIdx, colIdx) => {
-                        if (branchIdx === -1) {
-                            if (rowIdx === 1 && colIdx === 1) {
-                                return (
-                                    <div
-                                        key={`center-${rowIdx}-${colIdx}`}
-                                        className="col-span-2 row-span-2 p-3 rounded-lg bg-gradient-to-br from-background-secondary to-background border border-border"
-                                    >
-                                        <div className="h-full flex flex-col justify-center text-sm space-y-1.5">
-                                            {/* 四柱信息 */}
-                                            <div className="grid grid-cols-4 gap-1 text-center text-xs">
-                                                <div>
-                                                    <div className="text-foreground-secondary">年柱</div>
-                                                    <div className="font-semibold">{chart.yearStem}{chart.yearBranch}</div>
+                            const selectedBranch = getBranchIndex(chart.palaces[selectedPalace]?.earthlyBranch || '');
+                            const selectedPos = positionMap[selectedBranch];
+                            if (!selectedPos) return null;
+
+                            const sanFangIndexes = getSanFangSiZheng(selectedPalace);
+                            const cellSize = 25; // 每个宫位占25%
+                            const padding = 1; // 边框内侧偏移
+
+                            const getAnchorPoint = (pos: { row: number; col: number }) => {
+                                const isTop = pos.row === 0;
+                                const isBottom = pos.row === 3;
+                                const isLeft = pos.col === 0;
+                                const isRight = pos.col === 3;
+                                const centerX = (pos.col + 0.5) * cellSize;
+                                const centerY = (pos.row + 0.5) * cellSize;
+
+                                // 角落宫：取靠近中心的角点
+                                if ((isTop && isLeft) || (isTop && isRight) || (isBottom && isLeft) || (isBottom && isRight)) {
+                                    const x = isLeft ? (pos.col + 1) * cellSize - padding : pos.col * cellSize + padding;
+                                    const y = isTop ? (pos.row + 1) * cellSize - padding : pos.row * cellSize + padding;
+                                    return { x, y };
+                                }
+
+                                // 非角落：取靠近中心的边中点
+                                if (isTop) return { x: centerX, y: (pos.row + 1) * cellSize - padding };
+                                if (isBottom) return { x: centerX, y: pos.row * cellSize + padding };
+                                if (isLeft) return { x: (pos.col + 1) * cellSize - padding, y: centerY };
+                                if (isRight) return { x: pos.col * cellSize + padding, y: centerY };
+
+                                return { x: centerX, y: centerY };
+                            };
+
+                            const lines: React.ReactNode[] = [];
+                            const startPoint = getAnchorPoint(selectedPos);
+                            sanFangIndexes.forEach((palaceIdx, i) => {
+                                if (palaceIdx === selectedPalace) return;
+                                const branch = getBranchIndex(chart.palaces[palaceIdx]?.earthlyBranch || '');
+                                const targetPos = positionMap[branch];
+                                if (!targetPos) return;
+
+                                const from = startPoint;
+                                const to = getAnchorPoint(targetPos);
+
+                                lines.push(
+                                    <line
+                                        key={i}
+                                        x1={`${from.x}%`}
+                                        y1={`${from.y}%`}
+                                        x2={`${to.x}%`}
+                                        y2={`${to.y}%`}
+                                        stroke="#9ca3af"
+                                        strokeWidth="1.5"
+                                        strokeOpacity="0.8"
+                                    />
+                                );
+                            });
+                            return lines;
+                        })()}
+                    </svg>
+                )}
+
+                <div className="grid grid-cols-4 gap-1 sm:gap-2">
+                    {gridLayout.map((row, rowIdx) =>
+                        row.map((branchIdx, colIdx) => {
+                            if (branchIdx === -1) {
+                                if (rowIdx === 1 && colIdx === 1) {
+                                    return (
+                                        <div
+                                            key={`center-${rowIdx}-${colIdx}`}
+                                            className="col-span-2 row-span-2 p-3 rounded-lg bg-gradient-to-br from-background-secondary to-background border border-border"
+                                        >
+                                            <div className="h-full flex flex-col justify-center text-sm space-y-1.5">
+                                                {/* 四柱信息 */}
+                                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                                    <div>
+                                                        <div className="text-foreground-secondary">年柱</div>
+                                                        <div className="font-semibold">{chart.yearStem || '*'}{chart.yearBranch || '*'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-foreground-secondary">月柱</div>
+                                                        <div className="font-semibold">{chart.monthStem || '*'}{chart.monthBranch || '*'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-foreground-secondary">日柱</div>
+                                                        <div className="font-semibold">{chart.dayStem || '*'}{chart.dayBranch || '*'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-foreground-secondary">时柱</div>
+                                                        <div className="font-semibold">{chart.hourStem || '*'}{chart.hourBranch || '*'}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-foreground-secondary">月柱</div>
-                                                    <div className="font-semibold">{chart.monthStem}{chart.monthBranch}</div>
+
+                                                <div className="border-t border-border my-1" />
+
+                                                <div className="flex justify-center gap-2 text-xs">
+                                                    <span className="text-foreground-secondary">阳历</span>
+                                                    <span>{chart.solarDate}</span>
                                                 </div>
-                                                <div>
-                                                    <div className="text-foreground-secondary">日柱</div>
-                                                    <div className="font-semibold">{chart.dayStem}{chart.dayBranch}</div>
+                                                <div className="flex justify-center gap-2 text-xs">
+                                                    <span className="text-foreground-secondary">农历</span>
+                                                    <span>{chart.lunarDate}</span>
                                                 </div>
-                                                <div>
-                                                    <div className="text-foreground-secondary">时柱</div>
-                                                    <div className="font-semibold">{chart.hourStem}{chart.hourBranch}</div>
+
+                                                <div className="border-t border-border my-1" />
+
+                                                <div className="flex justify-center gap-4 text-xs">
+                                                    <span>属相：{chart.zodiac}</span>
+                                                    <span>星座：{chart.sign}</span>
                                                 </div>
-                                            </div>
 
-                                            <div className="border-t border-border my-1" />
+                                                <div className="flex justify-center gap-4 text-xs">
+                                                    <span>命主：<span className="font-semibold text-purple-500">{chart.soul}</span></span>
+                                                    <span>身主：<span className="font-semibold">{chart.body}</span></span>
+                                                </div>
 
-                                            <div className="flex justify-center gap-2 text-xs">
-                                                <span className="text-foreground-secondary">阳历</span>
-                                                <span>{chart.solarDate}</span>
-                                            </div>
-                                            <div className="flex justify-center gap-2 text-xs">
-                                                <span className="text-foreground-secondary">农历</span>
-                                                <span>{chart.lunarDate}</span>
-                                            </div>
+                                                <div className="flex justify-center gap-4 text-xs">
+                                                    <span>命宫：<span className="text-accent">{lifePalaceBranch}</span></span>
+                                                    <span>身宫：<span className="text-amber-500">{bodyPalaceBranch}</span></span>
+                                                </div>
 
-                                            <div className="border-t border-border my-1" />
-
-                                            <div className="flex justify-center gap-4 text-xs">
-                                                <span>{chart.zodiac}</span>
-                                                <span>{chart.sign}</span>
-                                            </div>
-
-                                            <div className="flex justify-center gap-4 text-xs">
-                                                <span>命主：<span className="font-semibold text-purple-500">{chart.soul}</span></span>
-                                                <span>身主：<span className="font-semibold">{chart.body}</span></span>
-                                            </div>
-
-                                            <div className="flex justify-center gap-4 text-xs">
-                                                <span>命宫：<span className="text-accent">{lifePalaceBranch}</span></span>
-                                                <span>身宫：<span className="text-amber-500">{bodyPalaceBranch}</span></span>
-                                            </div>
-
-                                            <div className="text-center">
-                                                <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
-                                                    {chart.fiveElement}
-                                                </span>
+                                                <div className="text-center">
+                                                    <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
+                                                        {chart.fiveElement}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
+                                    );
+                                }
+                                return null;
                             }
-                            return null;
-                        }
 
-                        const palace = getPalaceByBranch(branchIdx);
-                        if (!palace) return null;
+                            const palace = getPalaceByBranch(branchIdx);
+                            if (!palace) return null;
 
-                        const palaceIndex = chart.palaces.indexOf(palace);
-                        const isLifePalace = palaceIndex === lifePalaceIndex;
-                        const isHighlighted = highlightedPalaces.includes(palaceIndex) || sanFangSiZhengPalaces.includes(palaceIndex);
-                        const flowInfo = getFlowInfoForPalace(palaceIndex);
+                            const palaceIndex = chart.palaces.indexOf(palace);
+                            const isLifePalace = palaceIndex === lifePalaceIndex;
+                            const highlightTypes = getHighlightTypes(palaceIndex);
+                            const isHighlighted = highlightTypes.length > 0 || sanFangSiZhengPalaces.includes(palaceIndex);
+                            const flowInfo = getFlowInfoForPalace(palaceIndex);
 
-                        return (
-                            <PalaceCard
-                                key={`palace-${branchIdx}`}
-                                palace={palace}
-                                isSelected={selectedPalace === palaceIndex}
-                                isLifePalace={isLifePalace}
-                                isHighlighted={isHighlighted}
-                                isSanFangSiZheng={sanFangSiZhengPalaces.includes(palaceIndex) && selectedPalace !== palaceIndex}
-                                showAdjStars={showAdjStars}
-                                flowInfo={flowInfo}
-                                onClick={() => setSelectedPalace(
-                                    selectedPalace === palaceIndex ? null : palaceIndex
-                                )}
-                            />
-                        );
-                    })
-                )}
+                            return (
+                                <PalaceCard
+                                    key={`palace-${branchIdx}`}
+                                    palace={palace}
+                                    isSelected={selectedPalace === palaceIndex}
+                                    isLifePalace={isLifePalace}
+                                    isHighlighted={isHighlighted}
+                                    highlightTypes={highlightTypes}
+                                    isSanFangSiZheng={sanFangSiZhengPalaces.includes(palaceIndex) && selectedPalace !== palaceIndex}
+                                    showAdjStars={showAdjStars}
+                                    flowInfo={flowInfo}
+                                    onClick={() => setSelectedPalace(
+                                        selectedPalace === palaceIndex ? null : palaceIndex
+                                    )}
+                                />
+                            );
+                        })
+                    )}
+                </div>
             </div>
+
 
             {/* 选中宫位详情 */}
             {selectedPalace !== null && chart.palaces[selectedPalace] && (
@@ -259,8 +349,8 @@ export function ZiweiChartGrid({ chart, highlightedPalaces = [], horoscopeInfo }
                                     <span
                                         key={i}
                                         className={`text-xs px-1.5 py-0.5 rounded ${idx === selectedPalace
-                                                ? 'bg-accent text-white'
-                                                : 'bg-accent/10 text-accent'
+                                            ? 'bg-accent text-white'
+                                            : 'bg-accent/10 text-accent'
                                             }`}
                                     >
                                         {chart.palaces[idx]?.name}

@@ -58,7 +58,7 @@ export function BirthDateSection({
     };
 
     return (
-        <div className="bg-background-secondary rounded-xl p-6 border border-border">
+        <div className="bg-background rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-accent" />

@@ -1,13 +1,13 @@
 /**
  * 每日运势页面
  * 
- * 'use client' 标记说明：
- * - 需要日期交互，在客户端运行
+ * 支持个性化运势（基于用户八字命盘）和通用运势
  */
 'use client';
 
-import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -17,36 +17,21 @@ import {
     Wallet,
     Activity,
     Star,
-    Loader2
+    Loader2,
+    Sparkles,
+    User,
+    Compass,
+    ChevronDown,
+    Check,
+    X
 } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
-
-// 基于日期生成运势分数（简易伪随机算法）
-function generateFortuneForDate(date: Date) {
-    const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-
-    // 简单的伪随机函数
-    const random = (offset: number) => {
-        const x = Math.sin(seed + offset) * 10000;
-        return Math.floor((x - Math.floor(x)) * 40) + 55; // 55-95 范围
-    };
-
-    const overall = random(1);
-    const career = random(2);
-    const love = random(3);
-    const wealth = random(4);
-    const health = random(5);
-
-    // 根据运势生成建议
-    const advices = [
-        overall >= 75 ? '整体运势良好，适合开展新计划' : '今日宜稳健行事，不宜冒进',
-        career >= 70 ? '工作上有贵人相助，把握机会' : '职场上需多加耐心，避免冲突',
-        wealth >= 70 ? '财运亨通，可适当投资' : '守财为主，避免大额消费',
-        health >= 70 ? '精力充沛，适合运动健身' : '注意休息，避免过度劳累',
-    ];
-
-    return { overall, career, love, wealth, health, advice: advices };
-}
+import { ChartSelectorModal } from '@/components/ChartSelectorModal';
+import { CalendarAlmanac } from '@/components/daily/CalendarAlmanac';
+import { DailyAIChat } from '@/components/daily/DailyAIChat';
+import { supabase } from '@/lib/supabase';
+import { calculateDailyFortune, calculateGenericDailyFortune, type DailyFortune } from '@/lib/fortune';
+import type { BaziChart } from '@/types';
 
 const scoreItems = [
     { key: 'overall', label: '综合运势', icon: Star, color: 'text-amber-500' },
@@ -75,22 +60,91 @@ function parseDateParam(dateStr: string | null): Date {
 function DailyPageContent() {
     const searchParams = useSearchParams();
     const [selectedDate, setSelectedDate] = useState(() => parseDateParam(searchParams.get('date')));
+    const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
+    const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
+    const [showChartSelector, setShowChartSelector] = useState(false);
 
-    // 当 URL 参数变化时同步日期（例如从月历页面跳转）
-    // 如果没有 date 参数，重置为今天
+    // 加载用户所有八字命盘
+    const loadUserCharts = useCallback(async (uid: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('bazi_charts')
+                .select('*')
+                .eq('user_id', uid)
+                .order('created_at', { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                // 从 chart_data 中提取完整的八字数据
+                const charts = data.map(row => {
+                    const chartData = row.chart_data as Record<string, unknown> || {};
+                    return {
+                        id: row.id,
+                        name: row.name,
+                        gender: row.gender,
+                        birthDate: row.birth_date,
+                        birthTime: row.birth_time,
+                        birthPlace: row.birth_place,
+                        calendarType: row.calendar_type,
+                        isLeapMonth: row.is_leap_month,
+                        // 从 chart_data 中读取排盘结果
+                        fourPillars: chartData.fourPillars,
+                        dayMaster: chartData.dayMaster,
+                        fiveElements: chartData.fiveElements,
+                        createdAt: row.created_at,
+                    } as BaziChart;
+                });
+                setBaziCharts(charts);
+                setBaziChart(charts[0]);
+            }
+        } catch (err) {
+            console.error('加载命盘失败:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 初始化
+    useEffect(() => {
+        const init = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                setUserId(session.user.id);
+                await loadUserCharts(session.user.id);
+            } else {
+                setLoading(false);
+            }
+        };
+        init();
+    }, [loadUserCharts]);
+
+    // 当 URL 参数变化时同步日期
     useEffect(() => {
         const dateParam = searchParams.get('date');
         if (dateParam) {
-            const newDate = parseDateParam(dateParam);
-            setSelectedDate(newDate);
+            setSelectedDate(parseDateParam(dateParam));
         } else {
-            // 无参数时重置为今天
             setSelectedDate(new Date());
         }
     }, [searchParams]);
 
-    // 使用 useMemo 基于日期计算运势
-    const fortune = useMemo(() => generateFortuneForDate(selectedDate), [selectedDate]);
+    // 计算运势
+    const fortune = useMemo(() => {
+        if (baziChart) {
+            return calculateDailyFortune(baziChart, selectedDate);
+        }
+        const generic = calculateGenericDailyFortune(selectedDate);
+        return {
+            ...generic,
+            date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
+            dayStem: undefined as unknown,
+            dayBranch: '',
+            tenGod: '',
+            luckyColor: '',
+            luckyDirection: '',
+        } as DailyFortune;
+    }, [baziChart, selectedDate]);
 
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('zh-CN', {
@@ -111,10 +165,36 @@ function DailyPageContent() {
         setSelectedDate(new Date());
     };
 
+    const handleSelectChart = (chart: BaziChart) => {
+        setBaziChart(chart);
+        setShowChartSelector(false);
+    };
+
     const isToday = selectedDate.toDateString() === new Date().toDateString();
+    const isPersonalized = !!baziChart;
+
+    if (loading) {
+        return (
+            <div className="max-w-2xl mx-auto px-4 py-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+            {/* 命盘选择器弹窗 */}
+            {showChartSelector && (
+                <ChartSelectorModal
+                    charts={baziCharts}
+                    selectedId={baziChart?.id}
+                    onSelect={handleSelectChart}
+                    onClose={() => setShowChartSelector(false)}
+                />
+            )}
+
+
             {/* 日期选择器 */}
             <div className="flex items-center justify-between mb-8">
                 <button
@@ -130,7 +210,7 @@ function DailyPageContent() {
                         <span className="font-semibold">{formatDate(selectedDate)}</span>
                     </div>
                     {isToday ? (
-                        <span className="text-sm text-accent">今日运势</span>
+                        <span className="text-sm text-accent">今日黄历</span>
                     ) : (
                         <button
                             onClick={goToToday}
@@ -149,57 +229,131 @@ function DailyPageContent() {
                 </button>
             </div>
 
-            {/* 运势评分 */}
-            <div className="space-y-4 mb-8">
-                {scoreItems.map(item => {
-                    const score = fortune[item.key as keyof typeof fortune] as number;
-                    const Icon = item.icon;
+            {/* 黄历信息 */}
+            <div className="mb-8">
+                <CalendarAlmanac date={selectedDate} />
+            </div>
 
-                    return (
-                        <div key={item.key} className="bg-background-secondary rounded-xl p-4 border border-border">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-3">
-                                    <Icon className={`w-5 h-5 ${item.color}`} />
-                                    <span className="font-medium">{item.label}</span>
-                                </div>
-                                <span className="text-lg font-bold">{score}</span>
-                            </div>
-                            <div className="h-2 bg-background rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full transition-all duration-500 rounded-full ${score >= 80 ? 'bg-green-500' :
-                                        score >= 60 ? 'bg-amber-500' :
-                                            'bg-red-500'
-                                        }`}
-                                    style={{ width: `${score}%` }}
-                                />
-                            </div>
+            {/* 个性化提示 */}
+            {isPersonalized ? (
+                <button
+                    onClick={() => setShowChartSelector(true)}
+                    className="flex items-center justify-center gap-2 mb-4 text-accent hover:opacity-80 transition-opacity w-full"
+                >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-sm">八字运势 · 基于「{baziChart.name}」</span>
+                    <ChevronDown className="w-4 h-4" />
+                </button>
+            ) : (
+                <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-amber-600">
+                            <User className="w-4 h-4" />
+                            <span className="text-sm">当前为通用运势</span>
                         </div>
-                    );
-                })}
-            </div>
+                        <Link
+                            href="/bazi"
+                            className="text-sm text-accent hover:underline"
+                        >
+                            添加命盘获取个性化分析 →
+                        </Link>
+                    </div>
+                </div>
+            )}
 
-            {/* 今日建议 */}
-            <div className="bg-background-secondary rounded-xl p-6 border border-border">
-                <h2 className="font-semibold mb-4 flex items-center gap-2">
-                    <Star className="w-5 h-5 text-accent" />
-                    {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}建议
-                </h2>
-                <ul className="space-y-3">
-                    {fortune.advice.map((advice, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                            <span className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 text-accent text-sm">
-                                {index + 1}
-                            </span>
-                            <span className="text-foreground-secondary">{advice}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+            {/* 流日信息（仅个性化时显示） */}
+            {isPersonalized && fortune.dayStem && (
+                <div className="flex items-center justify-center gap-4 mb-4 text-sm text-foreground-secondary">
+                    <span>流日：{fortune.dayStem}{fortune.dayBranch}</span>
+                    <span>•</span>
+                    <span>十神：{fortune.tenGod}</span>
+                </div>
+            )}
 
-            {/* 提示 */}
-            <p className="text-center text-sm text-foreground-secondary mt-6">
-                运势分析基于您的八字命盘生成，请先完成八字排盘获取个性化运势
-            </p>
+            {/* 八字运势模块 - 统一白色背景 */}
+            <section className="bg-background rounded-xl border border-border p-4 mb-8">
+                {/* 运势评分 */}
+                <div className="space-y-3 mb-6">
+                    {scoreItems.map(item => {
+                        const score = fortune[item.key as keyof typeof fortune] as number;
+                        const Icon = item.icon;
+
+                        return (
+                            <div key={item.key} className="py-2">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <Icon className={`w-5 h-5 ${item.color}`} />
+                                        <span className="font-medium">{item.label}</span>
+                                    </div>
+                                    <span className="text-lg font-bold">{score}</span>
+                                </div>
+                                <div className="h-2 bg-background-secondary rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all duration-500 rounded-full ${score >= 80 ? 'bg-green-500' :
+                                            score >= 60 ? 'bg-amber-500' :
+                                                'bg-red-500'
+                                            }`}
+                                        style={{ width: `${score}%` }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* 幸运信息（仅个性化时显示） */}
+                {isPersonalized && fortune.luckyColor && (
+                    <div className="grid grid-cols-2 gap-4 py-4 border-t border-border">
+                        <div>
+                            <div className="flex items-center gap-2 text-foreground-secondary mb-1">
+                                <div className="w-4 h-4 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500" />
+                                <span className="text-sm">幸运色</span>
+                            </div>
+                            <span className="font-medium">{fortune.luckyColor}</span>
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 text-foreground-secondary mb-1">
+                                <Compass className="w-4 h-4" />
+                                <span className="text-sm">吉方位</span>
+                            </div>
+                            <span className="font-medium">{fortune.luckyDirection}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* 今日建议 */}
+                <div className="pt-4 border-t border-border">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Star className="w-5 h-5 text-accent" />
+                        {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}建议
+                    </h3>
+                    <ul className="space-y-2">
+                        {fortune.advice.map((advice, index) => (
+                            <li key={index} className="flex items-start gap-3">
+                                <span className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 text-accent text-xs">
+                                    {index + 1}
+                                </span>
+                                <span className="text-foreground-secondary text-sm">{advice}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </section>
+
+            {/* 底部提示 */}
+            {!isPersonalized && (
+                <p className="text-center text-sm text-foreground-secondary mt-6 mb-8">
+                    <Link href="/bazi" className="text-accent hover:underline">
+                        完成八字排盘
+                    </Link>
+                    {' '}获取更精准的个性化运势分析
+                </p>
+            )}
+
+            {/* AI智能问答 */}
+            <div className="mt-8">
+                <DailyAIChat date={selectedDate} userId={userId} />
+            </div>
         </div>
     );
 }
@@ -218,3 +372,4 @@ export default function DailyPage() {
         </LoginOverlay>
     );
 }
+

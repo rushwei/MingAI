@@ -1,7 +1,7 @@
 /**
  * 偏好设置页面
  */
-'use client';
+'use client'; // 客户端组件：需要读取登录态与操作本地主题切换
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -26,13 +26,16 @@ interface Settings {
 export default function SettingsPage() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
+    // useState: 管理加载状态和偏好设置的本地展示
     const [loading, setLoading] = useState(true);
     const [settings, setSettings] = useState<Settings>({
         notifications: true,
         language: 'zh',
     });
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
+        // useEffect: 首次进入页面时读取登录态并加载服务端偏好
         const checkAuth = async () => {
             // 使用 getSession 从本地缓存读取
             const { data: { session } } = await supabase.auth.getSession();
@@ -42,10 +45,46 @@ export default function SettingsPage() {
                 return;
             }
 
-            // 从 localStorage 读取设置
-            const savedSettings = localStorage.getItem('mingai_settings');
-            if (savedSettings) {
-                setSettings(JSON.parse(savedSettings));
+            setUserId(session.user.id);
+
+            const { data, error } = await supabase
+                .from('user_settings')
+                .select('notifications_enabled, notify_email, notify_site, language')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+
+            if (error) {
+                console.error('获取偏好设置失败:', error);
+            }
+
+            if (!data) {
+                const defaults = {
+                    user_id: session.user.id,
+                    notifications_enabled: true,
+                    notify_email: true,
+                    notify_site: true,
+                    language: 'zh' as const,
+                };
+
+                const { data: created, error: insertError } = await supabase
+                    .from('user_settings')
+                    .upsert(defaults, { onConflict: 'user_id' })
+                    .select('notifications_enabled, notify_email, notify_site, language')
+                    .maybeSingle();
+
+                if (insertError) {
+                    console.error('初始化偏好设置失败:', insertError?.message ?? insertError);
+                }
+
+                setSettings({
+                    notifications: created?.notifications_enabled ?? defaults.notifications_enabled,
+                    language: (created?.language as 'zh' | 'en') ?? defaults.language,
+                });
+            } else {
+                setSettings({
+                    notifications: data.notifications_enabled ?? true,
+                    language: (data.language as 'zh' | 'en') ?? 'zh',
+                });
             }
 
             setLoading(false);
@@ -54,10 +93,41 @@ export default function SettingsPage() {
         checkAuth();
     }, [router]);
 
-    const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
+        if (!userId) return;
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
-        localStorage.setItem('mingai_settings', JSON.stringify(newSettings));
+
+        const updates = key === 'notifications'
+            ? {
+                notifications_enabled: value as boolean,
+                notify_email: value as boolean,
+                notify_site: value as boolean,
+            }
+            : { language: value as Settings['language'] };
+
+        const { error } = await supabase
+            .from('user_settings')
+            .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' });
+
+        if (error) {
+            console.error('更新偏好设置失败:', error);
+            return;
+        }
+
+        if (key === 'notifications') {
+            const { error: subscriptionError } = await supabase
+                .from('feature_subscriptions')
+                .update({
+                    notify_email: value as boolean,
+                    notify_site: value as boolean,
+                })
+                .eq('user_id', userId);
+
+            if (subscriptionError) {
+                console.error('同步功能订阅偏好失败:', subscriptionError);
+            }
+        }
     };
 
     if (loading) {

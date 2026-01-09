@@ -16,9 +16,12 @@ import {
     Loader2,
     FileText,
     CreditCard,
+    CircleStar,
+    Bell,
 } from 'lucide-react';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { getUnreadCount } from '@/lib/notification';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface SidebarUserCardProps {
@@ -27,17 +30,15 @@ interface SidebarUserCardProps {
 }
 
 const membershipLabels: Record<string, string> = {
-    free: '免费版',
-    single: '单次',
-    monthly: 'Plus',
-    yearly: 'Pro',
+    free: 'Free',
+    plus: 'Plus',
+    pro: 'Pro',
 };
 
 const membershipColors: Record<string, string> = {
-    free: 'text-foreground-secondary',
-    single: 'text-blue-500',
-    monthly: 'text-purple-500',
-    yearly: 'text-amber-500',
+    free: 'text-gray-500',
+    plus: 'text-amber-500',
+    pro: 'text-purple-500',
 };
 
 // 头像组件 - 使用普通 img 标签避免 Next.js Image 配置问题
@@ -76,6 +77,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const [nickname, setNickname] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const displayName = nickname || user.email?.split('@')[0] || '用户';
@@ -90,6 +92,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
             }
         });
         getMembershipInfo(user.id).then(setMembership);
+        getUnreadCount(user.id).then(setUnreadCount);
     }, [user.id]);
 
     // 点击外部关闭菜单
@@ -109,10 +112,10 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
         try {
             await signOut();
             setIsMenuOpen(false);
-            router.refresh();
+            // 强制刷新整个页面以确保所有状态重置
+            window.location.reload();
         } catch (error) {
             console.error('Sign out error:', error);
-        } finally {
             setSigningOut(false);
         }
     };
@@ -143,7 +146,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                 <div className="flex-1 min-w-0 text-left">
                     <div className="text-sm font-medium truncate">{displayName}</div>
                     <div className={`text-xs flex items-center gap-1 ${membershipColors[membershipType]}`}>
-                        <Crown className="w-3 h-3" />
+                        {/* <Crown className="w-3 h-3" /> */}
                         {membershipLabels[membershipType]}
                     </div>
                 </div>
@@ -179,31 +182,44 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <Sparkles className="w-4 h-4 text-foreground-secondary" />
-                            <span>升级套餐</span>
+                            <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>订阅</span>
+                        </Link>
+                        <Link
+                            href="/user/notifications"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                        >
+                            <Bell className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>消息通知</span>
+                            {unreadCount > 0 && (
+                                <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
                         </Link>
                         <Link
                             href="/user/charts"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <FileText className="w-4 h-4 text-foreground-secondary" />
-                            <span>我的命盘</span>
+                            <FileText className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>命盘</span>
                         </Link>
                         <Link
                             href="/user/orders"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <CreditCard className="w-4 h-4 text-foreground-secondary" />
-                            <span>订单记录</span>
+                            <CreditCard className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>订单</span>
                         </Link>
                         <Link
                             href="/user/profile"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <Smile className="w-4 h-4 text-foreground-secondary" />
+                            <Smile className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>个人资料</span>
                         </Link>
                         <Link
@@ -211,18 +227,17 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <Settings className="w-4 h-4 text-foreground-secondary" />
+                            <Settings className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>设置</span>
                         </Link>
-                        <button
-                            className="flex items-center justify-between gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors w-full"
+                        <Link
+                            href="/help"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <div className="flex items-center gap-3">
-                                <HelpCircle className="w-4 h-4 text-foreground-secondary" />
-                                <span>帮助</span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-foreground-secondary" />
-                        </button>
+                            <HelpCircle className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>帮助中心</span>
+                        </Link>
                     </div>
 
                     {/* 退出登录 */}
@@ -233,9 +248,9 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors w-full disabled:opacity-50"
                         >
                             {signingOut ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-foreground-secondary" />
+                                <Loader2 className="w-4.5 h-4.5 animate-spin text-foreground-secondary" />
                             ) : (
-                                <LogOut className="w-4 h-4 text-foreground-secondary" />
+                                <LogOut className="w-4.5 h-4.5 text-foreground-secondary" />
                             )}
                             <span>{signingOut ? '退出中...' : '退出登录'}</span>
                         </button>

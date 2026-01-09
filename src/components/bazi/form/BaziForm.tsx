@@ -16,6 +16,7 @@ export function BaziForm({
     onSubmit,
     onSetToday,
     isSubmitting,
+    autoFillTime,
 }: {
     formData: BaziFormData;
     onUpdate: UpdateField;
@@ -24,6 +25,7 @@ export function BaziForm({
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onSetToday: () => void;
     isSubmitting: boolean;
+    autoFillTime: boolean;
 }) {
     return (
         <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -41,6 +43,7 @@ export function BaziForm({
                 onToggleUnknownTime={onToggleUnknownTime}
                 onUpdate={onUpdate}
                 hours={HOUR_OPTIONS}
+                autoFillTime={autoFillTime}
             />
             <BirthPlaceSection formData={formData} onUpdate={onUpdate} />
             <SubmitSection isSubmitting={isSubmitting} />

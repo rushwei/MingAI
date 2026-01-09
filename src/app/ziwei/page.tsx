@@ -27,6 +27,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
     const month = searchParams.get('month');
     const day = searchParams.get('day');
     const hour = searchParams.get('hour');
+    const minute = searchParams.get('minute');
     const calendar = searchParams.get('calendar') as CalendarType | null;
     const leap = searchParams.get('leap');
     const place = searchParams.get('place');
@@ -37,6 +38,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
 
     const birthYear = parseNumber(year, DEFAULT_BAZI_FORM_DATA.birthYear);
     const birthMonth = parseNumber(month, DEFAULT_BAZI_FORM_DATA.birthMonth);
+    const isUnknownTime = hour === '-1';
     const isLeapRequested = calendar === 'lunar' && leap === '1';
     const leapMonthOfYear = calendar === 'lunar'
         ? LunarYear.fromYear(birthYear).getLeapMonth()
@@ -48,8 +50,8 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
         birthYear,
         birthMonth,
         birthDay: parseNumber(day, DEFAULT_BAZI_FORM_DATA.birthDay),
-        birthHour: parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
-        birthMinute: 0,
+        birthHour: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthHour : parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
+        birthMinute: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthMinute : parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
         calendarType: calendar === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
         birthPlace: place || '',
@@ -65,6 +67,7 @@ function ZiweiPageContent() {
         const hourParam = searchParams.get('hour');
         return hourParam === null || hourParam === '-1';
     });
+    const autoFillTime = searchParams.get('hour') === null;
     const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
 
     const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
@@ -184,14 +187,19 @@ function ZiweiPageContent() {
             year: String(formData.birthYear),
             month: String(formData.birthMonth),
             day: String(formData.birthDay),
-            hour: String(formData.birthHour),
+            hour: unknownTime ? '-1' : String(formData.birthHour),
+            minute: unknownTime ? '0' : String(formData.birthMinute || 0),
             calendar: formData.calendarType,
         });
+        const chartId = searchParams.get('chart');
         if (formData.calendarType === 'lunar') {
             params.set('leap', formData.isLeapMonth ? '1' : '0');
         }
         if (formData.birthPlace) {
             params.set('place', formData.birthPlace);
+        }
+        if (chartId) {
+            params.set('chart', chartId);
         }
 
         router.push(`/ziwei/result?${params.toString()}`);
@@ -200,14 +208,18 @@ function ZiweiPageContent() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
             {/* 页面标题 */}
-            <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-                    <Sparkles className="w-8 h-8 text-accent" />
+            <div className="mb-8">
+                <div className="flex items-center justify-center gap-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl">
+                        <Sparkles className="w-12 h-12 text-purple-500" />
+                    </div>
+                    <div className="text-left">
+                        <h1 className="text-2xl lg:text-3xl font-bold mb-1">紫微斗数排盘</h1>
+                        <p className="text-foreground-secondary">
+                            请填写您的出生信息，我们将为您生成紫微斗数命盘
+                        </p>
+                    </div>
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-bold mb-2">紫微斗数排盘</h1>
-                <p className="text-foreground-secondary">
-                    请填写您的出生信息，我们将为您生成紫微斗数命盘
-                </p>
             </div>
 
             <BaziForm
@@ -218,6 +230,7 @@ function ZiweiPageContent() {
                 onSubmit={handleSubmit}
                 onSetToday={handleSetToday}
                 isSubmitting={isSubmitting}
+                autoFillTime={autoFillTime}
             />
 
             {/* 提示信息 */}

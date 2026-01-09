@@ -6,6 +6,7 @@
  * - 保护 AI API 密钥不暴露给客户端
  * - 检查用户积分，积分不足时返回错误
  * - 支持流式输出 (stream=true)
+ * - 支持命盘上下文 (chartIds)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,15 +24,147 @@ const getSupabase = () => createClient(
 // 服务端内部密钥（必须通过环境变量设置，无 fallback）
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 
+interface ChartIds {
+    baziId?: string;
+    ziweiId?: string;
+}
+
+interface ChartContext {
+    baziChart?: {
+        name: string;
+        gender: string;
+        birthDate: string;
+        birthTime?: string;
+        chartData?: Record<string, unknown>;
+    };
+    ziweiChart?: {
+        name: string;
+        gender: string;
+        birthDate: string;
+        birthTime?: string;
+        chartData?: Record<string, unknown>;
+    };
+}
+
+// 加载命盘上下文
+async function loadChartContext(chartIds: ChartIds): Promise<ChartContext> {
+    const supabase = getSupabase();
+    const context: ChartContext = {};
+
+    if (chartIds.baziId) {
+        const { data } = await supabase
+            .from('bazi_charts')
+            .select('name, gender, birth_date, birth_time, chart_data')
+            .eq('id', chartIds.baziId)
+            .single();
+
+        if (data) {
+            context.baziChart = {
+                name: data.name,
+                gender: data.gender === 'male' ? '男' : '女',
+                birthDate: data.birth_date,
+                birthTime: data.birth_time,
+                chartData: data.chart_data,
+            };
+        }
+    }
+
+    if (chartIds.ziweiId) {
+        const { data } = await supabase
+            .from('ziwei_charts')
+            .select('name, gender, birth_date, birth_time, chart_data')
+            .eq('id', chartIds.ziweiId)
+            .single();
+
+        if (data) {
+            context.ziweiChart = {
+                name: data.name,
+                gender: data.gender === 'male' ? '男' : '女',
+                birthDate: data.birth_date,
+                birthTime: data.birth_time,
+                chartData: data.chart_data,
+            };
+        }
+    }
+
+    return context;
+}
+
+// 格式化命盘上下文为文本
+function formatChartContextPrompt(context: ChartContext): string {
+    const parts: string[] = [];
+
+    if (context.baziChart) {
+        const { baziChart } = context;
+        let baziInfo = `【八字命盘信息】\n`;
+        baziInfo += `姓名: ${baziChart.name}\n`;
+        baziInfo += `性别: ${baziChart.gender}\n`;
+        baziInfo += `出生日期: ${baziChart.birthDate}`;
+        if (baziChart.birthTime) {
+            baziInfo += ` ${baziChart.birthTime}`;
+        }
+        baziInfo += '\n';
+
+        // 如果有详细的八字数据
+        if (baziChart.chartData) {
+            const data = baziChart.chartData as {
+                dayMaster?: string;
+                fourPillars?: {
+                    year?: { stem: string; branch: string };
+                    month?: { stem: string; branch: string };
+                    day?: { stem: string; branch: string };
+                    hour?: { stem: string; branch: string };
+                };
+                fiveElements?: Record<string, number>;
+            };
+            if (data.fourPillars) {
+                const { year, month, day, hour } = data.fourPillars;
+                baziInfo += `四柱: ${year?.stem}${year?.branch}年 ${month?.stem}${month?.branch}月 ${day?.stem}${day?.branch}日 ${hour?.stem}${hour?.branch}时\n`;
+            }
+            if (data.dayMaster) {
+                baziInfo += `日主: ${data.dayMaster}\n`;
+            }
+            if (data.fiveElements) {
+                const elements = Object.entries(data.fiveElements)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' ');
+                baziInfo += `五行: ${elements}\n`;
+            }
+        }
+        parts.push(baziInfo);
+    }
+
+    if (context.ziweiChart) {
+        const { ziweiChart } = context;
+        let ziweiInfo = `【紫微命盘信息】\n`;
+        ziweiInfo += `姓名: ${ziweiChart.name}\n`;
+        ziweiInfo += `性别: ${ziweiChart.gender}\n`;
+        ziweiInfo += `出生日期: ${ziweiChart.birthDate}`;
+        if (ziweiChart.birthTime) {
+            ziweiInfo += ` ${ziweiChart.birthTime}`;
+        }
+        ziweiInfo += '\n';
+        parts.push(ziweiInfo);
+    }
+
+    if (parts.length > 0) {
+        return `\n\n--- 用户已选择以下命盘作为对话参考 ---\n${parts.join('\n')}\n请基于以上命盘信息为用户提供个性化的命理分析和建议。\n--- 命盘信息结束 ---\n`;
+    }
+
+    return '';
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { messages, personality, skipCreditCheck, internalSecret, stream } = body as {
+        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model } = body as {
             messages: ChatMessage[];
             personality: AIPersonality;
             skipCreditCheck?: boolean;
             internalSecret?: string;
             stream?: boolean;
+            chartIds?: ChartIds;
+            model?: 'deepseek' | 'glm' | 'gemini';
         };
 
         if (!messages || !Array.isArray(messages)) {
@@ -97,9 +230,16 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // 加载命盘上下文
+        let chartContextPrompt = '';
+        if (chartIds && (chartIds.baziId || chartIds.ziweiId)) {
+            const chartContext = await loadChartContext(chartIds);
+            chartContextPrompt = formatChartContextPrompt(chartContext);
+        }
+
         // 流式响应
         if (stream) {
-            const streamBody = await callAIStream(messages, personality || 'master');
+            const streamBody = await callAIStream(messages, personality || 'master', chartContextPrompt, model || 'deepseek');
             return new Response(streamBody, {
                 headers: {
                     'Content-Type': 'text/event-stream',
@@ -110,7 +250,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 非流式响应
-        const content = await callAI(messages, personality || 'master');
+        const content = await callAI(messages, personality || 'master', 'deepseek', chartContextPrompt);
         return NextResponse.json({ content });
     } catch (error) {
         console.error('AI API 错误:', error);
@@ -120,4 +260,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

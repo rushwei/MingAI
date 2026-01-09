@@ -30,7 +30,8 @@ export function ResultHeader({
             <div className="flex items-center gap-2">
                 <button
                     onClick={onEdit}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors"
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
                 >
                     <Edit3 className="w-4 h-4" />
                     修改

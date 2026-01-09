@@ -91,6 +91,7 @@ export interface BaziFormData {
     birthPlace?: string;
     calendarType: CalendarType;
     isLeapMonth?: boolean;
+    isUnknownTime?: boolean;
 }
 
 // ===== AI 对话相关类型 =====
@@ -115,12 +116,23 @@ export interface AIPersonalityConfig {
 /** 消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+/** 消息版本（用于编辑历史） */
+export interface MessageVersion {
+    userContent: string;
+    aiContent: string;
+    createdAt: string;
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
     id: string;
     role: MessageRole;
     content: string;
     createdAt: string;
+    model?: string;                   // 使用的模型（仅AI消息）
+    // 版本支持（仅用户消息有效）
+    versions?: MessageVersion[];      // 所有版本历史
+    currentVersionIndex?: number;     // 当前显示的版本索引
 }
 
 /** 对话会话 */
