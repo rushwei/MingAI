@@ -16,6 +16,7 @@ export interface FortuneScores {
     love: number;       // 感情运
     wealth: number;     // 财运
     health: number;     // 健康运
+    social: number;     // 人际运
 }
 
 export interface DailyFortune extends FortuneScores {
@@ -35,7 +36,7 @@ export interface MonthlyFortune extends FortuneScores {
     monthBranch: string;
     tenGod: string;
     summary: string;
-    keyDates: { date: number; desc: string }[];
+    keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[];
 }
 
 // ===== 常量 =====
@@ -51,16 +52,16 @@ const ELEMENT_RELATION_SCORES: Record<string, number> = {
 
 /** 十神对应各类运势的加成 */
 const TEN_GOD_FORTUNE_BONUS: Record<string, Partial<FortuneScores>> = {
-    '比肩': { career: 5, love: 0, wealth: -5, health: 5 },
-    '劫财': { career: 0, love: -5, wealth: -10, health: 5 },
-    '食神': { career: 5, love: 10, wealth: 5, health: 10 },
-    '伤官': { career: -5, love: 5, wealth: 5, health: 0 },
-    '偏财': { career: 5, love: 5, wealth: 15, health: 0 },
-    '正财': { career: 5, love: 10, wealth: 10, health: 0 },
-    '七杀': { career: 10, love: -5, wealth: 5, health: -5 },
-    '正官': { career: 15, love: 5, wealth: 5, health: 0 },
-    '偏印': { career: 5, love: 0, wealth: -5, health: 5 },
-    '正印': { career: 10, love: 5, wealth: 0, health: 10 },
+    '比肩': { career: 5, love: 0, wealth: -5, health: 5, social: 10 },
+    '劫财': { career: 0, love: -5, wealth: -10, health: 5, social: 5 },
+    '食神': { career: 5, love: 10, wealth: 5, health: 10, social: 8 },
+    '伤官': { career: -5, love: 5, wealth: 5, health: 0, social: -5 },
+    '偏财': { career: 5, love: 5, wealth: 15, health: 0, social: 5 },
+    '正财': { career: 5, love: 10, wealth: 10, health: 0, social: 5 },
+    '七杀': { career: 10, love: -5, wealth: 5, health: -5, social: -3 },
+    '正官': { career: 15, love: 5, wealth: 5, health: 0, social: 8 },
+    '偏印': { career: 5, love: 0, wealth: -5, health: 5, social: 0 },
+    '正印': { career: 10, love: 5, wealth: 0, health: 10, social: 5 },
 };
 
 /** 五行对应颜色 */
@@ -184,7 +185,8 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
     const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(dateSeed, 2) * 10 - 5);
     const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(dateSeed, 3) * 10 - 5);
     const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(dateSeed, 4) * 10 - 5);
-    const overall = clampScore((career + love + wealth + health) / 4);
+    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(dateSeed, 5) * 10 - 5);
+    const overall = clampScore((career + love + wealth + health + social) / 5);
 
     // 生成运势建议
     const advice = generateDailyAdvice(tenGod, overall, career, wealth, health);
@@ -204,6 +206,7 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
         love,
         wealth,
         health,
+        social,
         advice,
         luckyColor,
         luckyDirection,
@@ -243,7 +246,8 @@ export function calculateMonthlyFortune(baziChart: BaziChart, year: number, mont
     const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(monthSeed, 2) * 8 - 4);
     const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(monthSeed, 3) * 8 - 4);
     const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(monthSeed, 4) * 8 - 4);
-    const overall = clampScore((career + love + wealth + health) / 4);
+    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(monthSeed, 5) * 8 - 4);
+    const overall = clampScore((career + love + wealth + health + social) / 5);
 
     // 生成月度总结
     const summary = generateMonthlySummary(tenGod, overall);
@@ -262,6 +266,7 @@ export function calculateMonthlyFortune(baziChart: BaziChart, year: number, mont
         love,
         wealth,
         health,
+        social,
         summary,
         keyDates,
     };
@@ -283,6 +288,7 @@ export function calculateGenericDailyFortune(date: Date): FortuneScores & { advi
     const love = random(3);
     const wealth = random(4);
     const health = random(5);
+    const social = random(6);
 
     const advice = [
         overall >= 75 ? '整体运势良好，适合开展新计划' : '今日宜稳健行事，不宜冒进',
@@ -291,7 +297,7 @@ export function calculateGenericDailyFortune(date: Date): FortuneScores & { advi
         health >= 70 ? '精力充沛，适合运动健身' : '注意休息，避免过度劳累',
     ];
 
-    return { overall, career, love, wealth, health, advice };
+    return { overall, career, love, wealth, health, social, advice };
 }
 
 // ===== 辅助函数 =====
@@ -373,26 +379,68 @@ function generateMonthlySummary(tenGod: string, overall: number): string {
     return summary;
 }
 
-function generateKeyDates(baziChart: BaziChart, year: number, month: number): { date: number; desc: string }[] {
-    const keyDates: { date: number; desc: string }[] = [];
-    const userDayStem = baziChart.dayMaster as HeavenlyStem;
+function generateKeyDates(baziChart: BaziChart, year: number, month: number): { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] {
+    const keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    // 找出月中运势较好的几天
+    // 计算所有天的运势
+    const dailyScores: { day: number; overall: number; career: number; wealth: number; love: number; health: number; social: number }[] = [];
+
     for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);
         const fortune = calculateDailyFortune(baziChart, date);
-
-        if (fortune.overall >= 85) {
-            keyDates.push({ date: day, desc: '大吉日' });
-        } else if (fortune.wealth >= 85) {
-            keyDates.push({ date: day, desc: '财运日' });
-        } else if (fortune.career >= 85) {
-            keyDates.push({ date: day, desc: '事业吉日' });
-        }
-
-        if (keyDates.length >= 5) break;
+        dailyScores.push({
+            day,
+            overall: fortune.overall,
+            career: fortune.career,
+            wealth: fortune.wealth,
+            love: fortune.love,
+            health: fortune.health,
+            social: fortune.social,
+        });
     }
 
-    return keyDates;
+    // 识别吉日（高分日）
+    for (const score of dailyScores) {
+        if (keyDates.length >= 8) break;
+
+        if (score.overall >= 85) {
+            keyDates.push({ date: score.day, desc: '大吉日', type: 'lucky' });
+        } else if (score.wealth >= 88) {
+            keyDates.push({ date: score.day, desc: '财运日', type: 'lucky' });
+        } else if (score.career >= 88) {
+            keyDates.push({ date: score.day, desc: '事业吉日', type: 'lucky' });
+        } else if (score.love >= 88) {
+            keyDates.push({ date: score.day, desc: '桃花日', type: 'lucky' });
+        }
+    }
+
+    // 识别波动节点（转折日）- 运势急剧变化的日子
+    for (let i = 1; i < dailyScores.length - 1; i++) {
+        if (keyDates.length >= 10) break;
+
+        const prev = dailyScores[i - 1];
+        const curr = dailyScores[i];
+        const next = dailyScores[i + 1];
+
+        // 检测运势急剧上升（谷底转折）
+        if (prev.overall < 65 && curr.overall < 65 && next.overall >= 75) {
+            if (!keyDates.find(k => k.date === next.day)) {
+                keyDates.push({ date: next.day, desc: '转运日', type: 'turning' });
+            }
+        }
+
+        // 检测运势急剧下降（高峰转折）
+        if (prev.overall >= 75 && curr.overall >= 75 && next.overall < 65) {
+            if (!keyDates.find(k => k.date === next.day)) {
+                keyDates.push({ date: next.day, desc: '需谨慎', type: 'warning' });
+            }
+        }
+    }
+
+    // 按日期排序
+    keyDates.sort((a, b) => a.date - b.date);
+
+    return keyDates.slice(0, 8);
 }
+

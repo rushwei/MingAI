@@ -11,6 +11,7 @@
   "dependencies": {
     "@lobehub/icons": "^4.0.2",
     "@supabase/supabase-js": "^2.89.0",
+    "html2canvas": "^1.4.1",
     "iztro": "^2.5.4",
     "lucide-react": "^0.562.0",
     "lunar-javascript": "^1.7.7",

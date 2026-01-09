@@ -23,14 +23,17 @@ import {
     Compass,
     ChevronDown,
     Check,
-    X
+    X,
+    Share2
 } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { CalendarAlmanac } from '@/components/daily/CalendarAlmanac';
 import { DailyAIChat } from '@/components/daily/DailyAIChat';
+import { ShareCard } from '@/components/fortune/ShareCard';
 import { supabase } from '@/lib/supabase';
 import { calculateDailyFortune, calculateGenericDailyFortune, type DailyFortune } from '@/lib/fortune';
+import { getCalendarAlmanac } from '@/lib/calendar';
 import type { BaziChart } from '@/types';
 
 const scoreItems = [
@@ -39,6 +42,7 @@ const scoreItems = [
     { key: 'love', label: '感情运', icon: Heart, color: 'text-pink-500' },
     { key: 'wealth', label: '财运', icon: Wallet, color: 'text-green-500' },
     { key: 'health', label: '健康运', icon: Activity, color: 'text-red-500' },
+    { key: 'social', label: '人际运', icon: User, color: 'text-purple-500' },
 ];
 
 // 解析日期字符串
@@ -65,6 +69,7 @@ function DailyPageContent() {
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
+    const [showShareCard, setShowShareCard] = useState(false);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -173,6 +178,15 @@ function DailyPageContent() {
     const isToday = selectedDate.toDateString() === new Date().toDateString();
     const isPersonalized = !!baziChart;
 
+    // 获取黄历数据用于分享卡片
+    const almanacData = useMemo(() => {
+        const data = getCalendarAlmanac(selectedDate);
+        return {
+            yi: data.yi,
+            ji: data.ji,
+        };
+    }, [selectedDate]);
+
     if (loading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center">
@@ -192,6 +206,30 @@ function DailyPageContent() {
                     onSelect={handleSelectChart}
                     onClose={() => setShowChartSelector(false)}
                 />
+            )}
+
+            {/* 分享卡片弹窗 */}
+            {showShareCard && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-background rounded-2xl p-6 max-w-md w-full" style={{ maxHeight: 'calc(100vh - 32px)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold">分享运势卡片</h2>
+                            <button
+                                onClick={() => setShowShareCard(false)}
+                                className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <ShareCard
+                            fortune={fortune}
+                            date={selectedDate}
+                            userName={baziChart?.name}
+                            isPersonalized={isPersonalized}
+                            almanac={almanacData}
+                        />
+                    </div>
+                </div>
             )}
 
 
@@ -272,6 +310,20 @@ function DailyPageContent() {
 
             {/* 八字运势模块 - 统一白色背景 */}
             <section className="bg-background rounded-xl border border-border p-4 mb-8">
+                {/* 模块标题和分享按钮 */}
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-semibold flex items-center gap-2">
+                        <Star className="w-5 h-5 text-accent" />
+                        {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}运势
+                    </h2>
+                    <button
+                        onClick={() => setShowShareCard(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                    >
+                        <Share2 className="w-4 h-4" />
+                        <span>分享</span>
+                    </button>
+                </div>
                 {/* 运势评分 */}
                 <div className="space-y-3 mb-6">
                     {scoreItems.map(item => {

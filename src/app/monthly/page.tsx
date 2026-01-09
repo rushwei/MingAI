@@ -320,18 +320,31 @@ function MonthlyPageContent() {
             {/* 重点日期（仅个性化时显示） */}
             {isPersonalized && fortune && fortune.keyDates.length > 0 && (
                 <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
-                    <h2 className="font-semibold mb-3">本月吉日</h2>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                        {fortune.keyDates.map(h => (
-                            <Link
-                                key={h.date}
-                                href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.date).padStart(2, '0')}`}
-                                className="p-3 bg-accent/10 rounded-lg text-center hover:bg-accent/20 transition-colors"
-                            >
-                                <div className="text-2xl font-bold text-accent">{h.date}</div>
-                                <div className="text-xs text-foreground-secondary">{h.desc}</div>
-                            </Link>
-                        ))}
+                    <h2 className="font-semibold mb-3">本月关键日期</h2>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                        {fortune.keyDates.map(h => {
+                            const bgColor = h.type === 'lucky'
+                                ? 'bg-green-500/10 hover:bg-green-500/20'
+                                : h.type === 'warning'
+                                    ? 'bg-red-500/10 hover:bg-red-500/20'
+                                    : 'bg-amber-500/10 hover:bg-amber-500/20';
+                            const textColor = h.type === 'lucky'
+                                ? 'text-green-600'
+                                : h.type === 'warning'
+                                    ? 'text-red-600'
+                                    : 'text-amber-600';
+
+                            return (
+                                <Link
+                                    key={h.date}
+                                    href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.date).padStart(2, '0')}`}
+                                    className={`p-3 rounded-lg text-center transition-colors ${bgColor}`}
+                                >
+                                    <div className={`text-2xl font-bold ${textColor}`}>{h.date}</div>
+                                    <div className="text-xs text-foreground-secondary">{h.desc}</div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 </div>
             )}
