@@ -5,14 +5,14 @@
  * 1. 测试结果模式（从测试完成跳转）- 显示维度分析、AI分析、重新测试
  * 2. 查看模式（直接访问）- 仅显示人格基本信息
  */
-'use client';
+'use client'; // client component for sessionStorage and auth state.
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, RotateCw, Sparkles, Loader2 } from 'lucide-react';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
-import { type TestResult } from '@/lib/mbti';
+import { buildViewResult, type TestResult } from '@/lib/mbti';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
@@ -21,6 +21,7 @@ function MBTIResultContent() {
     const searchParams = useSearchParams();
     const isViewMode = searchParams.get('view') === 'true';
 
+    // useState keeps client-only test result and AI analysis state.
     const [result, setResult] = useState<TestResult | null>(null);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -29,6 +30,7 @@ function MBTIResultContent() {
     const [checkingAuth, setCheckingAuth] = useState(true);
 
     useEffect(() => {
+        // useEffect loads session/auth data after client mount.
         // 获取用户状态
         const checkAuth = async () => {
             try {
@@ -59,7 +61,15 @@ function MBTIResultContent() {
                     router.push('/mbti');
                 }
             }
-        } else if (!isViewMode) {
+        } else if (isViewMode) {
+            const viewType = searchParams.get('type');
+            const viewResult = viewType ? buildViewResult(viewType.toUpperCase()) : null;
+            if (viewResult) {
+                setResult(viewResult);
+            } else {
+                router.push('/mbti');
+            }
+        } else {
             router.push('/mbti');
         }
 
@@ -117,7 +127,7 @@ function MBTIResultContent() {
     }
 
     // 是否为测试完成模式（有完整分数数据）
-    const isTestMode = result.scores && result.percentages;
+    const isTestMode = !isViewMode && result.scores && result.percentages;
 
     return (
         <div className="min-h-screen bg-background">

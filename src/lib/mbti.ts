@@ -256,3 +256,26 @@ export function getRandomQuestions(questions: MBTIQuestion[], count: number = 28
     // 打乱顺序
     return selected.sort(() => Math.random() - 0.5);
 }
+
+/**
+ * 构建查看模式的默认结果数据
+ */
+export function buildViewResult(type: string): TestResult | null {
+    if (!Object.prototype.hasOwnProperty.call(PERSONALITY_BASICS, type)) {
+        return null;
+    }
+
+    const defaultScores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+    const defaultPercentages = {
+        EI: { E: 50, I: 50 },
+        SN: { S: 50, N: 50 },
+        TF: { T: 50, F: 50 },
+        JP: { J: 50, P: 50 },
+    };
+
+    return {
+        type: type as MBTIType,
+        scores: defaultScores,
+        percentages: defaultPercentages,
+    };
+}

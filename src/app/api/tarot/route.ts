@@ -192,6 +192,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     const remainingCredits = await useCredit(user.id);
                     if (remainingCredits === null) {
                         console.error('[tarot] 扣除积分失败');
+                        return NextResponse.json({
+                            success: false,
+                            error: '积分扣减失败，请稍后重试'
+                        }, { status: 500 });
                     }
 
                     // 保存历史记录（使用服务端客户端绕过 RLS）
@@ -200,10 +204,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         .from('tarot_readings')
                         .insert({
                             user_id: user.id,
-                            spread_type: spreadId || 'custom',
+                            spread_id: spreadId || 'custom',
                             question: question || null,
                             cards: cards,
-                            ai_interpretation: interpretation,
+                            interpretation: interpretation,
                         });
 
                     if (insertError) {

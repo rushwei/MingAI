@@ -131,6 +131,10 @@ ${conflictsSummary}
                 const remainingCredits = await useCredit(user.id);
                 if (remainingCredits === null) {
                     console.error('[hepan] 扣除积分失败');
+                    return NextResponse.json({
+                        success: false,
+                        error: '积分扣减失败，请稍后重试'
+                    }, { status: 500 });
                 }
 
                 // 保存记录

@@ -43,6 +43,32 @@ CREATE TABLE public.feature_subscriptions (
   CONSTRAINT feature_subscriptions_pkey PRIMARY KEY (id),
   CONSTRAINT feature_subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.hepan_charts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  type text NOT NULL CHECK (type = ANY (ARRAY['love'::text, 'business'::text, 'family'::text])),
+  person1_name text NOT NULL,
+  person1_birth jsonb NOT NULL,
+  person2_name text NOT NULL,
+  person2_birth jsonb NOT NULL,
+  compatibility_score integer,
+  ai_analysis text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT hepan_charts_pkey PRIMARY KEY (id),
+  CONSTRAINT hepan_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.liuyao_divinations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  question text NOT NULL,
+  hexagram_code text NOT NULL,
+  changed_hexagram_code text,
+  changed_lines jsonb,
+  ai_interpretation text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT liuyao_divinations_pkey PRIMARY KEY (id),
+  CONSTRAINT liuyao_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.login_attempts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email text NOT NULL,
@@ -83,6 +109,28 @@ CREATE TABLE public.rate_limits (
   window_start timestamp with time zone DEFAULT now(),
   CONSTRAINT rate_limits_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.tarot_readings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  spread_id text NOT NULL,
+  question text,
+  cards jsonb NOT NULL,
+  interpretation text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tarot_readings_pkey PRIMARY KEY (id),
+  CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings (
+  user_id uuid NOT NULL,
+  notifications_enabled boolean DEFAULT true,
+  notify_email boolean DEFAULT true,
+  notify_site boolean DEFAULT true,
+  language text DEFAULT 'zh'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.users (
   id uuid NOT NULL,
   nickname text,
@@ -93,6 +141,7 @@ CREATE TABLE public.users (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   last_credit_restore_at timestamp with time zone DEFAULT now(),
+  is_admin boolean DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
