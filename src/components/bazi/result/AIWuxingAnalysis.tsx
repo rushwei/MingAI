@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, Loader2, Copy, Check } from 'lucide-react';
 import { AIAnalysisLock } from './AIAnalysisLock';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 interface AIWuxingAnalysisProps {
     chartId: string;
@@ -157,7 +158,10 @@ export function AIWuxingAnalysis({
                         <p className="text-sm text-foreground-secondary">AI正在分析您的八字，请稍候...</p>
                     </div>
                 ) : (
-                    <div className="whitespace-pre-wrap">{analysis || '点击「重新分析」开始AI分析'}</div>
+                    <MarkdownContent
+                        content={analysis || '点击「重新分析」开始AI分析'}
+                        className="text-sm text-foreground-secondary"
+                    />
                 )}
             </div>
         </div>

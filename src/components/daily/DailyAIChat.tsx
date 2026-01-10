@@ -10,6 +10,7 @@ import { Send, Calendar, RefreshCw, Info, Loader2 } from 'lucide-react';
 import { getCalendarAlmanac } from '@/lib/calendar';
 import { getMembershipInfo } from '@/lib/membership';
 import { supabase } from '@/lib/supabase';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 interface DailyAIChatProps {
     date: Date;
@@ -233,7 +234,11 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
                                     : 'bg-background mr-8'
                                     }`}
                             >
-                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                {msg.role === 'assistant' ? (
+                                    <MarkdownContent content={msg.content} className="text-sm text-foreground" />
+                                ) : (
+                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                )}
                             </div>
                         ))}
                         {isLoading && (

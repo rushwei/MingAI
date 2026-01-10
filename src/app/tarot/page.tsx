@@ -21,6 +21,7 @@ import Image from 'next/image';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { supabase } from '@/lib/supabase';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 type PageState = 'home' | 'select-spread' | 'drawing' | 'result';
 
@@ -354,9 +355,10 @@ function TarotPageContent() {
                     </h2>
 
                     {interpretation ? (
-                        <div className="prose prose-sm max-w-none text-foreground-secondary whitespace-pre-wrap">
-                            {interpretation}
-                        </div>
+                        <MarkdownContent
+                            content={interpretation}
+                            className="text-sm text-foreground-secondary"
+                        />
                     ) : (
                         <>
                             <p className="text-sm text-foreground-secondary mb-4">

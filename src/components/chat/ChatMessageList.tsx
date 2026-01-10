@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AIPersonalityConfig, ChatMessage } from '@/types';
 import { AI_MODEL_NAMES, type AIModel } from './ChatComposer';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
@@ -214,7 +215,7 @@ export function ChatMessageList({
                             </div>
                         )
                     ) : (
-                        /* AI 消息 - 直接显示文本 */
+                        /* AI 消息 - Markdown 渲染 */
                         <div className="w-full">
                             {/* 正在思考指示器 - 显示在AI消息开头 */}
                             {isStreamingAI && message.id === lastMessage?.id && (
@@ -223,9 +224,7 @@ export function ChatMessageList({
                                     <span className="text-sm text-foreground-secondary">正在思考...</span>
                                 </div>
                             )}
-                            <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
-                                {message.content}
-                            </p>
+                            <MarkdownContent content={message.content} className="text-base text-foreground" />
                             {/* 操作按钮 */}
                             {!isLoading && message.content && (
                                 <div className="flex gap-1 mt-2">
