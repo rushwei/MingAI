@@ -180,7 +180,7 @@ export default function UpgradePage() {
                     />
                 ) : (
                     <div className="rounded-2xl border border-border p-8 text-center">
-                        <p className="text-foreground-secondary mb-4">登录后即可按量购买对话次数</p>
+                        <p className="text-foreground-secondary mb-4">登录后即可按量购买积分</p>
                         <button
                             onClick={() => setShowAuthModal(true)}
                             className="px-6 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"

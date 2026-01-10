@@ -1,7 +1,7 @@
 /**
  * 日历智能问答组件
  * 
- * 针对选中日期的AI问答，复用现有AI API，消耗1次对话次数
+ * 针对选中日期的AI问答，复用现有AI API，消耗1积分
  */
 'use client'; // 客户端组件：需要管理实时输入与聊天状态
 
@@ -131,7 +131,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
             if (!response.ok) {
                 const errorData = await response.json();
                 if (errorData.code === 'INSUFFICIENT_CREDITS') {
-                    setError('对话次数不足，请先充值');
+                    setError('积分不足，请先充值');
                 } else {
                     setError(errorData.error || '请求失败');
                 }

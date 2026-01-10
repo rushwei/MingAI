@@ -1,7 +1,7 @@
 /**
  * 按量付费组件
  * 
- * 9.9元 = 1次对话
+ * 9.9元 = 1积分
  */
 'use client';
 
@@ -45,10 +45,10 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
 
     const createPayPerUsePlan = (): PricingPlan => ({
         id: 'free',
-        name: `${getSelectedCount()}次对话额度`,
+        name: `${getSelectedCount()}积分`,
         price: getPrice(),
         period: '次',
-        features: [`获得${getSelectedCount()}次AI对话额度`],
+        features: [`获得${getSelectedCount()}积分`],
         initialCredits: getSelectedCount(),
         restoreCredits: 0,
         restorePeriod: 'daily',
@@ -84,7 +84,7 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
                 <div>
                     <h3 className="text-lg font-bold">按量付费</h3>
                     <p className="text-sm text-foreground-secondary">
-                        当前余额：{currentCredits} 次
+                        当前积分：{currentCredits}
                     </p>
                 </div>
             </div>
@@ -105,7 +105,7 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
                                 {preset.discount}
                             </span>
                         )}
-                        <div className="text-base font-bold">{preset.count}次</div>
+                        <div className="text-base font-bold">{preset.count}积分</div>
                         <div className="text-accent text-sm font-medium">¥{preset.price}</div>
                     </button>
                 ))}
@@ -155,12 +155,12 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
                 <Coins className="w-5 h-5" />
-                购买 {getSelectedCount()} 次 · ¥{getPrice()}
+                购买 {getSelectedCount()} 积分 · ¥{getPrice()}
             </button>
 
             {/* 说明 */}
             <p className="text-center text-xs text-foreground-secondary mt-4">
-                按量付费的额度永久有效，不受会员等级限制
+                按量付费积分永久有效，不受会员等级限制
             </p>
 
             {/* 支付弹窗 */}

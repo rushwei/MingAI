@@ -111,7 +111,7 @@ export function PaymentModal({
     };
 
     const successMessage = isPayPerUse
-        ? `已获得 ${creditCount} 次对话额度`
+        ? `已获得 ${creditCount} 积分`
         : `已成功开通 ${plan.name}`;
 
     return (

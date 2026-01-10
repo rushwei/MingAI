@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
         if (!hasEnough) {
             return NextResponse.json(
-                { error: '对话次数不足', code: 'INSUFFICIENT_CREDITS' },
+                { error: '积分不足', code: 'INSUFFICIENT_CREDITS' },
                 { status: 400 }
             );
         }

@@ -171,7 +171,7 @@ export function AIWuxingAnalysis({
         <AIAnalysisLock
             type="wuxing"
             title="AI专业五行分析"
-            description="消耗1次对话额度，获取基于您命盘的深度五行分析报告"
+            description="消耗1积分，获取基于您命盘的深度五行分析报告"
             isUnlocked={isUnlocked}
             placeholder={placeholder}
             userId={userId}

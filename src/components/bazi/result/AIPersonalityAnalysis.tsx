@@ -171,7 +171,7 @@ export function AIPersonalityAnalysis({
         <AIAnalysisLock
             type="personality"
             title="AI人格分析"
-            description="消耗1次对话额度，获取基于您命盘的深度人格分析报告"
+            description="消耗1积分，获取基于您命盘的深度人格分析报告"
             isUnlocked={isUnlocked}
             placeholder={placeholder}
             userId={userId}

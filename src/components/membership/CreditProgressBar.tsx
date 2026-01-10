@@ -71,7 +71,8 @@ export function CreditProgressBar({
                         <Zap className="w-4 h-4 text-accent" />
                     </div> */}
                     <BotMessageSquare className="w-4.5 h-4.5 text-foreground-secondary" />
-                    <span className="font-medium">AI 对话额度</span>
+                    <span className="font-medium">积分</span>
+                    <span className="text-xs text-foreground-secondary">（1积分 = 1次AI对话）</span>
                 </div>
                 <div className="text-right">
                     <span className="text-2xl font-bold">{credits}</span>

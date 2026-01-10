@@ -27,6 +27,14 @@ interface Order {
     paid_at: string | null;
 }
 
+const PAY_PER_USE_PRICE = 9.9;
+const payPerUsePackages = [
+    { count: 1, price: 9.9 },
+    { count: 5, price: 45 },
+    { count: 10, price: 89 },
+    { count: 20, price: 168 },
+];
+
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
     paid: { label: '已支付', color: 'text-green-500', icon: CheckCircle },
     pending: { label: '待支付', color: 'text-yellow-500', icon: Clock },
@@ -57,7 +65,25 @@ export default function OrdersPage() {
         fetchOrders();
     }, [router]);
 
-    const getPlanName = (productType: string) => {
+    const getPayPerUseCount = (amount: number) => {
+        if (!Number.isFinite(amount)) return null;
+
+        const preset = payPerUsePackages.find(pkg => Math.abs(pkg.price - amount) < 0.01);
+        if (preset) return preset.count;
+
+        const estimated = Math.round(amount / PAY_PER_USE_PRICE);
+        if (estimated < 1) return null;
+
+        const estimatedAmount = Math.round(estimated * PAY_PER_USE_PRICE * 10) / 10;
+        return Math.abs(estimatedAmount - amount) <= 0.05 ? estimated : null;
+    };
+
+    const getPlanName = (productType: string, amount: number) => {
+        if (productType === 'pay_per_use') {
+            const count = getPayPerUseCount(amount);
+            return count ? `按量付费 · ${count}积分` : '按量付费';
+        }
+
         const plan = pricingPlans.find(p => p.id === productType);
         return plan?.name || productType;
     };
@@ -114,7 +140,7 @@ export default function OrdersPage() {
                             >
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
-                                        <h3 className="font-medium">{getPlanName(order.product_type)}</h3>
+                                        <h3 className="font-medium">{getPlanName(order.product_type, Number(order.amount))}</h3>
                                         <p className="text-sm text-foreground-secondary">
                                             {formatDate(order.created_at)}
                                         </p>

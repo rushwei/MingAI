@@ -65,7 +65,7 @@ export function AIAnalysisLock({
 
             if (!response.ok) {
                 if (data.code === 'INSUFFICIENT_CREDITS') {
-                    setError('对话次数不足，请先充值');
+                    setError('积分不足，请先充值');
                 } else {
                     setError(data.error || '解锁失败，请重试');
                 }
@@ -124,7 +124,7 @@ export function AIAnalysisLock({
                         ) : (
                             <>
                                 <Sparkles className="w-4 h-4" />
-                                消耗1次解锁
+                                消耗1积分解锁
                             </>
                         )}
                     </button>

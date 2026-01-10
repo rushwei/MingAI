@@ -320,7 +320,7 @@ export default function UserPage() {
                     </div>
                     <h1 className="text-2xl font-bold mb-2">欢迎来到 MingAI</h1>
                     <p className="text-foreground-secondary mb-8">
-                        登录后可保存命盘、享受更多AI对话次数
+                        登录后可保存命盘、享受更多积分
                     </p>
                     <button
                         onClick={() => setShowAuthModal(true)}

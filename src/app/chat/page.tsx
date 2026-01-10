@@ -710,7 +710,7 @@ export default function ChatPage() {
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-2 text-amber-600">
                                     <Lock className="w-4 h-4" />
-                                    <span className="text-sm">AI对话次数已用完</span>
+                                    <span className="text-sm">积分已用完</span>
                                 </div>
                                 <Link
                                     href="/user/upgrade"
