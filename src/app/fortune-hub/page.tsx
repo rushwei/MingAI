@@ -85,7 +85,9 @@ function FortuneHubContent() {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* 标题 */}
                 <div className="text-center mb-8">
-                    <div className="text-5xl mb-4">🔮</div>
+                    <div className="flex items-center justify-center mb-4">
+                        <Compass className="w-12 h-12 text-emerald-500" />
+                    </div>
                     <h1 className="text-3xl font-bold text-foreground">运势中心</h1>
                     <p className="text-foreground-secondary mt-2">
                         探索命运的奥秘，发现更好的自己

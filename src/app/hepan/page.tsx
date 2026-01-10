@@ -4,7 +4,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, Briefcase, Users, ArrowRight } from 'lucide-react';
+import { Heart, Briefcase, Users, ArrowRight, HeartHandshake } from 'lucide-react';
 import { type HepanType, getHepanTypeName } from '@/lib/hepan';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 
@@ -35,7 +35,9 @@ function HepanPageContent() {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* 标题 */}
                 <div className="text-center mb-10">
-                    <div className="text-5xl mb-4">🔗</div>
+                    <div className="flex items-center justify-center mb-4">
+                        <HeartHandshake className="w-12 h-12 text-rose-500" />
+                    </div>
                     <h1 className="text-3xl font-bold text-foreground">关系合盘</h1>
                     <p className="text-foreground-secondary mt-2">
                         通过八字分析双方的五行配合与缘分走向

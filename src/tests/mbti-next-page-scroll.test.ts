@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 test('next page navigation jumps to first question', () => {
-    const filePath = path.join(process.cwd(), 'src/app/mbti/page.tsx');
+    const filePath = path.join(process.cwd(), 'src/components/mbti/MBTITestFlow.tsx');
     const content = fs.readFileSync(filePath, 'utf8');
 
     assert.equal(content.includes('handleJumpToQuestion'), true);

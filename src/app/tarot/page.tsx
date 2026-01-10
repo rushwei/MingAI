@@ -17,6 +17,7 @@ import {
     Send,
     Eye,
     ArrowLeft,
+    Gem,
 } from 'lucide-react';
 import Image from 'next/image';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
@@ -173,7 +174,9 @@ function TarotPageContent() {
             <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
                 {/* 标题 */}
                 <div className="text-center mb-8">
-                    <div className="text-5xl mb-4">🃏</div>
+                    <div className="flex items-center justify-center mb-4">
+                        <Gem className="w-12 h-12 text-rose-500" />
+                    </div>
                     <h1 className="text-2xl font-bold mb-2">塔罗占卜</h1>
                     <p className="text-foreground-secondary">选择牌阵，探索命运的指引</p>
                 </div>

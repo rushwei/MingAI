@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Coins, History, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
+import { Coins, Sparkles, HelpCircle, Loader2, Dices } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
 
@@ -61,7 +61,9 @@ export default function LiuyaoPage() {
             <div className="max-w-4xl mx-auto px-4 py-8">
                 {/* 标题 */}
                 <div className="text-center mb-10">
-                    <div className="text-5xl mb-4">☯️</div>
+                    <div className="flex items-center justify-center mb-4">
+                        <Dices className="w-12 h-12 text-amber-500" />
+                    </div>
                     <h1 className="text-3xl font-bold text-foreground">六爻占卜</h1>
                     <p className="text-foreground-secondary mt-2">
                         源自《易经》，通过卦象变化预测事物发展趋势

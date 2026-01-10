@@ -267,18 +267,14 @@ function BaziPageContent() {
     return (
         <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
             {/* 页面标题 */}
-            <div className="mb-8">
-                <div className="flex items-center justify-center gap-4">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl">
-                        <Orbit className="w-12 h-12 text-accent" />
-                    </div>
-                    <div className="text-left">
-                        <h1 className="text-2xl lg:text-3xl font-bold mb-1">八字排盘</h1>
-                        <p className="text-foreground-secondary">
-                            请填写您的出生信息，我们将为您生成八字命盘
-                        </p>
-                    </div>
+            <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3">
+                    <Orbit className="w-12 h-12 text-accent" />
                 </div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">八字排盘</h1>
+                <p className="text-foreground-secondary mt-2">
+                    请填写您的出生信息，我们将为您生成八字命盘
+                </p>
             </div>
 
             {/* 未登录提示 */}
