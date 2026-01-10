@@ -39,13 +39,20 @@ function HepanCreateContent() {
         family: { p1: '父/母', p2: '子/女' },
     };
 
+    const normalizeHourToShichen = (hour?: number) => {
+        if (hour === undefined || Number.isNaN(hour)) return undefined;
+        const normalized = ((hour % 24) + 24) % 24;
+        const slot = Math.floor((normalized + 1) / 2) * 2;
+        return slot === 24 ? 0 : slot;
+    };
+
     const handleChartSelect = (chart: ChartItem) => {
         const birthInfo: Partial<BirthInfo> = {
             name: chart.name,
             year: chart.birth_year,
             month: chart.birth_month,
             day: chart.birth_day,
-            hour: chart.birth_hour,
+            hour: normalizeHourToShichen(chart.birth_hour),
             gender: chart.gender || undefined,
         };
 

@@ -13,19 +13,29 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+    Orbit,
     Sparkles,
-    Stars,
-    MessageCircle,
-    Calendar,
+    Gem,
+    Dices,
+    HeartHandshake,
+    BotMessageSquare,
+    Brain,
+    Compass,
+    Sun,
     User
 } from 'lucide-react';
 
-// 移动端导航项 - 精简版，只显示最常用的功能
+// 移动端导航项 - 扩展显示更多入口
 const mobileNavItems = [
-    { href: '/bazi', label: '八字', icon: Sparkles },
-    { href: '/chat', label: '对话', icon: MessageCircle },
-    { href: '/daily', label: '运势', icon: Calendar },
-    { href: '/ziwei', label: '紫微', icon: Stars },
+    { href: '/bazi', label: '八字', icon: Orbit },
+    { href: '/hepan', label: '合盘', icon: HeartHandshake },
+    { href: '/ziwei', label: '紫微', icon: Sparkles },
+    { href: '/tarot', label: '塔罗', icon: Gem },
+    { href: '/liuyao', label: '六爻', icon: Dices },
+    { href: '/fortune-hub', label: '运势', icon: Compass },
+    { href: '/chat', label: '对话', icon: BotMessageSquare },
+    { href: '/mbti', label: 'MBTI', icon: Brain },
+    { href: '/daily', label: '每日', icon: Sun },
     { href: '/user', label: '我的', icon: User },
 ];
 
@@ -41,7 +51,7 @@ export function MobileNav() {
         safe-area-inset-bottom
       "
         >
-            <ul className="flex items-center justify-around h-14">
+            <ul className="grid grid-cols-5 gap-y-1 px-2 py-1">
                 {mobileNavItems.map((item) => {
                     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                     const Icon = item.icon;
@@ -52,7 +62,7 @@ export function MobileNav() {
                                 href={item.href}
                                 className={`
                   flex flex-col items-center justify-center
-                  w-14 h-full
+                  w-full h-12
                   transition-colors duration-200
                   ${isActive
                                         ? 'text-accent'

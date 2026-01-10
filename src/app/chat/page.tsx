@@ -23,6 +23,7 @@ import {
     saveConversation,
     deleteConversation,
     renameConversation,
+    updateConversationCharts,
 } from '@/lib/conversation';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
@@ -175,6 +176,8 @@ export default function ChatPage() {
                     userId,
                     personality: 'master',
                     title,
+                    baziChartId: selectedCharts.bazi?.id,
+                    ziweiChartId: selectedCharts.ziwei?.id,
                 });
                 if (newId) {
                     await saveConversation(newId, newMessages, title);
@@ -187,7 +190,7 @@ export default function ChatPage() {
         } finally {
             setIsSaving(false);
         }
-    }, [userId, activeConversationId]);
+    }, [userId, activeConversationId, selectedCharts.bazi?.id, selectedCharts.ziwei?.id]);
 
     // 发送消息
     const handleSend = async () => {
@@ -736,11 +739,17 @@ export default function ChatPage() {
                             setChartFocusType(type);
                             setChartSelectorOpen(true);
                         }}
-                        onClearChart={(type) => setSelectedCharts(prev => {
-                            const newCharts = { ...prev };
-                            delete newCharts[type];
-                            return newCharts;
-                        })}
+                        onClearChart={(type) => {
+                            const nextCharts = { ...selectedCharts };
+                            delete nextCharts[type];
+                            setSelectedCharts(nextCharts);
+                            if (activeConversationId) {
+                                updateConversationCharts(activeConversationId, {
+                                    baziChartId: nextCharts.bazi?.id ?? null,
+                                    ziweiChartId: nextCharts.ziwei?.id ?? null,
+                                });
+                            }
+                        }}
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
                     />
@@ -755,7 +764,15 @@ export default function ChatPage() {
                         setChartSelectorOpen(false);
                         setChartFocusType(undefined);
                     }}
-                    onSelect={setSelectedCharts}
+                    onSelect={(charts) => {
+                        setSelectedCharts(charts);
+                        if (activeConversationId) {
+                            updateConversationCharts(activeConversationId, {
+                                baziChartId: charts.bazi?.id ?? null,
+                                ziweiChartId: charts.ziwei?.id ?? null,
+                            });
+                        }
+                    }}
                     userId={userId}
                     currentSelection={selectedCharts}
                     focusType={chartFocusType}

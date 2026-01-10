@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
 import { type MBTIType, PERSONALITY_BASICS, getDimensionDescription } from '@/lib/mbti';
 
@@ -140,6 +141,22 @@ ${basic.description}
                     success: false,
                     error: '积分扣减失败，请稍后重试'
                 }, { status: 500 });
+            }
+
+            // 保存分析记录（使用服务端客户端绕过 RLS）
+            const serviceClient = getServiceClient();
+            const { error: insertError } = await serviceClient
+                .from('mbti_readings')
+                .insert({
+                    user_id: user.id,
+                    mbti_type: type,
+                    scores,
+                    percentages,
+                    analysis,
+                });
+
+            if (insertError) {
+                console.error('[mbti] 保存分析记录失败:', insertError.message);
             }
 
             return NextResponse.json({

@@ -140,6 +140,7 @@ export interface Conversation {
     id: string;
     userId?: string;
     baziChartId?: string;
+    ziweiChartId?: string;
     personality: AIPersonality;
     title: string;
     messages: ChatMessage[];

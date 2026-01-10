@@ -67,6 +67,7 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
         id: row.id,
         userId: row.user_id,
         baziChartId: row.bazi_chart_id,
+        ziweiChartId: row.ziwei_chart_id,
         personality: row.personality as AIPersonality,
         title: row.title,
         messages: (row.messages as ChatMessage[]) || [],
@@ -94,6 +95,7 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         id: data.id,
         userId: data.user_id,
         baziChartId: data.bazi_chart_id,
+        ziweiChartId: data.ziwei_chart_id,
         personality: data.personality as AIPersonality,
         title: data.title,
         messages: (data.messages as ChatMessage[]) || [],
@@ -183,6 +185,30 @@ export async function updateConversationPersonality(
 
     if (error) {
         console.error('更新人格失败:', error);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * 更新对话关联的命盘
+ */
+export async function updateConversationCharts(
+    conversationId: string,
+    charts: { baziChartId?: string | null; ziweiChartId?: string | null }
+): Promise<boolean> {
+    const { error } = await supabase
+        .from('conversations')
+        .update({
+            bazi_chart_id: charts.baziChartId ?? null,
+            ziwei_chart_id: charts.ziweiChartId ?? null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', conversationId);
+
+    if (error) {
+        console.error('更新对话命盘失败:', error);
         return false;
     }
 

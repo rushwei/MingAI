@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ArrowLeft, RotateCw, Sparkles, Loader2 } from 'lucide-react';
 import { CompatibilityChart } from '@/components/hepan/CompatibilityChart';
 import { ConflictPoints } from '@/components/hepan/ConflictPoints';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
 import { supabase } from '@/lib/supabase';
 
@@ -126,9 +127,7 @@ export default function HepanResultPage() {
 
                     {aiAnalysis ? (
                         <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <p className="text-foreground-secondary whitespace-pre-line">
-                                {aiAnalysis}
-                            </p>
+                            <MarkdownContent content={aiAnalysis} className="text-sm text-foreground" />
                         </div>
                     ) : (
                         <div className="text-center py-6">
