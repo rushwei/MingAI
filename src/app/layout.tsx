@@ -19,6 +19,7 @@ import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { ClientProviders } from "@/components/providers/ClientProviders";
 
 // 字体配置 - 使用 Google Fonts 的 Geist 字体
 const geistSans = Geist({
@@ -89,28 +90,30 @@ export default function RootLayout({
       >
         {/* ThemeProvider 提供主题上下文，包裹整个应用 */}
         <ThemeProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen">
-              {/* 左侧导航栏 - 仅桌面端显示 */}
-              <Sidebar />
+          <ClientProviders>
+            <SidebarProvider>
+              <div className="flex min-h-screen">
+                {/* 左侧导航栏 - 仅桌面端显示 */}
+                <Sidebar />
 
-              {/* 主内容区 */}
-              <div className="flex-1 flex flex-col min-h-screen">
-                {/* 顶部 Header - 仅移动端显示 */}
-                <div className="lg:hidden">
-                  <Header />
+                {/* 主内容区 */}
+                <div className="flex-1 flex flex-col min-h-screen">
+                  {/* 顶部 Header - 仅移动端显示 */}
+                  <div className="lg:hidden">
+                    <Header />
+                  </div>
+
+                  {/* 页面内容 */}
+                  <main className="flex-1 pb-20 lg:pb-0">
+                    {children}
+                  </main>
                 </div>
-
-                {/* 页面内容 */}
-                <main className="flex-1 pb-20 lg:pb-0">
-                  {children}
-                </main>
               </div>
-            </div>
 
-            {/* 移动端底部导航 - 仅移动端显示 */}
-            <MobileNav />
-          </SidebarProvider>
+              {/* 移动端底部导航 - 仅移动端显示 */}
+              <MobileNav />
+            </SidebarProvider>
+          </ClientProviders>
         </ThemeProvider>
       </body>
     </html>

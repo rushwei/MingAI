@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { supabase } from '@/lib/supabase';
+import { getServiceClient } from '@/lib/supabase-server';
+import { useCredit, hasCredits } from '@/lib/credits';
 
 // 请求类型
 interface TarotRequest {
@@ -152,14 +154,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }, { status: 401 });
                 }
 
-                // 检查用户积分
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('credits')
-                    .eq('id', user.id)
-                    .single();
-
-                if (!profile || profile.credits < 1) {
+                // 检查用户积分（使用服务端客户端绕过 RLS）
+                const hasEnoughCredits = await hasCredits(user.id);
+                if (!hasEnoughCredits) {
                     return NextResponse.json({
                         success: false,
                         error: '积分不足，请充值后使用'
@@ -191,22 +188,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 try {
                     const interpretation = await callDeepSeekAI(systemPrompt, userPrompt);
 
-                    // 扣除积分
-                    await supabase
-                        .from('profiles')
-                        .update({ credits: profile.credits - 1 })
-                        .eq('id', user.id);
+                    // 扣除积分（使用服务端客户端绕过 RLS）
+                    const remainingCredits = await useCredit(user.id);
+                    if (remainingCredits === null) {
+                        console.error('[tarot] 扣除积分失败');
+                    }
 
-                    // 保存历史记录
-                    await supabase
+                    // 保存历史记录（使用服务端客户端绕过 RLS）
+                    const serviceClient = getServiceClient();
+                    const { error: insertError } = await serviceClient
                         .from('tarot_readings')
                         .insert({
                             user_id: user.id,
-                            spread_id: spreadId || 'custom',
+                            spread_type: spreadId || 'custom',
                             question: question || null,
                             cards: cards,
-                            interpretation: interpretation,
+                            ai_interpretation: interpretation,
                         });
+
+                    if (insertError) {
+                        console.error('[tarot] 保存历史记录失败:', insertError.message);
+                    }
 
                     return NextResponse.json({
                         success: true,

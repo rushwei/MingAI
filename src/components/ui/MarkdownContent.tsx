@@ -28,15 +28,18 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
                         {children}
                     </a>
                 ),
-                code: ({ inline, children }) => (
-                    <code
-                        className={inline
-                            ? 'px-1 py-0.5 rounded bg-background-secondary text-xs'
-                            : 'block p-3 rounded-lg bg-background-secondary text-xs overflow-x-auto'}
-                    >
-                        {children}
-                    </code>
-                ),
+                code: ({ className, children }) => {
+                    const isInline = !className;
+                    return (
+                        <code
+                            className={isInline
+                                ? 'px-1 py-0.5 rounded bg-background-secondary text-xs'
+                                : 'block p-3 rounded-lg bg-background-secondary text-xs overflow-x-auto'}
+                        >
+                            {children}
+                        </code>
+                    );
+                },
             }}
         >
             {content}

@@ -19,13 +19,14 @@ import {
     Dices,
     ScanFace,
     Hand,
-    MessageCircle,
     Sun,
     CalendarRange,
     PanelLeft,
     LogIn,
-    Bot,
     BotMessageSquare,
+    Brain,
+    Compass,
+    HeartHandshake,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { AuthModal } from '../auth/AuthModal';
@@ -43,6 +44,14 @@ const navItems = [
         available: true,
         emoji: '🔮',
         description: '四柱八字精批'
+    },
+    {
+        href: '/hepan',
+        label: '八字合盘',
+        icon: HeartHandshake,
+        available: true,
+        emoji: '💑',
+        description: '八字合盘'
     },
     {
         href: '/ziwei',
@@ -84,10 +93,19 @@ const navItems = [
         emoji: '🖐️',
         description: '敬请期待'
     },
+    {
+        href: '/mbti',
+        label: 'MBTI',
+        icon: Brain,
+        available: true,
+        emoji: '🧩',
+        description: '性格测试'
+    },
 ];
 
 // 工具项配置 - 使用不同图标区分每日/每月
 const toolItems = [
+    { href: '/fortune-hub', label: '运势中心', icon: Compass, available: true },
     { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, available: true },

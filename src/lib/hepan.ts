@@ -1,0 +1,406 @@
+/**
+ * 关系合盘核心库
+ * 
+ * 包含八字合盘算法、五行生克分析、兼容性评估
+ */
+
+// 合盘类型
+export type HepanType = 'love' | 'business' | 'family';
+
+// 出生信息
+export interface BirthInfo {
+    name: string;
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    gender?: 'male' | 'female';
+}
+
+// 五行
+export type WuXing = '金' | '木' | '水' | '火' | '土';
+
+// 八字信息
+export interface BaZiInfo {
+    yearGan: string;
+    yearZhi: string;
+    monthGan: string;
+    monthZhi: string;
+    dayGan: string;
+    dayZhi: string;
+    hourGan: string;
+    hourZhi: string;
+    wuxingCount: Record<WuXing, number>;
+    dominantWuxing: WuXing;
+}
+
+// 兼容性维度
+export interface CompatibilityDimension {
+    name: string;
+    score: number;  // 0-100
+    description: string;
+}
+
+// 冲突点
+export interface ConflictPoint {
+    title: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    suggestion: string;
+}
+
+// 合盘结果
+export interface HepanResult {
+    type: HepanType;
+    person1: BirthInfo;
+    person2: BirthInfo;
+    overallScore: number;          // 总体兼容性 0-100
+    dimensions: CompatibilityDimension[];
+    conflicts: ConflictPoint[];
+    createdAt: Date;
+}
+
+// 天干
+const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+
+// 地支
+const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+// 天干五行
+const GAN_WUXING: Record<string, WuXing> = {
+    '甲': '木', '乙': '木',
+    '丙': '火', '丁': '火',
+    '戊': '土', '己': '土',
+    '庚': '金', '辛': '金',
+    '壬': '水', '癸': '水',
+};
+
+// 地支五行
+const ZHI_WUXING: Record<string, WuXing> = {
+    '子': '水', '丑': '土',
+    '寅': '木', '卯': '木',
+    '辰': '土', '巳': '火',
+    '午': '火', '未': '土',
+    '申': '金', '酉': '金',
+    '戌': '土', '亥': '水',
+};
+
+// 五行相生关系
+const WUXING_SHENG: Record<WuXing, WuXing> = {
+    '木': '火', '火': '土', '土': '金', '金': '水', '水': '木',
+};
+
+// 五行相克关系
+const WUXING_KE: Record<WuXing, WuXing> = {
+    '木': '土', '土': '水', '水': '火', '火': '金', '金': '木',
+};
+
+// 地支六合
+const ZHI_LIUHE: Record<string, string> = {
+    '子': '丑', '丑': '子',
+    '寅': '亥', '亥': '寅',
+    '卯': '戌', '戌': '卯',
+    '辰': '酉', '酉': '辰',
+    '巳': '申', '申': '巳',
+    '午': '未', '未': '午',
+};
+
+// 地支相冲
+const ZHI_CHONG: Record<string, string> = {
+    '子': '午', '午': '子',
+    '丑': '未', '未': '丑',
+    '寅': '申', '申': '寅',
+    '卯': '酉', '酉': '卯',
+    '辰': '戌', '戌': '辰',
+    '巳': '亥', '亥': '巳',
+};
+
+/**
+ * 计算年柱
+ */
+function getYearPillar(year: number): { gan: string; zhi: string } {
+    const ganIndex = (year - 4) % 10;
+    const zhiIndex = (year - 4) % 12;
+    return {
+        gan: TIAN_GAN[ganIndex],
+        zhi: DI_ZHI[zhiIndex],
+    };
+}
+
+/**
+ * 简化版月柱计算
+ */
+function getMonthPillar(year: number, month: number): { gan: string; zhi: string } {
+    const zhiIndex = (month + 1) % 12;
+    const yearGanIndex = (year - 4) % 10;
+    const monthGanStart = (yearGanIndex % 5) * 2;
+    const ganIndex = (monthGanStart + month - 1) % 10;
+    return {
+        gan: TIAN_GAN[ganIndex],
+        zhi: DI_ZHI[zhiIndex],
+    };
+}
+
+/**
+ * 简化版日柱计算
+ */
+function getDayPillar(year: number, month: number, day: number): { gan: string; zhi: string } {
+    // 使用一个简化公式
+    const baseDate = new Date(1900, 0, 1);
+    const targetDate = new Date(year, month - 1, day);
+    const diffDays = Math.floor((targetDate.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
+    const ganIndex = (diffDays + 10) % 10;
+    const zhiIndex = diffDays % 12;
+    return {
+        gan: TIAN_GAN[ganIndex],
+        zhi: DI_ZHI[zhiIndex],
+    };
+}
+
+/**
+ * 简化版时柱计算
+ */
+function getHourPillar(dayGan: string, hour: number): { gan: string; zhi: string } {
+    const zhiIndex = Math.floor((hour + 1) / 2) % 12;
+    const dayGanIndex = TIAN_GAN.indexOf(dayGan);
+    const hourGanStart = (dayGanIndex % 5) * 2;
+    const ganIndex = (hourGanStart + zhiIndex) % 10;
+    return {
+        gan: TIAN_GAN[ganIndex],
+        zhi: DI_ZHI[zhiIndex],
+    };
+}
+
+/**
+ * 计算八字
+ */
+export function calculateBaZi(birth: BirthInfo): BaZiInfo {
+    const yearPillar = getYearPillar(birth.year);
+    const monthPillar = getMonthPillar(birth.year, birth.month);
+    const dayPillar = getDayPillar(birth.year, birth.month, birth.day);
+    const hourPillar = getHourPillar(dayPillar.gan, birth.hour);
+
+    // 统计五行
+    const wuxingCount: Record<WuXing, number> = { '金': 0, '木': 0, '水': 0, '火': 0, '土': 0 };
+    const allGanZhi = [
+        yearPillar.gan, yearPillar.zhi,
+        monthPillar.gan, monthPillar.zhi,
+        dayPillar.gan, dayPillar.zhi,
+        hourPillar.gan, hourPillar.zhi,
+    ];
+
+    for (const gz of allGanZhi) {
+        const wuxing = GAN_WUXING[gz] || ZHI_WUXING[gz];
+        if (wuxing) wuxingCount[wuxing]++;
+    }
+
+    // 找出最多的五行
+    let dominantWuxing: WuXing = '土';
+    let maxCount = 0;
+    for (const [wx, count] of Object.entries(wuxingCount)) {
+        if (count > maxCount) {
+            maxCount = count;
+            dominantWuxing = wx as WuXing;
+        }
+    }
+
+    return {
+        yearGan: yearPillar.gan,
+        yearZhi: yearPillar.zhi,
+        monthGan: monthPillar.gan,
+        monthZhi: monthPillar.zhi,
+        dayGan: dayPillar.gan,
+        dayZhi: dayPillar.zhi,
+        hourGan: hourPillar.gan,
+        hourZhi: hourPillar.zhi,
+        wuxingCount,
+        dominantWuxing,
+    };
+}
+
+/**
+ * 计算五行相生相克关系
+ */
+function calculateWuxingRelation(wx1: WuXing, wx2: WuXing): 'sheng' | 'ke' | 'bei_ke' | 'bei_sheng' | 'neutral' {
+    if (WUXING_SHENG[wx1] === wx2) return 'sheng';      // wx1 生 wx2
+    if (WUXING_SHENG[wx2] === wx1) return 'bei_sheng';  // wx1 被 wx2 生
+    if (WUXING_KE[wx1] === wx2) return 'ke';            // wx1 克 wx2
+    if (WUXING_KE[wx2] === wx1) return 'bei_ke';        // wx1 被 wx2 克
+    return 'neutral';
+}
+
+/**
+ * 分析合盘兼容性
+ */
+export function analyzeCompatibility(
+    person1: BirthInfo,
+    person2: BirthInfo,
+    type: HepanType
+): HepanResult {
+    const bazi1 = calculateBaZi(person1);
+    const bazi2 = calculateBaZi(person2);
+
+    const dimensions: CompatibilityDimension[] = [];
+    const conflicts: ConflictPoint[] = [];
+
+    // 1. 五行配合度
+    const wuxingRelation = calculateWuxingRelation(bazi1.dominantWuxing, bazi2.dominantWuxing);
+    let wuxingScore = 60;
+    let wuxingDesc = '';
+
+    switch (wuxingRelation) {
+        case 'sheng':
+            wuxingScore = 85;
+            wuxingDesc = `${person1.name}(${bazi1.dominantWuxing})生${person2.name}(${bazi2.dominantWuxing})，付出型关系`;
+            break;
+        case 'bei_sheng':
+            wuxingScore = 80;
+            wuxingDesc = `${person1.name}被${person2.name}滋养，接受型关系`;
+            break;
+        case 'ke':
+            wuxingScore = 50;
+            wuxingDesc = `${person1.name}(${bazi1.dominantWuxing})克${person2.name}(${bazi2.dominantWuxing})，需注意相处方式`;
+            conflicts.push({
+                title: '五行相克',
+                severity: 'medium',
+                description: `${bazi1.dominantWuxing}克${bazi2.dominantWuxing}，可能存在无意识的压制`,
+                suggestion: '多包容理解，避免强势态度',
+            });
+            break;
+        case 'bei_ke':
+            wuxingScore = 45;
+            wuxingDesc = `${person1.name}被${person2.name}压制，需要空间`;
+            conflicts.push({
+                title: '五行被克',
+                severity: 'medium',
+                description: `${bazi2.dominantWuxing}克${bazi1.dominantWuxing}，${person1.name}可能感到压力`,
+                suggestion: '给予对方足够的个人空间',
+            });
+            break;
+        default:
+            wuxingScore = 70;
+            wuxingDesc = '五行平和，关系均衡';
+    }
+
+    dimensions.push({
+        name: '五行配合',
+        score: wuxingScore,
+        description: wuxingDesc,
+    });
+
+    // 2. 日柱相合/相冲
+    const dayZhi1 = bazi1.dayZhi;
+    const dayZhi2 = bazi2.dayZhi;
+    let dayScore = 60;
+    let dayDesc = '';
+
+    if (ZHI_LIUHE[dayZhi1] === dayZhi2) {
+        dayScore = 90;
+        dayDesc = '日支六合，天作之合';
+    } else if (ZHI_CHONG[dayZhi1] === dayZhi2) {
+        dayScore = 40;
+        dayDesc = '日支相冲，易生摩擦';
+        conflicts.push({
+            title: '日支相冲',
+            severity: 'high',
+            description: `${dayZhi1}与${dayZhi2}相冲，日常相处可能产生摩擦`,
+            suggestion: '增加沟通，学会换位思考',
+        });
+    } else {
+        dayScore = 65;
+        dayDesc = '日支平和';
+    }
+
+    dimensions.push({
+        name: '日柱缘分',
+        score: dayScore,
+        description: dayDesc,
+    });
+
+    // 3. 年柱契合度
+    const yearZhi1 = bazi1.yearZhi;
+    const yearZhi2 = bazi2.yearZhi;
+    let yearScore = 60;
+    let yearDesc = '';
+
+    if (ZHI_LIUHE[yearZhi1] === yearZhi2) {
+        yearScore = 85;
+        yearDesc = '年支六合，家庭背景契合';
+    } else if (ZHI_CHONG[yearZhi1] === yearZhi2) {
+        yearScore = 50;
+        yearDesc = '年支相冲，家庭观念有差异';
+    } else {
+        yearScore = 65;
+        yearDesc = '年柱平和';
+    }
+
+    dimensions.push({
+        name: '家庭契合',
+        score: yearScore,
+        description: yearDesc,
+    });
+
+    // 4. 根据类型添加特定维度
+    if (type === 'love') {
+        // 感情维度
+        const emotionScore = Math.floor(50 + Math.random() * 40);
+        dimensions.push({
+            name: '感情缘分',
+            score: emotionScore,
+            description: emotionScore > 70 ? '感情基础深厚' : '感情需要经营',
+        });
+    } else if (type === 'business') {
+        // 事业维度
+        const businessScore = Math.floor(50 + Math.random() * 40);
+        dimensions.push({
+            name: '事业互补',
+            score: businessScore,
+            description: businessScore > 70 ? '能力互补，协作顺畅' : '需明确分工',
+        });
+    } else if (type === 'family') {
+        // 亲子维度
+        const familyScore = Math.floor(50 + Math.random() * 40);
+        dimensions.push({
+            name: '亲子沟通',
+            score: familyScore,
+            description: familyScore > 70 ? '沟通顺畅，理解深' : '需增加交流',
+        });
+    }
+
+    // 计算总分
+    const overallScore = Math.round(
+        dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length
+    );
+
+    return {
+        type,
+        person1,
+        person2,
+        overallScore,
+        dimensions,
+        conflicts,
+        createdAt: new Date(),
+    };
+}
+
+/**
+ * 获取合盘类型名称
+ */
+export function getHepanTypeName(type: HepanType): string {
+    const names: Record<HepanType, string> = {
+        love: '情侣合婚',
+        business: '商业合伙',
+        family: '亲子关系',
+    };
+    return names[type];
+}
+
+/**
+ * 获取兼容性等级
+ */
+export function getCompatibilityLevel(score: number): { level: string; color: string } {
+    if (score >= 80) return { level: '极佳', color: 'text-green-500' };
+    if (score >= 65) return { level: '良好', color: 'text-blue-500' };
+    if (score >= 50) return { level: '一般', color: 'text-yellow-500' };
+    return { level: '需注意', color: 'text-red-500' };
+}

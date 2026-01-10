@@ -6,7 +6,6 @@ import { LiuNianTable } from './LiuNianTable';
 import { LiuYueTable } from './LiuYueTable';
 import { LiuRiTable } from './LiuRiTable';
 import { ProfessionalTable } from './ProfessionalTable';
-import { ShenShaSection } from './ShenShaSection';
 
 export function ProfessionalSection({
     baziResult,
@@ -60,9 +59,6 @@ export function ProfessionalSection({
                     起运：{proData.startAgeDetail}
                 </div>
             </section>
-
-            {/* 神煞宜忌 - 可折叠展示 */}
-            {shenSha && <ShenShaSection shenSha={shenSha} />}
 
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">

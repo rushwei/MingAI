@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MessageCircle, User } from 'lucide-react';
+import { MessageCircle, User, Save } from 'lucide-react';
 import { calculateBazi, getElementColor } from '@/lib/bazi';
 import { FiveElementsChart } from './FiveElementsChart';
 import { TenGodKnowledge } from '../TenGodKnowledge';
@@ -50,7 +50,8 @@ export function BasicInfoSection({
     // 生成简易 chartSummary - 只传八字四柱
     const defaultChartSummary = chartSummary || `四柱八字：${baziResult.fourPillars.year.stem}${baziResult.fourPillars.year.branch} ${baziResult.fourPillars.month.stem}${baziResult.fourPillars.month.branch} ${baziResult.fourPillars.day.stem}${baziResult.fourPillars.day.branch} ${baziResult.fourPillars.hour.stem}${baziResult.fourPillars.hour.branch}`;
 
-    const showAIAnalysis = chartId && userId;
+    // 是否已保存命盘
+    const isSaved = Boolean(chartId);
 
     return (
         <div className="space-y-4">
@@ -85,10 +86,25 @@ export function BasicInfoSection({
                 </div>
             </section>
 
-            {/* AI专业五行分析 */}
-            {showAIAnalysis && (
+            {/* AI专业五行分析 - 未保存时显示提示 */}
+            {!isSaved ? (
+                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+                            <Save className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold">AI专业五行分析</h4>
+                            <p className="text-sm text-foreground-secondary">请先保存命盘后使用 AI 分析功能</p>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 dark:text-amber-400">
+                        💡 点击右上角「保存」按钮保存命盘后，即可使用 AI 五行分析和性格分析功能
+                    </div>
+                </section>
+            ) : userId && (
                 <AIWuxingAnalysis
-                    chartId={chartId}
+                    chartId={chartId!}
                     userId={userId}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedWuxingAnalysis}
@@ -97,10 +113,25 @@ export function BasicInfoSection({
                 />
             )}
 
-            {/* AI人格分析 */}
-            {showAIAnalysis && (
+            {/* AI人格分析 - 未保存时显示提示 */}
+            {!isSaved ? (
+                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                            <User className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold">AI性格分析</h4>
+                            <p className="text-sm text-foreground-secondary">请先保存命盘后使用 AI 分析功能</p>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 dark:text-amber-400">
+                        💡 点击右上角「保存」按钮保存命盘后，即可使用 AI 五行分析和性格分析功能
+                    </div>
+                </section>
+            ) : userId && (
                 <AIPersonalityAnalysis
-                    chartId={chartId}
+                    chartId={chartId!}
                     userId={userId}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedPersonalityAnalysis}
@@ -124,3 +155,4 @@ export function BasicInfoSection({
         </div>
     );
 }
+

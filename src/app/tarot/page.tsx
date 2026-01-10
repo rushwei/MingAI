@@ -16,6 +16,7 @@ import {
     Loader2,
     Send,
     Eye,
+    ArrowLeft,
 } from 'lucide-react';
 import Image from 'next/image';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
@@ -35,6 +36,7 @@ function TarotPageContent() {
     const [isInterpreting, setIsInterpreting] = useState(false);
     const [dailyCard, setDailyCard] = useState<DrawnCard | null>(null);
     const [revealedCards, setRevealedCards] = useState<number[]>([]);
+    const [isShuffling, setIsShuffling] = useState(false);
 
     // 加载每日一牌
     useEffect(() => {
@@ -124,12 +126,43 @@ function TarotPageContent() {
         }
     };
 
-    // 重新开始
-    const handleReset = () => {
+    // 重新洗牌抽牌（保留当前牌阵，不刷新整个页面）
+    const handleReshuffle = async () => {
+        if (!selectedSpread) return;
+        setIsShuffling(true);
+        setRevealedCards([]);
+        setInterpretation('');
+
+        // 添加 0.5 秒延迟
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        try {
+            const res = await fetch('/api/tarot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'spread',
+                    spreadId: selectedSpread.id,
+                    allowReversed: true,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.data?.cards) {
+                setDrawnCards(data.data.cards);
+            }
+        } catch (error) {
+            console.error('重新抽牌失败:', error);
+        } finally {
+            setIsShuffling(false);
+        }
+    };
+
+    // 返回首页
+    const handleGoHome = () => {
         setState('home');
         setSelectedSpread(null);
         setDrawnCards([]);
-        setQuestion('');
         setInterpretation('');
         setRevealedCards([]);
     };
@@ -178,6 +211,20 @@ function TarotPageContent() {
                     </div>
                 )}
 
+                {/* 问题输入 - 移动到牌阵上方 */}
+                <div className="mb-6">
+                    <label className="block text-sm text-foreground-secondary mb-2">
+                        你想问什么？（可选）
+                    </label>
+                    <input
+                        type="text"
+                        value={question}
+                        onChange={(e) => setQuestion(e.target.value)}
+                        placeholder="例如：我的事业发展会如何？"
+                        className="w-full px-4 py-3 bg-background-secondary rounded-xl border border-border focus:border-accent focus:outline-none transition-colors"
+                    />
+                </div>
+
                 {/* 牌阵选择 */}
                 <div className="space-y-3">
                     <h2 className="font-semibold flex items-center gap-2">
@@ -207,20 +254,6 @@ function TarotPageContent() {
                         </button>
                     ))}
                 </div>
-
-                {/* 问题输入 */}
-                <div className="mt-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        你想问什么？（可选）
-                    </label>
-                    <input
-                        type="text"
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        placeholder="例如：我的事业发展会如何？"
-                        className="w-full px-4 py-3 bg-background-secondary rounded-xl border border-border focus:border-accent focus:outline-none transition-colors"
-                    />
-                </div>
             </div>
         );
     }
@@ -239,6 +272,26 @@ function TarotPageContent() {
     // ===== 结果展示 =====
     return (
         <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in">
+            {/* 返回按钮 */}
+            <button
+                onClick={handleGoHome}
+                className="flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 transition-colors"
+            >
+                <ArrowLeft className="w-4 h-4" />
+                返回
+            </button>
+
+            {/* 问题显示 */}
+            {question && (
+                <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-accent flex-shrink-0" />
+                        <span className="text-sm text-accent font-medium">所问之事</span>
+                    </div>
+                    <p className="text-foreground font-semibold mt-1">{question}</p>
+                </div>
+            )}
+
             {/* 顶部操作栏 */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -246,19 +299,20 @@ function TarotPageContent() {
                     <p className="text-sm text-foreground-secondary">{selectedSpread?.description}</p>
                 </div>
                 <button
-                    onClick={handleReset}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors"
+                    onClick={handleReshuffle}
+                    disabled={isShuffling}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors disabled:opacity-50"
                 >
-                    <RotateCcw className="w-4 h-4" />
-                    重新开始
+                    <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
+                    {isShuffling ? '洗牌中...' : '重新抽牌'}
                 </button>
             </div>
 
             {/* 牌阵展示 */}
             <div className={`grid gap-4 mb-6 ${drawnCards.length === 1 ? 'grid-cols-1 justify-items-center' :
-                    drawnCards.length <= 3 ? 'grid-cols-3' :
-                        drawnCards.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
-                            'grid-cols-2 sm:grid-cols-5'
+                drawnCards.length <= 3 ? 'grid-cols-3' :
+                    drawnCards.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
+                        'grid-cols-2 sm:grid-cols-5'
                 }`}>
                 {drawnCards.map((card, index) => {
                     const isRevealed = revealedCards.includes(index);
