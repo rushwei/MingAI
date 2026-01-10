@@ -34,6 +34,8 @@ function MBTIPageContent() {
     const [currentPage, setCurrentPage] = useState(0);
     const [answers, setAnswers] = useState<TestAnswer[]>([]);
     const [highlightedQuestion, setHighlightedQuestion] = useState<number | null>(null);
+    // Controls intro modal visibility before starting the test.
+    const [showIntroModal, setShowIntroModal] = useState(false);
 
     // 加载全部题目
     useEffect(() => {
@@ -88,6 +90,11 @@ function MBTIPageContent() {
         setAnswers([]);
     };
 
+    const openIntroModal = () => {
+        if (questions.length === 0) return;
+        setShowIntroModal(true);
+    };
+
     const handleAnswer = useCallback((questionIndex: number, likertValue: LikertValue | null) => {
         // 如果点击相同选项，取消选择
         const existingAnswer = answers.find(a => a.questionIndex === questionIndex);
@@ -130,8 +137,8 @@ function MBTIPageContent() {
             return;
         }
         if (currentPage < totalPages - 1) {
-            setCurrentPage(currentPage + 1);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const nextIndex = (currentPage + 1) * QUESTIONS_PER_PAGE;
+            handleJumpToQuestion(nextIndex);
         }
     };
 
@@ -216,21 +223,10 @@ function MBTIPageContent() {
                         ))}
                     </div>
 
-                    {/* 测试说明 */}
-                    <div className="bg-background-secondary rounded-xl p-6 mb-8">
-                        <h3 className="text-lg font-semibold text-foreground mb-4">测试说明</h3>
-                        <ul className="space-y-2 text-foreground-secondary">
-                            <li>• 本测试共 {questions.length || '...'} 道题，每页 {QUESTIONS_PER_PAGE} 题</li>
-                            <li>• 请根据你的第一反应作答，不要过度思考</li>
-                            <li>• 用量表选择你的倾向程度（左侧或右侧代表不同选项）</li>
-                            <li>• 必须完成当前页所有题目才能翻到下一页</li>
-                        </ul>
-                    </div>
-
                     {/* 开始按钮 */}
                     <div className="text-center">
                         <button
-                            onClick={startTest}
+                            onClick={openIntroModal}
                             disabled={questions.length === 0}
                             className="inline-flex items-center gap-2 px-8 py-4 bg-accent text-white rounded-xl
                                 text-lg font-medium hover:bg-accent/90 disabled:opacity-50 
@@ -250,6 +246,41 @@ function MBTIPageContent() {
                         </button>
                     </div>
                 </div>
+                {showIntroModal && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        data-role="mbti-intro-modal"
+                    >
+                        <div className="absolute inset-0 bg-black/50" onClick={() => setShowIntroModal(false)} />
+                        <div className="relative w-full max-w-lg rounded-2xl bg-background border border-border p-6 shadow-xl">
+                            <h3 className="text-lg font-semibold text-foreground mb-4">测试说明</h3>
+                            <ul className="space-y-2 text-foreground-secondary">
+                                <li>• 本测试共 {questions.length || '...'} 道题，每页 {QUESTIONS_PER_PAGE} 题</li>
+                                <li>• 请根据你的第一反应作答，不要过度思考</li>
+                                <li>• 用量表选择你的倾向程度（左侧或右侧代表不同选项）</li>
+                                <li>• 必须完成当前页所有题目才能翻到下一页</li>
+                            </ul>
+                            <div className="mt-6 flex items-center justify-end gap-3">
+                                <button
+                                    onClick={() => setShowIntroModal(false)}
+                                    className="px-4 py-2 rounded-lg bg-background-secondary text-foreground
+                                        hover:bg-background-secondary/80 transition-colors"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowIntroModal(false);
+                                        startTest();
+                                    }}
+                                    className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
+                                >
+                                    开始测试
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

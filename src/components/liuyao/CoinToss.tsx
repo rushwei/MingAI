@@ -85,7 +85,8 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
         setIsAnimating(false);
     }, []);
 
-    const isComplete = currentLine >= 6;
+    const isComplete = results.length >= 6;
+    const isFinalizing = isAnimating && currentLine === 5 && results.length === 5;
 
     // 显示最近一次摇卦结果
     const lastResult = results.length > 0 ? results[results.length - 1] : null;
@@ -164,7 +165,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                             <span className={`text-xs w-10 ${yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}`}>
                                 {YAO_LABELS[yao.position - 1]}
                             </span>
-                            <div className={`flex items-center gap-1 ${yao.change === 'changing' ? 'text-red-500' : ''}`}>
+                            <div className={`flex items-center ${yao.change === 'changing' ? 'text-red-500' : ''}`}>
                                 {yao.type === 1 ? (
                                     <div className={`w-[62px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                 ) : (
@@ -183,7 +184,12 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
             {/* 操作按钮 */}
             <div className="flex gap-3 mt-4">
                 {!isComplete ? (
-                    results.length > currentLine ? (
+                    isFinalizing ? (
+                        <div className="flex items-center gap-2 text-foreground-secondary">
+                            <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                            <span className="text-sm">生成卦象中...</span>
+                        </div>
+                    ) : results.length > currentLine ? (
                         // 已摇完当前爸，显示“继续摇卦”按钮
                         <button
                             onClick={goToNextAndToss}

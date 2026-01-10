@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2 } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { type DivinationResult, type Hexagram, type Yao } from '@/lib/liuyao';
 import { supabase } from '@/lib/supabase';
 
@@ -129,7 +130,7 @@ export default function ResultPage() {
                 )}
 
                 {/* 卦象展示 */}
-                <div className="bg-background-secondary rounded-xl p-8 mb-8">
+                <div className="bg-background rounded-xl p-8 mb-8">
                     <HexagramDisplay
                         yaos={result.yaos}
                         hexagram={result.hexagram}
@@ -148,9 +149,7 @@ export default function ResultPage() {
 
                     {interpretation ? (
                         <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <div className="text-foreground whitespace-pre-wrap">
-                                {interpretation}
-                            </div>
+                            <MarkdownContent content={interpretation} className="text-sm text-foreground" />
                         </div>
                     ) : (
                         <div className="text-center py-8">

@@ -27,28 +27,44 @@ export function HexagramDisplay({
 }: HexagramDisplayProps) {
     // 从上到下显示，所以反转数组
     const displayYaos = [...yaos].reverse();
+    const yaoLabels = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+    const rowHeight = 'h-4';
 
     return (
         <div className="flex flex-col items-center gap-4">
-            {/* 卦象名称 */}
-            <div className="text-center">
-                <h3 className="text-xl font-bold text-foreground">
-                    {hexagram.name}
-                </h3>
-                <p className="text-sm text-foreground-secondary mt-1">
-                    上{hexagram.upperTrigram} 下{hexagram.lowerTrigram} · {hexagram.element}
-                </p>
-            </div>
-
             {/* 卦象 */}
             <div className="flex gap-8 items-start">
                 {/* 本卦 */}
-                <div className="flex flex-col items-center">
-                    <span className="text-xs text-foreground-secondary mb-2">本卦</span>
-                    <div className="flex flex-col gap-1.5 p-4 bg-background-secondary rounded-lg">
-                        {displayYaos.map((yao) => (
-                            <YaoLine key={yao.position} yao={yao} size={size} showLabel />
-                        ))}
+                <div className="flex flex-col items-center" data-hexagram="base">
+                    <div className="grid grid-cols-[3rem_auto] gap-x-2">
+                        <div />
+                        <div className="text-center mb-2 justify-self-center">
+                            <span className="text-xs text-foreground-secondary">本卦</span>
+                            <h3 className="text-lg font-semibold text-foreground mt-1">
+                                {hexagram.name}
+                            </h3>
+                            <p className="text-xs text-foreground-secondary mt-1">
+                                上{hexagram.upperTrigram} 下{hexagram.lowerTrigram} · {hexagram.element}
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 items-end py-4">
+                            {displayYaos.map((yao) => (
+                                <span
+                                    key={`label-${yao.position}`}
+                                    className={`text-xs w-12 text-right inline-flex items-center justify-end ${rowHeight} ${yao.change === 'changing' ? 'text-red-500 font-medium' : 'text-foreground-secondary'}`}
+                                >
+                                    {yaoLabels[yao.position - 1]}
+                                    {yao.change === 'changing' && ' ○'}
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex flex-col gap-1.5 p-4 bg-background rounded-lg w-fit justify-self-center">
+                            {displayYaos.map((yao) => (
+                                <div key={yao.position} className={`flex items-center justify-center ${rowHeight}`}>
+                                    <YaoLine yao={yao} size={size} />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -58,23 +74,43 @@ export function HexagramDisplay({
                         <div className="flex items-center self-center">
                             <span className="text-2xl text-foreground-secondary">→</span>
                         </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs text-foreground-secondary mb-2">变卦</span>
-                            <div className="flex flex-col gap-1.5 p-4 bg-background-secondary rounded-lg">
-                                {displayYaos.map((yao) => {
-                                    // 变爻翻转
-                                    const isChanged = changedLines.includes(yao.position);
-                                    const changedYao: Yao = isChanged
-                                        ? { ...yao, type: yao.type === 1 ? 0 : 1, change: 'stable' }
-                                        : { ...yao, change: 'stable' };
-                                    return (
-                                        <YaoLine key={yao.position} yao={changedYao} size={size} showLabel />
-                                    );
-                                })}
+                        <div className="flex flex-col items-center" data-hexagram="changed">
+                            <div className="grid grid-cols-[3rem_auto] gap-x-2">
+                                <div />
+                                <div className="text-center mb-2 justify-self-center">
+                                    <span className="text-xs text-foreground-secondary">变卦</span>
+                                    <h4 className="text-lg font-semibold text-foreground mt-1">
+                                        {changedHexagram.name}
+                                    </h4>
+                                    <p className="text-xs text-foreground-secondary mt-1">
+                                        上{changedHexagram.upperTrigram} 下{changedHexagram.lowerTrigram} · {changedHexagram.element}
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-1.5 items-end py-4">
+                                    {displayYaos.map((yao) => (
+                                        <span
+                                            key={`label-changed-${yao.position}`}
+                                            className={`text-xs w-12 text-right inline-flex items-center justify-end ${rowHeight} text-foreground-secondary`}
+                                        >
+                                            {yaoLabels[yao.position - 1]}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div className="flex flex-col gap-1.5 p-4 bg-background rounded-lg w-fit justify-self-center">
+                                    {displayYaos.map((yao) => {
+                                        // 变爻翻转
+                                        const isChanged = changedLines.includes(yao.position);
+                                        const changedYao: Yao = isChanged
+                                            ? { ...yao, type: yao.type === 1 ? 0 : 1, change: 'stable' }
+                                            : { ...yao, change: 'stable' };
+                                        return (
+                                            <div key={yao.position} className={`flex items-center justify-center ${rowHeight}`}>
+                                                <YaoLine yao={changedYao} size={size} />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <h4 className="text-lg font-semibold text-foreground mt-2">
-                                {changedHexagram.name}
-                            </h4>
                         </div>
                     </>
                 )}

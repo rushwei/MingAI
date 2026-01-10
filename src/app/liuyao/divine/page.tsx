@@ -85,7 +85,7 @@ export default function DivinePage() {
                 )}
 
                 {/* 铜钱起卦 */}
-                <div className="bg-background-secondary rounded-xl p-8">
+                <div className="bg-background rounded-xl p-8">
                     <CoinToss onComplete={handleComplete} disabled={isComplete} />
                 </div>
 

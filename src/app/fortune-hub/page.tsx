@@ -93,7 +93,7 @@ function FortuneHubContent() {
                 </div>
 
                 {/* 今日概览 */}
-                <div className="bg-gradient-to-r from-accent/20 to-purple-500/20 border border-accent/30 rounded-2xl p-6 mb-8">
+                <div className="bg-background-secondary border border-border rounded-2xl p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <p className="text-sm text-foreground-secondary">今日日期</p>
