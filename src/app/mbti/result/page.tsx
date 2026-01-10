@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, RotateCw, Sparkles, Loader2 } from 'lucide-react';
@@ -16,7 +16,7 @@ import { type TestResult } from '@/lib/mbti';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
-export default function MBTIResultPage() {
+function MBTIResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const isViewMode = searchParams.get('view') === 'true';
@@ -221,5 +221,18 @@ export default function MBTIResultPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+// 主导出组件，使用 Suspense 包裹
+export default function MBTIResultPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+        }>
+            <MBTIResultContent />
+        </Suspense>
     );
 }
