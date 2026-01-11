@@ -54,6 +54,7 @@ CREATE TABLE public.hepan_charts (
   compatibility_score integer,
   created_at timestamp with time zone DEFAULT now(),
   conversation_id uuid,
+  result_data jsonb,
   CONSTRAINT hepan_charts_pkey PRIMARY KEY (id),
   CONSTRAINT hepan_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT hepan_charts_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
