@@ -198,7 +198,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         }, { status: 500 });
                     }
 
-                    // 保存历史记录（使用服务端客户端绕过 RLS）
+                    // 保存抽牌记录到 tarot_readings（不含 AI 分析）
                     const serviceClient = getServiceClient();
                     const { error: insertError } = await serviceClient
                         .from('tarot_readings')
@@ -207,16 +207,33 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                             spread_id: spreadId || 'custom',
                             question: question || null,
                             cards: cards,
-                            interpretation: interpretation,
                         });
 
                     if (insertError) {
-                        console.error('[tarot] 保存历史记录失败:', insertError.message);
+                        console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                    }
+
+                    // 保存 AI 分析到 conversations 表
+                    const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
+                    const conversationId = await createAIAnalysisConversation({
+                        userId: user.id,
+                        sourceType: 'tarot',
+                        sourceData: {
+                            cards: cards,
+                            spread_id: spreadId || 'custom',
+                            question: question || null,
+                        },
+                        title: generateTarotTitle(question, spreadId || 'custom'),
+                        aiResponse: interpretation,
+                    });
+
+                    if (!conversationId) {
+                        console.error('[tarot] 保存 AI 分析对话失败');
                     }
 
                     return NextResponse.json({
                         success: true,
-                        data: { interpretation, cards }
+                        data: { interpretation, cards, conversationId }
                     });
 
                 } catch (aiError) {

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { Coins, Sparkles, HelpCircle, Loader2, Dices } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
+import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 
 export default function LiuyaoPage() {
     const router = useRouter();
@@ -175,6 +176,8 @@ export default function LiuyaoPage() {
                     </div>
                 </div>
             </div>
+            {/* 历史记录抽屉 */}
+            <HistoryDrawer type="liuyao" />
         </div>
     );
 }

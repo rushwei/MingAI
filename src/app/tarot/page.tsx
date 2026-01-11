@@ -447,9 +447,12 @@ function TarotPageContent() {
 }
 
 export default function TarotPage() {
+    // Dynamically import to avoid SSR issues
+    const { HistoryDrawer } = require('@/components/layout/HistoryDrawer');
     return (
         <LoginOverlay message="登录后体验塔罗占卜">
             <TarotPageContent />
+            <HistoryDrawer type="tarot" />
         </LoginOverlay>
     );
 }

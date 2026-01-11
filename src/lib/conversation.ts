@@ -73,6 +73,8 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
         messages: (row.messages as ChatMessage[]) || [],
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        sourceType: row.source_type || 'chat',
+        sourceData: row.source_data,
     }));
 }
 
@@ -101,6 +103,8 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         messages: (data.messages as ChatMessage[]) || [],
         createdAt: data.created_at,
         updatedAt: data.updated_at,
+        sourceType: data.source_type || 'chat',
+        sourceData: data.source_data,
     };
 }
 

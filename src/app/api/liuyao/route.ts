@@ -162,7 +162,7 @@ ${changedHexagram ? `上卦：${changedHexagram.upperTrigram}
                         }, { status: 500 });
                     }
 
-                    // 保存记录
+                    // 保存起卦记录到 liuyao_divinations（不含 AI 分析）
                     const serviceClient = getServiceClient();
                     const hexagramCode = yaos?.map(y => y.type).join('') || '';
                     const changedCode = changedHexagram ? yaos?.map((y, i) =>
@@ -173,16 +173,36 @@ ${changedHexagram ? `上卦：${changedHexagram.upperTrigram}
                         .from('liuyao_divinations')
                         .insert({
                             user_id: user.id,
-                            question,
+                            question: question || '',
                             hexagram_code: hexagramCode,
                             changed_hexagram_code: changedCode,
                             changed_lines: changedLines,
-                            ai_interpretation: interpretation,
                         });
+
+                    // 保存 AI 分析到 conversations 表
+                    const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
+                    const conversationId = await createAIAnalysisConversation({
+                        userId: user.id,
+                        sourceType: 'liuyao',
+                        sourceData: {
+                            hexagram_code: hexagramCode,
+                            hexagram_name: hexagram.name,
+                            changed_hexagram_code: changedCode,
+                            changed_hexagram_name: changedHexagram?.name,
+                            changed_lines: changedLines,
+                            question: question || null,
+                        },
+                        title: generateLiuyaoTitle(question, hexagram.name),
+                        aiResponse: interpretation,
+                    });
+
+                    if (!conversationId) {
+                        console.error('[liuyao] 保存 AI 分析对话失败');
+                    }
 
                     return NextResponse.json({
                         success: true,
-                        data: { interpretation }
+                        data: { interpretation, conversationId }
                     });
 
                 } catch (aiError) {

@@ -100,9 +100,9 @@ export function ChatMessageList({
 
     return (
         <div className="space-y-6 max-w-3xl mx-auto pb-4">
-            {displayMessages.map((message) => (
+            {displayMessages.map((message, index) => (
                 <div
-                    key={message.id}
+                    key={message.id || `msg-${index}`}
                     className={`group ${message.role === 'user' ? 'flex justify-end' : ''}`}
                 >
                     {message.role === 'user' ? (
@@ -142,7 +142,7 @@ export function ChatMessageList({
                                     </p>
                                 </div>
                                 {/* 操作按钮和版本切换 */}
-                                {!disabled && !isLoading && (
+                                {!disabled && (
                                     <div className="flex items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         {/* 复制按钮 */}
                                         <button
@@ -225,8 +225,8 @@ export function ChatMessageList({
                                 </div>
                             )}
                             <MarkdownContent content={message.content} className="text-base text-foreground" />
-                            {/* 操作按钮 */}
-                            {!isLoading && message.content && (
+                            {/* 操作按钮 - 只有最后一条正在流式输出的消息才隐藏 */}
+                            {message.content && !(isStreamingAI && message === lastMessage) && (
                                 <div className="flex gap-1 mt-2">
                                     <button
                                         onClick={() => handleCopy(message)}
@@ -262,6 +262,22 @@ export function ChatMessageList({
                                                 </span>
                                             )}
                                         </button>
+                                    )}
+                                    {/* 命盘信息显示 - 从消息自身读取 */}
+                                    {(message.chartInfo?.baziName || message.chartInfo?.ziweiName) && (
+                                        <div className="flex items-center gap-1.5 ml-2 text-xs text-foreground-secondary">
+                                            <span className="opacity-60">|</span>
+                                            {message.chartInfo.baziName && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                                    八字: {message.chartInfo.baziName}
+                                                </span>
+                                            )}
+                                            {message.chartInfo.ziweiName && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                                    紫薇: {message.chartInfo.ziweiName}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}

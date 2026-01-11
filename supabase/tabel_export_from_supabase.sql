@@ -77,6 +77,17 @@ CREATE TABLE public.login_attempts (
   success boolean DEFAULT false,
   CONSTRAINT login_attempts_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.mbti_readings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  mbti_type text NOT NULL,
+  scores jsonb,
+  percentages jsonb,
+  analysis text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT mbti_readings_pkey PRIMARY KEY (id),
+  CONSTRAINT mbti_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,

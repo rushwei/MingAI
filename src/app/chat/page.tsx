@@ -127,6 +127,30 @@ export default function ChatPage() {
             setActiveConversationId(id);
             setMessages(conv.messages);
             setSidebarOpen(false);
+
+            // 从最后一条 AI 消息恢复命盘显示
+            const lastAIMessage = [...conv.messages].reverse().find(m => m.role === 'assistant' && m.chartInfo);
+            const chartInfo = lastAIMessage?.chartInfo;
+
+            const newChartSelection: SelectedCharts = {};
+
+            if (chartInfo?.baziName) {
+                newChartSelection.bazi = {
+                    id: '', // 历史记录只有名字，没有ID
+                    name: chartInfo.baziName,
+                    info: '(历史)'
+                };
+            }
+
+            if (chartInfo?.ziweiName) {
+                newChartSelection.ziwei = {
+                    id: '',
+                    name: chartInfo.ziweiName,
+                    info: '(历史)'
+                };
+            }
+
+            setSelectedCharts(newChartSelection);
         }
     }, []);
 
@@ -134,6 +158,7 @@ export default function ChatPage() {
     const handleNewChat = useCallback(async () => {
         setActiveConversationId(null);
         setMessages([]);
+        setSelectedCharts({}); // 清空命盘显示
         // 保持当前选择的人格，不重置
         setSidebarOpen(false);
     }, []);
@@ -217,6 +242,11 @@ export default function ChatPage() {
             content: '',
             createdAt: new Date().toISOString(),
             model: selectedModel,
+            // 保存当前使用的命盘信息
+            chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? {
+                baziName: selectedCharts.bazi?.name,
+                ziweiName: selectedCharts.ziwei?.name,
+            } : undefined,
         };
         setMessages([...newMessages, initialAssistantMessage]);
 
@@ -368,15 +398,29 @@ export default function ChatPage() {
         // 获取该消息之前的所有消息 (不包含该消息)
         const previousMessages = messages.slice(0, messageIndex);
 
+        // 获取该消息之后的所有消息（用于保存到版本历史）
+        const subsequentMessages = messages.slice(messageIndex + 2); // 跳过用户消息和对应的AI回复
+
         // 构建版本历史
-        const existingVersions = originalMessage.versions || [];
-        // 如果没有版本历史，先把原始内容作为第一个版本
+        const existingVersions = [...(originalMessage.versions || [])];
+        // 如果没有版本历史，先把原始内容作为第一个版本（包含后续消息）
         if (existingVersions.length === 0 && originalMessage.content) {
             existingVersions.push({
                 userContent: originalMessage.content,
                 aiContent: originalAiContent,
                 createdAt: originalMessage.createdAt,
+                // 保存后续消息到版本历史，以便切换版本时恢复
+                subsequentMessages: subsequentMessages.length > 0 ? subsequentMessages : undefined,
             });
+        } else if (existingVersions.length > 0 && subsequentMessages.length > 0) {
+            // 如果已有版本历史但当前版本有后续消息，更新当前版本
+            const currentVersionIdx = originalMessage.currentVersionIndex ?? existingVersions.length - 1;
+            if (existingVersions[currentVersionIdx] && !existingVersions[currentVersionIdx].subsequentMessages) {
+                existingVersions[currentVersionIdx] = {
+                    ...existingVersions[currentVersionIdx],
+                    subsequentMessages: subsequentMessages,
+                };
+            }
         }
 
         // 更新用户消息（带版本信息，新版本稍后添加）
@@ -400,6 +444,11 @@ export default function ChatPage() {
             content: '',
             createdAt: new Date().toISOString(),
             model: selectedModel,
+            // 保存当前命盘信息
+            chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? {
+                baziName: selectedCharts.bazi?.name,
+                ziweiName: selectedCharts.ziwei?.name,
+            } : undefined,
         };
         setMessages([...newMessages, initialAssistantMessage]);
 
@@ -633,21 +682,31 @@ export default function ChatPage() {
             }
 
             const version = message.versions[versionIndex];
-            const newMessages = [...prev];
+
+            // 获取该消息之前的所有消息
+            const previousMessages = prev.slice(0, messageIndex);
 
             // 更新用户消息
-            newMessages[messageIndex] = {
+            const updatedUserMessage: ChatMessage = {
                 ...message,
                 content: version.userContent,
                 currentVersionIndex: versionIndex,
             };
 
-            // 更新对应的 AI 回复（如果存在）
-            if (messageIndex + 1 < newMessages.length && newMessages[messageIndex + 1].role === 'assistant') {
-                newMessages[messageIndex + 1] = {
-                    ...newMessages[messageIndex + 1],
-                    content: version.aiContent,
-                };
+            // 创建 AI 回复消息
+            const aiMessage: ChatMessage = {
+                id: `ai-version-${versionIndex}-${Date.now()}`,
+                role: 'assistant',
+                content: version.aiContent,
+                createdAt: version.createdAt,
+            };
+
+            // 构建新消息列表：之前的消息 + 用户消息 + AI回复 + 该版本的后续消息
+            let newMessages = [...previousMessages, updatedUserMessage, aiMessage];
+
+            // 如果这个版本有保存的后续消息，恢复它们
+            if (version.subsequentMessages && version.subsequentMessages.length > 0) {
+                newMessages = [...newMessages, ...version.subsequentMessages];
             }
 
             // 保存到数据库
@@ -663,6 +722,7 @@ export default function ChatPage() {
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
 
+    // 获取最后一条 AI 消息的命盘信息（用于在 Composer 中显示）
     return (
         <LoginOverlay message="登录后即可使用 AI 对话功能">
             <div className="flex h-[calc(100vh-5rem)] lg:h-screen">
@@ -740,15 +800,10 @@ export default function ChatPage() {
                             setChartSelectorOpen(true);
                         }}
                         onClearChart={(type) => {
+                            // 仅清理当前对话框中的命盘，不影响历史记录
                             const nextCharts = { ...selectedCharts };
                             delete nextCharts[type];
                             setSelectedCharts(nextCharts);
-                            if (activeConversationId) {
-                                updateConversationCharts(activeConversationId, {
-                                    baziChartId: nextCharts.bazi?.id ?? null,
-                                    ziweiChartId: nextCharts.ziwei?.id ?? null,
-                                });
-                            }
                         }}
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
@@ -765,13 +820,9 @@ export default function ChatPage() {
                         setChartFocusType(undefined);
                     }}
                     onSelect={(charts) => {
+                        // 仅更新当前选择，用于下一条消息发送
+                        // 不更新数据库，避免影响已有消息
                         setSelectedCharts(charts);
-                        if (activeConversationId) {
-                            updateConversationCharts(activeConversationId, {
-                                baziChartId: charts.bazi?.id ?? null,
-                                ziweiChartId: charts.ziwei?.id ?? null,
-                            });
-                        }
                     }}
                     userId={userId}
                     currentSelection={selectedCharts}

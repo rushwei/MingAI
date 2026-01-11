@@ -79,8 +79,9 @@ test('tarot route uses schema column names when inserting history', async (t) =>
     assert.equal(response.status, 200);
     assert.equal(data.success, true);
     assert.ok(inserted);
-    assert.equal(inserted?.spread_id, 'single');
-    assert.equal(inserted?.interpretation, 'analysis');
+    assert.equal((inserted as Record<string, unknown>)?.spread_id, 'single');
+    // Note: interpretation is now stored in conversations table, not tarot_readings
+    assert.equal('interpretation' in (inserted || {}), false);
     assert.equal('spread_type' in (inserted || {}), false);
     assert.equal('ai_interpretation' in (inserted || {}), false);
 });

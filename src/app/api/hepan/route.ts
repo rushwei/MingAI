@@ -137,7 +137,7 @@ ${conflictsSummary}
                     }, { status: 500 });
                 }
 
-                // 保存记录
+                // 保存合盘记录到 hepan_charts（不含 AI 分析）
                 const serviceClient = getServiceClient();
                 await serviceClient
                     .from('hepan_charts')
@@ -159,12 +159,34 @@ ${conflictsSummary}
                             hour: result.person2.hour,
                         },
                         compatibility_score: result.overallScore,
-                        ai_analysis: analysis,
                     });
+
+                // 保存 AI 分析到 conversations 表
+                const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai-analysis');
+                const conversationId = await createAIAnalysisConversation({
+                    userId: user.id,
+                    sourceType: 'hepan',
+                    sourceData: {
+                        type: result.type,
+                        person1_name: result.person1.name,
+                        person1_birth: result.person1,
+                        person2_name: result.person2.name,
+                        person2_birth: result.person2,
+                        compatibility_score: result.overallScore,
+                        dimensions: result.dimensions,
+                        conflicts: result.conflicts,
+                    },
+                    title: generateHepanTitle(result.person1.name, result.person2.name, result.type),
+                    aiResponse: analysis,
+                });
+
+                if (!conversationId) {
+                    console.error('[hepan] 保存 AI 分析对话失败');
+                }
 
                 return NextResponse.json({
                     success: true,
-                    data: { analysis }
+                    data: { analysis, conversationId }
                 });
 
             } catch (aiError) {

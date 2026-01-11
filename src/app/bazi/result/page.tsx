@@ -71,37 +71,65 @@ function BaziResultContent() {
     useEffect(() => {
         if (chartId && !hasFormParams) {
             setLoading(true);
-            supabase
-                .from('bazi_charts')
-                .select('*')
-                .eq('id', chartId)
-                .single()
-                .then(({ data, error }) => {
-                    if (data && !error) {
-                        const [year, month, day] = data.birth_date.split('-').map(Number);
-                        const hasTime = Boolean(data.birth_time);
-                        const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
 
-                        setChartFromDb({
-                            name: data.name,
-                            gender: data.gender as Gender,
-                            birthYear: year,
-                            birthMonth: month,
-                            birthDay: day,
-                            birthHour: hour,
-                            birthMinute: minute || 0,
-                            isUnknownTime: !hasTime,
-                            calendarType: (data.calendar_type as CalendarType) || 'solar',
-                            isLeapMonth: data.is_leap_month || false,
-                            birthPlace: data.birth_place || undefined,
-                        });
-                        // 加载已保存的AI分析结果
-                        setSavedWuxingAnalysis(data.ai_wuxing_analysis || null);
-                        setSavedPersonalityAnalysis(data.ai_personality_analysis || null);
-                        setSaved(true);
-                    }
-                    setLoading(false);
-                });
+            // 同时查询命盘数据和 AI 分析
+            Promise.all([
+                supabase
+                    .from('bazi_charts')
+                    .select('*')
+                    .eq('id', chartId)
+                    .single(),
+                // 查询五行分析
+                supabase
+                    .from('conversations')
+                    .select('messages')
+                    .eq('bazi_chart_id', chartId)
+                    .eq('source_type', 'bazi_wuxing')
+                    .order('created_at', { ascending: false })
+                    .limit(1),
+                // 查询人格分析
+                supabase
+                    .from('conversations')
+                    .select('messages')
+                    .eq('bazi_chart_id', chartId)
+                    .eq('source_type', 'bazi_personality')
+                    .order('created_at', { ascending: false })
+                    .limit(1),
+            ]).then(([chartResult, wuxingResult, personalityResult]) => {
+                const data = chartResult.data;
+                if (data && !chartResult.error) {
+                    const [year, month, day] = data.birth_date.split('-').map(Number);
+                    const hasTime = Boolean(data.birth_time);
+                    const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
+
+                    setChartFromDb({
+                        name: data.name,
+                        gender: data.gender as Gender,
+                        birthYear: year,
+                        birthMonth: month,
+                        birthDay: day,
+                        birthHour: hour,
+                        birthMinute: minute || 0,
+                        isUnknownTime: !hasTime,
+                        calendarType: (data.calendar_type as CalendarType) || 'solar',
+                        isLeapMonth: data.is_leap_month || false,
+                        birthPlace: data.birth_place || undefined,
+                    });
+
+                    // 从 conversations 加载 AI 分析
+                    const extractAnalysis = (result: { data: Array<{ messages: unknown }> | null }) => {
+                        if (!result.data?.[0]?.messages) return null;
+                        const messages = result.data[0].messages as Array<{ role: string; content: string }>;
+                        const aiMsg = messages.find(m => m.role === 'assistant');
+                        return aiMsg?.content || null;
+                    };
+
+                    setSavedWuxingAnalysis(extractAnalysis(wuxingResult));
+                    setSavedPersonalityAnalysis(extractAnalysis(personalityResult));
+                    setSaved(true);
+                }
+                setLoading(false);
+            });
         }
 
         // 获取当前用户ID

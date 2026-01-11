@@ -106,23 +106,40 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 保存到数据库
+        // 获取命盘信息并保存到 conversations
+        let conversationId: string | null = null;
         if (chartId) {
             try {
                 const supabase = getServiceClient();
-                const updateField = type === 'wuxing'
-                    ? { ai_wuxing_analysis: content }
-                    : { ai_personality_analysis: content };
 
-                const { error } = await supabase
+                // 获取命盘信息
+                const { data: chart } = await supabase
                     .from('bazi_charts')
-                    .update(updateField)
-                    .eq('id', chartId);
+                    .select('name, user_id')
+                    .eq('id', chartId)
+                    .single();
 
-                if (error) {
-                    console.error('[analysis] Save error:', error);
-                } else {
-                    console.log('[analysis] Saved to database:', chartId, type);
+                if (chart?.user_id) {
+                    // 保存 AI 分析到 conversations 表
+                    const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai-analysis');
+                    conversationId = await createAIAnalysisConversation({
+                        userId: chart.user_id,
+                        sourceType: type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality',
+                        sourceData: {
+                            chart_id: chartId,
+                            chart_name: chart.name,
+                            chart_summary: chartSummary,
+                        },
+                        title: generateBaziAnalysisTitle(chart.name || '命盘', type),
+                        aiResponse: content,
+                        baziChartId: chartId,
+                    });
+
+                    if (conversationId) {
+                        console.log('[analysis] Saved to conversations:', chartId, type, conversationId);
+                    } else {
+                        console.error('[analysis] Failed to save to conversations');
+                    }
                 }
             } catch (saveError) {
                 console.error('[analysis] Save exception:', saveError);
@@ -132,6 +149,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             content,
+            conversationId,
         });
     } catch (error) {
         console.error('Analysis API error:', error);

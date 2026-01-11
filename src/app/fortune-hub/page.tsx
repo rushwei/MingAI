@@ -6,13 +6,14 @@
 import Link from 'next/link';
 import {
     Compass,
-    Star,
     Sparkles,
-    Coins,
-    Heart,
     Brain,
     ArrowRight,
-    TrendingUp
+    TrendingUp,
+    HeartHandshake,
+    Gem,
+    Dices,
+    Orbit
 } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 
@@ -21,7 +22,7 @@ const FORTUNE_SERVICES = [
         id: 'bazi',
         name: '八字命理',
         description: '根据出生时间分析命格运势',
-        icon: Compass,
+        icon: Orbit,
         href: '/bazi',
         color: 'from-amber-500/20 to-orange-500/20 border-amber-500/30',
         iconColor: 'text-amber-500',
@@ -30,7 +31,7 @@ const FORTUNE_SERVICES = [
         id: 'ziwei',
         name: '紫微斗数',
         description: '东方占星术，解析命盘格局',
-        icon: Star,
+        icon: Sparkles,
         href: '/ziwei',
         color: 'from-purple-500/20 to-indigo-500/20 border-purple-500/30',
         iconColor: 'text-purple-500',
@@ -39,7 +40,7 @@ const FORTUNE_SERVICES = [
         id: 'tarot',
         name: '塔罗牌',
         description: '抽取塔罗牌，获取指引',
-        icon: Sparkles,
+        icon: Gem,
         href: '/tarot',
         color: 'from-pink-500/20 to-rose-500/20 border-pink-500/30',
         iconColor: 'text-pink-500',
@@ -48,7 +49,7 @@ const FORTUNE_SERVICES = [
         id: 'liuyao',
         name: '六爻占卜',
         description: '周易六爻，预测事物发展',
-        icon: Coins,
+        icon: Dices,
         href: '/liuyao',
         color: 'from-yellow-500/20 to-amber-500/20 border-yellow-500/30',
         iconColor: 'text-yellow-500',
@@ -57,7 +58,7 @@ const FORTUNE_SERVICES = [
         id: 'hepan',
         name: '关系合盘',
         description: '分析双方八字的缘分契合度',
-        icon: Heart,
+        icon: HeartHandshake,
         href: '/hepan',
         color: 'from-red-500/20 to-pink-500/20 border-red-500/30',
         iconColor: 'text-red-500',

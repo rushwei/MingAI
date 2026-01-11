@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Edit2, Search, ChevronDown, ChevronRight, Plus, SquarePen, Pencil, Loader2 } from 'lucide-react';
-import type { Conversation } from '@/types';
+import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2 } from 'lucide-react';
+import { Orbit, Gem, Dices, Brain, HeartHandshake, Sparkles } from 'lucide-react';
+import type { Conversation, ConversationSourceType } from '@/types';
 
 interface ConversationSidebarProps {
     conversations: Conversation[];
@@ -15,6 +16,26 @@ interface ConversationSidebarProps {
     onClose: () => void;
     isLoading?: boolean;
 }
+
+// 分组配置 - 图标与 fortune-hub 保持一致
+const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string
+}> = {
+    chat: { label: '普通对话', icon: MessageSquare, color: 'text-foreground-secondary' },
+    bazi_wuxing: { label: '八字五行分析', icon: Orbit, color: 'text-foreground-secondary' },
+    bazi_personality: { label: '八字人格分析', icon: Orbit, color: 'text-foreground-secondary' },
+    tarot: { label: '塔罗占卜', icon: Gem, color: 'text-foreground-secondary' },
+    liuyao: { label: '六爻占卜', icon: Dices, color: 'text-foreground-secondary' },
+    mbti: { label: 'MBTI 分析', icon: Brain, color: 'text-foreground-secondary' },
+    hepan: { label: '合盘分析', icon: HeartHandshake, color: 'text-foreground-secondary' },
+};
+
+// 显示顺序
+const SOURCE_TYPE_ORDER: ConversationSourceType[] = [
+    'chat', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan'
+];
 
 export function ConversationSidebar({
     conversations,
@@ -32,17 +53,43 @@ export function ConversationSidebar({
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
-    const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<ConversationSourceType>>(new Set());
 
-    // 过滤对话列表
-    const filteredConversations = useMemo(() => {
-        if (!searchQuery.trim()) return conversations;
-        const query = searchQuery.toLowerCase();
-        return conversations.filter(conv => {
-            const title = conv.title ?? '';
-            return title.toLowerCase().includes(query);
+    // 按类型分组对话
+    const groupedConversations = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        const filtered = query
+            ? conversations.filter(conv => (conv.title ?? '').toLowerCase().includes(query))
+            : conversations;
+
+        const groups: Record<ConversationSourceType, Conversation[]> = {
+            chat: [], bazi_wuxing: [], bazi_personality: [],
+            tarot: [], liuyao: [], mbti: [], hepan: []
+        };
+
+        filtered.forEach(conv => {
+            const type = conv.sourceType || 'chat';
+            if (groups[type]) {
+                groups[type].push(conv);
+            } else {
+                groups.chat.push(conv);
+            }
         });
+
+        return groups;
     }, [conversations, searchQuery]);
+
+    const toggleGroup = (type: ConversationSourceType) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(type)) {
+                next.delete(type);
+            } else {
+                next.add(type);
+            }
+            return next;
+        });
+    };
 
     const handleStartEdit = (conv: Conversation) => {
         setEditingId(conv.id);
@@ -75,6 +122,71 @@ export function ConversationSidebar({
 
     const handleCancelDelete = () => {
         setDeleteConfirmId(null);
+    };
+
+    // 渲染单个对话项
+    const renderConversationItem = (conv: Conversation, config: typeof SOURCE_TYPE_CONFIG.chat) => {
+        const Icon = config.icon;
+        return (
+            <div
+                key={conv.id}
+                className={`
+                    group flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
+                    transition-colors text-sm
+                    ${activeId === conv.id ? 'bg-background-secondary' : 'hover:bg-background-secondary'}
+                `}
+                onClick={() => editingId !== conv.id && onSelect(conv.id)}
+            >
+                {editingId === conv.id ? (
+                    <div className="flex-1 flex items-center gap-1 min-w-0">
+                        <input
+                            type="text"
+                            value={editTitle}
+                            onChange={e => setEditTitle(e.target.value)}
+                            className="flex-1 min-w-0 px-2 py-1 text-sm bg-background border border-border rounded"
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveEdit();
+                                if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            autoFocus
+                        />
+                        <button
+                            onClick={e => { e.stopPropagation(); handleSaveEdit(); }}
+                            className="p-1.5 hover:bg-green-500/20 rounded flex-shrink-0"
+                        >
+                            <Check className="w-4 h-4 text-green-500" />
+                        </button>
+                        <button
+                            onClick={e => { e.stopPropagation(); handleCancelEdit(); }}
+                            className="p-1.5 hover:bg-red-500/20 rounded flex-shrink-0"
+                        >
+                            <X className="w-4 h-4 text-red-500" />
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <span className="flex-1 text-sm truncate min-w-0">{conv.title}</span>
+                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {onRename && conv.sourceType === 'chat' && (
+                                <button
+                                    onClick={e => { e.stopPropagation(); handleStartEdit(conv); }}
+                                    className="p-1.5 hover:bg-background-tertiary rounded"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                            )}
+                            <button
+                                onClick={e => { e.stopPropagation(); handleDeleteClick(conv.id); }}
+                                className="p-1.5 hover:bg-red-500/20 rounded"
+                            >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -118,8 +230,7 @@ export function ConversationSidebar({
                     </button>
                     <button
                         onClick={() => setIsSearching(!isSearching)}
-                        className={`flex items-center gap-3 w-full px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'
-                            }`}
+                        className={`flex items-center gap-3 w-full px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'}`}
                     >
                         <Search className="w-4.5 h-4.5" />
                         <span>搜索聊天</span>
@@ -140,110 +251,55 @@ export function ConversationSidebar({
                     </div>
                 )}
 
-                {/* 对话历史标题 - 可折叠 */}
-                <button
-                    onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
-                    className="flex items-center gap-2 px-6 py-2 text-xs text-foreground-secondary transition-colors"
-                >
-                    <span>对话历史 </span>
-                    {isHistoryCollapsed ? (
-                        <ChevronRight className="w-3 h-3" />
+                {/* 分组对话列表 */}
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span>加载中...</span>
+                        </div>
+                    ) : conversations.length === 0 ? (
+                        <div className="text-center text-foreground-secondary text-sm py-8">
+                            暂无对话记录
+                        </div>
                     ) : (
-                        <ChevronDown className="w-3 h-3" />
-                    )}
-                </button>
+                        SOURCE_TYPE_ORDER.map(type => {
+                            const items = groupedConversations[type];
+                            if (items.length === 0) return null;
 
-                {/* 对话列表 */}
-                {!isHistoryCollapsed && (
-                    <div className="flex-1 overflow-y-auto p-2">
-                        {isLoading ? (
-                            <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                <span>加载中...</span>
-                            </div>
-                        ) : filteredConversations.length === 0 ? (
-                            <div className="text-center text-foreground-secondary text-sm py-8">
-                                {searchQuery ? '未找到匹配的对话' : '暂无对话记录'}
-                            </div>
-                        ) : (
-                            <div className="space-y-1">
-                                {filteredConversations.map(conv => (
-                                    <div
-                                        key={conv.id}
-                                        className={`
-                                            group flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer
-                                            transition-colors text-sm
-                                            ${activeId === conv.id
-                                                ? 'bg-background-secondary'
-                                                : 'hover:bg-background-secondary'
-                                            }
-                                        `}
-                                        onClick={() => {
-                                            if (editingId !== conv.id) {
-                                                onSelect(conv.id);
-                                            }
-                                        }}
+                            const config = SOURCE_TYPE_CONFIG[type];
+                            const isCollapsed = collapsedGroups.has(type);
+                            const Icon = config.icon;
+
+                            return (
+                                <div key={type} className="mb-2">
+                                    {/* 分组标题 */}
+                                    <button
+                                        onClick={() => toggleGroup(type)}
+                                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground-secondary hover:text-foreground transition-colors"
                                     >
-                                        <MessageSquare className="w-4.5 h-4.5 flex-shrink-0" />
-
-                                        {editingId === conv.id ? (
-                                            <div className="flex-1 flex items-center gap-1 min-w-0">
-                                                <input
-                                                    type="text"
-                                                    value={editTitle}
-                                                    onChange={e => setEditTitle(e.target.value)}
-                                                    className="flex-1 min-w-0 px-2 py-1 text-sm bg-background border border-border rounded"
-                                                    onClick={e => e.stopPropagation()}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') handleSaveEdit();
-                                                        if (e.key === 'Escape') handleCancelEdit();
-                                                    }}
-                                                    autoFocus
-                                                />
-                                                <button
-                                                    onClick={e => { e.stopPropagation(); handleSaveEdit(); }}
-                                                    className="p-1.5 hover:bg-green-500/20 rounded flex-shrink-0"
-                                                >
-                                                    <Check className="w-4 h-4 text-green-500" />
-                                                </button>
-                                                <button
-                                                    onClick={e => { e.stopPropagation(); handleCancelEdit(); }}
-                                                    className="p-1.5 hover:bg-red-500/20 rounded flex-shrink-0"
-                                                >
-                                                    <X className="w-4 h-4 text-red-500" />
-                                                </button>
-                                            </div>
+                                        {isCollapsed ? (
+                                            <ChevronRight className="w-3 h-3" />
                                         ) : (
-                                            <>
-                                                <span className="flex-1 text-sm truncate min-w-0">
-                                                    {conv.title}
-                                                </span>
-                                                <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {onRename && (
-                                                        <button
-                                                            onClick={e => { e.stopPropagation(); handleStartEdit(conv); }}
-                                                            className="p-1.5 hover:bg-background-tertiary rounded"
-                                                        >
-                                                            <Pencil className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={e => { e.stopPropagation(); handleDeleteClick(conv.id); }}
-                                                        className="p-1.5 hover:bg-red-500/20 rounded"
-                                                    >
-                                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                                    </button>
-                                                </div>
-                                            </>
+                                            <ChevronDown className="w-3 h-3" />
                                         )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                        <span>{config.label}</span>
+                                        <span className="ml-auto text-foreground-tertiary">
+                                            {items.length}
+                                        </span>
+                                    </button>
 
-                {isHistoryCollapsed && <div className="flex-1" />}
+                                    {/* 分组内容 */}
+                                    {!isCollapsed && (
+                                        <div className="space-y-0.5 mt-1">
+                                            {items.map(conv => renderConversationItem(conv, config))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             </aside>
 
             {/* 删除确认弹窗 */}

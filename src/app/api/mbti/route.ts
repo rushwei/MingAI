@@ -143,7 +143,7 @@ ${basic.description}
                 }, { status: 500 });
             }
 
-            // 保存分析记录（使用服务端客户端绕过 RLS）
+            // 保存测试记录到 mbti_readings（不含 AI 分析）
             const serviceClient = getServiceClient();
             const { error: insertError } = await serviceClient
                 .from('mbti_readings')
@@ -152,16 +152,33 @@ ${basic.description}
                     mbti_type: type,
                     scores,
                     percentages,
-                    analysis,
                 });
 
             if (insertError) {
-                console.error('[mbti] 保存分析记录失败:', insertError.message);
+                console.error('[mbti] 保存测试记录失败:', insertError.message);
+            }
+
+            // 保存 AI 分析到 conversations 表
+            const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
+            const conversationId = await createAIAnalysisConversation({
+                userId: user.id,
+                sourceType: 'mbti',
+                sourceData: {
+                    mbti_type: type,
+                    scores,
+                    percentages,
+                },
+                title: generateMbtiTitle(type),
+                aiResponse: analysis,
+            });
+
+            if (!conversationId) {
+                console.error('[mbti] 保存 AI 分析对话失败');
             }
 
             return NextResponse.json({
                 success: true,
-                data: { analysis }
+                data: { analysis, conversationId }
             });
 
         } catch (aiError) {

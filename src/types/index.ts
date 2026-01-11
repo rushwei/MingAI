@@ -121,6 +121,8 @@ export interface MessageVersion {
     userContent: string;
     aiContent: string;
     createdAt: string;
+    // 编辑时被截断的后续消息（用于保留分支历史）
+    subsequentMessages?: ChatMessage[];
 }
 
 /** 聊天消息 */
@@ -133,7 +135,22 @@ export interface ChatMessage {
     // 版本支持（仅用户消息有效）
     versions?: MessageVersion[];      // 所有版本历史
     currentVersionIndex?: number;     // 当前显示的版本索引
+    // 命盘信息（仅AI消息）- 记录生成该消息时使用的命盘
+    chartInfo?: {
+        baziName?: string;
+        ziweiName?: string;
+    };
 }
+
+/** AI 分析来源类型 */
+export type ConversationSourceType =
+    | 'chat'           // 普通聊天
+    | 'bazi_wuxing'    // 八字五行分析
+    | 'bazi_personality' // 八字人格分析  
+    | 'tarot'          // 塔罗占卜
+    | 'liuyao'         // 六爻占卜
+    | 'mbti'           // MBTI 人格
+    | 'hepan';         // 合盘分析
 
 /** 对话会话 */
 export interface Conversation {
@@ -146,6 +163,9 @@ export interface Conversation {
     messages: ChatMessage[];
     createdAt: string;
     updatedAt: string;
+    // 新增：AI 分析来源
+    sourceType?: ConversationSourceType;
+    sourceData?: Record<string, unknown>;
 }
 
 // ===== 每日运势相关类型 =====
