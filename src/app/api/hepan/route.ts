@@ -137,30 +137,6 @@ ${conflictsSummary}
                     }, { status: 500 });
                 }
 
-                // 保存合盘记录到 hepan_charts（不含 AI 分析）
-                const serviceClient = getServiceClient();
-                await serviceClient
-                    .from('hepan_charts')
-                    .insert({
-                        user_id: user.id,
-                        type: result.type,
-                        person1_name: result.person1.name,
-                        person1_birth: {
-                            year: result.person1.year,
-                            month: result.person1.month,
-                            day: result.person1.day,
-                            hour: result.person1.hour,
-                        },
-                        person2_name: result.person2.name,
-                        person2_birth: {
-                            year: result.person2.year,
-                            month: result.person2.month,
-                            day: result.person2.day,
-                            hour: result.person2.hour,
-                        },
-                        compatibility_score: result.overallScore,
-                    });
-
                 // 保存 AI 分析到 conversations 表
                 const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai-analysis');
                 const conversationId = await createAIAnalysisConversation({
@@ -183,6 +159,31 @@ ${conflictsSummary}
                 if (!conversationId) {
                     console.error('[hepan] 保存 AI 分析对话失败');
                 }
+
+                // 保存合盘记录到 hepan_charts（不含 AI 分析）
+                const serviceClient = getServiceClient();
+                await serviceClient
+                    .from('hepan_charts')
+                    .insert({
+                        user_id: user.id,
+                        type: result.type,
+                        person1_name: result.person1.name,
+                        person1_birth: {
+                            year: result.person1.year,
+                            month: result.person1.month,
+                            day: result.person1.day,
+                            hour: result.person1.hour,
+                        },
+                        person2_name: result.person2.name,
+                        person2_birth: {
+                            year: result.person2.year,
+                            month: result.person2.month,
+                            day: result.person2.day,
+                            hour: result.person2.hour,
+                        },
+                        compatibility_score: result.overallScore,
+                        conversation_id: conversationId,
+                    });
 
                 return NextResponse.json({
                     success: true,

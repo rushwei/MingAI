@@ -143,21 +143,6 @@ ${basic.description}
                 }, { status: 500 });
             }
 
-            // 保存测试记录到 mbti_readings（不含 AI 分析）
-            const serviceClient = getServiceClient();
-            const { error: insertError } = await serviceClient
-                .from('mbti_readings')
-                .insert({
-                    user_id: user.id,
-                    mbti_type: type,
-                    scores,
-                    percentages,
-                });
-
-            if (insertError) {
-                console.error('[mbti] 保存测试记录失败:', insertError.message);
-            }
-
             // 保存 AI 分析到 conversations 表
             const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
             const conversationId = await createAIAnalysisConversation({
@@ -174,6 +159,22 @@ ${basic.description}
 
             if (!conversationId) {
                 console.error('[mbti] 保存 AI 分析对话失败');
+            }
+
+            // 保存测试记录到 mbti_readings（不含 AI 分析）
+            const serviceClient = getServiceClient();
+            const { error: insertError } = await serviceClient
+                .from('mbti_readings')
+                .insert({
+                    user_id: user.id,
+                    mbti_type: type,
+                    scores,
+                    percentages,
+                    conversation_id: conversationId,
+                });
+
+            if (insertError) {
+                console.error('[mbti] 保存测试记录失败:', insertError.message);
             }
 
             return NextResponse.json({

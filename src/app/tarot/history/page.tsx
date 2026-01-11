@@ -12,6 +12,7 @@ interface TarotReading {
     spread_id: string;
     question: string | null;
     cards: DrawnCard[];
+    conversation_id?: string | null;
     created_at: string;
 }
 
@@ -50,12 +51,22 @@ export default function TarotHistoryPage() {
     };
 
     const handleDelete = async (id: string) => {
+        const target = readings.find(r => r.id === id);
         const { error } = await supabase
             .from('tarot_readings')
             .delete()
             .eq('id', id);
 
         if (!error) {
+            if (target?.conversation_id) {
+                const { error: conversationError } = await supabase
+                    .from('conversations')
+                    .delete()
+                    .eq('id', target.conversation_id);
+                if (conversationError) {
+                    console.error('删除对话记录失败:', conversationError);
+                }
+            }
             setReadings(prev => prev.filter(r => r.id !== id));
         }
         setDeleteConfirmId(null);

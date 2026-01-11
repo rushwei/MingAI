@@ -39,31 +39,50 @@ export default function MBTIHistoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('mbti_readings')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
+        try {
+            const response = await fetch('/api/mbti/history', {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '加载历史记录失败');
+            }
+            setReadings(data.data || []);
+        } catch (error) {
             console.error('加载历史记录失败:', error);
-        } else {
-            setReadings(data || []);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleDelete = async (id: string) => {
-        const { error } = await supabase
-            .from('mbti_readings')
-            .delete()
-            .eq('id', id);
-
-        if (!error) {
-            setReadings(prev => prev.filter(r => r.id !== id));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+            router.push('/mbti');
+            return;
         }
-        setDeleteConfirmId(null);
+
+        try {
+            const response = await fetch('/api/mbti/history', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ id }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '删除失败');
+            }
+            setReadings(prev => prev.filter(r => r.id !== id));
+        } catch (error) {
+            console.error('删除历史记录失败:', error);
+        } finally {
+            setDeleteConfirmId(null);
+        }
     };
 
     const getPersonalityInfo = (type: MBTIType) => {

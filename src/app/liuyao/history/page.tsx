@@ -13,6 +13,7 @@ interface LiuyaoDivination {
     hexagram_code: string;
     changed_hexagram_code: string | null;
     changed_lines: number[] | null;
+    conversation_id?: string | null;
     created_at: string;
 }
 
@@ -51,12 +52,22 @@ export default function LiuyaoHistoryPage() {
     };
 
     const handleDelete = async (id: string) => {
+        const target = divinations.find(d => d.id === id);
         const { error } = await supabase
             .from('liuyao_divinations')
             .delete()
             .eq('id', id);
 
         if (!error) {
+            if (target?.conversation_id) {
+                const { error: conversationError } = await supabase
+                    .from('conversations')
+                    .delete()
+                    .eq('id', target.conversation_id);
+                if (conversationError) {
+                    console.error('删除对话记录失败:', conversationError);
+                }
+            }
             setDivinations(prev => prev.filter(d => d.id !== id));
         }
         setDeleteConfirmId(null);

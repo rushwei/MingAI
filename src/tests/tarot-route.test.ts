@@ -20,9 +20,19 @@ test('tarot route uses schema column names when inserting history', async (t) =>
 
     let inserted: Record<string, unknown> | null = null;
     const fakeClient = {
-        from: () => ({
-            insert: async (payload: Record<string, unknown>) => {
-                inserted = payload;
+        from: (table: string) => ({
+            insert: (payload: Record<string, unknown>) => {
+                if (table === 'tarot_readings') {
+                    inserted = payload;
+                    return { error: null };
+                }
+                if (table === 'conversations') {
+                    return {
+                        select: () => ({
+                            single: async () => ({ data: { id: 'conv-1' }, error: null }),
+                        }),
+                    };
+                }
                 return { error: null };
             },
         }),

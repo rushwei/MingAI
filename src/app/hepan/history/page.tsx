@@ -14,6 +14,7 @@ interface HepanChart {
     person2_name: string;
     person2_birth: { year: number; month: number; day: number };
     compatibility_score: number | null;
+    conversation_id?: string | null;
     created_at: string;
 }
 
@@ -58,12 +59,22 @@ export default function HepanHistoryPage() {
     };
 
     const handleDelete = async (id: string) => {
+        const target = charts.find(c => c.id === id);
         const { error } = await supabase
             .from('hepan_charts')
             .delete()
             .eq('id', id);
 
         if (!error) {
+            if (target?.conversation_id) {
+                const { error: conversationError } = await supabase
+                    .from('conversations')
+                    .delete()
+                    .eq('id', target.conversation_id);
+                if (conversationError) {
+                    console.error('删除对话记录失败:', conversationError);
+                }
+            }
             setCharts(prev => prev.filter(c => c.id !== id));
         }
         setDeleteConfirmId(null);

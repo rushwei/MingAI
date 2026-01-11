@@ -162,25 +162,12 @@ ${changedHexagram ? `上卦：${changedHexagram.upperTrigram}
                         }, { status: 500 });
                     }
 
-                    // 保存起卦记录到 liuyao_divinations（不含 AI 分析）
-                    const serviceClient = getServiceClient();
+                    // 保存 AI 分析到 conversations 表
+                    const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
                     const hexagramCode = yaos?.map(y => y.type).join('') || '';
                     const changedCode = changedHexagram ? yaos?.map((y, i) =>
                         changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type
                     ).join('') : null;
-
-                    await serviceClient
-                        .from('liuyao_divinations')
-                        .insert({
-                            user_id: user.id,
-                            question: question || '',
-                            hexagram_code: hexagramCode,
-                            changed_hexagram_code: changedCode,
-                            changed_lines: changedLines,
-                        });
-
-                    // 保存 AI 分析到 conversations 表
-                    const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
                     const conversationId = await createAIAnalysisConversation({
                         userId: user.id,
                         sourceType: 'liuyao',
@@ -199,6 +186,19 @@ ${changedHexagram ? `上卦：${changedHexagram.upperTrigram}
                     if (!conversationId) {
                         console.error('[liuyao] 保存 AI 分析对话失败');
                     }
+
+                    // 保存起卦记录到 liuyao_divinations（不含 AI 分析）
+                    const serviceClient = getServiceClient();
+                    await serviceClient
+                        .from('liuyao_divinations')
+                        .insert({
+                            user_id: user.id,
+                            question: question || '',
+                            hexagram_code: hexagramCode,
+                            changed_hexagram_code: changedCode,
+                            changed_lines: changedLines,
+                            conversation_id: conversationId,
+                        });
 
                     return NextResponse.json({
                         success: true,

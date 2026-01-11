@@ -198,21 +198,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         }, { status: 500 });
                     }
 
-                    // 保存抽牌记录到 tarot_readings（不含 AI 分析）
-                    const serviceClient = getServiceClient();
-                    const { error: insertError } = await serviceClient
-                        .from('tarot_readings')
-                        .insert({
-                            user_id: user.id,
-                            spread_id: spreadId || 'custom',
-                            question: question || null,
-                            cards: cards,
-                        });
-
-                    if (insertError) {
-                        console.error('[tarot] 保存抽牌记录失败:', insertError.message);
-                    }
-
                     // 保存 AI 分析到 conversations 表
                     const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
                     const conversationId = await createAIAnalysisConversation({
@@ -229,6 +214,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 
                     if (!conversationId) {
                         console.error('[tarot] 保存 AI 分析对话失败');
+                    }
+
+                    // 保存抽牌记录到 tarot_readings（不含 AI 分析）
+                    const serviceClient = getServiceClient();
+                    const { error: insertError } = await serviceClient
+                        .from('tarot_readings')
+                        .insert({
+                            user_id: user.id,
+                            spread_id: spreadId || 'custom',
+                            question: question || null,
+                            cards: cards,
+                            conversation_id: conversationId,
+                        });
+
+                    if (insertError) {
+                        console.error('[tarot] 保存抽牌记录失败:', insertError.message);
                     }
 
                     return NextResponse.json({
