@@ -13,8 +13,6 @@ CREATE TABLE public.bazi_charts (
   created_at timestamp with time zone DEFAULT now(),
   calendar_type text DEFAULT 'solar'::text,
   is_leap_month boolean DEFAULT false,
-  ai_wuxing_analysis text,
-  ai_personality_analysis text,
   CONSTRAINT bazi_charts_pkey PRIMARY KEY (id),
   CONSTRAINT bazi_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -28,6 +26,8 @@ CREATE TABLE public.conversations (
   messages jsonb DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  source_type text DEFAULT 'chat'::text,
+  source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT conversations_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id),
@@ -52,10 +52,11 @@ CREATE TABLE public.hepan_charts (
   person2_name text NOT NULL,
   person2_birth jsonb NOT NULL,
   compatibility_score integer,
-  ai_analysis text,
   created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
   CONSTRAINT hepan_charts_pkey PRIMARY KEY (id),
-  CONSTRAINT hepan_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT hepan_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT hepan_charts_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.liuyao_divinations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -64,10 +65,11 @@ CREATE TABLE public.liuyao_divinations (
   hexagram_code text NOT NULL,
   changed_hexagram_code text,
   changed_lines jsonb,
-  ai_interpretation text,
   created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
   CONSTRAINT liuyao_divinations_pkey PRIMARY KEY (id),
-  CONSTRAINT liuyao_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT liuyao_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT liuyao_divinations_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.login_attempts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -83,10 +85,11 @@ CREATE TABLE public.mbti_readings (
   mbti_type text NOT NULL,
   scores jsonb,
   percentages jsonb,
-  analysis text,
   created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
   CONSTRAINT mbti_readings_pkey PRIMARY KEY (id),
-  CONSTRAINT mbti_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT mbti_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT mbti_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -126,10 +129,11 @@ CREATE TABLE public.tarot_readings (
   spread_id text NOT NULL,
   question text,
   cards jsonb NOT NULL,
-  interpretation text,
   created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
   CONSTRAINT tarot_readings_pkey PRIMARY KEY (id),
-  CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT tarot_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.user_settings (
   user_id uuid NOT NULL,
