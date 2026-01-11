@@ -24,8 +24,9 @@ import {
 import Link from 'next/link';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
+import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
-import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, type MonthlyFortune } from '@/lib/fortune';
+import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, generateEnhancedKeyDates, type MonthlyFortune, type EnhancedKeyDate } from '@/lib/fortune';
 import type { BaziChart } from '@/types';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
@@ -44,6 +45,7 @@ function MonthlyPageContent() {
     const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
     const [loading, setLoading] = useState(true);
     const [showChartSelector, setShowChartSelector] = useState(false);
+    const [showTrendChart, setShowTrendChart] = useState(false);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -130,6 +132,27 @@ function MonthlyPageContent() {
         }
 
         return days;
+    }, [baziChart, year, month]);
+
+    // 计算月度趋势数据（用于趋势图）
+    const trendData = useMemo((): FortuneTrendDataPoint[] => {
+        if (!baziChart) return [];
+        const monthData = calculateMonthlyTrend(baziChart, year, month);
+        return monthData.map(d => ({
+            date: d.date,
+            fullDate: d.fullDate,
+            dayOfMonth: d.dayOfMonth,
+            scores: d.scores,
+            isKeyDate: d.isKeyDate,
+            keyDateType: d.keyDateType as 'lucky' | 'warning' | 'turning' | 'peak' | 'valley' | undefined,
+            keyDateDesc: d.keyDateDesc,
+        }));
+    }, [baziChart, year, month]);
+
+    // 计算增强版关键日期
+    const enhancedKeyDates = useMemo((): EnhancedKeyDate[] => {
+        if (!baziChart) return [];
+        return generateEnhancedKeyDates(baziChart, year, month);
     }, [baziChart, year, month]);
 
     const changeMonth = (delta: number) => {
@@ -272,6 +295,31 @@ function MonthlyPageContent() {
                 </div>
             )}
 
+            {/* 月度运势趋势图（仅个性化时显示） */}
+            {isPersonalized && trendData.length > 0 && (
+                <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
+                    <button
+                        onClick={() => setShowTrendChart(!showTrendChart)}
+                        className="w-full flex items-center justify-between"
+                    >
+                        <h2 className="font-semibold flex items-center gap-2">
+                            <Star className="w-4 h-4 text-accent" />
+                            月度运势曲线
+                        </h2>
+                        <ChevronDown className={`w-5 h-5 transition-transform ${showTrendChart ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showTrendChart && (
+                        <div className="mt-4">
+                            <FortuneTrendChart
+                                data={trendData}
+                                height={280}
+                                multiDimension={true}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* 运势热力图 */}
             <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
                 <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -318,30 +366,47 @@ function MonthlyPageContent() {
             </div>
 
             {/* 重点日期（仅个性化时显示） */}
-            {isPersonalized && fortune && fortune.keyDates.length > 0 && (
+            {isPersonalized && enhancedKeyDates.length > 0 && (
                 <div className="bg-background-secondary rounded-xl p-4 border border-border mb-6">
-                    <h2 className="font-semibold mb-3">本月关键日期</h2>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                        {fortune.keyDates.map(h => {
-                            const bgColor = h.type === 'lucky'
-                                ? 'bg-green-500/10 hover:bg-green-500/20'
-                                : h.type === 'warning'
-                                    ? 'bg-red-500/10 hover:bg-red-500/20'
-                                    : 'bg-amber-500/10 hover:bg-amber-500/20';
-                            const textColor = h.type === 'lucky'
+                    <h2 className="font-semibold mb-4">本月关键日期</h2>
+                    <div className="space-y-3">
+                        {enhancedKeyDates.map(h => {
+                            const bgColor = h.type === 'lucky' || h.type === 'peak'
+                                ? 'bg-green-500/10 border-green-500/20'
+                                : h.type === 'warning' || h.type === 'valley'
+                                    ? 'bg-red-500/10 border-red-500/20'
+                                    : 'bg-amber-500/10 border-amber-500/20';
+                            const textColor = h.type === 'lucky' || h.type === 'peak'
                                 ? 'text-green-600'
-                                : h.type === 'warning'
+                                : h.type === 'warning' || h.type === 'valley'
                                     ? 'text-red-600'
                                     : 'text-amber-600';
+                            const typeLabel = h.type === 'lucky' ? '吉日'
+                                : h.type === 'peak' ? '高峰'
+                                : h.type === 'valley' ? '低谷'
+                                : h.type === 'warning' ? '警惕'
+                                : '转折';
 
                             return (
                                 <Link
                                     key={h.date}
                                     href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.date).padStart(2, '0')}`}
-                                    className={`p-3 rounded-lg text-center transition-colors ${bgColor}`}
+                                    className={`block p-4 rounded-lg border transition-colors hover:opacity-90 ${bgColor}`}
                                 >
-                                    <div className={`text-2xl font-bold ${textColor}`}>{h.date}</div>
-                                    <div className="text-xs text-foreground-secondary">{h.desc}</div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="text-center flex-shrink-0">
+                                            <div className={`text-2xl font-bold ${textColor}`}>{h.date}</div>
+                                            <div className={`text-xs font-medium ${textColor}`}>{typeLabel}</div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-foreground mb-1">{h.summary}</div>
+                                            <div className="text-sm text-foreground-secondary">{h.recommendation}</div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <div className="text-sm text-foreground-secondary">综合</div>
+                                            <div className={`text-lg font-bold ${textColor}`}>{h.scores.overall}</div>
+                                        </div>
+                                    </div>
                                 </Link>
                             );
                         })}

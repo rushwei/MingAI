@@ -1,26 +1,69 @@
 /**
  * 六爻解卦结果页面
- * 
- * 显示卦象和 AI 解读
+ *
+ * 显示卦象和 AI 解读，包含传统六爻分析
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
+import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { type DivinationResult, type Hexagram, type Yao } from '@/lib/liuyao';
+import {
+    type DivinationResult,
+    type Hexagram,
+    type Yao,
+    type FullYaoInfo,
+    type YongShen,
+    type TimeRecommendation,
+    calculateFullYaoInfo,
+    determineYongShen,
+    calculateTimeRecommendations,
+    getDayStemForDate,
+    yaosTpCode,
+} from '@/lib/liuyao';
+import { getShiYingPosition } from '@/lib/eight-palaces';
+import { getHexagramText, type HexagramText } from '@/lib/hexagram-texts';
 import { supabase } from '@/lib/supabase';
 
 export default function ResultPage() {
     const router = useRouter();
     const [result, setResult] = useState<DivinationResult | null>(null);
+    const [divinationId, setDivinationId] = useState<string | null>(null); // 保存的起卦记录 ID
     const [interpretation, setInterpretation] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [user, setUser] = useState<{ id: string } | null | undefined>(undefined); // undefined = loading
+    const [showTraditional, setShowTraditional] = useState(true);
+
+    // 计算传统分析数据（使用起卦日期的日干）
+    const traditionalData = useMemo(() => {
+        if (!result) return null;
+
+        // 使用起卦日期计算日干，确保历史记录显示一致
+        const dayStem = getDayStemForDate(result.createdAt);
+        const hexagramCode = yaosTpCode(result.yaos);
+        const fullYaos = calculateFullYaoInfo(result.yaos, hexagramCode, dayStem);
+        const shiYing = getShiYingPosition(hexagramCode);
+        const yongShen = determineYongShen(result.question, fullYaos, shiYing);
+        const timeRecommendations = calculateTimeRecommendations(yongShen, fullYaos);
+        const hexagramText = getHexagramText(result.hexagram.name);
+        const changedHexagramText = result.changedHexagram
+            ? getHexagramText(result.changedHexagram.name)
+            : undefined;
+
+        return {
+            fullYaos,
+            yongShen,
+            timeRecommendations,
+            hexagramText,
+            changedHexagramText,
+            dayStem, // 返回日干供显示
+        };
+    }, [result]);
 
     useEffect(() => {
         // 获取用户状态
@@ -46,6 +89,8 @@ export default function ResultPage() {
                     changedLines: parsed.changedLines as number[],
                     createdAt: new Date(parsed.createdAt),
                 });
+                // 恢复 divinationId（用于 AI 解读时更新正确的记录）
+                setDivinationId(parsed.divinationId || null);
             } catch {
                 router.push('/liuyao');
             }
@@ -57,7 +102,7 @@ export default function ResultPage() {
     }, [router]);
 
     const handleGetInterpretation = async () => {
-        if (!result || !user) return;
+        if (!result || !user || !traditionalData) return;
 
         setIsLoading(true);
         setError(null);
@@ -76,6 +121,8 @@ export default function ResultPage() {
                     changedHexagram: result.changedHexagram,
                     changedLines: result.changedLines,
                     yaos: result.yaos,
+                    dayStem: traditionalData.dayStem, // 传递起卦日干，确保 AI 分析与 UI 一致
+                    divinationId: divinationId, // 使用 state 中的 divinationId
                 }),
             });
 
@@ -129,6 +176,20 @@ export default function ResultPage() {
                     </div>
                 )}
 
+                {/* 传统分析切换 */}
+                <div className="flex items-center justify-end mb-4">
+                    <button
+                        onClick={() => setShowTraditional(!showTraditional)}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${showTraditional
+                            ? 'bg-accent text-white'
+                            : 'bg-background-secondary text-foreground-secondary hover:text-foreground'
+                            }`}
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        传统分析
+                    </button>
+                </div>
+
                 {/* 卦象展示 */}
                 <div className="bg-background rounded-xl p-8 mb-8">
                     <HexagramDisplay
@@ -137,8 +198,29 @@ export default function ResultPage() {
                         changedHexagram={result.changedHexagram}
                         changedLines={result.changedLines}
                         showDetails={true}
+                        fullYaos={traditionalData?.fullYaos}
+                        showTraditional={showTraditional}
+                        yongShenPosition={traditionalData?.yongShen.position}
                     />
                 </div>
+
+                {/* 传统六爻分析 */}
+                {showTraditional && traditionalData && (
+                    <div className="bg-background-secondary rounded-xl p-6 mb-8">
+                        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <BookOpen className="w-5 h-5 text-accent" />
+                            传统六爻分析
+                        </h3>
+                        <TraditionalAnalysis
+                            fullYaos={traditionalData.fullYaos}
+                            yongShen={traditionalData.yongShen}
+                            timeRecommendations={traditionalData.timeRecommendations}
+                            hexagramText={traditionalData.hexagramText}
+                            changedHexagramText={traditionalData.changedHexagramText}
+                            changedLines={result.changedLines}
+                        />
+                    </div>
+                )}
 
                 {/* AI 解读区域 */}
                 <div className="bg-background-secondary rounded-xl p-6">

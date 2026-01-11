@@ -1,11 +1,12 @@
 /**
  * 卦象显示组件
- * 
+ *
  * 显示完整的六爻卦象，从下到上排列
+ * 支持传统六爻分析标签（六亲/六神/世应/用神）
  */
 'use client';
 
-import { type Yao, type Hexagram, getHexagramBrief } from '@/lib/liuyao';
+import { type Yao, type Hexagram, type FullYaoInfo, getHexagramBrief } from '@/lib/liuyao';
 import { YaoLine } from './YaoLine';
 
 interface HexagramDisplayProps {
@@ -15,6 +16,9 @@ interface HexagramDisplayProps {
     changedLines?: number[];
     showDetails?: boolean;
     size?: 'sm' | 'md' | 'lg';
+    fullYaos?: FullYaoInfo[];      // 完整爻信息（包含六亲/六神等）
+    showTraditional?: boolean;     // 是否显示传统标签
+    yongShenPosition?: number;     // 用神所在爻位
 }
 
 export function HexagramDisplay({
@@ -24,11 +28,30 @@ export function HexagramDisplay({
     changedLines = [],
     showDetails = true,
     size = 'md',
+    fullYaos,
+    showTraditional = false,
+    yongShenPosition,
 }: HexagramDisplayProps) {
     // 从上到下显示，所以反转数组
     const displayYaos = [...yaos].reverse();
+    const displayFullYaos = fullYaos ? [...fullYaos].reverse() : undefined;
     const yaoLabels = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
-    const rowHeight = 'h-4';
+    const rowHeight = 'h-5';
+
+    // 六神颜色映射
+    const liuShenColors: Record<string, string> = {
+        '青龙': 'text-green-500',
+        '朱雀': 'text-red-500',
+        '勾陈': 'text-yellow-600',
+        '螣蛇': 'text-purple-500',
+        '白虎': 'text-gray-500',
+        '玄武': 'text-blue-500',
+    };
+
+    // 根据是否显示传统标签决定列布局
+    const gridCols = showTraditional && displayFullYaos
+        ? 'grid-cols-[3rem_2.5rem_auto_2.5rem]'  // 爻位 | 六亲 | 卦象 | 六神
+        : 'grid-cols-[3rem_auto]';
 
     return (
         <div className="flex flex-col items-center gap-4">
@@ -36,8 +59,9 @@ export function HexagramDisplay({
             <div className="flex gap-8 items-start">
                 {/* 本卦 */}
                 <div className="flex flex-col items-center" data-hexagram="base">
-                    <div className="grid grid-cols-[3rem_auto] gap-x-2">
+                    <div className={`grid ${gridCols} gap-x-2`}>
                         <div />
+                        {showTraditional && displayFullYaos && <div />}
                         <div className="text-center mb-2 justify-self-center">
                             <span className="text-xs text-foreground-secondary">本卦</span>
                             <h3 className="text-lg font-semibold text-foreground mt-1">
@@ -47,6 +71,9 @@ export function HexagramDisplay({
                                 上{hexagram.upperTrigram} 下{hexagram.lowerTrigram} · {hexagram.element}
                             </p>
                         </div>
+                        {showTraditional && displayFullYaos && <div />}
+
+                        {/* 爻位标签列 */}
                         <div className="flex flex-col gap-1.5 items-end py-4">
                             {displayYaos.map((yao) => (
                                 <span
@@ -58,13 +85,74 @@ export function HexagramDisplay({
                                 </span>
                             ))}
                         </div>
+
+                        {/* 六亲列（传统模式） */}
+                        {showTraditional && displayFullYaos && (
+                            <div className="flex flex-col gap-1.5 items-center py-4">
+                                {displayFullYaos.map((yao) => (
+                                    <span
+                                        key={`liuqin-${yao.position}`}
+                                        className={`text-xs inline-flex items-center justify-center ${rowHeight} ${yao.position === yongShenPosition
+                                            ? 'text-accent font-bold'
+                                            : 'text-foreground-secondary'
+                                            }`}
+                                        title={yao.position === yongShenPosition ? '用神' : undefined}
+                                    >
+                                        {yao.liuQin}
+                                        {yao.position === yongShenPosition && (
+                                            <span className="ml-0.5 text-accent">★</span>
+                                        )}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 卦象列 */}
                         <div className="flex flex-col gap-1.5 p-4 bg-background rounded-lg w-fit justify-self-center">
-                            {displayYaos.map((yao) => (
-                                <div key={yao.position} className={`flex items-center justify-center ${rowHeight}`}>
-                                    <YaoLine yao={yao} size={size} />
-                                </div>
-                            ))}
+                            {displayYaos.map((yao, index) => {
+                                const fullYao = displayFullYaos?.[index];
+                                const isYongShen = fullYao?.position === yongShenPosition;
+                                return (
+                                    <div
+                                        key={yao.position}
+                                        className={`flex items-center justify-center ${rowHeight} relative ${isYongShen ? 'ring-1 ring-accent ring-offset-1 rounded' : ''
+                                            }`}
+                                    >
+                                        <YaoLine yao={yao} size={size} />
+                                        {/* 世应标记 */}
+                                        {showTraditional && fullYao && (
+                                            <>
+                                                {fullYao.isShiYao && (
+                                                    <span className="absolute -right-5 text-xs text-accent font-bold" title="世爻">
+                                                        世
+                                                    </span>
+                                                )}
+                                                {fullYao.isYingYao && (
+                                                    <span className="absolute -right-5 text-xs text-blue-500 font-bold" title="应爻">
+                                                        应
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
+
+                        {/* 六神列（传统模式） */}
+                        {showTraditional && displayFullYaos && (
+                            <div className="flex flex-col gap-1.5 items-center py-4">
+                                {displayFullYaos.map((yao) => (
+                                    <span
+                                        key={`liushen-${yao.position}`}
+                                        className={`text-xs inline-flex items-center justify-center ${rowHeight} ${liuShenColors[yao.liuShen] || 'text-foreground-secondary'}`}
+                                        title={yao.liuShen}
+                                    >
+                                        {yao.liuShen}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 

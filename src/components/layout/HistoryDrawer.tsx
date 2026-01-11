@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -24,16 +25,21 @@ const TYPE_CONFIG: Record<HistoryType, {
     label: string;
     tableName: string;
     historyPath: string;
+    detailPath: string;
+    sessionKey: string;
+    useTimestamp?: boolean; // 是否需要添加时间戳参数（用于同页面导航）
 }> = {
-    tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history' },
-    liuyao: { label: '六爻历史', tableName: 'liuyao_divinations', historyPath: '/liuyao/history' },
-    mbti: { label: 'MBTI历史', tableName: 'mbti_readings', historyPath: '/mbti/history' },
-    hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history' },
+    tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history', detailPath: '/tarot', sessionKey: 'tarot_result', useTimestamp: true },
+    liuyao: { label: '六爻历史', tableName: 'liuyao_divinations', historyPath: '/liuyao/history', detailPath: '/liuyao/result', sessionKey: 'liuyao_result' },
+    mbti: { label: 'MBTI历史', tableName: 'mbti_readings', historyPath: '/mbti/history', detailPath: '/mbti/result', sessionKey: 'mbti_result' },
+    hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
 };
 
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
+    const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [navigating, setNavigating] = useState<string | null>(null); // item id being navigated to
     const [items, setItems] = useState<HistoryItem[]>([]);
     const [userId, setUserId] = useState<string | null>(null);
 
@@ -98,6 +104,142 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    };
+
+    // 点击查看历史记录详情
+    const handleViewItem = async (itemId: string) => {
+        setNavigating(itemId);
+
+        try {
+            // 获取完整记录
+            const { data, error } = await supabase
+                .from(config.tableName)
+                .select('*')
+                .eq('id', itemId)
+                .single();
+
+            if (error || !data) {
+                console.error('Failed to fetch record:', error);
+                setNavigating(null);
+                return;
+            }
+
+            // 根据类型转换数据并存储
+            if (type === 'liuyao') {
+                // 重建六爻结果
+                const { findHexagram } = await import('@/lib/liuyao');
+
+                // 从 hexagram_code 重建 yaos
+                const hexagramCode = data.hexagram_code as string;
+                const changedLines = (data.changed_lines as number[]) || [];
+
+                // 重建 yaos 数据
+                const yaos = hexagramCode.split('').map((char, idx) => ({
+                    type: parseInt(char) as 0 | 1,
+                    change: changedLines.includes(idx + 1) ? 'changing' : 'stable' as const,
+                    position: idx + 1,
+                }));
+
+                const hexagram = findHexagram(hexagramCode);
+                const changedHexagram = data.changed_hexagram_code
+                    ? findHexagram(data.changed_hexagram_code as string)
+                    : undefined;
+
+                const sessionData = {
+                    question: data.question,
+                    yaos,
+                    hexagram,
+                    changedHexagram,
+                    changedLines,
+                    divinationId: data.id, // 包含记录 ID
+                    createdAt: data.created_at,
+                };
+
+                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+            } else if (type === 'mbti') {
+                // 重建 MBTI 结果 - 直接使用数据库中保存的 scores 和 percentages
+                const mbtiType = data.mbti_type as string;
+                const scores = data.scores || { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+                const percentages = data.percentages || {
+                    EI: { E: 50, I: 50 },
+                    SN: { S: 50, N: 50 },
+                    TF: { T: 50, F: 50 },
+                    JP: { J: 50, P: 50 },
+                };
+
+                const sessionData = {
+                    type: mbtiType,
+                    scores,
+                    percentages,
+                    readingId: data.id, // 包含记录 ID
+                };
+
+                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+            } else if (type === 'tarot') {
+                // 重建塔罗结果
+                const { TAROT_SPREADS } = await import('@/lib/tarot');
+
+                const spreadId = data.spread_id as string;
+                const spread = TAROT_SPREADS.find(s => s.id === spreadId);
+                const cards = data.cards as unknown[];
+
+                const sessionData = {
+                    spread,
+                    cards,
+                    question: data.question || '',
+                    readingId: data.id, // 包含记录 ID
+                    createdAt: data.created_at,
+                };
+
+                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+            } else if (type === 'hepan') {
+                // 优先使用保存的完整结果，避免重新计算（有随机性）
+                if (data.result_data) {
+                    // 包含 chartId 以便后续 AI 分析能更新正确的记录
+                    const resultWithId = {
+                        ...(data.result_data as object),
+                        chartId: data.id,
+                    };
+                    sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
+                } else {
+                    // 兼容旧数据：没有 result_data 时重新计算
+                    const { analyzeCompatibility } = await import('@/lib/hepan');
+
+                    const birth1 = data.person1_birth as { year: number; month: number; day: number; hour: number };
+                    const birth2 = data.person2_birth as { year: number; month: number; day: number; hour: number };
+
+                    const person1 = {
+                        name: data.person1_name as string,
+                        ...birth1,
+                    };
+                    const person2 = {
+                        name: data.person2_name as string,
+                        ...birth2,
+                    };
+                    const hepanType = data.type as 'love' | 'business' | 'family';
+
+                    const result = analyzeCompatibility(person1, person2, hepanType);
+                    // 包含 chartId
+                    const resultWithId = {
+                        ...result,
+                        chartId: data.id,
+                    };
+                    sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
+                }
+            }
+
+            // 关闭抽屉并导航
+            setIsOpen(false);
+            setNavigating(null); // 清除导航状态，避免组件不卸载时锁定列表
+            // 对于塔罗，添加时间戳参数确保 URL 变化触发重新加载
+            const targetPath = config.useTimestamp
+                ? `${config.detailPath}?from=history&t=${Date.now()}`
+                : config.detailPath;
+            router.push(targetPath);
+        } catch (err) {
+            console.error('Navigation error:', err);
+            setNavigating(null);
+        }
     };
 
     if (!userId) return null;
@@ -226,9 +368,15 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                 {items.map(item => (
                                     <div
                                         key={item.id}
-                                        className="group/item relative p-3 rounded-xl bg-foreground/5 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 border border-transparent hover:border-yellow-200 dark:hover:border-yellow-500/30 transition-all cursor-pointer overflow-hidden"
-                                        onClick={() => setIsOpen(false)}
+                                        className={`group/item relative p-3 rounded-xl bg-foreground/5 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 border border-transparent hover:border-yellow-200 dark:hover:border-yellow-500/30 transition-all cursor-pointer overflow-hidden ${navigating === item.id ? 'opacity-60' : ''}`}
+                                        onClick={() => !navigating && handleViewItem(item.id)}
                                     >
+                                        {/* 加载指示器 */}
+                                        {navigating === item.id && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
+                                                <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+                                            </div>
+                                        )}
                                         <div className="flex items-start gap-3 relative z-10">
                                             {/* 装饰点 */}
                                             <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-yellow-400/50 group-hover/item:bg-yellow-500 transition-colors shrink-0" />

@@ -19,6 +19,7 @@ import {
     type TestAnswer,
     type LikertValue,
 } from '@/lib/mbti';
+import { supabase } from '@/lib/supabase';
 
 const QUESTIONS_PER_PAGE = 10;
 
@@ -166,7 +167,7 @@ export function MBTITestFlow() {
         }
     };
 
-    const finishTest = () => {
+    const finishTest = async () => {
         if (answers.length < questions.length) {
             const unanswered = questions.length - answers.length;
             showToast('warning', `还有 ${unanswered} 道题未完成，请完成所有题目后再提交`);
@@ -178,8 +179,35 @@ export function MBTITestFlow() {
         // 计算结果
         const result = calculateResult(questions, answers);
 
-        // 存储结果到 sessionStorage
-        sessionStorage.setItem('mbti_result', JSON.stringify(result));
+        // 保存测试记录到数据库
+        let readingId: string | null = null;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+                const res = await fetch('/api/mbti', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        type: result.type,
+                        scores: result.scores,
+                        percentages: result.percentages,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success && data.data?.readingId) {
+                    readingId = data.data.readingId;
+                }
+            }
+        } catch (error) {
+            console.error('保存测试记录失败:', error);
+        }
+
+        // 存储结果到 sessionStorage（包含 readingId）
+        sessionStorage.setItem('mbti_result', JSON.stringify({ ...result, readingId }));
 
         // 延迟跳转
         setTimeout(() => {

@@ -5,7 +5,8 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
     Sparkles,
     Shuffle,
@@ -18,16 +19,21 @@ import {
     Eye,
     ArrowLeft,
     Gem,
+    Share2,
 } from 'lucide-react';
 import Image from 'next/image';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { TarotShareCard } from '@/components/tarot/TarotShareCard';
 
 type PageState = 'home' | 'select-spread' | 'drawing' | 'result';
 
 function TarotPageContent() {
+    const searchParams = useSearchParams();
+    const historyTimestamp = searchParams.get('t'); // 用于检测历史记录加载
+
     const [state, setState] = useState<PageState>('home');
     const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
     const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
@@ -38,12 +44,38 @@ function TarotPageContent() {
     const [dailyCard, setDailyCard] = useState<DrawnCard | null>(null);
     const [revealedCards, setRevealedCards] = useState<number[]>([]);
     const [isShuffling, setIsShuffling] = useState(false);
+    const [isViewingHistory, setIsViewingHistory] = useState(false);
+    const [readingId, setReadingId] = useState<string | null>(null); // 保存的抽牌记录 ID
 
     // 加载每日一牌
     useEffect(() => {
         const card = getDailyCard();
         setDailyCard(card);
     }, []);
+
+    // 检查是否有历史记录需要查看（监听 URL 参数变化）
+    useEffect(() => {
+        const storedResult = sessionStorage.getItem('tarot_result');
+        if (storedResult) {
+            try {
+                const parsed = JSON.parse(storedResult);
+                if (parsed.cards && parsed.spread) {
+                    // 恢复历史记录状态
+                    setSelectedSpread(parsed.spread);
+                    setDrawnCards(parsed.cards);
+                    setQuestion(parsed.question || '');
+                    setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i)); // 全部翻开
+                    setState('result');
+                    setIsViewingHistory(true);
+                    setReadingId(parsed.readingId || null); // 恢复 readingId
+                    // 清除 sessionStorage，避免重复加载
+                    sessionStorage.removeItem('tarot_result');
+                }
+            } catch {
+                // 解析失败，忽略
+            }
+        }
+    }, [historyTimestamp]); // 监听 URL 参数变化
 
     // 选择牌阵并抽牌
     const handleSelectSpread = async (spread: TarotSpread) => {
@@ -54,12 +86,20 @@ function TarotPageContent() {
         setInterpretation('');
 
         try {
+            // 获取用户 session 以便保存记录
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+
             const res = await fetch('/api/tarot', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'spread',
                     spreadId: spread.id,
+                    question: question || undefined,
                     allowReversed: true,
                 }),
             });
@@ -67,6 +107,7 @@ function TarotPageContent() {
 
             if (data.success && data.data?.cards) {
                 setDrawnCards(data.data.cards);
+                setReadingId(data.data.readingId || null);
                 setState('result');
             }
         } catch (error) {
@@ -111,6 +152,7 @@ function TarotPageContent() {
                     cards: drawnCards,
                     question: question || undefined,
                     spreadId: selectedSpread?.id,
+                    readingId: readingId || undefined,
                 }),
             });
 
@@ -127,23 +169,32 @@ function TarotPageContent() {
         }
     };
 
-    // 重新洗牌抽牌（保留当前牌阵，不刷新整个页面）
+    // 重新洗牌抽牌（保留当前牌阵，保存新记录）
     const handleReshuffle = async () => {
         if (!selectedSpread) return;
         setIsShuffling(true);
         setRevealedCards([]);
         setInterpretation('');
+        setIsViewingHistory(false); // 重新抽牌后不再是查看历史模式
 
         // 添加 0.5 秒延迟
         await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
+            // 获取用户 session 以便保存记录
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+
             const res = await fetch('/api/tarot', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'spread',
                     spreadId: selectedSpread.id,
+                    question: question || undefined,
                     allowReversed: true,
                 }),
             });
@@ -151,6 +202,7 @@ function TarotPageContent() {
 
             if (data.success && data.data?.cards) {
                 setDrawnCards(data.data.cards);
+                setReadingId(data.data.readingId || null); // 更新为新的 readingId
             }
         } catch (error) {
             console.error('重新抽牌失败:', error);
@@ -166,6 +218,11 @@ function TarotPageContent() {
         setDrawnCards([]);
         setInterpretation('');
         setRevealedCards([]);
+        setIsViewingHistory(false);
+        // 如果是从历史记录进入的，返回时清除问题，避免污染首页输入框
+        if (isViewingHistory) {
+            setQuestion('');
+        }
     };
 
     // ===== 首页 =====
@@ -442,6 +499,22 @@ function TarotPageContent() {
                     )}
                 </div>
             )}
+
+            {/* 分享卡片 */}
+            {revealedCards.length === drawnCards.length && selectedSpread && (
+                <div className="mt-6">
+                    <h2 className="font-semibold mb-3 flex items-center gap-2">
+                        <Share2 className="w-4 h-4 text-accent" />
+                        分享结果
+                    </h2>
+                    <TarotShareCard
+                        cards={drawnCards}
+                        spread={selectedSpread}
+                        question={question || undefined}
+                        interpretation={interpretation || undefined}
+                    />
+                </div>
+            )}
         </div>
     );
 }
@@ -451,7 +524,9 @@ export default function TarotPage() {
     const { HistoryDrawer } = require('@/components/layout/HistoryDrawer');
     return (
         <LoginOverlay message="登录后体验塔罗占卜">
-            <TarotPageContent />
+            <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" /></div>}>
+                <TarotPageContent />
+            </Suspense>
             <HistoryDrawer type="tarot" />
         </LoginOverlay>
     );

@@ -3,14 +3,20 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, RotateCw, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, RotateCw, Sparkles, Loader2, TrendingUp, ChevronDown, Lightbulb } from 'lucide-react';
 import { CompatibilityChart } from '@/components/hepan/CompatibilityChart';
 import { ConflictPoints } from '@/components/hepan/ConflictPoints';
+import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/components/hepan/CompatibilityTrendChart';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
+import {
+    type HepanResult,
+    getHepanTypeName,
+    calculateCompatibilityTrend,
+    getRelationshipAdvice,
+} from '@/lib/hepan';
 import { supabase } from '@/lib/supabase';
 
 export default function HepanResultPage() {
@@ -20,6 +26,8 @@ export default function HepanResultPage() {
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
     const [loadingAI, setLoadingAI] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [trendPeriod, setTrendPeriod] = useState<6 | 12>(6);
+    const [showTrendChart, setShowTrendChart] = useState(false);
 
     useEffect(() => {
         // 获取用户状态
@@ -44,6 +52,34 @@ export default function HepanResultPage() {
         }
     }, [router]);
 
+    // 计算走势数据（保存原始数据以便复用）
+    const rawTrendData = useMemo(() => {
+        if (!result) return [];
+        return calculateCompatibilityTrend(
+            result.person1,
+            result.person2,
+            result.type,
+            trendPeriod
+        );
+    }, [result, trendPeriod]);
+
+    // 转换为图表所需格式
+    const trendData = useMemo((): CompatibilityTrendPoint[] => {
+        return rawTrendData.map(t => ({
+            month: t.month,
+            fullMonth: t.fullMonth,
+            score: t.score,
+            dimension: t.dimension,
+            event: t.event,
+        }));
+    }, [rawTrendData]);
+
+    // 获取关系发展建议（复用已计算的趋势数据）
+    const relationshipAdvice = useMemo(() => {
+        if (!result || rawTrendData.length === 0) return [];
+        return getRelationshipAdvice(rawTrendData, result.type);
+    }, [result, rawTrendData]);
+
     const handleGetAIAnalysis = async () => {
         if (!result || !user) return;
 
@@ -60,6 +96,7 @@ export default function HepanResultPage() {
                 body: JSON.stringify({
                     action: 'analyze',
                     result,
+                    chartId: (result as unknown as { chartId?: string }).chartId,
                 }),
             });
 
@@ -113,9 +150,56 @@ export default function HepanResultPage() {
                     />
                 </div>
 
+                {/* 走势曲线 */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => setShowTrendChart(!showTrendChart)}
+                        className="w-full flex items-center justify-between p-4 bg-background-secondary rounded-xl border border-border mb-2"
+                    >
+                        <span className="font-semibold flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-accent" />
+                            未来走势分析
+                        </span>
+                        <ChevronDown
+                            className={`w-5 h-5 transition-transform ${showTrendChart ? 'rotate-180' : ''}`}
+                        />
+                    </button>
+
+                    {showTrendChart && (
+                        <div className="space-y-4">
+                            <CompatibilityTrendChart
+                                data={trendData}
+                                period={trendPeriod}
+                                onPeriodChange={setTrendPeriod}
+                            />
+
+                            {/* 发展建议 */}
+                            {relationshipAdvice.length > 0 && (
+                                <div className="bg-background-secondary rounded-xl p-4 border border-border">
+                                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                                        <Lightbulb className="w-4 h-4 text-accent" />
+                                        发展建议
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {relationshipAdvice.map((advice, idx) => (
+                                            <li
+                                                key={idx}
+                                                className="text-sm text-foreground-secondary flex items-start gap-2"
+                                            >
+                                                <span className="text-accent mt-0.5">•</span>
+                                                {advice}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* 冲突点 */}
                 <div className="mb-8">
-                    <ConflictPoints conflicts={result.conflicts} />
+                    <ConflictPoints conflicts={result.conflicts} hepanType={result.type} />
                 </div>
 
                 {/* AI 深度分析 */}
@@ -176,7 +260,7 @@ export default function HepanResultPage() {
                 <div className="flex justify-center">
                     <Link
                         href="/hepan"
-                        className="inline-flex items-center gap-2 px-6 py-3 
+                        className="inline-flex items-center gap-2 px-6 py-3
                             bg-background-secondary text-foreground rounded-lg
                             hover:bg-background-secondary/80 transition-all"
                     >

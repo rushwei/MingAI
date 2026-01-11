@@ -64,7 +64,7 @@ function HepanCreateContent() {
         setPickerOpen(null);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         // 验证必填字段
         if (!person1.name || !person1.year || !person1.month || !person1.day || person1.hour === undefined) {
             alert('请填写完整的第一人信息');
@@ -84,8 +84,33 @@ function HepanCreateContent() {
             type
         );
 
-        // 存储结果
-        sessionStorage.setItem('hepan_result', JSON.stringify(result));
+        // 保存合盘记录到数据库
+        let chartId: string | null = null;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+                const res = await fetch('/api/hepan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        result,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success && data.data?.chartId) {
+                    chartId = data.data.chartId;
+                }
+            }
+        } catch (error) {
+            console.error('保存合盘记录失败:', error);
+        }
+
+        // 存储结果（包含 chartId）
+        sessionStorage.setItem('hepan_result', JSON.stringify({ ...result, chartId }));
 
         // 跳转结果页
         setTimeout(() => {

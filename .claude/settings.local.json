@@ -3,7 +3,12 @@
     "allow": [
       "Skill(superpowers:brainstorming)",
       "WebSearch",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm build:*)",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration"
     ]
   },
   "enableAllProjectMcpServers": true,

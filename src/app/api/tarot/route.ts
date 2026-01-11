@@ -17,6 +17,7 @@ interface TarotRequest {
     question?: string;
     cards?: DrawnCard[];
     allowReversed?: boolean;
+    readingId?: string; // 已保存的抽牌记录 ID，用于关联 AI 解读
 }
 
 // 响应类型
@@ -70,7 +71,7 @@ async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise
 export async function POST(request: NextRequest): Promise<NextResponse<TarotResponse>> {
     try {
         const body: TarotRequest = await request.json();
-        const { action, spreadId, count = 1, question, cards, allowReversed = true } = body;
+        const { action, spreadId, count = 1, question, cards, allowReversed = true, readingId } = body;
 
         switch (action) {
             // 获取所有牌阵列表
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 });
 
             // 按牌阵抽牌
-            case 'spread':
+            case 'spread': {
                 if (!spreadId) {
                     return NextResponse.json({
                         success: false,
@@ -118,13 +119,44 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         error: '未找到指定牌阵'
                     }, { status: 404 });
                 }
+
+                // 如果用户已登录，保存抽牌记录
+                let readingId: string | null = null;
+                const spreadAuthHeader = request.headers.get('authorization');
+                if (spreadAuthHeader) {
+                    const spreadToken = spreadAuthHeader.replace('Bearer ', '');
+                    const { data: { user: spreadUser } } = await supabase.auth.getUser(spreadToken);
+
+                    if (spreadUser) {
+                        const serviceClient = getServiceClient();
+                        const { data: insertedReading, error: insertError } = await serviceClient
+                            .from('tarot_readings')
+                            .insert({
+                                user_id: spreadUser.id,
+                                spread_id: spreadId,
+                                question: question || null,
+                                cards: spreadResult.cards,
+                            })
+                            .select('id')
+                            .single();
+
+                        if (insertError) {
+                            console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                        } else {
+                            readingId = insertedReading?.id;
+                        }
+                    }
+                }
+
                 return NextResponse.json({
                     success: true,
                     data: {
                         spread: spreadResult.spread,
-                        cards: spreadResult.cards
+                        cards: spreadResult.cards,
+                        readingId,
                     }
                 });
+            }
 
             // AI 解读塔罗牌
             case 'interpret':
@@ -216,20 +248,34 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         console.error('[tarot] 保存 AI 分析对话失败');
                     }
 
-                    // 保存抽牌记录到 tarot_readings（不含 AI 分析）
+                    // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
                     const serviceClient = getServiceClient();
-                    const { error: insertError } = await serviceClient
-                        .from('tarot_readings')
-                        .insert({
-                            user_id: user.id,
-                            spread_id: spreadId || 'custom',
-                            question: question || null,
-                            cards: cards,
-                            conversation_id: conversationId,
-                        });
+                    if (readingId) {
+                        // 更新已有记录
+                        const { error: updateError } = await serviceClient
+                            .from('tarot_readings')
+                            .update({ conversation_id: conversationId })
+                            .eq('id', readingId)
+                            .eq('user_id', user.id);
 
-                    if (insertError) {
-                        console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                        if (updateError) {
+                            console.error('[tarot] 更新抽牌记录失败:', updateError.message);
+                        }
+                    } else {
+                        // 兼容旧调用：插入新记录
+                        const { error: insertError } = await serviceClient
+                            .from('tarot_readings')
+                            .insert({
+                                user_id: user.id,
+                                spread_id: spreadId || 'custom',
+                                question: question || null,
+                                cards: cards,
+                                conversation_id: conversationId,
+                            });
+
+                        if (insertError) {
+                            console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                        }
                     }
 
                     return NextResponse.json({

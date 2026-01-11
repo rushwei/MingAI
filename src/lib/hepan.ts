@@ -1,8 +1,10 @@
 /**
  * 关系合盘核心库
- * 
+ *
  * 包含八字合盘算法、五行生克分析、兼容性评估
  */
+
+import { getConflictTriggers } from './communication-templates';
 
 // 合盘类型
 export type HepanType = 'love' | 'business' | 'family';
@@ -41,12 +43,34 @@ export interface CompatibilityDimension {
     description: string;
 }
 
-// 冲突点
+// 冲突触发因素（从 communication-templates 导入类型）
+export interface TriggerFactor {
+    scenario: string;    // 触发情境
+    trigger: string;     // 触发行为
+    warning: string;     // 警示信息
+    prevention: string;  // 预防建议
+}
+
+// 冲突点（增强版）
 export interface ConflictPoint {
     title: string;
     severity: 'low' | 'medium' | 'high';
     description: string;
     suggestion: string;
+    triggerFactors?: TriggerFactor[];  // 冲突触发因素
+}
+
+// 月度兼容性趋势点
+export interface MonthlyCompatibilityTrend {
+    month: string;           // 月份标签 (e.g., "1月")
+    fullMonth: string;       // 完整日期 (e.g., "2024-01")
+    score: number;           // 综合兼容性分数
+    dimension: {
+        wuxing: number;      // 五行配合
+        communication: number; // 沟通契合
+        emotion: number;     // 情感共鸣
+    };
+    event?: string;          // 特殊事件提示
 }
 
 // 合盘结果
@@ -265,6 +289,7 @@ export function analyzeCompatibility(
                 severity: 'medium',
                 description: `${bazi1.dominantWuxing}克${bazi2.dominantWuxing}，可能存在无意识的压制`,
                 suggestion: '多包容理解，避免强势态度',
+                triggerFactors: getConflictTriggers('五行相克'),
             });
             break;
         case 'bei_ke':
@@ -275,6 +300,7 @@ export function analyzeCompatibility(
                 severity: 'medium',
                 description: `${bazi2.dominantWuxing}克${bazi1.dominantWuxing}，${person1.name}可能感到压力`,
                 suggestion: '给予对方足够的个人空间',
+                triggerFactors: getConflictTriggers('五行被克'),
             });
             break;
         default:
@@ -305,6 +331,7 @@ export function analyzeCompatibility(
             severity: 'high',
             description: `${dayZhi1}与${dayZhi2}相冲，日常相处可能产生摩擦`,
             suggestion: '增加沟通，学会换位思考',
+            triggerFactors: getConflictTriggers('日支相冲'),
         });
     } else {
         dayScore = 65;
@@ -403,4 +430,149 @@ export function getCompatibilityLevel(score: number): { level: string; color: st
     if (score >= 65) return { level: '良好', color: 'text-blue-500' };
     if (score >= 50) return { level: '一般', color: 'text-yellow-500' };
     return { level: '需注意', color: 'text-red-500' };
+}
+
+/**
+ * 计算兼容性走势
+ *
+ * 基于双方八字与流月的关系，预测未来6/12个月的兼容性变化
+ */
+export function calculateCompatibilityTrend(
+    person1: BirthInfo,
+    person2: BirthInfo,
+    type: HepanType,
+    months: 6 | 12
+): MonthlyCompatibilityTrend[] {
+    const bazi1 = calculateBaZi(person1);
+    const bazi2 = calculateBaZi(person2);
+    const result: MonthlyCompatibilityTrend[] = [];
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    for (let i = 0; i < months; i++) {
+        let targetMonth = currentMonth + i;
+        let targetYear = currentYear;
+
+        if (targetMonth > 12) {
+            targetMonth -= 12;
+            targetYear++;
+        }
+
+        // 获取该月的月柱
+        const monthPillar = getMonthPillar(targetYear, targetMonth);
+        const monthElement = GAN_WUXING[monthPillar.gan];
+
+        // 计算流月与双方八字的关系
+        const relation1 = calculateWuxingRelation(bazi1.dominantWuxing, monthElement);
+        const relation2 = calculateWuxingRelation(bazi2.dominantWuxing, monthElement);
+
+        // 基础分计算
+        let baseScore = 65;
+        const relationScores: Record<string, number> = {
+            'sheng': 8,      // 生月，能量输出
+            'bei_sheng': 12, // 被月生，得到滋养
+            'ke': -5,        // 克月，消耗
+            'bei_ke': -10,   // 被月克，压力
+            'neutral': 0,
+        };
+
+        baseScore += (relationScores[relation1] || 0) + (relationScores[relation2] || 0);
+
+        // 检查流月地支与日支的关系
+        const monthZhi = monthPillar.zhi;
+        let event: string | undefined;
+
+        // 检查六合
+        if (ZHI_LIUHE[bazi1.dayZhi] === monthZhi || ZHI_LIUHE[bazi2.dayZhi] === monthZhi) {
+            baseScore += 8;
+            event = '贵人月，关系和谐';
+        }
+
+        // 检查相冲
+        if (ZHI_CHONG[bazi1.dayZhi] === monthZhi) {
+            baseScore -= 6;
+            event = `${person1.name}冲月，需多关照`;
+        }
+        if (ZHI_CHONG[bazi2.dayZhi] === monthZhi) {
+            baseScore -= 6;
+            event = event
+                ? '双方均遇冲月，需多沟通'
+                : `${person2.name}冲月，需多关照`;
+        }
+
+        // 添加季节性波动（模拟真实关系的自然起伏）
+        const seed = targetYear * 100 + targetMonth + person1.year + person2.year;
+        const seasonalVariation = Math.sin(seed * 0.1) * 5;
+        baseScore += seasonalVariation;
+
+        // 确保分数在合理范围
+        const score = Math.max(35, Math.min(95, Math.round(baseScore)));
+
+        // 计算各维度分数
+        const wuxingScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 10)));
+        const communicationScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 12)));
+        const emotionScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 8)));
+
+        result.push({
+            month: `${targetMonth}月`,
+            fullMonth: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
+            score,
+            dimension: {
+                wuxing: wuxingScore,
+                communication: communicationScore,
+                emotion: emotionScore,
+            },
+            event,
+        });
+    }
+
+    return result;
+}
+
+/**
+ * 获取关系发展建议
+ */
+export function getRelationshipAdvice(
+    trend: MonthlyCompatibilityTrend[],
+    type: HepanType
+): string[] {
+    const advice: string[] = [];
+
+    // 分析趋势
+    const firstHalf = trend.slice(0, Math.floor(trend.length / 2));
+    const secondHalf = trend.slice(Math.floor(trend.length / 2));
+    const firstAvg = firstHalf.reduce((sum, t) => sum + t.score, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((sum, t) => sum + t.score, 0) / secondHalf.length;
+
+    if (secondAvg > firstAvg + 5) {
+        advice.push('整体运势呈上升趋势，后期发展更为顺利');
+    } else if (secondAvg < firstAvg - 5) {
+        advice.push('后期运势有所回落，建议提前储备感情基础');
+    }
+
+    // 找出高峰期
+    const peakMonths = trend.filter(t => t.score >= 75);
+    if (peakMonths.length > 0) {
+        const peakNames = peakMonths.slice(0, 3).map(p => p.month).join('、');
+        advice.push(`${peakNames}为关系高峰期，适合共同规划重要事项`);
+    }
+
+    // 找出低谷期
+    const valleyMonths = trend.filter(t => t.score < 55);
+    if (valleyMonths.length > 0) {
+        const valleyNames = valleyMonths.slice(0, 2).map(v => v.month).join('、');
+        advice.push(`${valleyNames}需要更多耐心和理解，避免重大决策`);
+    }
+
+    // 根据类型添加特定建议
+    const typeAdvice: Record<HepanType, string> = {
+        love: '保持日常小惊喜，定期安排约会时间',
+        business: '重要决策选择高分月份，低谷期专注内部优化',
+        family: '高峰期多互动交流，低谷期给予空间',
+    };
+    advice.push(typeAdvice[type]);
+
+    return advice;
 }

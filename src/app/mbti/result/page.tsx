@@ -101,6 +101,7 @@ function MBTIResultContent() {
                     type: result.type,
                     scores: result.scores,
                     percentages: result.percentages,
+                    readingId: (result as unknown as { readingId?: string }).readingId,
                 }),
             });
 

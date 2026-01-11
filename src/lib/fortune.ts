@@ -39,6 +39,15 @@ export interface MonthlyFortune extends FortuneScores {
     keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[];
 }
 
+// 增强的关键日期接口
+export interface EnhancedKeyDate {
+    date: number;
+    type: 'lucky' | 'warning' | 'turning' | 'peak' | 'valley';
+    scores: FortuneScores;
+    summary: string;          // 关键日摘要
+    recommendation: string;   // 具体建议
+}
+
 // ===== 常量 =====
 
 /** 五行相生相克权重 */
@@ -442,5 +451,222 @@ function generateKeyDates(baziChart: BaziChart, year: number, month: number): { 
     keyDates.sort((a, b) => a.date - b.date);
 
     return keyDates.slice(0, 8);
+}
+
+/**
+ * 生成增强版关键日期（含详细摘要和建议）
+ */
+export function generateEnhancedKeyDates(baziChart: BaziChart, year: number, month: number): EnhancedKeyDate[] {
+    const enhancedKeyDates: EnhancedKeyDate[] = [];
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // 计算所有天的运势
+    const dailyScores: { day: number; scores: FortuneScores; tenGod: string }[] = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const fortune = calculateDailyFortune(baziChart, date);
+        dailyScores.push({
+            day,
+            scores: {
+                overall: fortune.overall,
+                career: fortune.career,
+                love: fortune.love,
+                wealth: fortune.wealth,
+                health: fortune.health,
+                social: fortune.social,
+            },
+            tenGod: fortune.tenGod,
+        });
+    }
+
+    // 识别局部极值（峰值和谷值）
+    for (let i = 1; i < dailyScores.length - 1; i++) {
+        const prev = dailyScores[i - 1];
+        const curr = dailyScores[i];
+        const next = dailyScores[i + 1];
+
+        // 检测峰值（局部最大）
+        if (curr.scores.overall > prev.scores.overall && curr.scores.overall > next.scores.overall && curr.scores.overall >= 78) {
+            enhancedKeyDates.push({
+                date: curr.day,
+                type: 'peak',
+                scores: curr.scores,
+                summary: `运势高峰日，综合运势达${curr.scores.overall}分`,
+                recommendation: '把握这天的好运势，适合推进重要事项，做出关键决策。',
+            });
+        }
+
+        // 检测谷值（局部最小）
+        if (curr.scores.overall < prev.scores.overall && curr.scores.overall < next.scores.overall && curr.scores.overall <= 62) {
+            enhancedKeyDates.push({
+                date: curr.day,
+                type: 'valley',
+                scores: curr.scores,
+                summary: `运势低谷日，综合运势仅${curr.scores.overall}分`,
+                recommendation: '今日宜静不宜动，避免重大决策，以休息调整为主。',
+            });
+        }
+    }
+
+    // 识别大吉日（高分日）
+    for (const score of dailyScores) {
+        if (score.scores.overall >= 88) {
+            if (!enhancedKeyDates.find(k => k.date === score.day)) {
+                enhancedKeyDates.push({
+                    date: score.day,
+                    type: 'lucky',
+                    scores: score.scores,
+                    summary: `大吉日！综合运势高达${score.scores.overall}分`,
+                    recommendation: '天时地利人和，诸事皆宜，可大胆行动。',
+                });
+            }
+        }
+    }
+
+    // 识别特殊运势日
+    for (const score of dailyScores) {
+        if (enhancedKeyDates.length >= 12) break;
+        if (enhancedKeyDates.find(k => k.date === score.day)) continue;
+
+        if (score.scores.wealth >= 90) {
+            enhancedKeyDates.push({
+                date: score.day,
+                type: 'lucky',
+                scores: score.scores,
+                summary: `财运大吉日，财运高达${score.scores.wealth}分`,
+                recommendation: '财运亨通，适合投资理财、谈判签约、商业活动。',
+            });
+        } else if (score.scores.career >= 90) {
+            enhancedKeyDates.push({
+                date: score.day,
+                type: 'lucky',
+                scores: score.scores,
+                summary: `事业吉日，事业运达${score.scores.career}分`,
+                recommendation: '事业运旺，适合面试、汇报、争取晋升机会。',
+            });
+        } else if (score.scores.love >= 90) {
+            enhancedKeyDates.push({
+                date: score.day,
+                type: 'lucky',
+                scores: score.scores,
+                summary: `桃花日，感情运达${score.scores.love}分`,
+                recommendation: '桃花运旺，适合表白、约会、增进感情。',
+            });
+        }
+    }
+
+    // 识别运势转折点
+    for (let i = 2; i < dailyScores.length; i++) {
+        if (enhancedKeyDates.length >= 14) break;
+
+        const prev2 = dailyScores[i - 2];
+        const prev1 = dailyScores[i - 1];
+        const curr = dailyScores[i];
+
+        // 检测运势连续上升（谷底回升）
+        if (prev2.scores.overall < 65 && prev1.scores.overall < 70 && curr.scores.overall >= 75) {
+            if (!enhancedKeyDates.find(k => k.date === curr.day)) {
+                enhancedKeyDates.push({
+                    date: curr.day,
+                    type: 'turning',
+                    scores: curr.scores,
+                    summary: `转运日！运势开始回升至${curr.scores.overall}分`,
+                    recommendation: '否极泰来，运势开始好转，可逐步恢复行动节奏。',
+                });
+            }
+        }
+
+        // 检测运势急剧下降（需警惕）
+        if (prev2.scores.overall >= 75 && prev1.scores.overall >= 70 && curr.scores.overall < 60) {
+            if (!enhancedKeyDates.find(k => k.date === curr.day)) {
+                enhancedKeyDates.push({
+                    date: curr.day,
+                    type: 'warning',
+                    scores: curr.scores,
+                    summary: `运势骤降日，综合运势跌至${curr.scores.overall}分`,
+                    recommendation: '运势转弱，宜谨慎行事，避免冲动决策和大额支出。',
+                });
+            }
+        }
+    }
+
+    // 按日期排序
+    enhancedKeyDates.sort((a, b) => a.date - b.date);
+
+    return enhancedKeyDates.slice(0, 10);
+}
+
+/**
+ * 计算周趋势数据（用于趋势图）
+ */
+export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] {
+    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] = [];
+
+    for (let offset = -3; offset <= 3; offset++) {
+        const date = new Date(centerDate);
+        date.setDate(date.getDate() + offset);
+
+        const fortune = calculateDailyFortune(baziChart, date);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+
+        result.push({
+            date: `${month}/${day}`,
+            fullDate: fortune.date,
+            dayOfMonth: day,
+            scores: {
+                overall: fortune.overall,
+                career: fortune.career,
+                love: fortune.love,
+                wealth: fortune.wealth,
+                health: fortune.health,
+                social: fortune.social,
+            },
+        });
+    }
+
+    return result;
+}
+
+/**
+ * 计算月度趋势数据（用于趋势图）
+ */
+export function calculateMonthlyTrend(
+    baziChart: BaziChart,
+    year: number,
+    month: number
+): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] = [];
+
+    // 先获取增强的关键日期
+    const enhancedKeyDates = generateEnhancedKeyDates(baziChart, year, month);
+    const keyDateMap = new Map(enhancedKeyDates.map(k => [k.date, k]));
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const fortune = calculateDailyFortune(baziChart, date);
+        const keyDate = keyDateMap.get(day);
+
+        result.push({
+            date: `${month}/${day}`,
+            fullDate: fortune.date,
+            dayOfMonth: day,
+            scores: {
+                overall: fortune.overall,
+                career: fortune.career,
+                love: fortune.love,
+                wealth: fortune.wealth,
+                health: fortune.health,
+                social: fortune.social,
+            },
+            isKeyDate: !!keyDate,
+            keyDateType: keyDate?.type,
+            keyDateDesc: keyDate?.summary,
+        });
+    }
+
+    return result;
 }
 

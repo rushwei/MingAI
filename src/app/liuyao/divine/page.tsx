@@ -1,6 +1,6 @@
 /**
  * 六爻起卦页面
- * 
+ *
  * 铜钱起卦交互
  */
 'use client';
@@ -11,6 +11,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram } from '@/lib/liuyao';
+import { supabase } from '@/lib/supabase';
 
 export default function DivinePage() {
     const router = useRouter();
@@ -23,7 +24,7 @@ export default function DivinePage() {
         setQuestion(storedQuestion);
     }, []);
 
-    const handleComplete = (yaos: Yao[], results: CoinTossResult[]) => {
+    const handleComplete = async (yaos: Yao[], results: CoinTossResult[]) => {
         setIsComplete(true);
 
         // 计算卦象
@@ -32,6 +33,34 @@ export default function DivinePage() {
         const { changedCode, changedLines } = calculateChangedHexagram(yaos);
         const changedHexagram = changedLines.length > 0 ? findHexagram(changedCode) : undefined;
 
+        // 保存起卦记录到数据库
+        let divinationId: string | null = null;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+                const res = await fetch('/api/liuyao', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        question,
+                        yaos,
+                        changedHexagram,
+                        changedLines,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success && data.data?.divinationId) {
+                    divinationId = data.data.divinationId;
+                }
+            }
+        } catch (error) {
+            console.error('保存起卦记录失败:', error);
+        }
+
         // 存储结果到 sessionStorage
         const result = {
             question,
@@ -39,6 +68,7 @@ export default function DivinePage() {
             hexagram,
             changedHexagram,
             changedLines,
+            divinationId,
             createdAt: new Date().toISOString(),
         };
         sessionStorage.setItem('liuyao_result', JSON.stringify(result));

@@ -31,8 +31,11 @@ import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { CalendarAlmanac } from '@/components/daily/CalendarAlmanac';
 import { DailyAIChat } from '@/components/daily/DailyAIChat';
 import { ShareCard } from '@/components/fortune/ShareCard';
+import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
+import { InterpretationModeToggle, type InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
 import { supabase } from '@/lib/supabase';
-import { calculateDailyFortune, calculateGenericDailyFortune, type DailyFortune } from '@/lib/fortune';
+import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/fortune';
+import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/calendar';
 import type { BaziChart } from '@/types';
 
@@ -70,6 +73,8 @@ function DailyPageContent() {
     const [userId, setUserId] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
+    const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('colloquial');
+    const [showTrendChart, setShowTrendChart] = useState(false);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -177,6 +182,35 @@ function DailyPageContent() {
 
     const isToday = selectedDate.toDateString() === new Date().toDateString();
     const isPersonalized = !!baziChart;
+
+    // 计算周趋势数据（用于趋势图）
+    const trendData = useMemo((): FortuneTrendDataPoint[] => {
+        if (!baziChart) return [];
+        const weekData = calculateWeeklyTrend(baziChart, selectedDate);
+        return weekData.map(d => ({
+            date: d.date,
+            fullDate: d.fullDate,
+            dayOfMonth: d.dayOfMonth,
+            scores: d.scores,
+        }));
+    }, [baziChart, selectedDate]);
+
+    // 根据解读模式生成建议
+    const interpretedAdvice = useMemo(() => {
+        if (!baziChart || !fortune.tenGod) return fortune.advice;
+        return generateFortuneInterpretation(
+            fortune.tenGod,
+            {
+                overall: fortune.overall,
+                career: fortune.career,
+                love: fortune.love,
+                wealth: fortune.wealth,
+                health: fortune.health,
+                social: fortune.social,
+            },
+            interpretationMode
+        );
+    }, [baziChart, fortune, interpretationMode]);
 
     // 获取黄历数据用于分享卡片
     const almanacData = useMemo(() => {
@@ -308,6 +342,32 @@ function DailyPageContent() {
                 </div>
             )}
 
+            {/* 周运势趋势图（仅个性化时显示） */}
+            {isPersonalized && trendData.length > 0 && (
+                <section className="bg-background rounded-xl border border-border p-4 mb-4">
+                    <button
+                        onClick={() => setShowTrendChart(!showTrendChart)}
+                        className="w-full flex items-center justify-between"
+                    >
+                        <h2 className="font-semibold flex items-center gap-2">
+                            <Star className="w-5 h-5 text-accent" />
+                            7日运势趋势
+                        </h2>
+                        <ChevronDown className={`w-5 h-5 transition-transform ${showTrendChart ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showTrendChart && (
+                        <div className="mt-4">
+                            <FortuneTrendChart
+                                data={trendData}
+                                selectedDate={fortune.date}
+                                height={200}
+                                multiDimension={false}
+                            />
+                        </div>
+                    )}
+                </section>
+            )}
+
             {/* 八字运势模块 - 统一白色背景 */}
             <section className="bg-background rounded-xl border border-border p-4 mb-8">
                 {/* 模块标题和分享按钮 */}
@@ -375,12 +435,21 @@ function DailyPageContent() {
 
                 {/* 今日建议 */}
                 <div className="pt-4 border-t border-border">
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                        <Star className="w-5 h-5 text-accent" />
-                        {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}建议
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold flex items-center gap-2">
+                            <Star className="w-5 h-5 text-accent" />
+                            {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}建议
+                        </h3>
+                        {isPersonalized && (
+                            <InterpretationModeToggle
+                                mode={interpretationMode}
+                                onModeChange={setInterpretationMode}
+                                compact
+                            />
+                        )}
+                    </div>
                     <ul className="space-y-2">
-                        {fortune.advice.map((advice, index) => (
+                        {interpretedAdvice.map((advice, index) => (
                             <li key={index} className="flex items-start gap-3">
                                 <span className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 text-accent text-xs">
                                     {index + 1}

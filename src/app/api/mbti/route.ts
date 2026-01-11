@@ -10,7 +10,7 @@ import { useCredit, hasCredits } from '@/lib/credits';
 import { type MBTIType, PERSONALITY_BASICS, getDimensionDescription } from '@/lib/mbti';
 
 interface MBTIRequest {
-    action: 'analyze';
+    action: 'analyze' | 'save' | 'history';
     type: MBTIType;
     scores: Record<string, number>;
     percentages: {
@@ -19,6 +19,7 @@ interface MBTIRequest {
         TF: { T: number; F: number };
         JP: { J: number; P: number };
     };
+    readingId?: string; // 已保存的测试记录 ID，用于关联 AI 分析
 }
 
 // 调用 DeepSeek AI
@@ -58,7 +59,101 @@ async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise
 export async function POST(request: NextRequest) {
     try {
         const body: MBTIRequest = await request.json();
-        const { action, type, scores, percentages } = body;
+        const { action, type, scores, percentages, readingId } = body;
+
+        // 保存测试记录（不含 AI 分析）
+        if (action === 'save') {
+            if (!type || !percentages) {
+                return NextResponse.json({
+                    success: false,
+                    error: '请提供完整的测试结果'
+                }, { status: 400 });
+            }
+
+            const authHeader = request.headers.get('authorization');
+            if (!authHeader) {
+                return NextResponse.json({
+                    success: false,
+                    error: '请先登录'
+                }, { status: 401 });
+            }
+
+            const token = authHeader.replace('Bearer ', '');
+            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+            if (authError || !user) {
+                return NextResponse.json({
+                    success: false,
+                    error: '认证失败'
+                }, { status: 401 });
+            }
+
+            const serviceClient = getServiceClient();
+            const { data: insertedReading, error: insertError } = await serviceClient
+                .from('mbti_readings')
+                .insert({
+                    user_id: user.id,
+                    mbti_type: type,
+                    scores,
+                    percentages,
+                })
+                .select('id')
+                .single();
+
+            if (insertError) {
+                console.error('[mbti] 保存测试记录失败:', insertError.message);
+                return NextResponse.json({
+                    success: false,
+                    error: '保存记录失败'
+                }, { status: 500 });
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: { readingId: insertedReading?.id }
+            });
+        }
+
+        // 获取历史记录
+        if (action === 'history') {
+            const authHeader = request.headers.get('authorization');
+            if (!authHeader) {
+                return NextResponse.json({
+                    success: false,
+                    error: '请先登录'
+                }, { status: 401 });
+            }
+
+            const token = authHeader.replace('Bearer ', '');
+            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+            if (authError || !user) {
+                return NextResponse.json({
+                    success: false,
+                    error: '认证失败'
+                }, { status: 401 });
+            }
+
+            const serviceClient = getServiceClient();
+            const { data: history, error: historyError } = await serviceClient
+                .from('mbti_readings')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (historyError) {
+                return NextResponse.json({
+                    success: false,
+                    error: '获取历史记录失败'
+                }, { status: 500 });
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: { history }
+            });
+        }
 
         if (action !== 'analyze') {
             return NextResponse.json({
@@ -161,20 +256,34 @@ ${basic.description}
                 console.error('[mbti] 保存 AI 分析对话失败');
             }
 
-            // 保存测试记录到 mbti_readings（不含 AI 分析）
+            // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
             const serviceClient = getServiceClient();
-            const { error: insertError } = await serviceClient
-                .from('mbti_readings')
-                .insert({
-                    user_id: user.id,
-                    mbti_type: type,
-                    scores,
-                    percentages,
-                    conversation_id: conversationId,
-                });
+            if (readingId) {
+                // 更新已有记录
+                const { error: updateError } = await serviceClient
+                    .from('mbti_readings')
+                    .update({ conversation_id: conversationId })
+                    .eq('id', readingId)
+                    .eq('user_id', user.id);
 
-            if (insertError) {
-                console.error('[mbti] 保存测试记录失败:', insertError.message);
+                if (updateError) {
+                    console.error('[mbti] 更新测试记录失败:', updateError.message);
+                }
+            } else {
+                // 兼容旧调用：插入新记录
+                const { error: insertError } = await serviceClient
+                    .from('mbti_readings')
+                    .insert({
+                        user_id: user.id,
+                        mbti_type: type,
+                        scores,
+                        percentages,
+                        conversation_id: conversationId,
+                    });
+
+                if (insertError) {
+                    console.error('[mbti] 保存测试记录失败:', insertError.message, insertError.details);
+                }
             }
 
             return NextResponse.json({

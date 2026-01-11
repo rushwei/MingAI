@@ -12,6 +12,7 @@ import { Coins, Sparkles, HelpCircle, Loader2, Dices } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
+import { supabase } from '@/lib/supabase';
 
 export default function LiuyaoPage() {
     const router = useRouter();
@@ -39,12 +40,41 @@ export default function LiuyaoPage() {
             const { changedCode, changedLines } = calculateChangedHexagram(yaos);
             const changedHexagram = changedLines.length > 0 ? findHexagram(changedCode) : undefined;
 
+            // 保存起卦记录到数据库
+            let divinationId: string | null = null;
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.access_token) {
+                    const res = await fetch('/api/liuyao', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            action: 'save',
+                            question,
+                            yaos,
+                            changedHexagram,
+                            changedLines,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.success && data.data?.divinationId) {
+                        divinationId = data.data.divinationId;
+                    }
+                }
+            } catch (error) {
+                console.error('保存起卦记录失败:', error);
+            }
+
             const result = {
                 question,
                 yaos,
                 hexagram,
                 changedHexagram,
                 changedLines,
+                divinationId,
                 createdAt: new Date().toISOString(),
             };
             sessionStorage.setItem('liuyao_result', JSON.stringify(result));

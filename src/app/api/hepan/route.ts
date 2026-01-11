@@ -10,6 +10,7 @@ import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
 interface HepanRequest {
     action: 'analyze' | 'save' | 'list';
     result?: HepanResult;
+    chartId?: string; // 已保存的合盘记录 ID，用于关联 AI 分析（analyze 时更新）
 }
 
 // 调用 DeepSeek AI
@@ -49,7 +50,74 @@ async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise
 export async function POST(request: NextRequest) {
     try {
         const body: HepanRequest = await request.json();
-        const { action, result } = body;
+        const { action, result, chartId } = body;
+
+        if (action === 'save') {
+            // 保存合盘记录（不含 AI 分析）
+            if (!result) {
+                return NextResponse.json({
+                    success: false,
+                    error: '请提供合盘结果'
+                }, { status: 400 });
+            }
+
+            const authHeader = request.headers.get('authorization');
+            if (!authHeader) {
+                return NextResponse.json({
+                    success: false,
+                    error: '请先登录'
+                }, { status: 401 });
+            }
+
+            const token = authHeader.replace('Bearer ', '');
+            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+            if (authError || !user) {
+                return NextResponse.json({
+                    success: false,
+                    error: '认证失败'
+                }, { status: 401 });
+            }
+
+            const serviceClient = getServiceClient();
+            const { data: insertedChart, error: insertError } = await serviceClient
+                .from('hepan_charts')
+                .insert({
+                    user_id: user.id,
+                    type: result.type,
+                    person1_name: result.person1.name,
+                    person1_birth: {
+                        year: result.person1.year,
+                        month: result.person1.month,
+                        day: result.person1.day,
+                        hour: result.person1.hour,
+                    },
+                    person2_name: result.person2.name,
+                    person2_birth: {
+                        year: result.person2.year,
+                        month: result.person2.month,
+                        day: result.person2.day,
+                        hour: result.person2.hour,
+                    },
+                    compatibility_score: result.overallScore,
+                    result_data: result,
+                })
+                .select('id')
+                .single();
+
+            if (insertError) {
+                console.error('[hepan] 保存合盘记录失败:', insertError.message);
+                return NextResponse.json({
+                    success: false,
+                    error: '保存记录失败'
+                }, { status: 500 });
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: { chartId: insertedChart?.id }
+            });
+        }
 
         if (action === 'analyze') {
             if (!result) {
@@ -160,30 +228,49 @@ ${conflictsSummary}
                     console.error('[hepan] 保存 AI 分析对话失败');
                 }
 
-                // 保存合盘记录到 hepan_charts（不含 AI 分析）
+                // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
                 const serviceClient = getServiceClient();
-                await serviceClient
-                    .from('hepan_charts')
-                    .insert({
-                        user_id: user.id,
-                        type: result.type,
-                        person1_name: result.person1.name,
-                        person1_birth: {
-                            year: result.person1.year,
-                            month: result.person1.month,
-                            day: result.person1.day,
-                            hour: result.person1.hour,
-                        },
-                        person2_name: result.person2.name,
-                        person2_birth: {
-                            year: result.person2.year,
-                            month: result.person2.month,
-                            day: result.person2.day,
-                            hour: result.person2.hour,
-                        },
-                        compatibility_score: result.overallScore,
-                        conversation_id: conversationId,
-                    });
+                if (chartId) {
+                    // 更新已有记录
+                    const { error: updateError } = await serviceClient
+                        .from('hepan_charts')
+                        .update({ conversation_id: conversationId })
+                        .eq('id', chartId)
+                        .eq('user_id', user.id);
+
+                    if (updateError) {
+                        console.error('[hepan] 更新合盘记录失败:', updateError.message);
+                    }
+                } else {
+                    // 兼容旧调用：插入新记录
+                    const { error: insertError } = await serviceClient
+                        .from('hepan_charts')
+                        .insert({
+                            user_id: user.id,
+                            type: result.type,
+                            person1_name: result.person1.name,
+                            person1_birth: {
+                                year: result.person1.year,
+                                month: result.person1.month,
+                                day: result.person1.day,
+                                hour: result.person1.hour,
+                            },
+                            person2_name: result.person2.name,
+                            person2_birth: {
+                                year: result.person2.year,
+                                month: result.person2.month,
+                                day: result.person2.day,
+                                hour: result.person2.hour,
+                            },
+                            compatibility_score: result.overallScore,
+                            conversation_id: conversationId,
+                            result_data: result,
+                        });
+
+                    if (insertError) {
+                        console.error('[hepan] 保存合盘记录失败:', insertError.message, insertError.details);
+                    }
+                }
 
                 return NextResponse.json({
                     success: true,

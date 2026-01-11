@@ -1,8 +1,20 @@
 /**
  * 六爻占卜核心库
- * 
- * 包含 64 卦数据、铜钱起卦算法、变爻计算
+ *
+ * 包含 64 卦数据、铜钱起卦算法、变爻计算、六亲六神世应用神
  */
+
+import {
+    findPalace,
+    getShiYingPosition,
+    getNaJia,
+    getNaJiaWuXing,
+    type WuXing,
+    type DiZhi,
+    type Palace,
+    DIZHI_WUXING,
+} from './eight-palaces';
+import { getHexagramText, getYaoText, type HexagramText } from './hexagram-texts';
 
 // 爻的类型
 export type YaoType = 0 | 1;  // 0 = 阴爻, 1 = 阳爻
@@ -371,3 +383,368 @@ export const HEXAGRAM_BRIEF: Record<string, string> = {
 export function getHexagramBrief(name: string): string {
     return HEXAGRAM_BRIEF[name] || '此卦象征变化与机遇，宜静观其变。';
 }
+
+// ============= 六爻传统分析系统 =============
+
+// 六亲类型
+export type LiuQin = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
+
+// 六神类型
+export type LiuShen = '青龙' | '朱雀' | '勾陈' | '螣蛇' | '白虎' | '玄武';
+
+// 完整爻信息（扩展基础 Yao）
+export interface FullYaoInfo extends Yao {
+    liuQin: LiuQin;              // 六亲
+    liuShen: LiuShen;            // 六神
+    naJia: DiZhi;                // 纳甲地支
+    wuXing: WuXing;              // 五行
+    isShiYao: boolean;           // 是否世爻
+    isYingYao: boolean;          // 是否应爻
+    yaoText?: string;            // 爻辞
+    emphasis?: 'low' | 'medium' | 'high';  // 权重
+}
+
+// 用神信息
+export interface YongShen {
+    type: LiuQin;                // 用神类型
+    position: number;            // 用神所在爻位
+    element: WuXing;             // 用神五行
+    strength: 'weak' | 'moderate' | 'strong';  // 强弱
+    analysis: string;            // 分析说明
+}
+
+// 时间建议
+export interface TimeRecommendation {
+    type: 'favorable' | 'unfavorable' | 'critical';
+    timeframe: string;           // "近期"/"月内"/"特定日"
+    earthlyBranch?: DiZhi;       // 相关地支
+    description: string;
+}
+
+// 天干
+const TIANGAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
+
+/**
+ * 六神配置（根据日干）
+ * 顺序为：初爻→上爻
+ */
+const LIU_SHEN_CONFIG: Record<string, LiuShen[]> = {
+    '甲': ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'],
+    '乙': ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'],
+    '丙': ['朱雀', '勾陈', '螣蛇', '白虎', '玄武', '青龙'],
+    '丁': ['朱雀', '勾陈', '螣蛇', '白虎', '玄武', '青龙'],
+    '戊': ['勾陈', '螣蛇', '白虎', '玄武', '青龙', '朱雀'],
+    '己': ['螣蛇', '白虎', '玄武', '青龙', '朱雀', '勾陈'],
+    '庚': ['白虎', '玄武', '青龙', '朱雀', '勾陈', '螣蛇'],
+    '辛': ['白虎', '玄武', '青龙', '朱雀', '勾陈', '螣蛇'],
+    '壬': ['玄武', '青龙', '朱雀', '勾陈', '螣蛇', '白虎'],
+    '癸': ['玄武', '青龙', '朱雀', '勾陈', '螣蛇', '白虎'],
+};
+
+/**
+ * 五行生克关系
+ */
+const WUXING_SHENG: Record<WuXing, WuXing> = {
+    '木': '火', '火': '土', '土': '金', '金': '水', '水': '木',
+};
+
+const WUXING_KE: Record<WuXing, WuXing> = {
+    '木': '土', '土': '水', '水': '火', '火': '金', '金': '木',
+};
+
+// 被生
+const WUXING_BEI_SHENG: Record<WuXing, WuXing> = {
+    '火': '木', '土': '火', '金': '土', '水': '金', '木': '水',
+};
+
+// 被克
+const WUXING_BEI_KE: Record<WuXing, WuXing> = {
+    '土': '木', '水': '土', '火': '水', '金': '火', '木': '金',
+};
+
+/**
+ * 计算六神（根据日干）
+ */
+export function calculateLiuShen(dayStem: string): LiuShen[] {
+    return LIU_SHEN_CONFIG[dayStem] || LIU_SHEN_CONFIG['甲'];
+}
+
+/**
+ * 计算六亲
+ * 根据爻的五行与卦宫五行的生克关系确定
+ * 注：卦宫为"我"，爻为"彼"
+ *
+ * 兄弟：与卦宫同五行
+ * 父母：生我者（爻生宫）
+ * 子孙：我生者（宫生爻）
+ * 妻财：我克者（宫克爻）
+ * 官鬼：克我者（爻克宫）
+ */
+export function calculateLiuQin(yaoElement: WuXing, gongElement: WuXing): LiuQin {
+    if (yaoElement === gongElement) {
+        return '兄弟';
+    }
+    // 生我者为父母（爻生宫：yaoElement → gongElement）
+    if (WUXING_SHENG[yaoElement] === gongElement) {
+        return '父母';
+    }
+    // 我生者为子孙（宫生爻：gongElement → yaoElement）
+    if (WUXING_SHENG[gongElement] === yaoElement) {
+        return '子孙';
+    }
+    // 我克者为妻财（宫克爻：gongElement 克 yaoElement）
+    if (WUXING_KE[gongElement] === yaoElement) {
+        return '妻财';
+    }
+    // 克我者为官鬼（爻克宫：yaoElement 克 gongElement）
+    if (WUXING_KE[yaoElement] === gongElement) {
+        return '官鬼';
+    }
+    return '兄弟'; // 默认
+}
+
+/**
+ * 问事类型到用神六亲的映射
+ */
+const QUESTION_YONGSHEN_MAP: Record<string, LiuQin> = {
+    // 事业财运
+    '事业': '官鬼',
+    '工作': '官鬼',
+    '升职': '官鬼',
+    '考试': '父母',
+    '学业': '父母',
+    '财运': '妻财',
+    '投资': '妻财',
+    '生意': '妻财',
+
+    // 感情婚姻
+    '感情': '妻财',  // 男问用妻财，女问用官鬼
+    '婚姻': '妻财',
+    '恋爱': '妻财',
+
+    // 家庭健康
+    '健康': '子孙',
+    '疾病': '官鬼',  // 官鬼为病
+    '子女': '子孙',
+    '父母': '父母',
+    '兄弟': '兄弟',
+
+    // 其他
+    '出行': '子孙',
+    '诉讼': '官鬼',
+    '失物': '妻财',
+};
+
+/**
+ * 确定用神（根据问事类型）
+ */
+export function determineYongShen(
+    question: string,
+    fullYaos: FullYaoInfo[],
+    shiYing: { shi: number; ying: number }
+): YongShen {
+    // 从问题中提取关键词确定用神类型
+    let yongShenType: LiuQin = '妻财'; // 默认
+
+    for (const [keyword, liuQin] of Object.entries(QUESTION_YONGSHEN_MAP)) {
+        if (question.includes(keyword)) {
+            yongShenType = liuQin;
+            break;
+        }
+    }
+
+    // 找到用神所在的爻
+    const yongShenYao = fullYaos.find(y => y.liuQin === yongShenType);
+
+    if (!yongShenYao) {
+        // 用神不上卦，需要从伏神中找（简化处理）
+        return {
+            type: yongShenType,
+            position: 0,
+            element: '土',
+            strength: 'weak',
+            analysis: `${yongShenType}不上卦，用神隐伏，事情难以把握`,
+        };
+    }
+
+    // 评估用神强弱
+    let strength: 'weak' | 'moderate' | 'strong' = 'moderate';
+    let analysis = '';
+
+    // 世爻持用神
+    if (yongShenYao.isShiYao) {
+        strength = 'strong';
+        analysis = `世爻持${yongShenType}，主动权在己`;
+    }
+    // 用神临月建日辰（简化：看爻是否为变爻）
+    else if (yongShenYao.change === 'changing') {
+        strength = 'moderate';
+        analysis = `${yongShenType}动而有变，事情正在发展中`;
+    } else {
+        strength = 'moderate';
+        analysis = `${yongShenType}静而待时，需耐心等待`;
+    }
+
+    return {
+        type: yongShenType,
+        position: yongShenYao.position,
+        element: yongShenYao.wuXing,
+        strength,
+        analysis,
+    };
+}
+
+/**
+ * 计算时间建议（基于用神状态）
+ */
+export function calculateTimeRecommendations(
+    yongShen: YongShen,
+    fullYaos: FullYaoInfo[]
+): TimeRecommendation[] {
+    const recommendations: TimeRecommendation[] = [];
+
+    // 找到用神爻
+    const yongShenYao = fullYaos.find(y => y.position === yongShen.position);
+
+    if (yongShenYao) {
+        // 用神所临地支为有利时间
+        recommendations.push({
+            type: 'favorable',
+            timeframe: '特定日',
+            earthlyBranch: yongShenYao.naJia,
+            description: `逢${yongShenYao.naJia}日/月应期，事情易有进展`,
+        });
+
+        // 生用神的地支也有利
+        const shengElement = WUXING_BEI_SHENG[yongShenYao.wuXing];
+        if (shengElement) {
+            recommendations.push({
+                type: 'favorable',
+                timeframe: '月内',
+                description: `${shengElement}旺之时有利，可积极行动`,
+            });
+        }
+
+        // 克用神的不利
+        const keElement = WUXING_BEI_KE[yongShenYao.wuXing];
+        if (keElement) {
+            recommendations.push({
+                type: 'unfavorable',
+                timeframe: '近期',
+                description: `${keElement}旺之时不利，宜避开`,
+            });
+        }
+    }
+
+    // 变爻相关时间提示
+    const changingYaos = fullYaos.filter(y => y.change === 'changing');
+    if (changingYaos.length > 0) {
+        const firstChanging = changingYaos[0];
+        recommendations.push({
+            type: 'critical',
+            timeframe: '特定日',
+            earthlyBranch: firstChanging.naJia,
+            description: `动爻临${firstChanging.naJia}，此时可能有关键变化`,
+        });
+    }
+
+    return recommendations;
+}
+
+/**
+ * 计算完整爻信息
+ */
+export function calculateFullYaoInfo(
+    yaos: Yao[],
+    hexagramCode: string,
+    dayStem: string
+): FullYaoInfo[] {
+    const palace = findPalace(hexagramCode);
+    const gongElement = palace?.element || '土';
+    const { shi, ying } = getShiYingPosition(hexagramCode);
+    const liuShenList = calculateLiuShen(dayStem);
+    const hexagram = findHexagram(hexagramCode);
+    const hexagramText = hexagram ? getHexagramText(hexagram.name) : undefined;
+
+    return yaos.map((yao, index) => {
+        const position = yao.position;
+        const naJia = palace ? getNaJia(palace, position, yao.type) : '子';
+        const wuXing = DIZHI_WUXING[naJia];
+        const liuQin = calculateLiuQin(wuXing, gongElement);
+        const liuShen = liuShenList[index];
+
+        // 获取爻辞
+        let yaoTextContent: string | undefined;
+        let emphasis: 'low' | 'medium' | 'high' | undefined;
+
+        if (hexagramText) {
+            const yaoData = hexagramText.yao.find(y => y.position === position);
+            if (yaoData) {
+                yaoTextContent = yaoData.text;
+                emphasis = yaoData.emphasis;
+            }
+        }
+
+        return {
+            ...yao,
+            liuQin,
+            liuShen,
+            naJia,
+            wuXing,
+            isShiYao: position === shi,
+            isYingYao: position === ying,
+            yaoText: yaoTextContent,
+            emphasis,
+        };
+    });
+}
+
+/**
+ * 获取指定日期的天干
+ * @param date 日期对象
+ */
+export function getDayStemForDate(date: Date): string {
+    const baseDate = new Date(1900, 0, 1);
+    const diffDays = Math.floor((date.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
+    const ganIndex = (diffDays + 10) % 10;
+    return TIANGAN[ganIndex];
+}
+
+/**
+ * 获取今日天干
+ */
+export function getTodayDayStem(): string {
+    return getDayStemForDate(new Date());
+}
+
+/**
+ * 获取六神含义
+ */
+export function getLiuShenMeaning(liuShen: LiuShen): string {
+    const meanings: Record<LiuShen, string> = {
+        '青龙': '吉庆、喜事、贵人',
+        '朱雀': '口舌、文书、信息',
+        '勾陈': '田土、争斗、迟滞',
+        '螣蛇': '虚惊、怪异、变化',
+        '白虎': '凶险、疾病、丧事',
+        '玄武': '暗昧、盗贼、私情',
+    };
+    return meanings[liuShen];
+}
+
+/**
+ * 获取六亲含义
+ */
+export function getLiuQinMeaning(liuQin: LiuQin): string {
+    const meanings: Record<LiuQin, string> = {
+        '父母': '长辈、文书、房屋、车辆',
+        '兄弟': '同辈、朋友、竞争、破财',
+        '子孙': '晚辈、福神、解忧、医药',
+        '妻财': '妻子、钱财、物品、仆人',
+        '官鬼': '官职、丈夫、疾病、鬼神',
+    };
+    return meanings[liuQin];
+}
+
+// 导出五行类型供其他模块使用
+export type { WuXing, DiZhi, Palace };
