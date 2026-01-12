@@ -258,7 +258,7 @@ export function MBTITestFlow() {
     const allAnswered = answers.length === questions.length;
 
     return (
-        <div className="min-h-screen bg-background pb-24">
+        <div className="min-h-screen bg-background pb-32">
             {!showIntroModal && !isLoading && questions.length > 0 && (
                 <>
                     <div className="max-w-2xl mx-auto px-4 py-6">

@@ -280,7 +280,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                     </svg>
                 )}
 
-                <div className="grid grid-cols-4 gap-0.5 sm:gap-2 max-w-[460px] sm:max-w-none mx-auto">
+                <div className="grid grid-cols-4 gap-0.5 sm:gap-2 w-full sm:max-w-none mx-auto">
                     {gridLayout.map((row, rowIdx) =>
                         row.map((branchIdx, colIdx) => {
                             if (branchIdx === -1) {

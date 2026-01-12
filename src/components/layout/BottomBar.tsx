@@ -81,8 +81,8 @@ export function BottomBar({
                 </div>
             </div>
 
-            {/* 移动端 - 全宽 */}
-            <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 ${className}`}>
+            {/* 移动端 - 全宽 - 位于底部导航上方 (导航栏约 108px) */}
+            <div className={`lg:hidden fixed bottom-[6.5rem] left-0 right-0 z-50 ${className}`}>
                 <div className="mx-4 bg-background border border-border rounded-t-xl shadow-lg overflow-hidden">
                     {/* 主内容区 */}
                     <div className="px-4 py-3 flex items-center justify-between">

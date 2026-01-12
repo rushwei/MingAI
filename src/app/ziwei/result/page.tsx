@@ -413,7 +413,7 @@ function ZiweiResultContent() {
                 </div>
             </div>
 
-            <section className="bg-background-secondary rounded-xl p-4 border border-border overflow-x-hidden max-w-[500px] sm:max-w-none mx-auto">
+            <section className="bg-background-secondary rounded-xl p-3 border border-border overflow-x-hidden max-w-[400px] sm:max-w-none mx-auto">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <Star className="w-4 h-4 text-accent" />
                     紫微斗数命盘
@@ -422,7 +422,7 @@ function ZiweiResultContent() {
             </section>
 
             {/* 运限分析 */}
-            <section className="mt-4 max-w-[510px] sm:max-w-none mx-auto">
+            <section className="mt-4 max-w-[400px] sm:max-w-none mx-auto">
                 <ZiweiHoroscopePanel
                     chart={chart}
                     onPalaceHighlight={setHoroscopeHighlight}
