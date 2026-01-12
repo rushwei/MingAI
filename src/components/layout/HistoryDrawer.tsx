@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { findHexagram } from '@/lib/liuyao';
 
 // 支持的历史类型
 type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan';
@@ -79,9 +80,36 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                 } else if (type === 'mbti') {
                     title = `${item.mbti_type} 人格`;
                 } else if (type === 'tarot') {
-                    title = (item.question as string) || '塔罗占卜';
+                    // 映射牌阵 ID 到中文名称
+                    const spreadNames: Record<string, string> = {
+                        'single': '单牌',
+                        'three-card': '三牌阵',
+                        'love': '爱情牌阵',
+                        'celtic-cross': '凯尔特十字',
+                    };
+                    const spreadId = item.spread_id as string;
+                    const spreadName = spreadNames[spreadId] || spreadId || '塔罗占卜';
+                    const question = (item.question as string)?.trim();
+                    title = question ? `${question} - ${spreadName}` : spreadName;
                 } else if (type === 'liuyao') {
-                    title = (item.question as string) || '六爻起卦';
+                    // 使用卦名显示，支持变卦
+                    const hexagramCode = item.hexagram_code as string;
+                    const changedHexagramCode = item.changed_hexagram_code as string | null;
+
+                    const hexagram = findHexagram(hexagramCode);
+                    const hexagramName = hexagram?.name || '未知卦';
+
+                    let hexagramDisplay: string;
+                    if (changedHexagramCode) {
+                        const changedHexagram = findHexagram(changedHexagramCode);
+                        const changedName = changedHexagram?.name || '未知卦';
+                        hexagramDisplay = `${hexagramName} -> ${changedName}`;
+                    } else {
+                        hexagramDisplay = hexagramName;
+                    }
+
+                    const question = (item.question as string)?.trim();
+                    title = question ? `${question} - ${hexagramDisplay}` : hexagramDisplay;
                 }
                 return {
                     id: item.id as string,

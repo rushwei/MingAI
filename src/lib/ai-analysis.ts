@@ -62,11 +62,19 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
     return data?.id || null;
 }
 
+// 塔罗牌阵 ID 到中文名称的映射
+const SPREAD_ID_TO_NAME: Record<string, string> = {
+    'single': '单牌',
+    'three-card': '三牌阵',
+    'love': '爱情牌阵',
+    'celtic-cross': '凯尔特十字',
+};
+
 /**
  * 生成塔罗牌分析标题
  */
 export function generateTarotTitle(question: string | undefined, spreadId: string): string {
-    const spreadName = spreadId || '自定义';
+    const spreadName = SPREAD_ID_TO_NAME[spreadId] || spreadId || '自定义';
     if (question && question.trim()) {
         return `${question.trim().substring(0, 20)} - ${spreadName}`;
     }
@@ -75,12 +83,23 @@ export function generateTarotTitle(question: string | undefined, spreadId: strin
 
 /**
  * 生成六爻分析标题
+ * @param hexagramName 主卦名称
+ * @param changedHexagramName 变卦名称（可选）
  */
-export function generateLiuyaoTitle(question: string | undefined, hexagramName: string): string {
+export function generateLiuyaoTitle(
+    question: string | undefined,
+    hexagramName: string,
+    changedHexagramName?: string
+): string {
+    // 生成卦象显示文本：主卦 或 主卦 -> 变卦
+    const hexagramDisplay = changedHexagramName
+        ? `${hexagramName} -> ${changedHexagramName}`
+        : hexagramName;
+
     if (question && question.trim()) {
-        return `${question.trim().substring(0, 20)} - ${hexagramName}`;
+        return `${question.trim().substring(0, 20)} - ${hexagramDisplay}`;
     }
-    return `六爻占卜 - ${hexagramName}`;
+    return `六爻占卜 - ${hexagramDisplay}`;
 }
 
 /**

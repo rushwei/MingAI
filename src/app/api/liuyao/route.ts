@@ -296,7 +296,7 @@ ${traditionalInfo}
                             changed_lines: changedLines,
                             question: question || null,
                         },
-                        title: generateLiuyaoTitle(question, hexagram.name),
+                        title: generateLiuyaoTitle(question, hexagram.name, changedHexagram?.name),
                         aiResponse: interpretation,
                     });
 
