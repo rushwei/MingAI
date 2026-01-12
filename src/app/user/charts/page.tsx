@@ -54,44 +54,56 @@ export default function ChartsPage() {
     const [loading, setLoading] = useState(true);
     const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+    // Stores user id for default chart persistence.
+    const [userId, setUserId] = useState<string | null>(null);
 
     // 默认命盘状态
     const [defaultBaziId, setDefaultBaziId] = useState<string | null>(null);
     const [defaultZiweiId, setDefaultZiweiId] = useState<string | null>(null);
 
-    // 从 localStorage 加载默认命盘
-    useEffect(() => {
-        const storedBaziId = localStorage.getItem('defaultBaziChartId');
-        const storedZiweiId = localStorage.getItem('defaultZiweiChartId');
-        if (storedBaziId) setDefaultBaziId(storedBaziId);
-        if (storedZiweiId) setDefaultZiweiId(storedZiweiId);
-    }, []);
-
     // 设置默认命盘（只能设置一个，设置任一类型时清除另一类型）
-    const setDefaultChart = (kind: 'bazi' | 'ziwei', chartId: string) => {
-        if (kind === 'bazi') {
-            if (defaultBaziId === chartId) {
-                // 取消当前默认
-                localStorage.removeItem('defaultBaziChartId');
-                setDefaultBaziId(null);
-            } else {
-                // 设置新默认，清除紫微的默认
-                localStorage.setItem('defaultBaziChartId', chartId);
-                localStorage.removeItem('defaultZiweiChartId');
-                setDefaultBaziId(chartId);
-                setDefaultZiweiId(null);
-            }
+    const setDefaultChart = async (kind: 'bazi' | 'ziwei', chartId: string) => {
+        if (!userId) return;
+        const prevBaziId = defaultBaziId;
+        const prevZiweiId = defaultZiweiId;
+        const nextBaziId = kind === 'bazi' ? (defaultBaziId === chartId ? null : chartId) : null;
+        const nextZiweiId = kind === 'ziwei' ? (defaultZiweiId === chartId ? null : chartId) : null;
+
+        setDefaultBaziId(nextBaziId);
+        setDefaultZiweiId(nextZiweiId);
+
+        if (nextBaziId) {
+            localStorage.setItem('defaultBaziChartId', nextBaziId);
         } else {
-            if (defaultZiweiId === chartId) {
-                // 取消当前默认
-                localStorage.removeItem('defaultZiweiChartId');
-                setDefaultZiweiId(null);
+            localStorage.removeItem('defaultBaziChartId');
+        }
+        if (nextZiweiId) {
+            localStorage.setItem('defaultZiweiChartId', nextZiweiId);
+        } else {
+            localStorage.removeItem('defaultZiweiChartId');
+        }
+
+        const { error } = await supabase
+            .from('user_settings')
+            .upsert({
+                user_id: userId,
+                default_bazi_chart_id: nextBaziId,
+                default_ziwei_chart_id: nextZiweiId,
+            }, { onConflict: 'user_id' });
+
+        if (error) {
+            console.error('更新默认命盘失败:', error);
+            setDefaultBaziId(prevBaziId);
+            setDefaultZiweiId(prevZiweiId);
+            if (prevBaziId) {
+                localStorage.setItem('defaultBaziChartId', prevBaziId);
             } else {
-                // 设置新默认，清除八字的默认
-                localStorage.setItem('defaultZiweiChartId', chartId);
                 localStorage.removeItem('defaultBaziChartId');
-                setDefaultZiweiId(chartId);
-                setDefaultBaziId(null);
+            }
+            if (prevZiweiId) {
+                localStorage.setItem('defaultZiweiChartId', prevZiweiId);
+            } else {
+                localStorage.removeItem('defaultZiweiChartId');
             }
         }
     };
@@ -103,8 +115,9 @@ export default function ChartsPage() {
             router.push('/user');
             return;
         }
+        setUserId(session.user.id);
 
-        const [baziResult, ziweiResult] = await Promise.all([
+        const [baziResult, ziweiResult, settingsResult] = await Promise.all([
             supabase
                 .from('bazi_charts')
                 .select('*')
@@ -115,6 +128,11 @@ export default function ChartsPage() {
                 .select('*')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false }),
+            supabase
+                .from('user_settings')
+                .select('default_bazi_chart_id, default_ziwei_chart_id')
+                .eq('user_id', session.user.id)
+                .maybeSingle(),
         ]);
 
         if (!baziResult.error && baziResult.data) {
@@ -122,6 +140,40 @@ export default function ChartsPage() {
         }
         if (!ziweiResult.error && ziweiResult.data) {
             setZiweiCharts(ziweiResult.data);
+        }
+        if (!settingsResult.error) {
+            const storedBaziId = localStorage.getItem('defaultBaziChartId');
+            const storedZiweiId = localStorage.getItem('defaultZiweiChartId');
+            const nextBaziId = settingsResult.data?.default_bazi_chart_id || storedBaziId || null;
+            const nextZiweiId = settingsResult.data?.default_ziwei_chart_id || storedZiweiId || null;
+
+            setDefaultBaziId(nextBaziId);
+            setDefaultZiweiId(nextZiweiId);
+
+            if (settingsResult.data?.default_bazi_chart_id) {
+                localStorage.setItem('defaultBaziChartId', settingsResult.data.default_bazi_chart_id);
+            } else if (!nextBaziId) {
+                localStorage.removeItem('defaultBaziChartId');
+            }
+
+            if (settingsResult.data?.default_ziwei_chart_id) {
+                localStorage.setItem('defaultZiweiChartId', settingsResult.data.default_ziwei_chart_id);
+            } else if (!nextZiweiId) {
+                localStorage.removeItem('defaultZiweiChartId');
+            }
+
+            if (!settingsResult.data && (storedBaziId || storedZiweiId)) {
+                const { error } = await supabase
+                    .from('user_settings')
+                    .upsert({
+                        user_id: session.user.id,
+                        default_bazi_chart_id: storedBaziId,
+                        default_ziwei_chart_id: storedZiweiId,
+                    }, { onConflict: 'user_id' });
+                if (error) {
+                    console.error('迁移默认命盘失败:', error);
+                }
+            }
         }
         setLoading(false);
     }, [router]);
@@ -148,8 +200,26 @@ export default function ChartsPage() {
         if (!error) {
             if (kind === 'bazi') {
                 setBaziCharts((prev) => prev.filter(c => c.id !== chartId));
+                if (defaultBaziId === chartId) {
+                    setDefaultBaziId(null);
+                    localStorage.removeItem('defaultBaziChartId');
+                    if (userId) {
+                        await supabase
+                            .from('user_settings')
+                            .upsert({ user_id: userId, default_bazi_chart_id: null }, { onConflict: 'user_id' });
+                    }
+                }
             } else {
                 setZiweiCharts((prev) => prev.filter(c => c.id !== chartId));
+                if (defaultZiweiId === chartId) {
+                    setDefaultZiweiId(null);
+                    localStorage.removeItem('defaultZiweiChartId');
+                    if (userId) {
+                        await supabase
+                            .from('user_settings')
+                            .upsert({ user_id: userId, default_ziwei_chart_id: null }, { onConflict: 'user_id' });
+                    }
+                }
             }
         }
         setDeletingKey(null);

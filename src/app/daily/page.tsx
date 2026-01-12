@@ -107,9 +107,30 @@ function DailyPageContent() {
                 });
                 setBaziCharts(charts);
 
-                // 优先使用默认命盘
-                const defaultId = localStorage.getItem('defaultBaziChartId');
-                const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                const { data: settings, error: settingsError } = await supabase
+                    .from('user_settings')
+                    .select('default_bazi_chart_id')
+                    .eq('user_id', uid)
+                    .maybeSingle();
+
+                if (!settingsError) {
+                    const storedDefaultId = localStorage.getItem('defaultBaziChartId');
+                    const defaultId = settings?.default_bazi_chart_id || storedDefaultId;
+                    if (settings?.default_bazi_chart_id) {
+                        localStorage.setItem('defaultBaziChartId', settings.default_bazi_chart_id);
+                    } else if (!settings && storedDefaultId) {
+                        await supabase
+                            .from('user_settings')
+                            .upsert({ user_id: uid, default_bazi_chart_id: storedDefaultId }, { onConflict: 'user_id' });
+                    }
+                    const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                    setBaziChart(defaultChart || charts[0]);
+                    return;
+                }
+
+                // 回退到本地默认
+                const fallbackId = localStorage.getItem('defaultBaziChartId');
+                const defaultChart = fallbackId ? charts.find(c => c.id === fallbackId) : null;
                 setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {
@@ -497,4 +518,3 @@ export default function DailyPage() {
         </LoginOverlay>
     );
 }
-
