@@ -231,11 +231,11 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
     }) => (
         <button
             onClick={onSelect}
-            className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer ${color.bg} border ${selected ? color.border : 'border-transparent'} hover:opacity-80`}
+            className={`w-full pt-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer hover:opacity-80`}
         >
             <div className="flex items-center gap-3">
-                <span className={`w-2 h-2 rounded-full ${selected ? color.border.replace('border-', 'bg-') : 'bg-foreground-secondary/50'}`} />
-                <span className={`font-medium ${color.text}`}>{title}</span>
+                <span className={`h-2 rounded-full`} />
+                <span className={`font-medium text-lg ${color.text}`}>{title}</span>
             </div>
         </button>
     );
@@ -243,7 +243,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
     return (
         <div className="space-y-3">
             {/* 大限 */}
-            <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+            <div className="bg-background rounded-xl border-border overflow-hidden">
                 <SectionHeader
                     title="大限"
                     color={colors.decadal}
@@ -268,7 +268,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                     {displayDecadal && (
                         <div className="text-sm text-foreground-secondary mb-2 flex items-center gap-2">
                             <span>当前: {displayDecadal.palace.name}</span>
-                            <span>({displayDecadal.startAge}-{displayDecadal.endAge}岁)</span>
+                            <span>({displayDecadal.startAge}岁)</span>
                             <span className="font-medium text-purple-500">{displayDecadal.heavenlyStem}{displayDecadal.palace.earthlyBranch}</span>
                         </div>
                     )}
@@ -284,7 +284,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                                         : 'bg-background border border-border hover:border-purple-500/50'
                                         }`}
                                 >
-                                    <div className={`text-sm font-bold ${isSelected ? '' : ''}`}>
+                                    <div className={`text-sm font-bold flex flex-col items-center leading-tight ${isSelected ? '' : ''}`}>
                                         <span style={isSelected ? {} : getCharColorStyle(d.heavenlyStem)}>{d.heavenlyStem}</span>
                                         <span style={isSelected ? {} : getCharColorStyle(d.palace.earthlyBranch)}>{d.palace.earthlyBranch}</span>
                                     </div>
@@ -292,7 +292,9 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                                         {d.palace.name}
                                     </div>
                                     <div className={`text-xs ${isSelected ? 'text-white/70' : 'text-foreground-secondary'}`}>
-                                        {d.startAge}-{d.endAge}岁
+                                        {d.startAge}
+                                        <br />
+                                        岁
                                     </div>
                                 </button>
                             );
@@ -302,7 +304,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             </div>
 
             {/* 流年 - 列表展示 */}
-            <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+            <div className="bg-background rounded-xl border-border overflow-hidden">
                 <SectionHeader
                     title="流年"
                     color={colors.yearly}
@@ -324,7 +326,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 {displayDecadal && (
                     <div className="p-3 pt-0">
                         <div className="text-xs text-foreground-secondary mb-2">
-                            {displayDecadal.startAge}-{displayDecadal.endAge}岁 大限内的流年
+                            {displayDecadal.startAge}岁 大限内的流年
                         </div>
                         <div className="flex gap-2 overflow-x-auto pb-2">
                             {yearlyList.map(yearInfo => {
@@ -358,7 +360,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                                             : 'bg-background border border-border hover:border-blue-500/50'
                                             }`}
                                     >
-                                        <div className={`text-sm font-bold ${isSelected ? '' : ''}`}>
+                                        <div className={`text-sm font-bold flex flex-col items-center leading-tight ${isSelected ? '' : ''}`}>
                                             <span style={isSelected ? {} : getCharColorStyle(yearInfo.stem)}>{yearInfo.stem}</span>
                                             <span style={isSelected ? {} : getCharColorStyle(yearInfo.branch)}>{yearInfo.branch}</span>
                                         </div>
@@ -377,7 +379,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             </div>
 
             {/* 流月 - 12个月列表 */}
-            <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+            <div className="bg-background rounded-xl border-border overflow-hidden">
                 <SectionHeader
                     title="流月"
                     color={colors.monthly}
@@ -394,58 +396,56 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                         });
                     }}
                 />
-                {(selectedYear !== null) && (
-                    <div className="p-3 pt-0">
-                        <div className="text-xs text-foreground-secondary mb-2">
-                            {viewYear}年 12个月
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                            {monthlyList.map(monthInfo => {
-                                const isSelected = monthlySelected && selectedMonth === monthInfo.month && selectedYear === viewYear;
-                                return (
-                                    <button
-                                        key={monthInfo.month}
-                                        onClick={() => {
-                                            if (isSelected) {
-                                                setMonthlySelected(false);
-                                                setSelectedMonth(null);
-                                                setDailySelected(false);
-                                                setSelectedDay(null);
-                                                return;
-                                            }
-                                            if (selectedYear === null) {
-                                                setSelectedYear(viewYear);
-                                            }
-                                            setSelectedMonth(monthInfo.month);
-                                            setMonthlySelected(true);
+                <div className="p-3 pt-0">
+                    <div className="text-xs text-foreground-secondary mb-2">
+                        {viewYear}年 12个月
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {monthlyList.map(monthInfo => {
+                            const isSelected = monthlySelected && selectedMonth === monthInfo.month && selectedYear === viewYear;
+                            return (
+                                <button
+                                    key={monthInfo.month}
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            setMonthlySelected(false);
+                                            setSelectedMonth(null);
                                             setDailySelected(false);
                                             setSelectedDay(null);
-                                        }}
-                                        className={`relative p-2 rounded-lg text-center transition-all ${isSelected
-                                            ? 'bg-green-500 text-white shadow-md'
-                                            : 'bg-background border border-border hover:border-green-500/50'
-                                            }`}
-                                    >
-                                        <div className={`text-sm font-bold ${isSelected ? '' : ''}`}>
-                                            <span style={isSelected ? {} : getCharColorStyle(monthInfo.stem)}>{monthInfo.stem}</span>
-                                            <span style={isSelected ? {} : getCharColorStyle(monthInfo.branch)}>{monthInfo.branch}</span>
-                                        </div>
-                                        <div className={`text-xs ${isSelected ? 'text-white/90' : ''}`}>
-                                            {monthInfo.month}月
-                                        </div>
-                                        <div className={`text-[10px] ${isSelected ? 'text-white/70' : 'text-foreground-secondary'}`}>
-                                            {monthInfo.palace}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                            return;
+                                        }
+                                        if (selectedYear === null) {
+                                            setSelectedYear(viewYear);
+                                        }
+                                        setSelectedMonth(monthInfo.month);
+                                        setMonthlySelected(true);
+                                        setDailySelected(false);
+                                        setSelectedDay(null);
+                                    }}
+                                    className={`relative p-2 rounded-lg text-center transition-all ${isSelected
+                                        ? 'bg-green-500 text-white shadow-md'
+                                        : 'bg-background border border-border hover:border-green-500/50'
+                                        }`}
+                                >
+                                    <div className={`text-sm font-bold flex flex-col items-center leading-tight ${isSelected ? '' : ''}`}>
+                                        <span style={isSelected ? {} : getCharColorStyle(monthInfo.stem)}>{monthInfo.stem}</span>
+                                        <span style={isSelected ? {} : getCharColorStyle(monthInfo.branch)}>{monthInfo.branch}</span>
+                                    </div>
+                                    <div className={`text-xs ${isSelected ? 'text-white/90' : ''}`}>
+                                        {monthInfo.month}月
+                                    </div>
+                                    <div className={`text-[10px] ${isSelected ? 'text-white/70' : 'text-foreground-secondary'}`}>
+                                        {monthInfo.palace}
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* 流日 - 月日历列表 */}
-            <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+            <div className="bg-background rounded-xl border-border overflow-hidden">
                 <SectionHeader
                     title="流日"
                     color={colors.daily}
@@ -460,50 +460,50 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                         });
                     }}
                 />
-                {(selectedYear !== null && selectedMonth !== null) && (
-                    <div className="p-3 pt-0">
-                        <div className="text-xs text-foreground-secondary mb-2">
-                            {viewYear}年{viewMonth}月 {dailyList.length}天
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                            {dailyList.map(dayInfo => {
-                                const isSelected = dailySelected && selectedDay === dayInfo.day && selectedMonth === viewMonth && selectedYear === viewYear;
-                                return (
-                                    <button
-                                        key={dayInfo.day}
-                                        onClick={() => {
-                                            if (isSelected) {
-                                                setDailySelected(false);
-                                                setSelectedDay(null);
-                                                return;
-                                            }
-                                            if (selectedYear === null) {
-                                                setSelectedYear(viewYear);
-                                            }
-                                            if (selectedMonth === null) {
-                                                setSelectedMonth(viewMonth);
-                                            }
-                                            setSelectedDay(dayInfo.day);
-                                            setDailySelected(true);
-                                        }}
-                                        className={`relative p-1 rounded text-center transition-all ${isSelected
-                                            ? 'bg-orange-500 text-white shadow-md'
-                                            : 'bg-background border border-border hover:border-orange-500/50'
-                                            }`}
-                                    >
-                                        <div className={`text-xs font-bold ${isSelected ? '' : ''}`}>
-                                            <span style={isSelected ? {} : getCharColorStyle(dayInfo.stem)}>{dayInfo.stem}</span>
-                                            <span style={isSelected ? {} : getCharColorStyle(dayInfo.branch)}>{dayInfo.branch}</span>
-                                        </div>
-                                        <div className={`text-[10px] ${isSelected ? 'text-white/90' : ''}`}>
-                                            {dayInfo.day}日
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
+
+                <div className="p-3 pt-0">
+                    <div className="text-xs text-foreground-secondary mb-2">
+                        {viewYear}年{viewMonth}月 {dailyList.length}天
                     </div>
-                )}
+                    <div className="grid grid-cols-7 gap-1">
+                        {dailyList.map(dayInfo => {
+                            const isSelected = dailySelected && selectedDay === dayInfo.day && selectedMonth === viewMonth && selectedYear === viewYear;
+                            return (
+                                <button
+                                    key={dayInfo.day}
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            setDailySelected(false);
+                                            setSelectedDay(null);
+                                            return;
+                                        }
+                                        if (selectedYear === null) {
+                                            setSelectedYear(viewYear);
+                                        }
+                                        if (selectedMonth === null) {
+                                            setSelectedMonth(viewMonth);
+                                        }
+                                        setSelectedDay(dayInfo.day);
+                                        setDailySelected(true);
+                                    }}
+                                    className={`relative p-1 rounded text-center transition-all ${isSelected
+                                        ? 'bg-orange-500 text-white shadow-md'
+                                        : 'bg-background border border-border hover:border-orange-500/50'
+                                        }`}
+                                >
+                                    <div className={`text-xs font-bold flex flex-col items-center leading-tight ${isSelected ? '' : ''}`}>
+                                        <span style={isSelected ? {} : getCharColorStyle(dayInfo.stem)}>{dayInfo.stem}</span>
+                                        <span style={isSelected ? {} : getCharColorStyle(dayInfo.branch)}>{dayInfo.branch}</span>
+                                    </div>
+                                    <div className={`text-[10px] ${isSelected ? 'text-white/90' : ''}`}>
+                                        {dayInfo.day}日
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
             </div>
 
         </div>

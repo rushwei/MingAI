@@ -436,7 +436,7 @@ function BaziResultContent() {
     const dayMasterDescription = getDayMasterDescription(baziResult.dayMaster);
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-6 animate-fade-in">
+        <div className="max-w-4xl mx-auto px-2 py-6 animate-fade-in">
             <ResultHeader
                 chartId={chartId}
                 saving={saving}

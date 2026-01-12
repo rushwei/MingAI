@@ -92,23 +92,27 @@ export function PalaceCard({
             {hasFlowInfo && (
                 <div className="flex flex-wrap gap-1 mt-1 pt-1 border-t border-border/50 text-[8px]">
                     {flowInfo.decadal && (
-                        <span className="px-1 py-0.5 bg-purple-500/20 text-purple-500 rounded whitespace-nowrap">
-                            限{flowInfo.decadal.stem}
+                        <span className="flex flex-col items-center px-1 py-0.5 bg-purple-500/20 text-purple-500 rounded leading-tight">
+                            <span>限</span>
+                            <span>{flowInfo.decadal.stem}</span>
                         </span>
                     )}
                     {flowInfo.yearly && (
-                        <span className="px-1 py-0.5 bg-blue-500/20 text-blue-500 rounded whitespace-nowrap">
-                            年{flowInfo.yearly}
+                        <span className="flex flex-col items-center px-1 py-0.5 bg-blue-500/20 text-blue-500 rounded leading-tight">
+                            <span>年</span>
+                            <span>{flowInfo.yearly}</span>
                         </span>
                     )}
                     {flowInfo.monthly && (
-                        <span className="px-1 py-0.5 bg-green-500/20 text-green-500 rounded whitespace-nowrap">
-                            月{flowInfo.monthly}
+                        <span className="flex flex-col items-center px-1 py-0.5 bg-green-500/20 text-green-500 rounded leading-tight">
+                            <span>月</span>
+                            <span>{flowInfo.monthly}</span>
                         </span>
                     )}
                     {flowInfo.daily && (
-                        <span className="px-1 py-0.5 bg-orange-500/20 text-orange-500 rounded whitespace-nowrap">
-                            日{flowInfo.daily}
+                        <span className="flex flex-col items-center px-1 py-0.5 bg-orange-500/20 text-orange-500 rounded leading-tight">
+                            <span>日</span>
+                            <span>{flowInfo.daily}</span>
                         </span>
                     )}
                     {flowInfo.decadal?.ages && (

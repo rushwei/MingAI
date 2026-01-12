@@ -52,7 +52,7 @@ export function ProfessionalSection({
 
     return (
         <div className="space-y-4">
-            <section className="bg-background-secondary rounded-xl p-4 border border-border overflow-x-hidden">
+            <section className="bg-background-secondary rounded-xl p-4 border border-border overflow-x-hidden max-w-[410px] sm:max-w-none">
                 <h2 className="text-base font-semibold mb-3">四柱详解</h2>
                 <ProfessionalTable
                     baziResult={baziResult}
@@ -80,7 +80,7 @@ export function ProfessionalSection({
                 isUnknownTime={isUnknownTime}
             />
 
-            <section className="bg-background-secondary rounded-xl p-4 border border-border">
+            <section className="bg-background-secondary rounded-xl p-4 border border-border max-w-[410px] sm:max-w-none">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-accent" />
                     大运（每运10年）
@@ -93,7 +93,7 @@ export function ProfessionalSection({
             </section>
 
             {currentLiuNian.length > 0 && (
-                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                <section className="bg-background-secondary rounded-xl p-4 border border-border max-w-[410px] sm:max-w-none">
                     <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         流年
@@ -107,7 +107,7 @@ export function ProfessionalSection({
             )}
 
             {liuYue.length > 0 && (
-                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                <section className="bg-background-secondary rounded-xl p-4 border border-border max-w-[410px] sm:max-w-none">
                     <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         {selectedLiuNianYear}年流月
@@ -124,7 +124,7 @@ export function ProfessionalSection({
             )}
 
             {liuRi.length > 0 && activeLiuYue && (
-                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                <section className="bg-background-secondary rounded-xl p-4 border border-border max-w-[402px] sm:max-w-none">
                     <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         流日（{activeLiuYue.startDate} ~ {activeLiuYue.endDate}）

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { ZiweiChart, DecadalInfo } from '@/lib/ziwei';
 import { getBranchIndex, getDecadalList } from '@/lib/ziwei';
+import { getBranchElement, getElementColor } from '@/lib/bazi';
 import { PalaceCard } from './PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from './ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
@@ -37,6 +38,12 @@ function getStemElementColor(stem: string | undefined): string {
         case '壬': case '癸': return 'text-blue-500';   // 水
         default: return 'text-foreground';
     }
+}
+
+function getBranchElementStyle(branch: string | undefined): { color: string } | undefined {
+    if (!branch) return undefined;
+    const element = getBranchElement(branch);
+    return element ? { color: getElementColor(element) } : undefined;
 }
 
 // 生成命盘文字版本
@@ -143,7 +150,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
         if (horoscopeInfo.decadal && horoscopeInfo.decadal.palace.index === palaceIndex) {
             flowInfo.decadal = {
                 stem: horoscopeInfo.decadal.heavenlyStem,
-                ages: `${horoscopeInfo.decadal.startAge}-${horoscopeInfo.decadal.endAge}岁`,
+                ages: `${horoscopeInfo.decadal.startAge}岁`,
             };
         }
 
@@ -273,7 +280,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                     </svg>
                 )}
 
-                <div className="grid grid-cols-4 gap-1 sm:gap-2">
+                <div className="grid grid-cols-4 gap-0.5 sm:gap-2 max-w-[460px] sm:max-w-none mx-auto">
                     {gridLayout.map((row, rowIdx) =>
                         row.map((branchIdx, colIdx) => {
                             if (branchIdx === -1) {
@@ -290,28 +297,28 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                                         <div className="text-foreground-secondary text-[10px]">年柱</div>
                                                         <div className="font-semibold">
                                                             <span className={getStemElementColor(chart.yearStem)}>{chart.yearStem || '*'}</span>
-                                                            {chart.yearBranch || '*'}
+                                                            <span style={getBranchElementStyle(chart.yearBranch)}>{chart.yearBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">月柱</div>
                                                         <div className="font-semibold">
                                                             <span className={getStemElementColor(chart.monthStem)}>{chart.monthStem || '*'}</span>
-                                                            {chart.monthBranch || '*'}
+                                                            <span style={getBranchElementStyle(chart.monthBranch)}>{chart.monthBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">日柱</div>
                                                         <div className="font-semibold">
                                                             <span className={getStemElementColor(chart.dayStem)}>{chart.dayStem || '*'}</span>
-                                                            {chart.dayBranch || '*'}
+                                                            <span style={getBranchElementStyle(chart.dayBranch)}>{chart.dayBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">时柱</div>
                                                         <div className="font-semibold">
                                                             <span className={getStemElementColor(chart.hourStem)}>{chart.hourStem || '*'}</span>
-                                                            {chart.hourBranch || '*'}
+                                                            <span style={getBranchElementStyle(chart.hourBranch)}>{chart.hourBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -385,82 +392,6 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                     )}
                 </div>
             </div>
-
-
-            {/* 选中宫位详情 */}
-            {
-                selectedPalace !== null && chart.palaces[selectedPalace] && (
-                    <div className="mt-4 p-4 rounded-lg bg-background-secondary border border-border">
-                        <h3 className="font-semibold mb-2">
-                            {chart.palaces[selectedPalace].name}
-                            <span className="text-sm font-normal text-foreground-secondary ml-2">
-                                {chart.palaces[selectedPalace].heavenlyStem}
-                                {chart.palaces[selectedPalace].earthlyBranch}
-                            </span>
-                            {chart.palaces[selectedPalace].isBodyPalace && (
-                                <span className="ml-2 text-xs text-amber-500">（身宫）</span>
-                            )}
-                        </h3>
-                        <div className="space-y-2">
-                            <div>
-                                <span className="text-sm text-foreground-secondary">主星：</span>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                    {chart.palaces[selectedPalace].majorStars.map((star, idx) => (
-                                        <span key={idx} className="px-2 py-0.5 rounded bg-accent/10 text-sm">
-                                            <span className="text-purple-500">{star.name}</span>
-                                            {star.brightness && <span className="text-xs text-foreground-secondary ml-0.5">{star.brightness}</span>}
-                                            {star.mutagen && <span className="text-xs text-amber-500 ml-0.5">{star.mutagen}</span>}
-                                        </span>
-                                    ))}
-                                    {chart.palaces[selectedPalace].majorStars.length === 0 && (
-                                        <span className="text-sm text-foreground-secondary">无主星</span>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-sm text-foreground-secondary">辅星：</span>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                    {chart.palaces[selectedPalace].minorStars.map((star, idx) => (
-                                        <span key={idx} className="text-xs text-foreground-secondary px-1.5 py-0.5 rounded bg-background">
-                                            {star.name}
-                                            {star.brightness && <span className="ml-0.5 text-gray-400">{star.brightness}</span>}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                            {chart.palaces[selectedPalace].adjStars && chart.palaces[selectedPalace].adjStars.length > 0 && (
-                                <div>
-                                    <span className="text-sm text-foreground-secondary">杂曜：</span>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {chart.palaces[selectedPalace].adjStars.map((star, idx) => (
-                                            <span key={idx} className="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-background">
-                                                {star.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            {/* 三方四正信息 */}
-                            <div className="border-t border-border pt-2 mt-2">
-                                <span className="text-sm text-foreground-secondary">三方四正：</span>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                    {sanFangSiZhengPalaces.map((idx, i) => (
-                                        <span
-                                            key={i}
-                                            className={`text-xs px-1.5 py-0.5 rounded ${idx === selectedPalace
-                                                ? 'bg-accent text-white'
-                                                : 'bg-accent/10 text-accent'
-                                                }`}
-                                        >
-                                            {chart.palaces[idx]?.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
         </div >
     );
 }
