@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import type { ZiweiChart } from '@/lib/ziwei';
-import { getBranchIndex } from '@/lib/ziwei';
+import { useState, useEffect } from 'react';
+import type { ZiweiChart, DecadalInfo } from '@/lib/ziwei';
+import { getBranchIndex, getDecadalList } from '@/lib/ziwei';
 import { PalaceCard } from './PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from './ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
@@ -25,15 +25,84 @@ function getSanFangSiZheng(palaceIndex: number): number[] {
     return [palaceIndex, ...sanFang, siZheng];
 }
 
+// 五行颜色映射：天干对应五行
+function getStemElementColor(stem: string | undefined): string {
+    if (!stem) return 'text-foreground';
+    // 甲乙-木-绿, 丙丁-火-红, 戊己-土-黄, 庚辛-金-金色, 壬癸-水-蓝
+    switch (stem) {
+        case '甲': case '乙': return 'text-green-500';  // 木
+        case '丙': case '丁': return 'text-red-500';    // 火
+        case '戊': case '己': return 'text-amber-500';  // 土
+        case '庚': case '辛': return 'text-yellow-400'; // 金
+        case '壬': case '癸': return 'text-blue-500';   // 水
+        default: return 'text-foreground';
+    }
+}
+
+// 生成命盘文字版本
+function generateChartText(chart: ZiweiChart, horoscopeInfo?: HoroscopeInfo): string {
+    const lines: string[] = [];
+    lines.push('【紫微斗数命盘】');
+    lines.push(`阳历：${chart.solarDate}`);
+    lines.push(`农历：${chart.lunarDate}`);
+    lines.push(`四柱：${chart.yearStem}${chart.yearBranch} ${chart.monthStem}${chart.monthBranch} ${chart.dayStem}${chart.dayBranch} ${chart.hourStem}${chart.hourBranch}`);
+    lines.push(`命主：${chart.soul}  身主：${chart.body}`);
+    lines.push(`五行局：${chart.fiveElement}`);
+    lines.push(`属相：${chart.zodiac}  星座：${chart.sign}`);
+    lines.push('');
+    lines.push('【十二宫位】');
+    chart.palaces.forEach((palace) => {
+        const bodyMark = palace.isBodyPalace ? '（身宫）' : '';
+        const majorStars = palace.majorStars.map(s => {
+            let str = s.name;
+            if (s.brightness) str += s.brightness;
+            if (s.mutagen) str += `化${s.mutagen}`;
+            return str;
+        }).join('、') || '无主星';
+        const minorStars = palace.minorStars.map(s => s.name + (s.brightness || '')).join('、');
+        const adjStars = palace.adjStars?.map(s => s.name).join('、');
+        lines.push(`${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
+        lines.push(`  主星：${majorStars}`);
+        if (minorStars) lines.push(`  辅星：${minorStars}`);
+        if (adjStars) lines.push(`  杂曜：${adjStars}`);
+    });
+    lines.push('');
+
+    // 大限列表
+    const decadalList: DecadalInfo[] = getDecadalList(chart);
+    if (decadalList.length > 0) {
+        lines.push('【大限排列】');
+        decadalList.forEach((d: DecadalInfo) => {
+            lines.push(`${d.startAge}-${d.endAge}岁 ${d.heavenlyStem}${d.palace.earthlyBranch} ${d.palace.name}`);
+        });
+        lines.push('');
+    }
+
+    // 当前选中的流年
+    if (horoscopeInfo?.yearly) {
+        lines.push(`【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`);
+    }
+
+    return lines.join('\n');
+}
+
 /**
  * 紫微斗数命盘 12 宫位图
  */
 export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }: ZiweiChartProps) {
-    const [selectedPalace, setSelectedPalace] = useState<number | null>(null);
-    const [showAdjStars, setShowAdjStars] = useState(false);
-
     const lifePalaceIndex = chart.palaces.findIndex(p => p.name === '命宫');
     const bodyPalaceIndex = chart.palaces.findIndex(p => p.isBodyPalace);
+
+    // 默认选中命宫，显示三方四正
+    const [selectedPalace, setSelectedPalace] = useState<number | null>(lifePalaceIndex >= 0 ? lifePalaceIndex : null);
+    const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
+    const [copied, setCopied] = useState(false);
+
+    // 当命盘变化时重新选中命宫
+    useEffect(() => {
+        const newLifeIndex = chart.palaces.findIndex(p => p.name === '命宫');
+        setSelectedPalace(newLifeIndex >= 0 ? newLifeIndex : null);
+    }, [chart]);
 
     const getPalaceByBranch = (branchIndex: number) => {
         return chart.palaces.find(p => getBranchIndex(p.earthlyBranch) === branchIndex);
@@ -50,6 +119,14 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
         if (horoscopeHighlight.monthlyIndex === palaceIndex) types.push('monthly');
         if (horoscopeHighlight.dailyIndex === palaceIndex) types.push('daily');
         return types;
+    };
+
+    // 复制命盘
+    const handleCopy = async () => {
+        const text = generateChartText(chart, horoscopeInfo);
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     // 生成宫位的流年流月信息
@@ -97,8 +174,17 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
     return (
         <div className="w-full">
-            {/* 杂曜开关 */}
-            <div className="flex justify-end mb-2">
+            {/* 工具栏 */}
+            <div className="flex justify-end gap-2 mb-2">
+                <button
+                    onClick={handleCopy}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${copied
+                        ? 'bg-green-500/10 text-green-500'
+                        : 'bg-background-secondary text-foreground-secondary hover:bg-background-tertiary'
+                        }`}
+                >
+                    {copied ? '已复制' : '复制排盘'}
+                </button>
                 <button
                     onClick={() => setShowAdjStars(!showAdjStars)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${showAdjStars
@@ -198,23 +284,35 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                             className="col-span-2 row-span-2 p-3 rounded-lg bg-gradient-to-br from-background-secondary to-background border border-border"
                                         >
                                             <div className="h-full flex flex-col justify-center text-sm space-y-1.5">
-                                                {/* 四柱信息 */}
-                                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                                {/* 四柱信息 - 五行着色 */}
+                                                <div className="grid grid-cols-4 gap-0.5 text-center text-xs">
                                                     <div>
-                                                        <div className="text-foreground-secondary">年柱</div>
-                                                        <div className="font-semibold">{chart.yearStem || '*'}{chart.yearBranch || '*'}</div>
+                                                        <div className="text-foreground-secondary text-[10px]">年柱</div>
+                                                        <div className="font-semibold">
+                                                            <span className={getStemElementColor(chart.yearStem)}>{chart.yearStem || '*'}</span>
+                                                            {chart.yearBranch || '*'}
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-foreground-secondary">月柱</div>
-                                                        <div className="font-semibold">{chart.monthStem || '*'}{chart.monthBranch || '*'}</div>
+                                                        <div className="text-foreground-secondary text-[10px]">月柱</div>
+                                                        <div className="font-semibold">
+                                                            <span className={getStemElementColor(chart.monthStem)}>{chart.monthStem || '*'}</span>
+                                                            {chart.monthBranch || '*'}
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-foreground-secondary">日柱</div>
-                                                        <div className="font-semibold">{chart.dayStem || '*'}{chart.dayBranch || '*'}</div>
+                                                        <div className="text-foreground-secondary text-[10px]">日柱</div>
+                                                        <div className="font-semibold">
+                                                            <span className={getStemElementColor(chart.dayStem)}>{chart.dayStem || '*'}</span>
+                                                            {chart.dayBranch || '*'}
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-foreground-secondary">时柱</div>
-                                                        <div className="font-semibold">{chart.hourStem || '*'}{chart.hourBranch || '*'}</div>
+                                                        <div className="text-foreground-secondary text-[10px]">时柱</div>
+                                                        <div className="font-semibold">
+                                                            <span className={getStemElementColor(chart.hourStem)}>{chart.hourStem || '*'}</span>
+                                                            {chart.hourBranch || '*'}
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -290,77 +388,79 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
 
             {/* 选中宫位详情 */}
-            {selectedPalace !== null && chart.palaces[selectedPalace] && (
-                <div className="mt-4 p-4 rounded-lg bg-background-secondary border border-border">
-                    <h3 className="font-semibold mb-2">
-                        {chart.palaces[selectedPalace].name}
-                        <span className="text-sm font-normal text-foreground-secondary ml-2">
-                            {chart.palaces[selectedPalace].heavenlyStem}
-                            {chart.palaces[selectedPalace].earthlyBranch}
-                        </span>
-                        {chart.palaces[selectedPalace].isBodyPalace && (
-                            <span className="ml-2 text-xs text-amber-500">（身宫）</span>
-                        )}
-                    </h3>
-                    <div className="space-y-2">
-                        <div>
-                            <span className="text-sm text-foreground-secondary">主星：</span>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {chart.palaces[selectedPalace].majorStars.map((star, idx) => (
-                                    <span key={idx} className="px-2 py-0.5 rounded bg-accent/10 text-sm">
-                                        <span className="text-purple-500">{star.name}</span>
-                                        {star.brightness && <span className="text-xs text-foreground-secondary ml-0.5">{star.brightness}</span>}
-                                        {star.mutagen && <span className="text-xs text-amber-500 ml-0.5">{star.mutagen}</span>}
-                                    </span>
-                                ))}
-                                {chart.palaces[selectedPalace].majorStars.length === 0 && (
-                                    <span className="text-sm text-foreground-secondary">无主星</span>
-                                )}
-                            </div>
-                        </div>
-                        <div>
-                            <span className="text-sm text-foreground-secondary">辅星：</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                                {chart.palaces[selectedPalace].minorStars.map((star, idx) => (
-                                    <span key={idx} className="text-xs text-foreground-secondary px-1.5 py-0.5 rounded bg-background">
-                                        {star.name}
-                                        {star.brightness && <span className="ml-0.5 text-gray-400">{star.brightness}</span>}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                        {chart.palaces[selectedPalace].adjStars && chart.palaces[selectedPalace].adjStars.length > 0 && (
+            {
+                selectedPalace !== null && chart.palaces[selectedPalace] && (
+                    <div className="mt-4 p-4 rounded-lg bg-background-secondary border border-border">
+                        <h3 className="font-semibold mb-2">
+                            {chart.palaces[selectedPalace].name}
+                            <span className="text-sm font-normal text-foreground-secondary ml-2">
+                                {chart.palaces[selectedPalace].heavenlyStem}
+                                {chart.palaces[selectedPalace].earthlyBranch}
+                            </span>
+                            {chart.palaces[selectedPalace].isBodyPalace && (
+                                <span className="ml-2 text-xs text-amber-500">（身宫）</span>
+                            )}
+                        </h3>
+                        <div className="space-y-2">
                             <div>
-                                <span className="text-sm text-foreground-secondary">杂曜：</span>
+                                <span className="text-sm text-foreground-secondary">主星：</span>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {chart.palaces[selectedPalace].majorStars.map((star, idx) => (
+                                        <span key={idx} className="px-2 py-0.5 rounded bg-accent/10 text-sm">
+                                            <span className="text-purple-500">{star.name}</span>
+                                            {star.brightness && <span className="text-xs text-foreground-secondary ml-0.5">{star.brightness}</span>}
+                                            {star.mutagen && <span className="text-xs text-amber-500 ml-0.5">{star.mutagen}</span>}
+                                        </span>
+                                    ))}
+                                    {chart.palaces[selectedPalace].majorStars.length === 0 && (
+                                        <span className="text-sm text-foreground-secondary">无主星</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <span className="text-sm text-foreground-secondary">辅星：</span>
                                 <div className="flex flex-wrap gap-1 mt-1">
-                                    {chart.palaces[selectedPalace].adjStars.map((star, idx) => (
-                                        <span key={idx} className="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-background">
+                                    {chart.palaces[selectedPalace].minorStars.map((star, idx) => (
+                                        <span key={idx} className="text-xs text-foreground-secondary px-1.5 py-0.5 rounded bg-background">
                                             {star.name}
+                                            {star.brightness && <span className="ml-0.5 text-gray-400">{star.brightness}</span>}
                                         </span>
                                     ))}
                                 </div>
                             </div>
-                        )}
-                        {/* 三方四正信息 */}
-                        <div className="border-t border-border pt-2 mt-2">
-                            <span className="text-sm text-foreground-secondary">三方四正：</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                                {sanFangSiZhengPalaces.map((idx, i) => (
-                                    <span
-                                        key={i}
-                                        className={`text-xs px-1.5 py-0.5 rounded ${idx === selectedPalace
-                                            ? 'bg-accent text-white'
-                                            : 'bg-accent/10 text-accent'
-                                            }`}
-                                    >
-                                        {chart.palaces[idx]?.name}
-                                    </span>
-                                ))}
+                            {chart.palaces[selectedPalace].adjStars && chart.palaces[selectedPalace].adjStars.length > 0 && (
+                                <div>
+                                    <span className="text-sm text-foreground-secondary">杂曜：</span>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {chart.palaces[selectedPalace].adjStars.map((star, idx) => (
+                                            <span key={idx} className="text-xs text-gray-400 px-1.5 py-0.5 rounded bg-background">
+                                                {star.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {/* 三方四正信息 */}
+                            <div className="border-t border-border pt-2 mt-2">
+                                <span className="text-sm text-foreground-secondary">三方四正：</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {sanFangSiZhengPalaces.map((idx, i) => (
+                                        <span
+                                            key={i}
+                                            className={`text-xs px-1.5 py-0.5 rounded ${idx === selectedPalace
+                                                ? 'bg-accent text-white'
+                                                : 'bg-accent/10 text-accent'
+                                                }`}
+                                        >
+                                            {chart.palaces[idx]?.name}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

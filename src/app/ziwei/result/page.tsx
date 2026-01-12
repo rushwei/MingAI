@@ -6,7 +6,7 @@
 import { useMemo, useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Loader2, ArrowLeft, Share2, Edit3, Save, Check, MapPinned } from 'lucide-react';
+import { Star, Loader2, ArrowLeft, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { calculateZiwei, type ZiweiFormData } from '@/lib/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
@@ -23,6 +23,7 @@ function ZiweiResultContent() {
     const [chartFromDb, setChartFromDb] = useState<ZiweiFormData | null>(null);
     const [horoscopeHighlight, setHoroscopeHighlight] = useState<HoroscopeHighlight>({});
     const [horoscopeInfo, setHoroscopeInfo] = useState<HoroscopeInfo | undefined>(undefined);
+    const [hourOffset, setHourOffset] = useState(0); // 时辰调整偏移
 
     const chartId = searchParams.get('chart');
     const hasFormParams = useMemo(() => {
@@ -94,20 +95,70 @@ function ZiweiResultContent() {
         };
     }, [searchParams]);
     const resolvedFormData = chartFromDb || formData;
-    const isUnknownTime = resolvedFormData.isUnknownTime ?? false;
+
+    // 应用时辰偏移后的数据
+    const adjustedFormData = useMemo(() => {
+        if (hourOffset === 0 || resolvedFormData.isUnknownTime) return resolvedFormData;
+
+        let adjustedHour = resolvedFormData.birthHour + hourOffset;
+        let adjustedDay = resolvedFormData.birthDay;
+        let adjustedMonth = resolvedFormData.birthMonth;
+        let adjustedYear = resolvedFormData.birthYear;
+
+        // 处理小时溢出（支持多次偏移）
+        while (adjustedHour >= 24) {
+            adjustedHour -= 24;
+            adjustedDay += 1;
+        }
+        while (adjustedHour < 0) {
+            adjustedHour += 24;
+            adjustedDay -= 1;
+        }
+
+        // 简化处理：月份和年份溢出（支持多天偏移）
+        let daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+        while (adjustedDay > daysInMonth) {
+            adjustedDay -= daysInMonth;
+            adjustedMonth += 1;
+            if (adjustedMonth > 12) {
+                adjustedMonth = 1;
+                adjustedYear += 1;
+            }
+            daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+        }
+        while (adjustedDay < 1) {
+            adjustedMonth -= 1;
+            if (adjustedMonth < 1) {
+                adjustedMonth = 12;
+                adjustedYear -= 1;
+            }
+            daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+            adjustedDay += daysInMonth;
+        }
+
+        return {
+            ...resolvedFormData,
+            birthYear: adjustedYear,
+            birthMonth: adjustedMonth,
+            birthDay: adjustedDay,
+            birthHour: adjustedHour,
+        };
+    }, [resolvedFormData, hourOffset]);
+
+    const isUnknownTime = adjustedFormData.isUnknownTime ?? false;
     const timeText = isUnknownTime
         ? '时辰未知'
-        : `${String(resolvedFormData.birthHour).padStart(2, '0')}:${String(resolvedFormData.birthMinute || 0).padStart(2, '0')}`;
+        : `${String(adjustedFormData.birthHour).padStart(2, '0')}:${String(adjustedFormData.birthMinute || 0).padStart(2, '0')}`;
 
-    // 计算紫微命盘
+    // 计算紫微命盘（使用调整后的数据）
     const chart = useMemo(() => {
         try {
-            return calculateZiwei(resolvedFormData);
+            return calculateZiwei(adjustedFormData);
         } catch (error) {
             console.error('紫微排盘错误:', error);
             return null;
         }
-    }, [resolvedFormData]);
+    }, [adjustedFormData]);
 
     // 修改命盘
     const handleEdit = () => {
@@ -311,9 +362,44 @@ function ZiweiResultContent() {
                             <span>{resolvedFormData.gender === 'male' ? '男' : '女'}</span>
                             <span>•</span>
                             <span>
-                                {resolvedFormData.birthYear}年{resolvedFormData.birthMonth}月{resolvedFormData.birthDay}日
-                                <span className="ml-2">{timeText}</span>
+                                {adjustedFormData.birthYear}年{adjustedFormData.birthMonth}月{adjustedFormData.birthDay}日
                             </span>
+                        </div>
+                        {/* 时辰调整区域 */}
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1 text-sm">
+                                <Clock className="w-4 h-4 text-foreground-secondary" />
+                                <span className={hourOffset !== 0 ? 'text-accent font-medium' : ''}>{timeText}</span>
+                                {hourOffset !== 0 && (
+                                    <span className="text-xs text-accent">({hourOffset > 0 ? '+' : ''}{hourOffset}h)</span>
+                                )}
+                            </div>
+                            {!isUnknownTime && (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setHourOffset(prev => prev - 1)}
+                                        className="p-1 rounded hover:bg-accent/20 text-foreground-secondary hover:text-accent transition-colors"
+                                        title="减少1小时"
+                                    >
+                                        <Minus className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setHourOffset(prev => prev + 1)}
+                                        className="p-1 rounded hover:bg-accent/20 text-foreground-secondary hover:text-accent transition-colors"
+                                        title="增加1小时"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </button>
+                                    {hourOffset !== 0 && (
+                                        <button
+                                            onClick={() => setHourOffset(0)}
+                                            className="text-xs text-foreground-secondary hover:text-accent ml-1"
+                                        >
+                                            重置
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         {resolvedFormData.birthPlace && (
                             <div className="text-sm text-foreground-secondary mt-0.5">
@@ -327,7 +413,7 @@ function ZiweiResultContent() {
                 </div>
             </div>
 
-            <section className="bg-background-secondary rounded-xl p-4 border border-border">
+            <section className="bg-background-secondary rounded-xl p-4 border border-border overflow-x-hidden">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <Star className="w-4 h-4 text-accent" />
                     紫微斗数命盘

@@ -104,7 +104,7 @@ export default function RootLayout({
                   </div>
 
                   {/* 页面内容 */}
-                  <main className="flex-1 pb-20 lg:pb-0">
+                  <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
                     {children}
                   </main>
                 </div>

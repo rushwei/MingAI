@@ -74,7 +74,7 @@ function DailyPageContent() {
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
     const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('colloquial');
-    const [showTrendChart, setShowTrendChart] = useState(false);
+    const [showTrendChart, setShowTrendChart] = useState(true);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -106,7 +106,11 @@ function DailyPageContent() {
                     } as BaziChart;
                 });
                 setBaziCharts(charts);
-                setBaziChart(charts[0]);
+
+                // 优先使用默认命盘
+                const defaultId = localStorage.getItem('defaultBaziChartId');
+                const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {
             console.error('加载命盘失败:', err);

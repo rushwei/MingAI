@@ -48,7 +48,7 @@ function BaziResultContent() {
     const [selectedDaYunIndex, setSelectedDaYunIndex] = useState<number>(0);
     const [selectedLiuNianYear, setSelectedLiuNianYear] = useState<number>(currentYear);
     // useState 保持流月/流日选择，驱动下方明细展示
-    const [selectedLiuYueMonth, setSelectedLiuYueMonth] = useState<number>(1);
+    const [selectedLiuYueMonth, setSelectedLiuYueMonth] = useState<number>(-1);
     const [selectedLiuRiDate, setSelectedLiuRiDate] = useState<string>('');
 
     const chartId = searchParams.get('chart');
@@ -201,6 +201,7 @@ function BaziResultContent() {
 
     // 计算流月
     const liuYue = useMemo(() => {
+        if (selectedLiuNianYear <= 0) return [];
         try {
             return calculateLiuYue(selectedLiuNianYear);
         } catch (error) {
@@ -209,30 +210,14 @@ function BaziResultContent() {
         }
     }, [selectedLiuNianYear]);
 
-    // useEffect 根据流年变化重置流月选中项，保证展示一致
+    // useEffect 根据流年变化重置流月选中项
     useEffect(() => {
         if (liuYue.length === 0) {
-            setSelectedLiuYueMonth(1);
+            setSelectedLiuYueMonth(-1);
             return;
         }
-
-        if (selectedLiuNianYear === currentYear) {
-            const currentDate = new Date(currentYear, currentMonth - 1, currentDay);
-            const currentLiuYue = liuYue.find((item) => {
-                const [sy, sm, sd] = item.startDate.split('-').map(Number);
-                const [ey, em, ed] = item.endDate.split('-').map(Number);
-                const start = new Date(sy, sm - 1, sd);
-                const end = new Date(ey, em - 1, ed);
-                return currentDate >= start && currentDate <= end;
-            });
-            if (currentLiuYue) {
-                setSelectedLiuYueMonth(currentLiuYue.month);
-                return;
-            }
-        }
-
-        setSelectedLiuYueMonth(liuYue[0].month);
-    }, [liuYue, selectedLiuNianYear, currentYear, currentMonth, currentDay]);
+        // 不再自动选择流月，保持未选中状态
+    }, [liuYue]);
 
     const activeLiuYue = useMemo(
         () => liuYue.find((item) => item.month === selectedLiuYueMonth) || null,
@@ -255,19 +240,8 @@ function BaziResultContent() {
             setSelectedLiuRiDate('');
             return;
         }
-
-        const todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-        const todayMatch = selectedLiuNianYear === currentYear
-            && activeLiuYue.startDate <= todayStr
-            && activeLiuYue.endDate >= todayStr;
-
-        if (todayMatch) {
-            setSelectedLiuRiDate(todayStr);
-            return;
-        }
-
-        setSelectedLiuRiDate(activeLiuYue.startDate);
-    }, [activeLiuYue, selectedLiuNianYear, currentYear, currentMonth, currentDay]);
+        // 不再自动选择流日，保持未选中状态
+    }, [activeLiuYue]);
 
     // 计算神煞
     const shenSha = useMemo(() => {
@@ -390,27 +364,53 @@ function BaziResultContent() {
 
     // 选择大运 - 同时更新流年到该大运第一年
     const handleSelectDaYun = (index: number) => {
-        setSelectedDaYunIndex(index);
-        if (proData && proData.daYun[index]) {
-            const firstLiuNian = proData.daYun[index].liuNian[0];
-            if (firstLiuNian) {
-                setSelectedLiuNianYear(firstLiuNian.year);
-            }
+        if (selectedDaYunIndex === index) {
+            // 取消选择，级联取消
+            setSelectedDaYunIndex(-1);
+            setSelectedLiuNianYear(-1);
+            setSelectedLiuYueMonth(-1);
+            setSelectedLiuRiDate('');
+        } else {
+            setSelectedDaYunIndex(index);
+            // 切换大运时，不自动选择流年，但清除已选的流年/流月/流日
+            setSelectedLiuNianYear(-1);
+            setSelectedLiuYueMonth(-1);
+            setSelectedLiuRiDate('');
         }
     };
 
     // 选择流年
     const handleSelectLiuNian = (year: number) => {
-        setSelectedLiuNianYear(year);
+        if (selectedLiuNianYear === year) {
+            setSelectedLiuNianYear(-1);
+            setSelectedLiuYueMonth(-1);
+            setSelectedLiuRiDate('');
+        } else {
+            setSelectedLiuNianYear(year);
+            // 切换流年时，清除已选的流月/流日
+            setSelectedLiuYueMonth(-1);
+            setSelectedLiuRiDate('');
+        }
     };
 
     // 选择流月/流日
     const handleSelectLiuYue = (month: number) => {
-        setSelectedLiuYueMonth(month);
+        if (selectedLiuYueMonth === month) {
+            setSelectedLiuYueMonth(-1);
+            setSelectedLiuRiDate('');
+        } else {
+            setSelectedLiuYueMonth(month);
+            // 切换流月，清除已选流日
+            setSelectedLiuRiDate('');
+        }
     };
 
     const handleSelectLiuRi = (date: string) => {
-        setSelectedLiuRiDate(date);
+        if (selectedLiuRiDate === date) {
+            setSelectedLiuRiDate('');
+        } else {
+            setSelectedLiuRiDate(date);
+        }
     };
 
     if (loading) {

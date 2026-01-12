@@ -39,10 +39,6 @@ export function PalaceCard({
     flowInfo,
     onClick
 }: PalaceCardProps) {
-    // 根据是否显示杂曜来决定显示的星星
-    const allStars = showAdjStars
-        ? [...palace.majorStars, ...palace.minorStars, ...(palace.adjStars || [])]
-        : [...palace.majorStars, ...palace.minorStars];
 
     // 获取边框样式（支持多色）
     const getBorderClasses = () => {
@@ -78,14 +74,18 @@ export function PalaceCard({
             </div>
             {/* 星曜列表 - 主内容区 */}
             <div className="flex-1 flex flex-wrap gap-0.5 content-start">
-                {allStars.slice(0, 5).map((star, idx) => (
-                    <StarBadge key={idx} star={star} size="sm" />
+                {/* 主星全部显示 */}
+                {palace.majorStars.map((star, idx) => (
+                    <StarBadge key={`major-${idx}`} star={star} size="sm" />
                 ))}
-                {allStars.length > 5 && (
-                    <span className="text-[10px] text-foreground-secondary">
-                        +{allStars.length - 5}
-                    </span>
-                )}
+                {/* 辅星全部显示 */}
+                {palace.minorStars.map((star, idx) => (
+                    <StarBadge key={`minor-${idx}`} star={star} size="sm" />
+                ))}
+                {/* 杂曜全部显示（受showAdjStars控制） */}
+                {showAdjStars && palace.adjStars?.map((star, idx) => (
+                    <StarBadge key={`adj-${idx}`} star={star} size="sm" />
+                ))}
             </div>
 
             {/* 流限信息 - 底部横向排列 */}

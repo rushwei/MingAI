@@ -56,7 +56,7 @@ export function getBranchElement(branch: string): FiveElement | null {
 }
 
 /** 地支藏干表 */
-const HIDDEN_STEMS: Record<EarthlyBranch, HeavenlyStem[]> = {
+export const HIDDEN_STEMS: Record<EarthlyBranch, HeavenlyStem[]> = {
     '子': ['癸'],
     '丑': ['己', '癸', '辛'],
     '寅': ['甲', '丙', '戊'],
@@ -101,7 +101,7 @@ function getElementRelation(from: FiveElement, to: FiveElement): 'same' | 'produ
  * @param dayStem 日主天干
  * @param targetStem 目标天干
  */
-function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): TenGod {
+export function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): TenGod {
     if (dayStem === targetStem) return '比肩';
 
     const dayElement = STEM_ELEMENTS[dayStem];
@@ -1325,5 +1325,127 @@ export function calculateLiuRi(startDate: string, endDate: string): LiuRiInfo[] 
         });
     }
 
+
     return days;
+}
+
+// ==========================================
+// 运势柱辅助函数 (NaYin, DiShi, ShenSha)
+// ==========================================
+
+// 纳音表
+const NA_YIN_MAP: Record<string, string> = {
+    '甲子': '海中金', '乙丑': '海中金', '丙寅': '炉中火', '丁卯': '炉中火',
+    '戊辰': '大林木', '己巳': '大林木', '庚午': '路旁土', '辛未': '路旁土',
+    '壬申': '剑锋金', '癸酉': '剑锋金', '甲戌': '山头火', '乙亥': '山头火',
+    '丙子': '涧下水', '丁丑': '涧下水', '戊寅': '城头土', '己卯': '城头土',
+    '庚辰': '白蜡金', '辛巳': '白蜡金', '壬午': '杨柳木', '癸未': '杨柳木',
+    '甲申': '泉中水', '乙酉': '泉中水', '丙戌': '屋上土', '丁亥': '屋上土',
+    '戊子': '霹雳火', '己丑': '霹雳火', '庚寅': '松柏木', '辛卯': '松柏木',
+    '壬辰': '长流水', '癸巳': '长流水', '甲午': '沙中金', '乙未': '沙中金',
+    '丙申': '山下火', '丁酉': '山下火', '戊戌': '平地木', '己亥': '平地木',
+    '庚子': '壁上土', '辛丑': '壁上土', '壬寅': '金箔金', '癸卯': '金箔金',
+    '甲辰': '覆灯火', '乙巳': '覆灯火', '丙午': '天河水', '丁未': '天河水',
+    '戊申': '大驿土', '己酉': '大驿土', '庚戌': '钗钏金', '辛亥': '钗钏金',
+    '壬子': '桑柘木', '癸丑': '桑柘木', '甲寅': '大溪水', '乙卯': '大溪水',
+    '丙辰': '沙中土', '丁巳': '沙中土', '戊午': '天上火', '己未': '天上火',
+    '庚申': '石榴木', '辛酉': '石榴木', '壬戌': '大海水', '癸亥': '大海水',
+};
+
+/**
+ * 获取纳音
+ */
+export function getNaYin(ganZhi: string): string {
+    return NA_YIN_MAP[ganZhi] || '';
+}
+
+// 十二长生顺序
+const DI_SHI_ORDER = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养'];
+const BRANCHES_SEQ: EarthlyBranch[] = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+/**
+ * 获取十二长生（星运）
+ * @param dayStem 日主天干
+ * @param branch 地支
+ */
+export function getDiShi(dayStem: HeavenlyStem, branch: EarthlyBranch): string {
+    let startBranchIndex: number = 0;
+    let forward: boolean = true;
+
+    switch (dayStem) {
+        case '甲': startBranchIndex = 11; break; // 亥
+        case '乙': startBranchIndex = 6; forward = false; break; // 午
+        case '丙':
+        case '戊': startBranchIndex = 2; break; // 寅
+        case '丁':
+        case '己': startBranchIndex = 9; forward = false; break; // 酉
+        case '庚': startBranchIndex = 5; break; // 巳
+        case '辛': startBranchIndex = 0; forward = false; break; // 子
+        case '壬': startBranchIndex = 8; break; // 申
+        case '癸': startBranchIndex = 3; forward = false; break; // 卯
+    }
+
+    const targetBranchIndex = BRANCHES_SEQ.indexOf(branch);
+    if (targetBranchIndex === -1) return '';
+
+    let diff = 0;
+    if (forward) {
+        diff = targetBranchIndex - startBranchIndex;
+        if (diff < 0) diff += 12;
+    } else {
+        diff = startBranchIndex - targetBranchIndex;
+        if (diff < 0) diff += 12;
+    }
+
+    return DI_SHI_ORDER[diff];
+}
+
+/**
+ * 计算运势柱的神煞
+ * @param columnBranch 运势柱地支
+ * @param dayStem 日主天干
+ * @param dayBranch 日支
+ * @param yearBranch 年支
+ */
+export function calculateFortuneShenSha(
+    columnBranch: EarthlyBranch,
+    dayStem: HeavenlyStem,
+    dayBranch: EarthlyBranch,
+    yearBranch: EarthlyBranch
+): string[] {
+    const shenSha: string[] = [];
+
+    // 日干查
+    if ((TIAN_YI_GUI_REN[dayStem] || []).includes(columnBranch)) shenSha.push('天乙贵人');
+    if ((TAI_JI_GUI_REN[dayStem] || []).includes(columnBranch)) shenSha.push('太极贵人');
+    if (LU_SHEN[dayStem] === columnBranch) shenSha.push('禄神');
+    if (YANG_REN[dayStem] === columnBranch) shenSha.push('羊刃');
+    if (WEN_CHANG[dayStem] === columnBranch) shenSha.push('文昌');
+    if (JIN_YU[dayStem] === columnBranch) shenSha.push('金舆');
+    if (TIAN_CHU[dayStem] === columnBranch) shenSha.push('天厨');
+    if (GUO_YIN[dayStem] === columnBranch) shenSha.push('国印');
+    if (CI_GUAN[dayStem] === columnBranch) shenSha.push('词馆');
+    if (LIU_XIA[dayStem] === columnBranch) shenSha.push('流霞');
+    if (HONG_YAN[dayStem] === columnBranch) shenSha.push('红艳');
+    if (FEI_REN[dayStem] === columnBranch) shenSha.push('飞刃');
+    if (FU_XING[dayStem] === columnBranch) shenSha.push('福星');
+
+    // 日支查
+    if (YI_MA[dayBranch] === columnBranch) shenSha.push('驿马');
+    if (TAO_HUA[dayBranch] === columnBranch) shenSha.push('桃花');
+    if (HUA_GAI[dayBranch] === columnBranch) shenSha.push('华盖');
+    if (JIE_SHA[dayBranch] === columnBranch) shenSha.push('劫煞');
+    if (WANG_SHEN[dayBranch] === columnBranch) shenSha.push('亡神');
+
+    // 年支查
+    if (GU_CHEN[yearBranch] === columnBranch) shenSha.push('孤辰');
+    if (GUA_SU[yearBranch] === columnBranch) shenSha.push('寡宿');
+    if (JIANG_XING[yearBranch] === columnBranch) shenSha.push('将星');
+    if (HONG_LUAN[yearBranch] === columnBranch) shenSha.push('红鸾');
+    if (TIAN_XI[yearBranch] === columnBranch) shenSha.push('天喜');
+    if (DIAO_KE[yearBranch] === columnBranch) shenSha.push('吊客');
+    if (SANG_MEN[yearBranch] === columnBranch) shenSha.push('丧门');
+    if (ZAI_SHA[yearBranch] === columnBranch) shenSha.push('灾煞');
+
+    return shenSha;
 }

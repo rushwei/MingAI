@@ -298,3 +298,110 @@ export const FEATURE_NAMES: Record<string, string> = {
     face: '面相分析',
     palm: '手相分析',
 };
+
+/**
+ * 通知模板
+ */
+export interface NotificationTemplate {
+    id: string;
+    name: string;
+    type: Notification['type'];
+    title: string;
+    content: string;
+    linkPlaceholder?: string;
+}
+
+export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
+    // 功能上线模板
+    {
+        id: 'feature_launch_new',
+        name: '新功能上线',
+        type: 'feature_launch',
+        title: '🎉 新功能上线：{{feature_name}}',
+        content: '{{feature_name}}功能现已上线！立即体验全新功能，探索更多可能。',
+        linkPlaceholder: '/feature-url',
+    },
+    {
+        id: 'feature_launch_upgrade',
+        name: '功能升级',
+        type: 'feature_launch',
+        title: '✨ 功能升级：{{feature_name}}',
+        content: '{{feature_name}}功能已全面升级，新增多项实用功能，快来体验吧！',
+        linkPlaceholder: '/feature-url',
+    },
+    // 系统通知模板
+    {
+        id: 'system_maintenance',
+        name: '系统维护',
+        type: 'system',
+        title: '🔧 系统维护通知',
+        content: '系统将于 {{time}} 进行维护升级，预计持续 {{duration}}，届时服务可能短暂不可用，敬请谅解。',
+    },
+    {
+        id: 'system_update',
+        name: '系统更新',
+        type: 'system',
+        title: '📢 系统更新公告',
+        content: '系统已完成更新，新增以下功能：{{features}}。感谢您的支持！',
+    },
+    {
+        id: 'system_welcome',
+        name: '欢迎新用户',
+        type: 'system',
+        title: '🎊 欢迎加入 MingAI',
+        content: '感谢您注册 MingAI！开始您的命理探索之旅吧。如有问题，欢迎联系我们。',
+        linkPlaceholder: '/help',
+    },
+    // 促销活动模板
+    {
+        id: 'promo_discount',
+        name: '限时优惠',
+        type: 'promotion',
+        title: '🔥 限时优惠：{{discount}}',
+        content: '限时特惠！{{description}}，活动截止至 {{end_date}}，抓紧时间！',
+        linkPlaceholder: '/user/upgrade',
+    },
+    {
+        id: 'promo_vip',
+        name: '会员推荐',
+        type: 'promotion',
+        title: '👑 升级 VIP 专享特权',
+        content: '升级 VIP 会员，解锁无限 AI 对话、专属分析等更多特权功能！',
+        linkPlaceholder: '/user/upgrade',
+    },
+    {
+        id: 'promo_event',
+        name: '节日活动',
+        type: 'promotion',
+        title: '🎁 {{holiday}} 特别活动',
+        content: '{{holiday}}来临！参与活动即可获得{{reward}}，快来参加吧！',
+        linkPlaceholder: '/event',
+    },
+];
+
+/**
+ * 根据模板ID获取模板
+ */
+export function getNotificationTemplate(templateId: string): NotificationTemplate | undefined {
+    return NOTIFICATION_TEMPLATES.find(t => t.id === templateId);
+}
+
+/**
+ * 替换模板中的占位符
+ */
+export function fillTemplate(
+    template: NotificationTemplate,
+    variables: Record<string, string>
+): { title: string; content: string } {
+    let title = template.title;
+    let content = template.content;
+
+    for (const [key, value] of Object.entries(variables)) {
+        const placeholder = `{{${key}}}`;
+        title = title.split(placeholder).join(value);
+        content = content.split(placeholder).join(value);
+    }
+
+    return { title, content };
+}
+

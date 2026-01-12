@@ -45,7 +45,7 @@ function MonthlyPageContent() {
     const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
     const [loading, setLoading] = useState(true);
     const [showChartSelector, setShowChartSelector] = useState(false);
-    const [showTrendChart, setShowTrendChart] = useState(false);
+    const [showTrendChart, setShowTrendChart] = useState(true);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -77,7 +77,11 @@ function MonthlyPageContent() {
                     } as BaziChart;
                 });
                 setBaziCharts(charts);
-                setBaziChart(charts[0]);
+
+                // 优先使用默认命盘
+                const defaultId = localStorage.getItem('defaultBaziChartId');
+                const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {
             console.error('加载命盘失败:', err);
@@ -383,9 +387,9 @@ function MonthlyPageContent() {
                                     : 'text-amber-600';
                             const typeLabel = h.type === 'lucky' ? '吉日'
                                 : h.type === 'peak' ? '高峰'
-                                : h.type === 'valley' ? '低谷'
-                                : h.type === 'warning' ? '警惕'
-                                : '转折';
+                                    : h.type === 'valley' ? '低谷'
+                                        : h.type === 'warning' ? '警惕'
+                                            : '转折';
 
                             return (
                                 <Link

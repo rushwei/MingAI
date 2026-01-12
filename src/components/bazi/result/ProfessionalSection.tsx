@@ -1,11 +1,12 @@
 import { Calendar, TrendingUp } from 'lucide-react';
-import { calculateBazi, calculateProfessionalData, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/bazi';
+import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/bazi';
 import type { Gender } from '@/types';
 import { DaYunTable } from './DaYunTable';
 import { LiuNianTable } from './LiuNianTable';
 import { LiuYueTable } from './LiuYueTable';
 import { LiuRiTable } from './LiuRiTable';
 import { ProfessionalTable } from './ProfessionalTable';
+import { DiZhiRelations } from './DiZhiRelations';
 
 export function ProfessionalSection({
     baziResult,
@@ -44,9 +45,14 @@ export function ProfessionalSection({
     activeLiuYue: LiuYueInfo | null;
     shenSha?: ShenShaInfo;
 }) {
+    // 获取当前选中的运势信息
+    const activeDaYun: DaYunInfo | undefined = proData.daYun[selectedDaYunIndex];
+    const activeLiuNian: LiuNianInfo | undefined = currentLiuNian.find(ln => ln.year === selectedLiuNianYear);
+    const activeLiuRi: LiuRiInfo | undefined = liuRi.find(lr => lr.date === selectedLiuRiDate);
+
     return (
         <div className="space-y-4">
-            <section className="bg-background-secondary rounded-xl p-4 border border-border">
+            <section className="bg-background-secondary rounded-xl p-4 border border-border overflow-x-hidden">
                 <h2 className="text-base font-semibold mb-3">四柱详解</h2>
                 <ProfessionalTable
                     baziResult={baziResult}
@@ -54,11 +60,25 @@ export function ProfessionalSection({
                     gender={gender}
                     isUnknownTime={isUnknownTime}
                     pillarShenSha={shenSha?.pillarShenSha}
+                    // 运势信息
+                    activeDaYun={activeDaYun}
+                    activeLiuNian={activeLiuNian}
+                    activeLiuYue={activeLiuYue ?? undefined}
+                    activeLiuRi={activeLiuRi}
                 />
                 <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
                     起运：{proData.startAgeDetail}
                 </div>
             </section>
+
+            {/* 地支关系 */}
+            <DiZhiRelations
+                yearBranch={baziResult.fourPillars.year.branch}
+                monthBranch={baziResult.fourPillars.month.branch}
+                dayBranch={baziResult.fourPillars.day.branch}
+                hourBranch={baziResult.fourPillars.hour.branch}
+                isUnknownTime={isUnknownTime}
+            />
 
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">

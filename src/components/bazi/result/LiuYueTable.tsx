@@ -19,8 +19,7 @@ export function LiuYueTable({
                     const zhi = ly.ganZhi[1];
                     const ganElement = getStemElement(gan);
                     const zhiElement = getBranchElement(zhi);
-                    const startLabel = ly.startDate.slice(5);
-                    const endLabel = ly.endDate.slice(5);
+
 
                     return (
                         <button
@@ -36,7 +35,11 @@ export function LiuYueTable({
                             `}
                         >
                             <div className="text-xs text-foreground-secondary truncate">{ly.jieQi}</div>
-                            <div className="text-[11px] text-foreground-secondary">{startLabel}~{endLabel}</div>
+                            <div className="flex justify-center w-full">
+                                <span className="text-[12px] text-foreground-secondary whitespace-nowrap tracking-tighter">
+                                    {Number(ly.startDate.split('-')[1])}.{Number(ly.startDate.split('-')[2])}
+                                </span>
+                            </div>
                             <div className="flex flex-col items-center mt-0.5">
                                 <span
                                     className="text-sm font-bold"

@@ -14,7 +14,8 @@ import {
     Orbit,
     User as UserIcon,
     Calendar,
-    Star
+    Star,
+    StarOff
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -53,6 +54,47 @@ export default function ChartsPage() {
     const [loading, setLoading] = useState(true);
     const [deletingKey, setDeletingKey] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+    // 默认命盘状态
+    const [defaultBaziId, setDefaultBaziId] = useState<string | null>(null);
+    const [defaultZiweiId, setDefaultZiweiId] = useState<string | null>(null);
+
+    // 从 localStorage 加载默认命盘
+    useEffect(() => {
+        const storedBaziId = localStorage.getItem('defaultBaziChartId');
+        const storedZiweiId = localStorage.getItem('defaultZiweiChartId');
+        if (storedBaziId) setDefaultBaziId(storedBaziId);
+        if (storedZiweiId) setDefaultZiweiId(storedZiweiId);
+    }, []);
+
+    // 设置默认命盘（只能设置一个，设置任一类型时清除另一类型）
+    const setDefaultChart = (kind: 'bazi' | 'ziwei', chartId: string) => {
+        if (kind === 'bazi') {
+            if (defaultBaziId === chartId) {
+                // 取消当前默认
+                localStorage.removeItem('defaultBaziChartId');
+                setDefaultBaziId(null);
+            } else {
+                // 设置新默认，清除紫微的默认
+                localStorage.setItem('defaultBaziChartId', chartId);
+                localStorage.removeItem('defaultZiweiChartId');
+                setDefaultBaziId(chartId);
+                setDefaultZiweiId(null);
+            }
+        } else {
+            if (defaultZiweiId === chartId) {
+                // 取消当前默认
+                localStorage.removeItem('defaultZiweiChartId');
+                setDefaultZiweiId(null);
+            } else {
+                // 设置新默认，清除八字的默认
+                localStorage.setItem('defaultZiweiChartId', chartId);
+                localStorage.removeItem('defaultBaziChartId');
+                setDefaultZiweiId(chartId);
+                setDefaultBaziId(null);
+            }
+        }
+    };
 
     const fetchCharts = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -194,7 +236,12 @@ export default function ChartsPage() {
                                                 <Orbit className="w-6 h-6 text-accent" />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-lg">{chart.name}</h3>
+                                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                                    {chart.name}
+                                                    {defaultBaziId === chart.id && (
+                                                        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">默认</span>
+                                                    )}
+                                                </h3>
                                                 <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-1">
                                                     <span className="flex items-center gap-1">
                                                         <UserIcon className="w-3 h-3" />
@@ -209,7 +256,14 @@ export default function ChartsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setDefaultChart('bazi', chart.id)}
+                                                className={`p-2 rounded-lg transition-colors ${defaultBaziId === chart.id ? 'text-amber-500 hover:bg-amber-500/10' : 'text-foreground-secondary hover:bg-background'}`}
+                                                title={defaultBaziId === chart.id ? '取消默认' : '设为默认'}
+                                            >
+                                                {defaultBaziId === chart.id ? <Star className="w-5 h-5 fill-current" /> : <StarOff className="w-5 h-5" />}
+                                            </button>
                                             <button
                                                 onClick={() => router.push(`/bazi/result?chart=${chart.id}`)}
                                                 className="p-2 rounded-lg text-accent hover:bg-accent/10 transition-colors"
@@ -256,7 +310,12 @@ export default function ChartsPage() {
                                                 <Star className="w-6 h-6 text-accent" />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-lg">{chart.name}</h3>
+                                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                                    {chart.name}
+                                                    {defaultZiweiId === chart.id && (
+                                                        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">默认</span>
+                                                    )}
+                                                </h3>
                                                 <div className="flex items-center gap-3 text-sm text-foreground-secondary mt-1">
                                                     <span className="flex items-center gap-1">
                                                         <UserIcon className="w-3 h-3" />
@@ -271,7 +330,14 @@ export default function ChartsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setDefaultChart('ziwei', chart.id)}
+                                                className={`p-2 rounded-lg transition-colors ${defaultZiweiId === chart.id ? 'text-amber-500 hover:bg-amber-500/10' : 'text-foreground-secondary hover:bg-background'}`}
+                                                title={defaultZiweiId === chart.id ? '取消默认' : '设为默认'}
+                                            >
+                                                {defaultZiweiId === chart.id ? <Star className="w-5 h-5 fill-current" /> : <StarOff className="w-5 h-5" />}
+                                            </button>
                                             <button
                                                 onClick={() => router.push(`/ziwei/result?chart=${chart.id}`)}
                                                 className="p-2 rounded-lg text-accent hover:bg-accent/10 transition-colors"

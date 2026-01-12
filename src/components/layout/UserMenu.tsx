@@ -219,7 +219,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <Avatar src={avatarUrl} alt={displayName} size={32} />
                             <div className="min-w-0 flex-1">
                                 <div className="font-medium text-sm truncate">{displayName}</div>
-                                <div className="text-xs text-foreground-secondary truncate">@{handle}</div>
+                                <div className="text-xs text-foreground-secondary truncate">{handle}</div>
                             </div>
                         </Link>
                     </div>
