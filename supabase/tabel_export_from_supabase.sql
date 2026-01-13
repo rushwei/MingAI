@@ -1,6 +1,12 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.app_settings (
+  setting_key text NOT NULL,
+  setting_value boolean NOT NULL DEFAULT false,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT app_settings_pkey PRIMARY KEY (setting_key)
+);
 CREATE TABLE public.bazi_charts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -144,8 +150,12 @@ CREATE TABLE public.user_settings (
   language text DEFAULT 'zh'::text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  default_bazi_chart_id uuid,
+  default_ziwei_chart_id uuid,
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
-  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),
+  CONSTRAINT user_settings_default_ziwei_chart_id_fkey FOREIGN KEY (default_ziwei_chart_id) REFERENCES public.ziwei_charts(id)
 );
 CREATE TABLE public.users (
   id uuid NOT NULL,

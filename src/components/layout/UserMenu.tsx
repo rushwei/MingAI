@@ -18,6 +18,7 @@ import {
     CreditCard,
     CircleStar,
     Bell,
+    User,
 } from 'lucide-react';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
@@ -228,6 +229,14 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
 
                     {/* 菜单项 */}
                     <div className="px-2 py-1">
+                        <Link
+                            href="/user"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                        >
+                            <User className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <span>用户中心</span>
+                        </Link>
                         {isPaymentPaused ? (
                             <div className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg text-foreground-secondary cursor-not-allowed opacity-60">
                                 <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
@@ -268,36 +277,12 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <span>命盘</span>
                         </Link>
                         <Link
-                            href="/user/orders"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <CreditCard className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>订单</span>
-                        </Link>
-                        <Link
-                            href="/user/profile"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <Smile className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>个人资料</span>
-                        </Link>
-                        <Link
                             href="/user/settings"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
                             <Settings className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>设置</span>
-                        </Link>
-                        <Link
-                            href="/help"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <HelpCircle className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>帮助中心</span>
                         </Link>
                     </div>
 

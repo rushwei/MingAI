@@ -111,7 +111,7 @@ export default function OrdersPage() {
             {/* 头部 */}
             <div className="flex items-center gap-3 mb-6">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push('/user')}
                     className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" />

@@ -21,9 +21,12 @@ import {
     LogIn,
     Bell,
     Megaphone,
+    Wallet,
+    Smile,
+    HelpCircle,
+    CircleStar,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
-
 import { PaymentModal } from '@/components/membership/PaymentModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
@@ -37,6 +40,7 @@ const menuItems = [
     {
         section: '我的服务',
         items: [
+            { icon: CircleStar, label: '会员中心', href: '/user/upgrade' },
             { icon: FileText, label: '我的命盘', href: '/user/charts' },
             { icon: Bell, label: '消息通知', href: '/user/notifications', showBadge: true },
             { icon: History, label: '对话历史', href: '/chat' },
@@ -46,8 +50,8 @@ const menuItems = [
     {
         section: '账户设置',
         items: [
-            { icon: User, label: '个人资料', href: '/user/profile' },
-            { icon: Settings, label: '偏好设置', href: '/user/settings' },
+            { icon: Smile, label: '个人资料', href: '/user/profile' },
+            { icon: Settings, label: '设置', href: '/user/settings' },
         ],
     },
 ];
@@ -438,6 +442,7 @@ export default function UserPage() {
                         section: '管理',
                         items: [
                             { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
+                            { icon: Wallet, label: '支付服务', href: '/admin/payment' },
                         ],
                     }]
                     : [])
@@ -450,6 +455,26 @@ export default function UserPage() {
                             {section.items.map((item, itemIndex) => {
                                 const Icon = item.icon;
                                 const showUnread = item.href === '/user/notifications' && unreadCount > 0;
+                                const isSubscription = item.href === '/user/upgrade';
+                                const isDisabled = isSubscription && isPaymentPaused;
+
+                                if (isDisabled) {
+                                    return (
+                                        <div
+                                            key={itemIndex}
+                                            className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 text-foreground-secondary cursor-not-allowed opacity-60"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Icon className="w-5 h-5 text-foreground-secondary" />
+                                                <span>{item.label}</span>
+                                            </div>
+                                            <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                                暂停服务
+                                            </span>
+                                        </div>
+                                    );
+                                }
+
                                 return (
                                     <Link
                                         key={itemIndex}
@@ -475,6 +500,25 @@ export default function UserPage() {
                     </div>
                 ))
             }
+
+            {/* 帮助 */}
+            <div className="mb-6">
+                <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
+                    帮助
+                </h2>
+                <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                    <Link
+                        href="/help"
+                        className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <HelpCircle className="w-5 h-5 text-foreground-secondary" />
+                            <span>帮助中心</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-foreground-secondary" />
+                    </Link>
+                </div>
+            </div>
 
             {/* 退出登录 */}
             <button

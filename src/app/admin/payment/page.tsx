@@ -1,13 +1,14 @@
 /**
- * 管理员通知发布页面
+ * 支付服务管理页面
+ * 仅管理员可访问
  */
-'use client'; // 客户端组件：读取登录态并校验管理员权限
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { NotificationLaunchPanel } from '@/components/admin/NotificationLaunchPanel';
+import { PaymentPausePanel } from '@/components/admin/PaymentPausePanel';
 
 type AdminState = {
     loading: boolean;
@@ -15,9 +16,8 @@ type AdminState = {
     isAdmin: boolean;
 };
 
-export default function AdminNotificationsPage() {
+export default function AdminPaymentPage() {
     const router = useRouter();
-    // useState: 控制权限加载状态
     const [state, setState] = useState<AdminState>({
         loading: true,
         isAuthed: false,
@@ -25,7 +25,6 @@ export default function AdminNotificationsPage() {
     });
 
     useEffect(() => {
-        // useEffect: 首次进入页面时验证管理员权限
         const checkAdmin = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) {
@@ -93,14 +92,14 @@ export default function AdminNotificationsPage() {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-xl font-bold">通知发布</h1>
+                <h1 className="text-xl font-bold">支付服务</h1>
             </div>
 
             <p className="text-sm text-foreground-secondary mb-6">
-                仅管理员可使用。发送时会遵循用户通知偏好设置。
+                仅管理员可使用。控制全站支付功能的开关状态。
             </p>
 
-            <NotificationLaunchPanel />
+            <PaymentPausePanel />
         </div>
     );
 }
