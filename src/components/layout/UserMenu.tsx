@@ -23,6 +23,7 @@ import { signOut, getUserProfile } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { getUnreadCount } from '@/lib/notification';
 import { supabase } from '@/lib/supabase';
+import { usePaymentPause } from '@/lib/usePaymentPause';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface SidebarUserCardProps {
@@ -80,6 +81,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
+    const { isPaused: isPaymentPaused } = usePaymentPause();
 
     const displayName = nickname || user.email?.split('@')[0] || '用户';
     const handle = user.email || 'user';
@@ -226,14 +228,24 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
 
                     {/* 菜单项 */}
                     <div className="px-2 py-1">
-                        <Link
-                            href="/user/upgrade"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>订阅</span>
-                        </Link>
+                        {isPaymentPaused ? (
+                            <div className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg text-foreground-secondary cursor-not-allowed opacity-60">
+                                <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <span>订阅</span>
+                                <span className="ml-auto text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                    暂停服务
+                                </span>
+                            </div>
+                        ) : (
+                            <Link
+                                href="/user/upgrade"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                            >
+                                <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <span>订阅</span>
+                            </Link>
+                        )}
                         <Link
                             href="/user/notifications"
                             onClick={() => setIsMenuOpen(false)}

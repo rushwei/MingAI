@@ -28,6 +28,7 @@ import { PaymentModal } from '@/components/membership/PaymentModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
+import { usePaymentPause } from '@/lib/usePaymentPause';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -130,6 +131,7 @@ export default function UserPage() {
     const [loading, setLoading] = useState(true);
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const { isPaused: isPaymentPaused } = usePaymentPause();
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -297,6 +299,7 @@ export default function UserPage() {
     };
 
     const handleSelectPlan = (plan: PricingPlan) => {
+        if (isPaymentPaused) return;
         setSelectedPlan(plan);
         setShowPaymentModal(true);
     };
@@ -407,12 +410,21 @@ export default function UserPage() {
 
                 {/* 升级会员入口 */}
                 {membership?.type === 'free' && (
-                    <Link
-                        href="/user/upgrade"
-                        className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors block text-center"
-                    >
-                        升级会员，解锁全部功能
-                    </Link>
+                    isPaymentPaused ? (
+                        <div className="w-full mt-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 font-medium transition-colors flex items-center justify-center gap-2 cursor-not-allowed">
+                            <span>升级会员，解锁全部功能</span>
+                            <span className="text-[10px] bg-amber-500/20 text-amber-700 px-2 py-0.5 rounded-full">
+                                暂停服务
+                            </span>
+                        </div>
+                    ) : (
+                        <Link
+                            href="/user/upgrade"
+                            className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span>升级会员，解锁全部功能</span>
+                        </Link>
+                    )
                 )}
             </div>
 
@@ -490,6 +502,7 @@ export default function UserPage() {
                 onClose={() => setShowPaymentModal(false)}
                 plan={selectedPlan}
                 userId={user.id}
+                isPaymentPaused={isPaymentPaused}
                 onSuccess={() => {
                     setShowPaymentModal(false);
                 }}

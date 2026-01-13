@@ -14,6 +14,7 @@ interface PayPerUseProps {
     userId: string;
     currentCredits: number;
     onSuccess?: () => void;
+    isPaymentPaused?: boolean;
 }
 
 const PRICE_PER_CREDIT = 9.9;
@@ -25,7 +26,12 @@ const presetAmounts = [
     { count: 20, price: 168, discount: '省¥30' },
 ];
 
-export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps) {
+export function PayPerUse({
+    userId,
+    currentCredits,
+    onSuccess,
+    isPaymentPaused = false,
+}: PayPerUseProps) {
     const [selectedCount, setSelectedCount] = useState(1);
     const [isCustom, setIsCustom] = useState(false);
     const [customAmount, setCustomAmount] = useState(1);
@@ -66,6 +72,7 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
     };
 
     const handlePurchase = () => {
+        if (isPaymentPaused) return;
         setShowPaymentModal(true);
     };
 
@@ -82,7 +89,14 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
                     <Coins className="w-5 h-5" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold">按量付费</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold">按量付费</h3>
+                        {isPaymentPaused && (
+                            <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                暂停服务
+                            </span>
+                        )}
+                    </div>
                     <p className="text-sm text-foreground-secondary">
                         当前积分：{currentCredits}
                     </p>
@@ -152,7 +166,8 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
             {/* 购买按钮 */}
             <button
                 onClick={handlePurchase}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                disabled={isPaymentPaused}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <Coins className="w-5 h-5" />
                 购买 {getSelectedCount()} 积分 · ¥{getPrice()}
@@ -172,6 +187,7 @@ export function PayPerUse({ userId, currentCredits, onSuccess }: PayPerUseProps)
                 onSuccess={handlePaymentSuccess}
                 isPayPerUse={true}
                 creditCount={getSelectedCount()}
+                isPaymentPaused={isPaymentPaused}
             />
         </div>
     );

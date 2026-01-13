@@ -12,10 +12,12 @@ import Link from 'next/link';
 import type { ChatMessage, Conversation } from '@/types';
 import { AI_PERSONALITIES } from '@/lib/ai';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
-import { ChatComposer, type AIModel } from '@/components/chat/ChatComposer';
+import { ChatComposer } from '@/components/chat/ChatComposer';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { BaziChartSelector, type SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
+import { usePaymentPause } from '@/lib/usePaymentPause';
 import {
     loadConversations,
     loadConversation,
@@ -69,6 +71,7 @@ export default function ChatPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
+    const { isPaused: isPaymentPaused } = usePaymentPause();
 
     // 消息状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -83,8 +86,9 @@ export default function ChatPage() {
     const [selectedCharts, setSelectedCharts] = useState<SelectedCharts>({});
     const [chartFocusType, setChartFocusType] = useState<'bazi' | 'ziwei' | undefined>(undefined);
 
-    // 模型选择状态
-    const [selectedModel, setSelectedModel] = useState<AIModel>('deepseek');
+    // 模型和推理状态
+    const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
 
     // 滚动到最新消息
     const scrollToBottom = () => {
@@ -252,6 +256,7 @@ export default function ChatPage() {
 
         // 提升到 try 外部，以便在 catch 中访问（用于停止时保存）
         let accumulatedContent = '';
+        let accumulatedReasoning = '';
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -277,6 +282,7 @@ export default function ChatPage() {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
                     },
+                    reasoning: reasoningEnabled,
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -307,13 +313,24 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
-                                const content = parsed.choices?.[0]?.delta?.content;
-                                if (content) {
-                                    accumulatedContent += content;
-                                    // 实时更新消息内容
+                                const delta = parsed.choices?.[0]?.delta;
+                                // 处理推理内容
+                                const reasoningContent = delta?.reasoning_content;
+                                if (reasoningContent) {
+                                    accumulatedReasoning += reasoningContent;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent }
+                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            : msg
+                                    ));
+                                }
+                                // 处理正常内容
+                                const content = delta?.content;
+                                if (content) {
+                                    accumulatedContent += content;
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
                                             : msg
                                     ));
                                 }
@@ -329,6 +346,7 @@ export default function ChatPage() {
             const finalMessages = newMessages.concat({
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
+                reasoning: accumulatedReasoning || undefined,
             });
             setMessages(finalMessages);
             setIsLoading(false);
@@ -473,6 +491,7 @@ export default function ChatPage() {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
                     },
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -484,6 +503,7 @@ export default function ChatPage() {
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let accumulatedContent = '';
+            let accumulatedReasoning = '';
             let buffer = '';
 
             if (reader) {
@@ -502,12 +522,22 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
-                                const content = parsed.choices?.[0]?.delta?.content;
+                                const delta = parsed.choices?.[0]?.delta;
+                                const reasoningContent = delta?.reasoning_content;
+                                if (reasoningContent) {
+                                    accumulatedReasoning += reasoningContent;
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            : msg
+                                    ));
+                                }
+                                const content = delta?.content;
                                 if (content) {
                                     accumulatedContent += content;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent }
+                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
                                             : msg
                                     ));
                                 }
@@ -537,6 +567,7 @@ export default function ChatPage() {
             const finalMessages = [...previousMessages, finalUserMessage, {
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
+                reasoning: accumulatedReasoning || undefined,
             }];
             setMessages(finalMessages);
             setIsLoading(false);
@@ -601,6 +632,7 @@ export default function ChatPage() {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
                     },
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -611,6 +643,7 @@ export default function ChatPage() {
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let accumulatedContent = '';
+            let accumulatedReasoning = '';
             let buffer = '';
 
             if (reader) {
@@ -629,12 +662,22 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
-                                const content = parsed.choices?.[0]?.delta?.content;
+                                const delta = parsed.choices?.[0]?.delta;
+                                const reasoningContent = delta?.reasoning_content;
+                                if (reasoningContent) {
+                                    accumulatedReasoning += reasoningContent;
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            : msg
+                                    ));
+                                }
+                                const content = delta?.content;
                                 if (content) {
                                     accumulatedContent += content;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent }
+                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
                                             : msg
                                     ));
                                 }
@@ -649,6 +692,7 @@ export default function ChatPage() {
             const finalMessages = previousMessages.concat({
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
+                reasoning: accumulatedReasoning || undefined,
             });
             setMessages(finalMessages);
             setIsLoading(false);
@@ -775,13 +819,20 @@ export default function ChatPage() {
                                     <Lock className="w-4 h-4" />
                                     <span className="text-sm">积分已用完</span>
                                 </div>
-                                <Link
-                                    href="/user/upgrade"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    立即充值
-                                </Link>
+                                {isPaymentPaused ? (
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-sm cursor-not-allowed">
+                                        <Lock className="w-3.5 h-3.5" />
+                                        支付暂停
+                                    </div>
+                                ) : (
+                                    <Link
+                                        href="/user/upgrade"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
+                                    >
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        立即充值
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     )}
@@ -807,6 +858,10 @@ export default function ChatPage() {
                         }}
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
+                        reasoningEnabled={reasoningEnabled}
+                        onReasoningChange={setReasoningEnabled}
+                        userId={userId}
+                        membershipType={membership?.type || 'free'}
                     />
                 </div>
             </div>

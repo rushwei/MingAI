@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationLaunchPanel } from '@/components/admin/NotificationLaunchPanel';
+import { PaymentPausePanel } from '@/components/admin/PaymentPausePanel';
 
 type AdminState = {
     loading: boolean;
@@ -89,6 +90,7 @@ export default function AdminNotificationsPage() {
                     仅管理员可使用。发送时会遵循用户通知偏好设置。
                 </p>
             </div>
+            <PaymentPausePanel />
             <NotificationLaunchPanel />
         </div>
     );

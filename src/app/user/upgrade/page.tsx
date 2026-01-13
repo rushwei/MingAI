@@ -19,7 +19,9 @@ import { PaymentModal } from '@/components/membership/PaymentModal';
 import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
 import { PayPerUse } from '@/components/membership/PayPerUse';
 import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
+import { PaymentPauseOverlay } from '@/components/ui/PaymentPauseOverlay';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { usePaymentPause } from '@/lib/usePaymentPause';
 
 export default function UpgradePage() {
     const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -28,6 +30,7 @@ export default function UpgradePage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
+    const { isPaused: isPaymentPaused } = usePaymentPause();
 
     const refreshMembership = async (userId: string) => {
         const info = await getMembershipInfo(userId);
@@ -63,6 +66,7 @@ export default function UpgradePage() {
         }
         if (plan.id === 'free') return;
         if (membership?.type === plan.id) return;
+        if (isPaymentPaused) return;
 
         setSelectedPlan(plan);
         setShowPaymentModal(true);
@@ -99,7 +103,8 @@ export default function UpgradePage() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
+        <PaymentPauseOverlay isPaused={isPaymentPaused}>
+            <div className="max-w-5xl mx-auto px-4 py-8">
             {/* 返回按钮 */}
             <Link
                 href="/user"
@@ -156,6 +161,7 @@ export default function UpgradePage() {
                 <SubscriptionPlans
                     currentPlan={currentPlan}
                     onSelectPlan={handleSelectPlan}
+                    isPaymentPaused={isPaymentPaused}
                 />
                 <p className="text-center text-sm text-foreground-secondary mt-4">
                     支付后可随时取消续订
@@ -177,6 +183,7 @@ export default function UpgradePage() {
                         userId={user.id}
                         currentCredits={membership?.aiChatCount || 0}
                         onSuccess={handlePayPerUseSuccess}
+                        isPaymentPaused={isPaymentPaused}
                     />
                 ) : (
                     <div className="rounded-2xl border border-border p-8 text-center">
@@ -208,8 +215,10 @@ export default function UpgradePage() {
                     plan={selectedPlan}
                     userId={user.id}
                     onSuccess={handlePaymentSuccess}
+                    isPaymentPaused={isPaymentPaused}
                 />
             )}
-        </div>
+            </div>
+        </PaymentPauseOverlay>
     );
 }

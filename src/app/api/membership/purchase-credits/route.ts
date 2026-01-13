@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getPaymentsPaused } from '@/lib/app-settings';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
 // 服务端 Supabase 客户端
@@ -26,6 +27,14 @@ const creditPackages = [
 
 export async function POST(request: NextRequest) {
     try {
+        const paymentsPaused = await getPaymentsPaused();
+        if (paymentsPaused) {
+            return NextResponse.json(
+                { error: '支付已暂停' },
+                { status: 403 }
+            );
+        }
+
         const { count, amount } = await request.json();
 
         // 验证购买参数

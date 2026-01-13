@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { pricingPlans, type MembershipType } from '@/lib/membership';
+import { getPaymentsPaused } from '@/lib/app-settings';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => createClient(
@@ -17,6 +18,14 @@ const getSupabase = () => createClient(
 
 export async function POST(request: NextRequest) {
     try {
+        const paymentsPaused = await getPaymentsPaused();
+        if (paymentsPaused) {
+            return NextResponse.json(
+                { error: '支付已暂停' },
+                { status: 403 }
+            );
+        }
+
         const { planId } = await request.json();
 
         // 验证套餐

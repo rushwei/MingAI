@@ -1,23 +1,31 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { Send, Paperclip, Orbit, X, Sparkles, Square, ChevronDown, Plus } from 'lucide-react';
+import { useRef, useEffect, useState, useMemo } from 'react';
+import { Send, Paperclip, Orbit, X, Sparkles, Square, ChevronDown, Plus, Lightbulb, Loader2 } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import { Zhipu, DeepSeek, Gemini } from '@lobehub/icons';
+import type { AIVendor } from '@/types';
+import { VENDOR_NAMES, DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { supabase } from '@/lib/supabase';
+import type { MembershipType } from '@/lib/membership';
 
-export type AIModel = 'deepseek' | 'glm' | 'gemini';
+// 客户端用的模型配置类型（不包含敏感信息）
+interface ClientModelConfig {
+    id: string;
+    name: string;
+    vendor: AIVendor;
+    supportsReasoning: boolean;
+    isReasoningDefault?: boolean;
+}
 
-export const AI_MODEL_NAMES: Record<AIModel, string> = {
-    deepseek: 'DeepSeek',
-    glm: 'GLM-4.6',
-    gemini: 'Gemini 3 Flash',
+// 供应商图标映射
+const VENDOR_ICONS: Record<AIVendor, React.ReactNode> = {
+    deepseek: <DeepSeek.Color size={18} />,
+    glm: <Zhipu.Color size={18} />,
+    gemini: <Gemini.Color size={18} />,
+    qwen: <span className="text-blue-500 font-bold text-sm">Q</span>,
+    deepai: <span className="text-purple-500 font-bold text-sm">D</span>,
 };
-
-const AI_MODELS: { id: AIModel; name: string; desc: string; icon: React.ReactNode }[] = [
-    { id: 'deepseek', name: 'DeepSeek', desc: '推理能力强', icon: <DeepSeek.Color size={18} /> },
-    { id: 'glm', name: 'GLM-4.6', desc: '中文理解优秀', icon: <Zhipu.Color size={18} /> },
-    { id: 'gemini', name: 'Gemini 3 Flash', desc: '快速响应', icon: <Gemini.Color size={18} /> },
-];
 
 interface ChatComposerProps {
     inputValue: string;
@@ -29,8 +37,12 @@ interface ChatComposerProps {
     selectedCharts?: SelectedCharts;
     onSelectChart?: (type?: 'bazi' | 'ziwei') => void;
     onClearChart?: (type: 'bazi' | 'ziwei') => void;
-    selectedModel?: AIModel;
-    onModelChange?: (model: AIModel) => void;
+    selectedModel?: string;
+    onModelChange?: (modelId: string) => void;
+    reasoningEnabled?: boolean;
+    onReasoningChange?: (enabled: boolean) => void;
+    userId?: string | null;
+    membershipType?: MembershipType;
 }
 
 export function ChatComposer({
@@ -43,24 +55,143 @@ export function ChatComposer({
     selectedCharts,
     onSelectChart,
     onClearChart,
-    selectedModel = 'deepseek',
+    selectedModel = DEFAULT_MODEL_ID,
     onModelChange,
+    reasoningEnabled = false,
+    onReasoningChange,
+    userId,
+    membershipType = 'free',
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
+    const [models, setModels] = useState<ClientModelConfig[]>([]);
+    const [modelsLoading, setModelsLoading] = useState(true);
+    const [modelsError, setModelsError] = useState<string | null>(null);
+
+    // 从 API 加载模型配置
+    useEffect(() => {
+        let isMounted = true;
+        const loadModels = async () => {
+            try {
+                if (!isMounted) return;
+                setModelsLoading(true);
+                setModelsError(null);
+
+                const { data: { session } } = await supabase.auth.getSession();
+                const resolvedUserId = userId || session?.user?.id || null;
+                const headers: HeadersInit = {};
+                if (session?.access_token) {
+                    headers.Authorization = `Bearer ${session.access_token}`;
+                }
+
+                const cacheKey = resolvedUserId
+                    ? `mingai.models.${resolvedUserId}.${membershipType}`
+                    : 'mingai.models.guest';
+
+                if (typeof window !== 'undefined') {
+                    const cached = window.localStorage.getItem(cacheKey);
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached) as {
+                                expiresAt: number;
+                                models: ClientModelConfig[];
+                            };
+                            if (parsed.expiresAt > Date.now() && parsed.models?.length) {
+                                setModels(parsed.models);
+                                setModelsLoading(false);
+                                return;
+                            }
+                        } catch {
+                            window.localStorage.removeItem(cacheKey);
+                        }
+                    }
+                }
+
+                const response = await fetch('/api/models', { headers });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load models');
+                }
+                if (isMounted && data.models && data.models.length > 0) {
+                    setModels(data.models);
+                    if (typeof window !== 'undefined') {
+                        window.localStorage.setItem(
+                            cacheKey,
+                            JSON.stringify({
+                                expiresAt: Date.now() + 10 * 60 * 1000,
+                                models: data.models,
+                            })
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load models:', err);
+                if (isMounted) {
+                    setModelsError('模型加载失败');
+                }
+            } finally {
+                if (isMounted) {
+                    setModelsLoading(false);
+                }
+            }
+        };
+        loadModels();
+        return () => {
+            isMounted = false;
+        };
+    }, [membershipType, userId]);
+
+    useEffect(() => {
+        if (!models.length || !onModelChange) return;
+        if (!models.some(model => model.id === selectedModel)) {
+            onModelChange(models[0].id);
+        }
+    }, [models, onModelChange, selectedModel]);
+
+    // 当前选中的模型配置
+    const currentModelConfig = useMemo(() => {
+        const config = models.find(m => m.id === selectedModel) || models[0];
+        // 如果没有配置任何模型，返回一个默认占位配置
+        if (!config) {
+            return {
+                id: 'none',
+                name: '未配置模型',
+                vendor: 'deepseek' as const,
+                supportsReasoning: false,
+            };
+        }
+        return config;
+    }, [selectedModel, models]);
+
+    // 按供应商分组模型
+    const modelsByVendor = useMemo(() => {
+        const grouped: Record<AIVendor, ClientModelConfig[]> = {
+            deepseek: [],
+            glm: [],
+            gemini: [],
+            qwen: [],
+            deepai: [],
+        };
+        models.forEach(model => {
+            grouped[model.vendor].push(model);
+        });
+        return grouped;
+    }, [models]);
+
+    const modelSelectorDisabled = disabled || modelsLoading || models.length === 0;
+
+    // 判断当前模型是否支持推理
+    const canToggleReasoning = currentModelConfig?.supportsReasoning && !currentModelConfig?.isReasoningDefault;
+    const isReasoningForced = currentModelConfig?.isReasoningDefault;
 
     // 自动调整 textarea 高度
     useEffect(() => {
         const textarea = textareaRef.current;
         if (!textarea) return;
-
-        // 重置高度以获取正确的 scrollHeight
         textarea.style.height = 'auto';
-        // 设置新高度，最小单行（约 24px），最大 236px
         const newHeight = Math.min(Math.max(textarea.scrollHeight, 24), 236);
         textarea.style.height = `${newHeight}px`;
     }, [inputValue]);
@@ -80,10 +211,16 @@ export function ChatComposer({
         }
     };
 
+    const handleReasoningToggle = () => {
+        if (canToggleReasoning && onReasoningChange) {
+            onReasoningChange(!reasoningEnabled);
+        }
+    };
+
     return (
         <div className={`fixed left-0 right-0 bottom-[6rem] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
             <div className="max-w-3xl mx-auto">
-                {/* 输入框容器 - 白色背景 */}
+                {/* 输入框容器 */}
                 <div className={`
                     relative flex flex-col gap-1 p-3 rounded-2xl
                     bg-background/90 border border-border
@@ -106,7 +243,6 @@ export function ChatComposer({
                             disabled={disabled}
                             rows={1}
                         />
-                        {/* 底部渐变遮罩 - 仅在内容较多时可见 */}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background/60 to-transparent" />
                     </div>
 
@@ -147,7 +283,6 @@ export function ChatComposer({
                                     </div>
                                 )}
 
-                                {/* 分隔线 */}
                                 <div className="w-px h-6 bg-border mx-1" />
 
                                 {/* 紫微命盘选择框 */}
@@ -181,10 +316,9 @@ export function ChatComposer({
                                     </div>
                                 )}
 
-                                {/* 分隔线 */}
                                 <div className="w-px h-6 bg-border mx-1" />
 
-                                {/* 附件按钮（预留） */}
+                                {/* 附件按钮 */}
                                 <button
                                     type="button"
                                     className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-background-tertiary transition-all opacity-50"
@@ -195,7 +329,7 @@ export function ChatComposer({
                                 </button>
                             </div>
 
-                            {/* 移动端：折叠到 Plus 图标 */}
+                            {/* 移动端：折叠菜单 */}
                             <div className="md:hidden relative">
                                 <button
                                     type="button"
@@ -229,22 +363,8 @@ export function ChatComposer({
                                                         <Orbit className="w-4.5 h-4.5" />
                                                         <span>{hasBazi?.name || '八字命盘'}</span>
                                                     </button>
-                                                    {hasBazi && !disabled && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onClearChart?.('bazi');
-                                                            }}
-                                                            className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-r-lg"
-                                                            title="清除八字命盘"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    )}
                                                 </div>
                                             )}
-
                                             {onSelectChart && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasZiwei
                                                     ? 'bg-purple-500/10 text-purple-600'
@@ -262,40 +382,13 @@ export function ChatComposer({
                                                         <Sparkles className="w-4.5 h-4.5" />
                                                         <span>{hasZiwei?.name || '紫微命盘'}</span>
                                                     </button>
-                                                    {hasZiwei && !disabled && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onClearChart?.('ziwei');
-                                                            }}
-                                                            className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-r-lg"
-                                                            title="清除紫微命盘"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    )}
                                                 </div>
                                             )}
-
-                                            <div className="w-full px-1 py-0.5">
-                                                <div className="h-px bg-border" />
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm text-foreground-secondary hover:bg-background-secondary opacity-50 cursor-not-allowed"
-                                                disabled
-                                            >
-                                                <Paperclip className="w-4.5 h-4.5" />
-                                                <span>附件上传</span>
-                                            </button>
                                         </div>
                                     </>
                                 )}
                             </div>
 
-                            {/* 分隔线 */}
                             <div className="w-px h-6 bg-border mx-1" />
 
                             {/* 模型选择器 */}
@@ -304,45 +397,100 @@ export function ChatComposer({
                                     <button
                                         type="button"
                                         onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-base ${disabled
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${modelSelectorDisabled
                                             ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
                                             : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
                                             }`}
-                                        disabled={disabled}
+                                        disabled={modelSelectorDisabled}
                                     >
-                                        {currentModel.icon}
-                                        <span>{currentModel.name}</span>
+                                        {modelsLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin text-foreground-secondary" />
+                                        ) : (
+                                            VENDOR_ICONS[currentModelConfig.vendor]
+                                        )}
+                                        <span className="max-w-[120px] truncate">
+                                            {modelsLoading
+                                                ? '模型加载中...'
+                                                : models.length === 0
+                                                    ? '暂无可用模型'
+                                                    : currentModelConfig.name}
+                                        </span>
                                         <ChevronDown className={`w-4 h-4 transition-transform ${modelDropdownOpen ? 'rotate-180' : ''}`} />
                                     </button>
-                                    {modelDropdownOpen && !disabled && (
+                                    {modelDropdownOpen && !modelSelectorDisabled && (
                                         <>
                                             <div
                                                 className="fixed inset-0 z-10"
                                                 onClick={() => setModelDropdownOpen(false)}
                                             />
-                                            <div className="absolute bottom-full left-0 mb-2 w-44 bg-background border border-border rounded-lg shadow-lg z-20 overflow-hidden">
-                                                {AI_MODELS.map((model) => (
-                                                    <button
-                                                        key={model.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            onModelChange(model.id);
-                                                            setModelDropdownOpen(false);
-                                                        }}
-                                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-background-secondary transition-colors flex items-center gap-2 ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''
-                                                            }`}
-                                                    >
-                                                        {model.icon}
-                                                        <div>
-                                                            <div className="font-medium">{model.name}</div>
-                                                            <div className="text-xs text-foreground-secondary">{model.desc}</div>
+                                            <div className="absolute bottom-full left-0 mb-2 w-56 max-h-80 overflow-y-auto bg-background border border-border rounded-lg shadow-lg z-20">
+                                                {(Object.keys(modelsByVendor) as AIVendor[]).map((vendor) => {
+                                                    const models = modelsByVendor[vendor];
+                                                    if (models.length === 0) return null;
+                                                    return (
+                                                        <div key={vendor}>
+                                                            <div className="px-3 py-1.5 text-xs font-medium text-foreground-secondary bg-background-secondary/50 sticky top-0">
+                                                                {VENDOR_NAMES[vendor]}
+                                                            </div>
+                                                            {models.map((model) => (
+                                                                <button
+                                                                    key={model.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        onModelChange(model.id);
+                                                                        setModelDropdownOpen(false);
+                                                                    }}
+                                                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-background-secondary transition-colors flex items-center gap-2 ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
+                                                                >
+                                                                    {VENDOR_ICONS[model.vendor]}
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="font-medium truncate">{model.name}</div>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
                                                         </div>
-                                                    </button>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </>
                                     )}
+                                    {modelsError && !modelsLoading && (
+                                        <div className="mt-1 text-xs text-rose-500">{modelsError}</div>
+                                    )}
                                 </div>
+                            )}
+
+                            <div className="w-px h-6 bg-border mx-1" />
+
+                            {/* 推理模式按钮 */}
+                            {onReasoningChange && (
+                                <button
+                                    type="button"
+                                    onClick={handleReasoningToggle}
+                                    disabled={disabled || !canToggleReasoning}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${disabled || !currentModelConfig?.supportsReasoning
+                                        ? 'opacity-30 cursor-not-allowed text-foreground-secondary'
+                                        : isReasoningForced
+                                            ? 'bg-yellow-500/20 text-yellow-600 cursor-default'
+                                            : reasoningEnabled
+                                                ? 'bg-yellow-500/20 text-yellow-600 hover:bg-yellow-500/30'
+                                                : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                                        }`}
+                                    title={
+                                        !currentModelConfig?.supportsReasoning
+                                            ? '当前模型不支持推理模式'
+                                            : isReasoningForced
+                                                ? '此模型默认开启推理'
+                                                : reasoningEnabled
+                                                    ? '关闭推理模式'
+                                                    : '开启推理模式'
+                                    }
+                                >
+                                    <Lightbulb className={`w-4.5 h-4.5 ${(reasoningEnabled || isReasoningForced) ? 'fill-yellow-500' : ''}`} />
+                                    <span className="hidden md:inline">
+                                        {isReasoningForced ? '推理' : reasoningEnabled ? '推理' : '推理'}
+                                    </span>
+                                </button>
                             )}
                         </div>
 
@@ -383,3 +531,6 @@ export function ChatComposer({
     );
 }
 
+// 导出类型和配置以保持向后兼容
+export type AIModel = string;
+export { getModelName } from '@/lib/ai-config';

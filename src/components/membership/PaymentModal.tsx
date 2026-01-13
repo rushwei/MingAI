@@ -21,6 +21,7 @@ interface PaymentModalProps {
     isPayPerUse?: boolean;
     /** 按量付费的次数 */
     creditCount?: number;
+    isPaymentPaused?: boolean;
 }
 
 type PaymentStep = 'select' | 'processing' | 'success';
@@ -33,6 +34,7 @@ export function PaymentModal({
     onSuccess,
     isPayPerUse = false,
     creditCount = 0,
+    isPaymentPaused = false,
 }: PaymentModalProps) {
     const [step, setStep] = useState<PaymentStep>('select');
     const [paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay'>('wechat');
@@ -41,8 +43,13 @@ export function PaymentModal({
     if (!isOpen || !plan) return null;
 
     const handlePayment = async () => {
-        setStep('processing');
         setError('');
+        if (isPaymentPaused) {
+            setStep('select');
+            setError('支付服务已暂停');
+            return;
+        }
+        setStep('processing');
 
         // 模拟支付处理延迟
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -173,6 +180,11 @@ export function PaymentModal({
                                     {error}
                                 </div>
                             )}
+                            {isPaymentPaused && (
+                                <div className="p-3 rounded-lg bg-amber-500/10 text-amber-600 text-sm mb-4">
+                                    支付服务已暂停，请联系管理员。
+                                </div>
+                            )}
 
                             {/* 订单信息 */}
                             <div className="bg-background-secondary rounded-xl p-4 mb-6">
@@ -233,7 +245,8 @@ export function PaymentModal({
                             {/* 支付按钮 */}
                             <button
                                 onClick={handlePayment}
-                                className="w-full py-4 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                                disabled={isPaymentPaused}
+                                className="w-full py-4 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 立即支付 ¥{plan.price}
                             </button>

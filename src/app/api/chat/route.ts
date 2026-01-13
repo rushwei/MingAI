@@ -13,7 +13,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit } from '@/lib/credits';
 import { createClient } from '@supabase/supabase-js';
-import type { ChatMessage, AIPersonality } from '@/types';
+import type { ChatMessage, AIPersonality, AIModelId } from '@/types';
+import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => createClient(
@@ -159,14 +162,15 @@ function formatChartContextPrompt(context: ChartContext): string {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model } = body as {
+        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning } = body as {
             messages: ChatMessage[];
             personality: AIPersonality;
             skipCreditCheck?: boolean;
             internalSecret?: string;
             stream?: boolean;
             chartIds?: ChartIds;
-            model?: 'deepseek' | 'glm' | 'gemini';
+            model?: string;
+            reasoning?: boolean;
         };
 
         if (!messages || !Array.isArray(messages)) {
@@ -206,6 +210,29 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const requestedModelId = model || DEFAULT_MODEL_ID;
+        const modelConfig = getModelConfig(requestedModelId);
+        if (!modelConfig) {
+            return NextResponse.json(
+                { error: '无效的模型' },
+                { status: 400 }
+            );
+        }
+
+        const membershipType = userId
+            ? await getEffectiveMembershipType(userId)
+            : 'free';
+
+        if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+            return NextResponse.json(
+                { error: '当前会员等级无法使用该模型' },
+                { status: 403 }
+            );
+        }
+
+        const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
+        const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+
         // 检查积分
         if (userId && !canSkipCredit) {
             const hasEnough = await hasCredits(userId);
@@ -241,7 +268,13 @@ export async function POST(request: NextRequest) {
 
         // 流式响应
         if (stream) {
-            const streamBody = await callAIStream(messages, personality || 'master', chartContextPrompt, model || 'deepseek');
+            const streamBody = await callAIStream(
+                messages,
+                personality || 'master',
+                chartContextPrompt,
+                requestedModelId,
+                { reasoning: reasoningEnabled }
+            );
             return new Response(streamBody, {
                 headers: {
                     'Content-Type': 'text/event-stream',
@@ -252,7 +285,13 @@ export async function POST(request: NextRequest) {
         }
 
         // 非流式响应
-        const content = await callAI(messages, personality || 'master', 'deepseek', chartContextPrompt);
+        const content = await callAI(
+            messages,
+            personality || 'master',
+            requestedModelId,
+            chartContextPrompt,
+            { reasoning: reasoningEnabled }
+        );
         return NextResponse.json({ content });
     } catch (error) {
         console.error('AI API 错误:', error);

@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AIPersonalityConfig, ChatMessage } from '@/types';
-import { AI_MODEL_NAMES, type AIModel } from './ChatComposer';
+import { getModelName } from '@/lib/ai-config';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { ThinkingBlock } from './ThinkingBlock';
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
@@ -218,11 +219,18 @@ export function ChatMessageList({
                         /* AI 消息 - Markdown 渲染 */
                         <div className="w-full">
                             {/* 正在思考指示器 - 显示在AI消息开头 */}
-                            {isStreamingAI && message.id === lastMessage?.id && (
+                            {isStreamingAI && message.id === lastMessage?.id && !message.reasoning && (
                                 <div className="flex items-center gap-2 mb-2">
                                     <RefreshCw className="w-4 h-4 animate-spin text-accent" />
                                     <span className="text-sm text-foreground-secondary">正在思考...</span>
                                 </div>
+                            )}
+                            {/* 显示思考过程 */}
+                            {message.reasoning && (
+                                <ThinkingBlock
+                                    content={message.reasoning}
+                                    isStreaming={isStreamingAI && message.id === lastMessage?.id && !message.content}
+                                />
                             )}
                             <MarkdownContent content={message.content} className="text-base text-foreground" />
                             {/* 操作按钮 - 只有最后一条正在流式输出的消息才隐藏 */}
@@ -257,7 +265,7 @@ export function ChatMessageList({
                                                 <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
                                                     <div>重试...</div>
                                                     {message.model && (
-                                                        <div className="opacity-70">已使用 {AI_MODEL_NAMES[message.model as AIModel] || message.model}</div>
+                                                        <div className="opacity-70">已使用 {getModelName(message.model || '')}</div>
                                                     )}
                                                 </span>
                                             )}

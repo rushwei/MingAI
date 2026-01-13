@@ -11,9 +11,14 @@ import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/membe
 interface SubscriptionPlansProps {
     currentPlan: MembershipType;
     onSelectPlan: (plan: PricingPlan) => void;
+    isPaymentPaused?: boolean;
 }
 
-export function SubscriptionPlans({ currentPlan, onSelectPlan }: SubscriptionPlansProps) {
+export function SubscriptionPlans({
+    currentPlan,
+    onSelectPlan,
+    isPaymentPaused = false,
+}: SubscriptionPlansProps) {
     const getIcon = (planId: MembershipType) => {
         switch (planId) {
             case 'free': return <Zap className="w-5 h-5" />;
@@ -35,6 +40,7 @@ export function SubscriptionPlans({ currentPlan, onSelectPlan }: SubscriptionPla
             {pricingPlans.map((plan) => {
                 const color = getPlanColor(plan.id);
                 const isCurrent = currentPlan === plan.id;
+                const isPaused = isPaymentPaused && plan.id !== 'free';
 
                 return (
                     <div
@@ -57,7 +63,14 @@ export function SubscriptionPlans({ currentPlan, onSelectPlan }: SubscriptionPla
                                 {getIcon(plan.id)}
                             </div>
                             <div>
-                                <h3 className="font-bold">{plan.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold">{plan.name}</h3>
+                                    {isPaused && (
+                                        <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                            暂停服务
+                                        </span>
+                                    )}
+                                </div>
                                 {isCurrent && (
                                     <span className="text-xs text-green-500">当前</span>
                                 )}
@@ -91,18 +104,20 @@ export function SubscriptionPlans({ currentPlan, onSelectPlan }: SubscriptionPla
 
                         {/* 按钮 */}
                         <button
-                            onClick={() => onSelectPlan(plan)}
-                            disabled={isCurrent || plan.id === 'free'}
+                            onClick={() => !isPaused && onSelectPlan(plan)}
+                            disabled={isCurrent || plan.id === 'free' || isPaused}
                             className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all ${plan.id === 'free'
                                 ? 'bg-background text-foreground-secondary cursor-not-allowed'
-                                : isCurrent
+                                : isPaused
+                                    ? 'bg-amber-500/10 text-amber-600 cursor-not-allowed'
+                                    : isCurrent
                                     ? 'bg-green-500/20 text-green-500 cursor-not-allowed'
                                     : plan.popular
                                         ? 'bg-accent text-white hover:bg-accent/90'
                                         : 'bg-background-secondary hover:bg-accent hover:text-white'
                                 }`}
                         >
-                            {plan.id === 'free' ? '免费使用' : isCurrent ? '已开通' : '立即开通'}
+                            {plan.id === 'free' ? '免费使用' : isPaused ? '暂停服务' : isCurrent ? '已开通' : '立即开通'}
                         </button>
                     </div>
                 );

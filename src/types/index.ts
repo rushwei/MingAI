@@ -132,6 +132,7 @@ export interface ChatMessage {
     content: string;
     createdAt: string;
     model?: string;                   // 使用的模型（仅AI消息）
+    reasoning?: string;               // 推理/思考过程（仅AI消息）
     // 版本支持（仅用户消息有效）
     versions?: MessageVersion[];      // 所有版本历史
     currentVersionIndex?: number;     // 当前显示的版本索引
@@ -166,6 +167,37 @@ export interface Conversation {
     // 新增：AI 分析来源
     sourceType?: ConversationSourceType;
     sourceData?: Record<string, unknown>;
+}
+
+// ===== AI 模型相关类型 =====
+
+/** AI 供应商 */
+export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai';
+
+/** AI 模型 ID - 动态生成，这里只定义基础结构 */
+export type AIModelId = string;
+
+/** AI 模型配置 */
+export interface AIModelConfig {
+    id: string;                  // 唯一 ID: deepseek-v3, deepseek-pro, etc
+    name: string;                // 显示名称
+    vendor: AIVendor;            // 供应商
+    modelId: string;             // API 模型 ID
+    apiUrl: string;              // API 端点
+    apiKeyEnvVar: string;        // API Key 环境变量名
+    // 推理模式支持
+    supportsReasoning: boolean;  // 是否支持推理模式
+    reasoningModelId?: string;   // 推理模式的模型 ID（如果不同）
+    isReasoningDefault?: boolean; // 是否默认开启推理（DeepAI）
+    // 默认参数
+    defaultTemperature?: number;
+    defaultMaxTokens?: number;
+}
+
+/** 聊天消息中的推理内容 */
+export interface ReasoningContent {
+    thinking: string;      // 思考过程
+    duration?: number;     // 思考时长（秒）
 }
 
 // ===== 每日运势相关类型 =====
