@@ -25,7 +25,6 @@ import {
     saveConversation,
     deleteConversation,
     renameConversation,
-    updateConversationCharts,
 } from '@/lib/conversation';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
@@ -77,7 +76,6 @@ export default function ChatPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false); // AI思考中
-    const [isSaving, setIsSaving] = useState(false);   // 保存中（不显示思考动画）
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -193,31 +191,26 @@ export default function ChatPage() {
     const saveMessages = useCallback(async (newMessages: ChatMessage[], isNewConversation: boolean) => {
         if (!userId) return;
 
-        setIsSaving(true);
-        try {
-            if (activeConversationId && !isNewConversation) {
-                // 更新现有对话
-                await saveConversation(activeConversationId, newMessages);
-            } else {
-                // 创建新对话，使用AI生成标题
-                const title = await generateAITitle(newMessages);
-                const newId = await createConversation({
-                    userId,
-                    personality: 'master',
-                    title,
-                    baziChartId: selectedCharts.bazi?.id,
-                    ziweiChartId: selectedCharts.ziwei?.id,
-                });
-                if (newId) {
-                    await saveConversation(newId, newMessages, title);
-                    setActiveConversationId(newId);
-                    // 刷新列表
-                    const list = await loadConversations(userId);
-                    setConversations(list);
-                }
+        if (activeConversationId && !isNewConversation) {
+            // 更新现有对话
+            await saveConversation(activeConversationId, newMessages);
+        } else {
+            // 创建新对话，使用AI生成标题
+            const title = await generateAITitle(newMessages);
+            const newId = await createConversation({
+                userId,
+                personality: 'master',
+                title,
+                baziChartId: selectedCharts.bazi?.id,
+                ziweiChartId: selectedCharts.ziwei?.id,
+            });
+            if (newId) {
+                await saveConversation(newId, newMessages, title);
+                setActiveConversationId(newId);
+                // 刷新列表
+                const list = await loadConversations(userId);
+                setConversations(list);
             }
-        } finally {
-            setIsSaving(false);
         }
     }, [userId, activeConversationId, selectedCharts.bazi?.id, selectedCharts.ziwei?.id]);
 
@@ -867,7 +860,7 @@ export default function ChatPage() {
             </div>
 
             {/* 命盘选择器弹窗 */}
-            {userId && (
+            {userId && chartSelectorOpen && (
                 <BaziChartSelector
                     isOpen={chartSelectorOpen}
                     onClose={() => {

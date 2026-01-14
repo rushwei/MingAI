@@ -7,9 +7,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import {
     Sparkles,
-    Shuffle,
     Calendar,
     Layers,
     ChevronRight,
@@ -29,6 +29,11 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { TarotShareCard } from '@/components/tarot/TarotShareCard';
 
 type PageState = 'home' | 'select-spread' | 'drawing' | 'result';
+
+const HistoryDrawer = dynamic(
+    () => import('@/components/layout/HistoryDrawer').then(mod => mod.HistoryDrawer),
+    { ssr: false }
+);
 
 function TarotPageContent() {
     const searchParams = useSearchParams();
@@ -520,8 +525,6 @@ function TarotPageContent() {
 }
 
 export default function TarotPage() {
-    // Dynamically import to avoid SSR issues
-    const { HistoryDrawer } = require('@/components/layout/HistoryDrawer');
     return (
         <LoginOverlay message="登录后体验塔罗占卜">
             <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" /></div>}>

@@ -11,7 +11,6 @@ import { PaymentModal } from './PaymentModal';
 import type { PricingPlan } from '@/lib/membership';
 
 interface PayPerUseProps {
-    userId: string;
     currentCredits: number;
     onSuccess?: () => void;
     isPaymentPaused?: boolean;
@@ -27,7 +26,6 @@ const presetAmounts = [
 ];
 
 export function PayPerUse({
-    userId,
     currentCredits,
     onSuccess,
     isPaymentPaused = false,
@@ -183,7 +181,6 @@ export function PayPerUse({
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
                 plan={createPayPerUsePlan()}
-                userId={userId}
                 onSuccess={handlePaymentSuccess}
                 isPayPerUse={true}
                 creditCount={getSelectedCount()}

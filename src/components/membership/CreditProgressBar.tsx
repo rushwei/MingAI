@@ -6,7 +6,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Zap, Clock, RefreshCw, BotMessageSquare } from 'lucide-react';
+import { Clock, RefreshCw, BotMessageSquare } from 'lucide-react';
 import type { MembershipType } from '@/lib/membership';
 import { getPlanConfig } from '@/lib/membership';
 

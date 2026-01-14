@@ -22,7 +22,6 @@ import {
     User,
     Compass,
     ChevronDown,
-    Check,
     X,
     Share2
 } from 'lucide-react';

@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Orbit, Star, Check, User } from 'lucide-react';
+import { X, Search, Orbit, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export interface ChartItem {

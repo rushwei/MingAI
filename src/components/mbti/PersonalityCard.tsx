@@ -4,12 +4,46 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type MBTIType, type TestResult, type PersonalityData, PERSONALITY_BASICS, loadPersonalityData, getDimensionDescription } from '@/lib/mbti';
+import { type Dimension, type TestResult, type PersonalityData, PERSONALITY_BASICS, loadPersonalityData, getDimensionDescription } from '@/lib/mbti';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PersonalityCardProps {
     result: TestResult;
     showDimensions?: boolean;  // 是否显示维度分析（默认 true）
+}
+
+function DimensionBar({ left, right, leftPercent, rightPercent }: {
+    left: Dimension;
+    right: Dimension;
+    leftPercent: number;
+    rightPercent: number;
+}) {
+    const leftInfo = getDimensionDescription(left);
+    const rightInfo = getDimensionDescription(right);
+    const isLeftDominant = leftPercent >= rightPercent;
+
+    return (
+        <div className="mb-4">
+            <div className="flex justify-between text-sm mb-1">
+                <span className={isLeftDominant ? 'font-semibold text-accent' : 'text-foreground-secondary'}>
+                    {leftInfo.name} ({left}) {leftPercent}%
+                </span>
+                <span className={!isLeftDominant ? 'font-semibold text-accent' : 'text-foreground-secondary'}>
+                    {rightPercent}% ({right}) {rightInfo.name}
+                </span>
+            </div>
+            <div className="h-3 bg-background-secondary rounded-full overflow-hidden flex">
+                <div
+                    className={`h-full transition-all ${isLeftDominant ? 'bg-accent' : 'bg-foreground-secondary/30'}`}
+                    style={{ width: `${leftPercent}%` }}
+                />
+                <div
+                    className={`h-full transition-all ${!isLeftDominant ? 'bg-accent' : 'bg-foreground-secondary/30'}`}
+                    style={{ width: `${rightPercent}%` }}
+                />
+            </div>
+        </div>
+    );
 }
 
 export function PersonalityCard({ result, showDimensions = true }: PersonalityCardProps) {
@@ -31,41 +65,6 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
             prev.includes(section)
                 ? prev.filter(s => s !== section)
                 : [...prev, section]
-        );
-    };
-
-    // 维度百分比条
-    const DimensionBar = ({ left, right, leftPercent, rightPercent }: {
-        left: string;
-        right: string;
-        leftPercent: number;
-        rightPercent: number;
-    }) => {
-        const leftInfo = getDimensionDescription(left as any);
-        const rightInfo = getDimensionDescription(right as any);
-        const isLeftDominant = leftPercent >= rightPercent;
-
-        return (
-            <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                    <span className={isLeftDominant ? 'font-semibold text-accent' : 'text-foreground-secondary'}>
-                        {leftInfo.name} ({left}) {leftPercent}%
-                    </span>
-                    <span className={!isLeftDominant ? 'font-semibold text-accent' : 'text-foreground-secondary'}>
-                        {rightPercent}% ({right}) {rightInfo.name}
-                    </span>
-                </div>
-                <div className="h-3 bg-background-secondary rounded-full overflow-hidden flex">
-                    <div
-                        className={`h-full transition-all ${isLeftDominant ? 'bg-accent' : 'bg-foreground-secondary/30'}`}
-                        style={{ width: `${leftPercent}%` }}
-                    />
-                    <div
-                        className={`h-full transition-all ${!isLeftDominant ? 'bg-accent' : 'bg-foreground-secondary/30'}`}
-                        style={{ width: `${rightPercent}%` }}
-                    />
-                </div>
-            </div>
         );
     };
 

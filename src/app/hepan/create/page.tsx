@@ -13,128 +13,28 @@ import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility 
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/supabase';
 
-function HepanCreateContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const type = (searchParams.get('type') || 'love') as HepanType;
-
-    const [person1, setPerson1] = useState<Partial<BirthInfo>>({ name: '' });
-    const [person2, setPerson2] = useState<Partial<BirthInfo>>({ name: '' });
-    const [loading, setLoading] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [pickerOpen, setPickerOpen] = useState<1 | 2 | null>(null);
-
-    // 获取用户 ID
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) {
-                setUserId(session.user.id);
-            }
-        });
-    }, []);
-
-    const labels = {
-        love: { p1: '您', p2: '对方' },
-        business: { p1: '合伙人A', p2: '合伙人B' },
-        family: { p1: '父/母', p2: '子/女' },
-    };
-
-    const normalizeHourToShichen = (hour?: number) => {
-        if (hour === undefined || Number.isNaN(hour)) return undefined;
-        const normalized = ((hour % 24) + 24) % 24;
-        const slot = Math.floor((normalized + 1) / 2) * 2;
-        return slot === 24 ? 0 : slot;
-    };
-
-    const handleChartSelect = (chart: ChartItem) => {
-        const birthInfo: Partial<BirthInfo> = {
-            name: chart.name,
-            year: chart.birth_year,
-            month: chart.birth_month,
-            day: chart.birth_day,
-            hour: normalizeHourToShichen(chart.birth_hour),
-            gender: chart.gender || undefined,
-        };
-
-        if (pickerOpen === 1) {
-            setPerson1(birthInfo);
-        } else if (pickerOpen === 2) {
-            setPerson2(birthInfo);
-        }
-        setPickerOpen(null);
-    };
-
-    const handleSubmit = async () => {
-        // 验证必填字段
-        if (!person1.name || !person1.year || !person1.month || !person1.day || person1.hour === undefined) {
-            alert('请填写完整的第一人信息');
-            return;
-        }
-        if (!person2.name || !person2.year || !person2.month || !person2.day || person2.hour === undefined) {
-            alert('请填写完整的第二人信息');
-            return;
-        }
-
-        setLoading(true);
-
-        // 计算合盘
-        const result = analyzeCompatibility(
-            person1 as BirthInfo,
-            person2 as BirthInfo,
-            type
-        );
-
-        // 保存合盘记录到数据库
-        let chartId: string | null = null;
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-                const res = await fetch('/api/hepan', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        action: 'save',
-                        result,
-                    }),
-                });
-                const data = await res.json();
-                if (data.success && data.data?.chartId) {
-                    chartId = data.data.chartId;
-                }
-            }
-        } catch (error) {
-            console.error('保存合盘记录失败:', error);
-        }
-
-        // 存储结果（包含 chartId）
-        sessionStorage.setItem('hepan_result', JSON.stringify({ ...result, chartId }));
-
-        // 跳转结果页
-        setTimeout(() => {
-            router.push('/hepan/result');
-        }, 500);
-    };
-
-    const BirthInput = ({
-        label,
-        value,
-        onChange,
-        personIndex,
-    }: {
-        label: string;
-        value: Partial<BirthInfo>;
-        onChange: (v: Partial<BirthInfo>) => void;
-        personIndex: 1 | 2;
-    }) => (
+function BirthInput({
+    label,
+    value,
+    onChange,
+    personIndex,
+    userId,
+    onPick,
+}: {
+    label: string;
+    value: Partial<BirthInfo>;
+    onChange: (v: Partial<BirthInfo>) => void;
+    personIndex: 1 | 2;
+    userId?: string | null;
+    onPick?: (person: 1 | 2) => void;
+}) {
+    return (
         <div className="bg-background-secondary rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground">{label}</h3>
-                {userId && (
+                {userId && onPick && (
                     <button
-                        onClick={() => setPickerOpen(personIndex)}
+                        onClick={() => onPick(personIndex)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-accent
                             hover:bg-accent/10 rounded-lg transition-colors"
                     >
@@ -243,6 +143,112 @@ function HepanCreateContent() {
             </div>
         </div>
     );
+}
+
+function HepanCreateContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const type = (searchParams.get('type') || 'love') as HepanType;
+
+    const [person1, setPerson1] = useState<Partial<BirthInfo>>({ name: '' });
+    const [person2, setPerson2] = useState<Partial<BirthInfo>>({ name: '' });
+    const [loading, setLoading] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
+    const [pickerOpen, setPickerOpen] = useState<1 | 2 | null>(null);
+
+    // 获取用户 ID
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                setUserId(session.user.id);
+            }
+        });
+    }, []);
+
+    const labels = {
+        love: { p1: '您', p2: '对方' },
+        business: { p1: '合伙人A', p2: '合伙人B' },
+        family: { p1: '父/母', p2: '子/女' },
+    };
+
+    const normalizeHourToShichen = (hour?: number) => {
+        if (hour === undefined || Number.isNaN(hour)) return undefined;
+        const normalized = ((hour % 24) + 24) % 24;
+        const slot = Math.floor((normalized + 1) / 2) * 2;
+        return slot === 24 ? 0 : slot;
+    };
+
+    const handleChartSelect = (chart: ChartItem) => {
+        const birthInfo: Partial<BirthInfo> = {
+            name: chart.name,
+            year: chart.birth_year,
+            month: chart.birth_month,
+            day: chart.birth_day,
+            hour: normalizeHourToShichen(chart.birth_hour),
+            gender: chart.gender || undefined,
+        };
+
+        if (pickerOpen === 1) {
+            setPerson1(birthInfo);
+        } else if (pickerOpen === 2) {
+            setPerson2(birthInfo);
+        }
+        setPickerOpen(null);
+    };
+
+    const handleSubmit = async () => {
+        // 验证必填字段
+        if (!person1.name || !person1.year || !person1.month || !person1.day || person1.hour === undefined) {
+            alert('请填写完整的第一人信息');
+            return;
+        }
+        if (!person2.name || !person2.year || !person2.month || !person2.day || person2.hour === undefined) {
+            alert('请填写完整的第二人信息');
+            return;
+        }
+
+        setLoading(true);
+
+        // 计算合盘
+        const result = analyzeCompatibility(
+            person1 as BirthInfo,
+            person2 as BirthInfo,
+            type
+        );
+
+        // 保存合盘记录到数据库
+        let chartId: string | null = null;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+                const res = await fetch('/api/hepan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        result,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success && data.data?.chartId) {
+                    chartId = data.data.chartId;
+                }
+            }
+        } catch (error) {
+            console.error('保存合盘记录失败:', error);
+        }
+
+        // 存储结果（包含 chartId）
+        sessionStorage.setItem('hepan_result', JSON.stringify({ ...result, chartId }));
+
+        // 跳转结果页
+        setTimeout(() => {
+            router.push('/hepan/result');
+        }, 500);
+    };
 
     return (
         <div className="min-h-screen bg-background">
@@ -269,12 +275,16 @@ function HepanCreateContent() {
                         value={person1}
                         onChange={setPerson1}
                         personIndex={1}
+                        userId={userId}
+                        onPick={(person) => setPickerOpen(person)}
                     />
                     <BirthInput
                         label={labels[type].p2}
                         value={person2}
                         onChange={setPerson2}
                         personIndex={2}
+                        userId={userId}
+                        onPick={(person) => setPickerOpen(person)}
                     />
                 </div>
 

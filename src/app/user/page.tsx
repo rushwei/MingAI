@@ -6,7 +6,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     User,
@@ -14,7 +13,6 @@ import {
     Settings,
     ChevronRight,
     LogOut,
-    Crown,
     History,
     FileText,
     Loader2,
@@ -27,12 +25,11 @@ import {
     CircleStar,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { PaymentModal } from '@/components/membership/PaymentModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/usePaymentPause';
-import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
+import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // 菜单项配置
@@ -128,20 +125,16 @@ const writeMembershipCache = (userId: string, info: MembershipInfo) => {
 };
 
 export default function UserPage() {
-    const router = useRouter();
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const [detailsLoading, setDetailsLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const effectiveUnreadCount = user ? unreadCount : 0;
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
-
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
 
     // 获取用户信息 - 先读取本地 session，再监听后续变更
     useEffect(() => {
@@ -174,10 +167,6 @@ export default function UserPage() {
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
-            } finally {
-                if (isMounted) {
-                    setDetailsLoading(false);
-                }
             }
         };
 
@@ -199,14 +188,12 @@ export default function UserPage() {
                     if (cachedMembership) {
                         setMembership(cachedMembership);
                     }
-                    setDetailsLoading(true);
                     loadUserDetails(currentUser);
                 }
             } else {
                 lastUserId = null;
                 setProfile(null);
                 setMembership(null);
-                setDetailsLoading(false);
             }
         };
 
@@ -235,7 +222,6 @@ export default function UserPage() {
 
     useEffect(() => {
         if (!user) {
-            setUnreadCount(0);
             return;
         }
 
@@ -300,12 +286,6 @@ export default function UserPage() {
             console.error('Sign out error:', error);
             setSigningOut(false);
         }
-    };
-
-    const handleSelectPlan = (plan: PricingPlan) => {
-        if (isPaymentPaused) return;
-        setSelectedPlan(plan);
-        setShowPaymentModal(true);
     };
 
     // 加载状态
@@ -454,7 +434,7 @@ export default function UserPage() {
                         <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
                             {section.items.map((item, itemIndex) => {
                                 const Icon = item.icon;
-                                const showUnread = item.href === '/user/notifications' && unreadCount > 0;
+                                const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
                                 const isSubscription = item.href === '/user/upgrade';
                                 const isDisabled = isSubscription && isPaymentPaused;
 
@@ -488,7 +468,7 @@ export default function UserPage() {
                                         <div className="flex items-center gap-2">
                                             {showUnread && (
                                                 <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
-                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                    {effectiveUnreadCount > 99 ? '99+' : effectiveUnreadCount}
                                                 </span>
                                             )}
                                             <ChevronRight className="w-4 h-4 text-foreground-secondary" />
@@ -541,16 +521,6 @@ export default function UserPage() {
 
             {/* 弹窗 */}
 
-            <PaymentModal
-                isOpen={showPaymentModal}
-                onClose={() => setShowPaymentModal(false)}
-                plan={selectedPlan}
-                userId={user.id}
-                isPaymentPaused={isPaymentPaused}
-                onSuccess={() => {
-                    setShowPaymentModal(false);
-                }}
-            />
         </div >
     );
 }

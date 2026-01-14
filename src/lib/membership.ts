@@ -288,7 +288,6 @@ export async function purchaseCredits(
     // 获取当前信息
     const membership = await getMembershipInfo(userId);
     const currentCredits = membership?.aiChatCount || 0;
-    const limit = getCreditLimit(membership?.type || 'free');
 
     // 按量付费可以突破常规上限，使用较高的上限
     const newCredits = currentCredits + count;

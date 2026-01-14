@@ -14,15 +14,15 @@ const ELEMENT_ICONS: Record<FiveElement, string> = {
     '金': '⚜️',
     '水': '💧',
 };
+const ELEMENT_ORDER: FiveElement[] = ['木', '火', '土', '金', '水'];
 
 export function FiveElementsChart({ elements }: { elements: Record<FiveElement, number> }) {
     const maxValue = Math.max(...Object.values(elements), 1);
     const total = Object.values(elements).reduce((a, b) => a + b, 0);
-    const elementOrder: FiveElement[] = ['木', '火', '土', '金', '水'];
 
     // 五行分析
     const analysis = useMemo(() => {
-        const sorted = elementOrder
+        const sorted = ELEMENT_ORDER
             .map(el => ({ element: el, count: elements[el] }))
             .sort((a, b) => b.count - a.count);
 
@@ -31,12 +31,12 @@ export function FiveElementsChart({ elements }: { elements: Record<FiveElement, 
         const missing = sorted.filter(s => s.count === 0);
 
         return { strongest, weakest, missing };
-    }, [elements, elementOrder]);
+    }, [elements]);
 
     return (
         <div className="space-y-3">
             <div className="grid grid-cols-5 gap-2">
-                {elementOrder.map((element) => {
+                {ELEMENT_ORDER.map((element) => {
                     const value = elements[element];
                     const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                     const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
@@ -95,4 +95,3 @@ export function FiveElementsChart({ elements }: { elements: Record<FiveElement, 
         </div>
     );
 }
-

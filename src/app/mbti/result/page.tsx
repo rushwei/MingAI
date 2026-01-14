@@ -19,6 +19,7 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 function MBTIResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const viewType = searchParams.get('type');
     const isViewMode = searchParams.get('view') === 'true';
 
     // useState keeps client-only test result and AI analysis state.
@@ -62,7 +63,6 @@ function MBTIResultContent() {
                 }
             }
         } else if (isViewMode) {
-            const viewType = searchParams.get('type');
             const viewResult = viewType ? buildViewResult(viewType.toUpperCase()) : null;
             if (viewResult) {
                 setResult(viewResult);
@@ -74,7 +74,7 @@ function MBTIResultContent() {
         }
 
         return () => subscription.unsubscribe();
-    }, [router, isViewMode]);
+    }, [router, isViewMode, viewType]);
 
     const handleGetAIAnalysis = async () => {
         if (!result || !user) return;

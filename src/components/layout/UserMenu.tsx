@@ -2,20 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
-    Sparkles,
-    Smile,
     Settings,
-    HelpCircle,
     LogOut,
-    ChevronRight,
     ChevronDown,
     ChevronUp,
-    Crown,
     Loader2,
     FileText,
-    CreditCard,
     CircleStar,
     Bell,
     User,
@@ -74,7 +67,6 @@ function Avatar({ src, alt, size = 32 }: { src: string | null; alt: string; size
 }
 
 export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProps) {
-    const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
     const [nickname, setNickname] = useState<string | null>(null);

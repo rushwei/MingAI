@@ -328,12 +328,12 @@ export async function sendOTP(
 export async function verifyOTP(
     email: string,
     token: string,
-    type: 'email' | 'recovery' | 'email_change' | 'signup' | 'magiclink' = 'email'
+    type: Extract<Parameters<typeof supabase.auth.verifyOtp>[0], { email: string }>['type'] = 'email'
 ): Promise<AuthResult> {
     const { error } = await supabase.auth.verifyOtp({
         email,
         token,
-        type: type as any, // 强制转换为 Supabase 接受的类型
+        type,
     });
 
     if (error) {

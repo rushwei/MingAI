@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { pricingPlans, type MembershipType } from '@/lib/membership';
+import { pricingPlans } from '@/lib/membership';
 import { getPaymentsPaused } from '@/lib/app-settings';
 
 // 服务端 Supabase 客户端

@@ -16,17 +16,13 @@ import {
     type DivinationResult,
     type Hexagram,
     type Yao,
-    type FullYaoInfo,
-    type YongShen,
-    type TimeRecommendation,
     calculateFullYaoInfo,
     determineYongShen,
     calculateTimeRecommendations,
     getDayStemForDate,
     yaosTpCode,
 } from '@/lib/liuyao';
-import { getShiYingPosition } from '@/lib/eight-palaces';
-import { getHexagramText, type HexagramText } from '@/lib/hexagram-texts';
+import { getHexagramText } from '@/lib/hexagram-texts';
 import { supabase } from '@/lib/supabase';
 
 export default function ResultPage() {
@@ -47,8 +43,7 @@ export default function ResultPage() {
         const dayStem = getDayStemForDate(result.createdAt);
         const hexagramCode = yaosTpCode(result.yaos);
         const fullYaos = calculateFullYaoInfo(result.yaos, hexagramCode, dayStem);
-        const shiYing = getShiYingPosition(hexagramCode);
-        const yongShen = determineYongShen(result.question, fullYaos, shiYing);
+        const yongShen = determineYongShen(result.question, fullYaos);
         const timeRecommendations = calculateTimeRecommendations(yongShen, fullYaos);
         const hexagramText = getHexagramText(result.hexagram.name);
         const changedHexagramText = result.changedHexagram

@@ -9,12 +9,6 @@ import { supabase } from '@/lib/supabase';
 import { FileText } from 'lucide-react';
 
 const FEATURE_OPTIONS = Object.entries(FEATURE_NAMES);
-const TEMPLATE_GROUPS = {
-    'feature_launch': '功能上线',
-    'system': '系统通知',
-    'promotion': '促销活动',
-};
-
 export function NotificationLaunchPanel() {
     // useState: 跟踪表单输入与请求反馈状态
     const [featureKey, setFeatureKey] = useState<string>(FEATURE_OPTIONS[0]?.[0] ?? '');

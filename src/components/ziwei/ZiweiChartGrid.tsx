@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { ZiweiChart, DecadalInfo } from '@/lib/ziwei';
 import { getBranchIndex, getDecadalList } from '@/lib/ziwei';
 import { getBranchElement, getElementColor } from '@/lib/bazi';
@@ -101,22 +101,20 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
     const bodyPalaceIndex = chart.palaces.findIndex(p => p.isBodyPalace);
 
     // 默认选中命宫，显示三方四正
-    const [selectedPalace, setSelectedPalace] = useState<number | null>(lifePalaceIndex >= 0 ? lifePalaceIndex : null);
+    const [selectedPalace, setSelectedPalace] = useState<number | null | undefined>(undefined);
     const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
     const [copied, setCopied] = useState(false);
 
-    // 当命盘变化时重新选中命宫
-    useEffect(() => {
-        const newLifeIndex = chart.palaces.findIndex(p => p.name === '命宫');
-        setSelectedPalace(newLifeIndex >= 0 ? newLifeIndex : null);
-    }, [chart]);
+    const defaultSelectedPalace = lifePalaceIndex >= 0 ? lifePalaceIndex : null;
+    const activeSelectedPalace = selectedPalace === undefined ? defaultSelectedPalace : selectedPalace;
+    const selectedIndex = typeof selectedPalace === 'number' ? selectedPalace : null;
 
     const getPalaceByBranch = (branchIndex: number) => {
         return chart.palaces.find(p => getBranchIndex(p.earthlyBranch) === branchIndex);
     };
 
     // 计算三方四正高亮
-    const sanFangSiZhengPalaces = selectedPalace !== null ? getSanFangSiZheng(selectedPalace) : [];
+    const sanFangSiZhengPalaces = activeSelectedPalace !== null ? getSanFangSiZheng(activeSelectedPalace) : [];
 
     // 获取宫位高亮类型（多色支持）
     const getHighlightTypes = (palaceIndex: number) => {
@@ -205,12 +203,14 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
             </div>
             {/* 三方四正连线SVG层 */}
             <div className="relative">
-                {selectedPalace !== null && (
+                {selectedIndex !== null && (
                     <svg
                         className="absolute inset-0 w-full h-full pointer-events-none z-10"
                         style={{ aspectRatio: '4/4' }}
                     >
                         {(() => {
+                            const selectedPalaceInfo = chart.palaces[selectedIndex];
+                            if (!selectedPalaceInfo) return null;
                             // 宫位在网格中的位置映射 (branchIndex -> {row, col})
                             const positionMap: Record<number, { row: number; col: number }> = {
                                 5: { row: 0, col: 0 }, 6: { row: 0, col: 1 }, 7: { row: 0, col: 2 }, 8: { row: 0, col: 3 },
@@ -219,11 +219,11 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                 2: { row: 3, col: 0 }, 1: { row: 3, col: 1 }, 0: { row: 3, col: 2 }, 11: { row: 3, col: 3 },
                             };
 
-                            const selectedBranch = getBranchIndex(chart.palaces[selectedPalace]?.earthlyBranch || '');
+                            const selectedBranch = getBranchIndex(selectedPalaceInfo.earthlyBranch);
                             const selectedPos = positionMap[selectedBranch];
                             if (!selectedPos) return null;
 
-                            const sanFangIndexes = getSanFangSiZheng(selectedPalace);
+                            const sanFangIndexes = getSanFangSiZheng(selectedIndex);
                             const cellSize = 25; // 每个宫位占25%
                             const padding = 1; // 边框内侧偏移
 
@@ -254,8 +254,10 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                             const lines: React.ReactNode[] = [];
                             const startPoint = getAnchorPoint(selectedPos);
                             sanFangIndexes.forEach((palaceIdx, i) => {
-                                if (palaceIdx === selectedPalace) return;
-                                const branch = getBranchIndex(chart.palaces[palaceIdx]?.earthlyBranch || '');
+                                if (palaceIdx === selectedIndex) return;
+                                const palaceInfo = chart.palaces[palaceIdx];
+                                if (!palaceInfo) return;
+                                const branch = getBranchIndex(palaceInfo.earthlyBranch);
                                 const targetPos = positionMap[branch];
                                 if (!targetPos) return;
 
@@ -376,15 +378,15 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                 <PalaceCard
                                     key={`palace-${branchIdx}`}
                                     palace={palace}
-                                    isSelected={selectedPalace === palaceIndex}
+                                    isSelected={activeSelectedPalace === palaceIndex}
                                     isLifePalace={isLifePalace}
                                     isHighlighted={isHighlighted}
                                     highlightTypes={highlightTypes}
-                                    isSanFangSiZheng={sanFangSiZhengPalaces.includes(palaceIndex) && selectedPalace !== palaceIndex}
+                                    isSanFangSiZheng={sanFangSiZhengPalaces.includes(palaceIndex) && activeSelectedPalace !== palaceIndex}
                                     showAdjStars={showAdjStars}
                                     flowInfo={flowInfo}
                                     onClick={() => setSelectedPalace(
-                                        selectedPalace === palaceIndex ? null : palaceIndex
+                                        activeSelectedPalace === palaceIndex ? null : palaceIndex
                                     )}
                                 />
                             );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare } from 'lucide-react';
@@ -23,11 +23,7 @@ export default function TarotHistoryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadReadings();
-    }, []);
-
-    const loadReadings = async () => {
+    const loadReadings = useCallback(async () => {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
@@ -48,7 +44,14 @@ export default function TarotHistoryPage() {
             setReadings(data || []);
         }
         setLoading(false);
-    };
+    }, [router]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            void loadReadings();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [loadReadings]);
 
     const handleDelete = async (id: string) => {
         const target = readings.find(r => r.id === id);

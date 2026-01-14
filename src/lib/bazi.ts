@@ -568,13 +568,6 @@ const XUN_KONG: Record<string, EarthlyBranch[]> = {
 // 魁罡：庚辰、庚戌、壬辰、戊戌四日为魁罡
 const KUI_GANG = ['庚辰', '庚戌', '壬辰', '戊戌'];
 
-// 天罗地网：辰见巳为天罗，戌见亥为地网
-// 简化规则：火命人辰月日时见巳，水土命人戌月日时见亥
-const TIAN_LUO_DI_WANG: Partial<Record<EarthlyBranch, EarthlyBranch>> = {
-    '辰': '巳', // 天罗
-    '戌': '亥', // 地网
-};
-
 // 阴差阳错日：丙子、丁丑、戊寅、辛卯、壬辰、癸巳、丙午、丁未、戊申、辛酉、壬戌、癸亥
 const YIN_CHA_YANG_CUO = ['丙子', '丁丑', '戊寅', '辛卯', '壬辰', '癸巳', '丙午', '丁未', '戊申', '辛酉', '壬戌', '癸亥'];
 
@@ -593,14 +586,6 @@ const PI_TOU: Record<EarthlyBranch, EarthlyBranch> = {
     '子': '巳', '丑': '午', '寅': '未', '卯': '申',
     '辰': '酉', '巳': '戌', '午': '亥', '未': '子',
     '申': '丑', '酉': '寅', '戌': '卯', '亥': '辰',
-};
-
-// 天赦日：春戊寅、夏甲午、秋戊申、冬甲子
-const TIAN_SHE = {
-    spring: ['戊寅'],
-    summer: ['甲午'],
-    autumn: ['戊申'],
-    winter: ['甲子'],
 };
 
 // 福星贵人：日干 -> 福星地支
@@ -643,19 +628,6 @@ const DE_XIU: Record<EarthlyBranch, HeavenlyStem[]> = {
     '寅': ['丙', '甲'], '卯': ['甲', '乙'], '辰': ['壬', '癸'], '巳': ['丙', '庚'],
     '午': ['丁', '己'], '未': ['甲', '己'], '申': ['庚', '壬'], '酉': ['辛', '庚'],
     '戌': ['丙', '戊'], '亥': ['壬', '甲'], '子': ['癸', '壬'], '丑': ['辛', '己'],
-};
-
-// 元辰规则：年支与日支的关系
-const YUAN_CHEN_MALE: Record<EarthlyBranch, EarthlyBranch> = {
-    '子': '酉', '丑': '申', '寅': '未', '卯': '午',
-    '辰': '巳', '巳': '辰', '午': '卯', '未': '寅',
-    '申': '丑', '酉': '子', '戌': '亥', '亥': '戌',
-};
-
-const YUAN_CHEN_FEMALE: Record<EarthlyBranch, EarthlyBranch> = {
-    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
-    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
-    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
 };
 
 // 孤鸾煞规则：日柱
@@ -736,7 +708,6 @@ export function calculateShenSha(formData: BaziFormData): ShenShaInfo {
 
     const yearStem = eightChar.getYearGan() as HeavenlyStem;
     const yearBranch = eightChar.getYearZhi() as EarthlyBranch;
-    const monthStem = eightChar.getMonthGan() as HeavenlyStem;
     const monthBranch = eightChar.getMonthZhi() as EarthlyBranch;
     const dayStem = eightChar.getDayGan() as HeavenlyStem;
     const dayBranch = eightChar.getDayZhi() as EarthlyBranch;

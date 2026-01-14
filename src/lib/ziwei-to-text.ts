@@ -4,7 +4,7 @@
  * 将紫微命盘转换为可读的文字格式，用于AI分析
  */
 
-import type { ZiweiChart, PalaceInfo, StarInfo, DecadalInfo, ZiweiHoroscope } from './ziwei';
+import type { ZiweiChart, PalaceInfo, StarInfo, DecadalInfo } from './ziwei';
 import { getDecadalList, getHoroscope } from './ziwei';
 
 /**
@@ -20,7 +20,7 @@ function starToText(star: StarInfo): string {
 /**
  * 将宫位信息转为文字
  */
-function palaceToText(palace: PalaceInfo, index: number): string {
+function palaceToText(palace: PalaceInfo): string {
     const lines: string[] = [];
 
     // 宫名和干支
@@ -110,8 +110,7 @@ export function ziweiChartToText(chart: ZiweiChart, includeHoroscope: boolean = 
     for (const palaceName of palaceOrder) {
         const palace = chart.palaces.find(p => p.name === palaceName);
         if (palace) {
-            const idx = chart.palaces.indexOf(palace);
-            sections.push(palaceToText(palace, idx));
+            sections.push(palaceToText(palace));
             sections.push('');
         }
     }

@@ -6,7 +6,7 @@
  * - 保护 API 密钥不暴露给客户端
  */
 
-import type { AIPersonality, AIPersonalityConfig, ChatMessage, AIModelConfig } from '@/types';
+import type { AIPersonality, AIPersonalityConfig, ChatMessage } from '@/types';
 import { getProvider, createMockStream } from './ai-providers';
 import { getModelConfig, DEFAULT_MODEL_ID } from './ai-config';
 
@@ -201,4 +201,3 @@ export async function callAIStream(
         return createMockStream(generateMockResponse(personality));
     }
 }
-

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2 } from 'lucide-react';
-import { Orbit, Gem, Dices, Brain, HeartHandshake, Sparkles } from 'lucide-react';
+import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 
 interface ConversationSidebarProps {
@@ -125,8 +125,7 @@ export function ConversationSidebar({
     };
 
     // 渲染单个对话项
-    const renderConversationItem = (conv: Conversation, config: typeof SOURCE_TYPE_CONFIG.chat) => {
-        const Icon = config.icon;
+    const renderConversationItem = (conv: Conversation) => {
         return (
             <div
                 key={conv.id}
@@ -269,7 +268,6 @@ export function ConversationSidebar({
 
                             const config = SOURCE_TYPE_CONFIG[type];
                             const isCollapsed = collapsedGroups.has(type);
-                            const Icon = config.icon;
 
                             return (
                                 <div key={type} className="mb-2">
@@ -292,7 +290,7 @@ export function ConversationSidebar({
                                     {/* 分组内容 */}
                                     {!isCollapsed && (
                                         <div className="space-y-0.5 mt-1">
-                                            {items.map(conv => renderConversationItem(conv, config))}
+                                            {items.map(conv => renderConversationItem(conv))}
                                         </div>
                                     )}
                                 </div>

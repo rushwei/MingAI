@@ -204,7 +204,7 @@ function CommunicationTemplateCard({ template }: { template: CommunicationTempla
             <div>
                 <div className="text-xs text-foreground-secondary mb-1">参考话术：</div>
                 <div className="bg-accent/5 rounded-lg p-3 text-sm text-foreground italic">
-                    "{template.script}"
+                    &quot;{template.script}&quot;
                 </div>
             </div>
 

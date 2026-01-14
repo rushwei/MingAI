@@ -8,13 +8,12 @@ import {
     findPalace,
     getShiYingPosition,
     getNaJia,
-    getNaJiaWuXing,
     type WuXing,
     type DiZhi,
     type Palace,
     DIZHI_WUXING,
 } from './eight-palaces';
-import { getHexagramText, getYaoText, type HexagramText } from './hexagram-texts';
+import { getHexagramText } from './hexagram-texts';
 
 // 爻的类型
 export type YaoType = 0 | 1;  // 0 = 阴爻, 1 = 阳爻
@@ -540,8 +539,7 @@ const QUESTION_YONGSHEN_MAP: Record<string, LiuQin> = {
  */
 export function determineYongShen(
     question: string,
-    fullYaos: FullYaoInfo[],
-    shiYing: { shi: number; ying: number }
+    fullYaos: FullYaoInfo[]
 ): YongShen {
     // 从问题中提取关键词确定用神类型
     let yongShenType: LiuQin = '妻财'; // 默认

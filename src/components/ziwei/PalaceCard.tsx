@@ -44,6 +44,12 @@ export function PalaceCard({
     const getBorderClasses = () => {
         if (isSelected) return 'border-accent bg-accent/5 shadow-md';
         if (isSanFangSiZheng) return 'border-green-500/50 bg-green-500/5 shadow-sm';
+        if (isHighlighted && highlightTypes.length > 0) {
+            const highlight = highlightColors[highlightTypes[0]];
+            if (highlight) {
+                return `${highlight.border} ${highlight.bg} shadow-sm`;
+            }
+        }
         return 'border-border bg-background-secondary hover:bg-background-tertiary';
     };
 

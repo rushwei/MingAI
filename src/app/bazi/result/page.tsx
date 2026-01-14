@@ -41,8 +41,6 @@ function BaziResultContent() {
 
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12
-    const currentDay = now.getDate();
 
     // 大运流年状态
     const [selectedDaYunIndex, setSelectedDaYunIndex] = useState<number>(0);

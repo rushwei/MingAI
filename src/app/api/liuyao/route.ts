@@ -10,14 +10,12 @@ import { useCredit, hasCredits } from '@/lib/credits';
 import {
     type Hexagram,
     type Yao,
-    getHexagramBrief,
     calculateFullYaoInfo,
     determineYongShen,
     calculateTimeRecommendations,
     getTodayDayStem,
     yaosTpCode,
     getLiuQinMeaning,
-    getLiuShenMeaning,
 } from '@/lib/liuyao';
 import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
 import { getHexagramText } from '@/lib/hexagram-texts';
@@ -171,7 +169,7 @@ export async function POST(request: NextRequest) {
                     const hexagramCode = yaosTpCode(yaos);
                     const fullYaos = calculateFullYaoInfo(yaos, hexagramCode, dayStem);
                     const shiYing = getShiYingPosition(hexagramCode);
-                    const yongShen = determineYongShen(question || '', fullYaos, shiYing);
+                    const yongShen = determineYongShen(question || '', fullYaos);
                     const timeRecs = calculateTimeRecommendations(yongShen, fullYaos);
                     const palace = findPalace(hexagramCode);
                     const hexText = getHexagramText(hexagram.name);

@@ -97,14 +97,6 @@ export const PERSONALITY_BASICS: Record<MBTIType, { name: string; title: string;
     ESFP: { name: 'ESFP', title: '表演者', emoji: '🎤', description: '自发、精力充沛的表演者，生活永不无聊' },
 };
 
-// 维度对
-const DIMENSION_PAIRS: [Dimension, Dimension][] = [
-    ['E', 'I'],
-    ['S', 'N'],
-    ['T', 'F'],
-    ['J', 'P'],
-];
-
 /**
  * 从题库文件加载问题（在客户端使用 fetch）
  */

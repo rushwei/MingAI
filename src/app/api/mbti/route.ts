@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
-import { type MBTIType, PERSONALITY_BASICS, getDimensionDescription } from '@/lib/mbti';
+import { type MBTIType, PERSONALITY_BASICS } from '@/lib/mbti';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';

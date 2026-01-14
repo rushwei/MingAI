@@ -1,4 +1,4 @@
-import { MapPin, MapPinned } from 'lucide-react';
+import { MapPinned } from 'lucide-react';
 import type { BaziFormData } from '@/types';
 import { LocationAutocomplete } from './LocationAutocomplete';
 

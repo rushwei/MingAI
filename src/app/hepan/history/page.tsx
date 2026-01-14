@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users } from 'lucide-react';
@@ -31,11 +31,7 @@ export default function HepanHistoryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadCharts();
-    }, []);
-
-    const loadCharts = async () => {
+    const loadCharts = useCallback(async () => {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
@@ -56,7 +52,14 @@ export default function HepanHistoryPage() {
             setCharts(data || []);
         }
         setLoading(false);
-    };
+    }, [router]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            void loadCharts();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [loadCharts]);
 
     const handleDelete = async (id: string) => {
         const target = charts.find(c => c.id === id);

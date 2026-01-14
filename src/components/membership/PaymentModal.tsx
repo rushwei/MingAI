@@ -15,7 +15,6 @@ interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
     plan: PricingPlan | null;
-    userId: string;
     onSuccess?: () => void;
     /** 是否为按量付费模式 */
     isPayPerUse?: boolean;
@@ -30,7 +29,6 @@ export function PaymentModal({
     isOpen,
     onClose,
     plan,
-    userId,
     onSuccess,
     isPayPerUse = false,
     creditCount = 0,

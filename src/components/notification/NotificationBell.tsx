@@ -23,7 +23,6 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     // 获取未读数量
     useEffect(() => {
         if (!userId) {
-            setUnreadCount(0);
             return;
         }
 

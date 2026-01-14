@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, CheckCheck, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCheck, ExternalLink, Loader2 } from 'lucide-react';
 import { getNotifications, markAsRead, markAllAsRead, type Notification } from '@/lib/notification';
 
 interface NotificationDropdownProps {
@@ -78,7 +78,7 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
     const handleClick = async (notification: Notification) => {
         await handleMarkRead(notification);
         if (notification.link) {
-            window.location.href = resolveNotificationLink(notification.link);
+            window.location.assign(resolveNotificationLink(notification.link));
         }
         onClose();
     };

@@ -8,14 +8,12 @@
 import { useMemo } from 'react';
 import {
     Calendar,
-    Sparkles,
-    AlertTriangle,
     CheckCircle,
     XCircle,
     MapPin,
     Clock,
 } from 'lucide-react';
-import { getCalendarAlmanac, getZhiShenDesc, isBlackDay, type CalendarAlmanacData } from '@/lib/calendar';
+import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/calendar';
 
 interface CalendarAlmanacProps {
     date: Date;

@@ -5,7 +5,7 @@
  */
 'use client';
 
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
     Download,
     Share2,
@@ -261,4 +261,3 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
         </div>
     );
 }
-

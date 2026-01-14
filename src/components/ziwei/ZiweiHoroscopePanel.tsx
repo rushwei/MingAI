@@ -25,6 +25,30 @@ interface ZiweiHoroscopePanelProps {
     onHoroscopeChange?: (info: HoroscopeInfo) => void;
 }
 
+type SectionColor = { bg: string; border: string; text: string; label: string };
+
+function SectionHeader({
+    title,
+    color,
+    onSelect,
+}: {
+    title: string;
+    color: SectionColor;
+    onSelect: () => void;
+}) {
+    return (
+        <button
+            onClick={onSelect}
+            className="w-full pt-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer hover:opacity-80"
+        >
+            <div className="flex items-center gap-3">
+                <span className="h-2 rounded-full" />
+                <span className={`font-medium text-lg ${color.text}`}>{title}</span>
+            </div>
+        </button>
+    );
+}
+
 export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
     const [selectedDecadalIndex, setSelectedDecadalIndex] = useState<number | null>(null);
     const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -218,28 +242,6 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
         return {};
     };
 
-    const SectionHeader = ({
-        title,
-        color,
-        selected,
-        onSelect
-    }: {
-        title: string;
-        color: typeof colors.decadal;
-        selected: boolean;
-        onSelect: () => void;
-    }) => (
-        <button
-            onClick={onSelect}
-            className={`w-full pt-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer hover:opacity-80`}
-        >
-            <div className="flex items-center gap-3">
-                <span className={`h-2 rounded-full`} />
-                <span className={`font-medium text-lg ${color.text}`}>{title}</span>
-            </div>
-        </button>
-    );
-
     return (
         <div className="space-y-3">
             {/* 大限 */}
@@ -247,7 +249,6 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 <SectionHeader
                     title="大限"
                     color={colors.decadal}
-                    selected={decadalSelected}
                     onSelect={() => {
                         setDecadalSelected(prev => {
                             const next = !prev;
@@ -308,7 +309,6 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 <SectionHeader
                     title="流年"
                     color={colors.yearly}
-                    selected={yearlySelected}
                     onSelect={() => {
                         setYearlySelected(prev => {
                             const next = !prev;
@@ -383,7 +383,6 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 <SectionHeader
                     title="流月"
                     color={colors.monthly}
-                    selected={monthlySelected}
                     onSelect={() => {
                         setMonthlySelected(prev => {
                             const next = !prev;
@@ -449,7 +448,6 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 <SectionHeader
                     title="流日"
                     color={colors.daily}
-                    selected={dailySelected}
                     onSelect={() => {
                         setDailySelected(prev => {
                             const next = !prev;

@@ -5,10 +5,7 @@
  */
 'use client';
 
-import { useState } from 'react';
 import {
-    LineChart,
-    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -18,7 +15,7 @@ import {
     Area,
     AreaChart,
 } from 'recharts';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 export interface CompatibilityTrendPoint {
     month: string;           // 月份标签 (e.g., "1月", "2月")
@@ -30,6 +27,33 @@ export interface CompatibilityTrendPoint {
         emotion: number;     // 情感共鸣
     };
     event?: string;          // 特殊事件提示
+}
+
+type CompatibilityTooltipProps = {
+    active?: boolean;
+    payload?: { payload: CompatibilityTrendPoint }[];
+};
+
+function CompatibilityTrendTooltip({ active, payload }: CompatibilityTooltipProps) {
+    if (!active || !payload || !payload.length) return null;
+
+    const point = payload[0].payload;
+    return (
+        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+            <div className="font-medium text-foreground mb-1">{point.fullMonth}</div>
+            <div className="text-lg font-bold text-accent">{point.score}分</div>
+            {point.dimension && (
+                <div className="mt-2 space-y-1 text-xs text-foreground-secondary">
+                    <div>五行配合: {point.dimension.wuxing}</div>
+                    <div>沟通契合: {point.dimension.communication}</div>
+                    <div>情感共鸣: {point.dimension.emotion}</div>
+                </div>
+            )}
+            {point.event && (
+                <div className="mt-2 text-xs text-amber-500">⚡ {point.event}</div>
+            )}
+        </div>
+    );
 }
 
 interface CompatibilityTrendChartProps {
@@ -45,8 +69,6 @@ export function CompatibilityTrendChart({
     onPeriodChange,
     height = 280,
 }: CompatibilityTrendChartProps) {
-    const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
     // 计算平均分
     const averageScore = Math.round(
         data.reduce((sum, d) => sum + d.score, 0) / data.length
@@ -65,29 +87,6 @@ export function CompatibilityTrendChart({
 
     const trendText = trend === 'up' ? '整体呈上升趋势' : trend === 'down' ? '整体呈下降趋势' : '整体较为平稳';
     const trendColor = trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-amber-500';
-
-    // 自定义 Tooltip
-    const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: CompatibilityTrendPoint }[] }) => {
-        if (!active || !payload || !payload.length) return null;
-
-        const point = payload[0].payload;
-        return (
-            <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                <div className="font-medium text-foreground mb-1">{point.fullMonth}</div>
-                <div className="text-lg font-bold text-accent">{point.score}分</div>
-                {point.dimension && (
-                    <div className="mt-2 space-y-1 text-xs text-foreground-secondary">
-                        <div>五行配合: {point.dimension.wuxing}</div>
-                        <div>沟通契合: {point.dimension.communication}</div>
-                        <div>情感共鸣: {point.dimension.emotion}</div>
-                    </div>
-                )}
-                {point.event && (
-                    <div className="mt-2 text-xs text-amber-500">⚡ {point.event}</div>
-                )}
-            </div>
-        );
-    };
 
     return (
         <div className="bg-background-secondary rounded-xl p-4 border border-border">
@@ -178,7 +177,7 @@ export function CompatibilityTrendChart({
                         tick={{ fontSize: 11, fill: 'var(--foreground-secondary)' }}
                         ticks={[40, 60, 80, 100]}
                     />
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<CompatibilityTrendTooltip />} />
                     <ReferenceLine
                         y={averageScore}
                         stroke="#D4AF37"

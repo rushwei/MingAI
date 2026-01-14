@@ -187,7 +187,7 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
         return null;
     }
 
-    const getTypeStyle = (type: Relationship['type'], isAuspicious: boolean) => {
+    const getTypeStyle = (type: Relationship['type']) => {
         switch (type) {
             case '合':
                 return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
@@ -230,7 +230,7 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                         {relationships.map((rel, idx) => (
                             <div
                                 key={idx}
-                                className={`flex items-center justify-between p-2 rounded-lg border ${getTypeStyle(rel.type, rel.isAuspicious)}`}
+                                className={`flex items-center justify-between p-2 rounded-lg border ${getTypeStyle(rel.type)}`}
                             >
                                 <div className="flex items-center gap-2">
                                     <span className="font-bold text-sm">{rel.type}</span>

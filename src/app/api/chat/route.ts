@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit } from '@/lib/credits';
 import { createClient } from '@supabase/supabase-js';
-import type { ChatMessage, AIPersonality, AIModelId } from '@/types';
+import type { ChatMessage, AIPersonality } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';

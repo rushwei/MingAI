@@ -18,8 +18,6 @@ import {
     Sparkles,
     User,
     ChevronDown,
-    Check,
-    X
 } from 'lucide-react';
 import Link from 'next/link';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
@@ -30,12 +28,6 @@ import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFo
 import type { BaziChart } from '@/types';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-
-// 基于日期的伪随机函数（通用运势用）
-function seededRandom(seed: number, offset: number): number {
-    const x = Math.sin(seed + offset) * 10000;
-    return x - Math.floor(x);
-}
 
 function MonthlyPageContent() {
     const today = new Date();

@@ -440,7 +440,6 @@ export function getCompatibilityLevel(score: number): { level: string; color: st
 export function calculateCompatibilityTrend(
     person1: BirthInfo,
     person2: BirthInfo,
-    type: HepanType,
     months: 6 | 12
 ): MonthlyCompatibilityTrend[] {
     const bazi1 = calculateBaZi(person1);

@@ -5,7 +5,7 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import { STEM_ELEMENTS, BRANCH_ELEMENTS } from './bazi';
+import { STEM_ELEMENTS } from './bazi';
 import type { BaziChart, HeavenlyStem, FiveElement } from '@/types';
 
 // ===== 类型定义 =====
@@ -669,4 +669,3 @@ export function calculateMonthlyTrend(
 
     return result;
 }
-

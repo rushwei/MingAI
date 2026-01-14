@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -15,14 +15,11 @@ import { supabase } from '@/lib/supabase';
 
 export default function DivinePage() {
     const router = useRouter();
-    const [question, setQuestion] = useState('');
+    const [question] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        return sessionStorage.getItem('liuyao_question') || '';
+    });
     const [isComplete, setIsComplete] = useState(false);
-
-    useEffect(() => {
-        // 从 sessionStorage 获取问题（可能为空）
-        const storedQuestion = sessionStorage.getItem('liuyao_question') || '';
-        setQuestion(storedQuestion);
-    }, []);
 
     const handleComplete = async (yaos: Yao[], results: CoinTossResult[]) => {
         setIsComplete(true);
@@ -65,6 +62,7 @@ export default function DivinePage() {
         const result = {
             question,
             yaos,
+            results,
             hexagram,
             changedHexagram,
             changedLines,

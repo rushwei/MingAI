@@ -5,7 +5,7 @@
  */
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
     LineChart,
     Line,
@@ -68,6 +68,70 @@ const KEY_DATE_COLORS: Record<string, string> = {
     valley: '#9ca3af',
 };
 
+type TrendChartPoint = {
+    date: string;
+    fullDate: string;
+    dayOfMonth: number;
+    overall: number;
+    career: number;
+    love: number;
+    wealth: number;
+    health: number;
+    social: number;
+    isKeyDate?: boolean;
+    keyDateType?: FortuneTrendDataPoint['keyDateType'];
+    keyDateDesc?: string;
+};
+
+type TooltipPayload = { dataKey: FortuneDimension; value: number };
+
+function FortuneTrendTooltip({
+    active,
+    payload,
+    label,
+    chartData,
+}: {
+    active?: boolean;
+    payload?: TooltipPayload[];
+    label?: string;
+    chartData: TrendChartPoint[];
+}) {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const dataPoint = chartData.find((d) => d.date === label);
+
+    return (
+        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+            <div className="text-sm font-medium mb-2">{dataPoint?.fullDate}</div>
+            {payload.map((entry) => (
+                <div
+                    key={entry.dataKey}
+                    className="flex items-center gap-2 text-sm"
+                >
+                    <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: DIMENSION_CONFIG[entry.dataKey].color }}
+                    />
+                    <span className="text-foreground-secondary">
+                        {DIMENSION_CONFIG[entry.dataKey].label}:
+                    </span>
+                    <span className="font-medium">{entry.value}</span>
+                </div>
+            ))}
+            {dataPoint?.isKeyDate && (
+                <div className="mt-2 pt-2 border-t border-border text-xs">
+                    <span
+                        className="px-2 py-0.5 rounded-full text-white"
+                        style={{ backgroundColor: KEY_DATE_COLORS[dataPoint.keyDateType || 'lucky'] }}
+                    >
+                        {dataPoint.keyDateDesc}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function FortuneTrendChart({
     data,
     selectedDate,
@@ -81,7 +145,7 @@ export function FortuneTrendChart({
     );
 
     // 转换数据为 Recharts 格式
-    const chartData = useMemo(() => {
+    const chartData = useMemo<TrendChartPoint[]>(() => {
         return data.map((point) => ({
             date: point.date,
             fullDate: point.fullDate,
@@ -132,43 +196,10 @@ export function FortuneTrendChart({
         });
     };
 
-    // 自定义 Tooltip
-    const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: unknown[]; label?: string }) => {
-        if (!active || !payload || payload.length === 0) return null;
-
-        const dataPoint = chartData.find((d) => d.date === label);
-
-        return (
-            <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                <div className="text-sm font-medium mb-2">{dataPoint?.fullDate}</div>
-                {(payload as { dataKey: FortuneDimension; value: number }[]).map((entry) => (
-                    <div
-                        key={entry.dataKey}
-                        className="flex items-center gap-2 text-sm"
-                    >
-                        <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: DIMENSION_CONFIG[entry.dataKey].color }}
-                        />
-                        <span className="text-foreground-secondary">
-                            {DIMENSION_CONFIG[entry.dataKey].label}:
-                        </span>
-                        <span className="font-medium">{entry.value}</span>
-                    </div>
-                ))}
-                {dataPoint?.isKeyDate && (
-                    <div className="mt-2 pt-2 border-t border-border text-xs">
-                        <span
-                            className="px-2 py-0.5 rounded-full text-white"
-                            style={{ backgroundColor: KEY_DATE_COLORS[dataPoint.keyDateType || 'lucky'] }}
-                        >
-                            {dataPoint.keyDateDesc}
-                        </span>
-                    </div>
-                )}
-            </div>
-        );
-    };
+    const selectedPoint = useMemo(() => {
+        if (!selectedDate) return null;
+        return chartData.find((point) => point.fullDate === selectedDate) || null;
+    }, [chartData, selectedDate]);
 
     return (
         <div className="space-y-4">
@@ -252,7 +283,7 @@ export function FortuneTrendChart({
                             axisLine={false}
                             tickCount={5}
                         />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<FortuneTrendTooltip chartData={chartData} />} />
                         {showLegend && <Legend />}
 
                         {/* 绘制活跃的维度线 */}
@@ -285,6 +316,16 @@ export function FortuneTrendChart({
                                 strokeWidth={2}
                             />
                         ))}
+                        {selectedPoint && (
+                            <ReferenceDot
+                                x={selectedPoint.date}
+                                y={selectedPoint.overall}
+                                r={7}
+                                fill="var(--color-accent)"
+                                stroke="var(--color-background)"
+                                strokeWidth={2}
+                            />
+                        )}
                     </LineChart>
                 </ResponsiveContainer>
             </div>

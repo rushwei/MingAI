@@ -6,7 +6,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Coins, Sparkles, HelpCircle, Loader2, Dices } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
@@ -34,7 +33,7 @@ export default function LiuyaoPage() {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            const { yaos, results } = divine();
+            const { yaos } = divine();
             const hexagramCode = yaosTpCode(yaos);
             const hexagram = findHexagram(hexagramCode);
             const { changedCode, changedLines } = calculateChangedHexagram(yaos);
@@ -116,7 +115,7 @@ export default function LiuyaoPage() {
                             focus:outline-none focus:ring-2 focus:ring-accent resize-none"
                     />
                     <p className="text-xs text-foreground-secondary mt-2">
-                        提示：问题越具体，解卦越准确。避免问是非题，建议问"如何"、"怎样"类问题。
+                        提示：问题越具体，解卦越准确。避免问是非题，建议问&quot;如何&quot;、&quot;怎样&quot;类问题。
                     </p>
                 </div>
 

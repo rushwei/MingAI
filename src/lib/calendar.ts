@@ -4,7 +4,7 @@
  * 封装 lunar-javascript 库，提供完整的黄历信息
  */
 
-import { Solar, Lunar, JieQi } from 'lunar-javascript';
+import { Solar } from 'lunar-javascript';
 
 // ===== 类型定义 =====
 

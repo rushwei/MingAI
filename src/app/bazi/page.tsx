@@ -11,7 +11,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import {
-    Sparkles,
     Loader2,
     LogIn,
     Orbit

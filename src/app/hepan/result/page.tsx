@@ -58,7 +58,6 @@ export default function HepanResultPage() {
         return calculateCompatibilityTrend(
             result.person1,
             result.person2,
-            result.type,
             trendPeriod
         );
     }, [result, trendPeriod]);

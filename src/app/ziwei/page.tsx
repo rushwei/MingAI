@@ -7,7 +7,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Star, Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';

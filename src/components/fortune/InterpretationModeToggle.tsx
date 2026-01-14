@@ -5,7 +5,6 @@
  */
 'use client';
 
-import React from 'react';
 import { BookOpen, GraduationCap, ScrollText } from 'lucide-react';
 
 export type InterpretationMode = 'colloquial' | 'professional' | 'technical';

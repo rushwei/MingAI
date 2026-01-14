@@ -180,7 +180,6 @@ export default function UpgradePage() {
                 <h2 className="text-xl font-bold mb-6">按量付费</h2>
                 {user ? (
                     <PayPerUse
-                        userId={user.id}
                         currentCredits={membership?.aiChatCount || 0}
                         onSuccess={handlePayPerUseSuccess}
                         isPaymentPaused={isPaymentPaused}
@@ -213,7 +212,6 @@ export default function UpgradePage() {
                         setSelectedPlan(null);
                     }}
                     plan={selectedPlan}
-                    userId={user.id}
                     onSuccess={handlePaymentSuccess}
                     isPaymentPaused={isPaymentPaused}
                 />

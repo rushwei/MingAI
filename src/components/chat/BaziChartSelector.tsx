@@ -31,8 +31,10 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedBazi, setSelectedBazi] = useState<ChartItem | null>(null);
-    const [selectedZiwei, setSelectedZiwei] = useState<ChartItem | null>(null);
+    const [selectedIds, setSelectedIds] = useState<{ bazi?: string; ziwei?: string }>(() => ({
+        bazi: currentSelection?.bazi?.id,
+        ziwei: currentSelection?.ziwei?.id,
+    }));
 
     const baziSectionRef = useRef<HTMLDivElement>(null);
     const ziweiSectionRef = useRef<HTMLDivElement>(null);
@@ -49,16 +51,6 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
             }, 100);
         }
     }, [isOpen, loading, focusType]);
-
-    // 初始化选中状态
-    useEffect(() => {
-        if (isOpen && currentSelection && charts.length > 0) {
-            const baziChart = charts.find(c => c.type === 'bazi' && c.id === currentSelection.bazi?.id);
-            const ziweiChart = charts.find(c => c.type === 'ziwei' && c.id === currentSelection.ziwei?.id);
-            if (baziChart) setSelectedBazi(baziChart);
-            if (ziweiChart) setSelectedZiwei(ziweiChart);
-        }
-    }, [isOpen, currentSelection, charts]);
 
     // 加载用户命盘
     useEffect(() => {
@@ -109,6 +101,15 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
     const baziCharts = filteredCharts.filter(c => c.type === 'bazi');
     const ziweiCharts = filteredCharts.filter(c => c.type === 'ziwei');
 
+    const selectedBazi = useMemo(
+        () => charts.find(chart => chart.type === 'bazi' && chart.id === selectedIds.bazi) || null,
+        [charts, selectedIds.bazi],
+    );
+    const selectedZiwei = useMemo(
+        () => charts.find(chart => chart.type === 'ziwei' && chart.id === selectedIds.ziwei) || null,
+        [charts, selectedIds.ziwei],
+    );
+
     // 格式化显示信息
     const formatInfo = (chart: ChartItem) => {
         const genderText = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : '';
@@ -120,9 +121,15 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
 
     const handleToggle = (chart: ChartItem) => {
         if (chart.type === 'bazi') {
-            setSelectedBazi(prev => prev?.id === chart.id ? null : chart);
+            setSelectedIds(prev => ({
+                ...prev,
+                bazi: prev.bazi === chart.id ? undefined : chart.id,
+            }));
         } else {
-            setSelectedZiwei(prev => prev?.id === chart.id ? null : chart);
+            setSelectedIds(prev => ({
+                ...prev,
+                ziwei: prev.ziwei === chart.id ? undefined : chart.id,
+            }));
         }
     };
 
@@ -147,16 +154,15 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
     };
 
     const handleClear = () => {
-        setSelectedBazi(null);
-        setSelectedZiwei(null);
+        setSelectedIds({ bazi: undefined, ziwei: undefined });
     };
 
     if (!isOpen) return null;
 
     const renderChartItem = (chart: ChartItem) => {
         const isSelected = chart.type === 'bazi'
-            ? selectedBazi?.id === chart.id
-            : selectedZiwei?.id === chart.id;
+            ? selectedIds.bazi === chart.id
+            : selectedIds.ziwei === chart.id;
 
         return (
             <button
@@ -260,7 +266,7 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
                     <button
                         onClick={handleClear}
                         className="text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                        disabled={!selectedBazi && !selectedZiwei}
+                        disabled={!selectedIds.bazi && !selectedIds.ziwei}
                     >
                         清除选择
                     </button>

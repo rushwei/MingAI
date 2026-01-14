@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare } from 'lucide-react';
@@ -24,11 +24,7 @@ export default function LiuyaoHistoryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadDivinations();
-    }, []);
-
-    const loadDivinations = async () => {
+    const loadDivinations = useCallback(async () => {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
@@ -49,7 +45,14 @@ export default function LiuyaoHistoryPage() {
             setDivinations(data || []);
         }
         setLoading(false);
-    };
+    }, [router]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            void loadDivinations();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [loadDivinations]);
 
     const handleDelete = async (id: string) => {
         const target = divinations.find(d => d.id === id);
