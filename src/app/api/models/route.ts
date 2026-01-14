@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getModels } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { getModelAccessForMembership } from '@/lib/ai-access';
 
 const getSupabase = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,23 +19,43 @@ const getSupabase = () => createClient(
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {
     const supabase = getSupabase();
     let userId: string | null = null;
+    const membershipHint = request.headers.get('x-membership-type') as MembershipType | null;
 
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        userId = user?.id || null;
+        try {
+            const { data: { user }, error } = await supabase.auth.getUser(token);
+            if (error) {
+                console.error('[models] Failed to resolve user from auth header:', error.message);
+            }
+            userId = user?.id || null;
+        } catch (error) {
+            console.error('[models] Failed to resolve user from auth header:', error);
+        }
     }
 
     if (!userId) {
         const accessToken = request.cookies.get('sb-access-token')?.value;
         if (accessToken) {
-            const { data: { user } } = await supabase.auth.getUser(accessToken);
-            userId = user?.id || null;
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+                if (error) {
+                    console.error('[models] Failed to resolve user from cookie:', error.message);
+                }
+                userId = user?.id || null;
+            } catch (error) {
+                console.error('[models] Failed to resolve user from cookie:', error);
+            }
         }
     }
 
-    if (!userId) return 'free';
+    if (!userId) {
+        if (membershipHint === 'free' || membershipHint === 'plus' || membershipHint === 'pro') {
+            return membershipHint;
+        }
+        return 'free';
+    }
     return getEffectiveMembershipType(userId);
 }
 
@@ -45,17 +65,19 @@ export async function GET(request: NextRequest) {
     // const models = buildModels();
     const models = getModels();
     const membership = await resolveMembership(request);
-    const allowedModels = models.filter(model => isModelAllowedForMembership(model, membership));
 
     // 返回模型配置（不包含敏感信息）
-    const safeModels = allowedModels.map(m => {
-        const reasoningAllowed = isReasoningAllowedForMembership(m, membership);
+    const safeModels = models.map(m => {
+        const access = getModelAccessForMembership(m, membership);
         return {
             id: m.id,
             name: m.name,
             vendor: m.vendor,
-            supportsReasoning: reasoningAllowed ? m.supportsReasoning : false,
-            isReasoningDefault: reasoningAllowed ? m.isReasoningDefault : false,
+            supportsReasoning: m.supportsReasoning,
+            isReasoningDefault: m.isReasoningDefault,
+            allowed: access.allowed,
+            blockedReason: access.blockedReason,
+            reasoningAllowed: access.reasoningAllowed,
         };
     });
 

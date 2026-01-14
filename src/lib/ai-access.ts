@@ -15,13 +15,15 @@ function getModelTier(model: AIModelConfig): ModelTier {
     }
 
     if (model.vendor === "gemini") {
-        if (model.id === "gemini-3") return "free";
-        if (model.id.startsWith("gemini-pro-")) return "plus";
-        return "none";
+        return "plus";
     }
 
     if (model.vendor === "glm") {
         if (model.id === "glm-4.6") return "free";
+        return "plus";
+    }
+
+    if (model.vendor === "qwen") {
         return "plus";
     }
 
@@ -63,5 +65,26 @@ export function isReasoningAllowedForMembership(
         return true;
     }
 
+    if (model.vendor === "qwen") {
+        return membership === "plus" || membership === "pro";
+    }
+
     return false;
+}
+
+export function getModelAccessForMembership(
+    model: AIModelConfig,
+    membership: MembershipType
+): { allowed: boolean; blockedReason: string | null; reasoningAllowed: boolean } {
+    const allowed = isModelAllowedForMembership(model, membership);
+    const reasoningAllowed = isReasoningAllowedForMembership(model, membership);
+    if (allowed) {
+        return { allowed, blockedReason: null, reasoningAllowed };
+    }
+
+    if (model.vendor === "deepai") {
+        return { allowed, blockedReason: "Pro", reasoningAllowed };
+    }
+
+    return { allowed, blockedReason: "Plus", reasoningAllowed };
 }
