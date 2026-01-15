@@ -6,8 +6,9 @@
  * - 保护 API 密钥不暴露给客户端
  */
 
-import type { AIPersonality, AIPersonalityConfig, ChatMessage } from '@/types';
+import type { AIPersonality, AIPersonalityConfig } from '@/types';
 import { getProvider, createMockStream } from './ai-providers';
+import type { AIRequestMessage } from './ai-providers/base';
 import { getModelConfig, DEFAULT_MODEL_ID } from './ai-config';
 
 // ===== AI 人格配置 =====
@@ -129,7 +130,7 @@ export interface AICallResult {
  * 统一的 AI 调用接口（非流式）
  */
 export async function callAI(
-    messages: ChatMessage[],
+    messages: AIRequestMessage[],
     personality: AIPersonality = 'master',
     modelId: string = DEFAULT_MODEL_ID,
     chartContext: string = '',
@@ -170,7 +171,7 @@ export async function callAI(
  * 流式调用 AI API
  */
 export async function callAIStream(
-    messages: ChatMessage[],
+    messages: AIRequestMessage[],
     personality: AIPersonality = 'master',
     chartContext: string = '',
     modelId: string = DEFAULT_MODEL_ID,
@@ -248,7 +249,7 @@ async function readAIStream(stream: ReadableStream<Uint8Array>): Promise<AICallR
  * 统一的 AI 调用接口（返回推理过程）
  */
 export async function callAIWithReasoning(
-    messages: ChatMessage[],
+    messages: AIRequestMessage[],
     personality: AIPersonality = 'master',
     modelId: string = DEFAULT_MODEL_ID,
     chartContext: string = '',

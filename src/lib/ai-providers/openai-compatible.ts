@@ -4,8 +4,8 @@
  * 用于支持 OpenAI 兼容 API 的供应商：DeepSeek, GLM, Qwen, DeepAI, Gemini Pro
  */
 
-import type { ChatMessage, AIModelConfig, AIVendor } from '@/types';
-import type { AIProvider, AIProviderOptions } from './base';
+import type { AIModelConfig, AIVendor } from '@/types';
+import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
 import { toOpenAIMessages, createMockStream, getApiKey } from './base';
 
 /**
@@ -20,7 +20,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
 
     async chat(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions
@@ -64,7 +64,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
 
     async chatStream(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions

@@ -4,8 +4,8 @@
  * 支持 Google Gemini 原生 API（非 OpenAI 兼容格式）
  */
 
-import type { ChatMessage, AIModelConfig } from '@/types';
-import type { AIProvider, AIProviderOptions } from './base';
+import type { AIModelConfig } from '@/types';
+import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
 import { createMockStream, getApiKey } from './base';
 
 /**
@@ -21,7 +21,7 @@ export class GeminiNativeProvider implements AIProvider {
     /**
      * 将消息转换为 Gemini 格式
      */
-    private toGeminiMessages(messages: ChatMessage[], systemPrompt: string) {
+    private toGeminiMessages(messages: AIRequestMessage[], systemPrompt: string) {
         return [
             { role: 'user', parts: [{ text: systemPrompt }] },
             ...messages.map(m => ({
@@ -32,7 +32,7 @@ export class GeminiNativeProvider implements AIProvider {
     }
 
     async chat(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions
@@ -68,7 +68,7 @@ export class GeminiNativeProvider implements AIProvider {
     }
 
     async chatStream(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions

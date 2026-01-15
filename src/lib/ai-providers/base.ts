@@ -6,6 +6,8 @@
 
 import type { ChatMessage, AIModelConfig, AIVendor } from '@/types';
 
+export type AIRequestMessage = Pick<ChatMessage, 'role' | 'content' | 'model' | 'reasoning'>;
+
 /**
  * Provider 选项
  */
@@ -34,7 +36,7 @@ export interface AIProvider {
      * 发送消息并获取回复（非流式）
      */
     chat(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions
@@ -44,7 +46,7 @@ export interface AIProvider {
      * 发送消息并获取流式回复
      */
     chatStream(
-        messages: ChatMessage[],
+        messages: AIRequestMessage[],
         systemPrompt: string,
         config: AIModelConfig,
         options?: AIProviderOptions
@@ -67,7 +69,7 @@ export interface OpenAIMessage {
 /**
  * 将 ChatMessage 转换为 OpenAI 格式
  */
-export function toOpenAIMessages(messages: ChatMessage[]): OpenAIMessage[] {
+export function toOpenAIMessages(messages: AIRequestMessage[]): OpenAIMessage[] {
     return messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
