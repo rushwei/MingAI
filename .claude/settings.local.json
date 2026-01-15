@@ -8,7 +8,10 @@
       "Bash(npx tsc:*)",
       "Bash(pnpm build:*)",
       "mcp__supabase__execute_sql",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(brew info:*)",
+      "Bash(claude:*)",
+      "Bash(npm view:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
