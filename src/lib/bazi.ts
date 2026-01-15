@@ -1420,3 +1420,75 @@ export function calculateFortuneShenSha(
 
     return shenSha;
 }
+
+/**
+ * 生成八字命盘文字版本（用于AI分析和复制）
+ * @param chart 八字命盘数据（自动计算大运）
+ */
+export function generateBaziChartText(
+    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+): string {
+    const lines: string[] = [];
+    lines.push('【八字命盘】');
+    lines.push(`姓名：${chart.name}`);
+    lines.push(`性别：${chart.gender === 'male' ? '男' : '女'}`);
+    lines.push(`出生日期：${chart.birthDate} ${chart.birthTime}`);
+    if (chart.birthPlace) {
+        lines.push(`出生地点：${chart.birthPlace}`);
+    }
+    lines.push('');
+
+    // 四柱信息
+    const { fourPillars, dayMaster } = chart;
+    lines.push('【四柱八字】');
+    lines.push(`四柱：${fourPillars.year.stem}${fourPillars.year.branch}年 ${fourPillars.month.stem}${fourPillars.month.branch}月 ${fourPillars.day.stem}${fourPillars.day.branch}日 ${fourPillars.hour.stem}${fourPillars.hour.branch}时`);
+    lines.push(`日主：${dayMaster}`);
+    lines.push('');
+
+    // 四柱详解
+    lines.push('【四柱详解】');
+    const yearTenGod = fourPillars.year.tenGod ? `（${fourPillars.year.tenGod}）` : '';
+    const yearHidden = fourPillars.year.hiddenStems.length ? `藏干：${fourPillars.year.hiddenStems.join('、')}` : '';
+    lines.push(`年柱：${fourPillars.year.stem}${fourPillars.year.branch}${yearTenGod} ${yearHidden}`);
+
+    const monthTenGod = fourPillars.month.tenGod ? `（${fourPillars.month.tenGod}）` : '';
+    const monthHidden = fourPillars.month.hiddenStems.length ? `藏干：${fourPillars.month.hiddenStems.join('、')}` : '';
+    lines.push(`月柱：${fourPillars.month.stem}${fourPillars.month.branch}${monthTenGod} ${monthHidden}`);
+
+    const dayHidden = fourPillars.day.hiddenStems.length ? `藏干：${fourPillars.day.hiddenStems.join('、')}` : '';
+    lines.push(`日柱：${fourPillars.day.stem}${fourPillars.day.branch}（日主） ${dayHidden}`);
+
+    const hourTenGod = fourPillars.hour.tenGod ? `（${fourPillars.hour.tenGod}）` : '';
+    const hourHidden = fourPillars.hour.hiddenStems.length ? `藏干：${fourPillars.hour.hiddenStems.join('、')}` : '';
+    lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
+    lines.push('');
+
+    // 自动计算大运
+    try {
+        const [year, month, day] = chart.birthDate.split('-').map(Number);
+        const [hour, minute] = (chart.birthTime || '12:00').split(':').map(Number);
+        const proData = calculateProfessionalData({
+            name: chart.name,
+            gender: chart.gender,
+            birthYear: year,
+            birthMonth: month,
+            birthDay: day,
+            birthHour: hour,
+            birthMinute: minute,
+            calendarType: chart.calendarType || 'solar',
+            isLeapMonth: chart.isLeapMonth,
+        });
+
+        if (proData.daYun.length > 0) {
+            lines.push('【大运排列】');
+            lines.push(`起运：${proData.startAgeDetail}`);
+            proData.daYun.forEach((dy) => {
+                lines.push(`${dy.startAge}岁 ${dy.ganZhi}`);
+            });
+        }
+    } catch {
+        // 大运计算失败时忽略
+    }
+
+    return lines.join('\n');
+}

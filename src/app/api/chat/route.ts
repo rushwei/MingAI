@@ -13,10 +13,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit } from '@/lib/credits';
 import { createClient } from '@supabase/supabase-js';
-import type { ChatMessage, AIPersonality } from '@/types';
+import type { ChatMessage, AIPersonality, BaziChart } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { generateBaziChartText } from '@/lib/bazi';
+import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => createClient(
@@ -99,61 +101,44 @@ async function loadChartContext(chartIds: ChartIds, userId: string): Promise<Cha
 function formatChartContextPrompt(context: ChartContext): string {
     const parts: string[] = [];
 
+    // 选择八字命盘信息
+    /**
+     * 
+     */
     if (context.baziChart) {
         const { baziChart } = context;
-        let baziInfo = `【八字命盘信息】\n`;
-        baziInfo += `姓名: ${baziChart.name}\n`;
-        baziInfo += `性别: ${baziChart.gender}\n`;
-        baziInfo += `出生日期: ${baziChart.birthDate}`;
-        if (baziChart.birthTime) {
-            baziInfo += ` ${baziChart.birthTime}`;
+        // 使用 generateBaziChartText 生成八字命盘文字（自动计算大运）
+        const chartData = baziChart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
+        if (chartData?.fourPillars) {
+            parts.push(generateBaziChartText(chartData));
+        } else {
+            // 降级：使用简单格式
+            let baziInfo = `【八字命盘】\n`;
+            baziInfo += `姓名：${baziChart.name}\n`;
+            baziInfo += `性别：${baziChart.gender}\n`;
+            baziInfo += `出生日期：${baziChart.birthDate}${baziChart.birthTime ? ` ${baziChart.birthTime}` : ''}\n`;
+            parts.push(baziInfo);
         }
-        baziInfo += '\n';
-
-        // 如果有详细的八字数据
-        if (baziChart.chartData) {
-            const data = baziChart.chartData as {
-                dayMaster?: string;
-                fourPillars?: {
-                    year?: { stem: string; branch: string };
-                    month?: { stem: string; branch: string };
-                    day?: { stem: string; branch: string };
-                    hour?: { stem: string; branch: string };
-                };
-                fiveElements?: Record<string, number>;
-            };
-            if (data.fourPillars) {
-                const { year, month, day, hour } = data.fourPillars;
-                baziInfo += `四柱: ${year?.stem}${year?.branch}年 ${month?.stem}${month?.branch}月 ${day?.stem}${day?.branch}日 ${hour?.stem}${hour?.branch}时\n`;
-            }
-            if (data.dayMaster) {
-                baziInfo += `日主: ${data.dayMaster}\n`;
-            }
-            if (data.fiveElements) {
-                const elements = Object.entries(data.fiveElements)
-                    .map(([k, v]) => `${k}:${v}`)
-                    .join(' ');
-                baziInfo += `五行: ${elements}\n`;
-            }
-        }
-        parts.push(baziInfo);
     }
 
     if (context.ziweiChart) {
         const { ziweiChart } = context;
-        let ziweiInfo = `【紫微命盘信息】\n`;
-        ziweiInfo += `姓名: ${ziweiChart.name}\n`;
-        ziweiInfo += `性别: ${ziweiChart.gender}\n`;
-        ziweiInfo += `出生日期: ${ziweiChart.birthDate}`;
-        if (ziweiChart.birthTime) {
-            ziweiInfo += ` ${ziweiChart.birthTime}`;
+        // 使用 generateZiweiChartText 生成紫微命盘文字
+        const chartData = ziweiChart.chartData as ZiweiChart | undefined;
+        if (chartData?.palaces) {
+            parts.push(generateZiweiChartText(chartData));
+        } else {
+            // 降级：使用简单格式
+            let ziweiInfo = `【紫微命盘】\n`;
+            ziweiInfo += `姓名：${ziweiChart.name}\n`;
+            ziweiInfo += `性别：${ziweiChart.gender}\n`;
+            ziweiInfo += `出生日期：${ziweiChart.birthDate}${ziweiChart.birthTime ? ` ${ziweiChart.birthTime}` : ''}\n`;
+            parts.push(ziweiInfo);
         }
-        ziweiInfo += '\n';
-        parts.push(ziweiInfo);
     }
 
     if (parts.length > 0) {
-        return `\n\n--- 用户已选择以下命盘作为对话参考 ---\n${parts.join('\n')}\n请基于以上命盘信息为用户提供个性化的命理分析和建议。\n--- 命盘信息结束 ---\n`;
+        return `\n\n--- 用户已选择以下命盘作为对话参考 ---\n${parts.join('\n\n')}\n请基于以上命盘信息为用户提供个性化的命理分析和建议。\n--- 命盘信息结束 ---\n`;
     }
 
     return '';

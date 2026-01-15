@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { ZiweiChart, DecadalInfo } from '@/lib/ziwei';
-import { getBranchIndex, getDecadalList } from '@/lib/ziwei';
+import type { ZiweiChart } from '@/lib/ziwei';
+import { getBranchIndex, generateZiweiChartText } from '@/lib/ziwei';
 import { getBranchElement, getElementColor } from '@/lib/bazi';
 import { PalaceCard } from './PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from './ZiweiHoroscopePanel';
@@ -46,52 +46,19 @@ function getBranchElementStyle(branch: string | undefined): { color: string } | 
     return element ? { color: getElementColor(element) } : undefined;
 }
 
-// 生成命盘文字版本
+
+// 生成命盘文字版本（复用 lib/ziwei.ts 中的函数，添加流年信息）
 function generateChartText(chart: ZiweiChart, horoscopeInfo?: HoroscopeInfo): string {
-    const lines: string[] = [];
-    lines.push('【紫微斗数命盘】');
-    lines.push(`阳历：${chart.solarDate}`);
-    lines.push(`农历：${chart.lunarDate}`);
-    lines.push(`四柱：${chart.yearStem}${chart.yearBranch} ${chart.monthStem}${chart.monthBranch} ${chart.dayStem}${chart.dayBranch} ${chart.hourStem}${chart.hourBranch}`);
-    lines.push(`命主：${chart.soul}  身主：${chart.body}`);
-    lines.push(`五行局：${chart.fiveElement}`);
-    lines.push(`属相：${chart.zodiac}  星座：${chart.sign}`);
-    lines.push('');
-    lines.push('【十二宫位】');
-    chart.palaces.forEach((palace) => {
-        const bodyMark = palace.isBodyPalace ? '（身宫）' : '';
-        const majorStars = palace.majorStars.map(s => {
-            let str = s.name;
-            if (s.brightness) str += s.brightness;
-            if (s.mutagen) str += `化${s.mutagen}`;
-            return str;
-        }).join('、') || '无主星';
-        const minorStars = palace.minorStars.map(s => s.name + (s.brightness || '')).join('、');
-        const adjStars = palace.adjStars?.map(s => s.name).join('、');
-        lines.push(`${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
-        lines.push(`  主星：${majorStars}`);
-        if (minorStars) lines.push(`  辅星：${minorStars}`);
-        if (adjStars) lines.push(`  杂曜：${adjStars}`);
-    });
-    lines.push('');
+    let text = generateZiweiChartText(chart);
 
-    // 大限列表
-    const decadalList: DecadalInfo[] = getDecadalList(chart);
-    if (decadalList.length > 0) {
-        lines.push('【大限排列】');
-        decadalList.forEach((d: DecadalInfo) => {
-            lines.push(`${d.startAge}-${d.endAge}岁 ${d.heavenlyStem}${d.palace.earthlyBranch} ${d.palace.name}`);
-        });
-        lines.push('');
-    }
-
-    // 当前选中的流年
+    // 添加当前选中的流年信息
     if (horoscopeInfo?.yearly) {
-        lines.push(`【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`);
+        text += `\n\n【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`;
     }
 
-    return lines.join('\n');
+    return text;
 }
+
 
 /**
  * 紫微斗数命盘 12 宫位图

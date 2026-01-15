@@ -420,3 +420,47 @@ export function getTriangleSquare(palaceIndex: number): {
 export function getPalaceIndexByName(chart: ZiweiChart, name: string): number {
     return chart.palaces.findIndex(p => p.name === name);
 }
+
+/**
+ * 生成紫微命盘文字版本（用于AI分析和复制）
+ */
+export function generateZiweiChartText(chart: ZiweiChart): string {
+    const lines: string[] = [];
+    lines.push('【紫微斗数命盘】');
+    lines.push(`阳历：${chart.solarDate}`);
+    lines.push(`农历：${chart.lunarDate}`);
+    lines.push(`四柱：${chart.yearStem}${chart.yearBranch} ${chart.monthStem}${chart.monthBranch} ${chart.dayStem}${chart.dayBranch} ${chart.hourStem}${chart.hourBranch}`);
+    lines.push(`命主：${chart.soul}  身主：${chart.body}`);
+    lines.push(`五行局：${chart.fiveElement}`);
+    lines.push(`属相：${chart.zodiac}  星座：${chart.sign}`);
+    lines.push('');
+    lines.push('【十二宫位】');
+
+    chart.palaces.forEach((palace) => {
+        const bodyMark = palace.isBodyPalace ? '（身宫）' : '';
+        const majorStars = palace.majorStars.map(s => {
+            let str = s.name;
+            if (s.brightness) str += s.brightness;
+            if (s.mutagen) str += `化${s.mutagen}`;
+            return str;
+        }).join('、') || '无主星';
+        const minorStars = palace.minorStars.map(s => s.name + (s.brightness || '')).join('、');
+        const adjStars = palace.adjStars?.map(s => s.name).join('、');
+        lines.push(`${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
+        lines.push(`  主星：${majorStars}`);
+        if (minorStars) lines.push(`  辅星：${minorStars}`);
+        if (adjStars) lines.push(`  杂曜：${adjStars}`);
+    });
+    lines.push('');
+
+    // 大限列表
+    const decadalList = getDecadalList(chart);
+    if (decadalList.length > 0) {
+        lines.push('【大限排列】');
+        decadalList.forEach((d) => {
+            lines.push(`${d.startAge}-${d.endAge}岁 ${d.heavenlyStem}${d.palace.earthlyBranch} ${d.palace.name}`);
+        });
+    }
+
+    return lines.join('\n');
+}

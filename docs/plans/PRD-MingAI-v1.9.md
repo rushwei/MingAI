@@ -189,8 +189,8 @@
 
 | 功能项             | 描述                                  | 状态 |
 | ------------------ | ------------------------------------- | ---- |
-| 偏好设置中心       | 通知开关、语言偏好、站内/邮件提醒控制 | ✅    |
-| 功能订阅           | 未上线功能支持“上线提醒我”订阅        | ✅    |
+| 偏好设置中心       | 黑夜模式、通知开关、语言偏好、站内/邮件提醒控制 | ✅    |
+| 功能订阅           | 未上线功能支持“上线提醒”订阅        | ✅    |
 | 站内通知           | 通知中心、未读数、批量已读            | ✅    |
 | 邮件提醒           | Resend 发送上线通知                   | ✅    |
 | 管理员通知发布面板 | 管理员触发功能上线批量通知            | ✅    |
@@ -430,8 +430,8 @@
 - [x] 优化手机查看
 - [x] 暂时关闭支付模式（支付暂停开关）
 - [x] 会员分级模型访问
-  - Free会员：非推理模型(deepseek-v3、glm-4.6、gemini-3)
-  - Plus会员：推理模型(deepseek-pro、glm-4.7、gemini-pro)
+  - Free会员：非推理模型(deepseek、glm-4.6)
+  - Plus会员：推理模型(deepseek-pro、glm-4.7、gemini)
   - Pro会员：高级模型(deepai全系列)
 
 ### Phase 6: 社区功能与AI分析精确强化
@@ -451,11 +451,11 @@
   - [x] 深度推理
   - [ ] 附件上传
   - [x] 计划提供更多高级模型(gemini3pro/Qwen/glm4.7)
-  - [ ] 优化模型选择器
-  - [ ] 优化紫薇AI分析
+  - [x] 优化模型选择器
+  - [x] 优化紫薇和八字的AI分析
   - [ ] 支持个性化记忆
   - [ ] 支持知识库
-  - [ ] 支持各个模块的AI模型选择(八字/合盘/紫薇/塔罗/六爻/MBTI/运势)
+  - [x] 支持各个模块的AI模型选择(八字/合盘/紫薇/塔罗/六爻/MBTI/运势)
 
 ### Phase 7: 高级功能 (待定)
 - [ ] 面相分析
@@ -516,8 +516,6 @@
 - [Phase3](/docs/deliverables/Phase3-Completion-Report.md)
 - [Phase4](/docs/deliverables/Phase4-Completion-Report.md)
 - [Phase5](/docs/deliverables/Phase5-Completion-Report.md)
-- [idea](/docs/resource/idea.md) - 原始需求构想
-- [tech_stack](/docs/resource/tech_stack.md) - 技术栈要求
 - [Logo](/Logo.png) - 产品Logo
 
 ### C. 术语表
