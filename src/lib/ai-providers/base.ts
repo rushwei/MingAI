@@ -6,6 +6,7 @@
 
 import type { ChatMessage, AIModelConfig, AIVendor } from '@/types';
 
+// AI 请求只需要最小消息结构，避免强制依赖存储/展示字段。
 export type AIRequestMessage = Pick<ChatMessage, 'role' | 'content' | 'model' | 'reasoning'>;
 
 /**
