@@ -322,7 +322,7 @@ export default function UserPage() {
 
                 {/* 版本信息 */}
                 <p className="text-center text-xs text-foreground-secondary mt-6">
-                    MingAI v1.2.0 · MVP 版本
+                    MingAI v1.9.0
                 </p>
 
                 <AuthModal
@@ -516,7 +516,7 @@ export default function UserPage() {
 
             {/* 版本信息 */}
             <p className="text-center text-xs text-foreground-secondary mt-6">
-                MingAI v1.2.0 · MVP 版本
+                MingAI v1.9.0
             </p>
 
             {/* 弹窗 */}
