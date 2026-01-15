@@ -8,6 +8,10 @@ import { supabase } from '@/lib/supabase';
 import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/mbti';
+import { callAIWithReasoning } from '@/lib/ai';
+import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';
@@ -20,46 +24,14 @@ interface MBTIRequest {
         JP: { J: number; P: number };
     };
     readingId?: string; // 已保存的测试记录 ID，用于关联 AI 分析
-}
-
-// 调用 DeepSeek AI
-async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise<string> {
-    const aiApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('DeepSeek API key not configured');
-    }
-
-    const response = await fetch(aiApiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1500,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '分析生成失败';
+    modelId?: string;
+    reasoning?: boolean;
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: MBTIRequest = await request.json();
-        const { action, type, scores, percentages, readingId } = body;
+        const { action, type, scores, percentages, readingId, modelId, reasoning } = body;
 
         // 保存测试记录（不含 AI 分析）
         if (action === 'save') {
@@ -197,6 +169,24 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
+        const requestedModelId = modelId || DEFAULT_MODEL_ID;
+        const modelConfig = getModelConfig(requestedModelId);
+        if (!modelConfig) {
+            return NextResponse.json({
+                success: false,
+                error: '模型不可用'
+            }, { status: 400 });
+        }
+        const membershipType = await getEffectiveMembershipType(user.id);
+        if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+            return NextResponse.json({
+                success: false,
+                error: '当前会员等级无法使用该模型'
+            }, { status: 403 });
+        }
+        const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
+        const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+
         const basic = PERSONALITY_BASICS[type];
 
         const systemPrompt = `你是一位专业的心理学家和 MBTI 性格分析专家。
@@ -226,7 +216,17 @@ ${basic.description}
 请为这位用户提供个性化的深度分析。`;
 
         try {
-            const analysis = await callDeepSeekAI(systemPrompt, userPrompt);
+            const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
+                [{ role: 'user', content: userPrompt }],
+                'master',
+                requestedModelId,
+                `\n\n${systemPrompt}\n\n`,
+                {
+                    reasoning: reasoningEnabled,
+                    temperature: 0.7,
+                    maxTokens: 1500,
+                }
+            );
 
             // 扣除积分
             const remainingCredits = await useCredit(user.id);
@@ -247,6 +247,9 @@ ${basic.description}
                     mbti_type: type,
                     scores,
                     percentages,
+                    model_id: requestedModelId,
+                    reasoning: reasoningEnabled,
+                    reasoning_text: reasoningText || null,
                 },
                 title: generateMbtiTitle(type),
                 aiResponse: analysis,
@@ -288,7 +291,7 @@ ${basic.description}
 
             return NextResponse.json({
                 success: true,
-                data: { analysis, conversationId }
+                data: { analysis, reasoning: reasoningText, conversationId }
             });
 
         } catch (aiError) {

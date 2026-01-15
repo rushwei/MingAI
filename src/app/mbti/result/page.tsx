@@ -10,11 +10,17 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, RotateCw, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
 import { buildViewResult, type TestResult } from '@/lib/mbti';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { ModelSelector } from '@/components/ui/ModelSelector';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
+import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import type { ChatMessage } from '@/types';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -26,9 +32,17 @@ function MBTIResultContent() {
     const [result, setResult] = useState<TestResult | null>(null);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+    const [analysisReasoning, setAnalysisReasoning] = useState<string | null>(null);
     const [loadingAI, setLoadingAI] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [checkingAuth, setCheckingAuth] = useState(true);
+    const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const errorBanner = error ? (
+        <p data-testid="analysis-error" className="text-red-500 text-sm mb-4">{error}</p>
+    ) : null;
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const [conversationId, setConversationId] = useState<string | null>(null);
 
     useEffect(() => {
         // useEffect loads session/auth data after client mount.
@@ -36,10 +50,20 @@ function MBTIResultContent() {
         const checkAuth = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                setUser(session?.user ? { id: session.user.id } : null);
+                const currentUser = session?.user ? { id: session.user.id } : null;
+                setUser(currentUser);
+                if (session?.user) {
+                    const info = await getMembershipInfo(session.user.id);
+                    if (info) {
+                        setMembershipType(info.type);
+                    }
+                } else {
+                    setMembershipType('free');
+                }
             } catch (err) {
                 console.error('Auth check failed:', err);
                 setUser(null);
+                setMembershipType('free');
             } finally {
                 setCheckingAuth(false);
             }
@@ -49,14 +73,26 @@ function MBTIResultContent() {
 
         // 监听认证状态变化
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ? { id: session.user.id } : null);
+            const currentUser = session?.user ? { id: session.user.id } : null;
+            setUser(currentUser);
+            if (session?.user) {
+                getMembershipInfo(session.user.id).then(info => {
+                    if (info) {
+                        setMembershipType(info.type);
+                    }
+                });
+            } else {
+                setMembershipType('free');
+            }
         });
 
         // 从 sessionStorage 获取结果
         const storedResult = sessionStorage.getItem('mbti_result');
         if (storedResult) {
             try {
-                setResult(JSON.parse(storedResult) as TestResult);
+                const parsed = JSON.parse(storedResult) as TestResult & { conversationId?: string | null };
+                setResult(parsed);
+                setConversationId(parsed.conversationId || null);
             } catch {
                 if (!isViewMode) {
                     router.push('/mbti');
@@ -76,11 +112,62 @@ function MBTIResultContent() {
         return () => subscription.unsubscribe();
     }, [router, isViewMode, viewType]);
 
+    useEffect(() => {
+        if (!result || aiAnalysis || !user) return;
+
+        const loadAnalysis = async () => {
+            let resolvedConversationId = conversationId;
+            if (!resolvedConversationId) {
+                const readingId = (result as unknown as { readingId?: string }).readingId;
+                if (readingId) {
+                    const { data } = await supabase
+                        .from('mbti_readings')
+                        .select('conversation_id')
+                        .eq('id', readingId)
+                        .single();
+                    resolvedConversationId = data?.conversation_id || null;
+                    if (resolvedConversationId) {
+                        setConversationId(resolvedConversationId);
+                    }
+                }
+            }
+
+            if (!resolvedConversationId) return;
+
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('messages, source_data')
+                .eq('id', resolvedConversationId)
+                .single();
+
+            if (error || !data) return;
+
+            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const messages = (data.messages as ChatMessage[]) || [];
+            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
+            if (analysis) {
+                setAiAnalysis(analysis);
+            }
+            if (reasoning) {
+                setAnalysisReasoning(reasoning);
+            }
+            if (modelId) {
+                setSelectedModel(modelId);
+            }
+            if (typeof sourceData?.reasoning === 'boolean') {
+                setReasoningEnabled(sourceData.reasoning);
+            }
+        };
+
+        void loadAnalysis();
+    }, [aiAnalysis, conversationId, result, user]);
+
     const handleGetAIAnalysis = async () => {
         if (!result || !user) return;
 
         setLoadingAI(true);
         setError(null);
+        setAnalysisReasoning(null);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -102,6 +189,8 @@ function MBTIResultContent() {
                     scores: result.scores,
                     percentages: result.percentages,
                     readingId: (result as unknown as { readingId?: string }).readingId,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -112,6 +201,20 @@ function MBTIResultContent() {
             }
 
             setAiAnalysis(data.data.analysis);
+            setAnalysisReasoning(data.data.reasoning || null);
+            if (data.data.conversationId) {
+                setConversationId(data.data.conversationId);
+                const stored = sessionStorage.getItem('mbti_result');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        parsed.conversationId = data.data.conversationId;
+                        sessionStorage.setItem('mbti_result', JSON.stringify(parsed));
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : '分析失败');
         } finally {
@@ -148,20 +251,52 @@ function MBTIResultContent() {
                 {/* AI 深度分析 - 仅测试模式显示 */}
                 {isTestMode && (
                     <div className="mt-8 bg-background-secondary rounded-xl p-6">
-                        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-accent" />
-                            AI 深度分析
-                        </h3>
+                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-accent" />
+                                AI 深度分析
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <ModelSelector
+                                    compact
+                                    selectedModel={selectedModel}
+                                    onModelChange={setSelectedModel}
+                                    reasoningEnabled={reasoningEnabled}
+                                    onReasoningChange={setReasoningEnabled}
+                                    userId={user?.id}
+                                    membershipType={membershipType}
+                                />
+                                {aiAnalysis && (
+                                    <button
+                                        data-testid="reanalyze-button"
+                                        onClick={handleGetAIAnalysis}
+                                        disabled={loadingAI}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
+                                    >
+                                        {loadingAI ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <RefreshCw className="w-4 h-4" />
+                                        )}
+                                        重新分析
+                                    </button>
+                                )}
+                            </div>
+                        </div>
 
                         {aiAnalysis ? (
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                <MarkdownContent content={aiAnalysis} />
+                            <div>
+                                {errorBanner}
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                    {analysisReasoning && (
+                                        <ThinkingBlock content={analysisReasoning} />
+                                    )}
+                                    <MarkdownContent content={aiAnalysis} />
+                                </div>
                             </div>
                         ) : (
                             <div className="text-center py-6">
-                                {error && (
-                                    <p className="text-red-500 text-sm mb-4">{error}</p>
-                                )}
+                                {errorBanner}
 
                                 {checkingAuth ? (
                                     <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />

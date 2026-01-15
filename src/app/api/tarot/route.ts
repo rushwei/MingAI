@@ -8,16 +8,22 @@ import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, typ
 import { supabase } from '@/lib/supabase';
 import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
+import { callAIWithReasoning } from '@/lib/ai';
+import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 
 // 请求类型
 interface TarotRequest {
-    action: 'draw' | 'daily' | 'spread' | 'interpret' | 'list-spreads' | 'list-cards';
+    action: 'draw' | 'daily' | 'spread' | 'draw-only' | 'save' | 'interpret' | 'list-spreads' | 'list-cards';
     spreadId?: string;
     count?: number;
     question?: string;
     cards?: DrawnCard[];
     allowReversed?: boolean;
     readingId?: string; // 已保存的抽牌记录 ID，用于关联 AI 解读
+    modelId?: string;
+    reasoning?: boolean;
 }
 
 // 响应类型
@@ -29,49 +35,18 @@ interface TarotResponse {
         spreads?: TarotSpread[];
         allCards?: typeof TAROT_CARDS;
         interpretation?: string;
+        reasoning?: string;
         dailyCard?: DrawnCard;
+        readingId?: string | null;
+        conversationId?: string | null;
     };
     error?: string;
-}
-
-// 调用 DeepSeek AI
-async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise<string> {
-    const aiApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('DeepSeek API key not configured');
-    }
-
-    const response = await fetch(aiApiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '解读生成失败';
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<TarotResponse>> {
     try {
         const body: TarotRequest = await request.json();
-        const { action, spreadId, count = 1, question, cards, allowReversed = true, readingId } = body;
+        const { action, spreadId, count = 1, question, cards, allowReversed = true, readingId, modelId, reasoning } = body;
 
         switch (action) {
             // 获取所有牌阵列表
@@ -158,6 +133,81 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 });
             }
 
+            case 'draw-only': {
+                if (!spreadId) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '请指定牌阵ID'
+                    }, { status: 400 });
+                }
+                const spreadResult = drawForSpread(spreadId, allowReversed);
+                if (!spreadResult) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '未找到指定牌阵'
+                    }, { status: 404 });
+                }
+                return NextResponse.json({
+                    success: true,
+                    data: {
+                        spread: spreadResult.spread,
+                        cards: spreadResult.cards,
+                    }
+                });
+            }
+
+            case 'save': {
+                if (!spreadId || !cards || cards.length === 0) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '请提供牌阵与抽牌结果'
+                    }, { status: 400 });
+                }
+
+                const saveAuthHeader = request.headers.get('authorization');
+                if (!saveAuthHeader) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '请先登录'
+                    }, { status: 401 });
+                }
+
+                const saveToken = saveAuthHeader.replace('Bearer ', '');
+                const { data: { user: saveUser }, error: saveAuthError } = await supabase.auth.getUser(saveToken);
+
+                if (saveAuthError || !saveUser) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '认证失败'
+                    }, { status: 401 });
+                }
+
+                const serviceClient = getServiceClient();
+                const { data: insertedReading, error: insertError } = await serviceClient
+                    .from('tarot_readings')
+                    .insert({
+                        user_id: saveUser.id,
+                        spread_id: spreadId,
+                        question: question || null,
+                        cards,
+                    })
+                    .select('id')
+                    .single();
+
+                if (insertError) {
+                    console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                    return NextResponse.json({
+                        success: false,
+                        error: '保存记录失败'
+                    }, { status: 500 });
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    data: { readingId: insertedReading?.id || null }
+                });
+            }
+
             // AI 解读塔罗牌
             case 'interpret':
                 if (!cards || cards.length === 0) {
@@ -195,6 +245,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }, { status: 403 });
                 }
 
+                const requestedModelId = modelId || DEFAULT_MODEL_ID;
+                const modelConfig = getModelConfig(requestedModelId);
+                if (!modelConfig) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '模型不可用'
+                    }, { status: 400 });
+                }
+
+                const membershipType = await getEffectiveMembershipType(user.id);
+                if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '当前会员等级无法使用该模型'
+                    }, { status: 403 });
+                }
+                const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
+                const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+
                 // 构建解读 prompt
                 const cardsDescription = cards.map((c, i) => {
                     const pos = c.position ? `【${c.position}】` : `【第${i + 1}张】`;
@@ -218,7 +287,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     : `请解读以下塔罗牌：\n${cardsDescription}`;
 
                 try {
-                    const interpretation = await callDeepSeekAI(systemPrompt, userPrompt);
+                    const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
+                        [{ role: 'user', content: userPrompt }],
+                        'master',
+                        requestedModelId,
+                        `\n\n${systemPrompt}\n\n`,
+                        {
+                            reasoning: reasoningEnabled,
+                            temperature: 0.7,
+                            maxTokens: 1000,
+                        }
+                    );
 
                     // 扣除积分（使用服务端客户端绕过 RLS）
                     const remainingCredits = await useCredit(user.id);
@@ -239,6 +318,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                             cards: cards,
                             spread_id: spreadId || 'custom',
                             question: question || null,
+                            model_id: requestedModelId,
+                            reasoning: reasoningEnabled,
+                            reasoning_text: reasoningText || null,
                         },
                         title: generateTarotTitle(question, spreadId || 'custom'),
                         aiResponse: interpretation,
@@ -280,7 +362,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 
                     return NextResponse.json({
                         success: true,
-                        data: { interpretation, cards, conversationId }
+                        data: { interpretation, reasoning: reasoningText, cards, conversationId }
                     });
 
                 } catch (aiError) {

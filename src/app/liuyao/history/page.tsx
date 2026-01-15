@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { findHexagram } from '@/lib/liuyao';
+import { getModelName } from '@/lib/ai-config';
 
 interface LiuyaoDivination {
     id: string;
@@ -14,6 +15,7 @@ interface LiuyaoDivination {
     changed_hexagram_code: string | null;
     changed_lines: number[] | null;
     conversation_id?: string | null;
+    conversation?: { source_data?: Record<string, unknown> } | null;
     created_at: string;
 }
 
@@ -34,7 +36,7 @@ export default function LiuyaoHistoryPage() {
 
         const { data, error } = await supabase
             .from('liuyao_divinations')
-            .select('*')
+            .select('*, conversation:conversations(source_data)')
             .eq('user_id', session.user.id)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -105,6 +107,35 @@ export default function LiuyaoHistoryPage() {
         );
     });
 
+    const handleView = (div: LiuyaoDivination) => {
+        const hexagramCode = div.hexagram_code || '';
+        const changedLines = div.changed_lines || [];
+        const yaos = hexagramCode.split('').map((char, idx) => ({
+            type: parseInt(char, 10) as 0 | 1,
+            change: changedLines.includes(idx + 1) ? 'changing' : 'stable' as const,
+            position: idx + 1,
+        }));
+
+        const hexagram = findHexagram(hexagramCode);
+        const changedHexagram = div.changed_hexagram_code
+            ? findHexagram(div.changed_hexagram_code)
+            : undefined;
+
+        const sessionData = {
+            question: div.question,
+            yaos,
+            hexagram,
+            changedHexagram,
+            changedLines,
+            divinationId: div.id,
+            createdAt: div.created_at,
+            conversationId: div.conversation_id || null,
+        };
+
+        sessionStorage.setItem('liuyao_result', JSON.stringify(sessionData));
+        router.push('/liuyao/result');
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8">
@@ -157,48 +188,64 @@ export default function LiuyaoHistoryPage() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredDivinations.map(div => (
-                            <div
-                                key={div.id}
-                                className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-500">
-                                                {getHexagramName(div.hexagram_code)}
-                                            </span>
-                                            {div.changed_hexagram_code && (
-                                                <>
-                                                    <span className="text-foreground-tertiary">→</span>
-                                                    <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-500">
-                                                        {getHexagramName(div.changed_hexagram_code)}
+                        {filteredDivinations.map(div => {
+                            const sourceData = div.conversation?.source_data;
+                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
+                            const modelName = modelId ? getModelName(modelId) : null;
+                            return (
+                                <div
+                                    key={div.id}
+                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors cursor-pointer"
+                                    onClick={() => handleView(div)}
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-500">
+                                                    {getHexagramName(div.hexagram_code)}
+                                                </span>
+                                                {div.changed_hexagram_code && (
+                                                    <>
+                                                        <span className="text-foreground-tertiary">→</span>
+                                                        <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-500">
+                                                            {getHexagramName(div.changed_hexagram_code)}
+                                                        </span>
+                                                    </>
+                                                )}
+                                                <div className="flex items-center gap-2 ml-auto">
+                                                    <span className="flex items-center gap-1 text-xs text-foreground-secondary">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(div.created_at)}
                                                     </span>
-                                                </>
-                                            )}
-                                            <span className="flex items-center gap-1 text-xs text-foreground-secondary ml-auto">
-                                                <Calendar className="w-3 h-3" />
-                                                {formatDate(div.created_at)}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm font-medium">
-                                            {div.question || '无特定问题'}
-                                        </p>
-                                        {div.changed_lines && div.changed_lines.length > 0 && (
-                                            <p className="text-xs text-foreground-secondary mt-1">
-                                                变爻：{div.changed_lines.map(l => `第${l}爻`).join('、')}
+                                                    {modelName && (
+                                                        <span className="text-xs text-foreground-secondary px-2 py-0.5 rounded bg-background">
+                                                            {modelName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-sm font-medium">
+                                                {div.question || '无特定问题'}
                                             </p>
-                                        )}
+                                            {div.changed_lines && div.changed_lines.length > 0 && (
+                                                <p className="text-xs text-foreground-secondary mt-1">
+                                                    变爻：{div.changed_lines.map(l => `第${l}爻`).join('、')}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setDeleteConfirmId(div.id);
+                                            }}
+                                            className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setDeleteConfirmId(div.id)}
-                                        className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

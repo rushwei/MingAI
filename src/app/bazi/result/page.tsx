@@ -17,7 +17,8 @@ import {
     getDayMasterDescription,
 } from '@/lib/bazi';
 import { supabase } from '@/lib/supabase';
-import type { BaziFormData, CalendarType, Gender } from '@/types';
+import type { BaziFormData, CalendarType, Gender, ChatMessage } from '@/types';
+import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import { ResultHeader } from '@/components/bazi/result/ResultHeader';
 import { ProfileSummaryCard } from '@/components/bazi/result/ProfileSummaryCard';
 import { ResultTabs, type ResultTab } from '@/components/bazi/result/ResultTabs';
@@ -37,7 +38,11 @@ function BaziResultContent() {
     const [chartFromDb, setChartFromDb] = useState<BaziFormData | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [savedWuxingAnalysis, setSavedWuxingAnalysis] = useState<string | null>(null);
+    const [savedWuxingReasoning, setSavedWuxingReasoning] = useState<string | null>(null);
+    const [savedWuxingModelId, setSavedWuxingModelId] = useState<string | null>(null);
     const [savedPersonalityAnalysis, setSavedPersonalityAnalysis] = useState<string | null>(null);
+    const [savedPersonalityReasoning, setSavedPersonalityReasoning] = useState<string | null>(null);
+    const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -61,7 +66,11 @@ function BaziResultContent() {
             setChartFromDb(null);
             setSaved(false);
             setSavedWuxingAnalysis(null);
+            setSavedWuxingReasoning(null);
+            setSavedWuxingModelId(null);
             setSavedPersonalityAnalysis(null);
+            setSavedPersonalityReasoning(null);
+            setSavedPersonalityModelId(null);
         }
     }, [hasFormParams]);
 
@@ -80,7 +89,7 @@ function BaziResultContent() {
                 // 查询五行分析
                 supabase
                     .from('conversations')
-                    .select('messages')
+                    .select('messages, source_data')
                     .eq('bazi_chart_id', chartId)
                     .eq('source_type', 'bazi_wuxing')
                     .order('created_at', { ascending: false })
@@ -88,7 +97,7 @@ function BaziResultContent() {
                 // 查询人格分析
                 supabase
                     .from('conversations')
-                    .select('messages')
+                    .select('messages, source_data')
                     .eq('bazi_chart_id', chartId)
                     .eq('source_type', 'bazi_personality')
                     .order('created_at', { ascending: false })
@@ -115,15 +124,27 @@ function BaziResultContent() {
                     });
 
                     // 从 conversations 加载 AI 分析
-                    const extractAnalysis = (result: { data: Array<{ messages: unknown }> | null }) => {
-                        if (!result.data?.[0]?.messages) return null;
-                        const messages = result.data[0].messages as Array<{ role: string; content: string }>;
-                        const aiMsg = messages.find(m => m.role === 'assistant');
-                        return aiMsg?.content || null;
+                    const extractAnalysis = (result: {
+                        data: Array<{ messages: unknown; source_data?: Record<string, unknown> }> | null;
+                    }) => {
+                        if (!result.data?.[0]?.messages) {
+                            return { analysis: null, reasoning: null, modelId: null };
+                        }
+                        const row = result.data[0];
+                        const messages = row.messages as ChatMessage[];
+                        const sourceData = row.source_data as Record<string, unknown> | undefined;
+                        return extractAnalysisFromConversation(messages, sourceData);
                     };
 
-                    setSavedWuxingAnalysis(extractAnalysis(wuxingResult));
-                    setSavedPersonalityAnalysis(extractAnalysis(personalityResult));
+                    const wuxingAnalysis = extractAnalysis(wuxingResult);
+                    setSavedWuxingAnalysis(wuxingAnalysis.analysis);
+                    setSavedWuxingReasoning(wuxingAnalysis.reasoning);
+                    setSavedWuxingModelId(wuxingAnalysis.modelId);
+
+                    const personalityAnalysis = extractAnalysis(personalityResult);
+                    setSavedPersonalityAnalysis(personalityAnalysis.analysis);
+                    setSavedPersonalityReasoning(personalityAnalysis.reasoning);
+                    setSavedPersonalityModelId(personalityAnalysis.modelId);
                     setSaved(true);
                 }
                 setLoading(false);
@@ -460,7 +481,11 @@ function BaziResultContent() {
                     chartId={chartId}
                     userId={userId}
                     savedWuxingAnalysis={savedWuxingAnalysis}
+                    savedWuxingReasoning={savedWuxingReasoning}
+                    savedWuxingModelId={savedWuxingModelId}
                     savedPersonalityAnalysis={savedPersonalityAnalysis}
+                    savedPersonalityReasoning={savedPersonalityReasoning}
+                    savedPersonalityModelId={savedPersonalityModelId}
                     onSaveWuxingAnalysis={async (analysis) => {
                         setSavedWuxingAnalysis(analysis);
                         if (chartId) {

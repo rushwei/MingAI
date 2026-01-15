@@ -6,6 +6,7 @@
 
 import { supabase } from './supabase';
 import type { ChatMessage, AIPersonality, Conversation } from '@/types';
+import { hydrateConversationMessages } from './ai-analysis-query';
 
 // ===== 类型定义 =====
 
@@ -70,7 +71,7 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
         ziweiChartId: row.ziwei_chart_id,
         personality: row.personality as AIPersonality,
         title: row.title,
-        messages: (row.messages as ChatMessage[]) || [],
+        messages: hydrateConversationMessages((row.messages as ChatMessage[]) || [], row.source_data),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         sourceType: row.source_type || 'chat',
@@ -100,7 +101,7 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         ziweiChartId: data.ziwei_chart_id,
         personality: data.personality as AIPersonality,
         title: data.title,
-        messages: (data.messages as ChatMessage[]) || [],
+        messages: hydrateConversationMessages((data.messages as ChatMessage[]) || [], data.source_data),
         createdAt: data.created_at,
         updatedAt: data.updated_at,
         sourceType: data.source_type || 'chat',

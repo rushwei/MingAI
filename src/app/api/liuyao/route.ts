@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
+import { callAIWithReasoning } from '@/lib/ai';
+import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import {
     type Hexagram,
     type Yao,
@@ -29,46 +33,14 @@ interface LiuyaoRequest {
     yaos?: Yao[];
     dayStem?: string; // 可选：日干，默认使用今日
     divinationId?: string; // 已保存的起卦记录 ID，用于关联 AI 解读
-}
-
-// 调用 DeepSeek AI
-async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise<string> {
-    const aiApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('DeepSeek API key not configured');
-    }
-
-    const response = await fetch(aiApiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1500,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '解读生成失败';
+    modelId?: string;
+    reasoning?: boolean;
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: LiuyaoRequest = await request.json();
-        const { action, question, hexagram, changedHexagram, changedLines, yaos, dayStem: inputDayStem, divinationId } = body;
+        const { action, question, hexagram, changedHexagram, changedLines, yaos, dayStem: inputDayStem, divinationId, modelId, reasoning } = body;
 
         switch (action) {
             // 保存起卦记录（不含 AI 解读）
@@ -159,6 +131,24 @@ export async function POST(request: NextRequest) {
                         error: '积分不足，请充值后使用'
                     }, { status: 403 });
                 }
+
+                const requestedModelId = modelId || DEFAULT_MODEL_ID;
+                const modelConfig = getModelConfig(requestedModelId);
+                if (!modelConfig) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '模型不可用'
+                    }, { status: 400 });
+                }
+                const membershipType = await getEffectiveMembershipType(user.id);
+                if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                    return NextResponse.json({
+                        success: false,
+                        error: '当前会员等级无法使用该模型'
+                    }, { status: 403 });
+                }
+                const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
+                const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
 
                 // 获取日干（用于六神计算）
                 const dayStem = inputDayStem || getTodayDayStem();
@@ -265,7 +255,17 @@ ${traditionalInfo}
 请详细解读此卦的吉凶和指导意义，参考传统六爻分析数据。`;
 
                 try {
-                    const interpretation = await callDeepSeekAI(systemPrompt, userPrompt);
+                    const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
+                        [{ role: 'user', content: userPrompt }],
+                        'master',
+                        requestedModelId,
+                        `\n\n${systemPrompt}\n\n`,
+                        {
+                            reasoning: reasoningEnabled,
+                            temperature: 0.7,
+                            maxTokens: 1500,
+                        }
+                    );
 
                     // 扣除积分
                     const remainingCredits = await useCredit(user.id);
@@ -293,6 +293,9 @@ ${traditionalInfo}
                             changed_hexagram_name: changedHexagram?.name,
                             changed_lines: changedLines,
                             question: question || null,
+                            model_id: requestedModelId,
+                            reasoning: reasoningEnabled,
+                            reasoning_text: reasoningText || null,
                         },
                         title: generateLiuyaoTitle(question, hexagram.name, changedHexagram?.name),
                         aiResponse: interpretation,
@@ -335,7 +338,7 @@ ${traditionalInfo}
 
                     return NextResponse.json({
                         success: true,
-                        data: { interpretation, conversationId }
+                        data: { interpretation, reasoning: reasoningText, conversationId }
                     });
 
                 } catch (aiError) {

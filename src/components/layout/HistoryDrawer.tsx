@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { findHexagram } from '@/lib/liuyao';
+import { getModelName } from '@/lib/ai-config';
 
 // 支持的历史类型
 type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan';
@@ -15,6 +16,7 @@ interface HistoryItem {
     title: string;
     createdAt: string;
     subType?: string;
+    modelName?: string;
 }
 
 interface HistoryDrawerProps {
@@ -30,7 +32,7 @@ const TYPE_CONFIG: Record<HistoryType, {
     sessionKey: string;
     useTimestamp?: boolean; // 是否需要添加时间戳参数（用于同页面导航）
 }> = {
-    tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history', detailPath: '/tarot', sessionKey: 'tarot_result', useTimestamp: true },
+    tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history', detailPath: '/tarot/result', sessionKey: 'tarot_result', useTimestamp: true },
     liuyao: { label: '六爻历史', tableName: 'liuyao_divinations', historyPath: '/liuyao/history', detailPath: '/liuyao/result', sessionKey: 'liuyao_result' },
     mbti: { label: 'MBTI历史', tableName: 'mbti_readings', historyPath: '/mbti/history', detailPath: '/mbti/result', sessionKey: 'mbti_result' },
     hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
@@ -58,7 +60,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
         const query = supabase
             .from(config.tableName)
-            .select('*')
+            .select('*, conversation:conversations(source_data)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(10); // 增加每页显示数量
@@ -69,6 +71,13 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             setItems(data.map((item: Record<string, unknown>) => {
                 let title = '';
                 let subType = '';
+                let modelName: string | undefined;
+
+                const sourceData = (item.conversation as { source_data?: Record<string, unknown> } | null)?.source_data;
+                const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
+                if (modelId) {
+                    modelName = getModelName(modelId);
+                }
 
                 if (type === 'hepan') {
                     title = `${item.person1_name || ''} & ${item.person2_name || ''}`;
@@ -116,6 +125,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     title: title.length > 18 ? title.slice(0, 18) + '...' : title,
                     createdAt: item.created_at as string,
                     subType,
+                    modelName,
                 };
             }));
         }
@@ -181,6 +191,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     changedLines,
                     divinationId: data.id, // 包含记录 ID
                     createdAt: data.created_at,
+                    conversationId: data.conversation_id || null,
                 };
 
                 sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
@@ -200,6 +211,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     scores,
                     percentages,
                     readingId: data.id, // 包含记录 ID
+                    conversationId: data.conversation_id || null,
                 };
 
                 sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
@@ -213,10 +225,12 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
                 const sessionData = {
                     spread,
+                    spreadId,
                     cards,
                     question: data.question || '',
                     readingId: data.id, // 包含记录 ID
                     createdAt: data.created_at,
+                    conversationId: data.conversation_id || null,
                 };
 
                 sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
@@ -227,6 +241,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     const resultWithId = {
                         ...(data.result_data as object),
                         chartId: data.id,
+                        conversationId: data.conversation_id || null,
                     };
                     sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
                 } else {
@@ -251,6 +266,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     const resultWithId = {
                         ...result,
                         chartId: data.id,
+                        conversationId: data.conversation_id || null,
                     };
                     sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
                 }
@@ -429,6 +445,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                                         <Calendar className="w-2.5 h-2.5" />
                                                         {formatDate(item.createdAt)}
                                                     </span>
+                                                    {item.modelName && (
+                                                        <span className="text-[10px] text-foreground-secondary bg-background/50 px-1.5 py-0.5 rounded">
+                                                            {item.modelName}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

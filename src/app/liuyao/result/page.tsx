@@ -8,10 +8,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen } from 'lucide-react';
+import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
 import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { ModelSelector } from '@/components/ui/ModelSelector';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import {
     type DivinationResult,
     type Hexagram,
@@ -24,16 +26,31 @@ import {
 } from '@/lib/liuyao';
 import { getHexagramText } from '@/lib/hexagram-texts';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import type { ChatMessage } from '@/types';
 
 export default function ResultPage() {
     const router = useRouter();
     const [result, setResult] = useState<DivinationResult | null>(null);
     const [divinationId, setDivinationId] = useState<string | null>(null); // 保存的起卦记录 ID
+    const [conversationId, setConversationId] = useState<string | null>(null);
     const [interpretation, setInterpretation] = useState<string | null>(null);
+    const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [user, setUser] = useState<{ id: string } | null | undefined>(undefined); // undefined = loading
     const [showTraditional, setShowTraditional] = useState(true);
+    const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const errorBanner = error ? (
+        <div data-testid="analysis-error" className="flex items-center justify-center gap-2 text-red-500 mb-4">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-sm">{error}</span>
+        </div>
+    ) : null;
 
     // 计算传统分析数据（使用起卦日期的日干）
     const traditionalData = useMemo(() => {
@@ -62,13 +79,33 @@ export default function ResultPage() {
 
     useEffect(() => {
         // 获取用户状态
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ? { id: session.user.id } : null);
-        });
+        const loadSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const currentUser = session?.user ? { id: session.user.id } : null;
+            setUser(currentUser);
+            if (session?.user) {
+                const info = await getMembershipInfo(session.user.id);
+                if (info) {
+                    setMembershipType(info.type);
+                }
+            } else {
+                setMembershipType('free');
+            }
+        };
+        loadSession();
 
         // 监听认证状态变化
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ? { id: session.user.id } : null);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const currentUser = session?.user ? { id: session.user.id } : null;
+            setUser(currentUser);
+            if (session?.user) {
+                const info = await getMembershipInfo(session.user.id);
+                if (info) {
+                    setMembershipType(info.type);
+                }
+            } else {
+                setMembershipType('free');
+            }
         });
 
         // 从 sessionStorage 获取结果
@@ -86,6 +123,7 @@ export default function ResultPage() {
                 });
                 // 恢复 divinationId（用于 AI 解读时更新正确的记录）
                 setDivinationId(parsed.divinationId || null);
+                setConversationId(parsed.conversationId || null);
             } catch {
                 router.push('/liuyao');
             }
@@ -96,11 +134,73 @@ export default function ResultPage() {
         return () => subscription.unsubscribe();
     }, [router]);
 
+    useEffect(() => {
+        if (!result || interpretation) return;
+
+        const persistConversationId = (id: string | null) => {
+            if (!id) return;
+            const stored = sessionStorage.getItem('liuyao_result');
+            if (!stored) return;
+            try {
+                const parsed = JSON.parse(stored);
+                parsed.conversationId = id;
+                sessionStorage.setItem('liuyao_result', JSON.stringify(parsed));
+            } catch {
+                // ignore
+            }
+        };
+
+        const loadAnalysis = async () => {
+            let resolvedConversationId = conversationId;
+            if (!resolvedConversationId && divinationId) {
+                const { data } = await supabase
+                    .from('liuyao_divinations')
+                    .select('conversation_id')
+                    .eq('id', divinationId)
+                    .single();
+                resolvedConversationId = data?.conversation_id || null;
+                if (resolvedConversationId) {
+                    setConversationId(resolvedConversationId);
+                    persistConversationId(resolvedConversationId);
+                }
+            }
+
+            if (!resolvedConversationId) return;
+
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('messages, source_data')
+                .eq('id', resolvedConversationId)
+                .single();
+
+            if (error || !data) return;
+
+            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const messages = (data.messages as ChatMessage[]) || [];
+            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
+            if (analysis) {
+                setInterpretation(analysis);
+            }
+            if (reasoning) {
+                setInterpretationReasoning(reasoning);
+            }
+            if (modelId) {
+                setSelectedModel(modelId);
+            }
+            if (typeof sourceData?.reasoning === 'boolean') {
+                setReasoningEnabled(sourceData.reasoning);
+            }
+        };
+
+        void loadAnalysis();
+    }, [conversationId, divinationId, interpretation, result]);
+
     const handleGetInterpretation = async () => {
         if (!result || !user || !traditionalData) return;
 
         setIsLoading(true);
         setError(null);
+        setInterpretationReasoning(null);
 
         try {
             const response = await fetch('/api/liuyao', {
@@ -118,6 +218,8 @@ export default function ResultPage() {
                     yaos: result.yaos,
                     dayStem: traditionalData.dayStem, // 传递起卦日干，确保 AI 分析与 UI 一致
                     divinationId: divinationId, // 使用 state 中的 divinationId
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -128,6 +230,20 @@ export default function ResultPage() {
             }
 
             setInterpretation(data.data.interpretation);
+            setInterpretationReasoning(data.data.reasoning || null);
+            if (data.data.conversationId) {
+                setConversationId(data.data.conversationId);
+                const stored = sessionStorage.getItem('liuyao_result');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        parsed.conversationId = data.data.conversationId;
+                        sessionStorage.setItem('liuyao_result', JSON.stringify(parsed));
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : '解读失败');
         } finally {
@@ -219,23 +335,52 @@ export default function ResultPage() {
 
                 {/* AI 解读区域 */}
                 <div className="bg-background-secondary rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-accent" />
-                        AI 解卦
-                    </h3>
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-accent" />
+                            AI 解卦
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <ModelSelector
+                                compact
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                                userId={user?.id}
+                                membershipType={membershipType}
+                            />
+                            {interpretation && (
+                                <button
+                                    data-testid="reanalyze-button"
+                                    onClick={handleGetInterpretation}
+                                    disabled={isLoading}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
+                                >
+                                    {isLoading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <RefreshCw className="w-4 h-4" />
+                                    )}
+                                    重新分析
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {interpretation ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <MarkdownContent content={interpretation} className="text-sm text-foreground" />
+                        <div>
+                            {errorBanner}
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                {interpretationReasoning && (
+                                    <ThinkingBlock content={interpretationReasoning} />
+                                )}
+                                <MarkdownContent content={interpretation} className="text-sm text-foreground" />
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-8">
-                            {error && (
-                                <div className="flex items-center justify-center gap-2 text-red-500 mb-4">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span className="text-sm">{error}</span>
-                                </div>
-                            )}
+                            {errorBanner}
 
                             {user === null ? (
                                 <div>

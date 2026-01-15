@@ -6,11 +6,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, RotateCw, Sparkles, Loader2, TrendingUp, ChevronDown, Lightbulb } from 'lucide-react';
+import { ArrowLeft, RotateCw, Sparkles, Loader2, TrendingUp, ChevronDown, Lightbulb, RefreshCw } from 'lucide-react';
 import { CompatibilityChart } from '@/components/hepan/CompatibilityChart';
 import { ConflictPoints } from '@/components/hepan/ConflictPoints';
 import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/components/hepan/CompatibilityTrendChart';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { ModelSelector } from '@/components/ui/ModelSelector';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
+import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import type { ChatMessage } from '@/types';
 import {
     type HepanResult,
     getHepanTypeName,
@@ -18,22 +22,43 @@ import {
     getRelationshipAdvice,
 } from '@/lib/hepan';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 
 export default function HepanResultPage() {
     const router = useRouter();
     const [result, setResult] = useState<HepanResult | null>(null);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+    const [analysisReasoning, setAnalysisReasoning] = useState<string | null>(null);
     const [loadingAI, setLoadingAI] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [trendPeriod, setTrendPeriod] = useState<6 | 12>(6);
     const [showTrendChart, setShowTrendChart] = useState(false);
+    const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const errorBanner = error ? (
+        <p data-testid="analysis-error" className="text-red-500 text-sm mb-4">{error}</p>
+    ) : null;
+    const [conversationId, setConversationId] = useState<string | null>(null);
 
     useEffect(() => {
         // 获取用户状态
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ? { id: session.user.id } : null);
-        });
+        const loadSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const currentUser = session?.user ? { id: session.user.id } : null;
+            setUser(currentUser);
+            if (session?.user) {
+                const info = await getMembershipInfo(session.user.id);
+                if (info) {
+                    setMembershipType(info.type);
+                }
+            } else {
+                setMembershipType('free');
+            }
+        };
+        loadSession();
 
         // 从 sessionStorage 获取结果
         const storedResult = sessionStorage.getItem('hepan_result');
@@ -44,6 +69,7 @@ export default function HepanResultPage() {
                     ...parsed,
                     createdAt: new Date(parsed.createdAt),
                 });
+                setConversationId(parsed.conversationId || null);
             } catch {
                 router.push('/hepan');
             }
@@ -84,6 +110,7 @@ export default function HepanResultPage() {
 
         setLoadingAI(true);
         setError(null);
+        setAnalysisReasoning(null);
 
         try {
             const response = await fetch('/api/hepan', {
@@ -96,6 +123,8 @@ export default function HepanResultPage() {
                     action: 'analyze',
                     result,
                     chartId: (result as unknown as { chartId?: string }).chartId,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -106,12 +135,76 @@ export default function HepanResultPage() {
             }
 
             setAiAnalysis(data.data.analysis);
+            setAnalysisReasoning(data.data.reasoning || null);
+            if (data.data.conversationId) {
+                setConversationId(data.data.conversationId);
+                const stored = sessionStorage.getItem('hepan_result');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        parsed.conversationId = data.data.conversationId;
+                        sessionStorage.setItem('hepan_result', JSON.stringify(parsed));
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : '分析失败');
         } finally {
             setLoadingAI(false);
         }
     };
+
+    useEffect(() => {
+        if (!result || aiAnalysis) return;
+
+        const loadAnalysis = async () => {
+            let resolvedConversationId = conversationId;
+            if (!resolvedConversationId) {
+                const chartId = (result as unknown as { chartId?: string }).chartId;
+                if (chartId) {
+                    const { data } = await supabase
+                        .from('hepan_charts')
+                        .select('conversation_id')
+                        .eq('id', chartId)
+                        .single();
+                    resolvedConversationId = data?.conversation_id || null;
+                    if (resolvedConversationId) {
+                        setConversationId(resolvedConversationId);
+                    }
+                }
+            }
+
+            if (!resolvedConversationId) return;
+
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('messages, source_data')
+                .eq('id', resolvedConversationId)
+                .single();
+
+            if (error || !data) return;
+
+            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const messages = (data.messages as ChatMessage[]) || [];
+            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
+            if (analysis) {
+                setAiAnalysis(analysis);
+            }
+            if (reasoning) {
+                setAnalysisReasoning(reasoning);
+            }
+            if (modelId) {
+                setSelectedModel(modelId);
+            }
+            if (typeof sourceData?.reasoning === 'boolean') {
+                setReasoningEnabled(sourceData.reasoning);
+            }
+        };
+
+        void loadAnalysis();
+    }, [aiAnalysis, conversationId, result]);
 
     if (!result) {
         return (
@@ -203,20 +296,52 @@ export default function HepanResultPage() {
 
                 {/* AI 深度分析 */}
                 <div className="bg-background-secondary rounded-xl p-6 mb-8">
-                    <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-accent" />
-                        AI 深度分析
-                    </h3>
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-accent" />
+                            AI 深度分析
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <ModelSelector
+                                compact
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                                userId={user?.id}
+                                membershipType={membershipType}
+                            />
+                            {aiAnalysis && (
+                                <button
+                                    data-testid="reanalyze-button"
+                                    onClick={handleGetAIAnalysis}
+                                    disabled={loadingAI}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
+                                >
+                                    {loadingAI ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <RefreshCw className="w-4 h-4" />
+                                    )}
+                                    重新分析
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {aiAnalysis ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <MarkdownContent content={aiAnalysis} className="text-sm text-foreground" />
+                        <div>
+                            {errorBanner}
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                {analysisReasoning && (
+                                    <ThinkingBlock content={analysisReasoning} />
+                                )}
+                                <MarkdownContent content={aiAnalysis} className="text-sm text-foreground" />
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-6">
-                            {error && (
-                                <p className="text-red-500 text-sm mb-4">{error}</p>
-                            )}
+                            {errorBanner}
 
                             {!user ? (
                                 <div>

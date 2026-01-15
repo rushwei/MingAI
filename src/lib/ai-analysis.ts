@@ -35,8 +35,15 @@ export interface CreateAIAnalysisParams {
 export async function createAIAnalysisConversation(params: CreateAIAnalysisParams): Promise<string | null> {
     const serviceClient = getServiceClient();
 
+    const modelId = typeof params.sourceData?.model_id === 'string' ? params.sourceData.model_id : undefined;
+    const reasoningText = typeof params.sourceData?.reasoning_text === 'string' ? params.sourceData.reasoning_text : undefined;
     const messages = [
-        { role: 'assistant', content: params.aiResponse }
+        {
+            role: 'assistant',
+            content: params.aiResponse,
+            model: modelId,
+            reasoning: reasoningText,
+        },
     ];
 
     const { data, error } = await serviceClient
@@ -93,7 +100,7 @@ export function generateLiuyaoTitle(
 ): string {
     // 生成卦象显示文本：主卦 或 主卦 -> 变卦
     const hexagramDisplay = changedHexagramName
-        ? `${hexagramName} -> ${changedHexagramName}`
+        ? `${hexagramName} 变 ${changedHexagramName}`
         : hexagramName;
 
     if (question && question.trim()) {

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const serviceClient = getServiceClient();
     const { data, error: fetchError } = await serviceClient
         .from('mbti_readings')
-        .select('id, mbti_type, scores, percentages, created_at, conversation_id')
+        .select('id, mbti_type, scores, percentages, created_at, conversation_id, conversation:conversations(source_data)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(MAX_HISTORY);

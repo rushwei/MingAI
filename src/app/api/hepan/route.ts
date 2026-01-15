@@ -6,51 +6,23 @@ import { supabase } from '@/lib/supabase';
 import { getServiceClient } from '@/lib/supabase-server';
 import { useCredit, hasCredits } from '@/lib/credits';
 import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
+import { callAIWithReasoning } from '@/lib/ai';
+import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 
 interface HepanRequest {
     action: 'analyze' | 'save' | 'list';
     result?: HepanResult;
     chartId?: string; // 已保存的合盘记录 ID，用于关联 AI 分析（analyze 时更新）
-}
-
-// 调用 DeepSeek AI
-async function callDeepSeekAI(systemPrompt: string, userPrompt: string): Promise<string> {
-    const aiApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('DeepSeek API key not configured');
-    }
-
-    const response = await fetch(aiApiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1500,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '分析生成失败';
+    modelId?: string;
+    reasoning?: boolean;
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: HepanRequest = await request.json();
-        const { action, result, chartId } = body;
+        const { action, result, chartId, modelId, reasoning } = body;
 
         if (action === 'save') {
             // 保存合盘记录（不含 AI 分析）
@@ -152,8 +124,26 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({
                     success: false,
                     error: '积分不足，请充值后使用'
+                    }, { status: 403 });
+            }
+
+            const requestedModelId = modelId || DEFAULT_MODEL_ID;
+            const modelConfig = getModelConfig(requestedModelId);
+            if (!modelConfig) {
+                return NextResponse.json({
+                    success: false,
+                    error: '模型不可用'
+                }, { status: 400 });
+            }
+            const membershipType = await getEffectiveMembershipType(user.id);
+            if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                return NextResponse.json({
+                    success: false,
+                    error: '当前会员等级无法使用该模型'
                 }, { status: 403 });
             }
+            const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
+            const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
 
             const typeName = getHepanTypeName(result.type);
             const dimensionsSummary = result.dimensions
@@ -193,7 +183,17 @@ ${conflictsSummary}
 请为这对关系提供深度分析和相处建议。`;
 
             try {
-                const analysis = await callDeepSeekAI(systemPrompt, userPrompt);
+                const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
+                    [{ role: 'user', content: userPrompt }],
+                    'master',
+                    requestedModelId,
+                    `\n\n${systemPrompt}\n\n`,
+                    {
+                        reasoning: reasoningEnabled,
+                        temperature: 0.7,
+                        maxTokens: 1500,
+                    }
+                );
 
                 // 扣除积分
                 const remainingCredits = await useCredit(user.id);
@@ -219,6 +219,9 @@ ${conflictsSummary}
                         compatibility_score: result.overallScore,
                         dimensions: result.dimensions,
                         conflicts: result.conflicts,
+                        model_id: requestedModelId,
+                        reasoning: reasoningEnabled,
+                        reasoning_text: reasoningText || null,
                     },
                     title: generateHepanTitle(result.person1.name, result.person2.name, result.type),
                     aiResponse: analysis,
@@ -274,7 +277,7 @@ ${conflictsSummary}
 
                 return NextResponse.json({
                     success: true,
-                    data: { analysis, conversationId }
+                    data: { analysis, reasoning: reasoningText, conversationId }
                 });
 
             } catch (aiError) {

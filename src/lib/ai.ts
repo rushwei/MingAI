@@ -120,6 +120,11 @@ export interface AICallOptions {
     maxTokens?: number;
 }
 
+export interface AICallResult {
+    content: string;
+    reasoning?: string;
+}
+
 /**
  * 统一的 AI 调用接口（非流式）
  */
@@ -199,5 +204,73 @@ export async function callAIStream(
     } catch (error) {
         console.error('AI 流式调用失败，使用模拟响应:', error);
         return createMockStream(generateMockResponse(personality));
+    }
+}
+
+async function readAIStream(stream: ReadableStream<Uint8Array>): Promise<AICallResult> {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    let reasoning = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            const dataStr = trimmed.replace(/^data:\s*/, '');
+            if (dataStr === '[DONE]') continue;
+            try {
+                const parsed = JSON.parse(dataStr);
+                const delta = parsed?.choices?.[0]?.delta;
+                if (delta?.reasoning_content) {
+                    reasoning += delta.reasoning_content;
+                }
+                if (delta?.content) {
+                    content += delta.content;
+                }
+            } catch {
+                // ignore malformed stream chunk
+            }
+        }
+    }
+
+    return { content, reasoning: reasoning || undefined };
+}
+
+/**
+ * 统一的 AI 调用接口（返回推理过程）
+ */
+export async function callAIWithReasoning(
+    messages: ChatMessage[],
+    personality: AIPersonality = 'master',
+    modelId: string = DEFAULT_MODEL_ID,
+    chartContext: string = '',
+    options?: AICallOptions
+): Promise<AICallResult> {
+    const config = getModelConfig(modelId);
+    if (!config) {
+        return { content: generateMockResponse(personality) };
+    }
+
+    const shouldStream = !!options?.reasoning || !!config.isReasoningDefault;
+    if (!shouldStream) {
+        const content = await callAI(messages, personality, modelId, chartContext, options);
+        return { content };
+    }
+
+    try {
+        const stream = await callAIStream(messages, personality, chartContext, modelId, options);
+        return await readAIStream(stream);
+    } catch (error) {
+        console.error('AI 推理解析失败，回退普通调用:', error);
+        const content = await callAI(messages, personality, modelId, chartContext, options);
+        return { content };
     }
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getModelName } from '@/lib/ai-config';
 
 interface HepanChart {
     id: string;
@@ -15,6 +16,8 @@ interface HepanChart {
     person2_birth: { year: number; month: number; day: number };
     compatibility_score: number | null;
     conversation_id?: string | null;
+    conversation?: { source_data?: Record<string, unknown> } | null;
+    result_data?: Record<string, unknown> | null;
     created_at: string;
 }
 
@@ -41,7 +44,7 @@ export default function HepanHistoryPage() {
 
         const { data, error } = await supabase
             .from('hepan_charts')
-            .select('*')
+            .select('*, conversation:conversations(source_data)')
             .eq('user_id', session.user.id)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -108,6 +111,39 @@ export default function HepanHistoryPage() {
         );
     });
 
+    const handleView = async (chart: HepanChart) => {
+        if (chart.result_data) {
+            const resultWithId = {
+                ...(chart.result_data as object),
+                chartId: chart.id,
+                conversationId: chart.conversation_id || null,
+            };
+            sessionStorage.setItem('hepan_result', JSON.stringify(resultWithId));
+            router.push('/hepan/result');
+            return;
+        }
+
+        const { analyzeCompatibility } = await import('@/lib/hepan');
+        const birth1 = chart.person1_birth as { year: number; month: number; day: number; hour: number };
+        const birth2 = chart.person2_birth as { year: number; month: number; day: number; hour: number };
+        const person1 = {
+            name: chart.person1_name,
+            ...birth1,
+        };
+        const person2 = {
+            name: chart.person2_name,
+            ...birth2,
+        };
+        const result = analyzeCompatibility(person1, person2, chart.type);
+        const resultWithId = {
+            ...result,
+            chartId: chart.id,
+            conversationId: chart.conversation_id || null,
+        };
+        sessionStorage.setItem('hepan_result', JSON.stringify(resultWithId));
+        router.push('/hepan/result');
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8">
@@ -163,10 +199,14 @@ export default function HepanHistoryPage() {
                         {filteredCharts.map(chart => {
                             const config = TYPE_CONFIG[chart.type];
                             const Icon = config.icon;
+                            const sourceData = chart.conversation?.source_data;
+                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
+                            const modelName = modelId ? getModelName(modelId) : null;
                             return (
                                 <div
                                     key={chart.id}
-                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors"
+                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors cursor-pointer"
+                                    onClick={() => handleView(chart)}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
@@ -180,10 +220,17 @@ export default function HepanHistoryPage() {
                                                         契合度 {chart.compatibility_score}%
                                                     </span>
                                                 )}
-                                                <span className="flex items-center gap-1 text-xs text-foreground-secondary ml-auto">
-                                                    <Calendar className="w-3 h-3" />
-                                                    {formatDate(chart.created_at)}
-                                                </span>
+                                                <div className="flex items-center gap-2 ml-auto">
+                                                    <span className="flex items-center gap-1 text-xs text-foreground-secondary">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(chart.created_at)}
+                                                    </span>
+                                                    {modelName && (
+                                                        <span className="text-xs text-foreground-secondary px-2 py-0.5 rounded bg-background">
+                                                            {modelName}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-sm font-medium">
                                                 {chart.person1_name} & {chart.person2_name}
@@ -195,7 +242,10 @@ export default function HepanHistoryPage() {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => setDeleteConfirmId(chart.id)}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setDeleteConfirmId(chart.id);
+                                            }}
                                             className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />

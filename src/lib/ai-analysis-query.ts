@@ -5,6 +5,48 @@
  */
 
 import { supabase } from './supabase';
+import type { ChatMessage } from '@/types';
+
+export function extractAnalysisFromConversation(
+    messages: ChatMessage[] = [],
+    sourceData?: Record<string, unknown>
+) {
+    const assistant = messages.find(m => m.role === 'assistant');
+    const modelId = typeof assistant?.model === 'string'
+        ? assistant.model
+        : typeof sourceData?.model_id === 'string'
+            ? sourceData.model_id
+            : null;
+    const reasoning = typeof assistant?.reasoning === 'string'
+        ? assistant.reasoning
+        : typeof sourceData?.reasoning_text === 'string'
+            ? sourceData.reasoning_text
+            : null;
+
+    return {
+        analysis: assistant?.content || null,
+        reasoning,
+        modelId,
+    };
+}
+
+export function hydrateConversationMessages(
+    messages: ChatMessage[] = [],
+    sourceData?: Record<string, unknown>
+) {
+    if (!sourceData) return messages;
+    const modelId = typeof sourceData.model_id === 'string' ? sourceData.model_id : null;
+    const reasoningText = typeof sourceData.reasoning_text === 'string' ? sourceData.reasoning_text : null;
+    if (!modelId && !reasoningText) return messages;
+    return messages.map(msg => {
+        if (msg.role !== 'assistant') return msg;
+        return {
+            ...msg,
+            model: msg.model || modelId || undefined,
+            reasoning: msg.reasoning || reasoningText || undefined,
+        };
+    });
+}
 
 /**
  * 根据 chartId 查询最新的八字 AI 分析

@@ -18,8 +18,16 @@ interface BasicInfoSectionProps {
     chartSummary?: string;
     /** 已保存的五行分析 */
     savedWuxingAnalysis?: string | null;
+    /** 已保存的五行推理 */
+    savedWuxingReasoning?: string | null;
+    /** 已保存的五行模型 */
+    savedWuxingModelId?: string | null;
     /** 已保存的人格分析 */
     savedPersonalityAnalysis?: string | null;
+    /** 已保存的人格推理 */
+    savedPersonalityReasoning?: string | null;
+    /** 已保存的人格模型 */
+    savedPersonalityModelId?: string | null;
     /** 保存五行分析回调 */
     onSaveWuxingAnalysis?: (analysis: string) => void;
     /** 保存人格分析回调 */
@@ -35,7 +43,11 @@ export function BasicInfoSection({
     userId,
     chartSummary,
     savedWuxingAnalysis,
+    savedWuxingReasoning,
+    savedWuxingModelId,
     savedPersonalityAnalysis,
+    savedPersonalityReasoning,
+    savedPersonalityModelId,
     onSaveWuxingAnalysis,
     onSavePersonalityAnalysis,
     onLoginRequired,
@@ -108,6 +120,8 @@ export function BasicInfoSection({
                     userId={userId}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedWuxingAnalysis}
+                    savedReasoning={savedWuxingReasoning}
+                    savedModelId={savedWuxingModelId}
                     onSaveAnalysis={onSaveWuxingAnalysis || (() => { })}
                     onLoginRequired={onLoginRequired}
                 />
@@ -135,6 +149,8 @@ export function BasicInfoSection({
                     userId={userId}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedPersonalityAnalysis}
+                    savedReasoning={savedPersonalityReasoning}
+                    savedModelId={savedPersonalityModelId}
                     onSaveAnalysis={onSavePersonalityAnalysis || (() => { })}
                     onLoginRequired={onLoginRequired}
                 />
@@ -155,4 +171,3 @@ export function BasicInfoSection({
         </div>
     );
 }
-

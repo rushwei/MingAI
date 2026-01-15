@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { TAROT_SPREADS, type DrawnCard } from '@/lib/tarot';
+import { getModelName } from '@/lib/ai-config';
 
 interface TarotReading {
     id: string;
@@ -13,6 +14,7 @@ interface TarotReading {
     question: string | null;
     cards: DrawnCard[];
     conversation_id?: string | null;
+    conversation?: { source_data?: Record<string, unknown> } | null;
     created_at: string;
 }
 
@@ -33,7 +35,7 @@ export default function TarotHistoryPage() {
 
         const { data, error } = await supabase
             .from('tarot_readings')
-            .select('*')
+            .select('*, conversation:conversations(source_data)')
             .eq('user_id', session.user.id)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -100,6 +102,21 @@ export default function TarotHistoryPage() {
         );
     });
 
+    const handleView = (reading: TarotReading) => {
+        const spread = TAROT_SPREADS.find(s => s.id === reading.spread_id);
+        const sessionData = {
+            spread,
+            spreadId: reading.spread_id,
+            cards: reading.cards,
+            question: reading.question || '',
+            readingId: reading.id,
+            createdAt: reading.created_at,
+            conversationId: reading.conversation_id || null,
+        };
+        sessionStorage.setItem('tarot_result', JSON.stringify(sessionData));
+        router.push(`/tarot/result?from=history&t=${Date.now()}`);
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8">
@@ -152,54 +169,70 @@ export default function TarotHistoryPage() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredReadings.map(reading => (
-                            <div
-                                key={reading.id}
-                                className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="px-2 py-0.5 text-xs rounded-full bg-purple-500/10 text-purple-500">
-                                                {getSpreadName(reading.spread_id)}
-                                            </span>
-                                            <span className="flex items-center gap-1 text-xs text-foreground-secondary">
-                                                <Calendar className="w-3 h-3" />
-                                                {formatDate(reading.created_at)}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm font-medium truncate">
-                                            {reading.question || '无特定问题'}
-                                        </p>
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                            {reading.cards.slice(0, 5).map((card, i) => (
-                                                <span
-                                                    key={i}
-                                                    className={`px-2 py-0.5 text-xs rounded ${card.orientation === 'reversed'
-                                                        ? 'bg-rose-500/10 text-rose-500'
-                                                        : 'bg-emerald-500/10 text-emerald-500'
-                                                        }`}
-                                                >
-                                                    {card.card.nameChinese}
-                                                    {card.orientation === 'reversed' ? ' ↓' : ''}
+                        {filteredReadings.map(reading => {
+                            const sourceData = reading.conversation?.source_data;
+                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
+                            const modelName = modelId ? getModelName(modelId) : null;
+                            return (
+                                <div
+                                    key={reading.id}
+                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors cursor-pointer"
+                                    onClick={() => handleView(reading)}
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-purple-500/10 text-purple-500">
+                                                    {getSpreadName(reading.spread_id)}
                                                 </span>
-                                            ))}
-                                            {reading.cards.length > 5 && (
-                                                <span className="px-2 py-0.5 text-xs rounded bg-background text-foreground-secondary">
-                                                    +{reading.cards.length - 5}
-                                                </span>
-                                            )}
+                                                <div className="flex items-center gap-2 ml-auto">
+                                                    <span className="flex items-center gap-1 text-xs text-foreground-secondary">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(reading.created_at)}
+                                                    </span>
+                                                    {modelName && (
+                                                        <span className="text-xs text-foreground-secondary px-2 py-0.5 rounded bg-background">
+                                                            {modelName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-sm font-medium truncate">
+                                                {reading.question || '无特定问题'}
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {reading.cards.slice(0, 5).map((card, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className={`px-2 py-0.5 text-xs rounded ${card.orientation === 'reversed'
+                                                            ? 'bg-rose-500/10 text-rose-500'
+                                                            : 'bg-emerald-500/10 text-emerald-500'
+                                                            }`}
+                                                    >
+                                                        {card.card.nameChinese}
+                                                        {card.orientation === 'reversed' ? ' ↓' : ''}
+                                                    </span>
+                                                ))}
+                                                {reading.cards.length > 5 && (
+                                                    <span className="px-2 py-0.5 text-xs rounded bg-background text-foreground-secondary">
+                                                        +{reading.cards.length - 5}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
+                                        <button
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setDeleteConfirmId(reading.id);
+                                            }}
+                                            className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setDeleteConfirmId(reading.id)}
-                                        className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

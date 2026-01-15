@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PERSONALITY_BASICS, type MBTIType } from '@/lib/mbti';
+import { getModelName } from '@/lib/ai-config';
 
 interface MBTIReading {
     id: string;
@@ -17,6 +18,8 @@ interface MBTIReading {
         TF: { T: number; F: number };
         JP: { J: number; P: number };
     };
+    conversation_id?: string | null;
+    conversation?: { source_data?: Record<string, unknown> } | null;
     created_at: string;
 }
 
@@ -110,6 +113,18 @@ export default function MBTIHistoryPage() {
         );
     });
 
+    const handleView = (reading: MBTIReading) => {
+        const sessionData = {
+            type: reading.mbti_type,
+            scores: reading.scores,
+            percentages: reading.percentages,
+            readingId: reading.id,
+            conversationId: reading.conversation_id || null,
+        };
+        sessionStorage.setItem('mbti_result', JSON.stringify(sessionData));
+        router.push('/mbti/result');
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8">
@@ -164,10 +179,14 @@ export default function MBTIHistoryPage() {
                     <div className="space-y-3">
                         {filteredReadings.map(reading => {
                             const info = getPersonalityInfo(reading.mbti_type);
+                            const sourceData = reading.conversation?.source_data;
+                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
+                            const modelName = modelId ? getModelName(modelId) : null;
                             return (
                                 <div
                                     key={reading.id}
-                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors"
+                                    className="bg-background-secondary rounded-xl p-4 border border-border hover:border-accent/30 transition-colors cursor-pointer"
+                                    onClick={() => handleView(reading)}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
@@ -178,10 +197,17 @@ export default function MBTIHistoryPage() {
                                                 <span className="text-sm font-medium">
                                                     {info.title}
                                                 </span>
-                                                <span className="flex items-center gap-1 text-xs text-foreground-secondary ml-auto">
-                                                    <Calendar className="w-3 h-3" />
-                                                    {formatDate(reading.created_at)}
-                                                </span>
+                                                <div className="flex items-center gap-2 ml-auto">
+                                                    <span className="flex items-center gap-1 text-xs text-foreground-secondary">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {formatDate(reading.created_at)}
+                                                    </span>
+                                                    {modelName && (
+                                                        <span className="text-xs text-foreground-secondary px-2 py-0.5 rounded bg-background">
+                                                            {modelName}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             {reading.percentages && (
                                                 <div className="flex flex-wrap gap-2 mt-2">
@@ -201,7 +227,10 @@ export default function MBTIHistoryPage() {
                                             )}
                                         </div>
                                         <button
-                                            onClick={() => setDeleteConfirmId(reading.id)}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setDeleteConfirmId(reading.id);
+                                            }}
                                             className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />

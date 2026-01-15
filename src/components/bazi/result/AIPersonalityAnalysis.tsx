@@ -10,12 +10,18 @@ import { useState, useEffect } from 'react';
 import { User, RefreshCw, Loader2, Copy, Check } from 'lucide-react';
 import { AIAnalysisLock } from './AIAnalysisLock';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { ModelSelector } from '@/components/ui/ModelSelector';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 
 interface AIPersonalityAnalysisProps {
     chartId: string;
     userId: string;
     chartSummary: string;
     savedAnalysis?: string | null;
+    savedReasoning?: string | null;
+    savedModelId?: string | null;
     onSaveAnalysis: (analysis: string) => void;
     onLoginRequired?: () => void;
 }
@@ -25,20 +31,50 @@ export function AIPersonalityAnalysis({
     userId,
     chartSummary,
     savedAnalysis,
+    savedReasoning,
+    savedModelId,
     onSaveAnalysis,
     onLoginRequired,
 }: AIPersonalityAnalysisProps) {
     const [isUnlocked, setIsUnlocked] = useState(!!savedAnalysis);
     const [analysis, setAnalysis] = useState(savedAnalysis || '');
+    const [analysisReasoning, setAnalysisReasoning] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
     useEffect(() => {
         if (savedAnalysis) {
             setIsUnlocked(true);
             setAnalysis(savedAnalysis);
         }
-    }, [savedAnalysis]);
+        if (savedReasoning) {
+            setAnalysisReasoning(savedReasoning);
+        }
+    }, [savedAnalysis, savedReasoning]);
+
+    useEffect(() => {
+        if (savedModelId) {
+            setSelectedModel(savedModelId);
+        }
+        if (savedReasoning) {
+            setReasoningEnabled(true);
+        }
+    }, [savedModelId, savedReasoning]);
+
+    useEffect(() => {
+        if (!userId) {
+            setMembershipType('free');
+            return;
+        }
+        getMembershipInfo(userId).then(info => {
+            if (info) {
+                setMembershipType(info.type);
+            }
+        });
+    }, [userId]);
 
     const handleUnlock = async () => {
         setIsUnlocked(true);
@@ -50,6 +86,7 @@ export function AIPersonalityAnalysis({
 
         setLoading(true);
         setAnalysis('');
+        setAnalysisReasoning(null);
 
         try {
             const response = await fetch('/api/bazi/analysis', {
@@ -59,6 +96,8 @@ export function AIPersonalityAnalysis({
                     chartId,
                     type: 'personality',
                     chartSummary,
+                    modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -69,10 +108,12 @@ export function AIPersonalityAnalysis({
             }
 
             setAnalysis(data.content);
+            setAnalysisReasoning(data.reasoning || null);
             onSaveAnalysis(data.content);
         } catch (error) {
             console.error('Analysis error:', error);
             setAnalysis('分析失败，请点击重新分析按钮重试。');
+            setAnalysisReasoning(null);
         } finally {
             setLoading(false);
         }
@@ -107,9 +148,23 @@ export function AIPersonalityAnalysis({
         </div>
     );
 
+    const modelControls = (
+        <div className="flex justify-end">
+            <ModelSelector
+                compact
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                reasoningEnabled={reasoningEnabled}
+                onReasoningChange={setReasoningEnabled}
+                userId={userId}
+                membershipType={membershipType}
+            />
+        </div>
+    );
+
     // 已解锁的内容
     const content = (
-        <div className="rounded-2xl border border-border overflow-hidden">
+        <div className="rounded-2xl border border-border">
             {/* 头部 */}
             <div className="p-4 border-b border-border flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-pink-500/5">
                 <div className="flex items-center gap-3">
@@ -151,34 +206,42 @@ export function AIPersonalityAnalysis({
             </div>
 
             {/* 内容 */}
-            <div className="p-4 prose prose-sm dark:prose-invert max-w-none min-h-[200px]">
+            <div className="p-4 prose prose-sm dark:prose-invert max-w-none min-h-[200px] overflow-hidden">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-3">
                         <Loader2 className="w-10 h-10 animate-spin text-accent" />
                         <p className="text-sm text-foreground-secondary">AI正在分析您的人格特征，请稍候...</p>
                     </div>
                 ) : (
-                    <MarkdownContent
-                        content={analysis || '点击「重新分析」开始AI分析'}
-                        className="text-sm text-foreground-secondary"
-                    />
+                    <>
+                        {analysisReasoning && (
+                            <ThinkingBlock content={analysisReasoning} />
+                        )}
+                        <MarkdownContent
+                            content={analysis || '点击「重新分析」开始AI分析'}
+                            className="text-sm text-foreground-secondary"
+                        />
+                    </>
                 )}
             </div>
         </div>
     );
 
     return (
-        <AIAnalysisLock
-            type="personality"
-            title="AI人格分析"
-            description="消耗1积分，获取基于您命盘的深度人格分析报告"
-            isUnlocked={isUnlocked}
-            placeholder={placeholder}
-            userId={userId}
-            onUnlock={handleUnlock}
-            onLoginRequired={onLoginRequired}
-        >
-            {content}
-        </AIAnalysisLock>
+        <div className="space-y-2">
+            {modelControls}
+            <AIAnalysisLock
+                type="personality"
+                title="AI人格分析"
+                description="消耗1积分，获取基于您命盘的深度人格分析报告"
+                isUnlocked={isUnlocked}
+                placeholder={placeholder}
+                userId={userId}
+                onUnlock={handleUnlock}
+                onLoginRequired={onLoginRequired}
+            >
+                {content}
+            </AIAnalysisLock>
+        </div>
     );
 }
