@@ -10,7 +10,10 @@ pnpm dev              # Development server at http://localhost:3000
 pnpm build            # Production build
 pnpm start            # Run production build locally
 pnpm lint             # Run ESLint
-pnpm test             # Run tests (Node.js built-in test runner)
+pnpm test             # Run all tests (Node.js built-in test runner)
+
+# Run a single test file
+NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logic.test.ts
 ```
 
 ## Architecture Overview
@@ -112,7 +115,7 @@ RESEND_API_KEY=...                # Email notifications (optional)
 
 ## Coding Conventions
 
-- TypeScript with explicit types (avoid `any`)
+- TypeScript strict mode with `noUnusedLocals` and `noUnusedParameters` enforced
 - Functional components only, PascalCase filenames
 - Match existing file's indentation/quote style
 - Keep page files thin, extract logic to feature components
