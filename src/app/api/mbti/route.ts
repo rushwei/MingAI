@@ -224,7 +224,6 @@ ${basic.description}
                 {
                     reasoning: reasoningEnabled,
                     temperature: 0.7,
-                    maxTokens: 1500,
                 }
             );
 

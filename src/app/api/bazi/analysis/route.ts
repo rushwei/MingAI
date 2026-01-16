@@ -105,7 +105,6 @@ export async function POST(request: NextRequest) {
             {
                 reasoning: reasoningEnabled,
                 temperature: 0.7,
-                maxTokens: 2000,
             }
         );
 

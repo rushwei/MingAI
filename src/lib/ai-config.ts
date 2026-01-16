@@ -40,6 +40,7 @@ export function buildModels(): AIModelConfig[] {
             apiUrl: process.env.DEEPSEEK_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
             apiKeyEnvVar: 'DEEPSEEK_API_KEY',
             supportsReasoning: false,
+            defaultMaxTokens: 4000,
         });
     }
 
@@ -57,6 +58,7 @@ export function buildModels(): AIModelConfig[] {
             apiKeyEnvVar: 'DEEPSEEK_PRO_API_KEY',
             supportsReasoning: deepseekProIds.length > 1,
             reasoningModelId: deepseekProIds[1],
+            defaultMaxTokens: 8000,
         });
     }
 
@@ -70,6 +72,7 @@ export function buildModels(): AIModelConfig[] {
             apiUrl: process.env.GLM_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
             apiKeyEnvVar: 'GLM_API_KEY',
             supportsReasoning: true,  // 支持思考模式
+            defaultMaxTokens: 4000,
         });
     }
 
@@ -84,6 +87,7 @@ export function buildModels(): AIModelConfig[] {
             apiUrl: process.env.GLM_PRO_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
             apiKeyEnvVar: 'GLM_PRO_API_KEY',
             supportsReasoning: true,  // 支持思考模式，可开启/关闭
+            defaultMaxTokens: 8000,
         });
     }
 
@@ -97,6 +101,7 @@ export function buildModels(): AIModelConfig[] {
             apiUrl: process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1beta',
             apiKeyEnvVar: 'GEMINI_API_KEY',
             supportsReasoning: false,
+            defaultMaxTokens: 4000,
         });
     }
 
@@ -114,6 +119,7 @@ export function buildModels(): AIModelConfig[] {
             apiKeyEnvVar: 'GEMINI_PRO_API_KEY',
             supportsReasoning: true,
             isReasoningDefault: true,  // 默认开启推理
+            defaultMaxTokens: 8000,
         });
     });
 
@@ -128,6 +134,7 @@ export function buildModels(): AIModelConfig[] {
             apiKeyEnvVar: 'QWEN_API_KEY',
             supportsReasoning: true,
             isReasoningDefault: true,  // 默认开启推理
+            defaultMaxTokens: 8000,
         });
     }
 
@@ -145,6 +152,7 @@ export function buildModels(): AIModelConfig[] {
             apiKeyEnvVar: 'DEEPAI_API_KEY',
             supportsReasoning: true,
             isReasoningDefault: true,  // 默认开启推理
+            defaultMaxTokens: 10000
         });
     });
 

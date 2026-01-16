@@ -49,7 +49,7 @@ export class OpenAICompatibleProvider implements AIProvider {
                     ...toOpenAIMessages(messages),
                 ],
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 2000,
+                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 // GLM 思考模式
                 ...(config.vendor === 'glm' && options?.reasoning ? { thinking: { type: 'enabled' } } : {}),
             }),
@@ -93,7 +93,7 @@ export class OpenAICompatibleProvider implements AIProvider {
                     ...toOpenAIMessages(messages),
                 ],
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 2000,
+                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 stream: true,
                 // GLM 思考模式
                 ...(config.vendor === 'glm' && options?.reasoning ? { thinking: { type: 'enabled' } } : {}),

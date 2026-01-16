@@ -295,7 +295,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         {
                             reasoning: reasoningEnabled,
                             temperature: 0.7,
-                            maxTokens: 1000,
                         }
                     );
 
