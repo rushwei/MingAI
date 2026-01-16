@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit } from '@/lib/credits';
 import { createClient } from '@supabase/supabase-js';
-import type { ChatMessage, AIPersonality, BaziChart } from '@/types';
+import type { ChatMessage, AIPersonality, BaziChart, DifyContext } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
@@ -144,10 +144,29 @@ function formatChartContextPrompt(context: ChartContext): string {
     return '';
 }
 
+// 格式化 Dify 增强上下文为用户消息前缀（不可信内容，不放入系统提示）
+function formatDifyContextAsUserPrefix(difyContext: DifyContext): string {
+    const parts: string[] = [];
+
+    if (difyContext.fileContent) {
+        parts.push(`【用户上传的文件内容如下】\n${difyContext.fileContent}\n【文件内容结束】`);
+    }
+
+    if (difyContext.webContent) {
+        parts.push(`【网络搜索结果如下】\n${difyContext.webContent}\n【搜索结果结束】`);
+    }
+
+    if (parts.length > 0) {
+        return `${parts.join('\n\n')}\n\n【用户的问题如下】\n`;
+    }
+
+    return '';
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning } = body as {
+        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext } = body as {
             messages: ChatMessage[];
             personality: AIPersonality;
             skipCreditCheck?: boolean;
@@ -156,6 +175,7 @@ export async function POST(request: NextRequest) {
             chartIds?: ChartIds;
             model?: string;
             reasoning?: boolean;
+            difyContext?: DifyContext;
         };
 
         if (!messages || !Array.isArray(messages)) {
@@ -244,17 +264,31 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 加载命盘上下文
+        // 加载命盘上下文（可信数据，放入系统提示）
         let chartContextPrompt = '';
         if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
             const chartContext = await loadChartContext(chartIds, userId);
             chartContextPrompt = formatChartContextPrompt(chartContext);
         }
 
+        // 处理 Dify 增强上下文（不可信数据，注入到用户消息中）
+        let processedMessages = messages;
+        if (difyContext && (difyContext.webContent || difyContext.fileContent)) {
+            const difyPrefix = formatDifyContextAsUserPrefix(difyContext);
+            if (difyPrefix) {
+                // 找到最后一条用户消息并在其内容前添加 Dify 上下文
+                processedMessages = messages.map((msg, index) => {
+                    if (index === messages.length - 1 && msg.role === 'user') {
+                        return { ...msg, content: difyPrefix + msg.content };
+                    }
+                    return msg;
+                });
+            }
+        } 
         // 流式响应
         if (stream) {
             const streamBody = await callAIStream(
-                messages,
+                processedMessages,
                 personality || 'master',
                 chartContextPrompt,
                 requestedModelId,
@@ -271,7 +305,7 @@ export async function POST(request: NextRequest) {
 
         // 非流式响应
         const content = await callAI(
-            messages,
+            processedMessages,
             personality || 'master',
             requestedModelId,
             chartContextPrompt,

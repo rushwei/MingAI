@@ -125,6 +125,12 @@ export interface MessageVersion {
     subsequentMessages?: ChatMessage[];
 }
 
+/** 消息附件信息（仅用户消息） */
+export interface MessageAttachment {
+    fileName: string;              // 文件名（含后缀）
+    webSearchEnabled?: boolean;    // 是否启用了网络搜索
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
     id: string;
@@ -141,6 +147,8 @@ export interface ChatMessage {
         baziName?: string;
         ziweiName?: string;
     };
+    // 附件信息（仅用户消息）- 记录发送该消息时使用的附件/搜索
+    attachments?: MessageAttachment;
 }
 
 /** AI 分析来源类型 */
@@ -244,4 +252,27 @@ export interface UserMembership {
     level: MembershipLevel;
     expiresAt?: string;
     createdAt: string;
+}
+
+// ===== Dify 增强功能相关类型 =====
+
+/** Dify 增强模式 */
+export type DifyMode = 'file' | 'web' | 'all';
+
+/** 附件选择状态（前端使用） */
+export interface AttachmentState {
+    file?: File;
+    webSearchEnabled: boolean;
+}
+
+/** Dify API 响应数据 */
+export interface DifyResponse {
+    web_content?: string;
+    file_content?: string;
+}
+
+/** Dify 增强上下文（传递给 Chat API） */
+export interface DifyContext {
+    webContent?: string;
+    fileContent?: string;
 }

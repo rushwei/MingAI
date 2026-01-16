@@ -9,7 +9,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Lock, Menu } from 'lucide-react';
 import Link from 'next/link';
-import type { ChatMessage, Conversation } from '@/types';
+import type { ChatMessage, Conversation, AttachmentState, DifyContext } from '@/types';
 import { AI_PERSONALITIES } from '@/lib/ai';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -87,6 +87,12 @@ export default function ChatPage() {
     // 模型和推理状态
     const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
+
+    // 附件和搜索状态
+    const [attachmentState, setAttachmentState] = useState<AttachmentState>({
+        file: undefined,
+        webSearchEnabled: false,
+    });
 
     // 滚动到最新消息
     const scrollToBottom = () => {
@@ -223,6 +229,11 @@ export default function ChatPage() {
             role: 'user',
             content: inputValue.trim(),
             createdAt: new Date().toISOString(),
+            // 记录发送时使用的附件/搜索状态
+            attachments: (attachmentState.file || attachmentState.webSearchEnabled) ? {
+                fileName: attachmentState.file?.name || '',
+                webSearchEnabled: attachmentState.webSearchEnabled,
+            } : undefined,
         };
 
         const isNewConversation = !activeConversationId;
@@ -263,6 +274,51 @@ export default function ChatPage() {
             // 创建 AbortController 以支持停止回复
             abortControllerRef.current = new AbortController();
 
+            // 如果有附件或搜索，先调用 Dify API
+            let difyContext: DifyContext | undefined;
+            if (attachmentState.file || attachmentState.webSearchEnabled) {
+                const mode = attachmentState.file && attachmentState.webSearchEnabled
+                    ? 'all'
+                    : attachmentState.file
+                        ? 'file'
+                        : 'web';
+
+                const formData = new FormData();
+                formData.append('mode', mode);
+                formData.append('query', inputValue.trim());
+                if (attachmentState.file) {
+                    formData.append('file', attachmentState.file);
+                }
+
+                const difyResponse = await fetch('/api/dify/enhance', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': headers.Authorization || '',
+                    },
+                    body: formData,
+                    signal: abortControllerRef.current.signal,
+                });
+
+                if (difyResponse.ok) {
+                    const difyResult = await difyResponse.json();
+                    if (difyResult.success && difyResult.data) {
+                        difyContext = {
+                            webContent: difyResult.data.web_content,
+                            fileContent: difyResult.data.file_content,
+                        };
+                        // 只清空文件，保留搜索状态（由用户自行取消）
+                        setAttachmentState(prev => ({ ...prev, file: undefined }));
+                    }
+                } else {
+                    const errorData = await difyResponse.json();
+                    // 如果是会员权限问题，显示错误但继续发送（不清空附件）
+                    if (errorData.code === 'MEMBERSHIP_REQUIRED') {
+                        console.warn('Dify权限不足:', errorData.error);
+                    }
+                    // Dify失败时保留附件状态，让用户可以重试
+                }
+            }
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers,
@@ -276,6 +332,7 @@ export default function ChatPage() {
                         ziweiId: selectedCharts.ziwei?.id,
                     },
                     reasoning: reasoningEnabled,
+                    difyContext,
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -855,6 +912,8 @@ export default function ChatPage() {
                         onReasoningChange={setReasoningEnabled}
                         userId={userId}
                         membershipType={membership?.type || 'free'}
+                        attachmentState={attachmentState}
+                        onAttachmentChange={setAttachmentState}
                     />
                 </div>
             </div>

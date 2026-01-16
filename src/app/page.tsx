@@ -98,7 +98,7 @@ const membershipBenefits = [
     icon: Zap,
     color: "text-gray-500",
     borderColor: "border-gray-200 dark:border-gray-700",
-    features: ["基础八字/紫微排盘", "每日运势预览", "3次AI对话体验", "每日恢复1次"]
+    features: ["基础八字/紫微排盘", "塔罗/六爻/MBTI支持", "每日/月运势预览", "3次AI对话积分体验", "每日恢复1积分"]
   },
   {
     tier: "Plus",
@@ -107,7 +107,7 @@ const membershipBenefits = [
     icon: Star,
     color: "text-blue-500",
     borderColor: "border-blue-500/50",
-    features: ["全部排盘功能", "完整运势分析", "50次AI对话", "每日恢复5次"],
+    features: ["更多模型支持", "完整运势分析", "50积分上限", "每日恢复5积分", "模型搜索支持"],
     popular: true
   },
   {
@@ -117,7 +117,7 @@ const membershipBenefits = [
     icon: Infinity,
     color: "text-amber-500",
     borderColor: "border-amber-500/50",
-    features: ["全部Plus权益", "200次AI对话", "每小时恢复1次", "优先客服支持"]
+    features: ["全部Plus权益", "高级模型支持", "200积分上限", "每小时恢复1积分", "深度搜索支持", "优先客服支持"]
   }
 ];
 

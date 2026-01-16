@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Paperclip, Search } from 'lucide-react';
 import type { AIPersonalityConfig, ChatMessage } from '@/types';
 import { getModelName } from '@/lib/ai-config';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -136,6 +136,23 @@ export function ChatMessageList({
                             </div>
                         ) : (
                             <div className="flex flex-col items-end max-w-[75%]">
+                                {/* 附件信息显示 - 在消息气泡上方 */}
+                                {message.attachments && (message.attachments.fileName || message.attachments.webSearchEnabled) && (
+                                    <div className="flex items-center gap-2 mb-1 text-sm text-foreground-secondary">
+                                        {message.attachments.fileName && (
+                                            <span className="flex items-center gap-1">
+                                                <Paperclip className="w-3.5 h-3.5" />
+                                                <span className="max-w-[150px] truncate">{message.attachments.fileName}</span>
+                                            </span>
+                                        )}
+                                        {message.attachments.webSearchEnabled && (
+                                            <span className="flex items-center gap-1">
+                                                <Search className="w-3.5 h-3.5" />
+                                                <span>网络搜索</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 {/* 消息气泡 */}
                                 <div className="px-4 py-3 rounded-2xl rounded-tr-md bg-accent text-white shadow-sm">
                                     <p className="whitespace-pre-wrap text-base leading-relaxed">

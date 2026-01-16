@@ -1,11 +1,13 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Send, Paperclip, Orbit, X, Sparkles, Square, Plus } from 'lucide-react';
+import { Send, Paperclip, Orbit, X, Sparkles, Square, Plus, Search } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
+import type { AttachmentState } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
+import { useToast } from '@/components/ui/Toast';
 
 interface ChatComposerProps {
     inputValue: string;
@@ -23,6 +25,9 @@ interface ChatComposerProps {
     onReasoningChange?: (enabled: boolean) => void;
     userId?: string | null;
     membershipType?: MembershipType;
+    // 附件和搜索相关
+    attachmentState?: AttachmentState;
+    onAttachmentChange?: (state: AttachmentState) => void;
 }
 
 export function ChatComposer({
@@ -41,11 +46,60 @@ export function ChatComposer({
     onReasoningChange,
     userId,
     membershipType = 'free',
+    attachmentState,
+    onAttachmentChange,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { showToast } = useToast();
+
+    // 权限判断
+    const canUseWeb = membershipType !== 'free';
+    const canUseBoth = membershipType === 'pro';
+    const hasFile = !!attachmentState?.file;
+    const hasWebSearch = !!attachmentState?.webSearchEnabled;
+
+    // 文件选择处理
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onAttachmentChange) return;
+
+        // plus会员：选择文件时自动关闭搜索，并提示
+        if (!canUseBoth && attachmentState?.webSearchEnabled) {
+            onAttachmentChange({ file, webSearchEnabled: false });
+            showToast('info', '同时使用搜索和附件仅限 Pro 用户，已自动关闭搜索');
+        } else {
+            onAttachmentChange({ ...attachmentState, file, webSearchEnabled: attachmentState?.webSearchEnabled ?? false });
+        }
+        // 清空input以便重复选择同一文件
+        e.target.value = '';
+    };
+
+    // 搜索切换处理
+    const handleWebToggle = () => {
+        if (!onAttachmentChange) return;
+
+        // Free 用户提示
+        if (!canUseWeb) {
+            showToast('info', '网络搜索仅限 Plus 以上用户使用');
+            return;
+        }
+
+        const newWebSearch = !attachmentState?.webSearchEnabled;
+        // plus会员：启用搜索时自动清除文件，并提示
+        if (!canUseBoth && attachmentState?.file && newWebSearch) {
+            onAttachmentChange({ file: undefined, webSearchEnabled: true });
+            showToast('info', '同时使用搜索和附件仅限 Pro 用户，已自动清除附件');
+        } else {
+            onAttachmentChange({
+                file: attachmentState?.file,
+                webSearchEnabled: newWebSearch
+            });
+        }
+    };
 
     // 自动调整 textarea 高度
     useEffect(() => {
@@ -173,14 +227,61 @@ export function ChatComposer({
                                 <div className="w-px h-6 bg-border mx-1" />
 
                                 {/* 附件按钮 */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${disabled
+                                            ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
+                                            : hasFile
+                                                ? 'bg-blue-500/10 text-blue-600'
+                                                : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                                            }`}
+                                        title={hasFile ? attachmentState?.file?.name : '上传附件'}
+                                        disabled={disabled}
+                                    >
+                                        <Paperclip className="w-4.5 h-4.5" />
+                                        <span className="max-w-[80px] truncate">{hasFile ? attachmentState?.file?.name : '附件'}</span>
+                                    </button>
+                                    {hasFile && !disabled && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onAttachmentChange?.({ ...attachmentState, file: undefined, webSearchEnabled: attachmentState?.webSearchEnabled ?? false })}
+                                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-600"
+                                            title="清除附件"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* 搜索按钮 */}
                                 <button
                                     type="button"
-                                    className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-background-tertiary transition-all opacity-50"
-                                    title="附件（开发中）"
-                                    disabled
+                                    onClick={handleWebToggle}
+                                    className={`p-2 rounded-lg transition-all ${
+                                        hasWebSearch
+                                            ? 'bg-green-500/10 text-green-600'
+                                            : !canUseWeb
+                                                ? 'opacity-50 text-foreground-secondary hover:bg-background-tertiary'
+                                                : disabled
+                                                    ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
+                                                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary'
+                                    }`}
+                                    title={!canUseWeb ? '网络搜索仅限 Plus 以上用户' : '网络搜索'}
+                                    disabled={disabled}
                                 >
-                                    <Paperclip className="w-5 h-5" />
+                                    <Search className="w-5 h-5" />
                                 </button>
+
+                                {/* 隐藏的文件输入 */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.txt,.md,.doc,.docx,.xlsx,.xls,.csv"
+                                    onChange={handleFileChange}
+                                />
                             </div>
 
                             {/* 移动端：折叠菜单 */}
@@ -238,6 +339,45 @@ export function ChatComposer({
                                                     </button>
                                                 </div>
                                             )}
+                                            {/* 附件选项 */}
+                                            <div className={`flex items-center w-full rounded-lg transition-all ${hasFile
+                                                ? 'bg-blue-500/10 text-blue-600'
+                                                : 'hover:bg-background-secondary text-foreground-secondary'
+                                                }`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        fileInputRef.current?.click();
+                                                        setMobileMenuOpen(false);
+                                                    }}
+                                                    className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
+                                                    disabled={disabled}
+                                                >
+                                                    <Paperclip className="w-4.5 h-4.5" />
+                                                    <span>{hasFile ? attachmentState?.file?.name : '上传附件'}</span>
+                                                </button>
+                                            </div>
+                                            {/* 搜索选项 */}
+                                            <div className={`flex items-center w-full rounded-lg transition-all ${
+                                                hasWebSearch
+                                                    ? 'bg-green-500/10 text-green-600'
+                                                    : !canUseWeb
+                                                        ? 'opacity-50 text-foreground-secondary hover:bg-background-secondary'
+                                                        : 'hover:bg-background-secondary text-foreground-secondary'
+                                                }`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        handleWebToggle();
+                                                        setMobileMenuOpen(false);
+                                                    }}
+                                                    className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
+                                                    disabled={disabled}
+                                                >
+                                                    <Search className="w-4.5 h-4.5" />
+                                                    <span>{!canUseWeb ? '搜索 (Plus+)' : hasWebSearch ? '搜索已启用' : '网络搜索'}</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </>
                                 )}
