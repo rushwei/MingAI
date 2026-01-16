@@ -1,7 +1,7 @@
 /**
  * 六爻占卜核心库
  *
- * 包含 64 卦数据、铜钱起卦算法、变爻计算、六亲六神世应用神
+ * 包含 64 卦数据、铜钱起卦算法、变爻计算、六亲、六神、世应、用神
  */
 
 import {
@@ -746,3 +746,1043 @@ export function getLiuQinMeaning(liuQin: LiuQin): string {
 
 // 导出五行类型供其他模块使用
 export type { WuXing, DiZhi, Palace };
+
+// ============= 六爻扩展分析系统 (P0/P1/P2) =============
+
+import { Solar } from 'lunar-javascript';
+
+// ============= 新增类型定义 =============
+
+/** 天干类型 */
+export type TianGan = '甲' | '乙' | '丙' | '丁' | '戊' | '己' | '庚' | '辛' | '壬' | '癸';
+
+/** 干支对 */
+export interface GanZhi {
+    gan: TianGan;
+    zhi: DiZhi;
+}
+
+/** 完整干支时间（四柱） */
+export interface GanZhiTime {
+    year: GanZhi;
+    month: GanZhi;
+    day: GanZhi;
+    hour: GanZhi;
+    xun: string;  // 日柱所属旬
+}
+
+/** 旬空信息 */
+export interface KongWang {
+    xun: string;
+    kongDizhi: [DiZhi, DiZhi];
+}
+
+/** 爻的空亡状态 */
+export type YaoKongWangState =
+    | 'not_kong'        // 不空亡
+    | 'kong_static'     // 真空（静爻空亡）
+    | 'kong_changing'   // 动不为空
+    | 'kong_ri_chong'   // 冲空不空
+    | 'kong_yue_jian';  // 临月建不空
+
+/** 月建日辰作用类型 */
+export type YaoAction = 'sheng' | 'ke' | 'fu' | 'chong' | 'he' | 'po' | 'none';
+
+/** 月建日辰影响 */
+export interface YaoInfluence {
+    monthAction: YaoAction;
+    dayAction: YaoAction;
+    description: string;
+}
+
+/** 旺衰五态 */
+export type WangShuai = 'wang' | 'xiang' | 'xiu' | 'qiu' | 'si';
+
+/** 旺衰标签 */
+export const WANG_SHUAI_LABELS: Record<WangShuai, string> = {
+    wang: '旺', xiang: '相', xiu: '休', qiu: '囚', si: '死',
+};
+
+/** 空亡状态标签 */
+export const KONG_WANG_LABELS: Record<YaoKongWangState, string> = {
+    'not_kong': '',
+    'kong_static': '空',
+    'kong_changing': '动空',
+    'kong_ri_chong': '冲空',
+    'kong_yue_jian': '临建',
+};
+
+/** 爻的综合强度 */
+export interface YaoStrength {
+    wangShuai: WangShuai;
+    score: number;       // 0-100
+    factors: string[];
+    isStrong: boolean;
+}
+
+/** 动爻变化类型 */
+export type HuaType =
+    | 'huaJin'       // 化进（变爻地支序数增加）
+    | 'huaTui'       // 化退（变爻地支序数减少）
+    | 'huiTouSheng'  // 回头生（变爻五行生本爻）
+    | 'huiTouKe'     // 回头克（变爻五行克本爻）
+    | 'huaKong'      // 化空（变爻落入空亡）
+    | 'huaMu'        // 化墓（变爻为本爻的墓库）
+    | 'fuYin'        // 伏吟（变爻与本爻相同）
+    | 'fanYin'       // 反吟（变爻与本爻六冲）
+    | 'none';        // 无特殊变化
+
+/** 动爻变化分析结果 */
+export interface YaoChangeAnalysis {
+    huaType: HuaType;
+    originalZhi: DiZhi;
+    changedZhi: DiZhi;
+    description: string;
+}
+
+/** 地支关系 */
+export interface DiZhiRelation {
+    liuHe: boolean;
+    liuChong: boolean;
+    xing: boolean;
+    hai: boolean;
+    po: boolean;
+    heResult?: WuXing;  // 合化结果
+}
+
+/** 伏神信息 */
+export interface FuShen {
+    liuQin: LiuQin;
+    wuXing: WuXing;
+    naJia: DiZhi;
+    feiShenPosition: number;    // 飞神（伏神所伏之爻）位置
+    feiShenLiuQin: LiuQin;
+    isAvailable: boolean;       // 是否可用
+    availabilityReason: string;
+}
+
+/** 神系成员 */
+export interface ShenMember {
+    liuQin: LiuQin;
+    wuXing: WuXing;
+    positions: number[];
+}
+
+/** 原神/忌神/仇神体系 */
+export interface ShenSystem {
+    yuanShen?: ShenMember;  // 原神：生用神者
+    jiShen?: ShenMember;    // 忌神：克用神者
+    chouShen?: ShenMember;  // 仇神：克原神者
+}
+
+/** 扩展爻信息 */
+export interface FullYaoInfoExtended extends FullYaoInfo {
+    kongWangState: YaoKongWangState;
+    influence: YaoInfluence;
+    strength: YaoStrength;
+    changeAnalysis?: YaoChangeAnalysis;
+}
+
+/** 完整六爻分析结果 */
+export interface LiuYaoFullAnalysis {
+    ganZhiTime: GanZhiTime;
+    kongWang: KongWang;
+    fullYaos: FullYaoInfoExtended[];
+    changedYaos?: FullYaoInfoExtended[];
+    yongShen: YongShen;
+    fuShen?: FuShen[];
+    shenSystem?: ShenSystem;
+    timeRecommendations: TimeRecommendation[];
+    summary: {
+        overallTrend: 'favorable' | 'neutral' | 'unfavorable';
+        keyFactors: string[];
+    };
+}
+
+// ============= 数据表定义 =============
+
+/** 天干五行对照表 */
+export const TIANGAN_WUXING: Record<TianGan, WuXing> = {
+    '甲': '木', '乙': '木',
+    '丙': '火', '丁': '火',
+    '戊': '土', '己': '土',
+    '庚': '金', '辛': '金',
+    '壬': '水', '癸': '水',
+};
+
+/** 地支序数（用于计算旬空和进退） */
+const DIZHI_INDEX: Record<DiZhi, number> = {
+    '子': 0, '丑': 1, '寅': 2, '卯': 3, '辰': 4, '巳': 5,
+    '午': 6, '未': 7, '申': 8, '酉': 9, '戌': 10, '亥': 11,
+};
+
+/** 天干序数 */
+const TIANGAN_INDEX: Record<TianGan, number> = {
+    '甲': 0, '乙': 1, '丙': 2, '丁': 3, '戊': 4,
+    '己': 5, '庚': 6, '辛': 7, '壬': 8, '癸': 9,
+};
+
+/** 旬空表（六甲旬对应的空亡地支） */
+export const XUN_KONG_TABLE: Record<string, [DiZhi, DiZhi]> = {
+    '甲子旬': ['戌', '亥'],
+    '甲戌旬': ['申', '酉'],
+    '甲申旬': ['午', '未'],
+    '甲午旬': ['辰', '巳'],
+    '甲辰旬': ['寅', '卯'],
+    '甲寅旬': ['子', '丑'],
+};
+
+/** 月令旺衰表：月支 → 五行 → 旺衰状态 */
+export const WANG_SHUAI_TABLE: Record<DiZhi, Record<WuXing, WangShuai>> = {
+    // 春季：木旺火相水休金囚土死
+    '寅': { '木': 'wang', '火': 'xiang', '水': 'xiu', '金': 'qiu', '土': 'si' },
+    '卯': { '木': 'wang', '火': 'xiang', '水': 'xiu', '金': 'qiu', '土': 'si' },
+    '辰': { '土': 'wang', '金': 'xiang', '火': 'xiu', '木': 'qiu', '水': 'si' },  // 辰为土旺
+    // 夏季：火旺土相木休水囚金死
+    '巳': { '火': 'wang', '土': 'xiang', '木': 'xiu', '水': 'qiu', '金': 'si' },
+    '午': { '火': 'wang', '土': 'xiang', '木': 'xiu', '水': 'qiu', '金': 'si' },
+    '未': { '土': 'wang', '金': 'xiang', '火': 'xiu', '木': 'qiu', '水': 'si' },  // 未为土旺
+    // 秋季：金旺水相土休火囚木死
+    '申': { '金': 'wang', '水': 'xiang', '土': 'xiu', '火': 'qiu', '木': 'si' },
+    '酉': { '金': 'wang', '水': 'xiang', '土': 'xiu', '火': 'qiu', '木': 'si' },
+    '戌': { '土': 'wang', '金': 'xiang', '火': 'xiu', '木': 'qiu', '水': 'si' },  // 戌为土旺
+    // 冬季：水旺木相金休土囚火死
+    '亥': { '水': 'wang', '木': 'xiang', '金': 'xiu', '土': 'qiu', '火': 'si' },
+    '子': { '水': 'wang', '木': 'xiang', '金': 'xiu', '土': 'qiu', '火': 'si' },
+    '丑': { '土': 'wang', '金': 'xiang', '火': 'xiu', '木': 'qiu', '水': 'si' },  // 丑为土旺
+};
+
+/** 六冲表 */
+export const LIU_CHONG: Record<DiZhi, DiZhi> = {
+    '子': '午', '丑': '未', '寅': '申', '卯': '酉', '辰': '戌', '巳': '亥',
+    '午': '子', '未': '丑', '申': '寅', '酉': '卯', '戌': '辰', '亥': '巳',
+};
+
+/** 六合表及合化结果 */
+export const LIU_HE: Record<DiZhi, { partner: DiZhi; result: WuXing }> = {
+    '子': { partner: '丑', result: '土' },
+    '丑': { partner: '子', result: '土' },
+    '寅': { partner: '亥', result: '木' },
+    '亥': { partner: '寅', result: '木' },
+    '卯': { partner: '戌', result: '火' },
+    '戌': { partner: '卯', result: '火' },
+    '辰': { partner: '酉', result: '金' },
+    '酉': { partner: '辰', result: '金' },
+    '巳': { partner: '申', result: '水' },
+    '申': { partner: '巳', result: '水' },
+    '午': { partner: '未', result: '火' },  // 午未合火（或土）
+    '未': { partner: '午', result: '火' },
+};
+
+/** 六害表 */
+export const LIU_HAI: Record<DiZhi, DiZhi> = {
+    '子': '未', '丑': '午', '寅': '巳', '卯': '辰',
+    '辰': '卯', '巳': '寅', '午': '丑', '未': '子',
+    '申': '亥', '酉': '戌', '戌': '酉', '亥': '申',
+};
+
+/** 相刑表（简化版：只记录主要刑关系） */
+export const XIANG_XING: Record<DiZhi, DiZhi[]> = {
+    '寅': ['巳', '申'],  // 寅巳申三刑
+    '巳': ['寅', '申'],
+    '申': ['寅', '巳'],
+    '丑': ['戌', '未'],  // 丑戌未三刑
+    '戌': ['丑', '未'],
+    '未': ['丑', '戌'],
+    '子': ['卯'],        // 子卯相刑
+    '卯': ['子'],
+    '辰': ['辰'],        // 自刑
+    '午': ['午'],
+    '酉': ['酉'],
+    '亥': ['亥'],
+};
+
+/** 相破表 */
+export const XIANG_PO: Record<DiZhi, DiZhi> = {
+    '子': '酉', '酉': '子',
+    '丑': '辰', '辰': '丑',
+    '寅': '亥', '亥': '寅',
+    '卯': '午', '午': '卯',
+    '巳': '申', '申': '巳',
+    '未': '戌', '戌': '未',
+};
+
+/** 五行墓库表 */
+export const WUXING_MU: Record<WuXing, DiZhi> = {
+    '木': '未',  // 木墓在未
+    '火': '戌',  // 火墓在戌
+    '土': '戌',  // 土墓在戌
+    '金': '丑',  // 金墓在丑
+    '水': '辰',  // 水墓在辰
+};
+
+// ============= P0: 干支时间计算函数 =============
+
+/**
+ * 根据日干支计算所属旬
+ */
+export function getXunFromDayGanZhi(dayGan: TianGan, dayZhi: DiZhi): string {
+    const ganIndex = TIANGAN_INDEX[dayGan];
+    const zhiIndex = DIZHI_INDEX[dayZhi];
+    // 计算旬首的地支索引：日支索引 - 日干索引（取模12）
+    const xunStartZhiIndex = (zhiIndex - ganIndex + 12) % 12;
+    const xunNames: Record<number, string> = {
+        0: '甲子旬', 2: '甲寅旬', 4: '甲辰旬',
+        6: '甲午旬', 8: '甲申旬', 10: '甲戌旬',
+    };
+    return xunNames[xunStartZhiIndex] || '甲子旬';
+}
+
+/**
+ * 使用 lunar-javascript 计算完整干支时间
+ * 采用子初换日规则（23:00开始算新日）
+ */
+export function calculateGanZhiTime(date: Date): GanZhiTime {
+    const solar = Solar.fromYmdHms(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        0
+    );
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+
+    // 设置子初换日规则：23:00开始算新日
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (eightChar as any).setSect(1);
+
+    const dayGan = eightChar.getDayGan() as TianGan;
+    const dayZhi = eightChar.getDayZhi() as DiZhi;
+
+    return {
+        year: {
+            gan: eightChar.getYearGan() as TianGan,
+            zhi: eightChar.getYearZhi() as DiZhi,
+        },
+        month: {
+            gan: eightChar.getMonthGan() as TianGan,
+            zhi: eightChar.getMonthZhi() as DiZhi,
+        },
+        day: {
+            gan: dayGan,
+            zhi: dayZhi,
+        },
+        hour: {
+            gan: eightChar.getTimeGan() as TianGan,
+            zhi: eightChar.getTimeZhi() as DiZhi,
+        },
+        xun: getXunFromDayGanZhi(dayGan, dayZhi),
+    };
+}
+
+// ============= P0: 旬空计算函数 =============
+
+/**
+ * 根据日柱获取旬空信息
+ */
+export function getKongWang(dayGan: TianGan, dayZhi: DiZhi): KongWang {
+    const xun = getXunFromDayGanZhi(dayGan, dayZhi);
+    return {
+        xun,
+        kongDizhi: XUN_KONG_TABLE[xun],
+    };
+}
+
+/**
+ * 检查爻的空亡状态
+ */
+export function checkYaoKongWang(
+    yaoZhi: DiZhi,
+    kongWang: KongWang,
+    monthZhi: DiZhi,
+    dayZhi: DiZhi,
+    isChanging: boolean
+): YaoKongWangState {
+    // 不在空亡地支中，不空
+    if (!kongWang.kongDizhi.includes(yaoZhi)) {
+        return 'not_kong';
+    }
+    // 动爻不为空（动不为空）
+    if (isChanging) {
+        return 'kong_changing';
+    }
+    // 日辰冲空则不空
+    if (LIU_CHONG[yaoZhi] === dayZhi) {
+        return 'kong_ri_chong';
+    }
+    // 临月建不空
+    if (yaoZhi === monthZhi) {
+        return 'kong_yue_jian';
+    }
+    // 真空
+    return 'kong_static';
+}
+
+// ============= P0: 月建日辰作用判定 =============
+
+/**
+ * 获取地支对爻的作用（月建或日辰对爻）
+ */
+export function getZhiAction(sourceZhi: DiZhi, targetZhi: DiZhi): YaoAction {
+    // 六冲
+    if (LIU_CHONG[sourceZhi] === targetZhi) {
+        return 'chong';
+    }
+    // 六合
+    if (LIU_HE[sourceZhi]?.partner === targetZhi) {
+        return 'he';
+    }
+    // 相破
+    if (XIANG_PO[sourceZhi] === targetZhi) {
+        return 'po';
+    }
+
+    const sourceWuXing = DIZHI_WUXING[sourceZhi];
+    const targetWuXing = DIZHI_WUXING[targetZhi];
+
+    // 比和（扶）
+    if (sourceWuXing === targetWuXing) {
+        return 'fu';
+    }
+    // 生
+    if (WUXING_SHENG[sourceWuXing] === targetWuXing) {
+        return 'sheng';
+    }
+    // 克
+    if (WUXING_KE[sourceWuXing] === targetWuXing) {
+        return 'ke';
+    }
+
+    return 'none';
+}
+
+/** 作用类型标签 */
+const ACTION_LABELS: Record<YaoAction, string> = {
+    sheng: '生', ke: '克', fu: '扶', chong: '冲', he: '合', po: '破', none: '',
+};
+
+/**
+ * 获取月建日辰对爻的综合影响
+ */
+export function getYaoInfluence(yaoZhi: DiZhi, monthZhi: DiZhi, dayZhi: DiZhi): YaoInfluence {
+    const monthAction = getZhiAction(monthZhi, yaoZhi);
+    const dayAction = getZhiAction(dayZhi, yaoZhi);
+
+    // 构建描述
+    const parts: string[] = [];
+    if (monthAction !== 'none') {
+        parts.push(`月${ACTION_LABELS[monthAction]}`);
+    }
+    if (dayAction !== 'none') {
+        parts.push(`日${ACTION_LABELS[dayAction]}`);
+    }
+
+    return {
+        monthAction,
+        dayAction,
+        description: parts.length > 0 ? parts.join('、') : '无特殊作用',
+    };
+}
+
+// ============= P0: 旺衰判定 =============
+
+/**
+ * 计算爻的综合强度
+ */
+export function calculateYaoStrength(
+    yaoWuXing: WuXing,
+    monthZhi: DiZhi,
+    _dayZhi: DiZhi,  // 保留参数以保持API一致性，实际使用influence中的dayAction
+    isChanging: boolean,
+    kongWangState: YaoKongWangState,
+    influence: YaoInfluence
+): YaoStrength {
+    const factors: string[] = [];
+    let score = 50; // 基础分
+
+    // 1. 月令旺衰（权重最大，±40分）
+    const wangShuai = WANG_SHUAI_TABLE[monthZhi][yaoWuXing];
+    const wangShuaiScores: Record<WangShuai, number> = {
+        wang: 40, xiang: 25, xiu: 0, qiu: -15, si: -25,
+    };
+    score += wangShuaiScores[wangShuai];
+    factors.push(`月令${WANG_SHUAI_LABELS[wangShuai]}`);
+
+    // 2. 日辰作用（±15分）
+    if (influence.dayAction === 'sheng') {
+        score += 15;
+        factors.push('日生');
+    } else if (influence.dayAction === 'fu') {
+        score += 12;
+        factors.push('日扶');
+    } else if (influence.dayAction === 'ke') {
+        score -= 15;
+        factors.push('日克');
+    } else if (influence.dayAction === 'chong') {
+        score -= 12;
+        factors.push('日冲');
+    }
+
+    // 3. 月建作用（±10分）
+    if (influence.monthAction === 'sheng') {
+        score += 10;
+        factors.push('月生');
+    } else if (influence.monthAction === 'fu') {
+        score += 8;
+        factors.push('月扶');
+    } else if (influence.monthAction === 'ke') {
+        score -= 10;
+        factors.push('月克');
+    } else if (influence.monthAction === 'chong') {
+        score -= 8;
+        factors.push('月冲');
+    }
+
+    // 4. 空亡影响
+    if (kongWangState === 'kong_static') {
+        score -= 25;
+        factors.push('空亡');
+    }
+
+    // 5. 动静状态
+    if (isChanging) {
+        score += 5;
+        factors.push('动爻');
+    }
+
+    // 确保分数在0-100范围内
+    score = Math.max(0, Math.min(100, score));
+
+    return {
+        wangShuai,
+        score,
+        factors,
+        isStrong: score >= 50,
+    };
+}
+
+// ============= P1: 动爻变化分析 =============
+
+/** 化爻类型标签 */
+export const HUA_TYPE_LABELS: Record<HuaType, string> = {
+    huaJin: '化进',
+    huaTui: '化退',
+    huiTouSheng: '回头生',
+    huiTouKe: '回头克',
+    huaKong: '化空',
+    huaMu: '化墓',
+    fuYin: '伏吟',
+    fanYin: '反吟',
+    none: '',
+};
+
+/**
+ * 分析动爻变化
+ */
+export function analyzeYaoChange(
+    originalZhi: DiZhi,
+    changedZhi: DiZhi,
+    originalWuXing: WuXing,
+    changedWuXing: WuXing,
+    kongWang: KongWang
+): YaoChangeAnalysis {
+    // 伏吟：变爻地支与本爻相同
+    if (originalZhi === changedZhi) {
+        return {
+            huaType: 'fuYin',
+            originalZhi,
+            changedZhi,
+            description: '伏吟：变爻与本爻相同，事多反复',
+        };
+    }
+
+    // 反吟：变爻与本爻六冲
+    if (LIU_CHONG[originalZhi] === changedZhi) {
+        return {
+            huaType: 'fanYin',
+            originalZhi,
+            changedZhi,
+            description: '反吟：变爻与本爻相冲，事情反复无常',
+        };
+    }
+
+    // 化空：变爻落入空亡
+    if (kongWang.kongDizhi.includes(changedZhi)) {
+        return {
+            huaType: 'huaKong',
+            originalZhi,
+            changedZhi,
+            description: '化空：变爻落空，事难成就',
+        };
+    }
+
+    // 化墓：变爻为本爻五行的墓库
+    if (WUXING_MU[originalWuXing] === changedZhi) {
+        return {
+            huaType: 'huaMu',
+            originalZhi,
+            changedZhi,
+            description: '化墓：变爻入墓，事情受阻',
+        };
+    }
+
+    // 回头生：变爻五行生本爻五行
+    if (WUXING_SHENG[changedWuXing] === originalWuXing) {
+        return {
+            huaType: 'huiTouSheng',
+            originalZhi,
+            changedZhi,
+            description: '回头生：变爻生本爻，吉利',
+        };
+    }
+
+    // 回头克：变爻五行克本爻五行
+    if (WUXING_KE[changedWuXing] === originalWuXing) {
+        return {
+            huaType: 'huiTouKe',
+            originalZhi,
+            changedZhi,
+            description: '回头克：变爻克本爻，不利',
+        };
+    }
+
+    // 化进/化退：根据地支序数判断
+    const originalIndex = DIZHI_INDEX[originalZhi];
+    const changedIndex = DIZHI_INDEX[changedZhi];
+    const diff = (changedIndex - originalIndex + 12) % 12;
+
+    if (diff > 0 && diff <= 6) {
+        return {
+            huaType: 'huaJin',
+            originalZhi,
+            changedZhi,
+            description: '化进：变爻进神，事情向好发展',
+        };
+    } else if (diff > 6) {
+        return {
+            huaType: 'huaTui',
+            originalZhi,
+            changedZhi,
+            description: '化退：变爻退神，事情退步',
+        };
+    }
+
+    return {
+        huaType: 'none',
+        originalZhi,
+        changedZhi,
+        description: '',
+    };
+}
+
+// ============= P1: 地支关系判定 =============
+
+/**
+ * 获取两个地支之间的关系
+ */
+export function getDiZhiRelation(zhi1: DiZhi, zhi2: DiZhi): DiZhiRelation {
+    const liuHe = LIU_HE[zhi1]?.partner === zhi2;
+    const heResult = liuHe ? LIU_HE[zhi1].result : undefined;
+
+    return {
+        liuHe,
+        liuChong: LIU_CHONG[zhi1] === zhi2,
+        xing: XIANG_XING[zhi1]?.includes(zhi2) ?? false,
+        hai: LIU_HAI[zhi1] === zhi2,
+        po: XIANG_PO[zhi1] === zhi2,
+        heResult,
+    };
+}
+
+/**
+ * 获取地支关系的描述
+ */
+export function getDiZhiRelationDescription(relation: DiZhiRelation): string {
+    const parts: string[] = [];
+    if (relation.liuHe) parts.push(`六合${relation.heResult ? `化${relation.heResult}` : ''}`);
+    if (relation.liuChong) parts.push('六冲');
+    if (relation.xing) parts.push('相刑');
+    if (relation.hai) parts.push('相害');
+    if (relation.po) parts.push('相破');
+    return parts.join('、') || '无特殊关系';
+}
+
+// ============= P1: 伏神系统 =============
+
+/**
+ * 计算伏神
+ * 当用神不上卦时，从本宫首卦找伏神
+ */
+export function calculateFuShen(
+    hexagramCode: string,
+    fullYaos: FullYaoInfo[],
+    yongShenLiuQin: LiuQin,
+    gongElement: WuXing,
+    monthZhi: DiZhi,
+    dayZhi: DiZhi,
+    kongWang: KongWang
+): FuShen[] {
+    // 检查用神是否上卦
+    const yongShenOnGua = fullYaos.some(y => y.liuQin === yongShenLiuQin);
+    if (yongShenOnGua) {
+        return []; // 用神上卦，不需要伏神
+    }
+
+    // 找到本宫
+    const palace = findPalace(hexagramCode);
+    if (!palace) {
+        return [];
+    }
+
+    const fuShenList: FuShen[] = [];
+
+    // 遍历六爻，找到伏神
+    for (let position = 1; position <= 6; position++) {
+        // 本宫首卦的阳爻纳甲
+        const fuShenNaJia = palace.naJiaYang[position - 1];
+        const fuShenWuXing = DIZHI_WUXING[fuShenNaJia];
+        const fuShenLiuQin = calculateLiuQin(fuShenWuXing, gongElement);
+
+        // 如果是用神的六亲
+        if (fuShenLiuQin === yongShenLiuQin) {
+            // 飞神是当前卦该爻位的爻
+            const feiShenYao = fullYaos.find(y => y.position === position);
+            if (!feiShenYao) continue;
+
+            // 判断伏神可用性
+            let isAvailable = true;
+            let availabilityReason = '伏神可用';
+
+            // 飞神克伏神则不可用
+            if (WUXING_KE[feiShenYao.wuXing] === fuShenWuXing) {
+                isAvailable = false;
+                availabilityReason = '飞神克伏神，伏神不可用';
+            }
+            // 伏神空亡则不可用
+            else if (kongWang.kongDizhi.includes(fuShenNaJia)) {
+                isAvailable = false;
+                availabilityReason = '伏神空亡，暂不可用';
+            }
+            // 飞神生伏神则可用
+            else if (WUXING_SHENG[feiShenYao.wuXing] === fuShenWuXing) {
+                isAvailable = true;
+                availabilityReason = '飞神生伏神，伏神可用';
+            }
+            // 月日生扶伏神也可用
+            else if (WUXING_SHENG[DIZHI_WUXING[monthZhi]] === fuShenWuXing ||
+                     WUXING_SHENG[DIZHI_WUXING[dayZhi]] === fuShenWuXing) {
+                isAvailable = true;
+                availabilityReason = '月日生扶伏神，伏神可用';
+            }
+
+            fuShenList.push({
+                liuQin: fuShenLiuQin,
+                wuXing: fuShenWuXing,
+                naJia: fuShenNaJia,
+                feiShenPosition: position,
+                feiShenLiuQin: feiShenYao.liuQin,
+                isAvailable,
+                availabilityReason,
+            });
+        }
+    }
+
+    return fuShenList;
+}
+
+// ============= P2: 原神/忌神/仇神体系 =============
+
+/**
+ * 根据五行找六亲
+ */
+function getWuXingLiuQin(wuXing: WuXing, gongElement: WuXing): LiuQin {
+    if (wuXing === gongElement) return '兄弟';
+    if (WUXING_SHENG[wuXing] === gongElement) return '父母';
+    if (WUXING_SHENG[gongElement] === wuXing) return '子孙';
+    if (WUXING_KE[gongElement] === wuXing) return '妻财';
+    if (WUXING_KE[wuXing] === gongElement) return '官鬼';
+    return '兄弟';
+}
+
+/**
+ * 计算原神、忌神、仇神体系
+ */
+export function calculateShenSystem(
+    yongShen: YongShen,
+    fullYaos: FullYaoInfo[],
+    gongElement: WuXing
+): ShenSystem {
+    const yongShenWuXing = yongShen.element;
+
+    // 原神：生用神者的五行
+    const yuanShenWuXing = WUXING_BEI_SHENG[yongShenWuXing];
+    const yuanShenLiuQin = getWuXingLiuQin(yuanShenWuXing, gongElement);
+
+    // 忌神：克用神者的五行
+    const jiShenWuXing = WUXING_BEI_KE[yongShenWuXing];
+    const jiShenLiuQin = getWuXingLiuQin(jiShenWuXing, gongElement);
+
+    // 仇神：克原神者的五行（也是生忌神者）
+    const chouShenWuXing = WUXING_BEI_KE[yuanShenWuXing];
+    const chouShenLiuQin = getWuXingLiuQin(chouShenWuXing, gongElement);
+
+    // 在卦中找对应爻位
+    const findPositions = (liuQin: LiuQin): number[] => {
+        return fullYaos.filter(y => y.liuQin === liuQin).map(y => y.position);
+    };
+
+    return {
+        yuanShen: {
+            liuQin: yuanShenLiuQin,
+            wuXing: yuanShenWuXing,
+            positions: findPositions(yuanShenLiuQin),
+        },
+        jiShen: {
+            liuQin: jiShenLiuQin,
+            wuXing: jiShenWuXing,
+            positions: findPositions(jiShenLiuQin),
+        },
+        chouShen: {
+            liuQin: chouShenLiuQin,
+            wuXing: chouShenWuXing,
+            positions: findPositions(chouShenLiuQin),
+        },
+    };
+}
+
+// ============= 完整六爻分析主函数 =============
+
+/**
+ * 执行完整的六爻分析
+ */
+export function performFullAnalysis(
+    yaos: Yao[],
+    hexagramCode: string,
+    changedCode: string | undefined,
+    question: string,
+    date: Date
+): LiuYaoFullAnalysis {
+    // 1. 计算干支时间
+    const ganZhiTime = calculateGanZhiTime(date);
+    const monthZhi = ganZhiTime.month.zhi;
+    const dayZhi = ganZhiTime.day.zhi;
+
+    // 2. 计算旬空
+    const kongWang = getKongWang(ganZhiTime.day.gan, ganZhiTime.day.zhi);
+
+    // 3. 获取宫位信息
+    const palace = findPalace(hexagramCode);
+    const gongElement = palace?.element || '土';
+    const dayStem = ganZhiTime.day.gan;
+
+    // 4. 计算基础爻信息
+    const baseYaos = calculateFullYaoInfo(yaos, hexagramCode, dayStem);
+
+    // 5. 计算扩展爻信息
+    const fullYaos: FullYaoInfoExtended[] = baseYaos.map(yao => {
+        const kongWangState = checkYaoKongWang(
+            yao.naJia,
+            kongWang,
+            monthZhi,
+            dayZhi,
+            yao.change === 'changing'
+        );
+        const influence = getYaoInfluence(yao.naJia, monthZhi, dayZhi);
+        const strength = calculateYaoStrength(
+            yao.wuXing,
+            monthZhi,
+            dayZhi,
+            yao.change === 'changing',
+            kongWangState,
+            influence
+        );
+
+        return {
+            ...yao,
+            kongWangState,
+            influence,
+            strength,
+        };
+    });
+
+    // 6. 计算变爻信息（如果有变卦）
+    let changedYaos: FullYaoInfoExtended[] | undefined;
+    if (changedCode) {
+        const changedBaseYaos = calculateFullYaoInfo(
+            yaos.map((y) => ({
+                ...y,
+                change: 'stable',
+                type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as YaoType : y.type,
+            })),
+            changedCode,
+            dayStem
+        );
+
+        changedYaos = changedBaseYaos.map((yao, index) => {
+            const originalYao = fullYaos[index];
+            const kongWangState = checkYaoKongWang(
+                yao.naJia,
+                kongWang,
+                monthZhi,
+                dayZhi,
+                false // 变卦的爻不再是动爻
+            );
+            const influence = getYaoInfluence(yao.naJia, monthZhi, dayZhi);
+            const strength = calculateYaoStrength(
+                yao.wuXing,
+                monthZhi,
+                dayZhi,
+                false,
+                kongWangState,
+                influence
+            );
+
+            // 如果是动爻，计算变化分析
+            let changeAnalysis: YaoChangeAnalysis | undefined;
+            if (originalYao.change === 'changing') {
+                changeAnalysis = analyzeYaoChange(
+                    originalYao.naJia,
+                    yao.naJia,
+                    originalYao.wuXing,
+                    yao.wuXing,
+                    kongWang
+                );
+                // 将变化分析添加到原爻
+                fullYaos[index] = {
+                    ...fullYaos[index],
+                    changeAnalysis,
+                };
+            }
+
+            return {
+                ...yao,
+                kongWangState,
+                influence,
+                strength,
+                changeAnalysis,
+            };
+        });
+    }
+
+    // 7. 确定用神
+    const yongShen = determineYongShen(question, baseYaos);
+
+    // 8. 计算伏神（如果用神不上卦）
+    const fuShen = calculateFuShen(
+        hexagramCode,
+        baseYaos,
+        yongShen.type,
+        gongElement,
+        monthZhi,
+        dayZhi,
+        kongWang
+    );
+
+    // 9. 计算神系
+    const shenSystem = calculateShenSystem(yongShen, baseYaos, gongElement);
+
+    // 10. 计算时间建议
+    const timeRecommendations = calculateTimeRecommendations(yongShen, baseYaos);
+
+    // 11. 生成综合摘要
+    const summary = generateSummary(yongShen, fullYaos, fuShen, shenSystem);
+
+    return {
+        ganZhiTime,
+        kongWang,
+        fullYaos,
+        changedYaos,
+        yongShen,
+        fuShen: fuShen.length > 0 ? fuShen : undefined,
+        shenSystem,
+        timeRecommendations,
+        summary,
+    };
+}
+
+/**
+ * 生成综合分析摘要
+ */
+function generateSummary(
+    yongShen: YongShen,
+    fullYaos: FullYaoInfoExtended[],
+    fuShen: FuShen[],
+    shenSystem: ShenSystem
+): { overallTrend: 'favorable' | 'neutral' | 'unfavorable'; keyFactors: string[] } {
+    const keyFactors: string[] = [];
+    let favorableCount = 0;
+    let unfavorableCount = 0;
+
+    // 分析用神状态
+    const yongShenYao = fullYaos.find(y => y.position === yongShen.position);
+    if (yongShenYao) {
+        if (yongShenYao.strength.isStrong) {
+            keyFactors.push(`用神${yongShen.type}得力`);
+            favorableCount += 2;
+        } else {
+            keyFactors.push(`用神${yongShen.type}力弱`);
+            unfavorableCount += 2;
+        }
+
+        if (yongShenYao.kongWangState === 'kong_static') {
+            keyFactors.push('用神空亡');
+            unfavorableCount += 2;
+        }
+
+        if (yongShenYao.changeAnalysis) {
+            const huaLabel = HUA_TYPE_LABELS[yongShenYao.changeAnalysis.huaType];
+            if (huaLabel) {
+                keyFactors.push(`用神${huaLabel}`);
+                if (['huiTouSheng', 'huaJin'].includes(yongShenYao.changeAnalysis.huaType)) {
+                    favorableCount++;
+                } else if (['huiTouKe', 'huaTui', 'huaKong', 'huaMu'].includes(yongShenYao.changeAnalysis.huaType)) {
+                    unfavorableCount++;
+                }
+            }
+        }
+    } else if (fuShen.length > 0) {
+        const availableFuShen = fuShen.filter(f => f.isAvailable);
+        if (availableFuShen.length > 0) {
+            keyFactors.push('用神伏藏可出');
+            unfavorableCount++;
+        } else {
+            keyFactors.push('用神伏藏难出');
+            unfavorableCount += 2;
+        }
+    }
+
+    // 分析原神状态
+    if (shenSystem.yuanShen && shenSystem.yuanShen.positions.length > 0) {
+        const yuanShenYao = fullYaos.find(y => y.position === shenSystem.yuanShen!.positions[0]);
+        if (yuanShenYao?.strength.isStrong) {
+            keyFactors.push('原神有力');
+            favorableCount++;
+        }
+    }
+
+    // 分析忌神状态
+    if (shenSystem.jiShen && shenSystem.jiShen.positions.length > 0) {
+        const jiShenYao = fullYaos.find(y => y.position === shenSystem.jiShen!.positions[0]);
+        if (jiShenYao?.strength.isStrong) {
+            keyFactors.push('忌神旺相');
+            unfavorableCount++;
+        } else if (jiShenYao?.kongWangState === 'kong_static') {
+            keyFactors.push('忌神空亡');
+            favorableCount++;
+        }
+    }
+
+    // 判断整体趋势
+    let overallTrend: 'favorable' | 'neutral' | 'unfavorable';
+    if (favorableCount > unfavorableCount + 1) {
+        overallTrend = 'favorable';
+    } else if (unfavorableCount > favorableCount + 1) {
+        overallTrend = 'unfavorable';
+    } else {
+        overallTrend = 'neutral';
+    }
+
+    return { overallTrend, keyFactors };
+}

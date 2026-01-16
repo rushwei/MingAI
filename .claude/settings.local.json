@@ -11,7 +11,8 @@
       "mcp__supabase__apply_migration",
       "Bash(brew info:*)",
       "Bash(claude:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(pnpm exec tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

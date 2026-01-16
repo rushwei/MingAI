@@ -2,31 +2,50 @@
  * 传统六爻分析组件
  *
  * 显示完整的传统六爻分析，包括：
- * 1. 卦辞/象辞
- * 2. 用神分析
- * 3. 六爻详解表格（六亲/六神/纳甲/世应）
- * 4. 时间建议
+ * 1. 干支时间
+ * 2. 卦辞/象辞
+ * 3. 用神分析
+ * 4. 伏神/神系分析
+ * 5. 六爻详解表格（六亲/六神/纳甲/世应/旺衰/空亡）
+ * 6. 时间建议
  */
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Star, Clock, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Star, Clock, AlertCircle, CheckCircle, Info, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
     type FullYaoInfo,
+    type FullYaoInfoExtended,
     type YongShen,
     type TimeRecommendation,
+    type GanZhiTime,
+    type KongWang,
+    type FuShen,
+    type ShenSystem,
     getLiuShenMeaning,
     getLiuQinMeaning,
+    WANG_SHUAI_LABELS,
+    KONG_WANG_LABELS,
+    HUA_TYPE_LABELS,
 } from '@/lib/liuyao';
 import { type HexagramText } from '@/lib/hexagram-texts';
 
 interface TraditionalAnalysisProps {
-    fullYaos: FullYaoInfo[];
+    fullYaos: FullYaoInfo[] | FullYaoInfoExtended[];
     yongShen: YongShen;
     timeRecommendations: TimeRecommendation[];
     hexagramText?: HexagramText;
     changedHexagramText?: HexagramText;
     changedLines?: number[];
+    // 新增属性
+    ganZhiTime?: GanZhiTime;
+    kongWang?: KongWang;
+    fuShen?: FuShen[];
+    shenSystem?: ShenSystem;
+    summary?: {
+        overallTrend: 'favorable' | 'neutral' | 'unfavorable';
+        keyFactors: string[];
+    };
 }
 
 // 可折叠区块组件
@@ -107,12 +126,94 @@ export function TraditionalAnalysis({
     hexagramText,
     changedHexagramText,
     changedLines = [],
+    ganZhiTime,
+    kongWang,
+    fuShen,
+    shenSystem,
+    summary,
 }: TraditionalAnalysisProps) {
     // 爻位名称映射
     const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
+    // 检查是否有扩展信息
+    const hasExtendedInfo = fullYaos.length > 0 && 'strength' in fullYaos[0];
+
+    // 趋势图标和颜色
+    const trendConfig = {
+        favorable: { icon: <TrendingUp className="w-5 h-5" />, color: 'text-green-500', bg: 'bg-green-500/10', label: '吉' },
+        neutral: { icon: <Minus className="w-5 h-5" />, color: 'text-yellow-500', bg: 'bg-yellow-500/10', label: '平' },
+        unfavorable: { icon: <TrendingDown className="w-5 h-5" />, color: 'text-red-500', bg: 'bg-red-500/10', label: '凶' },
+    };
+
     return (
         <div className="space-y-4">
+            {/* 综合摘要 */}
+            {summary && (
+                <div className={`p-4 rounded-lg border ${trendConfig[summary.overallTrend].bg} border-current/20`}>
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className={trendConfig[summary.overallTrend].color}>
+                            {trendConfig[summary.overallTrend].icon}
+                        </span>
+                        <span className={`text-lg font-bold ${trendConfig[summary.overallTrend].color}`}>
+                            整体趋势：{trendConfig[summary.overallTrend].label}
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {summary.keyFactors.map((factor, i) => (
+                            <span key={i} className="text-xs px-2 py-1 rounded bg-background border border-border text-foreground-secondary">
+                                {factor}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 干支时间显示 */}
+            {ganZhiTime && (
+                <CollapsibleSection
+                    title="起卦时间"
+                    icon={<Calendar className="w-5 h-5 text-purple-500" />}
+                    defaultOpen={true}
+                >
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                            <div className="text-xs text-foreground-secondary mb-1">年柱</div>
+                            <div className="text-lg font-bold text-foreground">
+                                {ganZhiTime.year.gan}{ganZhiTime.year.zhi}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                            <div className="text-xs text-foreground-secondary mb-1">月柱（月建）</div>
+                            <div className="text-lg font-bold text-accent">
+                                {ganZhiTime.month.gan}{ganZhiTime.month.zhi}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                            <div className="text-xs text-foreground-secondary mb-1">日柱（日辰）</div>
+                            <div className="text-lg font-bold text-blue-500">
+                                {ganZhiTime.day.gan}{ganZhiTime.day.zhi}
+                            </div>
+                        </div>
+                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                            <div className="text-xs text-foreground-secondary mb-1">时柱</div>
+                            <div className="text-lg font-bold text-foreground">
+                                {ganZhiTime.hour.gan}{ganZhiTime.hour.zhi}
+                            </div>
+                        </div>
+                    </div>
+                    {kongWang && (
+                        <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-foreground-secondary">旬空：</span>
+                                <span className="font-medium text-foreground">{kongWang.xun}</span>
+                                <span className="text-red-500 font-bold">
+                                    空亡：{kongWang.kongDizhi.join('、')}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </CollapsibleSection>
+            )}
             {/* 卦辞/象辞 */}
             {hexagramText && (
                 <CollapsibleSection
@@ -258,6 +359,89 @@ export function TraditionalAnalysis({
                 </div>
             </CollapsibleSection>
 
+            {/* 伏神分析 */}
+            {fuShen && fuShen.length > 0 && (
+                <CollapsibleSection
+                    title="伏神分析"
+                    icon={<AlertCircle className="w-5 h-5 text-orange-500" />}
+                    defaultOpen={true}
+                >
+                    <div className="space-y-3">
+                        <p className="text-sm text-foreground-secondary">
+                            用神{yongShen.type}不上卦，需查伏神：
+                        </p>
+                        {fuShen.map((fs, i) => (
+                            <div
+                                key={i}
+                                className={`p-3 rounded-lg border ${fs.isAvailable
+                                    ? 'border-green-500/30 bg-green-500/5'
+                                    : 'border-red-500/30 bg-red-500/5'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-bold text-foreground">{fs.liuQin}</span>
+                                    <span className="text-sm text-foreground-secondary">
+                                        伏于{yaoNames[fs.feiShenPosition - 1]}（{fs.feiShenLiuQin}）下
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm">
+                                    <span>纳甲：{fs.naJia}</span>
+                                    <span>五行：{fs.wuXing}</span>
+                                    <span className={fs.isAvailable ? 'text-green-500' : 'text-red-500'}>
+                                        {fs.availabilityReason}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CollapsibleSection>
+            )}
+
+            {/* 原神忌神仇神 */}
+            {shenSystem && (
+                <CollapsibleSection
+                    title="神系分析"
+                    icon={<Star className="w-5 h-5 text-purple-500" />}
+                    defaultOpen={false}
+                >
+                    <div className="grid grid-cols-3 gap-3">
+                        {shenSystem.yuanShen && (
+                            <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-center">
+                                <div className="text-xs text-foreground-secondary mb-1">原神（生用神）</div>
+                                <div className="font-bold text-green-500">{shenSystem.yuanShen.liuQin}</div>
+                                <div className="text-xs text-foreground-secondary">
+                                    {shenSystem.yuanShen.wuXing} · {shenSystem.yuanShen.positions.length > 0
+                                        ? shenSystem.yuanShen.positions.map(p => yaoNames[p - 1]).join('、')
+                                        : '不上卦'}
+                                </div>
+                            </div>
+                        )}
+                        {shenSystem.jiShen && (
+                            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
+                                <div className="text-xs text-foreground-secondary mb-1">忌神（克用神）</div>
+                                <div className="font-bold text-red-500">{shenSystem.jiShen.liuQin}</div>
+                                <div className="text-xs text-foreground-secondary">
+                                    {shenSystem.jiShen.wuXing} · {shenSystem.jiShen.positions.length > 0
+                                        ? shenSystem.jiShen.positions.map(p => yaoNames[p - 1]).join('、')
+                                        : '不上卦'}
+                                </div>
+                            </div>
+                        )}
+                        {shenSystem.chouShen && (
+                            <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg text-center">
+                                <div className="text-xs text-foreground-secondary mb-1">仇神（克原神）</div>
+                                <div className="font-bold text-orange-500">{shenSystem.chouShen.liuQin}</div>
+                                <div className="text-xs text-foreground-secondary">
+                                    {shenSystem.chouShen.wuXing} · {shenSystem.chouShen.positions.length > 0
+                                        ? shenSystem.chouShen.positions.map(p => yaoNames[p - 1]).join('、')
+                                        : '不上卦'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </CollapsibleSection>
+            )}
+
             {/* 六爻详解表格 */}
             <CollapsibleSection
                 title="六爻详解"
@@ -275,10 +459,19 @@ export function TraditionalAnalysis({
                                 <th className="py-2 px-2 text-left text-foreground-secondary font-medium">五行</th>
                                 <th className="py-2 px-2 text-center text-foreground-secondary font-medium">世应</th>
                                 <th className="py-2 px-2 text-center text-foreground-secondary font-medium">状态</th>
+                                {hasExtendedInfo && (
+                                    <>
+                                        <th className="py-2 px-2 text-center text-foreground-secondary font-medium">旺衰</th>
+                                        <th className="py-2 px-2 text-center text-foreground-secondary font-medium">空亡</th>
+                                        <th className="py-2 px-2 text-left text-foreground-secondary font-medium">月日作用</th>
+                                    </>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
-                            {[...fullYaos].reverse().map((yao) => (
+                            {[...fullYaos].reverse().map((yao) => {
+                                const extYao = yao as FullYaoInfoExtended;
+                                return (
                                 <tr
                                     key={yao.position}
                                     className={`border-b border-border/50 ${yao.position === yongShen.position ? 'bg-accent/5' : ''
@@ -313,13 +506,43 @@ export function TraditionalAnalysis({
                                     </td>
                                     <td className="py-2 px-2 text-center">
                                         {yao.change === 'changing' ? (
-                                            <span className="text-red-500">动</span>
+                                            <span className="text-red-500">
+                                                动
+                                                {extYao.changeAnalysis && HUA_TYPE_LABELS[extYao.changeAnalysis.huaType] && (
+                                                    <span className="text-xs ml-1">
+                                                        ({HUA_TYPE_LABELS[extYao.changeAnalysis.huaType]})
+                                                    </span>
+                                                )}
+                                            </span>
                                         ) : (
                                             <span className="text-foreground-secondary">静</span>
                                         )}
                                     </td>
+                                    {hasExtendedInfo && extYao.strength && (
+                                        <>
+                                            <td className="py-2 px-2 text-center">
+                                                <span className={extYao.strength.isStrong ? 'text-green-500' : 'text-red-500'}>
+                                                    {WANG_SHUAI_LABELS[extYao.strength.wangShuai]}
+                                                </span>
+                                                <span className="text-xs text-foreground-secondary ml-1">
+                                                    ({extYao.strength.score})
+                                                </span>
+                                            </td>
+                                            <td className="py-2 px-2 text-center">
+                                                {extYao.kongWangState !== 'not_kong' && (
+                                                    <span className="text-red-500 text-xs">
+                                                        {KONG_WANG_LABELS[extYao.kongWangState]}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-2 px-2 text-xs text-foreground-secondary">
+                                                {extYao.influence.description}
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

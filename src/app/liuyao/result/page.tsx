@@ -18,10 +18,8 @@ import {
     type DivinationResult,
     type Hexagram,
     type Yao,
-    calculateFullYaoInfo,
-    determineYongShen,
-    calculateTimeRecommendations,
-    getDayStemForDate,
+    type LiuYaoFullAnalysis,
+    performFullAnalysis,
     yaosTpCode,
 } from '@/lib/liuyao';
 import { getHexagramText } from '@/lib/hexagram-texts';
@@ -52,28 +50,43 @@ export default function ResultPage() {
         </div>
     ) : null;
 
-    // 计算传统分析数据（使用起卦日期的日干）
-    const traditionalData = useMemo(() => {
+    // 计算传统分析数据（使用起卦日期执行完整分析）
+    const traditionalData = useMemo((): (LiuYaoFullAnalysis & {
+        hexagramText?: ReturnType<typeof getHexagramText>;
+        changedHexagramText?: ReturnType<typeof getHexagramText>;
+        dayStem: string;
+    }) | null => {
         if (!result) return null;
 
-        // 使用起卦日期计算日干，确保历史记录显示一致
-        const dayStem = getDayStemForDate(result.createdAt);
+        // 计算卦码
         const hexagramCode = yaosTpCode(result.yaos);
-        const fullYaos = calculateFullYaoInfo(result.yaos, hexagramCode, dayStem);
-        const yongShen = determineYongShen(result.question, fullYaos);
-        const timeRecommendations = calculateTimeRecommendations(yongShen, fullYaos);
+        const changedCode = result.changedHexagram
+            ? yaosTpCode(result.yaos.map(y => ({
+                ...y,
+                type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type,
+            })))
+            : undefined;
+
+        // 执行完整分析
+        const analysis = performFullAnalysis(
+            result.yaos,
+            hexagramCode,
+            changedCode,
+            result.question,
+            result.createdAt
+        );
+
+        // 获取卦辞
         const hexagramText = getHexagramText(result.hexagram.name);
         const changedHexagramText = result.changedHexagram
             ? getHexagramText(result.changedHexagram.name)
             : undefined;
 
         return {
-            fullYaos,
-            yongShen,
-            timeRecommendations,
+            ...analysis,
             hexagramText,
             changedHexagramText,
-            dayStem, // 返回日干供显示
+            dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示
         };
     }, [result]);
 
@@ -329,6 +342,11 @@ export default function ResultPage() {
                             hexagramText={traditionalData.hexagramText}
                             changedHexagramText={traditionalData.changedHexagramText}
                             changedLines={result.changedLines}
+                            ganZhiTime={traditionalData.ganZhiTime}
+                            kongWang={traditionalData.kongWang}
+                            fuShen={traditionalData.fuShen}
+                            shenSystem={traditionalData.shenSystem}
+                            summary={traditionalData.summary}
                         />
                     </div>
                 )}
