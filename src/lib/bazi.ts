@@ -674,6 +674,280 @@ const YUE_DE_HE: Record<EarthlyBranch, HeavenlyStem> = {
     '巳': '乙', '酉': '乙', '丑': '乙',
 };
 
+// ===== 三合局 (San He) 配置 =====
+
+/** 三合局类型 */
+export type SanHeJu = '申子辰合水局' | '亥卯未合木局' | '寅午戌合火局' | '巳酉丑合金局';
+
+/** 三合局配置：三个地支组成一个五行局 */
+export const SAN_HE_TABLE: { branches: [EarthlyBranch, EarthlyBranch, EarthlyBranch]; result: FiveElement; name: SanHeJu }[] = [
+    { branches: ['申', '子', '辰'], result: '水', name: '申子辰合水局' },
+    { branches: ['亥', '卯', '未'], result: '木', name: '亥卯未合木局' },
+    { branches: ['寅', '午', '戌'], result: '火', name: '寅午戌合火局' },
+    { branches: ['巳', '酉', '丑'], result: '金', name: '巳酉丑合金局' },
+];
+
+/** 半合表：两个地支可以形成半合 */
+export const BAN_HE_TABLE: { branches: [EarthlyBranch, EarthlyBranch]; result: FiveElement; type: 'sheng' | 'mu' }[] = [
+    // 生方半合（长生+帝旺）
+    { branches: ['申', '子'], result: '水', type: 'sheng' },
+    { branches: ['亥', '卯'], result: '木', type: 'sheng' },
+    { branches: ['寅', '午'], result: '火', type: 'sheng' },
+    { branches: ['巳', '酉'], result: '金', type: 'sheng' },
+    // 墓方半合（帝旺+墓）
+    { branches: ['子', '辰'], result: '水', type: 'mu' },
+    { branches: ['卯', '未'], result: '木', type: 'mu' },
+    { branches: ['午', '戌'], result: '火', type: 'mu' },
+    { branches: ['酉', '丑'], result: '金', type: 'mu' },
+];
+
+/** 六合表及合化结果 */
+export const LIU_HE_TABLE: Record<EarthlyBranch, { partner: EarthlyBranch; result: FiveElement }> = {
+    '子': { partner: '丑', result: '土' },
+    '丑': { partner: '子', result: '土' },
+    '寅': { partner: '亥', result: '木' },
+    '亥': { partner: '寅', result: '木' },
+    '卯': { partner: '戌', result: '火' },
+    '戌': { partner: '卯', result: '火' },
+    '辰': { partner: '酉', result: '金' },
+    '酉': { partner: '辰', result: '金' },
+    '巳': { partner: '申', result: '水' },
+    '申': { partner: '巳', result: '水' },
+    '午': { partner: '未', result: '火' },
+    '未': { partner: '午', result: '火' },
+};
+
+/** 六冲表 */
+export const LIU_CHONG_TABLE: Record<EarthlyBranch, EarthlyBranch> = {
+    '子': '午', '丑': '未', '寅': '申', '卯': '酉', '辰': '戌', '巳': '亥',
+    '午': '子', '未': '丑', '申': '寅', '酉': '卯', '戌': '辰', '亥': '巳',
+};
+
+// ===== 十二长生 (Twelve Life Stages) 配置 =====
+
+/** 十二长生阶段名称 */
+export type ShiErChangSheng =
+    | '长生' | '沐浴' | '冠带' | '临官'
+    | '帝旺' | '衰' | '病' | '死'
+    | '墓' | '绝' | '胎' | '养';
+
+/** 十二长生顺序 */
+export const CHANG_SHENG_ORDER: ShiErChangSheng[] = [
+    '长生', '沐浴', '冠带', '临官', '帝旺', '衰',
+    '病', '死', '墓', '绝', '胎', '养'
+];
+
+/** 十二长生标签描述 */
+export const CHANG_SHENG_LABELS: Record<ShiErChangSheng, string> = {
+    '长生': '如人初生，生机勃勃，有发展潜力',
+    '沐浴': '如人沐浴，不稳定，易有波折',
+    '冠带': '如人成年，渐入佳境，开始有成就',
+    '临官': '如人当官，权力渐盛，事业上升',
+    '帝旺': '如帝王之旺，鼎盛之极，最为有力',
+    '衰': '盛极而衰，力量开始减弱',
+    '病': '如人生病，力量衰弱，需要调养',
+    '死': '气息将绝，力量极弱',
+    '墓': '入墓收藏，力量被封存',
+    '绝': '气息已绝，最为无力',
+    '胎': '如人受胎，开始孕育新生',
+    '养': '如人养育，等待时机出生'
+};
+
+/**
+ * 五行十二长生表
+ * 
+ * 阳干顺行，阴干逆行
+ * 木长生在亥、火长生在寅、金长生在巳、水长生在申、土长生在申（或寅，有争议）
+ */
+export const WUXING_CHANG_SHENG_TABLE: Record<FiveElement, Record<EarthlyBranch, ShiErChangSheng>> = {
+    '木': {
+        '亥': '长生', '子': '沐浴', '丑': '冠带', '寅': '临官',
+        '卯': '帝旺', '辰': '衰', '巳': '病', '午': '死',
+        '未': '墓', '申': '绝', '酉': '胎', '戌': '养'
+    },
+    '火': {
+        '寅': '长生', '卯': '沐浴', '辰': '冠带', '巳': '临官',
+        '午': '帝旺', '未': '衰', '申': '病', '酉': '死',
+        '戌': '墓', '亥': '绝', '子': '胎', '丑': '养'
+    },
+    '土': {
+        // 土寄火，随火论
+        '寅': '长生', '卯': '沐浴', '辰': '冠带', '巳': '临官',
+        '午': '帝旺', '未': '衰', '申': '病', '酉': '死',
+        '戌': '墓', '亥': '绝', '子': '胎', '丑': '养'
+    },
+    '金': {
+        '巳': '长生', '午': '沐浴', '未': '冠带', '申': '临官',
+        '酉': '帝旺', '戌': '衰', '亥': '病', '子': '死',
+        '丑': '墓', '寅': '绝', '卯': '胎', '辰': '养'
+    },
+    '水': {
+        '申': '长生', '酉': '沐浴', '戌': '冠带', '亥': '临官',
+        '子': '帝旺', '丑': '衰', '寅': '病', '卯': '死',
+        '辰': '墓', '巳': '绝', '午': '胎', '未': '养'
+    }
+};
+
+/** 十二长生强弱分类 */
+export const CHANG_SHENG_STRENGTH: Record<ShiErChangSheng, 'strong' | 'medium' | 'weak'> = {
+    '长生': 'strong',
+    '沐浴': 'medium',
+    '冠带': 'strong',
+    '临官': 'strong',
+    '帝旺': 'strong',
+    '衰': 'medium',
+    '病': 'weak',
+    '死': 'weak',
+    '墓': 'weak',
+    '绝': 'weak',
+    '胎': 'medium',
+    '养': 'medium'
+};
+
+// ===== 三合局与十二长生计算函数 =====
+
+/**
+ * 获取五行在某地支的十二长生状态
+ */
+export function getChangSheng(wuXing: FiveElement, diZhi: EarthlyBranch): ShiErChangSheng {
+    return WUXING_CHANG_SHENG_TABLE[wuXing][diZhi];
+}
+
+/**
+ * 获取十二长生的强弱等级
+ */
+export function getChangShengStrength(changSheng: ShiErChangSheng): 'strong' | 'medium' | 'weak' {
+    return CHANG_SHENG_STRENGTH[changSheng];
+}
+
+/**
+ * 分析四柱中的三合局
+ */
+export function analyzeFourPillarsSanHe(
+    yearBranch: EarthlyBranch,
+    monthBranch: EarthlyBranch,
+    dayBranch: EarthlyBranch,
+    hourBranch: EarthlyBranch
+): { hasFullSanHe: boolean; fullSanHe?: { name: SanHeJu; result: FiveElement }; banHe: { branches: [EarthlyBranch, EarthlyBranch]; result: FiveElement; type: 'sheng' | 'mu' }[] } {
+    const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
+
+    // 检查完整三合
+    for (const sanHe of SAN_HE_TABLE) {
+        const [b1, b2, b3] = sanHe.branches;
+        if (branches.includes(b1) && branches.includes(b2) && branches.includes(b3)) {
+            return {
+                hasFullSanHe: true,
+                fullSanHe: { name: sanHe.name, result: sanHe.result },
+                banHe: []
+            };
+        }
+    }
+
+    // 检查半合
+    const banHeList: { branches: [EarthlyBranch, EarthlyBranch]; result: FiveElement; type: 'sheng' | 'mu' }[] = [];
+    for (const banHe of BAN_HE_TABLE) {
+        const [b1, b2] = banHe.branches;
+        if (branches.includes(b1) && branches.includes(b2)) {
+            banHeList.push({
+                branches: banHe.branches,
+                result: banHe.result,
+                type: banHe.type
+            });
+        }
+    }
+
+    return {
+        hasFullSanHe: false,
+        banHe: banHeList
+    };
+}
+
+/**
+ * 分析四柱中的六合关系
+ */
+export function analyzeFourPillarsLiuHe(
+    yearBranch: EarthlyBranch,
+    monthBranch: EarthlyBranch,
+    dayBranch: EarthlyBranch,
+    hourBranch: EarthlyBranch
+): { pairs: { zhi1: EarthlyBranch; zhi2: EarthlyBranch; result: FiveElement }[] } {
+    const branches: [string, EarthlyBranch][] = [
+        ['年', yearBranch],
+        ['月', monthBranch],
+        ['日', dayBranch],
+        ['时', hourBranch]
+    ];
+
+    const pairs: { zhi1: EarthlyBranch; zhi2: EarthlyBranch; result: FiveElement }[] = [];
+
+    for (let i = 0; i < branches.length; i++) {
+        for (let j = i + 1; j < branches.length; j++) {
+            const [, zhi1] = branches[i];
+            const [, zhi2] = branches[j];
+            if (LIU_HE_TABLE[zhi1]?.partner === zhi2) {
+                pairs.push({
+                    zhi1,
+                    zhi2,
+                    result: LIU_HE_TABLE[zhi1].result
+                });
+            }
+        }
+    }
+
+    return { pairs };
+}
+
+/**
+ * 分析四柱中的六冲关系
+ */
+export function analyzeFourPillarsLiuChong(
+    yearBranch: EarthlyBranch,
+    monthBranch: EarthlyBranch,
+    dayBranch: EarthlyBranch,
+    hourBranch: EarthlyBranch
+): { pairs: { zhi1: EarthlyBranch; zhi2: EarthlyBranch; position1: string; position2: string }[] } {
+    const branches: [string, EarthlyBranch][] = [
+        ['年', yearBranch],
+        ['月', monthBranch],
+        ['日', dayBranch],
+        ['时', hourBranch]
+    ];
+
+    const pairs: { zhi1: EarthlyBranch; zhi2: EarthlyBranch; position1: string; position2: string }[] = [];
+
+    for (let i = 0; i < branches.length; i++) {
+        for (let j = i + 1; j < branches.length; j++) {
+            const [pos1, zhi1] = branches[i];
+            const [pos2, zhi2] = branches[j];
+            if (LIU_CHONG_TABLE[zhi1] === zhi2) {
+                pairs.push({
+                    zhi1,
+                    zhi2,
+                    position1: pos1,
+                    position2: pos2
+                });
+            }
+        }
+    }
+
+    return { pairs };
+}
+
+/**
+ * 计算日主在月令的十二长生状态
+ */
+export function calculateDayMasterChangSheng(
+    dayMaster: HeavenlyStem,
+    monthBranch: EarthlyBranch
+): { stage: ShiErChangSheng; strength: 'strong' | 'medium' | 'weak'; description: string } {
+    const dayElement = STEM_ELEMENTS[dayMaster];
+    const stage = getChangSheng(dayElement, monthBranch);
+    const strength = getChangShengStrength(stage);
+    const description = CHANG_SHENG_LABELS[stage];
+
+    return { stage, strength, description };
+}
+
 
 /**
  * 计算神煞信息（含按柱分类的神煞星）
@@ -1461,6 +1735,68 @@ export function generateBaziChartText(
     const hourTenGod = fourPillars.hour.tenGod ? `（${fourPillars.hour.tenGod}）` : '';
     const hourHidden = fourPillars.hour.hiddenStems.length ? `藏干：${fourPillars.hour.hiddenStems.join('、')}` : '';
     lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
+    lines.push('');
+
+    // 日主十二长生状态
+    const dayMasterChangSheng = calculateDayMasterChangSheng(
+        dayMaster,
+        fourPillars.month.branch
+    );
+    lines.push('【日主状态】');
+    lines.push(`日主${dayMaster}在月令${fourPillars.month.branch}：${dayMasterChangSheng.stage}（${dayMasterChangSheng.strength === 'strong' ? '旺相' : dayMasterChangSheng.strength === 'weak' ? '衰弱' : '中等'}）`);
+    lines.push(`状态描述：${dayMasterChangSheng.description}`);
+    lines.push('');
+
+    // 地支关系分析
+    lines.push('【地支关系】');
+
+    // 三合局
+    const sanHeResult = analyzeFourPillarsSanHe(
+        fourPillars.year.branch,
+        fourPillars.month.branch,
+        fourPillars.day.branch,
+        fourPillars.hour.branch
+    );
+    if (sanHeResult.hasFullSanHe && sanHeResult.fullSanHe) {
+        lines.push(`三合局：${sanHeResult.fullSanHe.name}（化${sanHeResult.fullSanHe.result}，力量加强）`);
+    } else if (sanHeResult.banHe.length > 0) {
+        const banHeStr = sanHeResult.banHe.map(b =>
+            `${b.branches.join('')}${b.type === 'sheng' ? '生方' : '墓方'}半合${b.result}`
+        ).join('、');
+        lines.push(`半合：${banHeStr}`);
+    }
+
+    // 六合
+    const liuHeResult = analyzeFourPillarsLiuHe(
+        fourPillars.year.branch,
+        fourPillars.month.branch,
+        fourPillars.day.branch,
+        fourPillars.hour.branch
+    );
+    if (liuHeResult.pairs.length > 0) {
+        const liuHeStr = liuHeResult.pairs.map(p =>
+            `${p.zhi1}${p.zhi2}合化${p.result}`
+        ).join('、');
+        lines.push(`六合：${liuHeStr}`);
+    }
+
+    // 六冲
+    const liuChongResult = analyzeFourPillarsLiuChong(
+        fourPillars.year.branch,
+        fourPillars.month.branch,
+        fourPillars.day.branch,
+        fourPillars.hour.branch
+    );
+    if (liuChongResult.pairs.length > 0) {
+        const liuChongStr = liuChongResult.pairs.map(p =>
+            `${p.position1}${p.zhi1}冲${p.position2}${p.zhi2}`
+        ).join('、');
+        lines.push(`六冲：${liuChongStr}（冲动，变化）`);
+    }
+
+    if (!sanHeResult.hasFullSanHe && sanHeResult.banHe.length === 0 && liuHeResult.pairs.length === 0 && liuChongResult.pairs.length === 0) {
+        lines.push('四柱地支无明显合冲关系');
+    }
     lines.push('');
 
     // 自动计算大运

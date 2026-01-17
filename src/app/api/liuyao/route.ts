@@ -20,6 +20,7 @@ import {
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
     HUA_TYPE_LABELS,
+    SPECIAL_STATUS_LABELS,
 } from '@/lib/liuyao';
 import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
 import { getHexagramText } from '@/lib/hexagram-texts';
@@ -184,13 +185,13 @@ export async function POST(request: NextRequest) {
                         analysisDate
                     );
 
-                    const { ganZhiTime, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, summary } = analysis;
+                    const { ganZhiTime, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, summary, liuChongGuaInfo, sanHeAnalysis } = analysis;
                     const shiYing = getShiYingPosition(hexagramCode);
                     const palace = findPalace(hexagramCode);
                     const hexText = getHexagramText(hexagram.name);
                     const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
-                    // 构建各爻详细信息
+                    // 构建各爻详细信息（包含暗动/日破、十二长生）
                     const yaoDetails = fullYaos.map((y) => {
                         const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
                         const yongShenMark = y.position === yongShen.position ? '【用神】' : '';
@@ -200,7 +201,15 @@ export async function POST(request: NextRequest) {
                         const huaMark = y.changeAnalysis && y.changeAnalysis.huaType !== 'none'
                             ? HUA_TYPE_LABELS[y.changeAnalysis.huaType]
                             : '';
-                        return `${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${wangShuaiMark}${kongMark ? '·' + kongMark : ''}${huaMark ? '·' + huaMark : ''}] ${y.influence.description}`;
+                        // 暗动/日破标记
+                        const specialMark = y.strength.specialStatus !== 'none'
+                            ? SPECIAL_STATUS_LABELS[y.strength.specialStatus]
+                            : '';
+                        // 十二长生标记
+                        const changShengMark = y.changSheng
+                            ? `${y.changSheng.stage}`
+                            : '';
+                        return `${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${wangShuaiMark}${kongMark ? '·' + kongMark : ''}${huaMark ? '·' + huaMark : ''}${specialMark ? '·' + specialMark : ''}${changShengMark ? '·' + changShengMark : ''}] ${y.influence.description}`;
                     }).join('\n');
 
                     // 构建伏神信息
@@ -247,6 +256,8 @@ ${changedHexagramInfo}
 ${ganZhiTime.year.gan}${ganZhiTime.year.zhi}年 ${ganZhiTime.month.gan}${ganZhiTime.month.zhi}月 ${ganZhiTime.day.gan}${ganZhiTime.day.zhi}日 ${ganZhiTime.hour.gan}${ganZhiTime.hour.zhi}时
 旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}
 世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻
+${liuChongGuaInfo.isLiuChongGua ? '六冲卦：是（主事散、应期急）' : liuChongGuaInfo.description ? liuChongGuaInfo.description : ''}
+${sanHeAnalysis.hasFullSanHe && sanHeAnalysis.fullSanHe ? `三合局：${sanHeAnalysis.fullSanHe.name}（合力强大，可解冲解空）` : sanHeAnalysis.hasBanHe && sanHeAnalysis.banHe && sanHeAnalysis.banHe.length > 0 ? `半合：${sanHeAnalysis.banHe.map(b => `${b.branches.join('')}${b.type === 'sheng' ? '生方' : '墓方'}半合${b.result}`).join('、')}` : ''}
 
 【六爻排盘】
 ${yaoDetails}
@@ -275,9 +286,13 @@ ${timeRecommendations.map((r: { type: string; timeframe: string; description: st
 核心断卦原则：
 - 月建为纲，日辰为领：月建主宰爻的旺衰，日辰可生克冲合
 - 旺相休囚死：爻在月令的五种状态决定其根本力量
+- 暗动与日破：静爻旺相逢日冲为暗动（有力），静爻休囚逢日冲为日破（无力）
 - 空亡论断：静空为真空（无力），动空不空，冲空不空，临月建不空
 - 用神为核心：用神旺相有力则吉，衰弱受克则凶
 - 原神忌神仇神：原神生用神为吉，忌神克用神为凶，仇神克原神助忌神
+- 三合局论断：申子辰合水、亥卯未合木、寅午戌合火、巳酉丑合金，三合可解冲解空，力量强大
+- 十二长生：长生、沐浴、冠带、临官、帝旺为旺相，病、死、墓、绝为衰弱
+- 六冲卦论断：六冲卦主事散、应期急、变动大
 
 解读格式：
 1. 【卦象概述】本卦象征和基本含义

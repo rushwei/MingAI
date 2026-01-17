@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { performFullAnalysis, yaosTpCode } from '../lib/liuyao';
+import { performFullAnalysis, yaosTpCode, type Yao, type YaoType, type YaoChange } from '../lib/liuyao';
 
 test('performFullAnalysis treats changed hexagram lines as stable', () => {
-    const yaos = [
-        { type: 1, change: 'changing', position: 1 },
-        { type: 0, change: 'stable', position: 2 },
-        { type: 1, change: 'stable', position: 3 },
-        { type: 0, change: 'changing', position: 4 },
-        { type: 1, change: 'stable', position: 5 },
-        { type: 0, change: 'stable', position: 6 },
+    const yaos: Yao[] = [
+        { type: 1 as YaoType, change: 'changing' as YaoChange, position: 1 },
+        { type: 0 as YaoType, change: 'stable' as YaoChange, position: 2 },
+        { type: 1 as YaoType, change: 'stable' as YaoChange, position: 3 },
+        { type: 0 as YaoType, change: 'changing' as YaoChange, position: 4 },
+        { type: 1 as YaoType, change: 'stable' as YaoChange, position: 5 },
+        { type: 0 as YaoType, change: 'stable' as YaoChange, position: 6 },
     ];
     const hexagramCode = yaosTpCode(yaos);
     const changedCode = yaosTpCode(yaos.map((yao) => ({

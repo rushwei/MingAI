@@ -4,10 +4,13 @@
  * 显示完整的传统六爻分析，包括：
  * 1. 干支时间
  * 2. 卦辞/象辞
- * 3. 用神分析
+ * 3. 用神、伏神分析
  * 4. 伏神/神系分析
- * 5. 六爻详解表格（六亲/六神/纳甲/世应/旺衰/空亡）
- * 6. 时间建议
+ * 5. 六爻详解表格（六亲/六神/纳甲/世应/旺衰/空亡/五行）
+ * 6. 旺衰
+ * 7. 六合/六冲/刑害破关系
+ * 8. 原神/忌神/仇神体系
+ * 7. 时间建议
  */
 'use client';
 
@@ -376,7 +379,7 @@ export function TraditionalAnalysis({
                                 className={`p-3 rounded-lg border ${fs.isAvailable
                                     ? 'border-green-500/30 bg-green-500/5'
                                     : 'border-red-500/30 bg-red-500/5'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="font-bold text-foreground">{fs.liuQin}</span>
@@ -402,7 +405,7 @@ export function TraditionalAnalysis({
                 <CollapsibleSection
                     title="神系分析"
                     icon={<Star className="w-5 h-5 text-purple-500" />}
-                    defaultOpen={false}
+                    defaultOpen={true}
                 >
                     <div className="grid grid-cols-3 gap-3">
                         {shenSystem.yuanShen && (
@@ -446,7 +449,7 @@ export function TraditionalAnalysis({
             <CollapsibleSection
                 title="六爻详解"
                 icon={<Info className="w-5 h-5 text-blue-500" />}
-                defaultOpen={false}
+                defaultOpen={true}
             >
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -472,75 +475,75 @@ export function TraditionalAnalysis({
                             {[...fullYaos].reverse().map((yao) => {
                                 const extYao = yao as FullYaoInfoExtended;
                                 return (
-                                <tr
-                                    key={yao.position}
-                                    className={`border-b border-border/50 ${yao.position === yongShen.position ? 'bg-accent/5' : ''
-                                        }`}
-                                >
-                                    <td className="py-2 px-2 text-foreground">
-                                        {yaoNames[yao.position - 1]}
-                                    </td>
-                                    <td className="py-2 px-2">
-                                        <span className={yao.position === yongShen.position ? 'text-accent font-bold' : 'text-foreground'}>
-                                            {yao.liuQin}
-                                            {yao.position === yongShen.position && ' ★'}
-                                        </span>
-                                    </td>
-                                    <td className="py-2 px-2">
-                                        <span
-                                            className={`inline-block px-2 py-0.5 rounded text-xs ${liuShenColors[yao.liuShen] || ''}`}
-                                            title={getLiuShenMeaning(yao.liuShen)}
-                                        >
-                                            {yao.liuShen}
-                                        </span>
-                                    </td>
-                                    <td className="py-2 px-2 text-foreground">{yao.naJia}</td>
-                                    <td className="py-2 px-2 text-foreground">{yao.wuXing}</td>
-                                    <td className="py-2 px-2 text-center">
-                                        {yao.isShiYao && (
-                                            <span className="text-accent font-bold">世</span>
-                                        )}
-                                        {yao.isYingYao && (
-                                            <span className="text-blue-500 font-bold">应</span>
-                                        )}
-                                    </td>
-                                    <td className="py-2 px-2 text-center">
-                                        {yao.change === 'changing' ? (
-                                            <span className="text-red-500">
-                                                动
-                                                {extYao.changeAnalysis && HUA_TYPE_LABELS[extYao.changeAnalysis.huaType] && (
-                                                    <span className="text-xs ml-1">
-                                                        ({HUA_TYPE_LABELS[extYao.changeAnalysis.huaType]})
-                                                    </span>
-                                                )}
+                                    <tr
+                                        key={yao.position}
+                                        className={`border-b border-border/50 ${yao.position === yongShen.position ? 'bg-accent/5' : ''
+                                            }`}
+                                    >
+                                        <td className="py-2 px-2 text-foreground">
+                                            {yaoNames[yao.position - 1]}
+                                        </td>
+                                        <td className="py-2 px-2">
+                                            <span className={yao.position === yongShen.position ? 'text-accent font-bold' : 'text-foreground'}>
+                                                {yao.liuQin}
+                                                {yao.position === yongShen.position && ' ★'}
                                             </span>
-                                        ) : (
-                                            <span className="text-foreground-secondary">静</span>
-                                        )}
-                                    </td>
-                                    {hasExtendedInfo && extYao.strength && (
-                                        <>
-                                            <td className="py-2 px-2 text-center">
-                                                <span className={extYao.strength.isStrong ? 'text-green-500' : 'text-red-500'}>
-                                                    {WANG_SHUAI_LABELS[extYao.strength.wangShuai]}
+                                        </td>
+                                        <td className="py-2 px-2">
+                                            <span
+                                                className={`inline-block px-2 py-0.5 rounded text-xs ${liuShenColors[yao.liuShen] || ''}`}
+                                                title={getLiuShenMeaning(yao.liuShen)}
+                                            >
+                                                {yao.liuShen}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-2 text-foreground">{yao.naJia}</td>
+                                        <td className="py-2 px-2 text-foreground">{yao.wuXing}</td>
+                                        <td className="py-2 px-2 text-center">
+                                            {yao.isShiYao && (
+                                                <span className="text-accent font-bold">世</span>
+                                            )}
+                                            {yao.isYingYao && (
+                                                <span className="text-blue-500 font-bold">应</span>
+                                            )}
+                                        </td>
+                                        <td className="py-2 px-2 text-center">
+                                            {yao.change === 'changing' ? (
+                                                <span className="text-red-500">
+                                                    动
+                                                    {extYao.changeAnalysis && HUA_TYPE_LABELS[extYao.changeAnalysis.huaType] && (
+                                                        <span className="text-xs ml-1">
+                                                            ({HUA_TYPE_LABELS[extYao.changeAnalysis.huaType]})
+                                                        </span>
+                                                    )}
                                                 </span>
-                                                <span className="text-xs text-foreground-secondary ml-1">
-                                                    ({extYao.strength.score})
-                                                </span>
-                                            </td>
-                                            <td className="py-2 px-2 text-center">
-                                                {extYao.kongWangState !== 'not_kong' && (
-                                                    <span className="text-red-500 text-xs">
-                                                        {KONG_WANG_LABELS[extYao.kongWangState]}
+                                            ) : (
+                                                <span className="text-foreground-secondary">静</span>
+                                            )}
+                                        </td>
+                                        {hasExtendedInfo && extYao.strength && (
+                                            <>
+                                                <td className="py-2 px-2 text-center">
+                                                    <span className={extYao.strength.isStrong ? 'text-green-500' : 'text-red-500'}>
+                                                        {WANG_SHUAI_LABELS[extYao.strength.wangShuai]}
                                                     </span>
-                                                )}
-                                            </td>
-                                            <td className="py-2 px-2 text-xs text-foreground-secondary">
-                                                {extYao.influence.description}
-                                            </td>
-                                        </>
-                                    )}
-                                </tr>
+                                                    <span className="text-xs text-foreground-secondary ml-1">
+                                                        ({extYao.strength.score})
+                                                    </span>
+                                                </td>
+                                                <td className="py-2 px-2 text-center">
+                                                    {extYao.kongWangState !== 'not_kong' && (
+                                                        <span className="text-red-500 text-xs">
+                                                            {KONG_WANG_LABELS[extYao.kongWangState]}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-2 px-2 text-xs text-foreground-secondary">
+                                                    {extYao.influence.description}
+                                                </td>
+                                            </>
+                                        )}
+                                    </tr>
                                 );
                             })}
                         </tbody>
