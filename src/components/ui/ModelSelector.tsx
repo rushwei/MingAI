@@ -194,7 +194,7 @@ export function ModelSelector({
     const buttonPadding = compact ? 'px-2 py-1' : 'px-2.5 py-1.5';
     const textSize = compact ? 'text-xs' : 'text-sm';
     return (
-        <div className={`flex items-center ${compact ? 'gap-2' : 'gap-1'}`}>
+        <div className={`flex items-center`}>
             {onModelChange && (
                 <div className="relative">
                     <button
@@ -272,7 +272,7 @@ export function ModelSelector({
 
             {onReasoningChange && (
                 <>
-                    {onModelChange && !compact && <div className="w-px h-6 bg-border mx-1" />}
+                    {onModelChange && !compact}
                     <button
                         type="button"
                         onClick={handleReasoningToggle}
@@ -280,9 +280,9 @@ export function ModelSelector({
                         className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${disabled || !currentModelConfig?.supportsReasoning || !reasoningAllowed
                             ? 'opacity-30 cursor-not-allowed text-foreground-secondary'
                             : isReasoningForced
-                                ? 'bg-yellow-500/20 text-yellow-600 cursor-default'
+                                ? 'text-yellow-600 cursor-default'
                                 : reasoningEnabled
-                                    ? 'bg-yellow-500/20 text-yellow-600 hover:bg-yellow-500/30'
+                                    ? 'text-yellow-600'
                                     : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
                             }`}
                         title={reasoningTooltip}

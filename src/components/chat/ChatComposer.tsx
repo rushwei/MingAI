@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Send, Paperclip, Orbit, X, Sparkles, Square, Plus, Search } from 'lucide-react';
+import { Send, Paperclip, Orbit, X, Sparkles, Square, Plus, Search, FileText, ArrowUp } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import type { AttachmentState } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -53,7 +53,7 @@ export function ChatComposer({
     const hasZiwei = selectedCharts?.ziwei;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
     const { showToast } = useToast();
 
     // 权限判断
@@ -126,7 +126,7 @@ export function ChatComposer({
     };
 
     return (
-        <div className={`fixed left-0 right-0 bottom-[6rem] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
+        <div className={`fixed left-0 right-0 bottom-[4rem] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
             <div className="max-w-3xl mx-auto">
                 {/* 输入框容器 */}
                 <div className={`
@@ -135,6 +135,33 @@ export function ChatComposer({
                     focus-within:ring-2 focus-within:ring-accent/30 focus-within:border-accent
                     transition-all duration-300
                 `}>
+                    {/* 已上传文件显示卡片 */}
+                    {hasFile && (
+                        <div className="flex items-start gap-2 mb-2">
+                            <div className="flex items-center gap-3 px-3 py-2.5 bg-background border border-border rounded-xl max-w-[280px]">
+                                <div className="flex-shrink-0 w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                        {attachmentState?.file?.name}
+                                    </p>
+                                    <p className="text-xs text-foreground-secondary">文件</p>
+                                </div>
+                                {!disabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onAttachmentChange?.({ ...attachmentState, file: undefined, webSearchEnabled: attachmentState?.webSearchEnabled ?? false })}
+                                        className="flex-shrink-0 ml-1 p-0.5 rounded-full bg-foreground-secondary/20 hover:bg-foreground-secondary/40 text-foreground-secondary hover:text-foreground transition-colors"
+                                        title="移除文件"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* 输入框区域 */}
                     <div className="relative">
                         <textarea
@@ -158,149 +185,24 @@ export function ChatComposer({
                     <div className="flex items-center justify-between border-border/50">
                         {/* 左侧按钮组 */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                            {/* 桌面端：展开的工具栏 */}
-                            <div className="hidden md:flex items-center gap-1">
-                                {/* 八字命盘选择框 */}
-                                {onSelectChart && (
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectChart('bazi')}
-                                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${disabled
-                                                ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                                                : hasBazi
-                                                    ? 'bg-orange-500/10 text-orange-600'
-                                                    : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
-                                                }`}
-                                            title={disabled ? "请充值后使用" : "选择八字命盘"}
-                                            disabled={disabled}
-                                        >
-                                            <Orbit className="w-4.5 h-4.5" />
-                                            <span className="max-w-[50px] truncate">{hasBazi?.name || '八字'}</span>
-                                        </button>
-                                        {hasBazi && !disabled && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onClearChart?.('bazi')}
-                                                className="p-1.5 rounded-lg hover:bg-orange-500/10 text-orange-600"
-                                                title="清除八字命盘"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="w-px h-6 bg-border mx-1" />
-
-                                {/* 紫微命盘选择框 */}
-                                {onSelectChart && (
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectChart('ziwei')}
-                                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${disabled
-                                                ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                                                : hasZiwei
-                                                    ? 'bg-purple-500/10 text-purple-600'
-                                                    : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
-                                                }`}
-                                            title={disabled ? "请充值后使用" : "选择紫微命盘"}
-                                            disabled={disabled}
-                                        >
-                                            <Sparkles className="w-4.5 h-4.5" />
-                                            <span className="max-w-[50px] truncate">{hasZiwei?.name || '紫微'}</span>
-                                        </button>
-                                        {hasZiwei && !disabled && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onClearChart?.('ziwei')}
-                                                className="p-1.5 rounded-lg hover:bg-purple-500/10 text-purple-600"
-                                                title="清除紫微命盘"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="w-px h-6 bg-border mx-1" />
-
-                                {/* 附件按钮 */}
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm ${disabled
-                                            ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                                            : hasFile
-                                                ? 'bg-blue-500/10 text-blue-600'
-                                                : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
-                                            }`}
-                                        title={hasFile ? attachmentState?.file?.name : '上传附件'}
-                                        disabled={disabled}
-                                    >
-                                        <Paperclip className="w-4.5 h-4.5" />
-                                        <span className="max-w-[80px] truncate">{hasFile ? attachmentState?.file?.name : '附件'}</span>
-                                    </button>
-                                    {hasFile && !disabled && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onAttachmentChange?.({ ...attachmentState, file: undefined, webSearchEnabled: attachmentState?.webSearchEnabled ?? false })}
-                                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-600"
-                                            title="清除附件"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* 搜索按钮 */}
+                            {/* 统一的折叠菜单（电脑端和手机端都使用） */}
+                            <div className="relative">
                                 <button
                                     type="button"
-                                    onClick={handleWebToggle}
-                                    className={`p-2 rounded-lg transition-all ${
-                                        hasWebSearch
-                                            ? 'bg-green-500/10 text-green-600'
-                                            : !canUseWeb
-                                                ? 'opacity-50 text-foreground-secondary hover:bg-background-tertiary'
-                                                : disabled
-                                                    ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                                                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary'
-                                    }`}
-                                    title={!canUseWeb ? '网络搜索仅限 Plus 以上用户' : '网络搜索'}
-                                    disabled={disabled}
-                                >
-                                    <Search className="w-5 h-5" />
-                                </button>
-
-                                {/* 隐藏的文件输入 */}
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,.txt,.md,.doc,.docx,.xlsx,.xls,.csv"
-                                    onChange={handleFileChange}
-                                />
-                            </div>
-
-                            {/* 移动端：折叠菜单 */}
-                            <div className="md:hidden relative">
-                                <button
-                                    type="button"
-                                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                                    className={`p-2 rounded-lg transition-all ${mobileMenuOpen
+                                    onClick={() => setMenuOpen(!menuOpen)}
+                                    className={`p-2 rounded-lg transition-all ${menuOpen
                                         ? 'bg-background-tertiary text-foreground'
-                                        : 'text-foreground-secondary hover:text-foreground'
+                                        : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary'
                                         }`}
+                                    title="更多选项"
                                 >
-                                    <Plus className={`w-5 h-5 transition-transform duration-200 ${mobileMenuOpen ? 'rotate-45' : ''}`} />
+                                    <Plus className={`w-5 h-5 transition-transform duration-200 ${menuOpen ? 'rotate-45' : ''}`} />
                                 </button>
 
-                                {mobileMenuOpen && (
+                                {menuOpen && (
                                     <>
-                                        <div className="fixed inset-0 z-10" onClick={() => setMobileMenuOpen(false)} />
-                                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-background border border-border rounded-xl shadow-lg z-20 overflow-hidden p-1 flex flex-col gap-1">
+                                        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                                        <div className="absolute bottom-full left-0 mb-2 w-36 bg-background border border-border rounded-xl shadow-lg z-20 overflow-hidden p-1 flex flex-col gap-1">
                                             {onSelectChart && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasBazi
                                                     ? 'bg-orange-500/10 text-orange-600'
@@ -310,14 +212,27 @@ export function ChatComposer({
                                                         type="button"
                                                         onClick={() => {
                                                             onSelectChart('bazi');
-                                                            setMobileMenuOpen(false);
+                                                            setMenuOpen(false);
                                                         }}
                                                         className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
                                                         disabled={disabled}
                                                     >
                                                         <Orbit className="w-4.5 h-4.5" />
-                                                        <span>{hasBazi?.name || '八字命盘'}</span>
+                                                        <span className="truncate">{hasBazi?.name || '八字命盘'}</span>
                                                     </button>
+                                                    {hasBazi && !disabled && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onClearChart?.('bazi');
+                                                            }}
+                                                            className="p-1.5 mr-1 rounded-lg hover:bg-orange-500/20"
+                                                            title="清除八字命盘"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                             {onSelectChart && (
@@ -329,47 +244,57 @@ export function ChatComposer({
                                                         type="button"
                                                         onClick={() => {
                                                             onSelectChart('ziwei');
-                                                            setMobileMenuOpen(false);
+                                                            setMenuOpen(false);
                                                         }}
                                                         className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
                                                         disabled={disabled}
                                                     >
                                                         <Sparkles className="w-4.5 h-4.5" />
-                                                        <span>{hasZiwei?.name || '紫微命盘'}</span>
+                                                        <span className="truncate">{hasZiwei?.name || '紫微命盘'}</span>
                                                     </button>
+                                                    {hasZiwei && !disabled && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onClearChart?.('ziwei');
+                                                            }}
+                                                            className="p-1.5 mr-1 rounded-lg hover:bg-purple-500/20"
+                                                            title="清除紫微命盘"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                             {/* 附件选项 */}
-                                            <div className={`flex items-center w-full rounded-lg transition-all ${hasFile
-                                                ? 'bg-blue-500/10 text-blue-600'
-                                                : 'hover:bg-background-secondary text-foreground-secondary'
-                                                }`}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        fileInputRef.current?.click();
-                                                        setMobileMenuOpen(false);
-                                                    }}
-                                                    className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
-                                                    disabled={disabled}
-                                                >
-                                                    <Paperclip className="w-4.5 h-4.5" />
-                                                    <span>{hasFile ? attachmentState?.file?.name : '上传附件'}</span>
-                                                </button>
-                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    fileInputRef.current?.click();
+                                                    setMenuOpen(false);
+                                                }}
+                                                className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all ${hasFile
+                                                    ? 'bg-blue-500/10 text-blue-600'
+                                                    : 'hover:bg-background-secondary text-foreground-secondary'
+                                                    }`}
+                                                disabled={disabled}
+                                            >
+                                                <Paperclip className="w-4.5 h-4.5" />
+                                                <span>{hasFile ? '更换附件' : '上传附件'}</span>
+                                            </button>
                                             {/* 搜索选项 */}
-                                            <div className={`flex items-center w-full rounded-lg transition-all ${
-                                                hasWebSearch
-                                                    ? 'bg-green-500/10 text-green-600'
-                                                    : !canUseWeb
-                                                        ? 'opacity-50 text-foreground-secondary hover:bg-background-secondary'
-                                                        : 'hover:bg-background-secondary text-foreground-secondary'
+                                            <div className={`flex items-center w-full rounded-lg transition-all ${hasWebSearch
+                                                ? 'bg-green-500/10 text-green-600'
+                                                : !canUseWeb
+                                                    ? 'opacity-50 text-foreground-secondary hover:bg-background-secondary'
+                                                    : 'hover:bg-background-secondary text-foreground-secondary'
                                                 }`}>
                                                 <button
                                                     type="button"
                                                     onClick={() => {
                                                         handleWebToggle();
-                                                        setMobileMenuOpen(false);
+                                                        setMenuOpen(false);
                                                     }}
                                                     className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
                                                     disabled={disabled}
@@ -381,6 +306,15 @@ export function ChatComposer({
                                         </div>
                                     </>
                                 )}
+
+                                {/* 隐藏的文件输入 */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.txt,.md,.doc,.docx,.xlsx,.xls,.csv"
+                                    onChange={handleFileChange}
+                                />
                             </div>
 
                             <div className="w-px h-6 bg-border mx-1" />
@@ -401,7 +335,7 @@ export function ChatComposer({
                             onClick={handleButtonClick}
                             disabled={disabled || (!isLoading && !inputValue.trim())}
                             className={`
-                                px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 flex-shrink-0
+                                px-2 py-2 rounded-full transition-all duration-200 flex items-center gap-2 flex-shrink-0
                                 ${isLoading
                                     ? 'bg-red-500 text-white hover:bg-red-600'
                                     : inputValue.trim() && !disabled
@@ -412,13 +346,13 @@ export function ChatComposer({
                         >
                             {isLoading ? (
                                 <>
-                                    <Square className="w-4 h-4" />
-                                    <span className="text-sm">停止</span>
+                                    <Square className="w-4.5 h-4.5" strokeWidth={2.5} />
+                                    {/* <span className="text-sm">停止</span> */}
                                 </>
                             ) : (
                                 <>
-                                    <Send className="w-4.5 h-4.5" />
-                                    <span className="text-sm">发送</span>
+                                    <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
+                                    {/* <span className="text-sm">发送</span> */}
                                 </>
                             )}
                         </button>
