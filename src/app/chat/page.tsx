@@ -330,6 +330,7 @@ export default function ChatPage() {
                     chartIds: {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
+                        baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
                     difyContext,
@@ -540,6 +541,7 @@ export default function ChatPage() {
                     chartIds: {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
+                        baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
                 }),
@@ -681,6 +683,7 @@ export default function ChatPage() {
                     chartIds: {
                         baziId: selectedCharts.bazi?.id,
                         ziweiId: selectedCharts.ziwei?.id,
+                        baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
                 }),

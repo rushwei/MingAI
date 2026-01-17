@@ -114,7 +114,7 @@ export default function TarotHistoryPage() {
             conversationId: reading.conversation_id || null,
         };
         sessionStorage.setItem('tarot_result', JSON.stringify(sessionData));
-        router.push(`/tarot/result?from=history&t=${Date.now()}`);
+        router.push(`/tarot/result?from=history&t=${reading.id}`);
     };
 
     return (

@@ -27,15 +27,11 @@ import { supabase } from '@/lib/supabase';
 // 投票按钮组件
 // =====================================================
 function VoteButtons({
-    targetType: _targetType,
-    targetId: _targetId,
     upvotes,
     downvotes,
     userVote,
     onVote
 }: {
-    targetType: 'post' | 'comment';
-    targetId: string;
     upvotes: number;
     downvotes: number;
     userVote: VoteType | null;
@@ -216,8 +212,6 @@ function CommentItem({
                     <p className="text-foreground-secondary mt-1 whitespace-pre-wrap">{comment.content}</p>
                     <div className="flex items-center gap-3 mt-2">
                         <VoteButtons
-                            targetType="comment"
-                            targetId={comment.id}
                             upvotes={comment.upvote_count}
                             downvotes={comment.downvote_count}
                             userVote={userVotes.get(comment.id) || null}
@@ -502,8 +496,6 @@ export default function PostDetailPage() {
 
                     <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
                         <VoteButtons
-                            targetType="post"
-                            targetId={post.id}
                             upvotes={post.upvote_count}
                             downvotes={post.downvote_count}
                             userVote={postVote}

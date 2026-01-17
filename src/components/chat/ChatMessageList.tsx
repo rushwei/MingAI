@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Paperclip, Search } from 'lucide-react';
+import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
 import type { AIPersonalityConfig, ChatMessage } from '@/types';
 import { getModelName } from '@/lib/ai-config';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -138,18 +138,25 @@ export function ChatMessageList({
                             <div className="flex flex-col items-end max-w-[75%]">
                                 {/* 附件信息显示 - 在消息气泡上方 */}
                                 {message.attachments && (message.attachments.fileName || message.attachments.webSearchEnabled) && (
-                                    <div className="flex items-center gap-2 mb-1 text-sm text-foreground-secondary">
+                                    <div className="flex items-center gap-2 mb-2">
                                         {message.attachments.fileName && (
-                                            <span className="flex items-center gap-1">
-                                                <Paperclip className="w-3.5 h-3.5" />
-                                                <span className="max-w-[150px] truncate">{message.attachments.fileName}</span>
-                                            </span>
+                                            <div className="flex items-center gap-3 px-3 py-2.5 bg-background border border-border rounded-xl max-w-[240px]">
+                                                <div className="flex-shrink-0 w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+                                                    <FileText className="w-5 h-5 text-white" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-foreground truncate">
+                                                        {message.attachments.fileName}
+                                                    </p>
+                                                    <p className="text-xs text-foreground-secondary">文件</p>
+                                                </div>
+                                            </div>
                                         )}
                                         {message.attachments.webSearchEnabled && (
-                                            <span className="flex items-center gap-1">
-                                                <Search className="w-3.5 h-3.5" />
-                                                <span>网络搜索</span>
-                                            </span>
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-xl text-green-600">
+                                                <Search className="w-4 h-4" />
+                                                <span className="text-sm">网络搜索</span>
+                                            </div>
                                         )}
                                     </div>
                                 )}

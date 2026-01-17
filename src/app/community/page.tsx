@@ -27,6 +27,7 @@ function AnonymityNotice() {
 
     useEffect(() => {
         const dismissed = localStorage.getItem('community-anonymity-dismissed');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (dismissed) setDismissed(true);
     }, []);
 

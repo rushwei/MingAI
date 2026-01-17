@@ -218,7 +218,14 @@ export function ChatComposer({
                                                         disabled={disabled}
                                                     >
                                                         <Orbit className="w-4.5 h-4.5" />
-                                                        <span className="truncate">{hasBazi?.name || '八字命盘'}</span>
+                                                        <span className="truncate flex flex-col items-start text-left">
+                                                            <span className="truncate w-full">{hasBazi?.name || '八字命盘'}</span>
+                                                            {hasBazi?.analysisMode && (
+                                                                <span className="text-[11px] opacity-70">
+                                                                    {hasBazi.analysisMode === 'mangpai' ? '盲派分析' : '传统分析'}
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     </button>
                                                     {hasBazi && !disabled && (
                                                         <button

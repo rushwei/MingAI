@@ -119,15 +119,18 @@ export async function GET(
         const isPostAuthor = currentUserId ? post.user_id === currentUserId : false;
 
         // 为评论添加 isAuthor 标记，然后移除 user_id
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        function processComment(comment: any): any {
+        type SafeComment = Omit<CommentWithReplies, 'user_id' | 'replies'> & {
+            isAuthor: boolean;
+            replies: SafeComment[];
+        };
+        function processComment(comment: CommentWithReplies): SafeComment {
             const isCommentAuthor = currentUserId ? comment.user_id === currentUserId : false;
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { user_id, replies, ...safeComment } = comment;
             return {
                 ...safeComment,
                 isAuthor: isCommentAuthor,
-                replies: (replies || []).map((r: any) => processComment(r)),
+                replies: (replies || []).map(processComment),
             };
         }
 

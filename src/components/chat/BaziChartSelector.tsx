@@ -14,7 +14,7 @@ interface ChartItem {
 }
 
 export interface SelectedCharts {
-    bazi?: { id: string; name: string; info: string };
+    bazi?: { id: string; name: string; info: string; analysisMode?: 'traditional' | 'mangpai' };
     ziwei?: { id: string; name: string; info: string };
 }
 
@@ -35,6 +35,9 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
         bazi: currentSelection?.bazi?.id,
         ziwei: currentSelection?.ziwei?.id,
     }));
+    const [baziAnalysisMode, setBaziAnalysisMode] = useState<'traditional' | 'mangpai'>(
+        currentSelection?.bazi?.analysisMode || 'traditional'
+    );
 
     const baziSectionRef = useRef<HTMLDivElement>(null);
     const ziweiSectionRef = useRef<HTMLDivElement>(null);
@@ -140,6 +143,7 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
                 id: selectedBazi.id,
                 name: selectedBazi.name,
                 info: formatInfo(selectedBazi),
+                analysisMode: baziAnalysisMode,
             };
         }
         if (selectedZiwei) {
@@ -155,6 +159,7 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
 
     const handleClear = () => {
         setSelectedIds({ bazi: undefined, ziwei: undefined });
+        setBaziAnalysisMode('traditional');
     };
 
     if (!isOpen) return null;
@@ -237,6 +242,34 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
                         <div className="space-y-3">
                             {baziCharts.length > 0 && (
                                 <div ref={baziSectionRef}>
+                                    {/* 分析模式选择 - 仅在选中八字命盘时显示 */}
+                                    {selectedIds.bazi && (
+                                        <div className="mb-2 px-2">
+                                            <div className="text-xs text-foreground-secondary mb-1.5">分析模式</div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBaziAnalysisMode('traditional')}
+                                                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${baziAnalysisMode === 'traditional'
+                                                        ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                                                        : 'border-border hover:bg-background-secondary text-foreground-secondary'
+                                                        }`}
+                                                >
+                                                    传统命理
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBaziAnalysisMode('mangpai')}
+                                                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${baziAnalysisMode === 'mangpai'
+                                                        ? 'bg-amber-500/10 border-amber-500/50 text-amber-600'
+                                                        : 'border-border hover:bg-background-secondary text-foreground-secondary'
+                                                        }`}
+                                                >
+                                                    盲派分析
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="text-xs text-foreground-secondary px-2 mb-1 flex items-center gap-1">
                                         <Orbit className="w-3 h-3 text-orange-500" />
                                         八字命盘

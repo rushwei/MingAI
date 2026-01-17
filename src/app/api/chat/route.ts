@@ -19,6 +19,7 @@ import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import { generateBaziChartText } from '@/lib/bazi';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
+import { generateMangpaiPrompt, extractDayPillar } from '@/lib/mangpai';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => createClient(
@@ -32,6 +33,7 @@ const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 interface ChartIds {
     baziId?: string;
     ziweiId?: string;
+    baziAnalysisMode?: 'traditional' | 'mangpai';
 }
 
 interface ChartContext {
@@ -98,7 +100,7 @@ async function loadChartContext(chartIds: ChartIds, userId: string): Promise<Cha
 }
 
 // 格式化命盘上下文为文本
-function formatChartContextPrompt(context: ChartContext): string {
+function formatChartContextPrompt(context: ChartContext, analysisMode?: 'traditional' | 'mangpai'): string {
     const parts: string[] = [];
 
     // 选择八字命盘信息
@@ -109,6 +111,40 @@ function formatChartContextPrompt(context: ChartContext): string {
         const { baziChart } = context;
         // 使用 generateBaziChartText 生成八字命盘文字（自动计算大运）
         const chartData = baziChart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
+
+        // 检查是否使用盲派分析模式
+        if (analysisMode === 'mangpai' && chartData?.fourPillars) {
+            const dayPillar = extractDayPillar(chartData);
+            if (dayPillar) {
+                // 生成基础命盘信息
+                let basicInfo = `【八字命盘】\n`;
+                basicInfo += `姓名：${baziChart.name}\n`;
+                basicInfo += `性别：${baziChart.gender}\n`;
+                basicInfo += `出生日期：${baziChart.birthDate}${baziChart.birthTime ? ` ${baziChart.birthTime}` : ''}\n`;
+                if (chartData.fourPillars) {
+                    const fp = chartData.fourPillars;
+                    basicInfo += `\n四柱：${fp.year?.stem || ''}${fp.year?.branch || ''}年 ${fp.month?.stem || ''}${fp.month?.branch || ''}月 ${fp.day?.stem || ''}${fp.day?.branch || ''}日 ${fp.hour?.stem || ''}${fp.hour?.branch || ''}时\n`;
+                }
+                let ziweiExtra = '';
+                if (context.ziweiChart) {
+                    const { ziweiChart } = context;
+                    const ziweiData = ziweiChart.chartData as ZiweiChart | undefined;
+                    if (ziweiData?.palaces) {
+                        ziweiExtra = generateZiweiChartText(ziweiData);
+                    } else {
+                        let ziweiInfo = `【紫微命盘】\n`;
+                        ziweiInfo += `姓名：${ziweiChart.name}\n`;
+                        ziweiInfo += `性别：${ziweiChart.gender}\n`;
+                        ziweiInfo += `出生日期：${ziweiChart.birthDate}${ziweiChart.birthTime ? ` ${ziweiChart.birthTime}` : ''}\n`;
+                        ziweiExtra = ziweiInfo;
+                    }
+                }
+                // 使用盲派提示词
+                return generateMangpaiPrompt(dayPillar, basicInfo, ziweiExtra);
+            }
+        }
+
+        // 传统模式或盲派数据不完整时的降级处理
         if (chartData?.fourPillars) {
             parts.push(generateBaziChartText(chartData));
         } else {
@@ -268,7 +304,7 @@ export async function POST(request: NextRequest) {
         let chartContextPrompt = '';
         if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
             const chartContext = await loadChartContext(chartIds, userId);
-            chartContextPrompt = formatChartContextPrompt(chartContext);
+            chartContextPrompt = formatChartContextPrompt(chartContext, chartIds.baziAnalysisMode);
         }
 
         // 处理 Dify 增强上下文（不可信数据，注入到用户消息中）
@@ -284,7 +320,7 @@ export async function POST(request: NextRequest) {
                     return msg;
                 });
             }
-        } 
+        }
         // 流式响应
         if (stream) {
             const streamBody = await callAIStream(
