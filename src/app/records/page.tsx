@@ -14,7 +14,8 @@ import {
     Tag,
     Filter,
     FileText,
-    BookOpen
+    BookOpen,
+    Tags
 } from 'lucide-react';
 import {
     MingRecord,
@@ -568,7 +569,7 @@ export default function RecordsPage() {
                 {/* 标题 */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-accent" />
+                        <Tags className="w-8 h-8 text-accent" />
                         <div>
                             <h1 className="text-2xl font-bold">命理记录</h1>
                             <p className="text-sm text-foreground-secondary">记录你的命理旅程</p>

@@ -13,7 +13,8 @@ import {
     Pin,
     Star,
     Filter,
-    AlertCircle
+    AlertCircle,
+    Aperture
 } from 'lucide-react';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
@@ -172,7 +173,7 @@ export default function CommunityPage() {
                 {/* 标题 */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <MessageCircle className="w-8 h-8 text-purple-400" />
+                        <Aperture className="w-8 h-8 text-purple-400" />
                         <div>
                             <h1 className="text-2xl font-bold">命理社区</h1>
                             <p className="text-sm text-foreground-secondary">匿名交流命理心得</p>
