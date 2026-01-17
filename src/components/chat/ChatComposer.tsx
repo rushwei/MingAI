@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Send, Paperclip, Orbit, X, Sparkles, Square, Plus, Search, FileText, ArrowUp } from 'lucide-react';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, Search, FileText, ArrowUp } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import type { AttachmentState } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
