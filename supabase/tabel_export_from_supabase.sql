@@ -22,6 +22,79 @@ CREATE TABLE public.bazi_charts (
   CONSTRAINT bazi_charts_pkey PRIMARY KEY (id),
   CONSTRAINT bazi_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.community_anonymous_mapping (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  anonymous_name text NOT NULL DEFAULT '匿名用户'::text,
+  display_order integer NOT NULL DEFAULT 1,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_anonymous_mapping_pkey PRIMARY KEY (id),
+  CONSTRAINT community_anonymous_mapping_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.community_posts(id),
+  CONSTRAINT community_anonymous_mapping_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.community_comments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  parent_id uuid,
+  content text NOT NULL,
+  upvote_count integer DEFAULT 0,
+  downvote_count integer DEFAULT 0,
+  is_deleted boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT community_comments_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.community_posts(id),
+  CONSTRAINT community_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT community_comments_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.community_comments(id)
+);
+CREATE TABLE public.community_posts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  anonymous_name text NOT NULL DEFAULT '匿名用户'::text,
+  title text NOT NULL,
+  content text NOT NULL,
+  category text DEFAULT 'general'::text,
+  tags ARRAY DEFAULT '{}'::text[],
+  view_count integer DEFAULT 0,
+  upvote_count integer DEFAULT 0,
+  downvote_count integer DEFAULT 0,
+  comment_count integer DEFAULT 0,
+  is_pinned boolean DEFAULT false,
+  is_featured boolean DEFAULT false,
+  is_deleted boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_posts_pkey PRIMARY KEY (id),
+  CONSTRAINT community_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.community_reports (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reporter_id uuid NOT NULL,
+  target_type text NOT NULL CHECK (target_type = ANY (ARRAY['post'::text, 'comment'::text])),
+  target_id uuid NOT NULL,
+  reason text NOT NULL,
+  description text,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'reviewed'::text, 'resolved'::text, 'dismissed'::text])),
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  review_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_reports_pkey PRIMARY KEY (id),
+  CONSTRAINT community_reports_reporter_id_fkey FOREIGN KEY (reporter_id) REFERENCES auth.users(id),
+  CONSTRAINT community_reports_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.community_votes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  target_type text NOT NULL CHECK (target_type = ANY (ARRAY['post'::text, 'comment'::text])),
+  target_id uuid NOT NULL,
+  vote_type text NOT NULL CHECK (vote_type = ANY (ARRAY['up'::text, 'down'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_votes_pkey PRIMARY KEY (id),
+  CONSTRAINT community_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.conversations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -97,6 +170,33 @@ CREATE TABLE public.mbti_readings (
   CONSTRAINT mbti_readings_pkey PRIMARY KEY (id),
   CONSTRAINT mbti_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT mbti_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
+CREATE TABLE public.ming_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  note_date date NOT NULL DEFAULT CURRENT_DATE,
+  content text NOT NULL,
+  mood text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ming_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT ming_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ming_records (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  content text,
+  category text DEFAULT 'general'::text,
+  tags ARRAY DEFAULT '{}'::text[],
+  event_date date,
+  related_chart_type text,
+  related_chart_id uuid,
+  is_pinned boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ming_records_pkey PRIMARY KEY (id),
+  CONSTRAINT ming_records_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

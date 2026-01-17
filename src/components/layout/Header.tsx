@@ -15,7 +15,7 @@ import { User, LogIn } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { AuthModal } from '../auth/AuthModal';
 import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@/lib/supabase';
 
 export function Header() {
     const [user, setUser] = useState<SupabaseUser | null>(null);

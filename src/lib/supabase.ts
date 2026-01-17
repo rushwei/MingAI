@@ -1,10 +1,11 @@
 /**
  * Supabase 客户端配置
  * 
- * 提供浏览器端和服务器端的 Supabase 客户端
+ * 提供浏览器端的 Supabase 客户端
+ * 使用 @supabase/ssr 支持 SSR
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -14,13 +15,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // 浏览器端 Supabase 客户端（单例）
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-    },
-});
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // 类型定义
 export type Database = {
@@ -188,3 +183,6 @@ export type Database = {
         };
     };
 };
+
+// 导出 User 类型供组件使用
+export type { User } from '@supabase/supabase-js';

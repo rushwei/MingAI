@@ -12,6 +12,7 @@ let serviceClient: SupabaseClient | null = null;
 /**
  * 获取服务端 Supabase 客户端（绕过 RLS）
  * 使用单例模式避免重复创建
+ * 注意：此客户端使用 Service Role Key，仅用于服务端
  */
 export function getServiceClient(): SupabaseClient {
     if (serviceClient) return serviceClient;

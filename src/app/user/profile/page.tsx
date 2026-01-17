@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
-import type { User } from '@supabase/supabase-js';
+import type { User } from '@/lib/supabase';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
 import { StatusBanner } from '@/components/profile/StatusBanner';

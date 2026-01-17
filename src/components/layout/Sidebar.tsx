@@ -27,13 +27,16 @@ import {
     Brain,
     Compass,
     HeartHandshake,
+    Github,
+    Aperture,
+    Tags,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { SidebarUserCard } from './UserMenu';
 import { useSidebarSafe } from './SidebarContext';
 import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@/lib/supabase';
 
 // 导航项配置
 const navItems = [
@@ -109,6 +112,8 @@ const toolItems = [
     { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, available: true },
+    { href: '/records', label: '命理记录', icon: Tags, available: true },
+    { href: '/community', label: '命理社区', icon: Aperture, available: true },
 ];
 
 export function Sidebar() {
@@ -280,6 +285,30 @@ export function Sidebar() {
                                 );
                             })}
                         </ul>
+                    </div>
+
+                    {/* GitHub 反馈 */}
+                    <div className="mb-2">
+                        <div className={`px-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider transition-all duration-300 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-2'}`}>
+                            反馈
+                        </div>
+                        <a
+                            href="https://github.com/hhszzzz/MingAI/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`
+                                flex items-center px-2.5 py-2.5 rounded-lg
+                                transition-all duration-300
+                                text-foreground-secondary hover:bg-background-secondary hover:text-foreground
+                                ${collapsed ? 'justify-center' : 'gap-2'}
+                            `}
+                            title={collapsed ? 'GitHub - 反馈意见/提交需求' : undefined}
+                        >
+                            <Github className="w-4.5 h-4.5 flex-shrink-0" />
+                            <span className={`text-sm font-medium transition-all duration-300 whitespace-nowrap ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                                反馈意见 / 提交需求
+                            </span>
+                        </a>
                     </div>
                 </nav>
 

@@ -18,7 +18,7 @@ import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { getUnreadCount } from '@/lib/notification';
 import { supabase } from '@/lib/supabase';
 import { usePaymentPause } from '@/lib/usePaymentPause';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@/lib/supabase';
 
 interface SidebarUserCardProps {
     user: SupabaseUser;

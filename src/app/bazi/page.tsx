@@ -20,7 +20,7 @@ import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User } from '@/lib/supabase';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {

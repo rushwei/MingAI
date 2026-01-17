@@ -30,7 +30,7 @@ import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@/lib/supabase';
 
 // 菜单项配置
 const menuItems = [
