@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import {
     Plus,
     Search,
@@ -26,6 +25,7 @@ import {
     NoteMood
 } from '@/lib/records';
 import { supabase } from '@/lib/supabase';
+import { LoginOverlay } from '@/components/auth/LoginOverlay';
 
 // =====================================================
 // 记录卡片组件
@@ -471,7 +471,6 @@ function ImportExportModal({
 // 主页面组件
 // =====================================================
 export default function RecordsPage() {
-    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<MingRecord[]>([]);
     const [notes, setNotes] = useState<MingNote[]>([]);
@@ -490,17 +489,14 @@ export default function RecordsPage() {
     useEffect(() => {
         const checkAuth = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                router.push('/');
-                return;
-            }
             setUser(user);
         };
         checkAuth();
-    }, [router]);
+    }, []); // 移除 router 依赖
 
     // 加载记录
     const loadRecords = useCallback(async () => {
+        if (!user) return; // 未登录时不加载
         setLoading(true);
         try {
             const params = new URLSearchParams({
@@ -519,17 +515,18 @@ export default function RecordsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, search, category]);
+    }, [page, search, category, user]);
 
     // 加载今日小记
     const loadNotes = useCallback(async () => {
+        if (!user) return; // 未登录时不加载
         const today = new Date().toISOString().split('T')[0];
         const response = await fetch(`/api/notes?date=${today}`);
         if (response.ok) {
             const data = await response.json();
             setNotes(data.notes);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (user) {
@@ -555,150 +552,144 @@ export default function RecordsPage() {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    if (!user) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
-            </div>
-        );
-    }
-
     return (
-        <div className="min-h-screen bg-background text-foreground">
-            <div className="max-w-4xl mx-auto p-4 md:p-6">
-                {/* 标题 */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Tags className="w-8 h-8 text-accent" />
-                        <div>
-                            <h1 className="text-2xl font-bold">命理记录</h1>
-                            <p className="text-sm text-foreground-secondary">记录你的命理旅程</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setShowImportExport(true)}
-                            className="p-2 text-foreground-secondary hover:text-foreground transition-colors"
-                            title="数据管理"
-                        >
-                            <Download className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowRecordForm(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            添加记录
-                        </button>
-                    </div>
-                </div>
-
-                {/* 小记区域 */}
-                <div className="mb-6">
-                    <DailyNotes notes={notes} onRefresh={loadNotes} />
-                </div>
-
-                {/* 搜索和筛选 */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            placeholder="搜索记录..."
-                            className="w-full bg-background-secondary border border-border rounded-lg pl-10 pr-4 py-2 text-foreground focus:outline-none focus:border-accent"
-                        />
-                    </div>
-                    <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-                        <select
-                            value={category}
-                            onChange={(e) => { setCategory(e.target.value as RecordCategory | ''); setPage(1); }}
-                            className="bg-background-secondary border border-border rounded-lg pl-10 pr-8 py-2 text-foreground focus:outline-none focus:border-accent appearance-none"
-                        >
-                            <option value="">全部分类</option>
-                            {RECORD_CATEGORIES.map(cat => (
-                                <option key={cat.value} value={cat.value}>
-                                    {cat.icon} {cat.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                {/* 记录列表 */}
-                {loading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
-                    </div>
-                ) : records.length === 0 ? (
-                    <div className="text-center py-12 text-foreground-secondary">
-                        <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>暂无记录</p>
-                        <button
-                            onClick={() => setShowRecordForm(true)}
-                            className="mt-4 text-accent hover:text-accent/80"
-                        >
-                            添加第一条记录
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <div className="space-y-3">
-                            {records.map(record => (
-                                <RecordCard
-                                    key={record.id}
-                                    record={record}
-                                    onEdit={() => { setEditingRecord(record); setShowRecordForm(true); }}
-                                    onDelete={() => handleDelete(record.id)}
-                                    onTogglePin={() => handleTogglePin(record.id)}
-                                />
-                            ))}
-                        </div>
-
-                        {/* 分页 */}
-                        {totalPages > 1 && (
-                            <div className="flex justify-center gap-2 mt-6">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                    className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
-                                >
-                                    上一页
-                                </button>
-                                <span className="px-3 py-1 text-foreground-secondary">
-                                    {page} / {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page === totalPages}
-                                    className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
-                                >
-                                    下一页
-                                </button>
+        <LoginOverlay message="登录后使用命理记录功能">
+            <div className="min-h-screen bg-background text-foreground">
+                <div className="max-w-4xl mx-auto p-4 md:p-6">
+                    {/* 标题 */}
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <Tags className="w-8 h-8 text-accent" />
+                            <div>
+                                <h1 className="text-2xl font-bold">命理记录</h1>
+                                <p className="text-sm text-foreground-secondary">记录你的命理旅程</p>
                             </div>
-                        )}
-                    </>
-                )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowImportExport(true)}
+                                className="p-2 text-foreground-secondary hover:text-foreground transition-colors"
+                                title="数据管理"
+                            >
+                                <Download className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => setShowRecordForm(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                            >
+                                <Plus className="w-4 h-4" />
+                                添加记录
+                            </button>
+                        </div>
+                    </div>
 
-                {/* 记录表单模态框 */}
-                {showRecordForm && (
-                    <RecordFormModal
-                        record={editingRecord}
-                        onClose={() => { setShowRecordForm(false); setEditingRecord(null); }}
-                        onSave={() => { setShowRecordForm(false); setEditingRecord(null); loadRecords(); }}
-                    />
-                )}
+                    {/* 小记区域 */}
+                    <div className="mb-6">
+                        <DailyNotes notes={notes} onRefresh={loadNotes} />
+                    </div>
 
-                {/* 导入导出模态框 */}
-                {showImportExport && (
-                    <ImportExportModal
-                        onClose={() => setShowImportExport(false)}
-                        onImport={() => { loadRecords(); loadNotes(); }}
-                    />
-                )}
+                    {/* 搜索和筛选 */}
+                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                                placeholder="搜索记录..."
+                                className="w-full bg-background-secondary border border-border rounded-lg pl-10 pr-4 py-2 text-foreground focus:outline-none focus:border-accent"
+                            />
+                        </div>
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+                            <select
+                                value={category}
+                                onChange={(e) => { setCategory(e.target.value as RecordCategory | ''); setPage(1); }}
+                                className="bg-background-secondary border border-border rounded-lg pl-10 pr-8 py-2 text-foreground focus:outline-none focus:border-accent appearance-none"
+                            >
+                                <option value="">全部分类</option>
+                                {RECORD_CATEGORIES.map(cat => (
+                                    <option key={cat.value} value={cat.value}>
+                                        {cat.icon} {cat.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* 记录列表 */}
+                    {loading ? (
+                        <div className="flex justify-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                        </div>
+                    ) : records.length === 0 ? (
+                        <div className="text-center py-12 text-foreground-secondary">
+                            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>暂无记录</p>
+                            <button
+                                onClick={() => setShowRecordForm(true)}
+                                className="mt-4 text-accent hover:text-accent/80"
+                            >
+                                添加第一条记录
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="space-y-3">
+                                {records.map(record => (
+                                    <RecordCard
+                                        key={record.id}
+                                        record={record}
+                                        onEdit={() => { setEditingRecord(record); setShowRecordForm(true); }}
+                                        onDelete={() => handleDelete(record.id)}
+                                        onTogglePin={() => handleTogglePin(record.id)}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* 分页 */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center gap-2 mt-6">
+                                    <button
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                        className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
+                                    >
+                                        上一页
+                                    </button>
+                                    <span className="px-3 py-1 text-foreground-secondary">
+                                        {page} / {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={page === totalPages}
+                                        className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
+                                    >
+                                        下一页
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* 记录表单模态框 */}
+                    {showRecordForm && (
+                        <RecordFormModal
+                            record={editingRecord}
+                            onClose={() => { setShowRecordForm(false); setEditingRecord(null); }}
+                            onSave={() => { setShowRecordForm(false); setEditingRecord(null); loadRecords(); }}
+                        />
+                    )}
+
+                    {/* 导入导出模态框 */}
+                    {showImportExport && (
+                        <ImportExportModal
+                            onClose={() => setShowImportExport(false)}
+                            onImport={() => { loadRecords(); loadNotes(); }}
+                        />
+                    )}
+                </div>
             </div>
-        </div>
+        </LoginOverlay>
     );
 }

@@ -159,7 +159,9 @@ export type ConversationSourceType =
     | 'tarot'          // 塔罗占卜
     | 'liuyao'         // 六爻占卜
     | 'mbti'           // MBTI 人格
-    | 'hepan';         // 合盘分析
+    | 'hepan'          // 合盘分析
+    | 'palm'           // 手相分析
+    | 'face';          // 面相分析
 
 /** 对话会话 */
 export interface Conversation {
@@ -180,7 +182,7 @@ export interface Conversation {
 // ===== AI 模型相关类型 =====
 
 /** AI 供应商 */
-export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai';
+export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai' | 'qwen-vl' | 'gemini-vl';
 
 /** AI 模型 ID - 动态生成，这里只定义基础结构 */
 export type AIModelId = string;
@@ -197,6 +199,8 @@ export interface AIModelConfig {
     supportsReasoning: boolean;  // 是否支持推理模式
     reasoningModelId?: string;   // 推理模式的模型 ID（如果不同）
     isReasoningDefault?: boolean; // 是否默认开启推理（DeepAI）
+    // 视觉模型支持
+    supportsVision?: boolean;    // 是否支持图像输入
     // 默认参数
     defaultTemperature?: number;
     defaultMaxTokens?: number;

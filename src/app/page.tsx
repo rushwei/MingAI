@@ -83,10 +83,10 @@ const features = [
 const systems = [
   { name: "八字命理", emoji: "🔮", available: true, href: "/bazi", desc: "四柱精批" },
   { name: "紫微斗数", emoji: "⭐", available: true, href: "/ziwei", desc: "星命推演" },
-  { name: "塔罗占卜", emoji: "🃏", available: false, desc: "即将上线" },
-  { name: "六爻占卜", emoji: "☯️", available: false, desc: "即将上线" },
-  { name: "面相分析", emoji: "👤", available: false, desc: "敬请期待" },
-  { name: "手相分析", emoji: "🖐️", available: false, desc: "敬请期待" },
+  { name: "塔罗占卜", emoji: "🃏", available: true, href: "/tarot", desc: "塔罗占卜" },
+  { name: "六爻占卜", emoji: "☯️", available: true, href: "/liuyao", desc: "六爻占卜" },
+  { name: "面相分析", emoji: "👤", available: true, href: "/face", desc: "面相分析" },
+  { name: "手相分析", emoji: "🖐️", available: true, href: "/palm", desc: "手相分析" },
 ];
 
 // 会员权益

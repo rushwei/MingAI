@@ -9,7 +9,7 @@ import { findHexagram } from '@/lib/liuyao';
 import { getModelName } from '@/lib/ai-config';
 
 // 支持的历史类型
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan';
+type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
 
 interface HistoryItem {
     id: string;
@@ -30,12 +30,14 @@ const TYPE_CONFIG: Record<HistoryType, {
     historyPath: string;
     detailPath: string;
     sessionKey: string;
-    useTimestamp?: boolean; // 是否需要添加时间戳参数（用于同页面导航）
+    useTimestamp?: boolean;
 }> = {
     tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history', detailPath: '/tarot/result', sessionKey: 'tarot_result', useTimestamp: true },
     liuyao: { label: '六爻历史', tableName: 'liuyao_divinations', historyPath: '/liuyao/history', detailPath: '/liuyao/result', sessionKey: 'liuyao_result' },
     mbti: { label: 'MBTI历史', tableName: 'mbti_readings', historyPath: '/mbti/history', detailPath: '/mbti/result', sessionKey: 'mbti_result' },
     hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
+    palm: { label: '手相历史', tableName: 'palm_readings', historyPath: '/palm/history', detailPath: '/palm/result', sessionKey: 'palm_result' },
+    face: { label: '面相历史', tableName: 'face_readings', historyPath: '/face/history', detailPath: '/face/result', sessionKey: 'face_result' },
 };
 
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
@@ -119,6 +121,36 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
                     const question = (item.question as string)?.trim();
                     title = question ? `${question} - ${hexagramDisplay}` : hexagramDisplay;
+                } else if (type === 'palm') {
+                    // 手相分析标题
+                    const analysisType = item.analysis_type as string;
+                    const handType = item.hand_type as string;
+                    const analysisNames: Record<string, string> = {
+                        'full': '综合分析',
+                        'lifeline': '生命线',
+                        'headline': '智慧线',
+                        'heartline': '感情线',
+                        'fateline': '事业线',
+                        'marriage': '婚姻线',
+                    };
+                    const handNames: Record<string, string> = { 'left': '左手', 'right': '右手' };
+                    const analysisName = analysisNames[analysisType] || '手相分析';
+                    const handName = handNames[handType] || '';
+                    title = handName ? `${handName}${analysisName}` : analysisName;
+                } else if (type === 'face') {
+                    // 面相分析标题
+                    const analysisType = item.analysis_type as string;
+                    const analysisNames: Record<string, string> = {
+                        'full': '综合分析',
+                        'forehead': '天庭分析',
+                        'eyes': '眼相分析',
+                        'nose': '鼻相分析',
+                        'mouth': '口相分析',
+                        'career': '事业运势',
+                        'love': '感情运势',
+                        'wealth': '财运分析',
+                    };
+                    title = analysisNames[analysisType] || '面相分析';
                 }
                 return {
                     id: item.id as string,
@@ -270,6 +302,25 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     };
                     sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
                 }
+            } else if (type === 'palm') {
+                // 手相分析结果
+                const sessionData = {
+                    readingId: data.id,
+                    analysisType: data.analysis_type,
+                    handType: data.hand_type,
+                    createdAt: data.created_at,
+                    conversationId: data.conversation_id || null,
+                };
+                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+            } else if (type === 'face') {
+                // 面相分析结果
+                const sessionData = {
+                    readingId: data.id,
+                    analysisType: data.analysis_type,
+                    createdAt: data.created_at,
+                    conversationId: data.conversation_id || null,
+                };
+                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
             }
 
             // 关闭抽屉并导航

@@ -27,6 +27,11 @@ function getModelTier(model: AIModelConfig): ModelTier {
         return "plus";
     }
 
+    // Vision models require Plus
+    if (model.vendor === "qwen-vl" || model.vendor === "gemini-vl") {
+        return "plus";
+    }
+
     return "none";
 }
 
@@ -66,6 +71,11 @@ export function isReasoningAllowedForMembership(
     }
 
     if (model.vendor === "qwen") {
+        return membership === "plus" || membership === "pro";
+    }
+
+    // Vision models allow reasoning for Plus+
+    if (model.vendor === "qwen-vl" || model.vendor === "gemini-vl") {
         return membership === "plus" || membership === "pro";
     }
 

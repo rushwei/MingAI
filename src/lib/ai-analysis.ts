@@ -15,7 +15,9 @@ export type AIAnalysisSourceType =
     | 'tarot'          // 塔罗占卜
     | 'liuyao'         // 六爻占卜
     | 'mbti'           // MBTI 人格
-    | 'hepan';         // 合盘分析
+    | 'hepan'          // 合盘分析
+    | 'palm'           // 手相分析
+    | 'face';          // 面相分析
 
 // 创建 AI 分析对话记录的参数
 export interface CreateAIAnalysisParams {

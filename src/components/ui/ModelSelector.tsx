@@ -25,6 +25,8 @@ const VENDOR_ICONS: Record<AIVendor, React.ReactNode> = {
     gemini: <Gemini.Color size={18} />,
     qwen: <Qwen.Color size={18} />,
     deepai: <Claude.Color size={18} />,
+    'qwen-vl': <Qwen.Color size={18} />,
+    'gemini-vl': <Gemini.Color size={18} />,
 };
 
 interface ModelSelectorProps {
@@ -159,6 +161,8 @@ export function ModelSelector({
             gemini: [],
             qwen: [],
             deepai: [],
+            'qwen-vl': [],
+            'gemini-vl': [],
         };
         models.forEach(model => {
             grouped[model.vendor].push(model);

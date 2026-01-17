@@ -9,6 +9,7 @@ import type { AIProvider } from './base';
 import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider } from './openai-compatible';
 import { geminiNativeProvider } from './gemini-native';
 import { OpenAICompatibleProvider } from './openai-compatible';
+import { qwenVlProvider, geminiVlProvider } from './vision-provider';
 
 // Provider 注册表（按供应商）
 const providers: Record<AIVendor, AIProvider> = {
@@ -17,6 +18,8 @@ const providers: Record<AIVendor, AIProvider> = {
     gemini: geminiNativeProvider,
     qwen: qwenProvider,
     deepai: deepaiProvider,
+    'qwen-vl': qwenVlProvider,
+    'gemini-vl': geminiVlProvider,
 };
 
 // Gemini Pro 使用 OpenAI 兼容格式（非原生）
@@ -52,3 +55,5 @@ export function getProviderByVendor(vendor: AIVendor): AIProvider {
 // 导出类型和工具函数
 export type { AIProvider, AIProviderOptions, AIStreamChunk } from './base';
 export { createMockStream, getApiKey } from './base';
+export type { VisionProviderOptions } from './vision-provider';
+

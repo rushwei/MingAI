@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2 } from 'lucide-react';
+import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User } from 'lucide-react';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 
@@ -27,14 +27,16 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
     bazi_wuxing: { label: '八字五行分析', icon: Orbit, color: 'text-foreground-secondary' },
     bazi_personality: { label: '八字人格分析', icon: Orbit, color: 'text-foreground-secondary' },
     tarot: { label: '塔罗占卜', icon: Gem, color: 'text-foreground-secondary' },
-    liuyao: { label: '六爻占卜', icon: Dices, color: 'text-foreground-secondary' },
+    liuyao: { label: '六爷占卜', icon: Dices, color: 'text-foreground-secondary' },
     mbti: { label: 'MBTI 分析', icon: Brain, color: 'text-foreground-secondary' },
     hepan: { label: '合盘分析', icon: HeartHandshake, color: 'text-foreground-secondary' },
+    palm: { label: '手相分析', icon: Hand, color: 'text-foreground-secondary' },
+    face: { label: '面相分析', icon: User, color: 'text-foreground-secondary' },
 };
 
 // 显示顺序
 const SOURCE_TYPE_ORDER: ConversationSourceType[] = [
-    'chat', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan'
+    'chat', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
 ];
 
 export function ConversationSidebar({
@@ -64,7 +66,8 @@ export function ConversationSidebar({
 
         const groups: Record<ConversationSourceType, Conversation[]> = {
             chat: [], bazi_wuxing: [], bazi_personality: [],
-            tarot: [], liuyao: [], mbti: [], hepan: []
+            tarot: [], liuyao: [], mbti: [], hepan: [],
+            palm: [], face: []
         };
 
         filtered.forEach(conv => {

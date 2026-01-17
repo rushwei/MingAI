@@ -156,6 +156,56 @@ export function buildModels(): AIModelConfig[] {
         });
     });
 
+    // ===== Qwen VL 视觉模型（支持推理开关）=====
+    const qwenVlNames = parseEnvArray(process.env.QWEN_VL_MODEL_NAME);
+    if (process.env.QWEN_VL_MDOEL_ID) {
+        models.push({
+            id: 'qwen-vl-plus',
+            name: qwenVlNames[0] || 'Qwen 3 Plus',
+            vendor: 'qwen-vl',
+            modelId: process.env.QWEN_VL_MDOEL_ID,
+            apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+            apiKeyEnvVar: 'QWEN_VL_API_KEY',
+            supportsReasoning: true,
+            supportsVision: true,
+            defaultMaxTokens: 8000,
+        });
+        // 支持推理开关 - 使用相同模型ID但区分推理模式
+        if (qwenVlNames.length > 1) {
+            models.push({
+                id: 'qwen-vl-plus-reasoner',
+                name: qwenVlNames[1] || 'Qwen 3 Plus Reasoner',
+                vendor: 'qwen-vl',
+                modelId: process.env.QWEN_VL_MDOEL_ID,
+                apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+                apiKeyEnvVar: 'QWEN_VL_API_KEY',
+                supportsReasoning: true,
+                isReasoningDefault: true,
+                supportsVision: true,
+                defaultMaxTokens: 8000,
+            });
+        }
+    }
+
+    // ===== Gemini VL 视觉模型（仅推理）=====
+    const geminiVlIds = parseEnvArray(process.env.GEMINI_VL_MODEL_ID);
+    const geminiVlNames = parseEnvArray(process.env.GEMINI_VL_MODEL_NAME);
+    geminiVlIds.forEach((modelId, index) => {
+        const name = geminiVlNames[index] || `Gemini VL ${index + 1}`;
+        models.push({
+            id: `gemini-vl-${index}`,
+            name,
+            vendor: 'gemini-vl',
+            modelId,
+            apiUrl: process.env.GEMINI_VL_API_URL || 'https://api2.qiandao.mom/v1/chat/completions',
+            apiKeyEnvVar: 'GEMINI_VL_API_KEY',
+            supportsReasoning: true,
+            isReasoningDefault: true,
+            supportsVision: true,
+            defaultMaxTokens: 8000,
+        });
+    });
+
     return models;
 }
 
@@ -224,4 +274,20 @@ export const VENDOR_NAMES: Record<AIVendor, string> = {
     gemini: 'Gemini',
     qwen: 'Qwen',
     deepai: 'DeepAI',
+    'qwen-vl': 'Qwen VL',
+    'gemini-vl': 'Gemini VL',
 };
+
+// ===== 视觉模型工具函数 =====
+
+/**
+ * 获取所有视觉模型
+ */
+export function getVisionModels(): AIModelConfig[] {
+    return getModels().filter(m => m.supportsVision);
+}
+
+/**
+ * 默认视觉模型 ID
+ */
+export const DEFAULT_VISION_MODEL_ID = 'qwen-vl-plus';
