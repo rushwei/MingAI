@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine } from 'lucide-react';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 
@@ -30,7 +30,7 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
     bazi_wuxing: { label: '八字五行分析', icon: Orbit, color: 'text-foreground-secondary' },
     bazi_personality: { label: '八字人格分析', icon: Orbit, color: 'text-foreground-secondary' },
     tarot: { label: '塔罗占卜', icon: Gem, color: 'text-foreground-secondary' },
-    liuyao: { label: '六爷占卜', icon: Dices, color: 'text-foreground-secondary' },
+    liuyao: { label: '六爻占卜', icon: Dices, color: 'text-foreground-secondary' },
     mbti: { label: 'MBTI 分析', icon: Brain, color: 'text-foreground-secondary' },
     hepan: { label: '合盘分析', icon: HeartHandshake, color: 'text-foreground-secondary' },
     palm: { label: '手相分析', icon: Hand, color: 'text-foreground-secondary' },
@@ -221,7 +221,7 @@ export function ConversationSidebar({
             {/* 侧边栏 */}
             <aside
                 className={`
-                    fixed lg:relative top-14 lg:top-0 bottom-14 lg:bottom-0 left-0 z-50
+                    fixed lg:relative top-15 lg:top-0 bottom-15 lg:bottom-0 left-0 z-50
                     flex flex-row items-center
                     transition-transform duration-300 ease-out
                     ${isOpen ? 'translate-x-0' : '-translate-x-[calc(100%-40px)] lg:translate-x-0'}
@@ -263,9 +263,9 @@ export function ConversationSidebar({
                                 title={isCollapsed ? "展开侧边栏" : "收起侧边栏"}
                             >
                                 {isCollapsed ? (
-                                    <PanelLeft className="w-5 h-5" />
+                                    <ArrowRightToLine className="w-5 h-5" />
                                 ) : (
-                                    <PanelLeftClose className="w-5 h-5" />
+                                    <ArrowLeftToLine className="w-5 h-5" />
                                 )}
                             </button>
                         </div>
@@ -324,7 +324,7 @@ export function ConversationSidebar({
                                             {/* 分组标题 */}
                                             <button
                                                 onClick={() => toggleGroup(type)}
-                                                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground-secondary hover:text-foreground transition-colors"
+                                                className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground-secondary hover:text-foreground transition-colors"
                                             >
                                                 {isCollapsed ? (
                                                     <ChevronRight className="w-3 h-3" />
