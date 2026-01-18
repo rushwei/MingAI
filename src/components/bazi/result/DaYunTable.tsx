@@ -23,7 +23,7 @@ export function DaYunTable({
                             key={index}
                             onClick={() => onSelect(index)}
                             className={`
-                                flex-shrink-0 w-14 sm:w-16 text-center p-2 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-12 sm:w-16 text-center p-2 rounded-lg border-2 transition-all
                                 ${isSelected
                                     ? 'border-accent bg-accent/10'
                                     : 'border-transparent bg-background-secondary hover:bg-background'

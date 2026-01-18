@@ -56,7 +56,7 @@ export function HexagramDisplay({
     return (
         <div className="flex flex-col items-center gap-4">
             {/* 卦象 */}
-            <div className="flex gap-8 items-start">
+            <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
                 {/* 本卦 */}
                 <div className="flex flex-col items-center" data-hexagram="base">
                     <div className={`grid ${gridCols} gap-x-2`}>
@@ -159,7 +159,7 @@ export function HexagramDisplay({
                 {/* 变卦 */}
                 {changedHexagram && changedLines.length > 0 && (
                     <>
-                        <div className="flex items-center self-center">
+                        <div className="flex items-center self-center transform rotate-90 md:rotate-0 transition-transform">
                             <span className="text-2xl text-foreground-secondary">→</span>
                         </div>
                         <div className="flex flex-col items-center" data-hexagram="changed">
