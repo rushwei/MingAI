@@ -14,7 +14,6 @@ import {
     ChevronRight,
     LogOut,
     History,
-    FileText,
     Loader2,
     LogIn,
     Bell,
@@ -23,6 +22,7 @@ import {
     Smile,
     HelpCircle,
     CircleStar,
+    Scroll,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -38,7 +38,7 @@ const menuItems = [
         section: '我的服务',
         items: [
             { icon: CircleStar, label: '会员中心', href: '/user/upgrade' },
-            { icon: FileText, label: '我的命盘', href: '/user/charts' },
+            { icon: Scroll, label: '我的命盘', href: '/user/charts' },
             { icon: Bell, label: '消息通知', href: '/user/notifications', showBadge: true },
             { icon: History, label: '对话历史', href: '/chat' },
             { icon: CreditCard, label: '订单记录', href: '/user/orders' },

@@ -30,39 +30,53 @@ import {
     Github,
     Aperture,
     Tags,
+    Scroll,
+    CalendarCheck,
+    HelpCircle,
+    Bell,
+    Settings,
+    CircleStar,
 } from 'lucide-react';
+import { usePaymentPause } from '@/lib/usePaymentPause';
 
 // 底部导航栏的 5 个主要入口
 const mainNavItems = [
     { href: '/bazi', label: '八字', icon: Orbit },
     { href: '/liuyao', label: '六爻', icon: Dices },
     { href: '/chat', label: 'AI', icon: BotMessageSquare },
-    { href: '/daily', label: '每日', icon: Sun },
+    { href: '/daily', label: '每日运势', icon: Sun },
 ];
 
 // 抽屉中显示的所有入口
 const drawerNavItems = [
-    { href: '/bazi', label: '八字', icon: Orbit, emoji: '🔮' },
+    { href: '/fortune-hub', label: '运势中心', icon: Compass, emoji: '🧭' },
+    { href: '/user/checkin', label: '每日签到', icon: CalendarCheck, emoji: '📅' },
+    { href: '/records', label: '命理记录', icon: Tags, emoji: '📝' },
+    { href: '/community', label: '命理社区', icon: Aperture, emoji: '💬' },
+    // { href: '/bazi', label: '八字', icon: Orbit, emoji: '🔮' },
     { href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑' },
     { href: '/ziwei', label: '紫微斗数', icon: Sparkles, emoji: '⭐' },
     { href: '/tarot', label: '塔罗占卜', icon: Gem, emoji: '🃏' },
-    { href: '/liuyao', label: '六爻占卜', icon: Dices, emoji: '☯️' },
+    // { href: '/liuyao', label: '六爻占卜', icon: Dices, emoji: '☯️' },
     { href: '/face', label: '面相分析', icon: ScanFace, emoji: '👤' },
     { href: '/palm', label: '手相分析', icon: Hand, emoji: '🖐️' },
     { href: '/mbti', label: 'MBTI测试', icon: Brain, emoji: '🧩' },
-    { href: '/fortune-hub', label: '运势中心', icon: Compass, emoji: '🧭' },
-    { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, emoji: '🤖' },
-    { href: '/daily', label: '每日运势', icon: Sun, emoji: '☀️' },
+    // { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, emoji: '🤖' },
+    // { href: '/daily', label: '每日运势', icon: Sun, emoji: '☀️' },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, emoji: '📅' },
-    { href: '/records', label: '命理记录', icon: Tags, emoji: '📝' },
-    { href: '/community', label: '命理社区', icon: Aperture, emoji: '💬' },
     { href: '/user', label: '个人中心', icon: User, emoji: '👤' },
+    { href: '/user/charts', label: '我的命盘', icon: Scroll, emoji: '📜' },
+    { href: '/user/upgrade', label: '订阅', icon: CircleStar, emoji: '👑' },
+    { href: '/user/notifications', label: '通知', icon: Bell, emoji: '🔔' },
+    { href: '/user/settings', label: '设置', icon: Settings, emoji: '⚙️' },
+    { href: '/help', label: '帮助中心', icon: HelpCircle, emoji: '❓' },
     { href: 'https://github.com/hhszzzz/MingAI/', label: '反馈建议', icon: Github, emoji: '💡', external: true },
 ];
 
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const { isPaused: isPaymentPaused } = usePaymentPause();
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {
@@ -136,6 +150,27 @@ export function MobileNav() {
                                         </div>
                                         <span className="text-xs text-foreground-secondary text-center">{item.label}</span>
                                     </a>
+                                );
+                            }
+
+                            if (item.href === '/user/upgrade' && isPaymentPaused) {
+                                return (
+                                    <div
+                                        key={item.href}
+                                        className="flex flex-col items-center justify-center p-3 rounded-xl
+                                            bg-background-secondary opacity-60 cursor-not-allowed"
+                                        onClick={(e) => e.preventDefault()}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center mb-2">
+                                            <Icon className="w-5 h-5 text-foreground-secondary" />
+                                        </div>
+                                        <span className="text-xs text-foreground-secondary text-center flex flex-col items-center gap-0.5">
+                                            {item.label}
+                                            <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-px rounded-full transform scale-90">
+                                                暂停服务
+                                            </span>
+                                        </span>
+                                    </div>
                                 );
                             }
 
