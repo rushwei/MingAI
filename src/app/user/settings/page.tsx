@@ -3,7 +3,7 @@
  */
 'use client'; // 客户端组件：需要读取登录态与操作本地主题切换
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     ArrowLeft,
@@ -13,7 +13,8 @@ import {
     Globe,
     Shield,
     Loader2,
-    Check
+    Check,
+    Calendar
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/components/ui/ThemeProvider';
@@ -21,6 +22,100 @@ import { useTheme } from '@/components/ui/ThemeProvider';
 interface Settings {
     notifications: boolean;
     language: 'zh' | 'en';
+}
+
+// 提醒开关组件
+function ReminderToggle({
+    type,
+    label,
+    description,
+    userId
+}: {
+    type: string;
+    label: string;
+    description: string;
+    userId: string | null;
+}) {
+    const [enabled, setEnabled] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const fetchStatus = useCallback(async () => {
+        if (!userId) return;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+
+            const res = await fetch('/api/reminders', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (data.success) {
+                const sub = data.data.subscriptions.find((s: { reminderType: string }) => s.reminderType === type);
+                setEnabled(sub?.enabled ?? false);
+            }
+        } catch (error) {
+            console.error('获取提醒状态失败:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, type]);
+
+    useEffect(() => {
+        fetchStatus();
+    }, [fetchStatus]);
+
+    const handleToggle = async () => {
+        if (!userId) return;
+        const newEnabled = !enabled;
+        setEnabled(newEnabled);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+
+            await fetch('/api/reminders', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    reminderType: type,
+                    enabled: newEnabled,
+                    notifySite: true,
+                }),
+            });
+        } catch (error) {
+            console.error('更新提醒状态失败:', error);
+            setEnabled(!newEnabled); // 回滚
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-foreground-secondary" />
+                <div>
+                    <p className="font-medium">{label}</p>
+                    <p className="text-sm text-foreground-secondary">{description}</p>
+                </div>
+            </div>
+            <button
+                onClick={handleToggle}
+                disabled={loading}
+                className={`
+                    w-12 h-6 rounded-full transition-colors relative
+                    ${enabled ? 'bg-accent' : 'bg-border'}
+                    ${loading ? 'opacity-50' : ''}
+                `}
+            >
+                <div className={`
+                    w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform
+                    ${enabled ? 'translate-x-6' : 'translate-x-0.5'}
+                `} />
+            </button>
+        </div>
+    );
 }
 
 export default function SettingsPage() {
@@ -248,36 +343,63 @@ export default function SettingsPage() {
                             </select>
                         </div>
                     </div>
-                </div>
 
-                {/* 隐私与安全 */}
-                <div>
-                    <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                        隐私与安全
-                    </h2>
-                    <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
-                        <button
-                            onClick={() => alert('数据加密存储中，您的隐私得到保护')}
-                            className="w-full flex items-center justify-between px-4 py-4 hover:bg-background transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Shield className="w-5 h-5 text-foreground-secondary" />
-                                <div className="text-left">
-                                    <p className="font-medium">数据安全</p>
-                                    <p className="text-sm text-foreground-secondary">
-                                        AES-256 加密存储
-                                    </p>
-                                </div>
-                            </div>
-                            <Check className="w-5 h-5 text-green-500" />
-                        </button>
+                    {/* 提醒订阅 */}
+                    <div>
+                        <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
+                            提醒订阅
+                        </h2>
+                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden divide-y divide-border">
+                            <ReminderToggle
+                                type="solar_term"
+                                label="节气提醒"
+                                description="每个节气当天收到养生建议"
+                                userId={userId}
+                            />
+                            <ReminderToggle
+                                type="fortune"
+                                label="运势提醒"
+                                description="每日运势变化提醒"
+                                userId={userId}
+                            />
+                            <ReminderToggle
+                                type="key_date"
+                                label="关键日提醒"
+                                description="重要日期（如本命年）提醒"
+                                userId={userId}
+                            />
+                        </div>
                     </div>
-                </div>
 
-                {/* 版本信息 */}
-                <div className="text-center text-sm text-foreground-secondary pt-4">
-                    <p>MingAI v1.0.0</p>
-                    <p className="text-xs mt-1">© 2026 MingAI. All rights reserved.</p>
+                    {/* 隐私与安全 */}
+                    <div>
+                        <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
+                            隐私与安全
+                        </h2>
+                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                            <button
+                                onClick={() => alert('数据加密存储中，您的隐私得到保护')}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-background transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Shield className="w-5 h-5 text-foreground-secondary" />
+                                    <div className="text-left">
+                                        <p className="font-medium">数据安全</p>
+                                        <p className="text-sm text-foreground-secondary">
+                                            AES-256 加密存储
+                                        </p>
+                                    </div>
+                                </div>
+                                <Check className="w-5 h-5 text-green-500" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 版本信息 */}
+                    <div className="text-center text-sm text-foreground-secondary pt-4">
+                        <p>MingAI v1.0.0</p>
+                        <p className="text-xs mt-1">© 2026 MingAI. All rights reserved.</p>
+                    </div>
                 </div>
             </div>
         </div>
