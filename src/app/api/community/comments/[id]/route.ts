@@ -7,6 +7,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getServiceClient } from '@/lib/supabase-server';
+
+// 网络请求重试工具
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();
@@ -41,23 +58,40 @@ export async function PUT(
             return NextResponse.json({ error: '内容不能为空' }, { status: 400 });
         }
 
-        const { data, error } = await supabase
-            .from('community_comments')
-            .update({
-                content: body.content,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', id)
-            .eq('user_id', user.id)
-            .select()
-            .single();
+        // 使用 serviceClient 绕过 RLS
+        const serviceClient = getServiceClient();
 
-        if (error) {
-            console.error('更新评论失败:', error);
+        // 先验证用户是否是评论作者
+        const checkResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_comments')
+                .select('user_id')
+                .eq('id', id)
+                .single();
+        });
+
+        if (checkResult.error || checkResult.data?.user_id !== user.id) {
+            return NextResponse.json({ error: '无权限编辑此评论' }, { status: 403 });
+        }
+
+        const updateResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_comments')
+                .update({
+                    content: body.content,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .select()
+                .single();
+        });
+
+        if (updateResult.error) {
+            console.error('更新评论失败:', updateResult.error);
             return NextResponse.json({ error: '更新评论失败' }, { status: 500 });
         }
 
-        return NextResponse.json(data);
+        return NextResponse.json(updateResult.data);
     } catch (error) {
         console.error('更新评论失败:', error);
         return NextResponse.json({ error: '更新评论失败' }, { status: 500 });
@@ -77,14 +111,31 @@ export async function DELETE(
 
         const { id } = await params;
 
-        const { error } = await supabase
-            .from('community_comments')
-            .update({ is_deleted: true, updated_at: new Date().toISOString() })
-            .eq('id', id)
-            .eq('user_id', user.id);
+        // 使用 serviceClient 绕过 RLS
+        const serviceClient = getServiceClient();
 
-        if (error) {
-            console.error('删除评论失败:', error);
+        // 先验证用户是否是评论作者
+        const checkResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_comments')
+                .select('user_id')
+                .eq('id', id)
+                .single();
+        });
+
+        if (checkResult.error || checkResult.data?.user_id !== user.id) {
+            return NextResponse.json({ error: '无权限删除此评论' }, { status: 403 });
+        }
+
+        const deleteResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_comments')
+                .update({ is_deleted: true, updated_at: new Date().toISOString() })
+                .eq('id', id);
+        });
+
+        if (deleteResult.error) {
+            console.error('删除评论失败:', deleteResult.error);
             return NextResponse.json({ error: '删除评论失败' }, { status: 500 });
         }
 

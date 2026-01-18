@@ -11,6 +11,22 @@ import {
 } from '@/lib/checkin';
 import { getUserLevel } from '@/lib/gamification';
 
+// 网络请求重试工具
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
+
 interface CheckinResponse {
     success: boolean;
     data?: {
@@ -23,6 +39,7 @@ interface CheckinResponse {
         result?: {
             streakDays: number;
             rewardCredits: number;
+            rewardXp: number;
             leveledUp: boolean;
         };
         calendar?: string[];
@@ -51,7 +68,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
         }
 
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        // 添加重试逻辑以处理网络不稳定问题
+        const { data: { user }, error: authError } = await withRetry(
+            () => supabase.auth.getUser(token)
+        );
 
         if (authError || !user) {
             return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
@@ -108,7 +129,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CheckinRe
         }
 
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        // 添加重试逻辑以处理网络不稳定问题
+        const { data: { user }, error: authError } = await withRetry(
+            () => supabase.auth.getUser(token)
+        );
 
         if (authError || !user) {
             return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
@@ -132,6 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CheckinRe
                 result: {
                     streakDays: result.streakDays,
                     rewardCredits: result.rewardCredits,
+                    rewardXp: result.rewardXp,
                     leveledUp: result.leveledUp,
                 },
                 level: level ? {

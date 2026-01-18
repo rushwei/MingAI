@@ -11,6 +11,22 @@ import { cookies } from 'next/headers';
 import { getServiceClient } from '@/lib/supabase-server';
 import { CommunityPost, CommunityComment } from '@/lib/community';
 
+// 网络请求重试工具
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
+
 async function createSupabaseClient() {
     const cookieStore = await cookies();
     return createServerClient(
@@ -64,32 +80,39 @@ export async function GET(
             .update({ view_count: (post.view_count || 0) + 1 })
             .eq('id', id);
 
-        // 获取评论
-        const { data: commentsData, error: commentsError } = await supabase
-            .from('community_comments')
-            .select('*')
-            .eq('post_id', id)
-            .eq('is_deleted', false)
-            .order('created_at', { ascending: true });
+        // 获取评论 - 使用 serviceClient 和重试逻辑
+        const commentsResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_comments')
+                .select('*')
+                .eq('post_id', id)
+                .eq('is_deleted', false)
+                .order('created_at', { ascending: true });
+        });
+        const commentsData = commentsResult.data;
+        const commentsError = commentsResult.error;
 
         if (commentsError) {
             console.error('获取评论失败:', commentsError);
         }
 
-        // 获取匿名映射
-        const { data: mappings } = await supabase
-            .from('community_anonymous_mapping')
-            .select('user_id, anonymous_name')
-            .eq('post_id', id);
+        // 获取匿名映射 - 使用 serviceClient 和重试逻辑
+        const mappingsResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_anonymous_mapping')
+                .select('user_id, anonymous_name')
+                .eq('post_id', id);
+        });
+        const mappings = mappingsResult.data;
 
         const anonymousMap = new Map<string, string>();
-        mappings?.forEach(item => {
+        mappings?.forEach((item: { user_id: string; anonymous_name: string }) => {
             anonymousMap.set(item.user_id, item.anonymous_name);
         });
 
         // 构建评论树并添加匿名名称
         type CommentWithReplies = CommunityComment & { replies: CommentWithReplies[] };
-        const comments: CommentWithReplies[] = (commentsData || []).map(comment => ({
+        const comments: CommentWithReplies[] = (commentsData || []).map((comment: CommunityComment) => ({
             ...comment,
             anonymous_name: anonymousMap.get(comment.user_id) || '匿名用户',
             replies: [],

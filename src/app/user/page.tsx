@@ -23,6 +23,7 @@ import {
     HelpCircle,
     CircleStar,
     Scroll,
+    Trophy,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -70,6 +71,21 @@ type MembershipSnapshot = {
     aiChatCount: number;
     expiresAt: string | null;
 };
+
+type LevelInfo = {
+    level: number;
+    experience: number;
+    totalExperience: number;
+    title: string;
+};
+
+// 计算下一级所需经验
+function getNextLevelXp(level: number): number {
+    const xpTable: Record<number, number> = {
+        1: 100, 2: 200, 3: 400, 4: 800, 5: 1600, 6: 3200, 7: 6400, 8: 12800
+    };
+    return xpTable[level] || 12800;
+}
 
 const getProfileCacheKey = (userId: string) => `mingai.profile.${userId}`;
 const getMembershipCacheKey = (userId: string) => `mingai.membership.${userId}`;
@@ -128,6 +144,7 @@ export default function UserPage() {
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
+    const [level, setLevel] = useState<LevelInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const { isPaused: isPaymentPaused } = usePaymentPause();
@@ -162,6 +179,37 @@ export default function UserPage() {
                         && profileData.nickname !== currentUser.user_metadata?.nickname) {
                         supabase.auth.updateUser({ data: { nickname: profileData.nickname } }).catch(() => {
                             // 更新失败不影响页面展示
+                        });
+                    }
+                }
+
+                // 获取用户等级信息
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.access_token && isMounted) {
+                        const levelRes = await fetch('/api/checkin?action=status', {
+                            headers: { Authorization: `Bearer ${session.access_token}` },
+                        });
+                        const levelData = await levelRes.json();
+                        if (levelData.success && isMounted) {
+                            // 使用 API 返回的等级，或默认等级
+                            setLevel(levelData.data?.level || {
+                                level: 1,
+                                experience: 0,
+                                totalExperience: 0,
+                                title: '初学者',
+                            });
+                        }
+                    }
+                } catch (levelError) {
+                    console.error('Error loading level:', levelError);
+                    // 出错时也设置默认等级
+                    if (isMounted) {
+                        setLevel({
+                            level: 1,
+                            experience: 0,
+                            totalExperience: 0,
+                            title: '初学者',
                         });
                     }
                 }
@@ -391,6 +439,27 @@ export default function UserPage() {
                         {membershipLabel}
                     </span>
                 </div>
+
+                {/* 经验进度条 */}
+                {level && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <Trophy className="w-4 h-4 text-amber-500" />
+                                <span className="text-sm font-medium">Lv.{level.level} {level.title}</span>
+                            </div>
+                            <span className="text-xs text-foreground-secondary">
+                                {level.experience} / {getNextLevelXp(level.level)} XP
+                            </span>
+                        </div>
+                        <div className="h-2 bg-background-secondary rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
+                                style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* 升级会员入口 */}
                 {membership?.type === 'free' && (

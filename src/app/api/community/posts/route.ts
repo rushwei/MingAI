@@ -8,6 +8,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { PostCategory, PostFilters, CommunityPost } from '@/lib/community';
+import { getServiceClient } from '@/lib/supabase-server';
+
+// 网络请求重试工具
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();
@@ -33,7 +50,6 @@ function sanitizePost(post: CommunityPost): Omit<CommunityPost, 'user_id'> {
 
 export async function GET(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
         const { searchParams } = new URL(request.url);
 
         const page = parseInt(searchParams.get('page') || '1');
@@ -42,46 +58,51 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get('search');
         const sortBy = searchParams.get('sortBy') as PostFilters['sortBy'] || 'latest';
 
-        let query = supabase
-            .from('community_posts')
-            .select('*', { count: 'exact' })
-            .eq('is_deleted', false);
+        // 使用 serviceClient 和重试逻辑
+        const serviceClient = getServiceClient();
 
-        // 应用筛选条件
-        if (category) {
-            query = query.eq('category', category);
-        }
-        if (search) {
-            query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
-        }
+        const result = await withRetry(async () => {
+            let query = serviceClient
+                .from('community_posts')
+                .select('*', { count: 'exact' })
+                .eq('is_deleted', false);
 
-        // 排序
-        if (sortBy === 'latest') {
-            query = query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
-        } else if (sortBy === 'popular') {
-            query = query.order('is_pinned', { ascending: false }).order('upvote_count', { ascending: false });
-        } else if (sortBy === 'hot') {
-            query = query.order('is_pinned', { ascending: false }).order('comment_count', { ascending: false });
-        }
+            // 应用筛选条件
+            if (category) {
+                query = query.eq('category', category);
+            }
+            if (search) {
+                query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+            }
 
-        // 分页
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
+            // 排序
+            if (sortBy === 'latest') {
+                query = query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+            } else if (sortBy === 'popular') {
+                query = query.order('is_pinned', { ascending: false }).order('upvote_count', { ascending: false });
+            } else if (sortBy === 'hot') {
+                query = query.order('is_pinned', { ascending: false }).order('comment_count', { ascending: false });
+            }
 
-        const { data, error, count } = await query;
+            // 分页
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+            query = query.range(from, to);
 
-        if (error) {
-            console.error('获取帖子失败:', error);
+            return await query;
+        });
+
+        if (result.error) {
+            console.error('获取帖子失败:', result.error);
             return NextResponse.json({ error: '获取帖子失败' }, { status: 500 });
         }
 
         // 移除 user_id 保护匿名性
-        const safePosts = (data || []).map(post => sanitizePost(post as CommunityPost));
+        const safePosts = (result.data || []).map((post: CommunityPost) => sanitizePost(post));
 
         return NextResponse.json({
             posts: safePosts,
-            total: count || 0,
+            total: result.count || 0,
         });
     } catch (error) {
         console.error('获取帖子失败:', error);

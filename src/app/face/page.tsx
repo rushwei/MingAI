@@ -36,6 +36,7 @@ export default function FacePage() {
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
 
     useEffect(() => {
         const loadSession = async () => {
@@ -134,6 +135,7 @@ export default function FacePage() {
                     analysisType: selectedType,
                     question: question.trim() || undefined,
                     modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -185,6 +187,8 @@ export default function FacePage() {
                     <VisionModelSelector
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
+                        reasoningEnabled={reasoningEnabled}
+                        onReasoningChange={setReasoningEnabled}
                     />
                 </div>
 

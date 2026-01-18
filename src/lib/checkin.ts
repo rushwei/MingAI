@@ -4,17 +4,40 @@
  * 管理每日签到、连续签到奖励等
  */
 
-import { supabase } from './supabase';
-import { addExperience, XP_REWARDS } from './gamification';
+import { getServiceClient } from './supabase-server';
+import { addExperience } from './gamification';
 
 // ===== 签到奖励配置 =====
 
-/** 获取签到奖励积分 */
+/**
+ * 获取签到奖励积分（新规则）
+ * - 每7天连续签到 +1 积分（第7、14、21、28...天）
+ * - 每30天连续签到 +5 积分（第30、60、90...天）
+ * - 积分可叠加（第30天同时满足7天倍数和30天倍数）
+ */
 export function getCheckinReward(streakDays: number): number {
-    if (streakDays === 7) return 5;      // 周奖励
-    if (streakDays === 30) return 20;    // 月奖励
-    if (streakDays >= 8) return 2;       // 连续8天以上
-    return 1;                             // 默认奖励
+    let reward = 0;
+
+    // 30天周期奖励
+    if (streakDays > 0 && streakDays % 30 === 0) {
+        reward += 5;
+    }
+
+    // 7天周期奖励
+    if (streakDays > 0 && streakDays % 7 === 0) {
+        reward += 1;
+    }
+
+    return reward;
+}
+
+/**
+ * 获取签到经验值
+ * - 连续签到30天以上，每日经验从10变为11
+ * - 中断后回到10
+ */
+export function getCheckinXp(streakDays: number): number {
+    return streakDays >= 30 ? 11 : 10;
 }
 
 // ===== 签到记录类型 =====
@@ -45,6 +68,7 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     // 获取今天的签到记录
+    const supabase = getServiceClient();
     const { data: todayRecord } = await supabase
         .from('daily_checkins')
         .select('*')
@@ -88,6 +112,7 @@ export async function performCheckin(userId: string): Promise<{
     success: boolean;
     streakDays: number;
     rewardCredits: number;
+    rewardXp: number;
     leveledUp: boolean;
     error?: string;
 }> {
@@ -98,6 +123,7 @@ export async function performCheckin(userId: string): Promise<{
             success: false,
             streakDays: status.streakDays,
             rewardCredits: 0,
+            rewardXp: 0,
             leveledUp: false,
             error: '今日已签到',
         };
@@ -112,10 +138,14 @@ export async function performCheckin(userId: string): Promise<{
         newStreakDays = status.streakDays + 1;
     }
 
-    // 计算奖励
-    const rewardCredits = getCheckinReward(newStreakDays);
+    // 计算奖励积分（里程碑奖励）
+    let rewardCredits = getCheckinReward(newStreakDays);
+
+    // 计算经验值（30天后+11，否则+10）
+    const rewardXp = getCheckinXp(newStreakDays);
 
     // 插入签到记录
+    const supabase = getServiceClient();
     const { error: insertError } = await supabase
         .from('daily_checkins')
         .insert({
@@ -131,35 +161,47 @@ export async function performCheckin(userId: string): Promise<{
             success: false,
             streakDays: status.streakDays,
             rewardCredits: 0,
+            rewardXp: 0,
             leveledUp: false,
             error: '签到失败，请稍后重试',
         };
     }
 
-    // 记录积分交易
-    await supabase
-        .from('credit_transactions')
-        .insert({
-            user_id: userId,
-            amount: rewardCredits,
-            type: 'earn',
-            source: 'checkin',
-            description: `连续签到第${newStreakDays}天`,
-        });
+    // 增加经验值（使用动态XP）
+    const xpResult = await addExperience(userId, rewardXp, 'checkin');
 
-    // 增加用户积分 (复用 credits 系统)
-    const { addCredits } = await import('./credits');
-    await addCredits(userId, rewardCredits);
+    // 如果升级，额外奖励1积分
+    if (xpResult.leveledUp) {
+        rewardCredits += 1;
+        console.log(`[checkin] 用户 ${userId} 升级到 Lv.${xpResult.newLevel}，额外奖励1积分`);
+    }
 
-    // 增加经验值
-    const xpResult = await addExperience(userId, XP_REWARDS.checkin, 'checkin');
+    // 记录积分交易（如果有积分奖励）
+    if (rewardCredits > 0) {
+        await supabase
+            .from('credit_transactions')
+            .insert({
+                user_id: userId,
+                amount: rewardCredits,
+                type: 'earn',
+                source: 'checkin',
+                description: xpResult.leveledUp
+                    ? `连续签到第${newStreakDays}天 + 升级奖励`
+                    : `连续签到第${newStreakDays}天`,
+            });
 
-    console.log(`[checkin] 用户 ${userId} 签到成功, 连续${newStreakDays}天, 奖励${rewardCredits}积分`);
+        // 增加用户积分
+        const { addCredits } = await import('./credits');
+        await addCredits(userId, rewardCredits);
+    }
+
+    console.log(`[checkin] 用户 ${userId} 签到成功, 连续${newStreakDays}天, 奖励${rewardCredits}积分, ${rewardXp}经验`);
 
     return {
         success: true,
         streakDays: newStreakDays,
         rewardCredits,
+        rewardXp,
         leveledUp: xpResult.leveledUp,
     };
 }
@@ -175,6 +217,7 @@ export async function getCheckinCalendar(
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
 
+    const supabase = getServiceClient();
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date')
@@ -204,6 +247,7 @@ export async function getCheckinStats(userId: string): Promise<{
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     // 获取所有签到记录
+    const supabase = getServiceClient();
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date, streak_days')

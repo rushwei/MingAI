@@ -45,6 +45,7 @@ export default function CheckinPage() {
     });
     const [showSuccess, setShowSuccess] = useState(false);
     const [lastReward, setLastReward] = useState(0);
+    const [lastXpReward, setLastXpReward] = useState(10);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -111,6 +112,7 @@ export default function CheckinPage() {
 
             if (data.success) {
                 setLastReward(data.data.result.rewardCredits);
+                setLastXpReward(data.data.result.rewardXp || 10);
                 setShowSuccess(true);
                 setStatus(prev => prev ? { ...prev, canCheckin: false, todayCheckedIn: true, streakDays: data.data.result.streakDays } : null);
                 if (data.data.level) {
@@ -314,7 +316,7 @@ export default function CheckinPage() {
                                         <CalendarCheck className="w-10 h-10 drop-shadow-md" />
                                         <span className="text-lg font-bold tracking-wider">立即签到</span>
                                         <div className="absolute bottom-6 text-[10px] opacity-80 bg-black/10 px-2 py-0.5 rounded-full">
-                                            +1 积分
+                                            +{(status?.streakDays || 0) >= 30 ? 11 : 10} 经验
                                         </div>
                                     </>
                                 )}
@@ -326,9 +328,13 @@ export default function CheckinPage() {
                                     <div className="text-6xl mb-4 animate-[bounce_1s_infinite]">🎁</div>
                                     <div className="text-xl font-bold text-amber-500 mb-2">签到成功！</div>
                                     <div className="flex items-center gap-3 text-sm font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-4 py-2 rounded-full">
-                                        <span>+{lastReward} 积分</span>
-                                        <span className="w-1 h-1 bg-current rounded-full" />
-                                        <span>+10 经验</span>
+                                        {lastReward > 0 && (
+                                            <>
+                                                <span>+{lastReward} 积分</span>
+                                                <span className="w-1 h-1 bg-current rounded-full" />
+                                            </>
+                                        )}
+                                        <span>+{lastXpReward} 经验</span>
                                     </div>
                                 </div>
                             )}
@@ -347,7 +353,16 @@ export default function CheckinPage() {
                                     </div>
                                     <div className="text-sm">
                                         <div className="font-medium text-foreground">每日签到</div>
-                                        <div className="text-foreground-secondary text-xs mt-0.5">获得 1 积分 + 10 经验</div>
+                                        <div className="text-foreground-secondary text-xs mt-0.5">获得 10 经验值</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
+                                    <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 text-green-500 font-bold text-xs">
+                                        升级
+                                    </div>
+                                    <div className="text-sm">
+                                        <div className="font-medium text-foreground">等级提升</div>
+                                        <div className="text-foreground-secondary text-xs mt-0.5">+1 积分 & +1 积分上限</div>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
@@ -355,17 +370,8 @@ export default function CheckinPage() {
                                         7天
                                     </div>
                                     <div className="text-sm">
-                                        <div className="font-medium text-foreground">连续签到 7 天</div>
-                                        <div className="text-foreground-secondary text-xs mt-0.5">额外获得 +5 积分奖励</div>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
-                                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-orange-500 font-bold text-xs">
-                                        长期
-                                    </div>
-                                    <div className="text-sm">
-                                        <div className="font-medium text-foreground">连续签到 8+ 天</div>
-                                        <div className="text-foreground-secondary text-xs mt-0.5">每日奖励提升至 2 积分</div>
+                                        <div className="font-medium text-foreground">每7天连续签到</div>
+                                        <div className="text-foreground-secondary text-xs mt-0.5">额外 +1 积分奖励</div>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
@@ -373,8 +379,8 @@ export default function CheckinPage() {
                                         30天
                                     </div>
                                     <div className="text-sm">
-                                        <div className="font-medium text-foreground">连续签到 30 天</div>
-                                        <div className="text-foreground-secondary text-xs mt-0.5">获得 +20 积分月度大奖</div>
+                                        <div className="font-medium text-foreground">每30天连续签到</div>
+                                        <div className="text-foreground-secondary text-xs mt-0.5">额外 +5 积分，每日经验提升至 11</div>
                                     </div>
                                 </div>
                             </div>

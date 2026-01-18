@@ -2,11 +2,12 @@
  * 视觉模型选择器
  * 
  * 仅显示 Qwen VL 和 Gemini VL 模型，用于手相/面相分析
+ * 支持推理模式切换
  */
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { ChevronDown, Eye, Loader2 } from 'lucide-react';
+import { ChevronDown, Eye, Loader2, Lightbulb } from 'lucide-react';
 import { Qwen, Gemini } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_VISION_MODEL_ID, VENDOR_NAMES } from '@/lib/ai-config';
@@ -31,6 +32,8 @@ const VISION_VENDOR_ICONS: Record<string, React.ReactNode> = {
 interface VisionModelSelectorProps {
     selectedModel?: string;
     onModelChange?: (modelId: string) => void;
+    reasoningEnabled?: boolean;
+    onReasoningChange?: (enabled: boolean) => void;
     disabled?: boolean;
     compact?: boolean;
 }
@@ -38,6 +41,8 @@ interface VisionModelSelectorProps {
 export function VisionModelSelector({
     selectedModel = DEFAULT_VISION_MODEL_ID,
     onModelChange,
+    reasoningEnabled = false,
+    onReasoningChange,
     disabled = false,
     compact = false,
 }: VisionModelSelectorProps) {
@@ -108,85 +113,133 @@ export function VisionModelSelector({
 
     const isDisabled = disabled || loading || models.length === 0;
 
-    if (!onModelChange) return null;
+    // 推理模式相关逻辑
+    const reasoningAllowed = currentModel?.reasoningAllowed ?? currentModel?.supportsReasoning;
+    const canToggleReasoning = reasoningAllowed && currentModel?.supportsReasoning && !currentModel?.isReasoningDefault;
+    const isReasoningForced = reasoningAllowed && currentModel?.isReasoningDefault;
+    const reasoningTooltip = !currentModel?.supportsReasoning
+        ? '当前模型不支持推理模式'
+        : !reasoningAllowed
+            ? (currentModel?.blockedReason || '当前无法使用推理模式')
+            : isReasoningForced
+                ? '此模型默认开启推理'
+                : reasoningEnabled
+                    ? '关闭推理模式'
+                    : '开启推理模式';
+
+    const handleReasoningToggle = () => {
+        if (canToggleReasoning && onReasoningChange) {
+            onReasoningChange(!reasoningEnabled);
+        }
+    };
+
+    if (!onModelChange && !onReasoningChange) return null;
 
     const buttonPadding = compact ? 'px-2 py-1' : 'px-2.5 py-1.5';
     const textSize = compact ? 'text-xs' : 'text-sm';
 
     return (
-        <div className="relative">
-            <button
-                type="button"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${isDisabled
-                    ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
-                    : 'hover:bg-background-secondary border border-border text-foreground-secondary hover:text-foreground'
-                    }`}
-                disabled={isDisabled}
-            >
-                {loading ? (
-                    <Loader2 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} animate-spin text-foreground-secondary`} />
-                ) : currentModel ? (
-                    VISION_VENDOR_ICONS[currentModel.vendor] || <Eye className="w-4 h-4" />
-                ) : (
-                    <Eye className="w-4 h-4" />
-                )}
-                <span className={`${compact ? 'max-w-[80px]' : 'max-w-[100px]'} truncate`}>
-                    {loading
-                        ? '加载中...'
-                        : models.length === 0
-                            ? '无可用模型'
-                            : currentModel?.name || '选择模型'}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
+        <div className="flex items-center gap-2">
+            {onModelChange && (
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setDropdownOpen(!dropdownOpen)}
+                        className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${isDisabled
+                            ? 'opacity-50 cursor-not-allowed text-foreground-secondary'
+                            : 'hover:bg-background-secondary border border-border text-foreground-secondary hover:text-foreground'
+                            }`}
+                        disabled={isDisabled}
+                    >
+                        {loading ? (
+                            <Loader2 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} animate-spin text-foreground-secondary`} />
+                        ) : currentModel ? (
+                            VISION_VENDOR_ICONS[currentModel.vendor] || <Eye className="w-4 h-4" />
+                        ) : (
+                            <Eye className="w-4 h-4" />
+                        )}
+                        <span className={`${compact ? 'max-w-[80px]' : 'max-w-[100px]'} truncate`}>
+                            {loading
+                                ? '加载中...'
+                                : models.length === 0
+                                    ? '无可用模型'
+                                    : currentModel?.name || '选择模型'}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
 
-            {dropdownOpen && !isDisabled && (
-                <>
-                    <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setDropdownOpen(false)}
-                    />
-                    <div className="absolute top-full left-0 mt-2 w-52 bg-background border border-border rounded-lg shadow-lg z-20 overflow-hidden">
-                        <div className="text-xs font-medium text-foreground-secondary px-3 py-2 bg-background-secondary/50 border-b border-border">
-                            视觉分析模型
-                        </div>
-                        {models.map((model) => {
-                            const isAllowed = model.allowed !== false;
-                            return (
-                                <button
-                                    key={model.id}
-                                    type="button"
-                                    onClick={() => {
-                                        if (isAllowed && onModelChange) {
-                                            onModelChange(model.id);
-                                        }
-                                        setDropdownOpen(false);
-                                    }}
-                                    className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center gap-2 ${isAllowed ? 'hover:bg-background-secondary' : 'opacity-50 cursor-not-allowed'
-                                        } ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
-                                    disabled={!isAllowed}
-                                >
-                                    {VISION_VENDOR_ICONS[model.vendor] || <Eye className="w-4 h-4" />}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium truncate">{model.name}</div>
-                                        <div className="text-xs text-foreground-secondary">
-                                            {VENDOR_NAMES[model.vendor] || model.vendor}
-                                        </div>
-                                    </div>
-                                    {!isAllowed && model.blockedReason && (
-                                        <span className="text-xs text-amber-600">{model.blockedReason}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </>
+                    {dropdownOpen && !isDisabled && (
+                        <>
+                            <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setDropdownOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 mt-2 w-52 bg-background border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                                <div className="text-xs font-medium text-foreground-secondary px-3 py-2 bg-background-secondary/50 border-b border-border">
+                                    视觉分析模型
+                                </div>
+                                {models.map((model) => {
+                                    const isAllowed = model.allowed !== false;
+                                    return (
+                                        <button
+                                            key={model.id}
+                                            type="button"
+                                            onClick={() => {
+                                                if (isAllowed && onModelChange) {
+                                                    onModelChange(model.id);
+                                                }
+                                                setDropdownOpen(false);
+                                            }}
+                                            className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center gap-2 ${isAllowed ? 'hover:bg-background-secondary' : 'opacity-50 cursor-not-allowed'
+                                                } ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
+                                            disabled={!isAllowed}
+                                        >
+                                            {VISION_VENDOR_ICONS[model.vendor] || <Eye className="w-4 h-4" />}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium truncate">{model.name}</div>
+                                                <div className="text-xs text-foreground-secondary">
+                                                    {VENDOR_NAMES[model.vendor] || model.vendor}
+                                                </div>
+                                            </div>
+                                            {!isAllowed && model.blockedReason && (
+                                                <span className="text-xs text-amber-600">{model.blockedReason}</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+
+                    {error && !loading && (
+                        <div className="mt-1 text-xs text-rose-500">{error}</div>
+                    )}
+                </div>
             )}
 
-            {error && !loading && (
-                <div className="mt-1 text-xs text-rose-500">{error}</div>
+            {/* 推理按钮 */}
+            {onReasoningChange && (
+                <button
+                    type="button"
+                    onClick={handleReasoningToggle}
+                    disabled={disabled || !canToggleReasoning}
+                    className={`flex items-center gap-1.5 ${buttonPadding} rounded-lg transition-all ${textSize} ${disabled || !currentModel?.supportsReasoning || !reasoningAllowed
+                        ? 'opacity-30 cursor-not-allowed text-foreground-secondary'
+                        : isReasoningForced
+                            ? 'text-yellow-600 cursor-default'
+                            : reasoningEnabled
+                                ? 'text-yellow-600'
+                                : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+                        }`}
+                    title={reasoningTooltip}
+                >
+                    <Lightbulb className={`${compact ? 'w-4 h-4' : 'w-4.5 h-4.5'} ${(reasoningEnabled || isReasoningForced) ? 'fill-yellow-500' : ''}`} />
+                    <span className={compact ? 'hidden sm:inline' : 'hidden md:inline'}>
+                        推理
+                    </span>
+                </button>
             )}
         </div>
     );
 }
+

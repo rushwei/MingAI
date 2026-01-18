@@ -71,7 +71,7 @@ const navItems = [
         icon: Gem,
         available: true,
         emoji: '🃏',
-        description: '敬请期待'
+        description: '塔罗占卜'
     },
     {
         href: '/liuyao',
@@ -79,7 +79,7 @@ const navItems = [
         icon: Dices,
         available: true,
         emoji: '☯️',
-        description: '敬请期待'
+        description: '六爻占卜'
     },
     {
         href: '/face',
@@ -87,7 +87,7 @@ const navItems = [
         icon: ScanFace,
         available: true,
         emoji: '👤',
-        description: '敬请期待'
+        description: '面相分析'
     },
     {
         href: '/palm',
@@ -95,7 +95,7 @@ const navItems = [
         icon: Hand,
         available: true,
         emoji: '🖐️',
-        description: '敬请期待'
+        description: '手相分析'
     },
     {
         href: '/mbti',
@@ -109,9 +109,9 @@ const navItems = [
 
 // 工具项配置 - 使用不同图标区分每日/每月
 const toolItems = [
-    { href: '/user/checkin', label: '每日签到', icon: CalendarCheck, available: true },
+    { href: '/user/checkin', label: '签到', icon: CalendarCheck, available: true },
     { href: '/fortune-hub', label: '运势中心', icon: Compass, available: true },
-    { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, available: true },
+    { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, available: true },
     { href: '/records', label: '命理记录', icon: Tags, available: true },

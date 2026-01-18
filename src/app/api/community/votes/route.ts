@@ -8,6 +8,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { TargetType, VoteType } from '@/lib/community';
+import { getServiceClient } from '@/lib/supabase-server';
+
+// 网络请求重试工具
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();
@@ -39,16 +56,19 @@ export async function GET(request: NextRequest) {
         if (!targetType || !targetId) {
             return NextResponse.json({ error: '缺少参数' }, { status: 400 });
         }
+        // 使用 serviceClient 和重试逻辑获取投票状态
+        const serviceClient = getServiceClient();
+        const voteResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_votes')
+                .select('vote_type')
+                .eq('user_id', user.id)
+                .eq('target_type', targetType)
+                .eq('target_id', targetId)
+                .single();
+        });
 
-        const { data } = await supabase
-            .from('community_votes')
-            .select('vote_type')
-            .eq('user_id', user.id)
-            .eq('target_type', targetType)
-            .eq('target_id', targetId)
-            .single();
-
-        return NextResponse.json({ vote: data?.vote_type || null });
+        return NextResponse.json({ vote: voteResult.data?.vote_type || null });
     } catch (error) {
         console.error('获取投票状态失败:', error);
         return NextResponse.json({ error: '获取投票状态失败' }, { status: 500 });
@@ -81,55 +101,66 @@ export async function POST(request: NextRequest) {
         if (!['up', 'down'].includes(voteType)) {
             return NextResponse.json({ error: '无效的投票类型' }, { status: 400 });
         }
+        // 使用 serviceClient 和重试逻辑
+        const serviceClient = getServiceClient();
 
         // 获取现有投票
-        const { data: existing } = await supabase
-            .from('community_votes')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('target_type', targetType)
-            .eq('target_id', targetId)
-            .single();
+        const existingResult = await withRetry(async () => {
+            return await serviceClient
+                .from('community_votes')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('target_type', targetType)
+                .eq('target_id', targetId)
+                .single();
+        });
+        const existing = existingResult.data;
 
         let newVote: VoteType | null = null;
 
         if (existing) {
             if (existing.vote_type === voteType) {
                 // 取消投票
-                const { error: deleteError } = await supabase
-                    .from('community_votes')
-                    .delete()
-                    .eq('id', existing.id);
+                const deleteResult = await withRetry(async () => {
+                    return await serviceClient
+                        .from('community_votes')
+                        .delete()
+                        .eq('id', existing.id);
+                });
 
-                if (deleteError) {
-                    console.error('取消投票失败:', deleteError);
+                if (deleteResult.error) {
+                    console.error('取消投票失败:', deleteResult.error);
                     return NextResponse.json({ error: '取消投票失败' }, { status: 500 });
                 }
                 newVote = null;
             } else {
                 // 切换投票类型
-                const { error: updateError } = await supabase
-                    .from('community_votes')
-                    .update({ vote_type: voteType })
-                    .eq('id', existing.id);
+                const updateResult = await withRetry(async () => {
+                    return await serviceClient
+                        .from('community_votes')
+                        .update({ vote_type: voteType })
+                        .eq('id', existing.id);
+                });
 
-                if (updateError) {
-                    console.error('切换投票失败:', updateError);
+                if (updateResult.error) {
+                    console.error('切换投票失败:', updateResult.error);
                     return NextResponse.json({ error: '切换投票失败' }, { status: 500 });
                 }
                 newVote = voteType;
             }
         } else {
             // 新增投票
-            const { error: insertError } = await supabase.from('community_votes').insert({
-                user_id: user.id,
-                target_type: targetType,
-                target_id: targetId,
-                vote_type: voteType,
+            const insertResult = await withRetry(async () => {
+                return await serviceClient.from('community_votes').insert({
+                    user_id: user.id,
+                    target_type: targetType,
+                    target_id: targetId,
+                    vote_type: voteType,
+                });
             });
 
-            if (insertError) {
-                console.error('投票失败:', insertError);
+            if (insertResult.error) {
+                console.error('投票失败:', insertResult.error);
                 return NextResponse.json({ error: '投票失败' }, { status: 500 });
             }
             newVote = voteType;

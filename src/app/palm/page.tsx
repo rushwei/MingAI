@@ -35,6 +35,7 @@ export default function PalmPage() {
     const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
 
     useEffect(() => {
         const loadSession = async () => {
@@ -126,6 +127,7 @@ export default function PalmPage() {
                     handType,
                     question: question.trim() || undefined,
                     modelId: selectedModel,
+                    reasoning: reasoningEnabled,
                 }),
             });
 
@@ -180,6 +182,8 @@ export default function PalmPage() {
                     <VisionModelSelector
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
+                        reasoningEnabled={reasoningEnabled}
+                        onReasoningChange={setReasoningEnabled}
                     />
                 </div>
 

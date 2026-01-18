@@ -23,6 +23,28 @@ import {
 } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
 
+// 客户端 fetch 重试工具
+async function fetchWithRetry(
+    url: string,
+    options?: RequestInit,
+    retries = 3,
+    delay = 500
+): Promise<Response> {
+    let lastError: unknown;
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            return response;
+        } catch (err) {
+            lastError = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, delay * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
+
 // =====================================================
 // 投票按钮组件
 // =====================================================
@@ -169,6 +191,97 @@ function ReportModal({
 }
 
 // =====================================================
+// 编辑帖子弹窗
+// =====================================================
+function EditPostModal({
+    post,
+    onClose,
+    onSave
+}: {
+    post: CommunityPost;
+    onClose: () => void;
+    onSave: (updatedPost: CommunityPost) => void;
+}) {
+    const [title, setTitle] = useState(post.title);
+    const [content, setContent] = useState(post.content);
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || !content.trim()) return;
+
+        setLoading(true);
+        try {
+            const response = await fetch(`/api/community/posts/${post.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content }),
+            });
+
+            if (response.ok) {
+                const updatedPost = await response.json();
+                onSave({ ...post, ...updatedPost, title, content });
+                onClose();
+            } else {
+                alert('更新失败，请重试');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-background rounded-xl w-full max-w-2xl border border-border max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-border flex-shrink-0">
+                    <h2 className="text-lg font-medium text-foreground">编辑帖子</h2>
+                </div>
+                <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
+                    <div>
+                        <label className="block text-sm text-foreground-secondary mb-1">标题</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
+                            placeholder="请输入标题"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-foreground-secondary mb-1">内容</label>
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            rows={10}
+                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent resize-none"
+                            placeholder="请输入内容"
+                        />
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2 text-foreground-secondary hover:text-foreground transition-colors"
+                        >
+                            取消
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading || !title.trim() || !content.trim()}
+                            className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        >
+                            {loading ? '保存中...' : '保存'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// =====================================================
 // 评论项组件
 // =====================================================
 function CommentItem({
@@ -301,6 +414,7 @@ export default function PostDetailPage() {
     const [replyTo, setReplyTo] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment'; id: string } | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     // 加载用户信息
     useEffect(() => {
@@ -338,12 +452,61 @@ export default function PostDetailPage() {
         if (!user) return;
 
         // 加载帖子投票
-        const postVoteRes = await fetch(`/api/community/votes?targetType=post&targetId=${postId}`);
-        if (postVoteRes.ok) {
-            const data = await postVoteRes.json();
-            setPostVote(data.vote);
+        try {
+            const postVoteRes = await fetchWithRetry(`/api/community/votes?targetType=post&targetId=${postId}`);
+            if (postVoteRes.ok) {
+                const data = await postVoteRes.json();
+                setPostVote(data.vote);
+            }
+        } catch { /* ignore network errors */ }
+
+        // 加载所有评论的投票状态
+        const loadCommentVotes = async (commentList: CommunityComment[]) => {
+            const newVotes = new Map<string, VoteType>();
+            for (const comment of commentList) {
+                try {
+                    const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.vote) {
+                            newVotes.set(comment.id, data.vote);
+                        }
+                    }
+                } catch { /* ignore */ }
+                // 递归加载子评论
+                if (comment.replies && comment.replies.length > 0) {
+                    const childVotes = await loadCommentVotesRecursive(comment.replies);
+                    childVotes.forEach((v, k) => newVotes.set(k, v));
+                }
+            }
+            return newVotes;
+        };
+
+        const loadCommentVotesRecursive = async (commentList: CommunityComment[]): Promise<Map<string, VoteType>> => {
+            const newVotes = new Map<string, VoteType>();
+            for (const comment of commentList) {
+                try {
+                    const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.vote) {
+                            newVotes.set(comment.id, data.vote);
+                        }
+                    }
+                } catch { /* ignore */ }
+                if (comment.replies && comment.replies.length > 0) {
+                    const childVotes = await loadCommentVotesRecursive(comment.replies);
+                    childVotes.forEach((v, k) => newVotes.set(k, v));
+                }
+            }
+            return newVotes;
+        };
+
+        if (comments.length > 0) {
+            const commentVotes = await loadCommentVotes(comments);
+            setUserVotes(commentVotes);
         }
-    }, [user, postId]);
+    }, [user, postId, comments]);
 
     useEffect(() => {
         loadPost();
@@ -360,30 +523,128 @@ export default function PostDetailPage() {
             return;
         }
 
-        const response = await fetch('/api/community/votes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ targetType, targetId, voteType }),
-        });
+        // 获取当前投票状态（用于乐观更新）
+        const currentVote = targetType === 'post' ? postVote : userVotes.get(targetId) || null;
 
-        if (response.ok) {
-            const data = await response.json();
-            if (targetType === 'post') {
-                setPostVote(data.vote);
-                loadPost(); // 刷新帖子数据
+        // 计算投票变化
+        const calculateVoteChange = (current: VoteType | null, newVote: VoteType) => {
+            let upChange = 0;
+            let downChange = 0;
+
+            if (current === newVote) {
+                // 取消投票
+                if (newVote === 'up') upChange = -1;
+                else downChange = -1;
+                return { upChange, downChange, resultVote: null };
+            } else if (current === null) {
+                // 新增投票
+                if (newVote === 'up') upChange = 1;
+                else downChange = 1;
+                return { upChange, downChange, resultVote: newVote };
             } else {
-                setUserVotes(prev => {
-                    const newMap = new Map(prev);
-                    if (data.vote) {
-                        newMap.set(targetId, data.vote);
-                    } else {
-                        newMap.delete(targetId);
-                    }
-                    return newMap;
-                });
-                loadPost();
+                // 切换投票
+                if (newVote === 'up') {
+                    upChange = 1;
+                    downChange = -1;
+                } else {
+                    upChange = -1;
+                    downChange = 1;
+                }
+                return { upChange, downChange, resultVote: newVote };
+            }
+        };
+
+        const { upChange, downChange, resultVote } = calculateVoteChange(currentVote, voteType);
+
+        // 乐观更新 UI
+        if (targetType === 'post' && post) {
+            setPostVote(resultVote);
+            setPost(prev => prev ? {
+                ...prev,
+                upvote_count: prev.upvote_count + upChange,
+                downvote_count: prev.downvote_count + downChange,
+            } : null);
+        } else {
+            // 更新评论投票状态
+            setUserVotes(prev => {
+                const newMap = new Map(prev);
+                if (resultVote) {
+                    newMap.set(targetId, resultVote);
+                } else {
+                    newMap.delete(targetId);
+                }
+                return newMap;
+            });
+            // 更新评论的投票计数
+            setComments(prev => updateCommentVotes(prev, targetId, upChange, downChange));
+        }
+
+        // 发送请求到服务器
+        try {
+            const response = await fetch('/api/community/votes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetType, targetId, voteType }),
+            });
+
+            if (!response.ok) {
+                // 请求失败，回滚状态
+                if (targetType === 'post' && post) {
+                    setPostVote(currentVote);
+                    setPost(prev => prev ? {
+                        ...prev,
+                        upvote_count: prev.upvote_count - upChange,
+                        downvote_count: prev.downvote_count - downChange,
+                    } : null);
+                } else {
+                    setUserVotes(prev => {
+                        const newMap = new Map(prev);
+                        if (currentVote) {
+                            newMap.set(targetId, currentVote);
+                        } else {
+                            newMap.delete(targetId);
+                        }
+                        return newMap;
+                    });
+                    setComments(prev => updateCommentVotes(prev, targetId, -upChange, -downChange));
+                }
+            }
+        } catch {
+            // 请求失败，回滚状态
+            if (targetType === 'post' && post) {
+                setPostVote(currentVote);
+                setPost(prev => prev ? {
+                    ...prev,
+                    upvote_count: prev.upvote_count - upChange,
+                    downvote_count: prev.downvote_count - downChange,
+                } : null);
             }
         }
+    };
+
+    // 辅助函数：递归更新评论的投票计数
+    const updateCommentVotes = (
+        comments: CommunityComment[],
+        targetId: string,
+        upChange: number,
+        downChange: number
+    ): CommunityComment[] => {
+        return comments.map(comment => {
+            if (comment.id === targetId) {
+                return {
+                    ...comment,
+                    upvote_count: comment.upvote_count + upChange,
+                    downvote_count: comment.downvote_count + downChange,
+                };
+            }
+            if (comment.replies && comment.replies.length > 0) {
+                return {
+                    ...comment,
+                    replies: updateCommentVotes(comment.replies, targetId, upChange, downChange),
+                };
+            }
+            return comment;
+        });
     };
 
     // 发表评论
@@ -404,20 +665,70 @@ export default function PostDetailPage() {
             });
 
             if (response.ok) {
+                const newComment = await response.json();
                 setCommentContent('');
+
+                if (replyTo) {
+                    // 添加到父评论的 replies 中
+                    setComments(prev => addReplyToComment(prev, replyTo, newComment));
+                } else {
+                    // 添加到顶层评论
+                    setComments(prev => [...prev, { ...newComment, replies: [] }]);
+                }
+
+                // 更新帖子评论数
+                setPost(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
                 setReplyTo(null);
-                loadPost();
             }
         } finally {
             setSubmitting(false);
         }
     };
 
+    // 辅助函数：添加回复到评论树
+    const addReplyToComment = (
+        commentList: CommunityComment[],
+        parentId: string,
+        newReply: CommunityComment
+    ): CommunityComment[] => {
+        return commentList.map(comment => {
+            if (comment.id === parentId) {
+                return {
+                    ...comment,
+                    replies: [...(comment.replies || []), { ...newReply, replies: [] }],
+                };
+            }
+            if (comment.replies && comment.replies.length > 0) {
+                return {
+                    ...comment,
+                    replies: addReplyToComment(comment.replies, parentId, newReply),
+                };
+            }
+            return comment;
+        });
+    };
+
     // 删除评论
     const handleDeleteComment = async (commentId: string) => {
         if (!confirm('确定要删除这条评论吗？')) return;
-        await fetch(`/api/community/comments/${commentId}`, { method: 'DELETE' });
-        loadPost();
+
+        const response = await fetch(`/api/community/comments/${commentId}`, { method: 'DELETE' });
+        if (response.ok) {
+            // 本地删除评论
+            setComments(prev => removeCommentFromList(prev, commentId));
+            setPost(prev => prev ? { ...prev, comment_count: Math.max(0, prev.comment_count - 1) } : null);
+        }
+    };
+
+    // 辅助函数：从评论列表中删除评论
+    const removeCommentFromList = (commentList: CommunityComment[], commentId: string): CommunityComment[] => {
+        return commentList.filter(comment => {
+            if (comment.id === commentId) return false;
+            if (comment.replies && comment.replies.length > 0) {
+                comment.replies = removeCommentFromList(comment.replies, commentId);
+            }
+            return true;
+        });
     };
 
     // 删除帖子
@@ -515,7 +826,7 @@ export default function PostDetailPage() {
                             {isAuthor && (
                                 <>
                                     <button
-                                        onClick={() => router.push(`/community/${post.id}/edit`)}
+                                        onClick={() => setShowEditModal(true)}
                                         className="p-2 text-foreground-secondary hover:text-accent"
                                         title="编辑"
                                     >
@@ -630,6 +941,15 @@ export default function PostDetailPage() {
                         targetType={reportTarget.type}
                         targetId={reportTarget.id}
                         onClose={() => setReportTarget(null)}
+                    />
+                )}
+
+                {/* 编辑帖子模态框 */}
+                {showEditModal && post && (
+                    <EditPostModal
+                        post={post}
+                        onClose={() => setShowEditModal(false)}
+                        onSave={(updatedPost) => setPost(updatedPost)}
                     />
                 )}
             </div>
