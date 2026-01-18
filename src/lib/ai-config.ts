@@ -158,12 +158,12 @@ export function buildModels(): AIModelConfig[] {
 
     // ===== Qwen VL 视觉模型（支持推理开关）=====
     const qwenVlNames = parseEnvArray(process.env.QWEN_VL_MODEL_NAME);
-    if (process.env.QWEN_VL_MDOEL_ID) {
+    if (process.env.QWEN_VL_MODEL_ID) {
         models.push({
             id: 'qwen-vl-plus',
             name: qwenVlNames[0] || 'Qwen 3 Plus',
             vendor: 'qwen-vl',
-            modelId: process.env.QWEN_VL_MDOEL_ID,
+            modelId: process.env.QWEN_VL_MODEL_ID,
             apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
             apiKeyEnvVar: 'QWEN_VL_API_KEY',
             supportsReasoning: true,
@@ -176,7 +176,7 @@ export function buildModels(): AIModelConfig[] {
                 id: 'qwen-vl-plus-reasoner',
                 name: qwenVlNames[1] || 'Qwen 3 Plus Reasoner',
                 vendor: 'qwen-vl',
-                modelId: process.env.QWEN_VL_MDOEL_ID,
+                modelId: process.env.QWEN_VL_MODEL_ID,
                 apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
                 apiKeyEnvVar: 'QWEN_VL_API_KEY',
                 supportsReasoning: true,

@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain, Play, Loader2, Eye } from 'lucide-react';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/mbti';
 
 function MBTIPageContent() {
@@ -87,8 +87,6 @@ function MBTIPageContent() {
 
 export default function MBTIPage() {
     return (
-        <LoginOverlay message="登录后使用 MBTI 性格测试">
-            <MBTIPageContent />
-        </LoginOverlay>
+        <MBTIPageContent />
     );
 }

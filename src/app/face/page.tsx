@@ -243,6 +243,7 @@ export default function FacePage() {
                     >
                         {imagePreview ? (
                             <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element -- 使用动态 Base64 data URL，不适合 next/image */}
                                 <img
                                     src={imagePreview}
                                     alt="面相预览"

@@ -7,20 +7,16 @@
  */
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import {
     Loader2,
-    LogIn,
     Orbit
 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
-import { AuthModal } from '@/components/auth/AuthModal';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@/lib/supabase';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -77,23 +73,8 @@ function BaziPageContent() {
         return hourParam === null || hourParam === '-1';
     });
     const autoFillTime = searchParams.get('hour') === null;
-    const [user, setUser] = useState<User | null>(null);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authChecked, setAuthChecked] = useState(false);
 
-    // 检查登录状态
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setAuthChecked(true);
-        });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_, session) => setUser(session?.user ?? null)
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
     const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
@@ -229,11 +210,11 @@ function BaziPageContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // 检查登录状态
-        if (!user) {
-            setShowAuthModal(true);
-            return;
-        }
+        // 移除登录检查，允许未登录排盘
+        // if (!user) {
+        //     setShowAuthModal(true);
+        //     return;
+        // }
 
         setIsSubmitting(true);
 
@@ -276,23 +257,7 @@ function BaziPageContent() {
                 </p>
             </div>
 
-            {/* 未登录提示 */}
-            {authChecked && !user && (
-                <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-                    <LogIn className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                    <div className="flex-1">
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                            您当前未登录，提交排盘时需要先登录账号
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowAuthModal(true)}
-                        className="px-4 py-1.5 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-                    >
-                        登录
-                    </button>
-                </div>
-            )}
+
 
             <BaziForm
                 formData={formData}
@@ -303,11 +268,6 @@ function BaziPageContent() {
                 onSetToday={handleSetToday}
                 isSubmitting={isSubmitting}
                 autoFillTime={autoFillTime}
-            />
-
-            <AuthModal
-                isOpen={showAuthModal}
-                onClose={() => setShowAuthModal(false)}
             />
         </div>
     );

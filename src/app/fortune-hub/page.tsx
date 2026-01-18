@@ -15,7 +15,7 @@ import {
     Dices,
     Orbit
 } from 'lucide-react';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 
 const FORTUNE_SERVICES = [
     {
@@ -164,8 +164,6 @@ function FortuneHubContent() {
 
 export default function FortuneHubPage() {
     return (
-        <LoginOverlay message="登录后使用运势中心">
-            <FortuneHubContent />
-        </LoginOverlay>
+        <FortuneHubContent />
     );
 }

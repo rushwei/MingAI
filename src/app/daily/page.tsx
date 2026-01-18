@@ -25,7 +25,7 @@ import {
     X,
     Share2
 } from 'lucide-react';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { CalendarAlmanac } from '@/components/daily/CalendarAlmanac';
 import { DailyAIChat } from '@/components/daily/DailyAIChat';
@@ -37,6 +37,7 @@ import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTre
 import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/calendar';
 import type { BaziChart } from '@/types';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 const scoreItems = [
     { key: 'overall', label: '综合运势', icon: Star, color: 'text-amber-500' },
@@ -74,6 +75,7 @@ function DailyPageContent() {
     const [showShareCard, setShowShareCard] = useState(false);
     const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('colloquial');
     const [showTrendChart, setShowTrendChart] = useState(true);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
@@ -497,23 +499,46 @@ function DailyPageContent() {
 
             {/* AI智能问答 */}
             <div className="mt-8">
-                <DailyAIChat date={selectedDate} userId={userId} />
+                {userId ? (
+                    <DailyAIChat date={selectedDate} userId={userId} />
+                ) : (
+                    <div className="bg-background-secondary rounded-xl p-6 border border-border text-center">
+                        <div className="flex justify-center mb-4">
+                            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                                <Sparkles className="w-6 h-6 text-accent" />
+                            </div>
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">AI 智能运势问答</h3>
+                        <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                            登录后即可与 AI 命理师对话，深入解读每日运势详情
+                        </p>
+                        <button
+                            onClick={() => setShowAuthModal(true)}
+                            className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                        >
+                            登录 / 注册
+                        </button>
+                    </div>
+                )}
             </div>
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
         </div>
     );
 }
 
 export default function DailyPage() {
     return (
-        <LoginOverlay message="登录后查看每日运势">
-            <Suspense fallback={
-                <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                    <p className="mt-4 text-foreground-secondary">加载中...</p>
-                </div>
-            }>
-                <DailyPageContent />
-            </Suspense>
-        </LoginOverlay>
+        <Suspense fallback={
+            <div className="max-w-2xl mx-auto px-4 py-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            </div>
+        }>
+            <DailyPageContent />
+        </Suspense>
     );
 }

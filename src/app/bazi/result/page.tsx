@@ -25,6 +25,8 @@ import { ResultTabs, type ResultTab } from '@/components/bazi/result/ResultTabs'
 import { BasicInfoSection } from '@/components/bazi/result/BasicInfoSection';
 import { ProfessionalSection } from '@/components/bazi/result/ProfessionalSection';
 import { ResultFooterLinks } from '@/components/bazi/result/ResultFooterLinks';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useToast } from '@/components/ui/Toast';
 
 // 结果内容组件
 function BaziResultContent() {
@@ -43,6 +45,8 @@ function BaziResultContent() {
     const [savedPersonalityAnalysis, setSavedPersonalityAnalysis] = useState<string | null>(null);
     const [savedPersonalityReasoning, setSavedPersonalityReasoning] = useState<string | null>(null);
     const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const { showToast } = useToast();
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -279,8 +283,8 @@ function BaziResultContent() {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-            alert('请先登录后再保存命盘');
-            router.push('/user');
+            showToast('warning', '请先登录后再保存命盘');
+            setShowAuthModal(true);
             return;
         }
 
@@ -498,7 +502,7 @@ function BaziResultContent() {
                             await supabase.from('bazi_charts').update({ ai_personality_analysis: analysis }).eq('id', chartId);
                         }
                     }}
-                    onLoginRequired={() => router.push('/user')}
+                    onLoginRequired={() => setShowAuthModal(true)}
                 />
             )}
 
@@ -526,6 +530,11 @@ function BaziResultContent() {
             )}
 
             <ResultFooterLinks />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
         </div>
     );
 }

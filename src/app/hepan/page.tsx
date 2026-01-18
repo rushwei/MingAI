@@ -6,7 +6,7 @@
 import Link from 'next/link';
 import { Heart, Briefcase, Users, ArrowRight, HeartHandshake } from 'lucide-react';
 import { type HepanType, getHepanTypeName } from '@/lib/hepan';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 
 const HEPAN_TYPES: { type: HepanType; icon: typeof Heart; color: string; description: string }[] = [
@@ -115,8 +115,6 @@ function HepanPageContent() {
 
 export default function HepanPage() {
     return (
-        <LoginOverlay message="登录后使用关系合盘分析">
-            <HepanPageContent />
-        </LoginOverlay>
+        <HepanPageContent />
     );
 }

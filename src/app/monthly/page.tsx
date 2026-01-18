@@ -20,7 +20,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
@@ -462,8 +462,6 @@ function MonthlyPageContent() {
 
 export default function MonthlyPage() {
     return (
-        <LoginOverlay message="登录后查看每月运势">
-            <MonthlyPageContent />
-        </LoginOverlay>
+        <MonthlyPageContent />
     );
 }

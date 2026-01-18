@@ -18,7 +18,6 @@ import {
     Share2,
 } from 'lucide-react';
 import Image from 'next/image';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -29,6 +28,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 function TarotResultContent() {
     const router = useRouter();
@@ -56,6 +56,7 @@ function TarotResultContent() {
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [userId, setUserId] = useState<string | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     useEffect(() => {
         setQuestion(questionParam || '');
@@ -209,8 +210,8 @@ function TarotResultContent() {
     const handleInterpret = async () => {
         if (drawnCards.length === 0) return;
 
-            setIsInterpreting(true);
-            setInterpretationReasoning(null);
+        setIsInterpreting(true);
+        setInterpretationReasoning(null);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
@@ -535,6 +536,24 @@ function TarotResultContent() {
                                 className="text-sm text-foreground-secondary"
                             />
                         </>
+                    ) : !userId ? (
+                        <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
+                            <div className="flex justify-center mb-4">
+                                <div className="p-3 rounded-full bg-accent/10">
+                                    <Sparkles className="w-6 h-6 text-accent" />
+                                </div>
+                            </div>
+                            <h3 className="text-lg font-semibold mb-2">AI 深度解读</h3>
+                            <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                                登录后解锁完整 AI 深度解读，获取更精准的个性化建议
+                            </p>
+                            <button
+                                onClick={() => setShowAuthModal(true)}
+                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                            >
+                                登录 / 注册
+                            </button>
+                        </div>
                     ) : (
                         <>
                             <p className="text-sm text-foreground-secondary mb-4">
@@ -577,16 +596,19 @@ function TarotResultContent() {
                     />
                 </div>
             )}
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
         </div>
     );
 }
 
 export default function TarotResultPage() {
     return (
-        <LoginOverlay message="登录后体验塔罗占卜">
-            <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" /></div>}>
-                <TarotResultContent />
-            </Suspense>
-        </LoginOverlay>
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" /></div>}>
+            <TarotResultContent />
+        </Suspense>
     );
 }

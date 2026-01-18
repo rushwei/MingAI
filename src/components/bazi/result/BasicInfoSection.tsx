@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MessageCircle, User, Save } from 'lucide-react';
+import { MessageCircle, User, Save, Sparkles } from 'lucide-react';
 import { calculateBazi, getElementColor } from '@/lib/bazi';
 import { FiveElementsChart } from './FiveElementsChart';
 import { TenGodKnowledge } from '../TenGodKnowledge';
@@ -114,7 +114,25 @@ export function BasicInfoSection({
                         💡 点击右上角「保存」按钮保存命盘后，即可使用 AI 五行分析和性格分析功能
                     </div>
                 </section>
-            ) : userId && (
+            ) : !userId ? (
+                <section className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="p-3 rounded-full bg-accent/10">
+                            <Sparkles className="w-6 h-6 text-accent" />
+                        </div>
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">AI 五行分析</h3>
+                    <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                        登录后解锁完整 AI 深度解读，获取更精准的个性化建议
+                    </p>
+                    <button
+                        onClick={onLoginRequired}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                    >
+                        登录 / 注册
+                    </button>
+                </section>
+            ) : (
                 <AIWuxingAnalysis
                     chartId={chartId!}
                     userId={userId}
@@ -143,7 +161,25 @@ export function BasicInfoSection({
                         💡 点击右上角「保存」按钮保存命盘后，即可使用 AI 五行分析和性格分析功能
                     </div>
                 </section>
-            ) : userId && (
+            ) : !userId ? (
+                <section className="bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/20 rounded-xl p-6 text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="p-3 rounded-full bg-purple-500/10">
+                            <User className="w-6 h-6 text-purple-500" />
+                        </div>
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">AI 性格分析</h3>
+                    <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                        登录后解锁完整 AI 深度解读，获取更精准的个性化建议
+                    </p>
+                    <button
+                        onClick={onLoginRequired}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-500/90 transition-colors"
+                    >
+                        登录 / 注册
+                    </button>
+                </section>
+            ) : (
                 <AIPersonalityAnalysis
                     chartId={chartId!}
                     userId={userId}

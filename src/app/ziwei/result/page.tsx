@@ -12,6 +12,8 @@ import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
 import { ZiweiHoroscopePanel, type HoroscopeInfo, type HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
 import { supabase } from '@/lib/supabase';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useToast } from '@/components/ui/Toast';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -24,6 +26,8 @@ function ZiweiResultContent() {
     const [horoscopeHighlight, setHoroscopeHighlight] = useState<HoroscopeHighlight>({});
     const [horoscopeInfo, setHoroscopeInfo] = useState<HoroscopeInfo | undefined>(undefined);
     const [hourOffset, setHourOffset] = useState(0); // 时辰调整偏移
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const { showToast } = useToast();
 
     const chartId = searchParams.get('chart');
     const hasFormParams = useMemo(() => {
@@ -190,8 +194,8 @@ function ZiweiResultContent() {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-            alert('请先登录后再保存命盘');
-            router.push('/user');
+            showToast('warning', '请先登录后再保存命盘');
+            setShowAuthModal(true);
             return;
         }
 
@@ -433,6 +437,11 @@ function ZiweiResultContent() {
             <div className="mt-6 text-center text-sm text-foreground-secondary">
                 <p>点击宫位可查看详细信息</p>
             </div>
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
         </div>
     );
 }

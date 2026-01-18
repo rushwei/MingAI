@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Calendar, Layers, ChevronRight, Gem } from 'lucide-react';
 import Image from 'next/image';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 
 const HistoryDrawer = dynamic(
@@ -33,7 +33,7 @@ export default function TarotPage() {
     };
 
     return (
-        <LoginOverlay message="登录后体验塔罗占卜">
+        <>
             <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
                 {/* 标题 */}
                 <div className="text-center mb-8">
@@ -122,6 +122,6 @@ export default function TarotPage() {
                 </div>
             </div>
             <HistoryDrawer type="tarot" />
-        </LoginOverlay>
+        </>
     );
 }

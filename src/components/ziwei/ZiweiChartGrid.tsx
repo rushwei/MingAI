@@ -74,7 +74,6 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
     const defaultSelectedPalace = lifePalaceIndex >= 0 ? lifePalaceIndex : null;
     const activeSelectedPalace = selectedPalace === undefined ? defaultSelectedPalace : selectedPalace;
-    const selectedIndex = typeof selectedPalace === 'number' ? selectedPalace : null;
 
     const getPalaceByBranch = (branchIndex: number) => {
         return chart.palaces.find(p => getBranchIndex(p.earthlyBranch) === branchIndex);
@@ -170,13 +169,13 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
             </div>
             {/* 三方四正连线SVG层 */}
             <div className="relative">
-                {selectedIndex !== null && (
+                {activeSelectedPalace !== null && (
                     <svg
                         className="absolute inset-0 w-full h-full pointer-events-none z-10"
                         style={{ aspectRatio: '4/4' }}
                     >
                         {(() => {
-                            const selectedPalaceInfo = chart.palaces[selectedIndex];
+                            const selectedPalaceInfo = chart.palaces[activeSelectedPalace];
                             if (!selectedPalaceInfo) return null;
                             // 宫位在网格中的位置映射 (branchIndex -> {row, col})
                             const positionMap: Record<number, { row: number; col: number }> = {
@@ -190,7 +189,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                             const selectedPos = positionMap[selectedBranch];
                             if (!selectedPos) return null;
 
-                            const sanFangIndexes = getSanFangSiZheng(selectedIndex);
+                            const sanFangIndexes = getSanFangSiZheng(activeSelectedPalace);
                             const cellSize = 25; // 每个宫位占25%
                             const padding = 1; // 边框内侧偏移
 
@@ -221,7 +220,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                             const lines: React.ReactNode[] = [];
                             const startPoint = getAnchorPoint(selectedPos);
                             sanFangIndexes.forEach((palaceIdx, i) => {
-                                if (palaceIdx === selectedIndex) return;
+                                if (palaceIdx === activeSelectedPalace) return;
                                 const palaceInfo = chart.palaces[palaceIdx];
                                 if (!palaceInfo) return;
                                 const branch = getBranchIndex(palaceInfo.earthlyBranch);

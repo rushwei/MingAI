@@ -12,7 +12,7 @@ import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
+
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') return fallback;
@@ -239,15 +239,13 @@ function ZiweiPageContent() {
 
 export default function ZiweiPage() {
     return (
-        <LoginOverlay message="登录后使用紫微斗数排盘">
-            <Suspense fallback={
-                <div className="max-w-4xl mx-auto px-4 py-8 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                    <p className="mt-4 text-foreground-secondary">加载中...</p>
-                </div>
-            }>
-                <ZiweiPageContent />
-            </Suspense>
-        </LoginOverlay>
+        <Suspense fallback={
+            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            </div>
+        }>
+            <ZiweiPageContent />
+        </Suspense>
     );
 }

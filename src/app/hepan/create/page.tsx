@@ -8,7 +8,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Loader2, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader2, FolderOpen, X, AlertCircle } from 'lucide-react';
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/supabase';
@@ -155,6 +155,7 @@ function HepanCreateContent() {
     const [loading, setLoading] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [pickerOpen, setPickerOpen] = useState<1 | 2 | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     // 获取用户 ID
     useEffect(() => {
@@ -199,11 +200,11 @@ function HepanCreateContent() {
     const handleSubmit = async () => {
         // 验证必填字段
         if (!person1.name || !person1.year || !person1.month || !person1.day || person1.hour === undefined) {
-            alert('请填写完整的第一人信息');
+            setValidationError('请填写完整的第一人信息');
             return;
         }
         if (!person2.name || !person2.year || !person2.month || !person2.day || person2.hour === undefined) {
-            alert('请填写完整的第二人信息');
+            setValidationError('请填写完整的第二人信息');
             return;
         }
 
@@ -319,6 +320,37 @@ function HepanCreateContent() {
                     userId={userId}
                     title={`选择${pickerOpen === 1 ? labels[type].p1 : labels[type].p2}的命盘`}
                 />
+            )}
+
+            {/* 验证错误弹窗 */}
+            {validationError && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setValidationError(null)}
+                    />
+                    <div className="relative bg-background rounded-2xl border border-border shadow-2xl p-6 max-w-sm mx-4 animate-fade-in min-w-[320px]">
+                        <button
+                            onClick={() => setValidationError(null)}
+                            className="absolute top-5 right-5 p-1 rounded-lg hover:bg-background-secondary transition-colors"
+                        >
+                            <X className="w-5 h-5 text-foreground-secondary" />
+                        </button>
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="p-2.5 rounded-full bg-amber-500/10">
+                                <AlertCircle className="w-6 h-6 text-amber-500" />
+                            </div>
+                            <h3 className="text-lg font-semibold">请检查输入</h3>
+                        </div>
+                        <p className="text-foreground-secondary mb-8 leading-relaxed">{validationError}</p>
+                        <button
+                            onClick={() => setValidationError(null)}
+                            className="w-full py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
+                        >
+                            知道了
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -21,6 +21,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -43,6 +44,7 @@ function MBTIResultContent() {
     ) : null;
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     useEffect(() => {
         // useEffect loads session/auth data after client mount.
@@ -301,17 +303,22 @@ function MBTIResultContent() {
                                 {checkingAuth ? (
                                     <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
                                 ) : !user ? (
-                                    <div>
-                                        <p className="text-foreground-secondary mb-4">
-                                            登录后可获取 AI 个性化深度分析
+                                    <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
+                                        <div className="flex justify-center mb-4">
+                                            <div className="p-3 rounded-full bg-accent/10">
+                                                <Sparkles className="w-6 h-6 text-accent" />
+                                            </div>
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">AI 深度分析</h3>
+                                        <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                                            登录后解锁完整 AI 深度解读，获取更精准的个性化建议
                                         </p>
-                                        <Link
-                                            href="/user/login"
-                                            className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
-                                                hover:bg-accent/90 transition-all"
+                                        <button
+                                            onClick={() => setShowAuthModal(true)}
+                                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
                                         >
-                                            登录
-                                        </Link>
+                                            登录 / 注册
+                                        </button>
                                     </div>
                                 ) : (
                                     <button
@@ -366,6 +373,11 @@ function MBTIResultContent() {
                     </div>
                 )}
             </div>
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
         </div>
     );
 }

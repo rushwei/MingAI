@@ -198,6 +198,7 @@ export default function PalmPage() {
                     >
                         {imagePreview ? (
                             <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element -- 使用动态 Base64 data URL，不适合 next/image */}
                                 <img
                                     src={imagePreview}
                                     alt="手相预览"
