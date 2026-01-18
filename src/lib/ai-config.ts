@@ -274,8 +274,8 @@ export const VENDOR_NAMES: Record<AIVendor, string> = {
     gemini: 'Gemini',
     qwen: 'Qwen',
     deepai: 'DeepAI',
-    'qwen-vl': 'Qwen VL',
-    'gemini-vl': 'Gemini VL',
+    'qwen-vl': 'Qwen 视觉模型',
+    'gemini-vl': 'Gemini 视觉模型',
 };
 
 // ===== 视觉模型工具函数 =====
