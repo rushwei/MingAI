@@ -232,7 +232,8 @@ export function ConversationSidebar({
                     className={`
                         h-full 
                         ${isCollapsed ? 'lg:w-14' : 'lg:w-64'} w-64
-                        bg-background border-r border-border
+                        border-r ${isCollapsed ? 'border-transparent' : 'border-border'}
+                        bg-background
                         flex flex-col
                         transition-all duration-300
                         shadow-2xl lg:shadow-none
@@ -242,14 +243,16 @@ export function ConversationSidebar({
                     {/* 操作按钮 (新聊天、搜索) */}
                     <div className="px-2 py-2 space-y-1">
                         <div className={`flex items-center gap-1 ${isCollapsed ? 'flex-col' : ''}`}>
-                            <button
-                                onClick={onNew}
-                                className={`flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg hover:bg-background-secondary transition-colors text-sm ${isCollapsed ? 'lg:justify-center w-full' : 'flex-1'}`}
-                                title="新聊天"
-                            >
-                                <SquarePen className="w-5 h-5 flex-shrink-0" />
-                                <span className={`${isCollapsed ? 'lg:hidden' : ''} whitespace-nowrap`}>新聊天</span>
-                            </button>
+                            {!isCollapsed && (
+                                <button
+                                    onClick={onNew}
+                                    className="flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg hover:bg-background-secondary transition-colors text-sm flex-1"
+                                    title="新聊天"
+                                >
+                                    <SquarePen className="w-5 h-5 flex-shrink-0" />
+                                    <span className="whitespace-nowrap">新聊天</span>
+                                </button>
+                            )}
 
                             {/* 桌面端：折叠/展开按钮 */}
                             <button
@@ -258,7 +261,7 @@ export function ConversationSidebar({
                                     hidden lg:flex items-center justify-center 
                                     p-2.5 h-12 w-10 
                                     rounded-lg hover:bg-background-secondary transition-colors text-foreground-secondary hover:text-foreground
-                                    ${isCollapsed ? 'order-first w-full h-10' : ''}
+                                    ${isCollapsed ? 'w-full h-10' : ''}
                                 `}
                                 title={isCollapsed ? "展开侧边栏" : "收起侧边栏"}
                             >
@@ -270,19 +273,21 @@ export function ConversationSidebar({
                             </button>
                         </div>
 
-                        <button
-                            onClick={() => {
-                                if (isCollapsed) {
-                                    handleCollapse(false);
-                                }
-                                setIsSearching(!isSearching);
-                            }}
-                            className={`flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'} ${isCollapsed ? 'lg:justify-center' : 'w-full'}`}
-                            title="搜索聊天"
-                        >
-                            <Search className="w-5 h-5 flex-shrink-0" />
-                            <span className={`${isCollapsed ? 'lg:hidden' : ''} whitespace-nowrap`}>搜索聊天</span>
-                        </button>
+                        {!isCollapsed && (
+                            <button
+                                onClick={() => {
+                                    if (isCollapsed) {
+                                        handleCollapse(false);
+                                    }
+                                    setIsSearching(!isSearching);
+                                }}
+                                className={`flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'} w-full`}
+                                title="搜索聊天"
+                            >
+                                <Search className="w-5 h-5 flex-shrink-0" />
+                                <span className="whitespace-nowrap">搜索聊天</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* 搜索框 - 仅在展开状态显示 */}

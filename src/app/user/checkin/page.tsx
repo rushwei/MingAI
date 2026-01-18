@@ -4,9 +4,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import {
-    ArrowLeft,
     CalendarCheck,
     Flame,
     Gift,
@@ -205,61 +203,54 @@ export default function CheckinPage() {
     return (
         <LoginOverlay message="登录后签到领取奖励">
             <div className="min-h-screen bg-background relative overflow-hidden">
-                {/* 装饰背景 */}
-                <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-amber-500/10 to-transparent pointer-events-none" />
-                <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute top-[200px] left-[-50px] w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+                <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                     {/* 头部 */}
                     <div className="flex items-center gap-4 mb-8">
-                        <Link
-                            href="/"
-                            className="p-2 rounded-xl bg-background/50 backdrop-blur-sm border border-border hover:bg-background-secondary transition-all hover:scale-105 active:scale-95"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
                         <div>
-                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-600">每日签到</h1>
-                            <p className="text-foreground-secondary text-sm mt-1">
-                                连续签到获得更多奖励
+                            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-600 tracking-tight">每日签到</h1>
+                            <p className="text-foreground-secondary text-sm mt-1.5 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                坚持签到，累积好运与奖励
                             </p>
                         </div>
                     </div>
 
                     {/* 等级信息 */}
                     {level && (
-                        <div className="relative overflow-hidden bg-background/60 backdrop-blur-md border border-white/10 dark:border-white/5 rounded-3xl p-6 mb-6 shadow-xl">
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5" />
-                            <div className="relative flex items-center gap-5">
-                                <div className="relative">
-                                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg transform rotate-3">
-                                        <Trophy className="w-10 h-10 text-white drop-shadow-md" />
+                        <div className="relative overflow-hidden bg-background/80 backdrop-blur-xl border border-border/60 rounded-[2rem] p-8 mb-8 shadow-2xl group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 group-hover:from-amber-500/10 transition-colors duration-500" />
+                            <div className="absolute right-0 top-0 w-32 h-32 bg-gradient-to-br from-amber-400/20 to-transparent rounded-bl-[100px] opacity-50" />
+
+                            <div className="relative flex flex-col sm:flex-row items-center gap-8">
+                                <div className="relative flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
+                                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 transform rotate-3 ring-4 ring-background">
+                                        <Trophy className="w-12 h-12 text-white drop-shadow-md" />
                                     </div>
-                                    <div className="absolute -bottom-2 -right-2 bg-background border-2 border-amber-100 dark:border-amber-900 rounded-full px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 shadow-sm">
+                                    <div className="absolute -bottom-3 -right-3 bg-background border-2 border-amber-100 dark:border-amber-900 rounded-full px-3 py-1 text-xs font-black text-amber-600 dark:text-amber-400 shadow-md transform -rotate-3">
                                         Lv.{level.level}
                                     </div>
                                 </div>
 
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h2 className="text-xl font-bold truncate">{level.title}</h2>
-                                        <span className="text-xs font-medium text-foreground-secondary">
-                                            {level.experience} / {getNextLevelXp(level.level)} XP
+                                <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+                                    <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-2">
+                                        <h2 className="text-2xl font-bold text-foreground">{level.title}</h2>
+                                        <span className="text-sm font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
+                                            {level.experience} <span className="text-foreground-secondary/70 font-normal">/</span> {getNextLevelXp(level.level)} XP
                                         </span>
                                     </div>
 
-                                    <div className="h-4 bg-background-secondary rounded-full overflow-hidden border border-black/5 dark:border-white/5 p-0.5">
+                                    <div className="h-5 bg-background-secondary rounded-full overflow-hidden border border-border/50 p-1 shadow-inner">
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-1000 ease-out relative overflow-hidden"
+                                            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-1000 ease-out relative overflow-hidden shadow-sm"
                                             style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
                                         >
-                                            <div className="absolute inset-y-0 left-0 right-0 w-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
+                                            <div className="absolute inset-y-0 left-0 right-0 w-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full" />
                                         </div>
                                     </div>
-                                    <p className="text-xs text-foreground-secondary mt-2">
-                                        距离下一级还需 {getNextLevelXp(level.level) - level.experience} 经验，加油！
-                                    </p>
+                                    <div className="text-sm text-foreground-secondary mt-3 flex items-center justify-center sm:justify-start gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                        距离下一级还需 <span className="font-bold text-foreground">{getNextLevelXp(level.level) - level.experience}</span> 经验，加油！
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -267,7 +258,7 @@ export default function CheckinPage() {
 
                     {/* 签到卡片 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div className="bg-background-secondary/50 backdrop-blur-sm rounded-3xl border border-border p-8 flex flex-col items-center justify-center relative overflow-hidden group">
+                        <div className="bg-background backdrop-blur-sm rounded-3xl border border-border p-8 flex flex-col items-center justify-center relative overflow-hidden group">
                             {/* 签到背景光效 */}
                             {status?.canCheckin && !checking && (
                                 <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -341,7 +332,7 @@ export default function CheckinPage() {
                         </div>
 
                         {/* 奖励说明小卡片 */}
-                        <div className="bg-background-secondary/50 backdrop-blur-sm rounded-3xl border border-border p-6 flex flex-col">
+                        <div className="bg-background backdrop-blur-sm rounded-3xl border border-border p-6 flex flex-col">
                             <h4 className="font-bold mb-4 flex items-center gap-2 text-lg">
                                 <Gift className="w-5 h-5 text-amber-500" />
                                 奖励规则
@@ -388,7 +379,7 @@ export default function CheckinPage() {
                     </div>
 
                     {/* 签到日历 */}
-                    <div className="bg-background-secondary/30 backdrop-blur-sm rounded-3xl border border-border p-6 shadow-sm">
+                    <div className="bg-background backdrop-blur-sm rounded-3xl border border-border p-6 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                             <button
                                 onClick={prevMonth}

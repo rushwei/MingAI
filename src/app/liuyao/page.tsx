@@ -87,56 +87,75 @@ export default function LiuyaoPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* 标题 */}
-                <div className="text-center mb-10">
-                    <div className="flex items-center justify-center mb-4">
+        <div className="min-h-screen bg-background pb-12">
+            {/* 顶部 Hero 区域 */}
+            <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+                <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+                <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
+                    <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-2xl mb-6 ring-1 ring-amber-500/20">
                         <Dices className="w-12 h-12 text-amber-500" />
                     </div>
-                    <h1 className="text-3xl font-bold text-foreground">六爻占卜</h1>
-                    <p className="text-foreground-secondary mt-2">
-                        源自《易经》，通过卦象变化预测事物发展趋势
+                    <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                        六爻占卜
+                    </h1>
+                    <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
+                        源自《易经》的古老智慧，为您指点迷津。
+                        <br className="hidden sm:block" />
+                        心诚则灵，预测事物发展趋势。
                     </p>
                 </div>
+            </div>
 
+            <div className="max-w-4xl mx-auto px-4 -mt-8 relative z-20">
                 {/* 问题输入 */}
-                <div className="bg-background-secondary rounded-xl p-6 mb-8">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                        <HelpCircle className="w-4 h-4 inline mr-1" />
-                        请输入您想占卜的问题（可选）
-                    </label>
-                    <textarea
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        placeholder="例如：我近期的事业运势如何？"
-                        className="w-full h-24 px-4 py-3 bg-background border border-border rounded-lg
-                            text-foreground placeholder:text-foreground-secondary
-                            focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-                    />
-                    <p className="text-xs text-foreground-secondary mt-2">
-                        提示：问题越具体，解卦越准确。避免问是非题，建议问&quot;如何&quot;、&quot;怎样&quot;类问题。
-                    </p>
+                <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50 mb-10">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-accent/10 rounded-lg">
+                            <HelpCircle className="w-5 h-5 text-accent" />
+                        </div>
+                        <h2 className="text-lg font-semibold">请输入您想占卜的问题</h2>
+                        <span className="text-sm font-normal text-foreground-secondary ml-auto">(可选)</span>
+                    </div>
+
+                    <div className="relative">
+                        <textarea
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            placeholder="例如：我近期的事业运势如何？这次合作能否顺利达成？"
+                            className="w-full h-32 px-5 py-4 bg-background-secondary/30 border border-border rounded-xl
+                                text-foreground placeholder:text-foreground-tertiary
+                                focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+                                resize-none transition-all duration-300"
+                        />
+                        <div className="absolute bottom-3 right-4 text-xs text-foreground-tertiary">
+                            心诚则灵，一事一占
+                        </div>
+                    </div>
                 </div>
 
                 {/* 起卦方式 */}
-                <div className="grid md:grid-cols-2 gap-6 mb-10">
+                <div className="grid md:grid-cols-2 gap-6 mb-12">
                     {/* 铜钱起卦 */}
                     <button
                         onClick={handleCoinDivine}
-                        className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 text-left
-                            hover:border-yellow-500/60 hover:bg-yellow-500/15
-                            transition-all group"
+                        className="group relative bg-background rounded-2xl p-8 text-left border border-border hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/5 transition-all duration-300 overflow-hidden"
                     >
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-yellow-500/20 rounded-lg group-hover:bg-yellow-500/30 transition-colors">
-                                <Coins className="w-8 h-8 text-yellow-500" />
+                        <div className="absolute top-0 right-0 p-12 bg-yellow-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
+
+                        <div className="relative z-10 flex flex-col h-full">
+                            <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <Coins className="w-8 h-8 text-yellow-600" />
                             </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-foreground mb-1">铜钱起卦</h3>
-                                <p className="text-sm text-foreground-secondary">
-                                    模拟传统三铜钱起卦法，抛掷六次生成卦象
-                                </p>
+
+                            <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-yellow-600 transition-colors">
+                                铜钱起卦
+                            </h3>
+                            <p className="text-foreground-secondary leading-relaxed mb-6 flex-1">
+                                模拟传统三铜钱起卦法，诚心抛掷六次，亲自感应卦象变化，体验古法占卜的仪式感。
+                            </p>
+
+                            <div className="flex items-center text-sm font-medium text-yellow-600 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
+                                开始起卦 <span className="ml-1">→</span>
                             </div>
                         </div>
                     </button>
@@ -145,62 +164,84 @@ export default function LiuyaoPage() {
                     <button
                         onClick={handleQuickDivine}
                         disabled={isQuickLoading}
-                        className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-6 text-left
-                            hover:border-purple-500/60 hover:bg-purple-500/15
-                            transition-all group disabled:opacity-50"
+                        className="group relative bg-background rounded-2xl p-8 text-left border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
+                        <div className="absolute top-0 right-0 p-12 bg-purple-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
+
+                        <div className="relative z-10 flex flex-col h-full">
+                            <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                                 {isQuickLoading ? (
-                                    <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                                    <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
                                 ) : (
-                                    <Sparkles className="w-8 h-8 text-purple-500" />
+                                    <Sparkles className="w-8 h-8 text-purple-600" />
                                 )}
                             </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-foreground mb-1">
-                                    {isQuickLoading ? '正在起卦...' : '快速起卦'}
-                                </h3>
-                                <p className="text-sm text-foreground-secondary">
-                                    系统随机生成卦象，快速获得占卜结果
-                                </p>
+
+                            <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-purple-600 transition-colors">
+                                {isQuickLoading ? '正在起卦...' : '快速起卦'}
+                            </h3>
+                            <p className="text-foreground-secondary leading-relaxed mb-6 flex-1">
+                                利用计算机随机算法生成卦象，适合想要快速获得指引，或不方便进行手动起卦的场景。
+                            </p>
+
+                            <div className="flex items-center text-sm font-medium text-purple-600 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
+                                立即生成 <span className="ml-1">→</span>
                             </div>
                         </div>
                     </button>
                 </div>
 
                 {/* 说明 */}
-                <div className="bg-background-secondary/50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">六爻占卜说明</h3>
-                    <div className="grid md:grid-cols-2 gap-6 text-sm text-foreground-secondary">
-                        <div>
-                            <h4 className="font-medium text-foreground mb-2">什么是六爻？</h4>
-                            <p>
-                                六爻是《周易》预测学的一个分支，通过铜钱或其他方式起卦，
-                                得到由六个爻组成的卦象，再根据卦象判断事物吉凶。
-                            </p>
+                <div className="bg-background-secondary/30 rounded-2xl p-8 border border-border/50">
+                    <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
+                        <span className="w-1 h-5 bg-foreground rounded-full" />
+                        六爻占卜说明
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                    什么是六爻？
+                                </h4>
+                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                    六爻是《周易》预测学的一个分支，通过铜钱或其他方式起卦，
+                                    得到由六个爻组成的卦象，再根据卦象判断事物吉凶。
+                                </p>
+                            </div>
+                            <div>
+                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                    起卦方法
+                                </h4>
+                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                    传统铜钱法：三枚铜钱抛掷六次，
+                                    三正为老阳（变），三反为老阴（变），
+                                    二正一反为少阳，一正二反为少阴。
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 className="font-medium text-foreground mb-2">起卦方法</h4>
-                            <p>
-                                传统铜钱法：三枚铜钱抛掷六次，
-                                三正为老阳（变），三反为老阴（变），
-                                二正一反为少阳，一正二反为少阴。
-                            </p>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-foreground mb-2">变爻</h4>
-                            <p>
-                                老阳和老阴为变爻，会形成变卦。
-                                变卦代表事物的发展趋势和最终结果。
-                            </p>
-                        </div>
-                        <div>
-                            <h4 className="font-medium text-foreground mb-2">注意事项</h4>
-                            <p>
-                                起卦时心诚则灵，专注于问题。
-                                同一问题不宜反复占卜，以第一次为准。
-                            </p>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                    什么是变爻？
+                                </h4>
+                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                    老阳和老阴为变爻，会形成变卦。
+                                    变卦代表事物的发展趋势和最终结果，是解卦的重要依据。
+                                </p>
+                            </div>
+                            <div>
+                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                    注意事项
+                                </h4>
+                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                    起卦时心诚则灵，专注于问题。
+                                    同一问题不宜反复占卜，以第一次起卦结果为准。
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

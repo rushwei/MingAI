@@ -66,10 +66,10 @@ function CollapsibleSection({
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-white/10 rounded-xl overflow-hidden bg-white/[0.02] backdrop-blur-sm transition-all hover:border-white/20">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 bg-background-secondary hover:bg-background-secondary/80 transition-colors"
+                className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors"
             >
                 <div className="flex items-center gap-2">
                     {icon}
@@ -81,19 +81,19 @@ function CollapsibleSection({
                     <ChevronDown className="w-5 h-5 text-foreground-secondary" />
                 )}
             </button>
-            {isOpen && <div className="p-4 bg-background">{children}</div>}
+            {isOpen && <div className="p-4">{children}</div>}
         </div>
     );
 }
 
 // 六神颜色映射
 const liuShenColors: Record<string, string> = {
-    '青龙': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    '朱雀': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    '勾陈': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    '螣蛇': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    '白虎': 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-400',
-    '玄武': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    '青龙': 'bg-green-500/10 text-green-400 ring-1 ring-green-500/20',
+    '朱雀': 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20',
+    '勾陈': 'bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/20',
+    '螣蛇': 'bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/20',
+    '白虎': 'bg-stone-500/10 text-stone-400 ring-1 ring-stone-500/20',
+    '玄武': 'bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20',
 };
 
 // 用神强度颜色
@@ -179,25 +179,25 @@ export function TraditionalAnalysis({
                     defaultOpen={true}
                 >
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                        <div className="p-3 bg-white/5 border border-white/5 rounded-lg text-center">
                             <div className="text-xs text-foreground-secondary mb-1">年柱</div>
                             <div className="text-lg font-bold text-foreground">
                                 {ganZhiTime.year.gan}{ganZhiTime.year.zhi}
                             </div>
                         </div>
-                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                        <div className="p-3 bg-white/5 border border-white/5 rounded-lg text-center">
                             <div className="text-xs text-foreground-secondary mb-1">月柱（月建）</div>
                             <div className="text-lg font-bold text-accent">
                                 {ganZhiTime.month.gan}{ganZhiTime.month.zhi}
                             </div>
                         </div>
-                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                        <div className="p-3 bg-white/5 border border-white/5 rounded-lg text-center">
                             <div className="text-xs text-foreground-secondary mb-1">日柱（日辰）</div>
-                            <div className="text-lg font-bold text-blue-500">
+                            <div className="text-lg font-bold text-blue-400">
                                 {ganZhiTime.day.gan}{ganZhiTime.day.zhi}
                             </div>
                         </div>
-                        <div className="p-3 bg-background-secondary rounded-lg text-center">
+                        <div className="p-3 bg-white/5 border border-white/5 rounded-lg text-center">
                             <div className="text-xs text-foreground-secondary mb-1">时柱</div>
                             <div className="text-lg font-bold text-foreground">
                                 {ganZhiTime.hour.gan}{ganZhiTime.hour.zhi}
@@ -273,10 +273,10 @@ export function TraditionalAnalysis({
                                             <div
                                                 key={linePos}
                                                 className={`p-3 rounded-lg border-l-4 ${yaoText.emphasis === 'high'
-                                                    ? 'border-l-accent bg-accent/10 border border-accent/30'
+                                                    ? 'border-l-accent bg-accent/10 border-y border-r border-accent/20'
                                                     : yaoText.emphasis === 'medium'
-                                                        ? 'border-l-yellow-500 bg-yellow-500/10 border border-yellow-500/30'
-                                                        : 'border-l-gray-400 bg-gray-100 dark:bg-gray-800 border border-border'
+                                                        ? 'border-l-yellow-500 bg-yellow-500/10 border-y border-r border-yellow-500/20'
+                                                        : 'border-l-zinc-500 bg-white/5 border-y border-r border-white/10'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2 mb-1">
@@ -331,7 +331,7 @@ export function TraditionalAnalysis({
                 defaultOpen={true}
             >
                 <div className="space-y-4">
-                    <div className="flex items-center gap-4 p-4 bg-background-secondary rounded-lg">
+                    <div className="flex items-center gap-4 p-4 bg-white/5 border border-white/5 rounded-lg">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-lg font-bold text-accent">{yongShen.type}</span>
@@ -454,14 +454,14 @@ export function TraditionalAnalysis({
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b border-border">
-                                <th className="py-2 px-2 text-left text-foreground-secondary font-medium">爻位</th>
-                                <th className="py-2 px-2 text-left text-foreground-secondary font-medium">六亲</th>
-                                <th className="py-2 px-2 text-left text-foreground-secondary font-medium">六神</th>
-                                <th className="py-2 px-2 text-left text-foreground-secondary font-medium">纳甲</th>
-                                <th className="py-2 px-2 text-left text-foreground-secondary font-medium">五行</th>
-                                <th className="py-2 px-2 text-center text-foreground-secondary font-medium">世应</th>
-                                <th className="py-2 px-2 text-center text-foreground-secondary font-medium">状态</th>
+                            <tr className="border-b border-white/10">
+                                <th className="py-3 px-2 text-left text-foreground-secondary font-medium">爻位</th>
+                                <th className="py-3 px-2 text-left text-foreground-secondary font-medium">六亲</th>
+                                <th className="py-3 px-2 text-left text-foreground-secondary font-medium">六神</th>
+                                <th className="py-3 px-2 text-left text-foreground-secondary font-medium">纳甲</th>
+                                <th className="py-3 px-2 text-left text-foreground-secondary font-medium">五行</th>
+                                <th className="py-3 px-2 text-center text-foreground-secondary font-medium">世应</th>
+                                <th className="py-3 px-2 text-center text-foreground-secondary font-medium">状态</th>
                                 {hasExtendedInfo && (
                                     <>
                                         <th className="py-2 px-2 text-center text-foreground-secondary font-medium">旺衰</th>
@@ -477,7 +477,7 @@ export function TraditionalAnalysis({
                                 return (
                                     <tr
                                         key={yao.position}
-                                        className={`border-b border-border/50 ${yao.position === yongShen.position ? 'bg-accent/5' : ''
+                                        className={`border-b border-white/5 ${yao.position === yongShen.position ? 'bg-accent/5' : ''
                                             }`}
                                     >
                                         <td className="py-2 px-2 text-foreground">
@@ -551,7 +551,7 @@ export function TraditionalAnalysis({
                 </div>
 
                 {/* 六神含义说明 */}
-                <div className="mt-4 pt-4 border-t border-border">
+                <div className="mt-4 pt-4 border-t border-white/10">
                     <h4 className="text-xs font-medium text-foreground-secondary mb-2">六神含义</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                         {(['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'] as const).map((shen) => (

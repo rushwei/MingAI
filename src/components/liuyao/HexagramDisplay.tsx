@@ -108,14 +108,14 @@ export function HexagramDisplay({
                         )}
 
                         {/* 卦象列 */}
-                        <div className="flex flex-col gap-1.5 p-4 bg-background rounded-lg w-fit justify-self-center">
+                        <div className="flex flex-col gap-1.5 p-4 bg-white/5 border border-white/5 rounded-lg w-fit justify-self-center">
                             {displayYaos.map((yao, index) => {
                                 const fullYao = displayFullYaos?.[index];
                                 const isYongShen = fullYao?.position === yongShenPosition;
                                 return (
                                     <div
                                         key={yao.position}
-                                        className={`flex items-center justify-center ${rowHeight} relative ${isYongShen ? 'ring-1 ring-accent ring-offset-1 rounded' : ''
+                                        className={`flex items-center justify-center ${rowHeight} relative ${isYongShen ? 'ring-1 ring-accent ring-offset-1 ring-offset-transparent rounded' : ''
                                             }`}
                                     >
                                         <YaoLine yao={yao} size={size} />
@@ -184,7 +184,7 @@ export function HexagramDisplay({
                                         </span>
                                     ))}
                                 </div>
-                                <div className="flex flex-col gap-1.5 p-4 bg-background rounded-lg w-fit justify-self-center">
+                                <div className="flex flex-col gap-1.5 p-4 bg-white/5 border border-white/5 rounded-lg w-fit justify-self-center">
                                     {displayYaos.map((yao) => {
                                         // 变爻翻转
                                         const isChanged = changedLines.includes(yao.position);

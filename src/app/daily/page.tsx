@@ -257,269 +257,305 @@ function DailyPageContent() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 命盘选择器弹窗 */}
-            {showChartSelector && (
-                <ChartSelectorModal
-                    charts={baziCharts}
-                    selectedId={baziChart?.id}
-                    onSelect={handleSelectChart}
-                    onClose={() => setShowChartSelector(false)}
-                />
-            )}
-
-            {/* 分享卡片弹窗 */}
-            {showShareCard && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-background rounded-2xl p-6 max-w-md w-full" style={{ maxHeight: 'calc(100vh - 32px)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">分享运势卡片</h2>
-                            <button
-                                onClick={() => setShowShareCard(false)}
-                                className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <ShareCard
-                            fortune={fortune}
-                            date={selectedDate}
-                            userName={baziChart?.name}
-                            isPersonalized={isPersonalized}
-                            almanac={almanacData}
-                        />
-                    </div>
-                </div>
-            )}
+        <div className="min-h-screen bg-white relative overflow-hidden pb-24">
 
 
-            {/* 日期选择器 */}
-            <div className="flex items-center justify-between mb-8">
-                <button
-                    onClick={() => changeDate(-1)}
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                >
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
+            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 space-y-6">
 
-                <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <CalendarIcon className="w-5 h-5 text-accent" />
-                        <span className="font-semibold">{formatDate(selectedDate)}</span>
-                    </div>
-                    {isToday ? (
-                        <span className="text-sm text-accent">今日黄历</span>
-                    ) : (
+                {/* 顶部标题与日期选择 */}
+                <header className="text-center mb-8 pt-4">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
+                        <Compass className="w-8 h-8 text-purple-500" />
+                        每日运势
+                    </h1>
+                    <p className="text-foreground-secondary/80 text-sm mb-6">
+                        洞察天机，把握当下 | {formatDate(new Date())}
+                    </p>
+
+                    {/* Date Navigator & Chart Selector */}
+                    <div className="bg-background/60 backdrop-blur-md border border-border/50 rounded-2xl p-2 shadow-sm flex items-center justify-between gap-2 max-w-md mx-auto">
                         <button
-                            onClick={goToToday}
-                            className="text-sm text-foreground-secondary hover:text-accent transition-colors"
+                            onClick={() => changeDate(-1)}
+                            className="p-2 rounded-xl hover:bg-background-secondary text-foreground-secondary hover:text-foreground transition-all"
                         >
-                            回到今天
+                            <ChevronLeft className="w-5 h-5" />
                         </button>
-                    )}
-                </div>
 
-                <button
-                    onClick={() => changeDate(1)}
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                >
-                    <ChevronRight className="w-5 h-5" />
-                </button>
-            </div>
-
-            {/* 黄历信息 */}
-            <div className="mb-8">
-                <CalendarAlmanac date={selectedDate} />
-            </div>
-
-            {/* 个性化提示 */}
-            {isPersonalized ? (
-                <button
-                    onClick={() => setShowChartSelector(true)}
-                    className="flex items-center justify-center gap-2 mb-4 text-accent hover:opacity-80 transition-opacity w-full"
-                >
-                    <Sparkles className="w-4 h-4" />
-                    <span className="text-sm">八字运势 · 基于「{baziChart.name}」</span>
-                    <ChevronDown className="w-4 h-4" />
-                </button>
-            ) : (
-                <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-amber-600">
-                            <User className="w-4 h-4" />
-                            <span className="text-sm">当前为通用运势</span>
+                        <div className="flex-1 flex flex-col items-center">
+                            <div className="flex items-center gap-2 font-medium text-foreground">
+                                <CalendarIcon className="w-4 h-4 text-purple-500" />
+                                {formatDate(selectedDate)}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs mt-0.5">
+                                {isToday ? (
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 rounded text-[10px]">今日</span>
+                                ) : (
+                                    <button
+                                        onClick={goToToday}
+                                        className="text-foreground-secondary hover:text-purple-500 transition-colors"
+                                    >
+                                        回到今天
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                        <Link
-                            href="/bazi"
-                            className="text-sm text-accent hover:underline"
+
+                        <button
+                            onClick={() => changeDate(1)}
+                            className="p-2 rounded-xl hover:bg-background-secondary text-foreground-secondary hover:text-foreground transition-all"
                         >
-                            添加命盘获取个性化分析 →
-                        </Link>
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
                     </div>
-                </div>
-            )}
 
-            {/* 流日信息（仅个性化时显示） */}
-            {isPersonalized && fortune.dayStem && (
-                <div className="flex items-center justify-center gap-4 mb-4 text-sm text-foreground-secondary">
-                    <span>流日：{fortune.dayStem}{fortune.dayBranch}</span>
-                    <span>•</span>
-                    <span>十神：{fortune.tenGod}</span>
-                </div>
-            )}
+                    {/* Personalization Toggle */}
+                    <div className="mt-4 flex justify-center">
+                        {isPersonalized ? (
+                            <button
+                                onClick={() => setShowChartSelector(true)}
+                                className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 hover:border-purple-500/40 rounded-full transition-all"
+                            >
+                                <Sparkles className="w-4 h-4 text-purple-500 group-hover:scale-110 transition-transform" />
+                                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                    当前解读：{baziChart?.name}
+                                </span>
+                                <ChevronDown className="w-3 h-3 text-purple-400 group-hover:translate-y-0.5 transition-transform" />
+                            </button>
+                        ) : (
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full">
+                                <User className="w-4 h-4 text-amber-600" />
+                                <span className="text-sm text-amber-700 dark:text-amber-400">通用运势模式</span>
+                                <Link
+                                    href="/bazi"
+                                    className="text-xs text-amber-600 underline hover:text-amber-800 ml-1"
+                                >
+                                    切换个性化 &rarr;
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </header>
 
-            {/* 周运势趋势图（仅个性化时显示） */}
-            {isPersonalized && trendData.length > 0 && (
-                <section className="bg-background rounded-xl border border-border p-4 mb-4">
-                    <button
-                        onClick={() => setShowTrendChart(!showTrendChart)}
-                        className="w-full flex items-center justify-between"
-                    >
-                        <h2 className="font-semibold flex items-center gap-2">
-                            <Star className="w-5 h-5 text-accent" />
-                            7日运势趋势
-                        </h2>
-                        <ChevronDown className={`w-5 h-5 transition-transform ${showTrendChart ? 'rotate-180' : ''}`} />
-                    </button>
-                    {showTrendChart && (
-                        <div className="mt-4">
-                            <FortuneTrendChart
-                                data={trendData}
-                                selectedDate={fortune.date}
-                                height={200}
-                                multiDimension={false}
+                {/* 命盘选择器弹窗 */}
+                {showChartSelector && (
+                    <ChartSelectorModal
+                        charts={baziCharts}
+                        selectedId={baziChart?.id}
+                        onSelect={handleSelectChart}
+                        onClose={() => setShowChartSelector(false)}
+                    />
+                )}
+
+                {/* 分享卡片弹窗 */}
+                {showShareCard && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-background rounded-2xl p-6 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200" style={{ maxHeight: 'calc(100vh - 32px)' }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    <Share2 className="w-5 h-5 text-purple-500" />
+                                    分享运势
+                                </h2>
+                                <button
+                                    onClick={() => setShowShareCard(false)}
+                                    className="p-2 rounded-full hover:bg-background-secondary transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-foreground-secondary" />
+                                </button>
+                            </div>
+                            <ShareCard
+                                fortune={fortune}
+                                date={selectedDate}
+                                userName={baziChart?.name}
+                                isPersonalized={isPersonalized}
+                                almanac={almanacData}
                             />
                         </div>
-                    )}
-                </section>
-            )}
+                    </div>
+                )}
 
-            {/* 八字运势模块 - 统一白色背景 */}
-            <section className="bg-background rounded-xl border border-border p-4 mb-8">
-                {/* 模块标题和分享按钮 */}
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-semibold flex items-center gap-2">
-                        <Star className="w-5 h-5 text-accent" />
-                        {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}运势
-                    </h2>
-                    <button
-                        onClick={() => setShowShareCard(true)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        <span>分享</span>
-                    </button>
+                {/* 核心运势卡片 */}
+                {isPersonalized && fortune.dayStem && (
+                    <div className="flex items-center justify-center gap-6 py-2 text-sm font-medium text-foreground/80 bg-background/40 rounded-xl border border-border/50 mx-4">
+                        <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            流日：<span className="text-purple-600 dark:text-purple-400 font-bold">{fortune.dayStem}{fortune.dayBranch}</span>
+                        </div>
+                        <div className="w-px h-4 bg-border" />
+                        <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                            主神：<span className="text-indigo-600 dark:text-indigo-400 font-bold">{fortune.tenGod}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* 黄历信息 */}
+                <div className="bg-background/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
+                    <CalendarAlmanac date={selectedDate} />
                 </div>
-                {/* 运势评分 */}
-                <div className="space-y-3 mb-6">
-                    {scoreItems.map(item => {
-                        const score = fortune[item.key as keyof typeof fortune] as number;
-                        const Icon = item.icon;
 
-                        return (
-                            <div key={item.key} className="py-2">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <Icon className={`w-5 h-5 ${item.color}`} />
-                                        <span className="font-medium">{item.label}</span>
-                                    </div>
-                                    <span className="text-lg font-bold">{score}</span>
-                                </div>
-                                <div className="h-2 bg-background-secondary rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full transition-all duration-500 rounded-full ${score >= 80 ? 'bg-green-500' :
-                                            score >= 60 ? 'bg-amber-500' :
-                                                'bg-red-500'
-                                            }`}
-                                        style={{ width: `${score}%` }}
+                {/* 趋势图表 - 可折叠 */}
+                {isPersonalized && trendData.length > 0 && (
+                    <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
+                        <button
+                            onClick={() => setShowTrendChart(!showTrendChart)}
+                            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-transparent to-transparent group-hover:from-purple-500/5 transition-colors"
+                        >
+                            <h2 className="font-bold flex items-center gap-2 text-foreground">
+                                <Activity className="w-5 h-5 text-purple-500" />
+                                7日运势趋势
+                            </h2>
+                            <ChevronDown className={`w-5 h-5 text-foreground-secondary transition-transform duration-300 ${showTrendChart ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${showTrendChart ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                            <div className="overflow-hidden">
+                                <div className="p-4 pt-0">
+                                    <FortuneTrendChart
+                                        data={trendData}
+                                        selectedDate={fortune.date}
+                                        height={200}
+                                        multiDimension={false}
                                     />
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
-
-                {/* 幸运信息（仅个性化时显示） */}
-                {isPersonalized && fortune.luckyColor && (
-                    <div className="grid grid-cols-2 gap-4 py-4 border-t border-border">
-                        <div>
-                            <div className="flex items-center gap-2 text-foreground-secondary mb-1">
-                                <div className="w-4 h-4 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500" />
-                                <span className="text-sm">幸运色</span>
-                            </div>
-                            <span className="font-medium">{fortune.luckyColor}</span>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2 text-foreground-secondary mb-1">
-                                <Compass className="w-4 h-4" />
-                                <span className="text-sm">吉方位</span>
-                            </div>
-                            <span className="font-medium">{fortune.luckyDirection}</span>
-                        </div>
-                    </div>
+                    </section>
                 )}
 
-                {/* 今日建议 */}
-                <div className="pt-4 border-t border-border">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <Star className="w-5 h-5 text-accent" />
-                            {isToday ? '今日' : formatDate(selectedDate).split(' ')[0]}建议
-                        </h3>
-                        {isPersonalized && (
-                            <InterpretationModeToggle
-                                mode={interpretationMode}
-                                onModeChange={setInterpretationMode}
-                                compact
-                            />
-                        )}
-                    </div>
-                    <ul className="space-y-2">
-                        {interpretedAdvice.map((advice, index) => (
-                            <li key={index} className="flex items-start gap-3">
-                                <span className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 text-accent text-xs">
-                                    {index + 1}
-                                </span>
-                                <span className="text-foreground-secondary text-sm">{advice}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </section>
-
-            {/* 底部提示 */}
-            {!isPersonalized && (
-                <p className="text-center text-sm text-foreground-secondary mt-6 mb-8">
-                    <Link href="/bazi" className="text-accent hover:underline">
-                        完成八字排盘
-                    </Link>
-                    {' '}获取更精准的个性化运势分析
-                </p>
-            )}
-
-            {/* AI智能问答 */}
-            <div className="mt-8">
-                {userId ? (
-                    <DailyAIChat date={selectedDate} userId={userId} />
-                ) : (
-                    <div className="bg-background-secondary rounded-xl p-6 border border-border text-center">
-                        <div className="flex justify-center mb-4">
-                            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                                <Sparkles className="w-6 h-6 text-accent" />
-                            </div>
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">AI 智能运势问答</h3>
-                        <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
-                            登录后即可与 AI 命理师对话，深入解读每日运势详情
-                        </p>
+                {/* 详细运势评分卡片 */}
+                <section className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                            运势分析
+                        </h2>
                         <button
-                            onClick={() => setShowAuthModal(true)}
-                            className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                            onClick={() => setShowShareCard(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/10 to-indigo-500/10 text-purple-600 dark:text-purple-400 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
                         >
-                            登录 / 注册
+                            <Share2 className="w-3.5 h-3.5" />
+                            分享好运
                         </button>
                     </div>
-                )}
+
+                    <div className="grid gap-4 mb-6">
+                        {scoreItems.map(item => {
+                            const score = fortune[item.key as keyof typeof fortune] as number;
+                            const Icon = item.icon;
+                            const isHigh = score >= 80;
+                            const isMedium = score >= 60;
+
+                            return (
+                                <div key={item.key} className="group">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1.5 rounded-lg ${item.color.replace('text-', 'bg-').replace('500', '500/10')} ${item.color}`}>
+                                                <Icon className="w-4 h-4" />
+                                            </div>
+                                            <span className="font-medium text-sm text-foreground/90">{item.label}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${isHigh ? 'bg-green-500/10 text-green-600' :
+                                                isMedium ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-600'
+                                                }`}>
+                                                {score}分
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="h-2.5 bg-background-secondary/50 rounded-full overflow-hidden border border-border/30">
+                                        <div
+                                            className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isHigh ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                                                isMedium ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+                                                    'bg-gradient-to-r from-red-400 to-rose-500'
+                                                }`}
+                                            style={{ width: `${score}%` }}
+                                        >
+                                            <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* 幸运信息 */}
+                    {isPersonalized && fortune.luckyColor && (
+                        <div className="grid grid-cols-2 gap-3 py-4 border-t border-border/50">
+                            <div className="bg-background-secondary/30 rounded-xl p-3 flex items-center gap-3 border border-border/50">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white shadow-sm">
+                                    <span className="text-xs">色</span>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-foreground-secondary mb-0.5">幸运色</div>
+                                    <div className="font-bold text-foreground">{fortune.luckyColor}</div>
+                                </div>
+                            </div>
+                            <div className="bg-background-secondary/30 rounded-xl p-3 flex items-center gap-3 border border-border/50">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white shadow-sm">
+                                    <Compass className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <div className="text-xs text-foreground-secondary mb-0.5">吉方位</div>
+                                    <div className="font-bold text-foreground">{fortune.luckyDirection}</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 建议区域 */}
+                    <div className="mt-4 pt-4 border-t border-border/50">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-purple-500" />
+                                运势指引
+                            </h3>
+                            {isPersonalized && (
+                                <InterpretationModeToggle
+                                    mode={interpretationMode}
+                                    onModeChange={setInterpretationMode}
+                                    compact
+                                />
+                            )}
+                        </div>
+                        <div className="bg-background-secondary/30 rounded-xl p-4 border border-border/50">
+                            <ul className="space-y-3">
+                                {interpretedAdvice.map((advice, index) => (
+                                    <li key={index} className="flex gap-3 text-sm leading-relaxed text-foreground/90">
+                                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold mt-0.5">
+                                            {index + 1}
+                                        </span>
+                                        <span>{advice}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                {/* AI Chat 模块 - 玻璃态容器 */}
+                <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-sm overflow-hidden mt-6">
+                    <div className="p-1">
+                        {userId ? (
+                            <DailyAIChat date={selectedDate} userId={userId} />
+                        ) : (
+                            <div className="p-8 text-center bg-gradient-to-b from-purple-500/5 to-transparent">
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/20 rotate-3">
+                                    <Sparkles className="w-8 h-8 text-white" />
+                                </div>
+                                <h3 className="text-xl font-bold mb-2">AI 命理师在线解读</h3>
+                                <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
+                                    登录即可解锁 AI 智能对话，针对您的命盘进行深度的一对一运势分析
+                                </p>
+                                <button
+                                    onClick={() => setShowAuthModal(true)}
+                                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all hover:scale-105 active:scale-95"
+                                >
+                                    立即登录体验
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
             </div>
 
             <AuthModal
@@ -529,13 +565,15 @@ function DailyPageContent() {
         </div>
     );
 }
-
+// 底部导出保持不变
 export default function DailyPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
+                    <p className="text-foreground-secondary animate-pulse">正在推演天机...</p>
+                </div>
             </div>
         }>
             <DailyPageContent />

@@ -10,7 +10,6 @@ import Link from 'next/link';
 import {
     ArrowLeft,
     ChevronDown,
-    ChevronRight,
     HelpCircle,
     BookOpen,
     MessageCircle,
@@ -111,97 +110,125 @@ export default function HelpPage() {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 头部 */}
-            <div className="flex items-center gap-3 mb-8">
-                <Link
-                    href="/user"
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </Link>
-                <div>
-                    <h1 className="text-xl font-bold">帮助中心</h1>
-                    <p className="text-sm text-foreground-secondary">了解如何使用 MingAI</p>
-                </div>
-            </div>
-
-            {/* 功能指南 */}
-            <section className="mb-8">
-                <h2 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                    <BookOpen className="w-5 h-5 text-accent" />
-                    功能指南
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {guideList.map((guide) => (
-                        <Link
-                            key={guide.title}
-                            href={guide.href}
-                            className="flex items-start gap-3 p-4 rounded-xl bg-background-secondary border border-border hover:border-accent/50 transition-colors"
-                        >
-                            <div className="p-2 rounded-lg bg-accent/10 text-accent">
-                                {guide.icon}
-                            </div>
-                            <div>
-                                <h3 className="font-medium">{guide.title}</h3>
-                                <p className="text-sm text-foreground-secondary">
-                                    {guide.description}
-                                </p>
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            </section>
-
-            {/* 常见问题 */}
-            <section className="mb-8">
-                <h2 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                    <HelpCircle className="w-5 h-5 text-accent" />
-                    常见问题
-                </h2>
-                <div className="space-y-2">
-                    {faqList.map((faq, index) => (
-                        <div
-                            key={index}
-                            className="bg-background-secondary rounded-xl border border-border overflow-hidden"
-                        >
-                            <button
-                                onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                                className="flex items-center justify-between w-full p-4 text-left"
-                            >
-                                <span className="font-medium pr-4">{faq.question}</span>
-                                {expandedFAQ === index ? (
-                                    <ChevronDown className="w-5 h-5 text-foreground-secondary flex-shrink-0" />
-                                ) : (
-                                    <ChevronRight className="w-5 h-5 text-foreground-secondary flex-shrink-0" />
-                                )}
-                            </button>
-                            {expandedFAQ === index && (
-                                <div className="px-4 pb-4 text-sm text-foreground-secondary">
-                                    {faq.answer}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* 联系我们 */}
-            <section>
-                <h2 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                    <MessageCircle className="w-5 h-5 text-accent" />
-                    联系我们
-                </h2>
-                <div className="bg-background-secondary rounded-xl border border-border p-6">
-                    <p className="text-foreground-secondary mb-4">
-                        如果您有其他问题或建议，欢迎通过以下方式联系我们：
-                    </p>
-                    <div className="flex items-center gap-3 text-sm">
-                        <Mail className="w-4 h-4 text-accent" />
-                        <span>huanghesen1@gmail.com</span>
+        <div className="min-h-screen bg-white pb-20">
+            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+                {/* 头部 */}
+                <div className="flex items-center gap-4 mb-10">
+                    <Link
+                        href="/user"
+                        className="p-2.5 rounded-xl bg-white/50 border border-border/50 hover:bg-white hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">帮助中心</h1>
+                        <p className="text-sm text-foreground-secondary mt-1">了解如何更好地使用 MingAI</p>
                     </div>
                 </div>
-            </section>
+
+                {/* 功能指南 */}
+                <section className="mb-10">
+                    <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
+                        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                            <BookOpen className="w-5 h-5" />
+                        </div>
+                        功能指南
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {guideList.map((guide) => (
+                            <Link
+                                key={guide.title}
+                                href={guide.href}
+                                className="group flex items-start gap-4 p-5 rounded-2xl bg-white border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300"
+                            >
+                                <div className="p-3 rounded-xl bg-accent/5 text-accent group-hover:bg-accent/10 group-hover:scale-110 transition-all duration-300">
+                                    {guide.icon}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-foreground group-hover:text-accent transition-colors">{guide.title}</h3>
+                                    <p className="text-sm text-foreground-secondary mt-1 leading-relaxed">
+                                        {guide.description}
+                                    </p>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                {/* 常见问题 */}
+                <section className="mb-10">
+                    <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
+                        <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500">
+                            <HelpCircle className="w-5 h-5" />
+                        </div>
+                        常见问题
+                    </h2>
+                    <div className="space-y-3">
+                        {faqList.map((faq, index) => (
+                            <div
+                                key={index}
+                                className={`
+                                    bg-white rounded-2xl border transition-all duration-300 overflow-hidden
+                                    ${expandedFAQ === index
+                                        ? 'border-accent/30 shadow-md'
+                                        : 'border-border/50 hover:border-accent/20 hover:shadow-sm'
+                                    }
+                                `}
+                            >
+                                <button
+                                    onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
+                                    className="flex items-center justify-between w-full p-5 text-left"
+                                >
+                                    <span className={`font-medium pr-8 transition-colors ${expandedFAQ === index ? 'text-accent' : 'text-foreground'}`}>
+                                        {faq.question}
+                                    </span>
+                                    <div className={`
+                                        w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
+                                        ${expandedFAQ === index ? 'bg-accent/10 rotate-180' : 'bg-transparent'}
+                                    `}>
+                                        <ChevronDown className={`w-5 h-5 ${expandedFAQ === index ? 'text-accent' : 'text-foreground-secondary'}`} />
+                                    </div>
+                                </button>
+                                <div
+                                    className={`
+                                        overflow-hidden transition-all duration-300 ease-in-out
+                                        ${expandedFAQ === index ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}
+                                    `}
+                                >
+                                    <div className="px-5 pb-5 pt-0 text-sm text-foreground-secondary leading-relaxed border-t border-dashed border-border/50 mt-2 mx-5">
+                                        <div className="pt-4">
+                                            {faq.answer}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* 联系我们 */}
+                <section>
+                    <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
+                        <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
+                            <MessageCircle className="w-5 h-5" />
+                        </div>
+                        联系我们
+                    </h2>
+                    <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-border/50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-foreground mb-2">需要更多帮助？</h3>
+                            <p className="text-sm text-foreground-secondary leading-relaxed">
+                                如果您没有找到需要的答案，或者有任何建议和反馈，<br className="hidden sm:block" />
+                                欢迎随时联系我们的支持团队。
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white border border-border/50 shadow-sm text-sm font-medium text-foreground hover:shadow-md transition-all">
+                            <Mail className="w-4 h-4 text-accent" />
+                            <span>huanghesen1@gmail.com</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </div>
     );
 }

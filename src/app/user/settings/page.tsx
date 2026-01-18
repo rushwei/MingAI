@@ -227,76 +227,116 @@ export default function SettingsPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="w-8 h-8 animate-spin text-accent" />
             </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 头部 */}
-            <div className="flex items-center gap-3 mb-6">
-                <button
-                    onClick={() => router.push('/user')}
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-xl font-bold">偏好设置</h1>
-            </div>
+        <div className="min-h-screen bg-white pb-20">
+            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+                {/* 头部 */}
+                <div className="flex items-center gap-4 mb-10">
+                    <button
+                        onClick={() => router.push('/user')}
+                        className="p-2.5 rounded-xl bg-white/50 border border-border/50 hover:bg-white hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">偏好设置</h1>
+                        <p className="text-sm text-foreground-secondary mt-1">定制您的 MingAI 体验</p>
+                    </div>
+                </div>
 
-            {/* 设置列表 */}
-            <div className="space-y-6">
-                {/* 外观设置 */}
-                <div>
-                    <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                        外观
-                    </h2>
-                    <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                {/* 设置列表 */}
+                <div className="space-y-8">
+                    {/* 外观设置 */}
+                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 gap-6 flex flex-col">
+                        <div className="flex items-center gap-2 mb-2 pb-4 border-b border-border/50">
+                            <span className="p-1.5 bg-purple-500/10 rounded-lg text-purple-500"><Moon className="w-4 h-4" /></span>
+                            <h2 className="text-base font-bold text-foreground">外观与显示</h2>
+                        </div>
+
                         {/* 主题切换 */}
-                        <div className="flex items-center justify-between px-4 py-4">
-                            <div className="flex items-center gap-3">
-                                {theme === 'dark' ? (
-                                    <Moon className="w-5 h-5 text-accent" />
-                                ) : (
-                                    <Sun className="w-5 h-5 text-accent" />
-                                )}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-2xl transition-colors ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-orange-100 text-orange-500'}`}>
+                                    {theme === 'dark' ? (
+                                        <Moon className="w-6 h-6" />
+                                    ) : (
+                                        <Sun className="w-6 h-6" />
+                                    )}
+                                </div>
                                 <div>
-                                    <p className="font-medium">深色模式</p>
-                                    <p className="text-sm text-foreground-secondary">
-                                        {theme === 'dark' ? '已开启' : '已关闭'}
+                                    <p className="font-semibold text-lg text-foreground">深色模式</p>
+                                    <p className="text-sm text-foreground-secondary mt-0.5">
+                                        {theme === 'dark' ? '当前已开启深色外观' : '当前使用浅色外观'}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={toggleTheme}
                                 className={`
-                                    w-12 h-6 rounded-full transition-colors relative
-                                    ${theme === 'dark' ? 'bg-accent' : 'bg-border'}
+                                    w-14 h-8 rounded-full transition-all duration-300 relative shadow-inner
+                                    ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}
                                 `}
                             >
                                 <div className={`
-                                    w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform
-                                    ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'}
+                                    w-6 h-6 rounded-full bg-white absolute top-1 shadow-md transition-transform duration-300
+                                    ${theme === 'dark' ? 'translate-x-7' : 'translate-x-1'}
                                 `} />
                             </button>
                         </div>
-                    </div>
-                </div>
 
-                {/* 通知设置 */}
-                <div>
-                    <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                        通知
-                    </h2>
-                    <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-4">
-                            <div className="flex items-center gap-3">
-                                <Bell className="w-5 h-5 text-foreground-secondary" />
+                        {/* 语言设置 */}
+                        <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-2xl bg-blue-100 text-blue-500">
+                                    <Globe className="w-6 h-6" />
+                                </div>
                                 <div>
-                                    <p className="font-medium">推送通知</p>
-                                    <p className="text-sm text-foreground-secondary">
+                                    <p className="font-semibold text-lg text-foreground">界面语言</p>
+                                    <p className="text-sm text-foreground-secondary mt-0.5">
+                                        选择您偏好的显示语言
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <select
+                                    value={settings.language}
+                                    onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
+                                    className="appearance-none pl-4 pr-10 py-2 rounded-xl bg-background-secondary border border-border hover:border-accent text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
+                                >
+                                    <option value="zh">简体中文</option>
+                                    <option value="en" disabled>English</option>
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary">
+                                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 通知与提醒 */}
+                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 flex flex-col gap-6">
+                        <div className="flex items-center gap-2 mb-2 pb-4 border-b border-border/50">
+                            <span className="p-1.5 bg-red-500/10 rounded-lg text-red-500"><Bell className="w-4 h-4" /></span>
+                            <h2 className="text-base font-bold text-foreground">通知与提醒</h2>
+                        </div>
+
+                        {/* 全局通知开关 */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-2xl transition-colors ${settings.notifications ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-400'}`}>
+                                    <Bell className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-lg text-foreground">推送通知</p>
+                                    <p className="text-sm text-foreground-secondary mt-0.5">
                                         接收每日运势和重要提醒
                                     </p>
                                 </div>
@@ -304,64 +344,34 @@ export default function SettingsPage() {
                             <button
                                 onClick={() => updateSetting('notifications', !settings.notifications)}
                                 className={`
-                                    w-12 h-6 rounded-full transition-colors relative
-                                    ${settings.notifications ? 'bg-accent' : 'bg-border'}
+                                    w-14 h-8 rounded-full transition-all duration-300 relative shadow-inner
+                                    ${settings.notifications ? 'bg-accent' : 'bg-slate-200'}
                                 `}
                             >
                                 <div className={`
-                                    w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform
-                                    ${settings.notifications ? 'translate-x-6' : 'translate-x-0.5'}
+                                    w-6 h-6 rounded-full bg-white absolute top-1 shadow-md transition-transform duration-300
+                                    ${settings.notifications ? 'translate-x-7' : 'translate-x-1'}
                                 `} />
                             </button>
                         </div>
-                    </div>
-                </div>
 
-                {/* 语言设置 */}
-                <div>
-                    <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                        语言
-                    </h2>
-                    <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-4">
-                            <div className="flex items-center gap-3">
-                                <Globe className="w-5 h-5 text-foreground-secondary" />
-                                <div>
-                                    <p className="font-medium">界面语言</p>
-                                    <p className="text-sm text-foreground-secondary">
-                                        选择您偏好的语言
-                                    </p>
-                                </div>
-                            </div>
-                            <select
-                                value={settings.language}
-                                onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
-                                className="px-3 py-1.5 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-accent"
-                            >
-                                <option value="zh">简体中文</option>
-                                <option value="en" disabled>English (即将支持)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* 提醒订阅 */}
-                    <div>
-                        <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                            提醒订阅
-                        </h2>
-                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden divide-y divide-border">
+                        {/* 提醒订阅细项 */}
+                        <div className="bg-background-secondary/50 rounded-2xl p-4 space-y-4 border border-border/50">
+                            <h3 className="text-xs font-bold text-foreground-secondary uppercase tracking-wider mb-2 ml-1">订阅管理</h3>
                             <ReminderToggle
                                 type="solar_term"
                                 label="节气提醒"
                                 description="每个节气当天收到养生建议"
                                 userId={userId}
                             />
+                            <div className="h-px bg-border/50 mx-4" />
                             <ReminderToggle
                                 type="fortune"
                                 label="运势提醒"
                                 description="每日运势变化提醒"
                                 userId={userId}
                             />
+                            <div className="h-px bg-border/50 mx-4" />
                             <ReminderToggle
                                 type="key_date"
                                 label="关键日提醒"
@@ -372,33 +382,37 @@ export default function SettingsPage() {
                     </div>
 
                     {/* 隐私与安全 */}
-                    <div>
-                        <h2 className="text-sm font-medium text-foreground-secondary mb-3 px-1">
-                            隐私与安全
-                        </h2>
-                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
-                            <button
-                                onClick={() => alert('数据加密存储中，您的隐私得到保护')}
-                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-background transition-colors"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Shield className="w-5 h-5 text-foreground-secondary" />
-                                    <div className="text-left">
-                                        <p className="font-medium">数据安全</p>
-                                        <p className="text-sm text-foreground-secondary">
-                                            AES-256 加密存储
-                                        </p>
-                                    </div>
+                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6">
+                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
+                            <span className="p-1.5 bg-green-500/10 rounded-lg text-green-500"><Shield className="w-4 h-4" /></span>
+                            <h2 className="text-base font-bold text-foreground">隐私与安全</h2>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-2xl">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 bg-green-100 rounded-xl text-green-600">
+                                    <Shield className="w-6 h-6" />
                                 </div>
-                                <Check className="w-5 h-5 text-green-500" />
-                            </button>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-semibold text-foreground">数据安全保护中</p>
+                                        <Check className="w-4 h-4 text-green-500" />
+                                    </div>
+                                    <p className="text-sm text-foreground-secondary mt-0.5">
+                                        您的数据已通过 AES-256 加密存储
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* 版本信息 */}
-                    <div className="text-center text-sm text-foreground-secondary pt-4">
-                        <p>MingAI v1.0.0</p>
-                        <p className="text-xs mt-1">© 2026 MingAI. All rights reserved.</p>
+                    <div className="text-center py-8">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background-secondary border border-border/50">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <p className="text-xs font-medium text-foreground-secondary">MingAI v1.0.0 (Latest)</p>
+                        </div>
+                        <p className="text-xs text-foreground-secondary/50 mt-4">© 2026 MingAI. All rights reserved.</p>
                     </div>
                 </div>
             </div>

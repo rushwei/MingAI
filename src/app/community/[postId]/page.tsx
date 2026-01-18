@@ -7,6 +7,7 @@ import {
     ThumbsUp,
     ThumbsDown,
     MessageCircle,
+    MessageSquare,
     Flag,
     Edit2,
     Trash2,
@@ -231,48 +232,55 @@ function EditPostModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-background rounded-xl w-full max-w-2xl border border-border max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="p-4 border-b border-border flex-shrink-0">
-                    <h2 className="text-lg font-medium text-foreground">编辑帖子</h2>
-                </div>
-                <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-background/95 backdrop-blur-xl rounded-2xl w-full max-w-2xl border border-white/10 max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-5 border-b border-border/50 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 shadow-inner">
+                        <Edit2 className="w-5 h-5" />
+                    </div>
                     <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">标题</label>
+                        <h2 className="text-lg font-bold text-foreground">编辑讨论</h2>
+                        <p className="text-xs text-foreground-secondary">完善你的观点，让讨论更精彩</p>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
+                    <div>
+                        <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">标题</label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
-                            placeholder="请输入标题"
+                            className="w-full bg-background-secondary/50 border border-border/50 hover:border-purple-500/50 rounded-xl px-4 py-3 text-foreground font-medium focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all"
+                            placeholder="请输入精炼的标题"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">内容</label>
+                        <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">内容</label>
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             rows={10}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent resize-none"
-                            placeholder="请输入内容"
+                            className="w-full bg-background-secondary/50 border border-border/50 hover:border-purple-500/50 rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all resize-none leading-relaxed"
+                            placeholder="请输入详细内容"
                         />
                     </div>
 
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-3 pt-2">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 text-foreground-secondary hover:text-foreground transition-colors"
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-border hover:bg-background-secondary/80 text-foreground-secondary hover:text-foreground transition-all"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={loading || !title.trim() || !content.trim()}
-                            className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
                         >
-                            {loading ? '保存中...' : '保存'}
+                            {loading ? '保存中...' : '保存修改'}
                         </button>
                     </div>
                 </form>
@@ -280,6 +288,7 @@ function EditPostModal({
         </div>
     );
 }
+
 
 // =====================================================
 // 评论项组件
@@ -305,73 +314,93 @@ function CommentItem({
     onDelete: (commentId: string) => void;
     onReport: (commentId: string) => void;
 }) {
-    // 使用 API 返回的 isAuthor 字段（保护匿名性，不暴露 user_id）
     const isAuthor = comment.isAuthor === true;
     const [showMenu, setShowMenu] = useState(false);
 
     return (
-        <div className="py-3 border-b border-border last:border-0">
-            <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-background-tertiary flex items-center justify-center text-sm text-foreground">
-                    {comment.anonymous_name?.charAt(0) || '匿'}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium text-foreground">{comment.anonymous_name}</span>
-                        <span className="text-foreground-secondary">
-                            {new Date(comment.created_at).toLocaleString()}
-                        </span>
+        <div className="group/comment relative">
+            <div className="flex gap-3">
+                <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-sm z-10 ${isAuthor ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-background-tertiary text-foreground-secondary'}`}>
+                        {comment.anonymous_name?.charAt(0) || '匿'}
                     </div>
-                    <p className="text-foreground-secondary mt-1 whitespace-pre-wrap">{comment.content}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                        <VoteButtons
-                            upvotes={comment.upvote_count}
-                            downvotes={comment.downvote_count}
-                            userVote={userVotes.get(comment.id) || null}
-                            onVote={(type) => onVote(comment.id, type)}
-                        />
-                        {userId && (
-                            <button
-                                onClick={() => onReply(comment.id)}
-                                className="text-foreground-secondary hover:text-foreground text-sm flex items-center gap-1"
-                            >
-                                <MessageCircle className="w-4 h-4" />
-                                回复
-                            </button>
-                        )}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowMenu(!showMenu)}
-                                className="text-foreground-secondary hover:text-foreground p-1"
-                            >
-                                <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {showMenu && (
-                                <div className="absolute right-0 top-full mt-1 bg-background-secondary rounded-lg shadow-lg py-1 z-10 min-w-[100px] border border-border">
-                                    {userId && (
-                                        <button
-                                            onClick={() => { onReport(comment.id); setShowMenu(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm text-foreground-secondary hover:bg-background flex items-center gap-2"
-                                        >
-                                            <Flag className="w-4 h-4" /> 举报
-                                        </button>
-                                    )}
-                                    {(isAuthor || isAdmin) && (
-                                        <button
-                                            onClick={() => { onDelete(comment.id); setShowMenu(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-background flex items-center gap-2"
-                                        >
-                                            <Trash2 className="w-4 h-4" /> 删除
-                                        </button>
-                                    )}
-                                </div>
+                    {comment.replies && comment.replies.length > 0 && (
+                        <div className="w-px h-full bg-border/50 my-1" />
+                    )}
+                </div>
+
+                <div className="flex-1 min-w-0 pb-6">
+                    <div className="bg-background-secondary/30 rounded-xl p-4 border border-border/50 hover:border-border transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${isAuthor ? 'text-purple-600 dark:text-purple-400' : 'text-foreground'}`}>
+                                    {comment.anonymous_name}
+                                </span>
+                                {isAuthor && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
+                                        楼主
+                                    </span>
+                                )}
+                                <span className="text-xs text-foreground-secondary/70">
+                                    {new Date(comment.created_at).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowMenu(!showMenu)}
+                                    className="opacity-0 group-hover/comment:opacity-100 p-1 text-foreground-secondary hover:text-foreground transition-all"
+                                >
+                                    <MoreVertical className="w-4 h-4" />
+                                </button>
+                                {showMenu && (
+                                    <div className="absolute right-0 top-full mt-1 bg-background rounded-xl shadow-lg border border-border py-1 z-20 min-w-[120px] animate-in fade-in zoom-in-95 duration-200">
+                                        {userId && (
+                                            <button
+                                                onClick={() => { onReport(comment.id); setShowMenu(false); }}
+                                                className="w-full px-4 py-2 text-left text-sm text-foreground-secondary hover:bg-background-secondary hover:text-foreground flex items-center gap-2 transition-colors"
+                                            >
+                                                <Flag className="w-4 h-4" /> 举报
+                                            </button>
+                                        )}
+                                        {(isAuthor || isAdmin) && (
+                                            <button
+                                                onClick={() => { onDelete(comment.id); setShowMenu(false); }}
+                                                className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-2 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> 删除
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap mb-3">
+                            {comment.content}
+                        </p>
+
+                        <div className="flex items-center gap-4">
+                            <VoteButtons
+                                upvotes={comment.upvote_count}
+                                downvotes={comment.downvote_count}
+                                userVote={userVotes.get(comment.id) || null}
+                                onVote={(type) => onVote(comment.id, type)}
+                            />
+                            {userId && (
+                                <button
+                                    onClick={() => onReply(comment.id)}
+                                    className="text-foreground-secondary hover:text-purple-500 text-xs flex items-center gap-1 transition-colors"
+                                >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    回复
+                                </button>
                             )}
                         </div>
                     </div>
 
                     {/* 子回复 */}
                     {comment.replies && comment.replies.length > 0 && (
-                        <div className="ml-4 mt-3 border-l-2 border-border pl-4">
+                        <div className="mt-4 pl-2">
                             {comment.replies.map(reply => (
                                 <CommentItem
                                     key={reply.id}
@@ -463,42 +492,23 @@ export default function PostDetailPage() {
         // 加载所有评论的投票状态
         const loadCommentVotes = async (commentList: CommunityComment[]) => {
             const newVotes = new Map<string, VoteType>();
-            for (const comment of commentList) {
-                try {
-                    const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.vote) {
-                            newVotes.set(comment.id, data.vote);
+            const processComments = async (list: CommunityComment[]) => {
+                for (const comment of list) {
+                    try {
+                        const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.vote) {
+                                newVotes.set(comment.id, data.vote);
+                            }
                         }
+                    } catch { /* ignore */ }
+                    if (comment.replies?.length) {
+                        await processComments(comment.replies);
                     }
-                } catch { /* ignore */ }
-                // 递归加载子评论
-                if (comment.replies && comment.replies.length > 0) {
-                    const childVotes = await loadCommentVotesRecursive(comment.replies);
-                    childVotes.forEach((v, k) => newVotes.set(k, v));
                 }
-            }
-            return newVotes;
-        };
-
-        const loadCommentVotesRecursive = async (commentList: CommunityComment[]): Promise<Map<string, VoteType>> => {
-            const newVotes = new Map<string, VoteType>();
-            for (const comment of commentList) {
-                try {
-                    const res = await fetchWithRetry(`/api/community/votes?targetType=comment&targetId=${comment.id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.vote) {
-                            newVotes.set(comment.id, data.vote);
-                        }
-                    }
-                } catch { /* ignore */ }
-                if (comment.replies && comment.replies.length > 0) {
-                    const childVotes = await loadCommentVotesRecursive(comment.replies);
-                    childVotes.forEach((v, k) => newVotes.set(k, v));
-                }
-            }
+            };
+            await processComments(commentList);
             return newVotes;
         };
 
@@ -588,26 +598,7 @@ export default function PostDetailPage() {
             });
 
             if (!response.ok) {
-                // 请求失败，回滚状态
-                if (targetType === 'post' && post) {
-                    setPostVote(currentVote);
-                    setPost(prev => prev ? {
-                        ...prev,
-                        upvote_count: prev.upvote_count - upChange,
-                        downvote_count: prev.downvote_count - downChange,
-                    } : null);
-                } else {
-                    setUserVotes(prev => {
-                        const newMap = new Map(prev);
-                        if (currentVote) {
-                            newMap.set(targetId, currentVote);
-                        } else {
-                            newMap.delete(targetId);
-                        }
-                        return newMap;
-                    });
-                    setComments(prev => updateCommentVotes(prev, targetId, -upChange, -downChange));
-                }
+                throw new Error('Vote failed');
             }
         } catch {
             // 请求失败，回滚状态
@@ -618,6 +609,17 @@ export default function PostDetailPage() {
                     upvote_count: prev.upvote_count - upChange,
                     downvote_count: prev.downvote_count - downChange,
                 } : null);
+            } else {
+                setUserVotes(prev => {
+                    const newMap = new Map(prev);
+                    if (currentVote) {
+                        newMap.set(targetId, currentVote);
+                    } else {
+                        newMap.delete(targetId);
+                    }
+                    return newMap;
+                });
+                setComments(prev => updateCommentVotes(prev, targetId, -upChange, -downChange));
             }
         }
     };
@@ -751,7 +753,7 @@ export default function PostDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
             </div>
         );
     }
@@ -759,200 +761,223 @@ export default function PostDetailPage() {
     if (!post) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <p className="text-foreground-secondary">帖子不存在</p>
+                <div className="text-center">
+                    <p className="text-foreground-secondary mb-4">帖子不存在或已被删除</p>
+                    <button
+                        onClick={() => router.push('/community')}
+                        className="px-4 py-2 bg-background-secondary rounded-lg hover:bg-background-tertiary transition-colors"
+                    >
+                        返回社区
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
-            <div className="max-w-3xl mx-auto p-4 md:p-6">
-                {/* 返回按钮 */}
-                <button
-                    onClick={() => router.push('/community')}
-                    className="flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    返回社区
-                </button>
+        <div className="min-h-screen bg-background text-foreground pb-20">
+            {/* 顶部导航 */}
+            <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50">
+                <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+                    <button
+                        onClick={() => router.push('/community')}
+                        className="flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors p-2 -ml-2 rounded-lg hover:bg-background-secondary/50"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        <span className="font-medium">返回</span>
+                    </button>
 
-                {/* 帖子内容 */}
-                <article className="bg-background-secondary rounded-lg p-6 border border-border">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        {post.is_pinned && (
-                            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded flex items-center gap-1">
-                                <Pin className="w-3 h-3" /> 置顶
+                    {(isAuthor || isAdmin) && (
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setShowEditModal(true)}
+                                className="p-2 text-foreground-secondary hover:text-purple-500 hover:bg-purple-500/10 rounded-lg transition-colors"
+                                title="编辑"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleDeletePost}
+                                className="p-2 text-foreground-secondary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                title="删除"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                    {isAdmin && (
+                        <div className="flex items-center gap-1 ml-1 border-l border-border pl-1">
+                            <button
+                                onClick={() => handleAdminAction('pin', !post?.is_pinned)}
+                                className={`p-2 rounded-lg transition-colors ${post?.is_pinned ? 'text-yellow-500 bg-yellow-500/10' : 'text-foreground-secondary hover:text-yellow-500 hover:bg-yellow-500/10'}`}
+                                title={post?.is_pinned ? '取消置顶' : '置顶'}
+                            >
+                                <Pin className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => handleAdminAction('feature', !post?.is_featured)}
+                                className={`p-2 rounded-lg transition-colors ${post?.is_featured ? 'text-purple-500 bg-purple-500/10' : 'text-foreground-secondary hover:text-purple-500 hover:bg-purple-500/10'}`}
+                                title={post?.is_featured ? '取消精华' : '设为精华'}
+                            >
+                                <Star className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+
+            <main className="max-w-3xl mx-auto px-4 py-8">
+                {/* 帖子文章 */}
+                <article className="mb-12 animate-fade-in-up">
+                    <header className="mb-8">
+                        <div className="flex items-center gap-3 mb-4">
+                            {post.is_pinned && (
+                                <span className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2.5 py-0.5 rounded-full text-xs font-medium border border-yellow-500/20 flex items-center gap-1">
+                                    <Pin className="w-3 h-3" /> 置顶
+                                </span>
+                            )}
+                            {post.is_featured && (
+                                <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-0.5 rounded-full text-xs font-medium border border-purple-500/20 flex items-center gap-1">
+                                    <Star className="w-3 h-3" /> 精华
+                                </span>
+                            )}
+                            <span className="text-xs text-foreground-secondary bg-background-secondary px-2 py-0.5 rounded-full">
+                                {new Date(post.created_at).toLocaleDateString()}
                             </span>
-                        )}
-                        {post.is_featured && (
-                            <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded flex items-center gap-1">
-                                <Star className="w-3 h-3" /> 精华
-                            </span>
-                        )}
+                        </div>
+
+                        <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 mb-6 leading-tight">
+                            {post.title}
+                        </h1>
+
+                        <div className="flex items-center justify-between border-b border-border/50 pb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-lg font-medium shadow-md">
+                                    {post.anonymous_name?.charAt(0) || '匿'}
+                                </div>
+                                <div>
+                                    <div className="font-medium text-foreground">{post.anonymous_name}</div>
+                                    <div className="text-xs text-foreground-secondary">楼主</div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="prose prose-purple dark:prose-invert max-w-none text-foreground/90 leading-loose text-lg whitespace-pre-wrap">
+                        {post.content}
                     </div>
 
-                    <h1 className="text-2xl font-bold mb-2">{post.title}</h1>
-
-                    <div className="flex items-center gap-3 text-sm text-foreground-secondary mb-4">
-                        <span>{post.anonymous_name}</span>
-                        <span>·</span>
-                        <span>{new Date(post.created_at).toLocaleString()}</span>
-                        <span>·</span>
-                        <span>{post.view_count} 浏览</span>
-                    </div>
-
-                    <div className="prose prose-invert max-w-none">
-                        <p className="whitespace-pre-wrap text-foreground-secondary">{post.content}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                    <div className="flex items-center gap-6 mt-12 pt-6 border-t border-border/50">
                         <VoteButtons
                             upvotes={post.upvote_count}
                             downvotes={post.downvote_count}
                             userVote={postVote}
                             onVote={(type) => handleVote('post', post.id, type)}
                         />
-
-                        <div className="flex items-center gap-2">
-                            {user && (
-                                <button
-                                    onClick={() => setReportTarget({ type: 'post', id: post.id })}
-                                    className="p-2 text-foreground-secondary hover:text-foreground"
-                                    title="举报"
-                                >
-                                    <Flag className="w-4 h-4" />
-                                </button>
-                            )}
-                            {isAuthor && (
-                                <>
-                                    <button
-                                        onClick={() => setShowEditModal(true)}
-                                        className="p-2 text-foreground-secondary hover:text-accent"
-                                        title="编辑"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={handleDeletePost}
-                                        className="p-2 text-foreground-secondary hover:text-red-400"
-                                        title="删除"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </>
-                            )}
-                            {isAdmin && (
-                                <>
-                                    <button
-                                        onClick={() => handleAdminAction('pin', !post.is_pinned)}
-                                        className={`p-2 ${post.is_pinned ? 'text-yellow-400' : 'text-foreground-secondary hover:text-yellow-400'}`}
-                                        title={post.is_pinned ? '取消置顶' : '置顶'}
-                                    >
-                                        <Pin className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleAdminAction('feature', !post.is_featured)}
-                                        className={`p-2 ${post.is_featured ? 'text-purple-400' : 'text-foreground-secondary hover:text-purple-400'}`}
-                                        title={post.is_featured ? '取消精华' : '设为精华'}
-                                    >
-                                        <Star className="w-4 h-4" />
-                                    </button>
-                                </>
-                            )}
-                        </div>
+                        <button
+                            onClick={() => setReportTarget({ type: 'post', id: post.id })}
+                            className="text-foreground-secondary hover:text-foreground text-sm flex items-center gap-1.5 transition-colors ml-auto"
+                        >
+                            <Flag className="w-4 h-4" /> 举报
+                        </button>
                     </div>
                 </article>
 
                 {/* 评论区 */}
-                <div className="mt-6">
-                    <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5" />
-                        评论 ({post.comment_count})
-                    </h2>
+                <section>
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-purple-500" />
+                        全部评论 ({comments.length})
+                    </h3>
 
                     {/* 评论输入框 */}
-                    {user ? (
-                        <form onSubmit={handleComment} className="mb-6">
-                            {replyTo && (
-                                <div className="text-sm text-foreground-secondary mb-2 flex items-center gap-2">
-                                    回复评论
+                    <div className="bg-background-secondary/30 rounded-2xl p-4 mb-8 border border-border/50">
+                        {user ? (
+                            <form onSubmit={handleComment}>
+                                {replyTo && (
+                                    <div className="flex items-center justify-between bg-purple-500/10 px-3 py-2 rounded-lg mb-3 border border-purple-500/20">
+                                        <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                                            正在回复...
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setReplyTo(null)}
+                                            className="text-purple-400 hover:text-purple-600"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="relative">
+                                    <textarea
+                                        value={commentContent}
+                                        onChange={(e) => setCommentContent(e.target.value)}
+                                        rows={3}
+                                        className="w-full bg-background border border-border/50 rounded-xl p-4 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/30 transition-all resize-none shadow-sm"
+                                        placeholder={replyTo ? "写下你的回复..." : "分享你的看法..."}
+                                    />
                                     <button
-                                        type="button"
-                                        onClick={() => setReplyTo(null)}
-                                        className="text-red-400 hover:text-red-300"
+                                        type="submit"
+                                        disabled={submitting || !commentContent.trim()}
+                                        className="absolute right-3 bottom-3 p-2 bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all hover:scale-105 active:scale-95"
                                     >
-                                        取消
+                                        {submitting ? (
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" />
+                                        )}
                                     </button>
                                 </div>
-                            )}
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={commentContent}
-                                    onChange={(e) => setCommentContent(e.target.value)}
-                                    placeholder="发表你的评论..."
-                                    className="flex-1 bg-background-secondary border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-accent"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={submitting || !commentContent.trim()}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-                                >
-                                    <Send className="w-4 h-4" />
-                                </button>
+                            </form>
+                        ) : (
+                            <div className="text-center py-6 text-foreground-secondary bg-background/50 rounded-xl border border-dashed border-border">
+                                <p>登录后参与讨论</p>
                             </div>
-                        </form>
-                    ) : (
-                        <div className="text-foreground-secondary text-center py-4 mb-6 bg-background-secondary rounded-lg border border-border">
-                            请登录后发表评论
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* 评论列表 */}
-                    {comments.length === 0 ? (
-                        <div className="text-foreground-secondary text-center py-8">
-                            暂无评论，来发表第一条评论吧
-                        </div>
-                    ) : (
-                        <div className="bg-background-secondary rounded-lg border border-border">
-                            <div className="p-4">
-                                {comments.map(comment => (
-                                    <CommentItem
-                                        key={comment.id}
-                                        comment={comment}
-                                        postId={postId}
-                                        userId={user?.id || null}
-                                        isAdmin={isAdmin}
-                                        userVotes={userVotes}
-                                        onVote={(commentId, voteType) => handleVote('comment', commentId, voteType)}
-                                        onReply={setReplyTo}
-                                        onDelete={handleDeleteComment}
-                                        onReport={(id) => setReportTarget({ type: 'comment', id })}
-                                    />
-                                ))}
+                    <div className="space-y-6">
+                        {comments.length === 0 ? (
+                            <div className="text-center py-12 text-foreground-secondary/60">
+                                <p>暂无评论，来坐沙发吧~</p>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        ) : (
+                            comments.map(comment => (
+                                <CommentItem
+                                    key={comment.id}
+                                    comment={comment}
+                                    postId={postId}
+                                    userId={user?.id || null}
+                                    isAdmin={isAdmin}
+                                    userVotes={userVotes}
+                                    onVote={(id, type) => handleVote('comment', id, type)}
+                                    onReply={(id) => setReplyTo(id)}
+                                    onDelete={handleDeleteComment}
+                                    onReport={(id) => setReportTarget({ type: 'comment', id })}
+                                />
+                            ))
+                        )}
+                    </div>
+                </section>
+            </main>
 
-                {/* 举报模态框 */}
-                {reportTarget && (
-                    <ReportModal
-                        targetType={reportTarget.type}
-                        targetId={reportTarget.id}
-                        onClose={() => setReportTarget(null)}
-                    />
-                )}
-
-                {/* 编辑帖子模态框 */}
-                {showEditModal && post && (
-                    <EditPostModal
-                        post={post}
-                        onClose={() => setShowEditModal(false)}
-                        onSave={(updatedPost) => setPost(updatedPost)}
-                    />
-                )}
-            </div>
+            {/* 模态框 */}
+            {reportTarget && (
+                <ReportModal
+                    targetType={reportTarget.type}
+                    targetId={reportTarget.id}
+                    onClose={() => setReportTarget(null)}
+                />
+            )}
+            {showEditModal && post && (
+                <EditPostModal
+                    post={post}
+                    onClose={() => setShowEditModal(false)}
+                    onSave={(updatedPost) => setPost(updatedPost)}
+                />
+            )}
         </div>
     );
 }

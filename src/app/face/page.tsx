@@ -170,192 +170,228 @@ export default function FacePage() {
 
     return (
         <LoginOverlay message="登录后体验面相分析">
-            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-                <div className="text-center mb-8">
-                    <div className="flex items-center justify-center mb-4">
-                        <ScanFace className="w-12 h-12 text-purple-500" />
-                    </div>
-                    <h1 className="text-2xl font-bold mb-2">面相分析</h1>
-                    <p className="text-foreground-secondary">上传正面照片，AI 解读您的面相</p>
-                </div>
-
-                {/* 模型选择 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        选择分析模型
-                    </label>
-                    <VisionModelSelector
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                        reasoningEnabled={reasoningEnabled}
-                        onReasoningChange={setReasoningEnabled}
-                    />
-                </div>
-
-                {/* 免责声明弹窗 */}
-                {showDisclaimer && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-background rounded-2xl max-w-md w-full p-6 animate-scale-in">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <AlertTriangle className="w-6 h-6 text-amber-500" />
-                                    <h3 className="text-lg font-semibold">重要提醒</h3>
-                                </div>
-                                <button
-                                    onClick={() => setShowDisclaimer(false)}
-                                    className="p-1 hover:bg-background-secondary rounded-lg"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <div className="text-sm text-foreground-secondary whitespace-pre-line mb-6">
-                                {FACE_DISCLAIMER}
-                            </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowDisclaimer(false)}
-                                    className="flex-1 py-2.5 bg-background-secondary rounded-xl hover:bg-background-tertiary transition-colors"
-                                >
-                                    取消
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setDisclaimerAccepted(true);
-                                        setShowDisclaimer(false);
-                                    }}
-                                    className="flex-1 py-2.5 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
-                                >
-                                    我已了解
-                                </button>
-                            </div>
+            <div className="min-h-screen bg-background pb-12">
+                {/* 顶部 Hero 区域 */}
+                <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+                    <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+                    <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
+                        <div className="inline-flex items-center justify-center p-4 bg-purple-500/10 rounded-2xl mb-6 ring-1 ring-purple-500/20">
+                            <ScanFace className="w-12 h-12 text-purple-500" />
                         </div>
-                    </div>
-                )}
-
-                {/* 图片上传区 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        上传正面照片
-                    </label>
-                    <div
-                        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-                            ${imagePreview
-                                ? 'border-purple-500/50 bg-purple-500/5'
-                                : 'border-border hover:border-accent hover:bg-background-secondary'
-                            }`}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {imagePreview ? (
-                            <div className="relative">
-                                {/* eslint-disable-next-line @next/next/no-img-element -- 使用动态 Base64 data URL，不适合 next/image */}
-                                <img
-                                    src={imagePreview}
-                                    alt="面相预览"
-                                    className="max-h-64 mx-auto rounded-lg"
-                                />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setImagePreview(null);
-                                        setImageBase64(null);
-                                    }}
-                                    className="absolute top-2 right-2 px-3 py-1 bg-background/80 rounded-lg text-sm hover:bg-background"
-                                >
-                                    更换图片
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="flex justify-center gap-4">
-                                    <Camera className="w-8 h-8 text-foreground-secondary" />
-                                    <Upload className="w-8 h-8 text-foreground-secondary" />
-                                </div>
-                                <p className="text-foreground-secondary">
-                                    点击上传或拖拽图片到此处
-                                </p>
-                                <p className="text-xs text-foreground-secondary/70">
-                                    请上传清晰的正面照片，光线充足
-                                </p>
-                            </div>
-                        )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            capture="user"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
+                        <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                            AI 面相分析
+                        </h1>
+                        <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
+                            上传正面照片，AI 深度解读您的面相特征。
+                            <br className="hidden sm:block" />
+                            探索容貌背后的性格密码与运势指引。
+                        </p>
                     </div>
                 </div>
 
-                {/* 分析类型选择 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        选择分析类型
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {FACE_ANALYSIS_TYPES.map(type => (
-                            <button
-                                key={type.id}
-                                onClick={() => setSelectedType(type.id)}
-                                className={`p-3 rounded-xl text-left transition-all
-                                    ${selectedType === type.id
-                                        ? 'bg-purple-500/10 border-2 border-purple-500'
-                                        : 'bg-background-secondary border-2 border-transparent hover:bg-background-tertiary'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl">{type.icon}</span>
-                                    <div>
-                                        <div className="font-medium text-sm">{type.name}</div>
-                                        <p className="text-xs text-foreground-secondary line-clamp-1">{type.description}</p>
+                <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20">
+                    <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50">
+                        {/* 模型选择 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-purple-500 rounded-full" />
+                                选择分析模型
+                            </label>
+                            <VisionModelSelector
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                            />
+                        </div>
+
+                        {/* 免责声明弹窗 */}
+                        {showDisclaimer && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                                <div className="bg-background rounded-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-amber-500/10 rounded-lg">
+                                                <AlertTriangle className="w-6 h-6 text-amber-500" />
+                                            </div>
+                                            <h3 className="text-lg font-semibold">重要提醒</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowDisclaimer(false)}
+                                            className="p-1 hover:bg-background-secondary rounded-lg transition-colors"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <div className="text-sm text-foreground-secondary whitespace-pre-line mb-6 leading-relaxed bg-background-secondary/30 p-4 rounded-xl">
+                                        {FACE_DISCLAIMER}
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowDisclaimer(false)}
+                                            className="flex-1 py-2.5 bg-background-secondary rounded-xl hover:bg-background-tertiary transition-colors font-medium"
+                                        >
+                                            取消
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setDisclaimerAccepted(true);
+                                                setShowDisclaimer(false);
+                                            }}
+                                            className="flex-1 py-2.5 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors font-medium shadow-lg shadow-purple-500/20"
+                                        >
+                                            我已了解
+                                        </button>
                                     </div>
                                 </div>
-                            </button>
-                        ))}
+                            </div>
+                        )}
+
+                        {/* 图片上传区 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-purple-500 rounded-full" />
+                                上传正面照片
+                            </label>
+                            <div
+                                className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group
+                                    ${imagePreview
+                                        ? 'border-purple-500/50 bg-purple-500/5'
+                                        : 'border-border hover:border-purple-500/40 hover:bg-background-secondary hover:shadow-lg hover:shadow-purple-500/5'
+                                    }`}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                {imagePreview ? (
+                                    <div className="relative">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={imagePreview}
+                                            alt="面相预览"
+                                            className="max-h-80 mx-auto rounded-lg shadow-md"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setImagePreview(null);
+                                                    setImageBase64(null);
+                                                }}
+                                                className="px-4 py-2 bg-background/90 backdrop-blur-md rounded-full text-sm font-medium hover:bg-background shadow-lg text-foreground border border-border/50"
+                                            >
+                                                更换图片
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 py-8">
+                                        <div className="flex justify-center gap-4">
+                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                                                <Camera className="w-8 h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
+                                            </div>
+                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
+                                                <Upload className="w-8 h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-foreground text-lg mb-1">
+                                                点击上传或拖拽图片到此处
+                                            </p>
+                                            <p className="text-sm text-foreground-secondary">
+                                                请上传清晰的正面照片，确保光线充足
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="user"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 分析类型选择 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-purple-500 rounded-full" />
+                                选择分析类型
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {FACE_ANALYSIS_TYPES.map(type => (
+                                    <button
+                                        key={type.id}
+                                        onClick={() => setSelectedType(type.id)}
+                                        className={`relative p-4 rounded-xl text-left transition-all duration-300 border
+                                            ${selectedType === type.id
+                                                ? 'bg-purple-500/10 border-purple-500 shadow-md shadow-purple-500/10'
+                                                : 'bg-background border-border hover:border-purple-500/30 hover:bg-background-secondary hover:shadow-sm'
+                                            }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2 rounded-lg ${selectedType === type.id ? 'bg-purple-500 text-white' : 'bg-background-secondary text-foreground'}`}>
+                                                <span className="text-xl">{type.icon}</span>
+                                            </div>
+                                            <div>
+                                                <div className={`font-semibold mb-1 ${selectedType === type.id ? 'text-purple-700 dark:text-purple-300' : 'text-foreground'}`}>
+                                                    {type.name}
+                                                </div>
+                                                <p className="text-xs text-foreground-secondary leading-relaxed">
+                                                    {type.description}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 问题输入 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-purple-500 rounded-full" />
+                                想了解什么？（可选）
+                            </label>
+                            <input
+                                type="text"
+                                value={question}
+                                onChange={(e) => setQuestion(e.target.value)}
+                                placeholder="例如：我适合什么样的工作？未来的财运如何？"
+                                className="w-full px-5 py-3.5 bg-background-secondary/30 rounded-xl border border-border focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
+                            />
+                        </div>
+
+                        {/* 分析按钮 */}
+                        <button
+                            onClick={handleAnalyze}
+                            disabled={!imageBase64 || isAnalyzing}
+                            className="group w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold text-lg
+                                hover:from-purple-600 hover:to-pink-600 hover:shadow-lg hover:shadow-purple-500/25 hover:-translate-y-0.5
+                                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none
+                                transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            {isAnalyzing ? (
+                                <>
+                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <span>AI 正在深度分析中...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ScanFace className="w-6 h-6" />
+                                    <span>开始分析面相</span>
+                                </>
+                            )}
+                        </button>
+
+                        <p className="text-center text-xs text-foreground-secondary/70 mt-4 flex items-center justify-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            面相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
+                        </p>
                     </div>
                 </div>
-
-                {/* 问题输入 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        您想了解什么？（可选）
-                    </label>
-                    <input
-                        type="text"
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        placeholder="例如：我适合什么样的工作？"
-                        className="w-full px-4 py-3 bg-background-secondary rounded-xl border border-border focus:border-accent focus:outline-none transition-colors"
-                    />
-                </div>
-
-                {/* 分析按钮 */}
-                <button
-                    onClick={handleAnalyze}
-                    disabled={!imageBase64 || isAnalyzing}
-                    className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium
-                        hover:from-purple-600 hover:to-pink-600 transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        flex items-center justify-center gap-2"
-                >
-                    {isAnalyzing ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            分析中...
-                        </>
-                    ) : (
-                        <>
-                            <ScanFace className="w-5 h-5" />
-                            开始分析
-                        </>
-                    )}
-                </button>
-
-                <p className="text-center text-xs text-foreground-secondary/70 mt-4">
-                    面相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
-                </p>
             </div>
             <HistoryDrawer type="face" />
         </LoginOverlay>

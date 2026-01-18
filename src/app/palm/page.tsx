@@ -164,197 +164,234 @@ export default function PalmPage() {
 
     return (
         <LoginOverlay message="登录后体验手相分析">
-            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-                {/* 标题 */}
-                <div className="text-center mb-8">
-                    <div className="flex items-center justify-center mb-4">
-                        <Hand className="w-12 h-12 text-amber-500" />
-                    </div>
-                    <h1 className="text-2xl font-bold mb-2">手相分析</h1>
-                    <p className="text-foreground-secondary">上传手掌照片，AI 解读您的手相</p>
-                </div>
-
-                {/* 模型选择 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        选择分析模型
-                    </label>
-                    <VisionModelSelector
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                        reasoningEnabled={reasoningEnabled}
-                        onReasoningChange={setReasoningEnabled}
-                    />
-                </div>
-
-                {/* 图片上传区 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        上传手掌照片
-                    </label>
-                    <div
-                        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-                            ${imagePreview
-                                ? 'border-amber-500/50 bg-amber-500/5'
-                                : 'border-border hover:border-accent hover:bg-background-secondary'
-                            }`}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {imagePreview ? (
-                            <div className="relative">
-                                {/* eslint-disable-next-line @next/next/no-img-element -- 使用动态 Base64 data URL，不适合 next/image */}
-                                <img
-                                    src={imagePreview}
-                                    alt="手相预览"
-                                    className="max-h-64 mx-auto rounded-lg"
-                                />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setImagePreview(null);
-                                        setImageBase64(null);
-                                    }}
-                                    className="absolute top-2 right-2 px-3 py-1 bg-background/80 rounded-lg text-sm hover:bg-background"
-                                >
-                                    更换图片
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="flex justify-center gap-4">
-                                    <Camera className="w-8 h-8 text-foreground-secondary" />
-                                    <Upload className="w-8 h-8 text-foreground-secondary" />
-                                </div>
-                                <p className="text-foreground-secondary">
-                                    点击上传或拖拽图片到此处
-                                </p>
-                                <p className="text-xs text-foreground-secondary/70">
-                                    支持 JPG、PNG 格式，建议清晰正面照
-                                </p>
-                            </div>
-                        )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
-                    </div>
-                </div>
-
-                {/* 手型选择 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        选择手型
-                    </label>
-                    <div className="flex gap-3">
-                        {[
-                            { value: 'left', label: '左手' },
-                            { value: 'right', label: '右手' },
-                        ].map(option => (
-                            <button
-                                key={option.value}
-                                onClick={() => setHandType(option.value as HandType)}
-                                className={`flex-1 py-3 px-4 rounded-xl text-center transition-all
-                                    ${handType === option.value
-                                        ? 'bg-amber-500/10 border-2 border-amber-500 text-amber-600'
-                                        : 'bg-background-secondary border-2 border-transparent hover:bg-background-tertiary'
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                    <p className="text-xs text-foreground-secondary/70 mt-2">
-                        💡 左手代表先天命格，右手代表后天发展
-                    </p>
-                </div>
-
-                {/* 分析类型选择 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        选择分析类型
-                    </label>
-                    <div className="space-y-2">
-                        {PALM_ANALYSIS_TYPES.map(type => (
-                            <button
-                                key={type.id}
-                                onClick={() => setSelectedType(type.id)}
-                                className={`w-full p-4 rounded-xl text-left transition-all flex items-center justify-between
-                                    ${selectedType === type.id
-                                        ? 'bg-amber-500/10 border-2 border-amber-500'
-                                        : 'bg-background-secondary border-2 border-transparent hover:bg-background-tertiary'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">{type.icon}</span>
-                                    <div>
-                                        <div className="font-medium">{type.name}</div>
-                                        <p className="text-sm text-foreground-secondary">{type.description}</p>
-                                    </div>
-                                </div>
-                                <ChevronRight className={`w-5 h-5 transition-colors ${selectedType === type.id ? 'text-amber-500' : 'text-foreground-secondary'}`} />
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 问题输入 */}
-                <div className="mb-6">
-                    <label className="block text-sm text-foreground-secondary mb-2">
-                        您想了解什么？（可选）
-                    </label>
-                    <input
-                        type="text"
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        placeholder="例如：我的事业运势如何？"
-                        className="w-full px-4 py-3 bg-background-secondary rounded-xl border border-border focus:border-accent focus:outline-none transition-colors"
-                    />
-                </div>
-
-                {/* 提示信息 */}
-                <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                    <div className="flex gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-foreground-secondary">
-                            <p className="font-medium text-foreground mb-1">拍照建议</p>
-                            <ul className="list-disc list-inside space-y-1">
-                                <li>手掌自然展开，五指分开</li>
-                                <li>光线充足，避免阴影</li>
-                                <li>正面拍摄，掌纹清晰可见</li>
-                            </ul>
+            <div className="min-h-screen bg-background pb-12">
+                {/* 顶部 Hero 区域 */}
+                <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+                    <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+                    <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
+                        <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-2xl mb-6 ring-1 ring-amber-500/20">
+                            <Hand className="w-12 h-12 text-amber-500" />
                         </div>
+                        <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                            AI 手相分析
+                        </h1>
+                        <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
+                            上传手掌照片，AI 智能解读掌纹奥秘。
+                            <br className="hidden sm:block" />
+                            揭示生命线、智慧线、感情线中隐藏的命运信息。
+                        </p>
                     </div>
                 </div>
 
-                {/* 分析按钮 */}
-                <button
-                    onClick={handleAnalyze}
-                    disabled={!imageBase64 || isAnalyzing}
-                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium
-                        hover:from-amber-600 hover:to-orange-600 transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        flex items-center justify-center gap-2"
-                >
-                    {isAnalyzing ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            分析中...
-                        </>
-                    ) : (
-                        <>
-                            <Hand className="w-5 h-5" />
-                            开始分析
-                        </>
-                    )}
-                </button>
+                <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20">
+                    <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50">
+                        {/* 模型选择 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
+                                选择分析模型
+                            </label>
+                            <VisionModelSelector
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                            />
+                        </div>
 
-                <p className="text-center text-xs text-foreground-secondary/70 mt-4">
-                    手相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
-                </p>
+                        {/* 图片上传区 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
+                                上传手掌照片
+                            </label>
+                            <div
+                                className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group
+                                    ${imagePreview
+                                        ? 'border-amber-500/50 bg-amber-500/5'
+                                        : 'border-border hover:border-amber-500/40 hover:bg-background-secondary hover:shadow-lg hover:shadow-amber-500/5'
+                                    }`}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                {imagePreview ? (
+                                    <div className="relative">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={imagePreview}
+                                            alt="手相预览"
+                                            className="max-h-80 mx-auto rounded-lg shadow-md"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setImagePreview(null);
+                                                    setImageBase64(null);
+                                                }}
+                                                className="px-4 py-2 bg-background/90 backdrop-blur-md rounded-full text-sm font-medium hover:bg-background shadow-lg text-foreground border border-border/50"
+                                            >
+                                                更换图片
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 py-8">
+                                        <div className="flex justify-center gap-4">
+                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                                                <Camera className="w-8 h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
+                                            </div>
+                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
+                                                <Upload className="w-8 h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-foreground text-lg mb-1">
+                                                点击上传或拖拽图片到此处
+                                            </p>
+                                            <p className="text-sm text-foreground-secondary">
+                                                支持 JPG、PNG 格式，建议清晰正面照
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 手型选择 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
+                                选择手型
+                            </label>
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    { value: 'left', label: '左手', desc: '先天命格' },
+                                    { value: 'right', label: '右手', desc: '后天发展' },
+                                ].map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => setHandType(option.value as HandType)}
+                                        className={`flex flex-col items-center justify-center py-3 px-4 rounded-xl text-center transition-all duration-300 border
+                                            ${handType === option.value
+                                                ? 'bg-amber-500/10 border-amber-500 text-amber-600 shadow-sm'
+                                                : 'bg-background hover:bg-background-secondary border-transparent hover:border-amber-500/30'
+                                            }`}
+                                    >
+                                        <span className="text-lg font-bold mb-1">{option.label}</span>
+                                        <span className={`text-xs ${handType === option.value ? 'text-amber-600/70' : 'text-foreground-secondary'}`}>
+                                            {option.desc}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 分析类型选择 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
+                                选择分析类型
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {PALM_ANALYSIS_TYPES.map(type => (
+                                    <button
+                                        key={type.id}
+                                        onClick={() => setSelectedType(type.id)}
+                                        className={`group relative p-4 rounded-xl text-left transition-all duration-300 border
+                                            ${selectedType === type.id
+                                                ? 'bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10'
+                                                : 'bg-background border-border hover:border-amber-500/30 hover:bg-background-secondary hover:shadow-sm'
+                                            }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2 rounded-lg transition-colors ${selectedType === type.id ? 'bg-amber-500 text-white' : 'bg-background-secondary text-foreground group-hover:bg-amber-500/20 group-hover:text-amber-600'}`}>
+                                                <span className="text-xl">{type.icon}</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className={`font-semibold mb-1 flex items-center justify-between ${selectedType === type.id ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}>
+                                                    {type.name}
+                                                    {selectedType === type.id && <ChevronRight className="w-4 h-4 text-amber-500" />}
+                                                </div>
+                                                <p className="text-xs text-foreground-secondary leading-relaxed line-clamp-2">
+                                                    {type.description}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 问题输入 */}
+                        <div className="mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
+                                想了解什么？（可选）
+                            </label>
+                            <input
+                                type="text"
+                                value={question}
+                                onChange={(e) => setQuestion(e.target.value)}
+                                placeholder="例如：我的事业运势如何？什么时候会有桃花运？"
+                                className="w-full px-5 py-3.5 bg-background-secondary/30 rounded-xl border border-border focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all"
+                            />
+                        </div>
+
+                        {/* 提示信息 */}
+                        <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-xl">
+                            <div className="flex gap-3">
+                                <div className="p-1 bg-amber-100 dark:bg-amber-800/30 rounded-full h-fit">
+                                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div className="text-sm text-foreground-secondary">
+                                    <p className="font-bold text-amber-800 dark:text-amber-200 mb-1.5">拍摄小贴士</p>
+                                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 ml-4 list-disc text-amber-700/80 dark:text-amber-300/80">
+                                        <li>手掌自然展开，五指分开</li>
+                                        <li>光线充足，避免阴影遮挡</li>
+                                        <li>正面垂直拍摄，掌纹清晰</li>
+                                        <li>背景干净简洁为佳</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 分析按钮 */}
+                        <button
+                            onClick={handleAnalyze}
+                            disabled={!imageBase64 || isAnalyzing}
+                            className="group w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-bold text-lg
+                                hover:from-amber-600 hover:to-orange-700 hover:shadow-lg hover:shadow-amber-500/25 hover:-translate-y-0.5
+                                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none
+                                transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            {isAnalyzing ? (
+                                <>
+                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <span>AI 正在深度分析中...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Hand className="w-6 h-6" />
+                                    <span>开始分析手相</span>
+                                </>
+                            )}
+                        </button>
+
+                        <p className="text-center text-xs text-foreground-secondary/70 mt-4 flex items-center justify-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
+                            手相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
+                        </p>
+                    </div>
+                </div>
             </div>
             <HistoryDrawer type="palm" />
         </LoginOverlay>

@@ -1,6 +1,6 @@
 /**
  * 创建合盘页面
- * 
+ *
  * 输入双方生日信息，支持从已保存命盘选择
  */
 'use client';
@@ -8,7 +8,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Loader2, FolderOpen, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, FolderOpen, X, AlertCircle, Sparkles, ChevronDown } from 'lucide-react';
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +20,7 @@ function BirthInput({
     personIndex,
     userId,
     onPick,
+    type
 }: {
     label: string;
     value: Partial<BirthInfo>;
@@ -27,16 +28,26 @@ function BirthInput({
     personIndex: 1 | 2;
     userId?: string | null;
     onPick?: (person: 1 | 2) => void;
+    type: HepanType;
 }) {
+    const theme = {
+        love: { active: 'focus:border-rose-500', ring: 'focus:ring-rose-500/20', text: 'text-rose-500', bg: 'bg-rose-500' },
+        business: { active: 'focus:border-blue-500', ring: 'focus:ring-blue-500/20', text: 'text-blue-500', bg: 'bg-blue-500' },
+        family: { active: 'focus:border-emerald-500', ring: 'focus:ring-emerald-500/20', text: 'text-emerald-500', bg: 'bg-emerald-500' },
+    }[type];
+
     return (
-        <div className="bg-background-secondary rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">{label}</h3>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-3xl group">
+            <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
+                    <div className={`w-1.5 h-6 rounded-full ${theme.bg} shadow-[0_0_10px_rgba(var(--theme-color),0.5)]`} />
+                    {label}
+                </h3>
                 {userId && onPick && (
                     <button
                         onClick={() => onPick(personIndex)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-accent
-                            hover:bg-accent/10 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground-secondary
+                            hover:text-foreground hover:bg-white/10 rounded-xl transition-all border border-transparent hover:border-white/10"
                     >
                         <FolderOpen className="w-4 h-4" />
                         从命盘选择
@@ -44,101 +55,120 @@ function BirthInput({
                 )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {/* 姓名和性别 */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="text-sm text-foreground-secondary">称呼</label>
+                <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider px-1">称呼</label>
                         <input
                             type="text"
                             value={value.name || ''}
                             onChange={(e) => onChange({ ...value, name: e.target.value })}
                             placeholder="请输入称呼"
-                            className="w-full mt-1 px-4 py-2 bg-background border border-border rounded-lg
-                                text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                            className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                text-foreground placeholder:text-foreground-secondary/30
+                                focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
                         />
                     </div>
-                    <div>
-                        <label className="text-sm text-foreground-secondary">性别</label>
-                        <select
-                            value={value.gender || ''}
-                            onChange={(e) => onChange({ ...value, gender: e.target.value as 'male' | 'female' || undefined })}
-                            className="w-full mt-1 px-4 py-2 bg-background border border-border rounded-lg
-                                text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        >
-                            <option value="">请选择</option>
-                            <option value="male">男</option>
-                            <option value="female">女</option>
-                        </select>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider px-1">性别</label>
+                        <div className="relative">
+                            <select
+                                value={value.gender || ''}
+                                onChange={(e) => onChange({ ...value, gender: e.target.value as 'male' | 'female' || undefined })}
+                                className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                    text-foreground appearance-none cursor-pointer
+                                    focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
+                            >
+                                <option value="">请选择</option>
+                                <option value="male">男</option>
+                                <option value="female">女</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary">
+                                <ChevronDown className="w-4 h-4" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* 日期 */}
-                <div className="grid grid-cols-3 gap-3">
-                    <div>
-                        <label className="text-sm text-foreground-secondary">年</label>
-                        <input
-                            type="number"
-                            value={value.year || ''}
-                            onChange={(e) => onChange({ ...value, year: parseInt(e.target.value) || undefined })}
-                            placeholder="如 1990"
-                            min="1900"
-                            max="2030"
-                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg
-                                text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm text-foreground-secondary">月</label>
-                        <input
-                            type="number"
-                            value={value.month || ''}
-                            onChange={(e) => onChange({ ...value, month: parseInt(e.target.value) || undefined })}
-                            placeholder="1-12"
-                            min="1"
-                            max="12"
-                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg
-                                text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm text-foreground-secondary">日</label>
-                        <input
-                            type="number"
-                            value={value.day || ''}
-                            onChange={(e) => onChange({ ...value, day: parseInt(e.target.value) || undefined })}
-                            placeholder="1-31"
-                            min="1"
-                            max="31"
-                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg
-                                text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                        />
+                <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider px-1">出生日期 (公历)</label>
+                    <div className="grid grid-cols-3 gap-4">
+                        {[
+                            { key: 'year', label: '年', min: 1900, max: 2030, placeholder: '2000' },
+                            { key: 'month', label: '月', min: 1, max: 12, placeholder: '01' },
+                            { key: 'day', label: '日', min: 1, max: 31, placeholder: '01' }
+                        ].map(({ key, label, min, max, placeholder }) => (
+                            <div key={key} className="relative group/input">
+                                <input
+                                    type="number"
+                                    value={value[key as keyof BirthInfo] as number || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        // 允许清空
+                                        if (val === '') {
+                                            onChange({ ...value, [key]: undefined });
+                                            return;
+                                        }
+                                        // 只允许数字
+                                        if (!/^\d*$/.test(val)) return;
+
+                                        const num = parseInt(val);
+                                        // 长度限制：年4位，其他2位
+                                        if (key === 'year' && val.length > 4) return;
+                                        if (key !== 'year' && val.length > 2) return;
+
+                                        // 数值范围限制
+                                        if (max && num > max) return;
+
+                                        onChange({ ...value, [key]: num });
+                                    }}
+                                    placeholder={placeholder}
+                                    min={min}
+                                    max={max}
+                                    className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                        text-foreground placeholder:text-foreground-secondary/30 text-center font-medium
+                                        focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300
+                                        [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-foreground-secondary/70 pointer-events-none group-focus-within/input:text-foreground transition-colors">
+                                    {label}
+                                </span>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 {/* 时辰 */}
-                <div>
-                    <label className="text-sm text-foreground-secondary">出生时辰 (24小时制)</label>
-                    <select
-                        value={value.hour ?? ''}
-                        onChange={(e) => onChange({ ...value, hour: e.target.value ? parseInt(e.target.value) : undefined })}
-                        className="w-full mt-1 px-4 py-2 bg-background border border-border rounded-lg
-                            text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                        <option value="">请选择时辰</option>
-                        <option value="0">子时 (23:00-01:00)</option>
-                        <option value="2">丑时 (01:00-03:00)</option>
-                        <option value="4">寅时 (03:00-05:00)</option>
-                        <option value="6">卯时 (05:00-07:00)</option>
-                        <option value="8">辰时 (07:00-09:00)</option>
-                        <option value="10">巳时 (09:00-11:00)</option>
-                        <option value="12">午时 (11:00-13:00)</option>
-                        <option value="14">未时 (13:00-15:00)</option>
-                        <option value="16">申时 (15:00-17:00)</option>
-                        <option value="18">酉时 (17:00-19:00)</option>
-                        <option value="20">戌时 (19:00-21:00)</option>
-                        <option value="22">亥时 (21:00-23:00)</option>
-                    </select>
+                <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider px-1">出生时辰</label>
+                    <div className="relative group/select">
+                        <select
+                            value={value.hour ?? ''}
+                            onChange={(e) => onChange({ ...value, hour: e.target.value ? parseInt(e.target.value) : undefined })}
+                            className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                text-foreground appearance-none cursor-pointer
+                                focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
+                        >
+                            <option value="">请选择时辰 (不清楚可不填)</option>
+                            <option value="0">子时 (23:00-01:00)</option>
+                            <option value="2">丑时 (01:00-03:00)</option>
+                            <option value="4">寅时 (03:00-05:00)</option>
+                            <option value="6">卯时 (05:00-07:00)</option>
+                            <option value="8">辰时 (07:00-09:00)</option>
+                            <option value="10">巳时 (09:00-11:00)</option>
+                            <option value="12">午时 (11:00-13:00)</option>
+                            <option value="14">未时 (13:00-15:00)</option>
+                            <option value="16">申时 (15:00-17:00)</option>
+                            <option value="18">酉时 (17:00-19:00)</option>
+                            <option value="20">戌时 (19:00-21:00)</option>
+                            <option value="22">亥时 (21:00-23:00)</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary group-focus-within/select:text-foreground transition-colors">
+                            <ChevronDown className="w-4 h-4" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -199,11 +229,11 @@ function HepanCreateContent() {
 
     const handleSubmit = async () => {
         // 验证必填字段
-        if (!person1.name || !person1.year || !person1.month || !person1.day || person1.hour === undefined) {
+        if (!person1.name || !person1.year || !person1.month || !person1.day) {
             setValidationError('请填写完整的第一人信息');
             return;
         }
-        if (!person2.name || !person2.year || !person2.month || !person2.day || person2.hour === undefined) {
+        if (!person2.name || !person2.year || !person2.month || !person2.day) {
             setValidationError('请填写完整的第二人信息');
             return;
         }
@@ -251,26 +281,46 @@ function HepanCreateContent() {
         }, 500);
     };
 
+    const getAccentColor = () => {
+        switch (type) {
+            case 'love': return 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20';
+            case 'business': return 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20';
+            case 'family': return 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20';
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="min-h-screen bg-background pb-20">
+            {/* 背景装饰 - 移除渐变，保留柔和光晕 */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2" />
+                <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2" />
+            </div>
+
+            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 返回 */}
                 <Link
                     href="/hepan"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6"
+                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    返回
+                    <span className="text-sm font-medium">返回列表</span>
                 </Link>
 
                 {/* 标题 */}
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-foreground">{getHepanTypeName(type)}</h1>
-                    <p className="text-foreground-secondary mt-1">请输入双方的出生信息</p>
+                <div className="text-center mb-10">
+                    <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 mb-4 shadow-xl backdrop-blur-sm">
+                        <Sparkles className={`w-8 h-8 ${type === 'love' ? 'text-rose-500' :
+                            type === 'business' ? 'text-blue-500' : 'text-emerald-500'
+                            }`} />
+                    </div>
+                    <h1 className="text-3xl font-bold text-foreground tracking-tight">{getHepanTypeName(type)}分析</h1>
+                    <p className="text-foreground-secondary mt-2 text-lg">请输入双方的出生信息，解读彼此的缘分</p>
                 </div>
 
                 {/* 输入表单 */}
-                <div className="space-y-6 mb-8">
+                <div className="space-y-6 mb-10">
                     <BirthInput
                         label={labels[type].p1}
                         value={person1}
@@ -278,6 +328,7 @@ function HepanCreateContent() {
                         personIndex={1}
                         userId={userId}
                         onPick={(person) => setPickerOpen(person)}
+                        type={type}
                     />
                     <BirthInput
                         label={labels[type].p2}
@@ -286,6 +337,7 @@ function HepanCreateContent() {
                         personIndex={2}
                         userId={userId}
                         onPick={(person) => setPickerOpen(person)}
+                        type={type}
                     />
                 </div>
 
@@ -293,19 +345,20 @@ function HepanCreateContent() {
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="w-full py-4 bg-accent text-white rounded-xl font-medium
-                        hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
-                        transition-all flex items-center justify-center gap-2"
+                    className={`w-full py-4 text-white rounded-xl font-bold text-lg
+                        shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]
+                        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none
+                        transition-all flex items-center justify-center gap-2 ${getAccentColor()}`}
                 >
                     {loading ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            分析中...
+                            正在深度分析...
                         </>
                     ) : (
                         <>
-                            <Calendar className="w-5 h-5" />
-                            开始分析
+                            <Sparkles className="w-5 h-5" />
+                            开始分析缘分
                         </>
                     )}
                 </button>
@@ -324,31 +377,33 @@ function HepanCreateContent() {
 
             {/* 验证错误弹窗 */}
             {validationError && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={() => setValidationError(null)}
                     />
-                    <div className="relative bg-background rounded-2xl border border-border shadow-2xl p-6 max-w-sm mx-4 animate-fade-in min-w-[320px]">
+                    <div className="relative bg-background/95 backdrop-blur-xl rounded-2xl border border-border shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95">
                         <button
                             onClick={() => setValidationError(null)}
-                            className="absolute top-5 right-5 p-1 rounded-lg hover:bg-background-secondary transition-colors"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-background-secondary transition-colors"
                         >
                             <X className="w-5 h-5 text-foreground-secondary" />
                         </button>
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="p-2.5 rounded-full bg-amber-500/10">
-                                <AlertCircle className="w-6 h-6 text-amber-500" />
+                        <div className="flex flex-col items-center text-center gap-4">
+                            <div className="p-3 rounded-full bg-amber-500/10 text-amber-500">
+                                <AlertCircle className="w-8 h-8" />
                             </div>
-                            <h3 className="text-lg font-semibold">请检查输入</h3>
+                            <div>
+                                <h3 className="text-lg font-bold text-foreground mb-1">请检查输入</h3>
+                                <p className="text-foreground-secondary">{validationError}</p>
+                            </div>
+                            <button
+                                onClick={() => setValidationError(null)}
+                                className="w-full py-2.5 bg-background-secondary hover:bg-background-tertiary text-foreground rounded-xl font-medium transition-colors"
+                            >
+                                知道了
+                            </button>
                         </div>
-                        <p className="text-foreground-secondary mb-8 leading-relaxed">{validationError}</p>
-                        <button
-                            onClick={() => setValidationError(null)}
-                            className="w-full py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
-                        >
-                            知道了
-                        </button>
                     </div>
                 </div>
             )}

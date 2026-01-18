@@ -42,9 +42,9 @@ export function ResultHeader({
                     className={`
                             inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                             ${saved
-                                ? 'bg-green-500/10 text-green-500 cursor-default'
-                                : 'bg-accent text-white hover:bg-accent/90 disabled:opacity-50'
-                            }
+                            ? 'bg-green-500/10 text-green-500 cursor-default'
+                            : 'bg-accent text-white hover:bg-accent/90 disabled:opacity-50'
+                        }
                         `}
                 >
                     {saved ? (

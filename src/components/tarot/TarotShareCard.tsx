@@ -130,159 +130,205 @@ export function TarotShareCard({ cards, spread, question, interpretation }: Taro
                 <div
                     ref={cardRef}
                     style={{
-                        background: 'linear-gradient(135deg, #fdf4ff 0%, #ffffff 50%, #f3e8ff 100%)',
-                        borderRadius: '16px',
-                        padding: '24px',
-                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-                        border: '1px solid #e9d5ff',
-                        minWidth: '320px',
-                        maxWidth: '450px',
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        background: 'radial-gradient(circle at top right, #3b0764 0%, #1e1b4b 100%)',
+                        borderRadius: '24px',
+                        padding: '32px',
+                        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        minWidth: '340px',
+                        maxWidth: '480px',
+                        fontFamily: "'PingFang SC', 'Microsoft YaHei', sans-serif",
+                        color: '#fff',
+                        position: 'relative',
+                        overflow: 'hidden',
                     }}
                 >
-                {/* 卡片头部 */}
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <Gem style={{ width: '24px', height: '24px', color: '#a855f7' }} />
-                        <span style={{ color: '#7c3aed', fontWeight: 600, fontSize: '18px' }}>{spread.name}</span>
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#9ca3af' }}>{formatDate(new Date())}</div>
-                </div>
-
-                {/* 提问 */}
-                {question && (
+                    {/* Background Noise/Texture Overlay */}
                     <div style={{
-                        background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        marginBottom: '20px',
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                            <Sparkles style={{ width: '14px', height: '14px', color: 'rgba(255,255,255,0.8)' }} />
-                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>所问之事</span>
-                        </div>
-                        <div style={{ color: '#ffffff', fontWeight: 500, fontSize: '14px' }}>{question}</div>
-                    </div>
-                )}
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E")',
+                        opacity: 0.5,
+                        pointerEvents: 'none',
+                    }} />
 
-                {/* 塔罗牌展示 */}
-                <div style={{
-                    display: 'grid',
-                    gap: '12px',
-                    marginBottom: '20px',
-                    ...getGridStyle(),
-                }}>
-                    {cards.map((drawnCard, index) => (
-                        <div key={index} style={{ textAlign: 'center' }}>
-                            {/* 位置标签 */}
-                            <div style={{
-                                fontSize: '11px',
-                                color: '#9ca3af',
-                                marginBottom: '6px',
-                                height: '14px',
-                            }}>
-                                {spread.positions[index]?.name}
-                            </div>
-                            {/* 卡片图片容器 */}
-                            <div style={{
-                                position: 'relative',
-                                width: cards.length === 1 ? '80px' : '60px',
-                                height: cards.length === 1 ? '120px' : '90px',
-                                margin: '0 auto',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                transform: drawnCard.orientation === 'reversed' ? 'rotate(180deg)' : 'none',
-                            }}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={drawnCard.card.image}
-                                    alt={drawnCard.card.nameChinese}
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        objectFit: 'cover',
-                                    }}
-                                />
-                            </div>
-                            {/* 牌名 */}
-                            <div style={{
-                                marginTop: '6px',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                color: '#374151',
-                            }}>
-                                {drawnCard.card.nameChinese}
-                            </div>
-                            {/* 正逆位 */}
-                            <div style={{
-                                fontSize: '10px',
-                                color: drawnCard.orientation === 'reversed' ? '#ef4444' : '#22c55e',
-                                fontWeight: 500,
-                            }}>
-                                {drawnCard.orientation === 'reversed' ? '逆位' : '正位'}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* AI 解读摘要 */}
-                {interpretation && (
+                    {/* Decorative Top Line */}
                     <div style={{
-                        padding: '16px',
-                        background: 'rgba(168, 85, 247, 0.05)',
-                        borderRadius: '12px',
-                        borderLeft: '3px solid #a855f7',
-                        marginBottom: '20px',
-                    }}>
+                        position: 'absolute',
+                        top: 0,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '120px',
+                        height: '4px',
+                        background: 'linear-gradient(90deg, transparent, #fbbf24, transparent)',
+                        opacity: 0.5,
+                    }} />
+
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        {/* 卡片头部 */}
+                        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                padding: '6px 16px',
+                                borderRadius: '20px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                marginBottom: '12px'
+                            }}>
+                                <Gem style={{ width: '18px', height: '18px', color: '#fbbf24' }} />
+                                <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: '16px', letterSpacing: '0.05em' }}>{spread.name}</span>
+                            </div>
+                            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.4)' }}>{formatDate(new Date())}</div>
+                        </div>
+
+                        {/* 提问 */}
+                        {question && (
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                borderRadius: '16px',
+                                padding: '16px 20px',
+                                marginBottom: '28px',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    <Sparkles style={{ width: '12px', height: '12px', color: '#a78bfa' }} />
+                                    <span style={{ fontSize: '12px', color: '#a78bfa', opacity: 0.8 }}>所问之事</span>
+                                </div>
+                                <div style={{ color: '#fff', fontWeight: 500, fontSize: '15px', lineHeight: 1.5 }}>{question}</div>
+                            </div>
+                        )}
+
+                        {/* 塔罗牌展示 */}
                         <div style={{
+                            display: 'grid',
+                            gap: '16px',
+                            marginBottom: '28px',
+                            ...getGridStyle(),
+                        }}>
+                            {cards.map((drawnCard, index) => (
+                                <div key={index} style={{ textAlign: 'center' }}>
+                                    {/* 位置标签 */}
+                                    <div style={{
+                                        fontSize: '10px',
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        marginBottom: '8px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.1em',
+                                    }}>
+                                        {spread.positions[index]?.name}
+                                    </div>
+                                    {/* 卡片图片容器 */}
+                                    <div style={{
+                                        position: 'relative',
+                                        width: cards.length === 1 ? '100px' : '70px',
+                                        height: cards.length === 1 ? '160px' : '110px',
+                                        margin: '0 auto',
+                                        borderRadius: '10px',
+                                        overflow: 'hidden',
+                                        boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        transform: drawnCard.orientation === 'reversed' ? 'rotate(180deg)' : 'none',
+                                    }}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={drawnCard.card.image}
+                                            alt={drawnCard.card.nameChinese}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                            }}
+                                        />
+                                    </div>
+                                    {/* 牌名 */}
+                                    <div style={{
+                                        marginTop: '10px',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        color: '#e2e8f0',
+                                    }}>
+                                        {drawnCard.card.nameChinese}
+                                    </div>
+                                    {/* 正逆位 */}
+                                    <div style={{
+                                        fontSize: '10px',
+                                        marginTop: '2px',
+                                        color: drawnCard.orientation === 'reversed' ? '#f87171' : '#4ade80',
+                                        fontWeight: 500,
+                                    }}>
+                                        {drawnCard.orientation === 'reversed' ? '逆位' : '正位'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* AI 解读摘要 */}
+                        {interpretation && (
+                            <div style={{
+                                padding: '20px',
+                                background: 'rgba(59, 7, 100, 0.3)',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(139, 92, 246, 0.2)',
+                                marginBottom: '24px',
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    marginBottom: '10px',
+                                }}>
+                                    <Sparkles style={{ width: '14px', height: '14px', color: '#c084fc' }} />
+                                    <span style={{ fontSize: '13px', color: '#d8b4fe', fontWeight: 600 }}>AI 启示</span>
+                                </div>
+                                <div style={{
+                                    fontSize: '13px',
+                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    lineHeight: 1.7,
+                                    fontWeight: 300,
+                                    overflow: 'hidden',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 5,
+                                    WebkitBoxOrient: 'vertical',
+                                }}>
+                                    {interpretation.slice(0, 250).replace(/[#*`]/g, '')}{interpretation.length > 250 ? '...' : ''}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 水印 */}
+                        <div style={{
+                            paddingTop: '20px',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            marginBottom: '8px',
+                            justifyContent: 'space-between',
                         }}>
-                            <Sparkles style={{ width: '14px', height: '14px', color: '#a855f7' }} />
-                            <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 500 }}>AI 解读</span>
-                        </div>
-                        <div style={{
-                            fontSize: '13px',
-                            color: '#4b5563',
-                            lineHeight: 1.6,
-                            overflow: 'hidden',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 4,
-                            WebkitBoxOrient: 'vertical',
-                        }}>
-                            {interpretation.slice(0, 200)}{interpretation.length > 200 ? '...' : ''}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '8px',
+                                    background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '14px'
+                                }}>M</div>
+                                <span style={{ fontSize: '14px', color: '#fff', fontWeight: 700, letterSpacing: '0.05em' }}>MingAI</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.4)' }}>AI智能命理平台</span>
                         </div>
                     </div>
-                )}
-
-                {/* 水印 */}
-                <div style={{
-                    paddingTop: '16px',
-                    borderTop: '1px solid #e9d5ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="/Logo.png"
-                            alt="MingAI"
-                            style={{
-                                width: '24px',
-                                height: '24px',
-                                borderRadius: '8px',
-                                objectFit: 'cover',
-                            }}
-                        />
-                        <span style={{ fontSize: '13px', color: '#a855f7', fontWeight: 600 }}>MingAI</span>
-                    </div>
-                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>AI智能命理平台</span>
                 </div>
-            </div>
             </div>
         </div>
     );

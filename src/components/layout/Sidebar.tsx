@@ -113,7 +113,7 @@ const toolItems = [
     { href: '/fortune-hub', label: '运势中心', icon: Compass, available: true },
     { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
-    { href: '/monthly', label: '每月运势', icon: CalendarRange, available: true },
+    { href: '/monthly', label: '月度运势', icon: CalendarRange, available: true },
     { href: '/records', label: '命理记录', icon: Tags, available: true },
     { href: '/community', label: '命理社区', icon: Aperture, available: true },
 ];

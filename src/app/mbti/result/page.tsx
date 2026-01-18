@@ -226,8 +226,12 @@ function MBTIResultContent() {
 
     if (!result) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" />
+                    <p className="text-foreground-secondary">正在加载测试结果...</p>
+                </div>
             </div>
         );
     }
@@ -236,15 +240,18 @@ function MBTIResultContent() {
     const isTestMode = !isViewMode && result.scores && result.percentages;
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="min-h-screen bg-background relative overflow-x-hidden pb-20">
+            {/* Background Effects */}
+            {/* Background Effects Removed */}
+
+            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10">
                 {/* 返回 */}
                 <Link
                     href="/mbti"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-8"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    返回
+                    <span className="text-sm font-medium">返回 MBTI 首页</span>
                 </Link>
 
                 {/* 结果卡片 */}
@@ -252,13 +259,15 @@ function MBTIResultContent() {
 
                 {/* AI 深度分析 - 仅测试模式显示 */}
                 {isTestMode && (
-                    <div className="mt-8 bg-background-secondary rounded-xl p-6">
-                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-accent" />
+                    <div className="mt-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+                        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                            <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10">
+                                    <Sparkles className="w-5 h-5 text-blue-400" />
+                                </div>
                                 AI 深度分析
                             </h3>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <ModelSelector
                                     compact
                                     selectedModel={selectedModel}
@@ -273,7 +282,7 @@ function MBTIResultContent() {
                                         data-testid="reanalyze-button"
                                         onClick={handleGetAIAnalysis}
                                         disabled={loadingAI}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-foreground-secondary hover:text-foreground hover:bg-white/10 text-sm disabled:opacity-50 transition-all"
                                     >
                                         {loadingAI ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -297,45 +306,46 @@ function MBTIResultContent() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-6">
+                            <div className="text-center py-12">
                                 {errorBanner}
 
                                 {checkingAuth ? (
-                                    <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
+                                    <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto" />
                                 ) : !user ? (
-                                    <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
-                                        <div className="flex justify-center mb-4">
-                                            <div className="p-3 rounded-full bg-accent/10">
-                                                <Sparkles className="w-6 h-6 text-accent" />
+                                    <div className="bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-pink-500/10 border border-white/10 rounded-2xl p-8 text-center max-w-md mx-auto backdrop-blur-sm">
+                                        <div className="flex justify-center mb-6">
+                                            <div className="p-4 rounded-full bg-white/5 ring-1 ring-white/10 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
+                                                <Sparkles className="w-8 h-8 text-blue-300" />
                                             </div>
                                         </div>
-                                        <h3 className="text-lg font-semibold mb-2">AI 深度分析</h3>
-                                        <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
-                                            登录后解锁完整 AI 深度解读，获取更精准的个性化建议
+                                        <h3 className="text-xl font-bold text-white mb-3">解锁 AI 深度解读</h3>
+                                        <p className="text-foreground-secondary mb-8 leading-relaxed">
+                                            登录后即可获取基于您性格维度的<br />专属 AI 深度分析与职场建议
                                         </p>
                                         <button
                                             onClick={() => setShowAuthModal(true)}
-                                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                                            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95"
                                         >
-                                            登录 / 注册
+                                            立即登录 / 注册
                                         </button>
                                     </div>
                                 ) : (
                                     <button
                                         onClick={handleGetAIAnalysis}
                                         disabled={loadingAI}
-                                        className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
-                                            hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        className="group relative overflow-hidden inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0 disabled:shadow-none"
                                     >
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
                                         {loadingAI ? (
                                             <>
                                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                                分析中...
+                                                正在分析中...
                                             </>
                                         ) : (
                                             <>
                                                 <Sparkles className="w-5 h-5" />
-                                                获取 AI 分析（消耗 1 次对话）
+                                                获取 AI 深度分析
+                                                <span className="text-xs font-normal opacity-80 bg-black/20 px-2 py-0.5 rounded-full ml-1">消耗 1 次</span>
                                             </>
                                         )}
                                     </button>
@@ -347,12 +357,12 @@ function MBTIResultContent() {
 
                 {/* 操作按钮 - 仅测试模式显示 */}
                 {isTestMode && (
-                    <div className="flex justify-center gap-4 mt-8">
+                    <div className="flex justify-center gap-4 mt-12 pb-10">
                         <Link
                             href="/mbti"
-                            className="inline-flex items-center gap-2 px-6 py-3 
-                                bg-background-secondary text-foreground rounded-lg
-                                hover:bg-background-secondary/80 transition-all"
+                            className="inline-flex items-center gap-2 px-8 py-4 
+                                bg-white/5 text-foreground rounded-2xl border border-white/10
+                                hover:bg-white/10 hover:border-white/20 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 font-medium"
                         >
                             <RotateCw className="w-5 h-5" />
                             重新测试
@@ -362,12 +372,13 @@ function MBTIResultContent() {
 
                 {/* 查看模式：显示开始测试按钮 */}
                 {!isTestMode && (
-                    <div className="text-center mt-10">
+                    <div className="text-center mt-12 pb-10">
                         <Link
                             href="/mbti"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
-                                hover:bg-accent/90 transition-all"
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold
+                                hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:-translate-y-0.5 transition-all shadow-blue-500/20"
                         >
+                            <Sparkles className="w-5 h-5" />
                             开始 MBTI 测试
                         </Link>
                     </div>
@@ -386,8 +397,9 @@ function MBTIResultContent() {
 export default function MBTIResultPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+                {/* Background Effects Removed */}
+                <Loader2 className="w-10 h-10 animate-spin text-blue-400 relative z-10" />
             </div>
         }>
             <MBTIResultContent />

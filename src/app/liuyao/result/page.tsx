@@ -268,47 +268,41 @@ export default function ResultPage() {
 
     if (!result) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-4" />
-                    <p className="text-foreground-secondary">正在加载卦象...</p>
+            <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+                {/* Background Effects Removed */}
+
+                <div className="text-center relative z-10 animate-fade-in">
+                    <div className="inline-flex relative mb-6">
+                        <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full animate-pulse" />
+                        <Loader2 className="w-12 h-12 animate-spin text-accent relative z-10" />
+                    </div>
+                    <p className="text-foreground-secondary text-lg">正在推演卦象...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                {/* 返回 */}
-                <Link
-                    href="/liuyao"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    返回
-                </Link>
+        <div className="min-h-screen bg-background pb-20 relative overflow-x-hidden">
+            {/* Background Effects */}
+            {/* Background Effects Removed */}
 
-                {/* 问题显示 */}
-                {result.question && (
-                    <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 mb-8">
-                        <div className="text-center">
-                            <span className="inline-flex items-center gap-1 text-sm text-accent font-medium">
-                                <Sparkles className="w-4 h-4" />
-                                所问之事
-                            </span>
-                            <p className="text-foreground font-semibold text-lg mt-2">{result.question}</p>
-                        </div>
-                    </div>
-                )}
+            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+                {/* Header Navigation */}
+                <div className="flex items-center justify-between mb-8">
+                    <Link
+                        href="/liuyao"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="text-sm font-medium">返回</span>
+                    </Link>
 
-                {/* 传统分析切换 */}
-                <div className="flex items-center justify-end mb-4">
                     <button
                         onClick={() => setShowTraditional(!showTraditional)}
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${showTraditional
-                            ? 'bg-accent text-white'
-                            : 'bg-background-secondary text-foreground-secondary hover:text-foreground'
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border ${showTraditional
+                            ? 'bg-accent/10 border-accent/20 text-accent'
+                            : 'bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10'
                             }`}
                     >
                         <BookOpen className="w-4 h-4" />
@@ -316,8 +310,23 @@ export default function ResultPage() {
                     </button>
                 </div>
 
-                {/* 卦象展示 */}
-                <div className="bg-background rounded-xl p-8 mb-8">
+                {/* Question Section */}
+                {result.question && (
+                    <div className="text-center mb-10">
+                        <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-purple-500/10 text-purple-400 mb-4 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                            <Sparkles className="w-6 h-6" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-foreground mb-6">六爻神课</h1>
+
+                        <div className="inline-block max-w-[90%] bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 shadow-lg">
+                            <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">所问之事</h3>
+                            <p className="text-foreground font-medium text-lg leading-relaxed">{result.question}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Hexagram Display */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm p-8 mb-10 shadow-xl">
                     <HexagramDisplay
                         yaos={result.yaos}
                         hexagram={result.hexagram}
@@ -330,13 +339,15 @@ export default function ResultPage() {
                     />
                 </div>
 
-                {/* 传统六爻分析 */}
+                {/* Traditional Analysis */}
                 {showTraditional && traditionalData && (
-                    <div className="bg-background-secondary rounded-xl p-6 mb-8">
-                        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-accent" />
-                            传统六爻分析
-                        </h3>
+                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 mb-10 animate-fade-in-up">
+                        <div className="flex items-center gap-3 mb-6">
+                            <span className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                                <BookOpen className="w-5 h-5" />
+                            </span>
+                            <h3 className="text-xl font-bold text-foreground">传统六爻分析</h3>
+                        </div>
                         <TraditionalAnalysis
                             fullYaos={traditionalData.fullYaos}
                             yongShen={traditionalData.yongShen}
@@ -353,107 +364,112 @@ export default function ResultPage() {
                     </div>
                 )}
 
-                {/* AI 解读区域 */}
-                <div className="bg-background-secondary rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-accent" />
-                            AI 解卦
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            <ModelSelector
-                                compact
-                                selectedModel={selectedModel}
-                                onModelChange={setSelectedModel}
-                                reasoningEnabled={reasoningEnabled}
-                                onReasoningChange={setReasoningEnabled}
-                                userId={user?.id}
-                                membershipType={membershipType}
-                            />
-                            {interpretation && (
-                                <button
-                                    data-testid="reanalyze-button"
-                                    onClick={handleGetInterpretation}
-                                    disabled={isLoading}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <RefreshCw className="w-4 h-4" />
-                                    )}
-                                    重新分析
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                {/* AI Interpretation */}
+                <div className="relative rounded-3xl p-1 group">
+                    {/* Gradient Background Removed */}
 
-                    {interpretation ? (
-                        <div>
-                            {errorBanner}
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                {interpretationReasoning && (
-                                    <ThinkingBlock content={interpretationReasoning} />
+                    <div className="relative bg-background/80 backdrop-blur-xl rounded-[20px] p-6 md:p-8">
+                        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
+                            <div>
+                                <h2 className="text-xl font-bold flex items-center gap-3">
+                                    <span className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                                        <Sparkles className="w-5 h-5" />
+                                    </span>
+                                    AI 深度解卦
+                                </h2>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <ModelSelector
+                                    compact
+                                    selectedModel={selectedModel}
+                                    onModelChange={setSelectedModel}
+                                    reasoningEnabled={reasoningEnabled}
+                                    onReasoningChange={setReasoningEnabled}
+                                    userId={user?.id}
+                                    membershipType={membershipType}
+                                />
+                                {interpretation && (
+                                    <button
+                                        data-testid="reanalyze-button"
+                                        onClick={handleGetInterpretation}
+                                        disabled={isLoading}
+                                        className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors"
+                                        title="重新分析"
+                                    >
+                                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                    </button>
                                 )}
-                                <MarkdownContent content={interpretation} className="text-sm text-foreground" />
                             </div>
                         </div>
-                    ) : (
-                        <div className="text-center py-8">
-                            {errorBanner}
 
-                            {user === null ? (
-                                <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
-                                    <div className="flex justify-center mb-4">
-                                        <div className="p-3 rounded-full bg-accent/10">
-                                            <Sparkles className="w-6 h-6 text-accent" />
-                                        </div>
-                                    </div>
-                                    <h3 className="text-lg font-semibold mb-2">AI 深度分析</h3>
-                                    <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
-                                        登录后解锁完整 AI 深度解读，获取更精准的个性化建议
-                                    </p>
-                                    <button
-                                        onClick={() => setShowAuthModal(true)}
-                                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
-                                    >
-                                        登录 / 注册
-                                    </button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={handleGetInterpretation}
-                                    disabled={isLoading}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
-                                        hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                            解读中...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="w-5 h-5" />
-                                            获取 AI 解读（消耗 1 次对话）
-                                        </>
+                        {interpretation ? (
+                            <div className="relative z-10">
+                                {errorBanner}
+                                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300">
+                                    {interpretationReasoning && (
+                                        <ThinkingBlock content={interpretationReasoning} />
                                     )}
-                                </button>
-                            )}
-                        </div>
-                    )}
+                                    <MarkdownContent content={interpretation} className="text-sm text-foreground" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 relative z-10">
+                                {errorBanner}
+
+                                {user === null ? (
+                                    <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-2xl p-8 text-center max-w-sm mx-auto backdrop-blur-sm">
+                                        <div className="flex justify-center mb-4">
+                                            <div className="p-4 rounded-full bg-purple-500/10 ring-1 ring-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+                                                <Sparkles className="w-8 h-8 text-purple-400" />
+                                            </div>
+                                        </div>
+                                        <h3 className="text-xl font-bold mb-3 text-foreground">AI 深度分析</h3>
+                                        <p className="text-foreground-secondary mb-8 text-sm leading-relaxed">
+                                            登录后解锁完整 AI 深度解读<br />获取更精准的个性化建议
+                                        </p>
+                                        <button
+                                            onClick={() => setShowAuthModal(true)}
+                                            className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                                        >
+                                            立即登录 / 注册
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleGetInterpretation}
+                                        disabled={isLoading}
+                                        className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                正在解读天机...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="w-5 h-5" />
+                                                获取 AI 深度解读
+                                                <span className="ml-2 text-xs font-normal opacity-80">(消耗 1 次对话)</span>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* 重新起卦 */}
-                <div className="text-center mt-8">
+                {/* Reshuffle Button */}
+                <div className="text-center mt-12 pb-8">
                     <Link
                         href="/liuyao"
                         className="inline-flex items-center gap-2 px-6 py-3 
-                            bg-background-secondary text-foreground rounded-lg
-                            hover:bg-background-secondary/80 transition-all"
+                            text-foreground-secondary hover:text-foreground
+                            bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10
+                            rounded-xl transition-all hover:scale-105"
                     >
-                        <RotateCw className="w-5 h-5" />
-                        重新起卦
+                        <RotateCw className="w-4 h-4" />
+                        <span className="font-medium">重新起卦</span>
                     </Link>
                 </div>
             </div>

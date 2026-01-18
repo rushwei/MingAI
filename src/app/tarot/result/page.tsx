@@ -39,7 +39,7 @@ function TarotResultContent() {
 
     const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
     const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
-    const [question, setQuestion] = useState('');
+    const [question, setQuestion] = useState(questionParam || '');
     const [interpretation, setInterpretation] = useState('');
     const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,10 +57,6 @@ function TarotResultContent() {
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [userId, setUserId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
-
-    useEffect(() => {
-        setQuestion(questionParam || '');
-    }, [questionParam]);
 
     useEffect(() => {
         const loadMembership = async () => {
@@ -81,6 +77,9 @@ function TarotResultContent() {
 
     // 处理历史记录加载
     useEffect(() => {
+        // 如果有 spreadId，说明是新占卜，跳过加载历史
+        if (spreadId) return;
+
         const storedResult = sessionStorage.getItem('tarot_result');
         if (storedResult) {
             try {
@@ -97,7 +96,10 @@ function TarotResultContent() {
                     }
                     setSelectedSpread(resolvedSpread);
                     setDrawnCards(parsed.cards);
-                    setQuestion(parsed.question || '');
+                    // 只有当 storage 中有 question 时才覆盖 (防止 null 覆盖空字符串)
+                    if (parsed.question !== undefined) {
+                        setQuestion(parsed.question);
+                    }
                     setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i));
                     setReadingId(parsed.readingId || null);
                     setConversationId(parsed.conversationId || null);
@@ -105,11 +107,13 @@ function TarotResultContent() {
                     setIsViewingHistory(true);
                     setHistoryMissing(false);
                     setIsLoading(false);
-                    sessionStorage.removeItem('tarot_result');
+                    // 不再移除 storage，以便页面刷新后能保持状态
+                    // sessionStorage.removeItem('tarot_result');
                     return;
                 }
             } catch {
-                sessionStorage.removeItem('tarot_result');
+                // 解析失败也不清除，避免丢失数据，让用户可以手动刷新
+                console.error('Failed to parse tarot history');
             }
         }
 
@@ -361,247 +365,304 @@ function TarotResultContent() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 返回按钮 */}
-            <button
-                onClick={() => router.push('/tarot')}
-                className="flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                返回
-            </button>
+        <div className="min-h-screen bg-background pb-20 relative overflow-x-hidden">
+            {/* Background Effects */}
+            {/* Background Effects Removed */}
 
-            {/* 问题显示 */}
-            {question && (
-                <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 mb-4">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-accent flex-shrink-0" />
-                        <span className="text-sm text-accent font-medium">所问之事</span>
-                    </div>
-                    <p className="text-foreground font-semibold mt-1">{question}</p>
-                </div>
-            )}
-
-            {/* 顶部操作栏 */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="font-semibold">{selectedSpread?.name}</h1>
-                    <p className="text-sm text-foreground-secondary">{selectedSpread?.description}</p>
-                </div>
-                <button
-                    onClick={handleReshuffle}
-                    disabled={isShuffling}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors disabled:opacity-50"
-                >
-                    <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
-                    {isShuffling ? '洗牌中...' : '重新抽牌'}
-                </button>
-            </div>
-
-            {/* 牌阵展示 */}
-            <div className={`grid gap-4 mb-6 ${drawnCards.length === 1 ? 'grid-cols-1 justify-items-center' :
-                drawnCards.length <= 3 ? 'grid-cols-3' :
-                    drawnCards.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
-                        'grid-cols-2 sm:grid-cols-5'
-                }`}>
-                {drawnCards.map((card, index) => {
-                    const isRevealed = revealedCards.includes(index);
-                    return (
-                        <div key={index} className="flex flex-col items-center">
-                            <button
-                                onClick={() => void revealCard(index)}
-                                className={`relative w-24 h-36 sm:w-28 sm:h-40 rounded-lg overflow-hidden shadow-lg transition-all duration-500 ${isRevealed ? '' : 'cursor-pointer hover:scale-105'
-                                    }`}
-                                style={{
-                                    transform: isRevealed && card.orientation === 'reversed' ? 'rotate(180deg)' : undefined,
-                                }}
-                            >
-                                {isRevealed ? (
-                                    <Image
-                                        src={card.card.image}
-                                        alt={card.card.nameChinese}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center">
-                                        <div className="text-white/30 text-4xl">?</div>
-                                    </div>
-                                )}
-                            </button>
-                            <div className="text-center mt-2">
-                                <div className="text-xs text-foreground-secondary">
-                                    {selectedSpread?.positions[index]?.name}
-                                </div>
-                                {isRevealed && (
-                                    <div className="text-sm font-medium">
-                                        {card.card.nameChinese}
-                                        <span className="text-xs text-foreground-secondary ml-1">
-                                            {card.orientation === 'reversed' ? '逆' : '正'}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* 翻牌按钮 */}
-            {revealedCards.length < drawnCards.length && (
-                <div className="text-center mb-6">
+            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+                {/* Header Navigation */}
+                <div className="flex items-center justify-between mb-8">
                     <button
-                        onClick={revealAll}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                        onClick={() => router.push('/tarot')}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
                     >
-                        <Eye className="w-4 h-4" />
-                        全部翻开
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="text-sm font-medium">返回占卜</span>
+                    </button>
+
+                    <button
+                        onClick={handleReshuffle}
+                        disabled={isShuffling}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                    >
+                        <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
+                        {isShuffling ? '洗牌中...' : '重新抽牌'}
                     </button>
                 </div>
-            )}
 
-            {/* 牌义摘要 */}
-            {revealedCards.length === drawnCards.length && (
-                <div className="bg-background-secondary rounded-xl p-4 mb-6">
-                    <h2 className="font-semibold mb-3 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-accent" />
-                        牌义速览
-                    </h2>
-                    <div className="space-y-3">
-                        {drawnCards.map((card, index) => (
-                            <div key={index} className="p-3 bg-background rounded-lg">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs text-foreground-secondary">
-                                        {selectedSpread?.positions[index]?.name}：
-                                    </span>
-                                    <span className="font-medium">
-                                        {card.card.nameChinese}
-                                        <span className={`text-xs ml-1 ${card.orientation === 'reversed' ? 'text-red-500' : 'text-green-500'}`}>
-                                            {card.orientation === 'reversed' ? '逆位' : '正位'}
-                                        </span>
-                                    </span>
-                                </div>
-                                <p className="text-sm text-foreground-secondary">
-                                    {card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning}
-                                </p>
-                            </div>
-                        ))}
+                {/* Spread Info & Question */}
+                <div className="text-center mb-10">
+                    <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-purple-500/10 text-purple-400 mb-4 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <Sparkles className="w-6 h-6" />
                     </div>
-                </div>
-            )}
+                    <h1 className="text-3xl font-bold text-foreground mb-2">{selectedSpread?.name}</h1>
+                    <p className="text-foreground-secondary text-sm mb-6 max-w-lg mx-auto">{selectedSpread?.description}</p>
 
-            {/* AI 解读 */}
-            {revealedCards.length === drawnCards.length && (
-                <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                        <h2 className="font-semibold flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-accent" />
-                            AI 深度解读
-                        </h2>
-                        <div className="flex items-center gap-2">
-                            <ModelSelector
-                                compact
-                                selectedModel={selectedModel}
-                                onModelChange={setSelectedModel}
-                                reasoningEnabled={reasoningEnabled}
-                                onReasoningChange={setReasoningEnabled}
-                                userId={userId}
-                                membershipType={membershipType}
-                            />
-                            {interpretation && (
-                                <button
-                                    data-testid="reanalyze-button"
-                                    onClick={handleInterpret}
-                                    disabled={isInterpreting}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary text-foreground-secondary hover:text-foreground hover:bg-background-tertiary text-sm disabled:opacity-50"
-                                >
-                                    {isInterpreting ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <RefreshCw className="w-4 h-4" />
-                                    )}
-                                    重新分析
-                                </button>
-                            )}
+                    {question && (
+                        <div className="inline-block max-w-[90%] bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 shadow-lg">
+                            <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">所问之事</h3>
+                            <p className="text-foreground font-medium text-lg leading-relaxed">{question}</p>
                         </div>
-                    </div>
-
-                    {interpretation ? (
-                        <>
-                            {interpretationReasoning && (
-                                <ThinkingBlock content={interpretationReasoning} />
-                            )}
-                            <MarkdownContent
-                                content={interpretation}
-                                className="text-sm text-foreground-secondary"
-                            />
-                        </>
-                    ) : !userId ? (
-                        <div className="bg-gradient-to-r from-accent/5 to-purple-500/5 border border-accent/20 rounded-xl p-6 text-center">
-                            <div className="flex justify-center mb-4">
-                                <div className="p-3 rounded-full bg-accent/10">
-                                    <Sparkles className="w-6 h-6 text-accent" />
-                                </div>
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">AI 深度解读</h3>
-                            <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
-                                登录后解锁完整 AI 深度解读，获取更精准的个性化建议
-                            </p>
-                            <button
-                                onClick={() => setShowAuthModal(true)}
-                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
-                            >
-                                登录 / 注册
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            <p className="text-sm text-foreground-secondary mb-4">
-                                让 AI 为你综合解读牌阵含义（消耗 1 积分）
-                            </p>
-                            <button
-                                onClick={handleInterpret}
-                                disabled={isInterpreting}
-                                className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
-                            >
-                                {isInterpreting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        解读中...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send className="w-4 h-4" />
-                                        获取 AI 解读
-                                    </>
-                                )}
-                            </button>
-                        </>
                     )}
                 </div>
-            )}
 
-            {/* 分享卡片 */}
-            {revealedCards.length === drawnCards.length && selectedSpread && (
-                <div className="mt-6">
-                    <h2 className="font-semibold mb-3 flex items-center gap-2">
-                        <Share2 className="w-4 h-4 text-accent" />
-                        分享结果
-                    </h2>
-                    <TarotShareCard
-                        cards={drawnCards}
-                        spread={selectedSpread}
-                        question={question || undefined}
-                        interpretation={interpretation || undefined}
-                    />
+                {/* Card Table */}
+                <div className="relative py-2 bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm">
+                    <div className={`grid gap-8 mb-8 px-4 justify-items-center relative z-10 ${drawnCards.length === 1 ? 'grid-cols-1' :
+                        drawnCards.length <= 3 ? 'grid-cols-3' :
+                            drawnCards.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
+                                'grid-cols-2 sm:grid-cols-5'
+                        }`}>
+                        {drawnCards.map((card, index) => {
+                            const isRevealed = revealedCards.includes(index);
+                            return (
+                                <div key={index} className="flex flex-col items-center group perspective-1000">
+                                    <div className="text-xs font-bold text-foreground-secondary/70 uppercase tracking-widest mb-3">
+                                        {selectedSpread?.positions[index]?.name}
+                                    </div>
+                                    <button
+                                        onClick={() => void revealCard(index)}
+                                        disabled={isRevealed}
+                                        className={`relative w-28 h-48 sm:w-32 sm:h-52 rounded-xl transition-all duration-700 transform-style-3d ${isRevealed ? '' : 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(168,85,247,0.2)]'
+                                            }`}
+                                        style={{
+                                            transform: isRevealed && card.orientation === 'reversed' ? 'rotate(180deg)' : undefined,
+                                        }}
+                                    >
+                                        <div className={`absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl transition-all duration-700 ${isRevealed ? 'opacity-100' : 'bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 border border-white/10'
+                                            }`}>
+                                            {isRevealed ? (
+                                                <Image
+                                                    src={card.card.image}
+                                                    alt={card.card.nameChinese}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center opacity-30 bg-[url('/noise.png')]">
+                                                    <div className="w-16 h-16 rounded-full border-2 border-white/20 flex items-center justify-center">
+                                                        <Sparkles className="w-8 h-8 text-white/40" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+
+                                    <div className={`mt-4 text-center transition-opacity duration-500 ${isRevealed ? 'opacity-100' : 'opacity-0'}`}>
+                                        <h4 className="font-bold text-foreground">{card.card.nameChinese}</h4>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${card.orientation === 'reversed'
+                                            ? 'text-rose-400 border-rose-400/20 bg-rose-400/5'
+                                            : 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
+                                            }`}>
+                                            {card.orientation === 'reversed' ? '逆位' : '正位'}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Reveal Button */}
+                    {revealedCards.length < drawnCards.length && (
+                        <div className="flex justify-center mt-8">
+                            <button
+                                onClick={revealAll}
+                                className="inline-flex items-center gap-2 px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                            >
+                                <Eye className="w-5 h-5" />
+                                翻开所有牌面
+                            </button>
+                        </div>
+                    )}
                 </div>
-            )}
 
-            <AuthModal
-                isOpen={showAuthModal}
-                onClose={() => setShowAuthModal(false)}
-            />
-        </div>
+                {/* Interpretation Section */}
+                {revealedCards.length === drawnCards.length && (
+                    <div className="space-y-6 animate-fade-in-up">
+                        {/* 1. Quick Meanings */}
+                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
+                            <h2 className="text-xl font-bold flex items-center gap-3 mb-6">
+                                <span className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                                    <Sparkles className="w-5 h-5" />
+                                </span>
+                                牌面解读
+                            </h2>
+                            <div className="space-y-4">
+                                {drawnCards.map((card, index) => (
+                                    <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 hover:border-purple-500/30 hover:bg-white/[0.07] transition-all group">
+                                        {/* Thumbnail */}
+                                        <div className="relative w-full sm:w-24 h-40 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-shadow">
+                                            <Image
+                                                src={card.card.image}
+                                                alt={card.card.nameChinese}
+                                                fill
+                                                className={`object-cover transition-transform duration-700 group-hover:scale-110 ${card.orientation === 'reversed' ? 'rotate-180' : ''
+                                                    }`}
+                                            />
+                                            {/* Element Badge */}
+                                            {card.card.element && (
+                                                <div className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/10 text-[10px] text-white/90 font-bold" title={`${card.card.element}元素`}>
+                                                    {card.card.element}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 flex flex-col justify-center">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded-full">
+                                                        {selectedSpread?.positions[index]?.name}
+                                                    </span>
+                                                    {(card.card.zodiac || card.card.element) && (
+                                                        <span className="text-xs text-foreground-secondary/60 hidden sm:inline-block">
+                                                            {[card.card.zodiac, card.card.element].filter(Boolean).join(' · ')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${card.orientation === 'reversed'
+                                                    ? 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
+                                                    : 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
+                                                    }`}>
+                                                    {card.orientation === 'reversed' ? '逆位' : '正位'}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-baseline gap-2 mb-2">
+                                                <h4 className="text-lg font-bold text-foreground">{card.card.nameChinese}</h4>
+                                                <span className="text-xs text-foreground-secondary">{card.card.name}</span>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                                {card.card.keywords.map((kw, i) => (
+                                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-foreground-secondary border border-white/5">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                            </div>
+
+                                            <p className="text-sm text-foreground-secondary leading-relaxed border-t border-white/5 pt-2 mt-auto">
+                                                {card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 2. AI Deep Dive */}
+                        <div className="relative rounded-3xl p-1 group">
+                            {/* Background Effects Removed */}
+
+                            <div className="relative bg-background/80 rounded-[20px] p-6 md:p-6">
+                                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
+                                    <div>
+                                        <h2 className="text-xl font-bold flex items-center gap-3">
+                                            <span className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                                                <Sparkles className="w-5 h-5" />
+                                            </span>
+                                            AI 深度洞察
+                                        </h2>
+                                        <p className="text-sm text-foreground-secondary mt-1 ml-11">
+                                            基于 {selectedSpread?.name} 的全方位综合解读
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <ModelSelector
+                                            compact
+                                            selectedModel={selectedModel}
+                                            onModelChange={setSelectedModel}
+                                            reasoningEnabled={reasoningEnabled}
+                                            onReasoningChange={setReasoningEnabled}
+                                            userId={userId}
+                                            membershipType={membershipType}
+                                        />
+                                        {interpretation && (
+                                            <button
+                                                onClick={handleInterpret}
+                                                disabled={isInterpreting}
+                                                className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors"
+                                            >
+                                                <RefreshCw className={`w-4 h-4 ${isInterpreting ? 'animate-spin' : ''}`} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+
+                                {interpretation ? (
+                                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300 relative z-10">
+                                        {interpretationReasoning && (
+                                            <ThinkingBlock content={interpretationReasoning} />
+                                        )}
+                                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                                            <MarkdownContent content={interpretation} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        {!userId ? (
+                                            <div className="max-w-sm mx-auto">
+                                                <Send className="w-12 h-12 text-purple-500/30 mx-auto mb-4" />
+                                                <button
+                                                    onClick={() => setShowAuthModal(true)}
+                                                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all"
+                                                >
+                                                    登录解锁 AI 深度解读
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="max-w-sm mx-auto">
+                                                <button
+                                                    onClick={handleInterpret}
+                                                    disabled={isInterpreting}
+                                                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {isInterpreting ? (
+                                                        <>
+                                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                                            正在连接宇宙能量...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Send className="w-5 h-5" />
+                                                            获取 AI 深度指引
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <p className="text-xs text-foreground-secondary mt-3">
+                                                    AI 将综合牌阵位置、正逆位关系为您提供专业解读
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Share Card */}
+                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
+                            <h2 className="text-lg font-bold flex items-center gap-3 mb-6">
+                                <Share2 className="w-5 h-5 text-purple-400" />
+                                珍藏与分享
+                            </h2>
+                            <TarotShareCard
+                                cards={drawnCards}
+                                spread={selectedSpread}
+                                question={question || undefined}
+                                interpretation={interpretation || undefined}
+                            />
+                        </div>
+                    </div >
+                )
+                }
+
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
+                />
+            </div >
+        </div >
     );
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MapPin, X, ChevronDown } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { searchCities, type CityInfo } from '@/lib/cities';
 
 interface LocationAutocompleteProps {
@@ -120,7 +120,7 @@ export function LocationAutocomplete({
     }, [inputValue, value, onChange]);
 
     return (
-        <div className="relative">
+        <div className="relative group/input">
             <div className="relative">
                 <input
                     ref={inputRef}
@@ -137,26 +137,24 @@ export function LocationAutocomplete({
                     }}
                     onBlur={handleBlur}
                     placeholder={placeholder}
-                    className="w-full px-4 py-3 pl-10 pr-16 rounded-lg bg-background border border-border
-                         focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
-                         transition-all duration-200"
+                    className="w-full px-4 py-3 pl-10 pr-10 rounded-lg bg-background border border-border
+                         focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+                         group-hover/input:border-accent/50
+                         transition-all duration-200 placeholder:text-foreground-tertiary"
                     autoComplete="off"
                 />
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-tertiary group-focus-within/input:text-accent transition-colors duration-200" />
 
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                     {inputValue && (
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="p-1 rounded hover:bg-background-tertiary transition-colors"
+                            className="p-1 rounded-full hover:bg-background-tertiary text-foreground-tertiary hover:text-foreground transition-all duration-200"
                         >
-                            <X className="w-4 h-4 text-foreground-secondary" />
+                            <X className="w-4 h-4" />
                         </button>
                     )}
-                    <ChevronDown
-                        className={`w-4 h-4 text-foreground-secondary transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                    />
                 </div>
             </div>
 
@@ -164,7 +162,7 @@ export function LocationAutocomplete({
             {isOpen && suggestions.length > 0 && (
                 <div
                     ref={dropdownRef}
-                    className="absolute z-50 w-full mt-1 py-1 rounded-lg bg-background border border-border shadow-lg max-h-60 overflow-y-auto"
+                    className="absolute z-50 w-full mt-2 py-2 rounded-xl bg-background border border-border shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200"
                 >
                     {suggestions.map((city, index) => (
                         <button
@@ -173,14 +171,14 @@ export function LocationAutocomplete({
                             onClick={() => handleSelect(city)}
                             onMouseEnter={() => setHighlightedIndex(index)}
                             className={`w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors ${index === highlightedIndex
-                                    ? 'bg-accent/10 text-accent'
-                                    : 'hover:bg-background-tertiary'
+                                ? 'bg-accent/10 text-accent'
+                                : 'hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
                                 }`}
                         >
-                            <MapPin className="w-4 h-4 flex-shrink-0 text-foreground-secondary" />
+                            <MapPin className={`w-4 h-4 flex-shrink-0 ${index === highlightedIndex ? 'text-accent' : 'text-foreground-tertiary'}`} />
                             <div className="flex-1 min-w-0">
                                 <div className="font-medium truncate">{city.name}</div>
-                                <div className="text-xs text-foreground-secondary truncate">
+                                <div className={`text-xs truncate ${index === highlightedIndex ? 'text-accent/70' : 'text-foreground-tertiary'}`}>
                                     {city.fullName}
                                 </div>
                             </div>

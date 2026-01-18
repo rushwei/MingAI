@@ -21,33 +21,58 @@ export function BirthPlaceSection({
     ];
 
     return (
-        <div className="bg-background rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-background rounded-xl p-6 shadow-sm border border-border/50">
+            <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
                 <MapPinned className="w-5 h-5 text-accent" />
-                出生地点 <span className="text-sm font-normal text-foreground-secondary">(可选)</span>
+                出生地点 <span className="text-sm font-normal text-foreground-secondary ml-auto">(真太阳时校正需要)</span>
             </h2>
 
-            <LocationAutocomplete
-                value={formData.birthPlace || ''}
-                onChange={(value) => onUpdate('birthPlace', value)}
-                placeholder="输入城市名，如：北京、上海、广州"
-            />
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-foreground-secondary">
-                <span>常用城市:</span>
-                {quickCities.map((city) => (
-                    <button
-                        key={city.value}
-                        type="button"
-                        onClick={() => onUpdate('birthPlace', city.value)}
-                        className="px-2.5 py-1 rounded-full border border-border hover:border-accent/60 hover:text-foreground transition-colors"
-                    >
-                        {city.label}
-                    </button>
-                ))}
+            <div className="space-y-4">
+                <LocationAutocomplete
+                    value={formData.birthPlace || ''}
+                    onChange={(value) => onUpdate('birthPlace', value)}
+                    placeholder="输入城市名，如：北京、上海、广州"
+                />
+
+                <div className="flex flex-col gap-2">
+                    <span className="text-xs font-medium text-foreground-secondary ml-1">热门城市快捷选择</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {quickCities.map((city) => (
+                            <button
+                                key={city.value}
+                                type="button"
+                                onClick={() => onUpdate('birthPlace', city.value)}
+                                className={`
+                                    px-3 py-1.5 rounded-lg border text-xs transition-all duration-200
+                                    ${formData.birthPlace === city.value
+                                        ? 'bg-accent/10 border-accent text-accent font-medium'
+                                        : 'bg-background border-border hover:border-accent/40 hover:bg-background-secondary text-foreground-secondary hover:text-foreground'
+                                    }
+                                `}
+                            >
+                                {city.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className={`
+                    mt-2 text-xs p-3 rounded-lg border border-dashed transition-colors duration-300
+                    ${formData.birthPlace
+                        ? 'bg-green-50/50 border-green-200/50 text-green-600/80'
+                        : 'bg-background-secondary/30 border-border/50 text-foreground-tertiary'
+                    }
+                `}>
+                    {formData.birthPlace ? (
+                        <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            已设置出生地，系统将自动进行真太阳时校正
+                        </div>
+                    ) : (
+                        "温馨提示：若未设置出生地，将采用平太阳时（即标准时间）排盘，可能会有细微偏差"
+                    )}
+                </div>
             </div>
-            <p className="mt-2 text-sm text-foreground-secondary">
-                提供出生地点可进行真太阳时校正，使排盘更加精准
-            </p>
         </div>
     );
 }

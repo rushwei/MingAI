@@ -10,11 +10,11 @@ import {
     Trash2,
     Edit2,
     Calendar,
-    Tag,
     Filter,
     FileText,
     BookOpen,
-    Tags
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import {
     MingRecord,
@@ -44,51 +44,77 @@ function RecordCard({
     const categoryInfo = RECORD_CATEGORIES.find(c => c.value === record.category);
 
     return (
-        <div className={`bg-background-secondary rounded-lg p-4 border ${record.is_pinned ? 'border-yellow-500/50' : 'border-border'} hover:border-accent/30 transition-colors`}>
-            <div className="flex items-start justify-between gap-2">
+        <div className={`group bg-background-secondary/40 backdrop-blur-sm rounded-xl p-5 border transition-all duration-300 ${record.is_pinned
+            ? 'border-yellow-500/30 bg-yellow-500/5 shadow-[0_0_15px_-3px_rgba(234,179,8,0.1)]'
+            : 'border-border/50 hover:border-emerald-500/30 hover:bg-background-secondary/60 hover:shadow-lg hover:shadow-emerald-500/5'
+            }`}>
+            <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        {record.is_pinned && <Pin className="w-3 h-3 text-yellow-500" />}
-                        <span className="text-xs text-foreground-secondary">{categoryInfo?.icon} {categoryInfo?.label}</span>
-                    </div>
-                    <h3 className="font-medium text-foreground truncate">{record.title}</h3>
-                    {record.content && (
-                        <p className="text-sm text-foreground-secondary mt-1 line-clamp-2">{record.content}</p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-foreground-secondary">
+                    <div className="flex items-center gap-2 mb-2">
+                        {record.is_pinned && (
+                            <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-yellow-600 dark:text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
+                                <Pin className="w-3 h-3" /> 置顶
+                            </span>
+                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${record.is_pinned
+                            ? 'text-yellow-600 dark:text-yellow-500 border-yellow-500/20 bg-yellow-500/5'
+                            : 'text-foreground-secondary border-border/50 bg-background/50'
+                            }`}>
+                            {categoryInfo?.icon} {categoryInfo?.label}
+                        </span>
                         {record.event_date && (
-                            <span className="flex items-center gap-1">
+                            <span className="text-xs text-foreground-secondary/70 flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
                                 {record.event_date}
                             </span>
                         )}
-                        {record.tags.length > 0 && (
-                            <span className="flex items-center gap-1">
-                                <Tag className="w-3 h-3" />
-                                {record.tags.slice(0, 2).join(', ')}
-                                {record.tags.length > 2 && '...'}
-                            </span>
-                        )}
                     </div>
+
+                    <h3 className="font-bold text-lg text-foreground mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-1">
+                        {record.title}
+                    </h3>
+
+                    {record.content && (
+                        <p className="text-sm text-foreground-secondary/80 leading-relaxed line-clamp-2 mb-3">
+                            {record.content}
+                        </p>
+                    )}
+
+                    {record.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                            {record.tags.slice(0, 3).map((tag, i) => (
+                                <span key={i} className="text-xs px-2 py-0.5 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-500/10">
+                                    #{tag}
+                                </span>
+                            ))}
+                            {record.tags.length > 3 && (
+                                <span className="text-xs text-foreground-secondary/50 self-center">+{record.tags.length - 3}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
-                <div className="flex items-center gap-1">
+
+                <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={onTogglePin}
-                        className="p-1.5 text-foreground-secondary hover:text-yellow-500 transition-colors"
+                        className={`p-2 rounded-lg transition-colors ${record.is_pinned
+                            ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20'
+                            : 'text-foreground-secondary hover:text-yellow-500 hover:bg-yellow-500/10'
+                            }`}
                         title={record.is_pinned ? '取消置顶' : '置顶'}
                     >
                         <Pin className="w-4 h-4" />
                     </button>
                     <button
                         onClick={onEdit}
-                        className="p-1.5 text-foreground-secondary hover:text-accent transition-colors"
+                        className="p-2 text-foreground-secondary hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
                         title="编辑"
                     >
                         <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                         onClick={onDelete}
-                        className="p-1.5 text-foreground-secondary hover:text-red-400 transition-colors"
+                        className="p-2 text-foreground-secondary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                         title="删除"
                     >
                         <Trash2 className="w-4 h-4" />
@@ -130,7 +156,7 @@ function RecordFormModal({
         setError('');
 
         try {
-            const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+            const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
             const data = { title, content, category, event_date: eventDate || null, tags };
 
             if (record) {
@@ -156,88 +182,105 @@ function RecordFormModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-background rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-border">
-                <div className="p-4 border-b border-border">
-                    <h2 className="text-lg font-medium text-foreground">{record ? '编辑记录' : '添加记录'}</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-background/95 backdrop-blur-xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-4 sm:p-6 border-b border-border/50 flex flex-col items-center justify-center bg-gradient-to-r from-emerald-500/5 to-teal-500/5">
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 shadow-inner">
+                        {record ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground">{record ? '编辑命理记录' : '新增命理感悟'}</h2>
+                    <p className="text-sm text-foreground-secondary mt-1">记录当下的所思所想，积累智慧</p>
                 </div>
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
+
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
                     {error && (
-                        <div className="text-red-400 text-sm bg-red-900/20 p-2 rounded">{error}</div>
+                        <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            {error}
+                        </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">标题 *</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
-                            placeholder="记录标题"
-                        />
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">标题</label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="w-full bg-background-secondary/50 border border-border/50 hover:border-emerald-500/50 rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-secondary/30 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                                placeholder="例如：今日八字排盘感悟..."
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">分类</label>
+                                <div className="relative">
+                                    <select
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value as RecordCategory)}
+                                        className="w-full bg-background-secondary/50 border border-border/50 hover:border-emerald-500/50 rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all appearance-none cursor-pointer"
+                                    >
+                                        {RECORD_CATEGORIES.map(cat => (
+                                            <option key={cat.value} value={cat.value}>
+                                                {cat.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">事件日期</label>
+                                <input
+                                    type="date"
+                                    value={eventDate}
+                                    onChange={(e) => setEventDate(e.target.value)}
+                                    className="w-full bg-background-secondary/50 border border-border/50 hover:border-emerald-500/50 rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all font-sans"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">标签</label>
+                            <input
+                                type="text"
+                                value={tagsInput}
+                                onChange={(e) => setTagsInput(e.target.value)}
+                                className="w-full bg-background-secondary/50 border border-border/50 hover:border-emerald-500/50 rounded-xl px-4 py-2.5 text-foreground placeholder:text-foreground-secondary/30 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                                placeholder="使用逗号分隔，例如：事业, 运势"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-foreground-secondary mb-1.5 ml-1">详情内容</label>
+                            <textarea
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                rows={6}
+                                className="w-full bg-background-secondary/50 border border-border/50 hover:border-emerald-500/50 rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-secondary/30 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all resize-none leading-relaxed"
+                                placeholder="记录详细的断语、排盘结果或心得体会..."
+                            />
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">分类</label>
-                        <select
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value as RecordCategory)}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
-                        >
-                            {RECORD_CATEGORIES.map(cat => (
-                                <option key={cat.value} value={cat.value}>
-                                    {cat.icon} {cat.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">事件日期</label>
-                        <input
-                            type="date"
-                            value={eventDate}
-                            onChange={(e) => setEventDate(e.target.value)}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">标签（逗号分隔）</label>
-                        <input
-                            type="text"
-                            value={tagsInput}
-                            onChange={(e) => setTagsInput(e.target.value)}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent"
-                            placeholder="例如: 事业, 财运"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-foreground-secondary mb-1">内容</label>
-                        <textarea
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            rows={4}
-                            className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-accent resize-none"
-                            placeholder="详细记录..."
-                        />
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-3 pt-2">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 text-foreground-secondary hover:text-foreground transition-colors"
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-border hover:bg-background-secondary/80 text-foreground-secondary hover:text-foreground transition-all"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100"
                         >
-                            {loading ? '保存中...' : '保存'}
+                            {loading ? '保存中...' : '保存记录'}
                         </button>
                     </div>
                 </form>
@@ -246,6 +289,9 @@ function RecordFormModal({
     );
 }
 
+// =====================================================
+// 小记组件
+// =====================================================
 // =====================================================
 // 小记组件
 // =====================================================
@@ -285,63 +331,117 @@ function DailyNotes({
     };
 
     return (
-        <div className="bg-background-secondary rounded-lg p-4 border border-border">
-            <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-5 h-5 text-purple-400" />
-                <h3 className="font-medium text-foreground">今日小记</h3>
+        <div className="bg-white/50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-border/50 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-emerald-500/10 transition-colors duration-700" />
+
+            <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
+                    <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                    <h3 className="font-bold text-foreground">今日小记</h3>
+                    <p className="text-xs text-foreground-secondary">记录当下的心情与感悟</p>
+                </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mb-4">
-                <div className="flex gap-2 mb-2">
-                    {NOTE_MOODS.map(m => (
+            <form onSubmit={handleSubmit} className="mb-6 relative z-10">
+                <div className="flex flex-col gap-3">
+                    <div className="flex gap-2 mb-1 p-1 bg-background-secondary/50 rounded-xl w-fit">
+                        {NOTE_MOODS.map(m => (
+                            <button
+                                key={m.value}
+                                type="button"
+                                onClick={() => setMood(m.value)}
+                                className={`
+                                    relative w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all
+                                    ${mood === m.value
+                                        ? 'bg-white dark:bg-zinc-800 shadow-sm scale-110 z-10 ring-1 ring-border/50'
+                                        : 'hover:bg-white/50 dark:hover:bg-zinc-800/50 hover:scale-105 opacity-60 hover:opacity-100'
+                                    }
+                                `}
+                                title={m.label}
+                            >
+                                <span className={`transition-transform duration-300 ${mood === m.value ? 'scale-110' : ''}`}>
+                                    {m.icon}
+                                </span>
+                                {mood === m.value && (
+                                    <span className="absolute -bottom-1 w-1 h-1 rounded-full bg-emerald-500" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative group/input">
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            placeholder="写下此刻的想法..."
+                            rows={2}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSubmit(e);
+                                }
+                            }}
+                            className="w-full bg-background border border-border rounded-xl pl-4 pr-12 py-3 text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30 transition-all placeholder:text-foreground-secondary/40"
+                        />
                         <button
-                            key={m.value}
-                            type="button"
-                            onClick={() => setMood(m.value)}
-                            className={`text-lg p-1 rounded transition-colors ${mood === m.value ? 'bg-background' : 'hover:bg-background'}`}
-                            title={m.label}
+                            type="submit"
+                            disabled={loading || !content.trim()}
+                            className="absolute right-3 bottom-3 p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center transform active:scale-95"
+                            title="发送 (Enter)"
                         >
-                            {m.icon}
+                            {loading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4" />
+                            )}
                         </button>
-                    ))}
-                </div>
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        placeholder="记录此刻的想法..."
-                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-accent"
-                    />
-                    <button
-                        type="submit"
-                        disabled={loading || !content.trim()}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm"
-                    >
-                        添加
-                    </button>
+                    </div>
                 </div>
             </form>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-4 max-h-[18rem] overflow-y-auto pr-1">
                 {notes.length === 0 ? (
-                    <p className="text-foreground-secondary text-sm text-center py-4">今天还没有小记</p>
+                    <div className="text-center py-6 border-2 border-dashed border-border/50 rounded-xl bg-background-secondary/20">
+                        <p className="text-foreground-secondary/60 text-sm">今天还没有记录，写点什么吧...</p>
+                    </div>
                 ) : (
-                    notes.map(note => {
-                        const moodInfo = NOTE_MOODS.find(m => m.value === note.mood);
-                        return (
-                            <div key={note.id} className="flex items-start gap-2 p-2 bg-background rounded-lg">
-                                <span className="text-lg">{moodInfo?.icon || '📝'}</span>
-                                <p className="flex-1 text-sm text-foreground-secondary">{note.content}</p>
-                                <button
-                                    onClick={() => handleDelete(note.id)}
-                                    className="text-foreground-secondary hover:text-red-400 transition-colors p-1"
-                                >
-                                    <Trash2 className="w-3 h-3" />
-                                </button>
-                            </div>
-                        );
-                    })
+                    <div className="relative pl-4 space-y-6 before:absolute before:left-[5px] before:top-2 before:bottom-0 before:w-px before:bg-gradient-to-b before:from-border before:to-transparent">
+                        {notes.map((note, index) => {
+                            const moodInfo = NOTE_MOODS.find(m => m.value === note.mood);
+                            return (
+                                <div key={note.id} className="relative group/item animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
+                                    <div className="absolute -left-[1.35rem] top-0 w-3 h-3 rounded-full bg-background border-2 border-emerald-500 z-10 shadow-[0_0_0_4px_rgba(var(--background-start-rgb),1)]" />
+
+                                    <div className="bg-background hover:bg-background-secondary/40 border border-border/50 hover:border-emerald-500/20 rounded-xl p-3.5 transition-all duration-300 hover:shadow-sm">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="text-lg leading-none filter drop-shadow-sm transform group-hover/item:scale-110 transition-transform duration-300" title={moodInfo?.label}>
+                                                        {moodInfo?.icon}
+                                                    </span>
+                                                    <span className="text-[10px] items-center px-1.5 py-0.5 rounded-full bg-background-secondary text-foreground-secondary border border-border/50 hidden group-hover/item:inline-flex">
+                                                        {moodInfo?.label}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-foreground/90 leading-relaxed font-light break-words">
+                                                    {note.content}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDelete(note.id)}
+                                                className="opacity-0 group-hover/item:opacity-100 p-1.5 text-foreground-secondary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all scale-90 hover:scale-100"
+                                                title="删除"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 )}
             </div>
         </div>
@@ -492,7 +592,7 @@ export default function RecordsPage() {
             setUser(user);
         };
         checkAuth();
-    }, []); // 移除 router 依赖
+    }, []);
 
     // 加载记录
     const loadRecords = useCallback(async () => {
@@ -554,88 +654,109 @@ export default function RecordsPage() {
 
     return (
         <LoginOverlay message="登录后使用命理记录功能">
-            <div className="min-h-screen bg-background text-foreground">
-                <div className="max-w-4xl mx-auto p-4 md:p-6">
-                    {/* 标题 */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <Tags className="w-8 h-8 text-accent" />
-                            <div>
-                                <h1 className="text-2xl font-bold">命理记录</h1>
-                                <p className="text-sm text-foreground-secondary">记录你的命理旅程</p>
+            <div className="min-h-screen bg-white text-foreground pb-20">
+                {/* 顶部 Hero 区域 */}
+                <div className="relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
+                    <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
+
+
+                    <div className="max-w-4xl mx-auto px-4 relative z-10">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="text-center md:text-left">
+                                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 mb-4 tracking-tight">
+                                    命理记录
+                                </h1>
+                                <p className="text-lg text-foreground-secondary/80 max-w-lg">
+                                    记录你的修行与感悟，追踪运势变化，积累命理智慧。
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setShowImportExport(true)}
+                                    className="p-3 bg-background border border-border rounded-xl text-foreground-secondary hover:text-foreground hover:border-foreground/20 hover:shadow-sm transition-all shadow-sm"
+                                    title="数据管理"
+                                >
+                                    <Download className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => setShowRecordForm(true)}
+                                    className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+                                >
+                                    <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                                    <span className="font-medium">新建记录</span>
+                                </button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setShowImportExport(true)}
-                                className="p-2 text-foreground-secondary hover:text-foreground transition-colors"
-                                title="数据管理"
-                            >
-                                <Download className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setShowRecordForm(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-                            >
-                                <Plus className="w-4 h-4" />
-                                添加记录
-                            </button>
-                        </div>
                     </div>
+                </div>
 
+                <div className="max-w-4xl mx-auto px-4 space-y-8">
                     {/* 小记区域 */}
-                    <div className="mb-6">
+                    <div className="bg-background-secondary/30 border-border/50 rounded-2xl p-1 backdrop-blur-sm">
                         <DailyNotes notes={notes} onRefresh={loadNotes} />
                     </div>
 
                     {/* 搜索和筛选 */}
-                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+                    <div className="sticky top-4 z-30 bg-background/80 backdrop-blur-md rounded-2xl border border-border shadow-sm p-2 flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1 relative group">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary group-focus-within:text-emerald-500 transition-colors" />
                             <input
                                 type="text"
                                 value={search}
                                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                                placeholder="搜索记录..."
-                                className="w-full bg-background-secondary border border-border rounded-lg pl-10 pr-4 py-2 text-foreground focus:outline-none focus:border-accent"
+                                placeholder="搜索关键词..."
+                                className="w-full bg-transparent hover:bg-background-secondary/50 focus:bg-background border-none rounded-xl pl-10 pr-4 py-2.5 text-foreground placeholder:text-foreground-secondary/50 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
                             />
                         </div>
-                        <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+                        <div className="w-px h-8 bg-border hidden sm:block self-center" />
+                        <div className="relative min-w-[160px]">
+                            <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary pointer-events-none" />
                             <select
                                 value={category}
                                 onChange={(e) => { setCategory(e.target.value as RecordCategory | ''); setPage(1); }}
-                                className="bg-background-secondary border border-border rounded-lg pl-10 pr-8 py-2 text-foreground focus:outline-none focus:border-accent appearance-none"
+                                className="w-full bg-transparent hover:bg-background-secondary/50 focus:bg-background border-none rounded-xl pl-10 pr-8 py-2.5 text-foreground focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none appearance-none cursor-pointer"
                             >
                                 <option value="">全部分类</option>
                                 {RECORD_CATEGORIES.map(cat => (
                                     <option key={cat.value} value={cat.value}>
-                                        {cat.icon} {cat.label}
+                                        {cat.label}
                                     </option>
                                 ))}
                             </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
                         </div>
                     </div>
 
                     {/* 记录列表 */}
                     {loading ? (
-                        <div className="flex justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                            <div className="relative w-12 h-12">
+                                <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
+                                <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+                            </div>
+                            <p className="text-foreground-secondary animate-pulse">加载记录中...</p>
                         </div>
                     ) : records.length === 0 ? (
-                        <div className="text-center py-12 text-foreground-secondary">
-                            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>暂无记录</p>
+                        <div className="py-20 text-center">
+                            <div className="w-24 h-24 bg-background-secondary/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FileText className="w-10 h-10 text-foreground-secondary/50" />
+                            </div>
+                            <h3 className="text-lg font-medium text-foreground mb-2">暂无记录</h3>
+                            <p className="text-foreground-secondary mb-6 max-w-xs mx-auto">
+                                还没有添加任何命理记录。开始记录你的第一次感悟吧！
+                            </p>
                             <button
                                 onClick={() => setShowRecordForm(true)}
-                                className="mt-4 text-accent hover:text-accent/80"
+                                className="px-6 py-2.5 bg-background border border-border hover:border-emerald-500/50 hover:text-emerald-500 rounded-xl transition-all shadow-sm hover:shadow-md"
                             >
-                                添加第一条记录
+                                立即添加
                             </button>
                         </div>
                     ) : (
                         <>
-                            <div className="space-y-3">
+                            <div className="grid gap-4">
                                 {records.map(record => (
                                     <RecordCard
                                         key={record.id}
@@ -649,23 +770,23 @@ export default function RecordsPage() {
 
                             {/* 分页 */}
                             {totalPages > 1 && (
-                                <div className="flex justify-center gap-2 mt-6">
+                                <div className="flex items-center justify-center gap-3 pt-8 pb-4">
                                     <button
                                         onClick={() => setPage(p => Math.max(1, p - 1))}
                                         disabled={page === 1}
-                                        className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
+                                        className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
                                     >
-                                        上一页
+                                        <ChevronLeft className="w-5 h-5" />
                                     </button>
-                                    <span className="px-3 py-1 text-foreground-secondary">
+                                    <span className="text-sm font-medium text-foreground px-4 py-1.5 bg-background-secondary rounded-lg">
                                         {page} / {totalPages}
                                     </span>
                                     <button
                                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                         disabled={page === totalPages}
-                                        className="px-3 py-1 bg-background-secondary border border-border rounded disabled:opacity-50"
+                                        className="p-2 rounded-lg hover:bg-background-secondary disabled:opacity-50 disabled:hover:bg-transparent transition-colors text-foreground-secondary"
                                     >
-                                        下一页
+                                        <ChevronRight className="w-5 h-5" />
                                     </button>
                                 </div>
                             )}

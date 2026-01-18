@@ -177,7 +177,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
     };
 
     return (
-        <section className="bg-background rounded-xl border border-border overflow-hidden">
+        <section className="bg-background rounded-xl border-border overflow-hidden">
             {/* 标题栏 */}
             <div className="p-4 border-b border-border flex items-center justify-between">
                 <div>
