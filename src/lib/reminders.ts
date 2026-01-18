@@ -4,7 +4,7 @@
  * 管理节气提醒、运势提醒、关键日提醒等
  */
 
-import { supabase } from './supabase';
+import { getServiceClient } from './supabase-server';
 import { createNotification } from './notification';
 import { getNextSolarTerm, getSolarTermMeaning } from './solar-terms';
 
@@ -37,7 +37,9 @@ export interface ScheduledReminder {
  * 获取用户提醒订阅设置
  */
 export async function getReminderSubscriptions(userId: string): Promise<ReminderSubscription[]> {
-    const { data, error } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { data, error } = await serviceClient
         .from('reminder_subscriptions')
         .select('*')
         .eq('user_id', userId);
@@ -65,7 +67,9 @@ export async function updateReminderSubscription(
     reminderType: ReminderType,
     settings: { enabled?: boolean; notifyEmail?: boolean; notifySite?: boolean }
 ): Promise<boolean> {
-    const { error } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
         .from('reminder_subscriptions')
         .upsert({
             user_id: userId,
@@ -90,7 +94,9 @@ export async function updateReminderSubscription(
  * 检查用户是否订阅了某类型提醒
  */
 export async function isSubscribed(userId: string, reminderType: ReminderType): Promise<boolean> {
-    const { data } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { data } = await serviceClient
         .from('reminder_subscriptions')
         .select('enabled')
         .eq('user_id', userId)
@@ -112,7 +118,9 @@ export async function scheduleSolarTermReminder(
 ): Promise<boolean> {
     const meaning = getSolarTermMeaning(termName);
 
-    const { error } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
             user_id: userId,
@@ -141,7 +149,9 @@ export async function scheduleFortuneReminder(
     date: string,
     fortuneData: Record<string, unknown>
 ): Promise<boolean> {
-    const { error } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
             user_id: userId,
@@ -166,7 +176,9 @@ export async function processScheduledReminders(): Promise<number> {
     const now = new Date().toISOString();
 
     // 获取待发送的提醒
-    const { data: pendingReminders, error } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { data: pendingReminders, error } = await serviceClient
         .from('scheduled_reminders')
         .select('*')
         .eq('sent', false)
@@ -244,7 +256,9 @@ async function sendReminder(reminder: {
  * 标记提醒已发送
  */
 async function markReminderSent(reminderId: string): Promise<void> {
-    await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    await serviceClient
         .from('scheduled_reminders')
         .update({
             sent: true,
@@ -263,7 +277,9 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
     if (!nextTerm) return 0;
 
     // 检查是否已经安排
-    const { data: existing } = await supabase
+    // 使用 service client 绕过 RLS
+    const serviceClient = getServiceClient();
+    const { data: existing } = await serviceClient
         .from('scheduled_reminders')
         .select('id')
         .eq('user_id', userId)
