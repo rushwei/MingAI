@@ -126,7 +126,7 @@ export function ChatComposer({
     };
 
     return (
-        <div className={`fixed left-0 right-0 bottom-[4rem] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
+        <div className={`fixed left-0 right-0 bottom-[3.5rem] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
             <div className="max-w-3xl mx-auto">
                 {/* 输入框容器 */}
                 <div className={`

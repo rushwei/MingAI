@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User } from 'lucide-react';
+import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 
@@ -15,6 +15,9 @@ interface ConversationSidebarProps {
     isOpen: boolean;
     onClose: () => void;
     isLoading?: boolean;
+    isCollapsed?: boolean;
+    onCollapse?: (collapsed: boolean) => void;
+    onToggle?: (isOpen: boolean) => void;
 }
 
 // 分组配置 - 图标与 fortune-hub 保持一致
@@ -49,6 +52,9 @@ export function ConversationSidebar({
     isOpen,
     onClose,
     isLoading = false,
+    isCollapsed: externalCollapsed,
+    onCollapse,
+    onToggle,
 }: ConversationSidebarProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -56,6 +62,17 @@ export function ConversationSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<ConversationSourceType>>(new Set());
+    const [internalCollapsed, setInternalCollapsed] = useState(false);
+
+    // 使用外部或内部折叠状态
+    const isCollapsed = externalCollapsed ?? internalCollapsed;
+    const handleCollapse = (collapsed: boolean) => {
+        if (onCollapse) {
+            onCollapse(collapsed);
+        } else {
+            setInternalCollapsed(collapsed);
+        }
+    };
 
     // 按类型分组对话
     const groupedConversations = useMemo(() => {
@@ -204,102 +221,190 @@ export function ConversationSidebar({
             {/* 侧边栏 */}
             <aside
                 className={`
-                    fixed lg:relative top-0 left-0 h-full w-72 z-50
-                    bg-background border-r border-border
-                    transform transition-transform duration-300
-                    ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-                    flex flex-col
+                    fixed lg:relative top-14 lg:top-0 bottom-14 lg:bottom-0 left-0 z-50
+                    flex flex-row items-center
+                    transition-transform duration-300 ease-out
+                    ${isOpen ? 'translate-x-0' : '-translate-x-[calc(100%-40px)] lg:translate-x-0'}
                 `}
             >
-                {/* 头部 - 只有关闭按钮 */}
-                <div className="flex items-center justify-end p-3 lg:hidden">
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
+                {/* 内容区域 */}
+                <div
+                    className={`
+                        h-full 
+                        ${isCollapsed ? 'lg:w-14' : 'lg:w-64'} w-64
+                        bg-background border-r border-border
+                        flex flex-col
+                        transition-all duration-300
+                        shadow-2xl lg:shadow-none
+                        rounded-r-2xl lg:rounded-none
+                    `}
+                >
+                    {/* 操作按钮 (新聊天、搜索) */}
+                    <div className="px-2 py-2 space-y-1">
+                        <div className={`flex items-center gap-1 ${isCollapsed ? 'flex-col' : ''}`}>
+                            <button
+                                onClick={onNew}
+                                className={`flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg hover:bg-background-secondary transition-colors text-sm ${isCollapsed ? 'lg:justify-center w-full' : 'flex-1'}`}
+                                title="新聊天"
+                            >
+                                <SquarePen className="w-5 h-5 flex-shrink-0" />
+                                <span className={`${isCollapsed ? 'lg:hidden' : ''} whitespace-nowrap`}>新聊天</span>
+                            </button>
 
-                {/* 操作按钮 */}
-                <div className="px-3 py-2 space-y-1">
-                    <button
-                        onClick={onNew}
-                        className="flex items-center gap-3 w-full px-3 py-2.5 h-12 rounded-lg hover:bg-background-secondary transition-colors text-sm"
-                    >
-                        <SquarePen className="w-4.5 h-4.5" />
-                        <span>新聊天</span>
-                    </button>
-                    <button
-                        onClick={() => setIsSearching(!isSearching)}
-                        className={`flex items-center gap-3 w-full px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'}`}
-                    >
-                        <Search className="w-4.5 h-4.5" />
-                        <span>搜索聊天</span>
-                    </button>
-                </div>
+                            {/* 桌面端：折叠/展开按钮 */}
+                            <button
+                                onClick={() => handleCollapse(!isCollapsed)}
+                                className={`
+                                    hidden lg:flex items-center justify-center 
+                                    p-2.5 h-12 w-10 
+                                    rounded-lg hover:bg-background-secondary transition-colors text-foreground-secondary hover:text-foreground
+                                    ${isCollapsed ? 'order-first w-full h-10' : ''}
+                                `}
+                                title={isCollapsed ? "展开侧边栏" : "收起侧边栏"}
+                            >
+                                {isCollapsed ? (
+                                    <PanelLeft className="w-5 h-5" />
+                                ) : (
+                                    <PanelLeftClose className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
 
-                {/* 搜索框 */}
-                {isSearching && (
-                    <div className="px-3 pb-3">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="搜索对话标题..."
-                            className="w-full px-3 py-2 text-sm rounded-lg bg-background-secondary border border-border focus:outline-none focus:ring-2 focus:ring-accent/30"
-                            autoFocus
-                        />
+                        <button
+                            onClick={() => {
+                                if (isCollapsed) {
+                                    handleCollapse(false);
+                                }
+                                setIsSearching(!isSearching);
+                            }}
+                            className={`flex items-center gap-3 px-3 py-2.5 h-12 rounded-lg transition-colors text-sm ${isSearching ? 'bg-background-secondary' : 'hover:bg-background-secondary'} ${isCollapsed ? 'lg:justify-center' : 'w-full'}`}
+                            title="搜索聊天"
+                        >
+                            <Search className="w-5 h-5 flex-shrink-0" />
+                            <span className={`${isCollapsed ? 'lg:hidden' : ''} whitespace-nowrap`}>搜索聊天</span>
+                        </button>
                     </div>
-                )}
 
-                {/* 分组对话列表 */}
-                <div className="flex-1 overflow-y-auto px-2 pb-2">
-                    {isLoading ? (
-                        <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            <span>加载中...</span>
+                    {/* 搜索框 - 仅在展开状态显示 */}
+                    {isSearching && !isCollapsed && (
+                        <div className="px-3 pb-3">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="搜索对话标题..."
+                                className="w-full px-3 py-2 text-sm rounded-lg bg-background-secondary border border-border focus:outline-none focus:ring-2 focus:ring-accent/30"
+                                autoFocus
+                            />
                         </div>
-                    ) : conversations.length === 0 ? (
-                        <div className="text-center text-foreground-secondary text-sm py-8">
-                            暂无对话记录
-                        </div>
-                    ) : (
-                        SOURCE_TYPE_ORDER.map(type => {
-                            const items = groupedConversations[type];
-                            if (items.length === 0) return null;
-
-                            const config = SOURCE_TYPE_CONFIG[type];
-                            const isCollapsed = collapsedGroups.has(type);
-
-                            return (
-                                <div key={type} className="mb-2">
-                                    {/* 分组标题 */}
-                                    <button
-                                        onClick={() => toggleGroup(type)}
-                                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground-secondary hover:text-foreground transition-colors"
-                                    >
-                                        {isCollapsed ? (
-                                            <ChevronRight className="w-3 h-3" />
-                                        ) : (
-                                            <ChevronDown className="w-3 h-3" />
-                                        )}
-                                        <span>{config.label}</span>
-                                        <span className="ml-auto text-foreground-tertiary">
-                                            {items.length}
-                                        </span>
-                                    </button>
-
-                                    {/* 分组内容 */}
-                                    {!isCollapsed && (
-                                        <div className="space-y-0.5 mt-1">
-                                            {items.map(conv => renderConversationItem(conv))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })
                     )}
+
+                    {/* 分组对话列表 - 仅在展开状态显示 */}
+                    {!isCollapsed && (
+                        <div className="flex-1 overflow-y-auto px-2 pb-2">
+                            {isLoading ? (
+                                <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <span>加载中...</span>
+                                </div>
+                            ) : conversations.length === 0 ? (
+                                <div className="text-center text-foreground-secondary text-sm py-8">
+                                    暂无对话记录
+                                </div>
+                            ) : (
+                                SOURCE_TYPE_ORDER.map(type => {
+                                    const items = groupedConversations[type];
+                                    if (items.length === 0) return null;
+
+                                    const config = SOURCE_TYPE_CONFIG[type];
+                                    const isCollapsed = collapsedGroups.has(type);
+
+                                    return (
+                                        <div key={type} className="mb-2">
+                                            {/* 分组标题 */}
+                                            <button
+                                                onClick={() => toggleGroup(type)}
+                                                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground-secondary hover:text-foreground transition-colors"
+                                            >
+                                                {isCollapsed ? (
+                                                    <ChevronRight className="w-3 h-3" />
+                                                ) : (
+                                                    <ChevronDown className="w-3 h-3" />
+                                                )}
+                                                <span>{config.label}</span>
+                                                <span className="ml-auto text-foreground-tertiary">
+                                                    {items.length}
+                                                </span>
+                                            </button>
+
+                                            {/* 分组内容 */}
+                                            {!isCollapsed && (
+                                                <div className="space-y-0.5 mt-1">
+                                                    {items.map(conv => renderConversationItem(conv))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 
+                   手机端把手部分 (白色/背景色)
+                   仅在手机端显示，且位于内容右侧
+                */}
+                <div
+                    className="lg:hidden group relative flex flex-col items-start z-20 cursor-pointer -ml-[1px]"
+                    onClick={() => {
+                        console.log('toggle clicked', isOpen);
+                        if (onToggle) {
+                            onToggle(!isOpen);
+                        } else {
+                            onClose();
+                        }
+                    }}
+                >
+                    {/* 上方反向圆角 - 镜像 HistoryDrawer */}
+                    <svg width="16" height="16" className="relative -mb-[1px] z-30 pointer-events-none transform scale-x-[-1]">
+                        {/* 填充 */}
+                        <path d="M 16 0 L 16 16 L 0 16 A 16 16 0 0 0 16 0 Z" className="fill-background" />
+                        {/* 描边 */}
+                        <path d="M 0 16 A 16 16 0 0 0 16 0" className="stroke-border fill-none" strokeWidth="1" />
+                    </svg>
+
+                    {/* 按钮主体 */}
+                    <button
+                        className={`
+                            relative
+                            flex items-center justify-center
+                            w-10 h-16
+                            bg-background
+                            rounded-r-xl
+                            transition-colors duration-200
+                            border-y border-r border-border
+                            border-l-0
+                            shadow-[4px_0_8px_rgba(0,0,0,0.02)]
+                        `}
+                        title={isOpen ? "收起" : "打开"}
+                    >
+                        <div className="transition-all duration-300 transform scale-100 text-foreground-secondary group-hover:text-foreground">
+                            {isOpen ? (
+                                <PanelLeftClose className="w-5 h-5" />
+                            ) : (
+                                <PanelLeft className="w-5 h-5" />
+                            )}
+                        </div>
+                    </button>
+
+                    {/* 下方反向圆角 - 镜像 HistoryDrawer */}
+                    <svg width="16" height="16" className="relative -mt-[1px] z-30 pointer-events-none transform scale-x-[-1]">
+                        {/* 填充 */}
+                        <path d="M 16 16 L 16 0 L 0 0 A 16 16 0 0 1 16 16 Z" className="fill-background" />
+                        {/* 描边 */}
+                        <path d="M 0 0 A 16 16 0 0 1 16 16" className="stroke-border fill-none" strokeWidth="1" />
+                    </svg>
                 </div>
             </aside>
 

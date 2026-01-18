@@ -354,12 +354,12 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
             {/* 
                 主容器
-                固定在右侧，垂直居中
+                固定在右侧，手机端避开顶部和底部导航栏
                 通过 translateX 控制显示/隐藏
             */}
             <div
                 className={`
-                    fixed top-1/2 -translate-y-1/2 right-0 z-50
+                    fixed top-15 bottom-15 md:top-1/2 md:bottom-auto md:-translate-y-1/2 right-0 z-50
                     flex items-center
                     transition-transform duration-300 ease-out
                     ${className}
@@ -418,10 +418,10 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
 
                 {/* 
                     内容面板 
-                    高度调整为 90vh，使其适应屏幕高度并留出上下边距
+                    手机端使用 h-full 自适应，桌面端使用固定高度
                 */}
                 <div
-                    className="h-[90vh] bg-background border-y border-l border-border rounded-l-2xl shadow-xl flex flex-col overflow-hidden relative"
+                    className="h-full md:h-[90vh] bg-background border-y border-l border-border rounded-l-2xl shadow-xl flex flex-col overflow-hidden relative"
                     style={{
                         width: PANEL_WIDTH,
                         marginLeft: '-1px' // 消除缝隙

@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Lock, Menu } from 'lucide-react';
+import { Sparkles, Lock } from 'lucide-react';
 import Link from 'next/link';
 import type { ChatMessage, Conversation, AttachmentState, DifyContext } from '@/types';
 import { AI_PERSONALITIES } from '@/lib/ai';
@@ -833,20 +833,13 @@ export default function ChatPage() {
                     onRename={handleRenameConversation}
                     isOpen={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
+                    onToggle={setSidebarOpen}
                     isLoading={conversationsLoading}
                 />
 
                 {/* 主内容区 */}
                 <div className="flex-1 flex flex-col min-w-0">
-                    {/* 移动端菜单按钮 */}
-                    <div className="lg:hidden flex items-center px-4 py-3 border-b border-border">
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="p-2 -ml-2 rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <Menu className="w-5 h-5" />
-                        </button>
-                    </div>
+                    {/* 消息列表 */}
 
                     {/* 消息列表 */}
                     <div className="flex-1 overflow-y-auto px-4 py-4 relative">
