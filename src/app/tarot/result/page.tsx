@@ -75,6 +75,47 @@ function TarotResultContent() {
         loadMembership();
     }, []);
 
+    // 处理新抽牌
+    useEffect(() => {
+        // 只有在有 spreadId 时才执行新抽牌
+        if (!spreadId) return;
+
+        const drawCards = async () => {
+            setIsLoading(true);
+            setIsViewingHistory(false);
+            setHasSaved(false);
+            setReadingId(null);
+            setConversationId(null);
+            setRevealedCards([]);
+            setInterpretation('');
+            setInterpretationReasoning(null);
+
+            try {
+                const res = await fetch('/api/tarot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'draw-only',
+                        spreadId,
+                        allowReversed: true,
+                    }),
+                });
+                const data = await res.json();
+
+                if (data.success && data.data?.cards) {
+                    setSelectedSpread(data.data.spread);
+                    setDrawnCards(data.data.cards);
+                }
+            } catch (error) {
+                console.error('抽牌失败:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        drawCards();
+    }, [spreadId]);
+
     // 处理历史记录加载
     useEffect(() => {
         // 如果有 spreadId，说明是新占卜，跳过加载历史
@@ -117,49 +158,13 @@ function TarotResultContent() {
             }
         }
 
-        if (!spreadId) {
-            if (historyTimestamp) {
-                setHistoryMissing(true);
-                setIsLoading(false);
-                return;
-            }
-            router.push('/tarot');
+        // 没有 spreadId 且没有有效的 sessionStorage 数据
+        if (historyTimestamp) {
+            setHistoryMissing(true);
+            setIsLoading(false);
             return;
         }
-
-        const drawCards = async () => {
-            setIsLoading(true);
-            setIsViewingHistory(false);
-            setHasSaved(false);
-            setReadingId(null);
-            setRevealedCards([]);
-            setInterpretation('');
-            setInterpretationReasoning(null);
-
-            try {
-                const res = await fetch('/api/tarot', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'draw-only',
-                        spreadId,
-                        allowReversed: true,
-                    }),
-                });
-                const data = await res.json();
-
-                if (data.success && data.data?.cards) {
-                    setSelectedSpread(data.data.spread);
-                    setDrawnCards(data.data.cards);
-                }
-            } catch (error) {
-                console.error('抽牌失败:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        drawCards();
+        router.push('/tarot');
     }, [historyTimestamp, router, spreadId]);
 
     const saveReading = async () => {
