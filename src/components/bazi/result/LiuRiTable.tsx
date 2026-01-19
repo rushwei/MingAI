@@ -24,7 +24,7 @@ export function LiuRiTable({
                             type="button"
                             onClick={() => onSelect(ri.date)}
                             className={`
-                                flex-shrink-0 w-14 text-center p-1.5 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-13 text-center p-1.5 rounded-lg border-2 transition-all
                                 ${isSelected
                                     ? 'border-accent bg-accent/10'
                                     : 'border-transparent bg-background hover:bg-background-secondary'

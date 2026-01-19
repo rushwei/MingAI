@@ -326,7 +326,7 @@ export default function ResultPage() {
                 )}
 
                 {/* Hexagram Display */}
-                <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm p-8 mb-10 shadow-xl">
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl md:rounded-[2rem] backdrop-blur-sm p-12 md:p-16 mb-10 shadow-xl w-fit mx-auto">
                     <HexagramDisplay
                         yaos={result.yaos}
                         hexagram={result.hexagram}
@@ -341,7 +341,7 @@ export default function ResultPage() {
 
                 {/* Traditional Analysis */}
                 {showTraditional && traditionalData && (
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 mb-10 animate-fade-in-up">
+                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-1 md:p-8 mb-10 animate-fade-in-up">
                         <div className="flex items-center gap-3 mb-6">
                             <span className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
                                 <BookOpen className="w-5 h-5" />

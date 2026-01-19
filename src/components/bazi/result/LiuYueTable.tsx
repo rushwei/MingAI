@@ -27,7 +27,7 @@ export function LiuYueTable({
                             type="button"
                             onClick={() => onSelect(ly.month)}
                             className={`
-                                flex-shrink-0 w-16 text-center p-1.5 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-12 text-center p-1.5 rounded-lg border-2 transition-all
                                 ${isSelected
                                     ? 'border-accent bg-accent/10'
                                     : 'border-transparent bg-background hover:bg-background-secondary'
