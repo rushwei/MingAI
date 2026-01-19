@@ -10,7 +10,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Lock } from 'lucide-react';
 import Link from 'next/link';
 import type { ChatMessage, Conversation, AttachmentState, DifyContext } from '@/types';
-import { AI_PERSONALITIES } from '@/lib/ai';
+
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -29,13 +29,6 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 
-// 快捷问题
-const quickQuestions = [
-    '我今年运势如何？',
-    '我适合什么职业？',
-    '我的感情运势怎么样？',
-    '我应该注意什么健康问题？',
-];
 
 // AI 生成对话标题（使用专用 API，不消耗积分）
 async function generateAITitle(messages: ChatMessage[]): Promise<string> {
@@ -442,10 +435,6 @@ export default function ChatPage() {
         }
     };
 
-    const handleQuickQuestion = (question: string) => {
-        setInputValue(question);
-    };
-
     // 停止AI回复
     const handleStop = useCallback(() => {
         if (abortControllerRef.current) {
@@ -815,7 +804,7 @@ export default function ChatPage() {
         });
     }, [userId, activeConversationId, saveMessages]);
 
-    const currentPersonality = AI_PERSONALITIES['master'];
+
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
 
@@ -839,78 +828,140 @@ export default function ChatPage() {
 
                 {/* 主内容区 */}
                 <div className="flex-1 flex flex-col min-w-0">
-                    {/* 消息列表 */}
+                    {/* 无对话时居中布局（仅桌面端） */}
+                    {messages.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
+                            {/* 提示语 */}
+                            <p className="text-xl text-foreground-secondary mb-8 animate-fade-in-up">
+                                今天运势如何？
+                            </p>
 
-                    {/* 消息列表 */}
-                    <div className="flex-1 overflow-y-auto px-4 py-4 relative">
-                        <ChatMessageList
-                            messages={messages}
-                            currentPersonality={currentPersonality}
-                            isLoading={isLoading}
-                            quickQuestions={isCreditLocked ? [] : quickQuestions}
-                            onQuickQuestion={handleQuickQuestion}
-                            messagesEndRef={messagesEndRef}
-                            onEditMessage={handleEditMessage}
-                            onRegenerateResponse={handleRegenerateResponse}
-                            onSwitchVersion={handleSwitchVersion}
-                            disabled={isCreditLocked}
-                        />
-                    </div>
-
-                    {/* 积分不足提示 */}
-                    {isCreditLocked && (
-                        <div className="px-4 py-3 bg-amber-500/10 border-t border-amber-500/20">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 text-amber-600">
-                                    <Lock className="w-4 h-4" />
-                                    <span className="text-sm">积分已用完</span>
-                                </div>
-                                {isPaymentPaused ? (
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-sm cursor-not-allowed">
-                                        <Lock className="w-3.5 h-3.5" />
-                                        支付暂停
+                            {/* 积分不足提示 */}
+                            {isCreditLocked && (
+                                <div className="w-full max-w-3xl mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 text-amber-600">
+                                            <Lock className="w-4 h-4" />
+                                            <span className="text-sm">积分已用完</span>
+                                        </div>
+                                        {isPaymentPaused ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-sm cursor-not-allowed">
+                                                <Lock className="w-3.5 h-3.5" />
+                                                支付暂停
+                                            </div>
+                                        ) : (
+                                            <Link
+                                                href="/user/upgrade"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" />
+                                                立即充值
+                                            </Link>
+                                        )}
                                     </div>
-                                ) : (
-                                    <Link
-                                        href="/user/upgrade"
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
-                                    >
-                                        <Sparkles className="w-3.5 h-3.5" />
-                                        立即充值
-                                    </Link>
-                                )}
+                                </div>
+                            )}
+
+                            {/* 居中的输入框 */}
+                            <div className="w-full max-w-3xl">
+                                <ChatComposer
+                                    inputValue={inputValue}
+                                    isLoading={isLoading}
+                                    onInputChange={setInputValue}
+                                    onSend={handleSend}
+                                    onStop={handleStop}
+                                    disabled={isCreditLocked}
+                                    selectedCharts={selectedCharts}
+                                    onSelectChart={(type) => {
+                                        setChartFocusType(type);
+                                        setChartSelectorOpen(true);
+                                    }}
+                                    onClearChart={(type) => {
+                                        const nextCharts = { ...selectedCharts };
+                                        delete nextCharts[type];
+                                        setSelectedCharts(nextCharts);
+                                    }}
+                                    selectedModel={selectedModel}
+                                    onModelChange={setSelectedModel}
+                                    reasoningEnabled={reasoningEnabled}
+                                    onReasoningChange={setReasoningEnabled}
+                                    userId={userId}
+                                    membershipType={membership?.type || 'free'}
+                                    attachmentState={attachmentState}
+                                    onAttachmentChange={setAttachmentState}
+                                />
                             </div>
                         </div>
-                    )}
+                    ) : (
+                        <>
+                            {/* 消息列表 */}
+                            <div className="flex-1 overflow-y-auto px-4 py-4 relative">
+                                <ChatMessageList
+                                    messages={messages}
+                                    isLoading={isLoading}
+                                    messagesEndRef={messagesEndRef}
+                                    onEditMessage={handleEditMessage}
+                                    onRegenerateResponse={handleRegenerateResponse}
+                                    onSwitchVersion={handleSwitchVersion}
+                                    disabled={isCreditLocked}
+                                />
+                            </div>
 
-                    {/* 输入框 */}
-                    <ChatComposer
-                        inputValue={inputValue}
-                        isLoading={isLoading}
-                        onInputChange={setInputValue}
-                        onSend={handleSend}
-                        onStop={handleStop}
-                        disabled={isCreditLocked}
-                        selectedCharts={selectedCharts}
-                        onSelectChart={(type) => {
-                            setChartFocusType(type);
-                            setChartSelectorOpen(true);
-                        }}
-                        onClearChart={(type) => {
-                            // 仅清理当前对话框中的命盘，不影响历史记录
-                            const nextCharts = { ...selectedCharts };
-                            delete nextCharts[type];
-                            setSelectedCharts(nextCharts);
-                        }}
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                        reasoningEnabled={reasoningEnabled}
-                        onReasoningChange={setReasoningEnabled}
-                        userId={userId}
-                        membershipType={membership?.type || 'free'}
-                        attachmentState={attachmentState}
-                        onAttachmentChange={setAttachmentState}
-                    />
+                            {/* 积分不足提示 */}
+                            {isCreditLocked && (
+                                <div className="px-4 py-3 bg-amber-500/10 border-t border-amber-500/20">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 text-amber-600">
+                                            <Lock className="w-4 h-4" />
+                                            <span className="text-sm">积分已用完</span>
+                                        </div>
+                                        {isPaymentPaused ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-sm cursor-not-allowed">
+                                                <Lock className="w-3.5 h-3.5" />
+                                                支付暂停
+                                            </div>
+                                        ) : (
+                                            <Link
+                                                href="/user/upgrade"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-sm hover:bg-accent/90 transition-colors"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" />
+                                                立即充值
+                                            </Link>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 输入框 */}
+                            <ChatComposer
+                                inputValue={inputValue}
+                                isLoading={isLoading}
+                                onInputChange={setInputValue}
+                                onSend={handleSend}
+                                onStop={handleStop}
+                                disabled={isCreditLocked}
+                                selectedCharts={selectedCharts}
+                                onSelectChart={(type) => {
+                                    setChartFocusType(type);
+                                    setChartSelectorOpen(true);
+                                }}
+                                onClearChart={(type) => {
+                                    const nextCharts = { ...selectedCharts };
+                                    delete nextCharts[type];
+                                    setSelectedCharts(nextCharts);
+                                }}
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                                userId={userId}
+                                membershipType={membership?.type || 'free'}
+                                attachmentState={attachmentState}
+                                onAttachmentChange={setAttachmentState}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
 

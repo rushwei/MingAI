@@ -1,18 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Search, FileText, Sparkles } from 'lucide-react';
-import type { AIPersonalityConfig, ChatMessage } from '@/types';
+import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
+import type { ChatMessage } from '@/types';
 import { getModelName } from '@/lib/ai-config';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from './ThinkingBlock';
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
-    currentPersonality: AIPersonalityConfig;
     isLoading: boolean;
-    quickQuestions: string[];
-    onQuickQuestion: (question: string) => void;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
     onEditMessage?: (messageId: string, newContent: string) => void;
     onRegenerateResponse?: (messageId: string) => void;
@@ -22,10 +19,7 @@ interface ChatMessageListProps {
 
 export function ChatMessageList({
     messages,
-    currentPersonality,
     isLoading,
-    quickQuestions,
-    onQuickQuestion,
     messagesEndRef,
     onEditMessage,
     onRegenerateResponse,
@@ -70,52 +64,10 @@ export function ChatMessageList({
         return (
             <div className="h-full flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
                 <div className="relative z-10 max-w-2xl w-full flex flex-col items-center animate-fade-in-up">
-                    {/* 头像区域 */}
-                    <div className="relative mb-8 group cursor-default">
-                        <div className="relative w-28 h-28 rounded-[2rem] bg-background-secondary border border-border flex items-center justify-center shadow-lg transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3">
-                            <span className="text-6xl filter drop-shadow-md transform transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3">
-                                {currentPersonality.emoji}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* 标题和描述 */}
-                    <h2 className="text-4xl font-bold mb-4 text-foreground tracking-tight">
-                        {currentPersonality.name}
-                    </h2>
-                    <p className="text-lg text-foreground-secondary max-w-lg mb-8 leading-relaxed">
-                        {currentPersonality.description}
+                    {/* 简洁提示语 */}
+                    <p className="text-xl text-foreground-secondary mb-8">
+                        今天运势如何？
                     </p>
-
-                    {/* 快捷问题 */}
-                    <div className="w-full max-w-xl">
-                        <div className="flex items-center justify-center gap-2 mb-6 opacity-80">
-                            <Sparkles className="w-4 h-4 text-purple-500" />
-                            <span className="text-xs font-medium uppercase tracking-widest text-purple-600 dark:text-purple-400">
-                                猜你想问
-                            </span>
-                            <Sparkles className="w-4 h-4 text-purple-500" />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {quickQuestions.map((question, index) => (
-                                <button
-                                    key={question}
-                                    onClick={() => onQuickQuestion(question)}
-                                    className="group relative p-4 text-left rounded-2xl bg-background-secondary hover:bg-accent/5 border border-border hover:border-accent/30 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 overflow-hidden"
-                                    style={{ animationDelay: `${index * 100}ms` }}
-                                >
-                                    <div className="relative flex items-center justify-between gap-3">
-                                        <span className="text-sm font-medium text-foreground/90 group-hover:text-foreground transition-colors">
-                                            {question}
-                                        </span>
-                                        <div className="w-6 h-6 rounded-full bg-background flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-accent">
-                                            <ChevronRight className="w-4 h-4" />
-                                        </div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </div>
             </div>
         );
