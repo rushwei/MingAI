@@ -225,7 +225,7 @@ function MonthlyPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-white pb-20">
+        <div className="min-h-screen bg-background pb-20">
             {/* 顶部 Hero 区域 */}
             <div className="relative overflow-hidden border-border/50 pb-4 pt-12">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
@@ -316,7 +316,7 @@ function MonthlyPageContent() {
 
                 {/* 月度总结卡片 */}
                 {isPersonalized && fortune && (
-                    <div className="bg-white dark:bg-zinc-900 border border-border rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                    <div className="bg-background border border-border rounded-3xl p-6 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none" />
 
                         <div className="flex flex-col sm:flex-row gap-6 relative z-10">
@@ -360,7 +360,7 @@ function MonthlyPageContent() {
 
                 {/* 趋势图 */}
                 {isPersonalized && trendData.length > 0 && (
-                    <div className="bg-white dark:bg-zinc-900 rounded-3xl p-1 border border-border shadow-sm">
+                    <div className="bg-background rounded-3xl p-1 border border-border shadow-sm">
                         <div className="p-5 border-b border-border/50 flex items-center justify-between">
                             <h2 className="font-bold text-lg flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-indigo-500" />
@@ -374,7 +374,7 @@ function MonthlyPageContent() {
                             </button>
                         </div>
                         {showTrendChart && (
-                            <div className="p-4 sm:p-6 bg-background/50 rounded-b-[1.4rem]">
+                            <div className="p-4 sm:p-6 bg-background-secondary/30 rounded-b-[1.4rem]">
                                 <FortuneTrendChart
                                     data={trendData}
                                     height={300}
@@ -386,8 +386,8 @@ function MonthlyPageContent() {
                 )}
 
                 {/* 运势日历 */}
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-border shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-border/50 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
+                <div className="bg-background rounded-3xl border border-border shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-border/50 flex items-center justify-between bg-background-secondary/30">
                         <h2 className="font-bold text-lg flex items-center gap-2">
                             <CalendarIcon className="w-5 h-5 text-indigo-500" />
                             每日运程
@@ -439,8 +439,8 @@ function MonthlyPageContent() {
                                             border transition-all duration-300
                                             hover:shadow-md hover:-translate-y-1
                                             ${isToday
-                                                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 ring-1 ring-indigo-500/20'
-                                                : 'bg-background hover:bg-background-secondary border-transparent hover:border-border'
+                                                ? 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 ring-1 ring-indigo-500/20'
+                                                : 'bg-background-secondary/30 hover:bg-background-secondary border-transparent hover:border-border'
                                             }
                                         `}
                                     >

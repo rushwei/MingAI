@@ -129,8 +129,8 @@ export default function ChartsPage() {
     };
 
     const getChartIcon = (type: string) => {
-        if (type === 'bazi') return <div className="p-2 rounded-lg bg-orange-50 text-orange-600 border border-orange-100"><ScrollText className="w-5 h-5" /></div>;
-        return <div className="p-2 rounded-lg bg-purple-50 text-purple-600 border border-purple-100"><Star className="w-5 h-5" /></div>;
+        if (type === 'bazi') return <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30"><ScrollText className="w-5 h-5" /></div>;
+        return <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30"><Star className="w-5 h-5" /></div>;
     };
 
     const getGenderLabel = (gender: string) => {
@@ -157,8 +157,8 @@ export default function ChartsPage() {
                             key={`${chart.type}-${chart.id}`}
                             href={chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`}
                             className={`
-                                group relative bg-white rounded-2xl p-5 border transition-all duration-300 min-h-[110px]
-                                ${chart.is_default ? 'border-accent shadow-sm ring-1 ring-accent/10' : 'border-slate-100 hover:border-accent/30 hover:shadow-md'}
+                                group relative bg-background rounded-2xl p-5 border transition-all duration-300 min-h-[110px]
+                                ${chart.is_default ? 'border-accent shadow-sm ring-1 ring-accent/10' : 'border-border hover:border-accent/30 hover:shadow-md'}
                             `}
                         >
                             {chart.is_default && (
@@ -173,7 +173,7 @@ export default function ChartsPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h3 className="font-bold text-base text-foreground truncate">{chart.name}</h3>
-                                        <span className={`px-2 py-0.5 text-[10px] rounded-md font-medium border ${chart.gender === 'female' ? 'bg-pink-50 text-pink-600 border-pink-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                        <span className={`px-2 py-0.5 text-[10px] rounded-md font-medium border ${chart.gender === 'female' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 border-pink-100 dark:border-pink-900/30' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30'}`}>
                                             {getGenderLabel(chart.gender)}
                                         </span>
                                     </div>
@@ -195,7 +195,7 @@ export default function ChartsPage() {
                                 {!chart.is_default && (
                                     <button
                                         onClick={(e) => handleSetDefault(chart.id, chart.type, e)}
-                                        className="p-2 rounded-lg hover:bg-amber-50 text-foreground-secondary hover:text-amber-500 transition-colors"
+                                        className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 text-foreground-secondary hover:text-amber-500 transition-colors"
                                         title="设为默认"
                                     >
                                         <Star className="w-4 h-4" />
@@ -203,7 +203,7 @@ export default function ChartsPage() {
                                 )}
                                 <button
                                     onClick={(e) => handleDelete(chart.id, chart.type, e)}
-                                    className="p-2 rounded-lg hover:bg-red-50 text-foreground-secondary hover:text-red-500 transition-colors"
+                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-foreground-secondary hover:text-red-500 transition-colors"
                                     title="删除"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -216,7 +216,7 @@ export default function ChartsPage() {
                     ))}
                 </div>
             ) : (
-                <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center py-10">
+                <div className="bg-background-secondary/50 rounded-2xl border border-dashed border-border text-center py-10">
                     <p className="text-sm text-foreground-secondary mb-4">暂无{title}</p>
                     <Link
                         href={onCreateLink}
@@ -231,10 +231,10 @@ export default function ChartsPage() {
     );
 
     return (
-        <div className="min-h-screen bg-white pb-20">
+        <div className="min-h-screen bg-background pb-20">
             <div className="max-w-2xl mx-auto px-4 py-6 animate-fade-in">
                 {/* 头部 */}
-                <div className="flex items-center justify-between mb-8 sticky top-0 bg-white py-4 z-20 border-b border-transparent transition-all">
+                <div className="flex items-center justify-between mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.push('/user')}

@@ -19,6 +19,13 @@ interface Order {
     user_id: string;
 }
 
+// 产品类型显示名称
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+    plus: 'Plus 会员订阅',
+    pro: 'Pro 会员订阅',
+    pay_per_use: '单次付费服务',
+};
+
 export default function OrdersPage() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -34,63 +41,55 @@ export default function OrdersPage() {
                 return;
             }
 
-            // 模拟订单数据用于展示 UI 效果
-            setOrders([
-                {
-                    id: 'ORD-20240118-001',
-                    product_type: 'AI 深度塔罗牌解读',
-                    amount: 68.00,
-                    status: 'completed',
-                    created_at: '2024-01-18T14:30:00Z',
-                    payment_method: 'WeChat',
-                    paid_at: '2024-01-18T14:30:00Z',
-                    user_id: session.user.id
-                },
-                {
-                    id: 'ORD-20240115-003',
-                    product_type: '2024年流年运势分析',
-                    amount: 88.00,
-                    status: 'completed',
-                    created_at: '2024-01-15T09:12:00Z',
-                    payment_method: 'Alipay',
-                    paid_at: '2024-01-15T09:12:00Z',
-                    user_id: session.user.id
-                },
-                {
-                    id: 'ORD-20240110-002',
-                    product_type: '周易六爻问事',
-                    amount: 45.00,
-                    status: 'refunded',
-                    created_at: '2024-01-10T18:45:00Z',
-                    payment_method: 'WeChat',
-                    paid_at: '2024-01-10T18:45:00Z',
-                    user_id: session.user.id
-                },
-            ]);
-            setLoading(false);
+            try {
+                // 从数据库获取用户订单
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('获取订单失败:', error);
+                } else {
+                    setOrders(data || []);
+                }
+            } catch (err) {
+                console.error('获取订单异常:', err);
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchOrders();
     }, [router]);
 
+    // 获取产品类型显示名称
+    const getProductLabel = (productType: string) => {
+        return PRODUCT_TYPE_LABELS[productType] || productType;
+    };
+
     const getStatusStyle = (status: string) => {
         switch (status) {
-            case 'completed':
-                return 'bg-green-100/80 text-green-700 border-green-200';
+            case 'paid':
+                return 'bg-green-100/80 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
             case 'pending':
-                return 'bg-orange-100/80 text-orange-700 border-orange-200';
+                return 'bg-orange-100/80 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
             case 'refunded':
-                return 'bg-slate-100/80 text-slate-600 border-slate-200';
+                return 'bg-slate-100/80 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700';
+            case 'cancelled':
+                return 'bg-red-100/80 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
             default:
-                return 'bg-slate-100 text-slate-600 border-slate-200';
+                return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
         }
     };
 
     const getStatusText = (status: string) => {
         switch (status) {
-            case 'completed': return '支付成功';
+            case 'paid': return '支付成功';
             case 'pending': return '待支付';
             case 'refunded': return '已退款';
+            case 'cancelled': return '已取消';
             default: return status;
         }
     };
@@ -116,13 +115,13 @@ export default function OrdersPage() {
     };
 
     return (
-        <div className="min-h-screen bg-white pb-20">
+        <div className="min-h-screen bg-background pb-20">
             <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 头部 */}
                 <div className="flex items-center gap-4 mb-10">
                     <button
                         onClick={() => router.push('/user')}
-                        className="p-2.5 rounded-xl bg-white/50 border border-border/50 hover:bg-white hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
+                        className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -135,7 +134,7 @@ export default function OrdersPage() {
                 {loading ? (
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="h-32 bg-white/50 rounded-3xl animate-pulse" />
+                            <div key={i} className="h-32 bg-background-secondary/50 rounded-3xl animate-pulse" />
                         ))}
                     </div>
                 ) : orders.length > 0 ? (
@@ -143,27 +142,27 @@ export default function OrdersPage() {
                         {orders.map((order) => (
                             <div
                                 key={order.id}
-                                className="group relative bg-white hover:bg-white/80 rounded-3xl border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300 overflow-hidden"
+                                className="group relative bg-background hover:bg-background-secondary/50 rounded-3xl border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300 overflow-hidden"
                             >
                                 {/* Ticket Decoration */}
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-background rounded-r-full border-r border-y border-border/30" />
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-background rounded-l-full border-l border-y border-border/30" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-background-secondary/10 rounded-r-full border-r border-y border-border/30" />
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-6 bg-background-secondary/10 rounded-l-full border-l border-y border-border/30" />
 
                                 <div className="p-6">
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <div className="flex items-center gap-3 mb-1">
-                                                <h3 className="font-bold text-foreground text-lg">{order.product_type}</h3>
+                                                <h3 className="font-bold text-foreground text-lg">{getProductLabel(order.product_type)}</h3>
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusStyle(order.status)}`}>
                                                     {getStatusText(order.status)}
                                                 </span>
                                             </div>
                                             <p className="text-xs text-foreground-secondary font-mono tracking-wide opacity-70">
-                                                ID: {order.id}
+                                                ID: {order.id.slice(0, 8)}...
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-xl font-bold text-foreground block">¥{order.amount.toFixed(2)}</span>
+                                            <span className="text-xl font-bold text-foreground block">¥{Number(order.amount).toFixed(2)}</span>
                                         </div>
                                     </div>
 
@@ -181,7 +180,7 @@ export default function OrdersPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-20 bg-white/50 rounded-3xl border border-border/50 backdrop-blur-sm">
+                    <div className="text-center py-20 bg-background-secondary/50 rounded-3xl border border-border/50 backdrop-blur-sm">
                         <div className="w-20 h-20 bg-accent/5 rounded-full flex items-center justify-center mx-auto mb-6">
                             <ShoppingBag className="w-10 h-10 text-accent/30" />
                         </div>

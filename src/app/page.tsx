@@ -370,24 +370,40 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 items-start">
-            {membershipBenefits.map((plan) => {
+            {membershipBenefits.map((plan, idx) => {
               const Icon = plan.icon;
               const isPopular = plan.popular;
+
+              // 动态计算卡片样式
+              let cardStyle = "border-border/50 hover:border-border";
+              let transformStyle = "";
+
+              if (idx === 0) {
+                // 左侧卡片 - 向左倾斜 (向左展开)
+                transformStyle = "md:-rotate-6 md:-translate-y-4 md:-translate-x-4 md:hover:rotate-0 md:hover:translate-y-0 md:hover:translate-x-0 md:hover:z-20";
+              } else if (idx === 1) {
+                // 中间卡片 - 放大且置顶
+                cardStyle = "border-accent shadow-2xl shadow-accent/20 z-10 md:scale-110";
+              } else if (idx === 2) {
+                // 右侧卡片 - 向右倾斜 (向右展开)
+                transformStyle = "md:rotate-6 md:-translate-y-4 md:translate-x-4 md:hover:rotate-0 md:hover:translate-y-0 md:hover:translate-x-0 md:hover:z-20";
+              }
+
               return (
                 <div
                   key={plan.tier}
                   className={`
                     relative p-8 rounded-[2.5rem]
                     bg-background/80 backdrop-blur-xl
-                    border-2 transition-all duration-500
-                    ${isPopular
-                      ? 'border-accent shadow-2xl shadow-accent/20 z-10 scale-105'
-                      : 'border-border/50 hover:border-border hover:shadow-xl'
-                    }
+                    border-2 transition-all duration-500 ease-out
+                    flex flex-col
+                    ${cardStyle}
+                    ${transformStyle}
+                    hover:shadow-2xl hover:bg-background/90
                   `}
                 >
                   {isPopular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 bg-gradient-to-r from-accent to-amber-500 text-white text-sm font-bold tracking-wide rounded-full shadow-lg">
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 bg-gradient-to-r from-accent to-amber-500 text-white text-sm font-bold tracking-wide rounded-full shadow-lg z-20">
                       MOST POPULAR
                     </div>
                   )}
@@ -405,7 +421,7 @@ export default function HomePage() {
 
                   <div className={`h-px w-full ${isPopular ? 'bg-accent/20' : 'bg-border'} mb-8`} />
 
-                  <ul className="space-y-4">
+                  <ul className="space-y-4 flex-grow">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3 text-sm">
                         <div className={`mt-0.5 rounded-full p-0.5 ${isPopular ? 'bg-accent text-white' : 'bg-background-secondary text-foreground-secondary'}`}>
@@ -435,27 +451,28 @@ export default function HomePage() {
       </section>
 
       {/* Footer CTA */}
-      <section className="py-24 bg-foreground text-background relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5" />
-        <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-accent/10 to-transparent" />
+      <section className="py-24 bg-gradient-to-b from-background to-accent/5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
+        <div className="absolute right-0 top-0 w-1/3 h-full bg-accent/5 blur-3xl rounded-full translate-x-1/2" />
+        <div className="absolute left-0 bottom-0 w-1/3 h-full bg-blue-500/5 blur-3xl rounded-full -translate-x-1/2" />
 
         <div className="relative max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl lg:text-6xl font-black mb-8 leading-tight">
             探索您的<span className="text-accent">命运蓝图</span>
           </h2>
-          <p className="text-xl text-white/60 mb-12 max-w-2xl mx-auto">
+          <p className="text-xl text-foreground-secondary mb-12 max-w-2xl mx-auto">
             立即注册，免费获得详细的 AI 八字精批报告与 3 次深度对话机会
           </p>
           <div className="flex flex-col sm:flex-row gap-5 justify-center">
             <Link
               href="/login"
-              className="px-10 py-5 rounded-2xl bg-accent text-white font-bold text-lg hover:bg-white hover:text-accent transition-all duration-300"
+              className="px-10 py-5 rounded-2xl bg-accent text-white font-bold text-lg hover:bg-accent/90 hover:shadow-lg hover:shadow-accent/20 transition-all duration-300 shadow-md"
             >
               免费注册
             </Link>
             <Link
               href="/bazi"
-              className="px-10 py-5 rounded-2xl border border-white/20 text-white font-bold text-lg hover:bg-white/10 transition-all duration-300"
+              className="px-10 py-5 rounded-2xl border-2 border-border bg-background text-foreground font-bold text-lg hover:border-accent hover:text-accent transition-all duration-300"
             >
               体验排盘
             </Link>

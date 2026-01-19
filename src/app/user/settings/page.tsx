@@ -234,13 +234,13 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white pb-20">
+        <div className="min-h-screen bg-background pb-20">
             <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 头部 */}
                 <div className="flex items-center gap-4 mb-10">
                     <button
                         onClick={() => router.push('/user')}
-                        className="p-2.5 rounded-xl bg-white/50 border border-border/50 hover:bg-white hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
+                        className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -253,7 +253,7 @@ export default function SettingsPage() {
                 {/* 设置列表 */}
                 <div className="space-y-8">
                     {/* 外观设置 */}
-                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 gap-6 flex flex-col">
+                    <div className="bg-background rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 gap-6 flex flex-col">
                         <div className="flex items-center gap-2 mb-2 pb-4 border-b border-border/50">
                             <span className="p-1.5 bg-purple-500/10 rounded-lg text-purple-500"><Moon className="w-4 h-4" /></span>
                             <h2 className="text-base font-bold text-foreground">外观与显示</h2>
@@ -322,7 +322,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* 通知与提醒 */}
-                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 flex flex-col gap-6">
+                    <div className="bg-background rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6 flex flex-col gap-6">
                         <div className="flex items-center gap-2 mb-2 pb-4 border-b border-border/50">
                             <span className="p-1.5 bg-red-500/10 rounded-lg text-red-500"><Bell className="w-4 h-4" /></span>
                             <h2 className="text-base font-bold text-foreground">通知与提醒</h2>
@@ -382,15 +382,15 @@ export default function SettingsPage() {
                     </div>
 
                     {/* 隐私与安全 */}
-                    <div className="bg-white rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6">
+                    <div className="bg-background rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6">
                         <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
                             <span className="p-1.5 bg-green-500/10 rounded-lg text-green-500"><Shield className="w-4 h-4" /></span>
                             <h2 className="text-base font-bold text-foreground">隐私与安全</h2>
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-2xl">
+                        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20 rounded-2xl">
                             <div className="flex items-center gap-4">
-                                <div className="p-2 bg-green-100 rounded-xl text-green-600">
+                                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600 dark:text-green-400">
                                     <Shield className="w-6 h-6" />
                                 </div>
                                 <div>

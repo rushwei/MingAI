@@ -110,13 +110,13 @@ export default function HelpPage() {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
     return (
-        <div className="min-h-screen bg-white pb-20">
+        <div className="min-h-screen bg-background pb-20">
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 头部 */}
                 <div className="flex items-center gap-4 mb-10">
                     <Link
                         href="/user"
-                        className="p-2.5 rounded-xl bg-white/50 border border-border/50 hover:bg-white hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
+                        className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
@@ -139,7 +139,7 @@ export default function HelpPage() {
                             <Link
                                 key={guide.title}
                                 href={guide.href}
-                                className="group flex items-start gap-4 p-5 rounded-2xl bg-white border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300"
+                                className="group flex items-start gap-4 p-5 rounded-2xl bg-background border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300"
                             >
                                 <div className="p-3 rounded-xl bg-accent/5 text-accent group-hover:bg-accent/10 group-hover:scale-110 transition-all duration-300">
                                     {guide.icon}
@@ -168,7 +168,7 @@ export default function HelpPage() {
                             <div
                                 key={index}
                                 className={`
-                                    bg-white rounded-2xl border transition-all duration-300 overflow-hidden
+                                    bg-background rounded-2xl border transition-all duration-300 overflow-hidden
                                     ${expandedFAQ === index
                                         ? 'border-accent/30 shadow-md'
                                         : 'border-border/50 hover:border-accent/20 hover:shadow-sm'
@@ -214,7 +214,7 @@ export default function HelpPage() {
                         </div>
                         联系我们
                     </h2>
-                    <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-border/50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
+                    <div className="bg-gradient-to-br from-background to-background-secondary/50 rounded-2xl border border-border/50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
                         <div className="flex-1">
                             <h3 className="font-semibold text-foreground mb-2">需要更多帮助？</h3>
                             <p className="text-sm text-foreground-secondary leading-relaxed">
@@ -222,7 +222,7 @@ export default function HelpPage() {
                                 欢迎随时联系我们的支持团队。
                             </p>
                         </div>
-                        <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white border border-border/50 shadow-sm text-sm font-medium text-foreground hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background border border-border/50 shadow-sm text-sm font-medium text-foreground hover:shadow-md transition-all">
                             <Mail className="w-4 h-4 text-accent" />
                             <span>huanghesen1@gmail.com</span>
                         </div>
