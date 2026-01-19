@@ -14,7 +14,6 @@ import {
   Calendar,
   Shield,
   Zap,
-  Heart,
   ChevronRight,
   Star,
   ChevronDown,
@@ -52,7 +51,7 @@ const features = [
   {
     icon: MessageCircle,
     title: "AI智能对话",
-    description: "流式输出实时响应，支持消息编辑、重新生成，自动关联命盘进行综合分析",
+    description: "自动关联命盘进行综合分析，支持盲派和子平分析，更有专属深度推理模型",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10"
   },
@@ -85,8 +84,8 @@ const systems = [
   { name: "紫微斗数", emoji: "⭐", available: true, href: "/ziwei", desc: "星命推演" },
   { name: "塔罗占卜", emoji: "🃏", available: true, href: "/tarot", desc: "塔罗占卜" },
   { name: "六爻占卜", emoji: "☯️", available: true, href: "/liuyao", desc: "六爻占卜" },
-  { name: "面相分析", emoji: "👤", available: true, href: "/face", desc: "面相分析" },
-  { name: "手相分析", emoji: "🖐️", available: true, href: "/palm", desc: "手相分析" },
+  { name: "面相分析", emoji: "👤", available: true, href: "/face", desc: "AI面相" },
+  { name: "手相分析", emoji: "🖐️", available: true, href: "/palm", desc: "AI手相" },
 ];
 
 // 会员权益
@@ -123,125 +122,138 @@ const membershipBenefits = [
 
 // 统计数据
 const stats = [
-  { value: "6+", label: "命理体系", icon: Sparkles },
-  { value: "3", label: "AI对话风格", icon: MessageCircle },
+  { value: "8+", label: "命理体系", icon: Sparkles },
+  { value: "10+", label: "AI模型", icon: MessageCircle },
   { value: "7x24", label: "全天候服务", icon: Clock },
   { value: "100%", label: "数据加密", icon: Shield }
 ];
 
 export default function HomePage() {
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in bg-background text-foreground overflow-x-hidden">
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-[90vh] flex flex-col justify-center">
-        {/* 背景装饰 */}
-        <div className="absolute inset-0 bg-accent/5" />
-        <div className="absolute top-20 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" />
+      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
+        {/* 动态背景装饰 */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-accent/10 via-background to-background" />
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-accent/20 rounded-full blur-[100px] opacity-60 animate-pulse" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] opacity-40 animate-pulse delay-1000" />
 
-        <div className="relative max-w-6xl mx-auto px-4 py-20 lg:py-32">
-          <div className="text-center">
-            {/* Logo */}
-            <div className="flex justify-center mb-8">
-              <div className="relative group">
+        {/* 网格背景 */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8882_1px,transparent_1px),linear-gradient(to_bottom,#8882_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
+
+        <div className="relative max-w-6xl mx-auto px-4 pt-20 pb-32">
+          <div className="flex flex-col items-center text-center">
+            {/* Logo区域 */}
+            <div className="relative mb-12 group perspective-1000">
+              <div className="relative z-10 transform transition-transform duration-700 group-hover:rotate-y-12 group-hover:scale-105">
                 <Image
                   src="/Logo.png"
                   alt="MingAI Logo"
-                  width={140}
-                  height={140}
-                  className="rounded-4xl shadow-2xl transition-transform duration-500 group-hover:scale-105"
+                  width={160}
+                  height={160}
+                  className="rounded-[2.5rem] shadow-2xl ring-1 ring-white/20"
                   priority
                 />
-                <div className="absolute -inset-2 bg-accent/20 rounded-3xl blur-xl -z-10 opacity-75 group-hover:opacity-100 transition-opacity" />
+                {/* 光晕效果 */}
+                <div className="absolute -inset-4 bg-gradient-to-tr from-accent/40 to-blue-500/40 blur-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               </div>
             </div>
 
             {/* 标题 */}
-            <h1 className="text-5xl lg:text-7xl font-bold mb-6 text-accent">
-              MingAI
+            <h1 className="text-6xl lg:text-8xl font-black mb-6 tracking-tight">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent via-amber-200 to-accent animate-shimmer bg-[length:200%_auto]">
+                MingAI
+              </span>
             </h1>
-            <p className="text-xl lg:text-2xl text-foreground-secondary mb-3">
-              AI智能命理平台
+            <p className="text-2xl lg:text-3xl font-light text-foreground/80 mb-4 tracking-wide">
+              AI 驱动的<span className="font-semibold text-accent">下一代</span>命理平台
             </p>
-            <p className="text-lg text-foreground-secondary/80 max-w-2xl mx-auto mb-10">
-              将传统命理文化与前沿AI技术深度融合，
-              为您提供<span className="text-accent font-medium">专业</span>、
-              <span className="text-accent font-medium">私密</span>、
-              <span className="text-accent font-medium">便捷</span>的命理咨询服务
+            <p className="text-lg text-foreground-secondary max-w-2xl mx-auto mb-12 leading-relaxed">
+              融合<span className="px-2 py-0.5 rounded-md bg-accent/10 text-accent font-medium mx-1">传统智慧</span>
+              与
+              <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 font-medium mx-1">深度学习</span>，
+              为您揭示命运的奥秘，指引人生的方向。
             </p>
 
-            {/* CTA 按钮 */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {/* CTA 按钮组 */}
+            <div className="flex flex-col sm:flex-row gap-6 w-full max-w-md mx-auto relative z-20">
               <Link
                 href="/bazi"
                 className="
-                  inline-flex items-center justify-center gap-2
-                  px-10 py-4 rounded-2xl
-                  bg-accent text-white font-semibold text-lg
-                  hover:bg-accent/90
+                  flex-1 inline-flex items-center justify-center gap-3
+                  px-8 py-4 rounded-2xl
+                  bg-gradient-to-r from-accent to-amber-600
+                  text-white font-bold text-lg
+                  shadow-lg shadow-accent/30
+                  hover:shadow-xl hover:shadow-accent/40 hover:-translate-y-1 hover:scale-[1.02]
                   transition-all duration-300
-                  shadow-lg shadow-accent/25
-                  hover:shadow-xl hover:shadow-accent/30
-                  hover:-translate-y-1
-                  group
+                  relative overflow-hidden group
                 "
               >
-                <Sparkles className="w-5 h-5 group-hover:animate-spin" />
-                开始八字精批
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 skew-y-12" />
+                <Sparkles className="w-5 h-5 animate-pulse" />
+                <span>立即开启排盘</span>
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
 
               <Link
                 href="/chat"
                 className="
-                  inline-flex items-center justify-center gap-2
-                  px-10 py-4 rounded-2xl
-                  bg-background-secondary text-foreground font-semibold text-lg
-                  border-2 border-border
-                  hover:border-accent hover:text-accent
+                  flex-1 inline-flex items-center justify-center gap-3
+                  px-8 py-4 rounded-2xl
+                  bg-background/80 backdrop-blur-md
+                  text-foreground font-bold text-lg
+                  border border-border/50
+                  shadow-lg
+                  hover:bg-accent/5 hover:border-accent/50 hover:text-accent hover:-translate-y-1
                   transition-all duration-300
-                  hover:-translate-y-1
                   group
                 "
               >
                 <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                AI 命理对话
+                <span>AI 命理对话</span>
               </Link>
             </div>
 
             {/* 信任标识 */}
-            <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-foreground-secondary text-sm">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background-secondary/50 backdrop-blur">
-                <Shield className="w-4 h-4 text-green-500" />
-                <span>数据安全加密</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background-secondary/50 backdrop-blur">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <span>AI即时响应</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background-secondary/50 backdrop-blur">
-                <Heart className="w-4 h-4 text-rose-500" />
-                <span>专业AI陪伴</span>
-              </div>
+            <div className="flex flex-wrap items-center justify-center gap-8 mt-16 opacity-80">
+              {[
+                { icon: Shield, text: "端到端加密", color: "text-emerald-500" },
+                { icon: Zap, text: "毫秒级响应", color: "text-amber-500" },
+                { icon: Brain, text: "深度推理模型", color: "text-blue-500" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm font-medium text-foreground-secondary bg-background/50 px-4 py-2 rounded-full border border-border/50 backdrop-blur-sm">
+                  <item.icon className={`w-4 h-4 ${item.color}`} />
+                  <span>{item.text}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
         {/* 滚动提示 */}
         <ScrollIndicator />
       </section>
 
-      {/* 统计数据 */}
-      <section className="py-12 bg-accent/5">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {stats.map((stat) => {
+      {/* 统计数据 - 悬浮卡片风格 */}
+      <section className="relative z-10 -mt-20 px-4 mb-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-3xl bg-background/60 backdrop-blur-xl border border-white/20 shadow-2xl dark:border-white/5 dark:bg-zinc-900/60">
+            {stats.map((stat, idx) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.label} className="text-center group">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-background mb-3 group-hover:scale-110 transition-transform">
-                    <Icon className="w-6 h-6 text-accent" />
+                <div key={idx} className="relative group p-6 text-center rounded-2xl hover:bg-white/50 dark:hover:bg-white/5 transition-colors">
+                  <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-accent/10 text-accent mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <Icon className="w-6 h-6" />
                   </div>
-                  <div className="text-3xl font-bold text-foreground mb-1">{stat.value}</div>
-                  <div className="text-sm text-foreground-secondary">{stat.label}</div>
+                  <div className="text-3xl lg:text-4xl font-black text-foreground mb-1 tracking-tight">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm font-medium text-foreground-secondary">{stat.label}</div>
+                  {/* 分隔线 */}
+                  {idx !== stats.length - 1 && (
+                    <div className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-px h-12 bg-border/50" />
+                  )}
                 </div>
               );
             })}
@@ -249,79 +261,89 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 命理体系 */}
-      <section className="py-12 lg:py-16 bg-background-secondary">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              多元命理体系
+      {/* 命理体系 - 玻璃拟态卡片 */}
+      <section className="py-20 lg:py-32 relative">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <span className="text-accent font-semibold tracking-wider uppercase text-sm mb-2 block">Our Systems</span>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              全方位命理体系
             </h2>
-            <p className="text-foreground-secondary max-w-2xl mx-auto">
-              融合东西方命理智慧，一站式满足您的命理探索需求
+            <p className="text-foreground-secondary max-w-2xl mx-auto text-lg">
+              融合八字、紫微、塔罗等东西方智慧，构建最完整的数字命理生态
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             {systems.map((system) => (
-              <div
+              <Link
+                href={system.available ? system.href : "#"}
                 key={system.name}
                 className={`
-                  relative p-6 rounded-2xl text-center
-                  bg-background border-2 border-border
-                  transition-all duration-300
-                  ${system.available
-                    ? 'hover:border-accent hover:shadow-xl hover:-translate-y-1 cursor-pointer group'
-                    : 'opacity-60'
-                  }
+                  relative group p-6 rounded-3xl
+                  bg-gradient-to-br from-white/80 to-white/40 dark:from-zinc-800/80 dark:to-zinc-900/40
+                  backdrop-blur-md border border-white/20 dark:border-white/10
+                  shadow-lg hover:shadow-2xl hover:shadow-accent/10
+                  transform hover:-translate-y-2 transition-all duration-500
+                  flex flex-col items-center justify-between min-h-[180px]
+                  ${!system.available && 'opacity-60 saturate-0 cursor-not-allowed'}
                 `}
               >
-                {system.available && system.href ? (
-                  <Link href={system.href} className="absolute inset-0" />
-                ) : null}
-                <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">{system.emoji}</div>
-                <div className="font-semibold text-base mb-1">{system.name}</div>
-                <div className={`text-xs ${system.available ? 'text-accent' : 'text-foreground-secondary'}`}>
-                  {system.desc}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-accent/0 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                <div className="text-6xl mb-4 transform group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 filter drop-shadow-lg">
+                  {system.emoji}
                 </div>
-              </div>
+
+                <div className="relative z-10 text-center">
+                  <h3 className="font-bold text-lg mb-1 text-foreground group-hover:text-accent transition-colors">
+                    {system.name}
+                  </h3>
+                  <p className="text-xs text-foreground-secondary font-medium px-2 py-1 rounded-full bg-background/50">
+                    {system.desc}
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 特性介绍 */}
-      <section className="py-12 lg:py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              为什么选择 MingAI
+      {/* 特性介绍 - 科技感卡片 */}
+      <section className="py-20 bg-background-secondary/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <span className="text-blue-500 font-semibold tracking-wider uppercase text-sm mb-2 block">Features</span>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+              为什么选择 <span className="text-accent">MingAI</span>
             </h2>
-            <p className="text-foreground-secondary max-w-2xl mx-auto">
-              AI驱动的个性化体验，让命理解读更加现代、专业、有温度
-            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={feature.title}
                   className="
-                    p-6 rounded-2xl
-                    bg-background-secondary border-2 border-border
-                    hover:border-accent/50 hover:shadow-xl hover:-translate-y-1
-                    transition-all duration-300
-                    group
+                    group p-8 rounded-[2rem]
+                    bg-background border border-border/50
+                    hover:border-accent/30 hover:shadow-2xl hover:shadow-accent/5
+                    transition-all duration-500
+                    hover:-translate-y-2
                   "
                 >
-                  <div className={`w-14 h-14 rounded-xl ${feature.bgColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon className={`w-7 h-7 ${feature.color}`} />
+                  <div className={`
+                    w-16 h-16 rounded-2xl ${feature.bgColor} 
+                    flex items-center justify-center mb-6 
+                    group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500
+                  `}>
+                    <Icon className={`w-8 h-8 ${feature.color}`} />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3 group-hover:text-accent transition-colors">
+                  <h3 className="text-2xl font-bold mb-4 group-hover:text-accent transition-colors">
                     {feature.title}
                   </h3>
-                  <p className="text-foreground-secondary text-sm leading-relaxed">
+                  <p className="text-foreground-secondary leading-relaxed">
                     {feature.description}
                   </p>
                 </div>
@@ -331,53 +353,80 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 会员体系 */}
-      <section className="py-12 lg:py-16 bg-background-secondary">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
+      {/* 会员体系 - 高级定价表 */}
+      <section className="py-20 lg:py-32 relative overflow-hidden">
+        {/* 背景光效 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent/5 rounded-full blur-[120px] -z-10" />
+
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
               灵活的会员方案
             </h2>
-            <p className="text-foreground-secondary max-w-2xl mx-auto">
-              多种套餐满足不同需求，另有按量付费方案（¥9.9/次）
-            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent font-medium text-sm">
+              <Sparkles className="w-4 h-4" />
+              新用户首月优惠进行中
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-8 items-start">
             {membershipBenefits.map((plan) => {
               const Icon = plan.icon;
+              const isPopular = plan.popular;
               return (
                 <div
                   key={plan.tier}
                   className={`
-                    relative p-6 rounded-2xl
-                    bg-background border-2 ${plan.borderColor}
-                    hover:shadow-xl hover:-translate-y-1
-                    transition-all duration-300
-                    ${plan.popular ? 'ring-2 ring-accent ring-offset-2 ring-offset-background' : ''}
+                    relative p-8 rounded-[2.5rem]
+                    bg-background/80 backdrop-blur-xl
+                    border-2 transition-all duration-500
+                    ${isPopular
+                      ? 'border-accent shadow-2xl shadow-accent/20 z-10 scale-105'
+                      : 'border-border/50 hover:border-border hover:shadow-xl'
+                    }
                   `}
                 >
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-accent text-white text-xs font-semibold rounded-full">
-                      最受欢迎
+                  {isPopular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 bg-gradient-to-r from-accent to-amber-500 text-white text-sm font-bold tracking-wide rounded-full shadow-lg">
+                      MOST POPULAR
                     </div>
                   )}
-                  <div className="text-center mb-6">
-                    <Icon className={`w-10 h-10 ${plan.color} mx-auto mb-3`} />
-                    <div className="text-2xl font-bold mb-1">{plan.tier}</div>
-                    <div className="text-3xl font-bold">
-                      {plan.price}
-                      <span className="text-sm font-normal text-foreground-secondary">{plan.period}</span>
+
+                  <div className="text-center mb-8">
+                    <div className={`inline-flex p-4 rounded-2xl ${isPopular ? 'bg-accent/10' : 'bg-background-secondary'} mb-6`}>
+                      <Icon className={`w-8 h-8 ${plan.color}`} />
+                    </div>
+                    <div className="text-2xl font-bold mb-2">{plan.tier}</div>
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-black">{plan.price}</span>
+                      <span className="text-foreground-secondary text-sm font-medium">{plan.period}</span>
                     </div>
                   </div>
-                  <ul className="space-y-3">
+
+                  <div className={`h-px w-full ${isPopular ? 'bg-accent/20' : 'bg-border'} mb-8`} />
+
+                  <ul className="space-y-4">
                     {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm">
-                        <ChevronRight className={`w-4 h-4 ${plan.color}`} />
-                        <span>{feature}</span>
+                      <li key={idx} className="flex items-start gap-3 text-sm">
+                        <div className={`mt-0.5 rounded-full p-0.5 ${isPopular ? 'bg-accent text-white' : 'bg-background-secondary text-foreground-secondary'}`}>
+                          <ChevronRight className="w-3 h-3" />
+                        </div>
+                        <span className={isPopular ? 'text-foreground font-medium' : 'text-foreground-secondary'}>
+                          {feature}
+                        </span>
                       </li>
                     ))}
                   </ul>
+
+                  <button className={`
+                    w-full mt-8 py-4 rounded-xl font-bold transition-all duration-300
+                    ${isPopular
+                      ? 'bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-accent/40'
+                      : 'bg-background-secondary text-foreground hover:bg-border'
+                    }
+                  `}>
+                    选择此方案
+                  </button>
                 </div>
               );
             })}
@@ -385,86 +434,53 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 lg:py-20 bg-accent/10 relative overflow-hidden">
-        {/* 背景装饰 */}
-        <div className="absolute top-0 left-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
+      {/* Footer CTA */}
+      <section className="py-24 bg-foreground text-background relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5" />
+        <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-accent/10 to-transparent" />
 
         <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4" />
-            免费体验
-          </div>
-          <h2 className="text-3xl lg:text-5xl font-bold mb-6">
-            开启您的命理之旅
+          <h2 className="text-4xl lg:text-6xl font-black mb-8 leading-tight">
+            探索您的<span className="text-accent">命运蓝图</span>
           </h2>
-          <p className="text-lg text-foreground-secondary mb-10 max-w-xl mx-auto">
-            免费体验 AI 八字精批与紫微排盘，感受传统智慧与现代科技的完美结合
+          <p className="text-xl text-white/60 mb-12 max-w-2xl mx-auto">
+            立即注册，免费获得详细的 AI 八字精批报告与 3 次深度对话机会
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-5 justify-center">
             <Link
-              href="/bazi"
-              className="
-                inline-flex items-center justify-center gap-2
-                px-12 py-5 rounded-2xl
-                bg-accent text-white font-semibold text-lg
-                hover:bg-accent/90
-                transition-all duration-300
-                shadow-xl shadow-accent/30
-                hover:-translate-y-1
-                group
-              "
+              href="/login"
+              className="px-10 py-5 rounded-2xl bg-accent text-white font-bold text-lg hover:bg-white hover:text-accent transition-all duration-300"
             >
-              <Star className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-              立即体验
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              免费注册
             </Link>
             <Link
-              href="/daily"
-              className="
-                inline-flex items-center justify-center gap-2
-                px-12 py-5 rounded-2xl
-                bg-background text-foreground font-semibold text-lg
-                border-2 border-border
-                hover:border-accent
-                transition-all duration-300
-                hover:-translate-y-1
-              "
+              href="/bazi"
+              className="px-10 py-5 rounded-2xl border border-white/20 text-white font-bold text-lg hover:bg-white/10 transition-all duration-300"
             >
-              <Calendar className="w-5 h-5" />
-              查看今日运势
+              体验排盘
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-border bg-background">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/Logo.png"
-                alt="MingAI"
-                width={32}
-                height={32}
-                className="rounded-lg"
-              />
-              <span className="font-bold text-lg">MingAI</span>
-              <span className="text-foreground-secondary text-sm">© 2026</span>
+      {/* Footer - Simplified */}
+      <footer className="py-12 bg-background border-t border-border">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <div className="text-foreground-secondary text-sm text-center">
-              AI智能命理平台 · 传统智慧与现代科技的融合
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/help" className="text-foreground-secondary hover:text-accent text-sm transition-colors">
-                帮助中心
-              </Link>
-              <span className="text-border">|</span>
-              <Link href="/user" className="text-foreground-secondary hover:text-accent text-sm transition-colors">
-                用户中心
-              </Link>
-            </div>
+            <span className="font-bold text-lg tracking-tight">MingAI</span>
+          </div>
+          <div className="text-sm text-foreground-secondary">
+            © 2026 MingAI Inc. All rights reserved.
+          </div>
+          <div className="flex gap-8">
+            {['关于我们', '隐私政策', '服务条款', '联系支持'].map((item) => (
+              <a key={item} href="#" className="text-sm text-foreground-secondary hover:text-accent transition-colors">
+                {item}
+              </a>
+            ))}
           </div>
         </div>
       </footer>

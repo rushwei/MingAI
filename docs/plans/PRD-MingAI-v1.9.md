@@ -1,10 +1,10 @@
 # MingAI 产品需求文档 (PRD)
 
 **产品名称**: MingAI - AI智能命理平台  
-**版本**: v1.9
+**版本**: v2.1
 **创建日期**: 2026-01-04  
-**最后更新**: 2026-01-13  
-**文档状态**: ✅ Phase 5 完成
+**最后更新**: 2026-01-19  
+**文档状态**: ✅ Phase 7 完成
 
 ---
 
@@ -85,9 +85,10 @@
 | **MBTI测试** | 🧠    | ✅ 已完成 | Phase 4  |
 | **塔罗占卜** | 🃏    | ✅ 已完成 | Phase 4  |
 | **六爻占卜** | ☯️    | ✅ 已完成 | Phase 4  |
-| **运势中心** | �    | ✅ 已完成 | Phase 4  |
-| **面相分析** | 👤    | 📍 待开发 | Phase 7  |
-| **手相分析** | 🖐️    | 📍 待开发 | Phase 7  |
+| **运势中心** | 📅    | ✅ 已完成 | Phase 4  |
+| **命理社区** | 💬    | ✅ 已完成 | Phase 6  |
+| **面相分析** | 👤    | ✅ 已完成 | Phase 7  |
+| **手相分析** | 🖐️    | ✅ 已完成 | Phase 7  |
 
 #### 2.2.1 紫微斗数 (Phase 2 ✅)
 
@@ -217,7 +218,7 @@
 | 表名 | 用途说明 |
 | ---- | -------- |
 | `users`                 | 用户档案、会员等级、对话次数、管理员标记（`is_admin`） |
-| `user_settings`         | 通知偏好、语言偏好（用户可自主管理）                   |
+| `user_settings`         | 通知偏好、语言偏好、默认命盘设置                       |
 | `bazi_charts`           | 八字命盘存储（含 AI 分析文本与出生地点）               |
 | `ziwei_charts`          | 紫微命盘存储（含闰月、出生地点、运限结构）             |
 | `conversations`         | AI 对话历史（含命盘使用记录、关联的 `source_data`）    |
@@ -226,11 +227,25 @@
 | `login_attempts`        | 登录失败记录与安全风控                                 |
 | `rate_limits`           | 速率限制统计（分布式限流）                             |
 | `orders`                | 订单与支付状态（订阅与按量付费）                       |
-| `user_credits`          | 早期积分表（保留兼容，当前主用 `users.ai_chat_count`） |
 | `hepan_charts`          | 关系合盘记录（含`person1/2`信息、`compatibility_score`）|
 | `mbti_readings`         | MBTI测试结果（含`mbti_type`、`scores`、`percentages`） |
 | `tarot_readings`        | 塔罗占卜记录（含`spread_id`、`cards`、`conversation_id`）|
 | `liuyao_divinations`    | 六爻与预测记录（含`hexagram_code`、`changed_lines`）   |
+| `community_posts`       | 命理社区帖子（含匿名名称、投票计数、置顶/精华标记）    |
+| `community_comments`    | 帖子评论（含回复嵌套、投票计数）                       |
+| `community_votes`       | 帖子/评论投票记录（点赞/踩）                           |
+| `community_reports`     | 举报记录（含处理状态、审核备注）                       |
+| `ming_records`          | 命理事件记录（可关联命盘）                             |
+| `ming_notes`            | 每日小记（含心情标记）                                 |
+| `user_levels`           | 用户等级与经验值                                       |
+| `daily_checkins`        | 签到记录（含连续天数、奖励积分）                       |
+| `credit_transactions`   | 积分交易记录                                           |
+| `user_achievements`     | 成就解锁记录                                           |
+| `palm_readings`         | 手相分析记录                                           |
+| `face_readings`         | 面相分析记录                                           |
+| `reminder_subscriptions`| 提醒订阅设置（节气/运势/关键日）                       |
+| `scheduled_reminders`   | 计划任务队列                                           |
+| `annual_reports`        | 年度报告缓存                                           |
 
 
 ### 3.3 定时任务与运维
@@ -435,6 +450,7 @@
   - Pro会员：高级模型(deepai全系列)
 
 ### Phase 6: 社区功能与AI分析精确强化（已完成）
+[Phase6开发报告](/docs/deliverables/Phase6-Completion-Report.md)
 - [x] 八字
   - 新增盲派八字分析(六十甲子惊天客+解析)
   - 增加八字分析方法(盲派,传统命理子平)
@@ -450,7 +466,7 @@
   - 支持搜索帖子
   - 支持帖子置顶、精华、删除（管理员权限）
   - 支持帖子、评论举报（信息会给管理员）
-- [x] 六爻功能升级(详情参考[六爻PRD](./liuyao-PRD.md)) 
+- [x] 六爻功能升级(详情参考[六爻PRD](/docs/plans/liuyao-PRD.md)) 
   - 干支时间体系
   - 月建与日辰
   - 旺衰体系
@@ -464,17 +480,18 @@
   - 十二长生
   - 暗动与日破
 - [x] 新增反馈入口
-- AI
-  - [x] 更加精确的分析模型(deepGLM/deepGemini)
-  - [x] 搜索
-  - [x] 深度推理
-  - [x] 附件上传
-  - [x] 计划提供更多高级模型(gemini3pro/Qwen3max/glm4.7)
-  - [x] 优化模型选择器
-  - [x] 优化紫薇和八字的AI分析
-  - [x] 支持各个模块的AI模型选择(八字/合盘/紫薇/塔罗/六爻/MBTI/运势)
+- [x] AI
+  - 更加精确的分析模型(deepGLM/deepGemini)
+  - 网络搜索
+  - 深度推理
+  - 附件上传
+  - 计划提供更多高级模型(gemini3pro/Qwen3max/glm4.7)
+  - 优化模型选择器
+  - 优化紫薇和八字的AI分析
+  - 支持各个模块的AI模型选择(八字/合盘/紫薇/塔罗/六爻/MBTI/运势)
 
 ### Phase 7: 高级功能 (已完成)
+[Phase7开发报告](/docs/deliverables/Phase7-Completion-Report.md)
 - 面相分析
   - [x] 接入图像识别模型
   - [x] AI面部特征识别
@@ -545,6 +562,8 @@
 - [Phase3](/docs/deliverables/Phase3-Completion-Report.md)
 - [Phase4](/docs/deliverables/Phase4-Completion-Report.md)
 - [Phase5](/docs/deliverables/Phase5-Completion-Report.md)
+- [Phase6](/docs/deliverables/Phase6-Completion-Report.md)
+- [Phase7](/docs/deliverables/Phase7-Completion-Report.md)
 - [Logo](/Logo.png) - 产品Logo
 
 ### C. 术语表
