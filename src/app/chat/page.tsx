@@ -889,6 +889,7 @@ export default function ChatPage() {
                                     membershipType={membership?.type || 'free'}
                                     attachmentState={attachmentState}
                                     onAttachmentChange={setAttachmentState}
+                                    hideDisclaimer
                                 />
                             </div>
                         </div>

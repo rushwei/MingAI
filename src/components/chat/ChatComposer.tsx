@@ -28,6 +28,8 @@ interface ChatComposerProps {
     // 附件和搜索相关
     attachmentState?: AttachmentState;
     onAttachmentChange?: (state: AttachmentState) => void;
+    // 隐藏底部免责声明
+    hideDisclaimer?: boolean;
 }
 
 export function ChatComposer({
@@ -48,6 +50,7 @@ export function ChatComposer({
     membershipType = 'free',
     attachmentState,
     onAttachmentChange,
+    hideDisclaimer = false,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
@@ -130,9 +133,8 @@ export function ChatComposer({
             <div className="max-w-3xl mx-auto">
                 {/* 输入框容器 */}
                 <div className={`
-                    relative flex flex-col gap-1 p-3 rounded-2xl
+                    relative flex flex-col gap-1 p-3 rounded-4xl
                     bg-background/90 border border-border
-                    focus-within:ring-2 focus-within:ring-accent/30 focus-within:border-accent
                     transition-all duration-300
                 `}>
                     {/* 已上传文件显示卡片 */}
@@ -169,8 +171,8 @@ export function ChatComposer({
                             value={inputValue}
                             onChange={(e) => onInputChange(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={disabled ? "请充值后继续使用" : "输入您的问题..."}
-                            className="w-full bg-transparent resize-none text-base py-2 px-1
+                            placeholder={disabled ? "请充值后继续使用" : "尽管问"}
+                            className="w-full bg-transparent resize-none text-base py-2 px-2
                                focus:outline-none
                                placeholder:text-foreground-secondary/80
                                disabled:cursor-not-allowed
@@ -366,9 +368,11 @@ export function ChatComposer({
                     </div>
                 </div>
 
-                <p className="text-center text-xs text-foreground-secondary/90 mt-1">
-                    AI 回复仅供参考，请理性看待命理分析结果
-                </p>
+                {!hideDisclaimer && (
+                    <p className="text-center text-xs text-foreground-secondary/90 mt-1">
+                        AI 回复仅供参考，请理性看待命理分析结果
+                    </p>
+                )}
             </div>
         </div>
     );
