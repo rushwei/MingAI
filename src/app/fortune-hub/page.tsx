@@ -86,8 +86,8 @@ function FortuneHubContent() {
             {/* 顶部 Hero 区域 - 全宽设计 */}
             <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
-                <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                    <div className="inline-flex items-center justify-center p-4 bg-emerald-500/10 rounded-2xl mb-6 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                <div className="max-w-4xl mx-auto px-4 pt-16 pb-8 text-center relative z-10">
+                    <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-emerald-500/10">
                         <Compass className="w-12 h-12 text-emerald-500" />
                     </div>
                     <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 mb-4 tracking-tight">

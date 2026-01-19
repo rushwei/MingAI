@@ -23,7 +23,8 @@ import {
     Compass,
     ChevronDown,
     X,
-    Share2
+    Share2,
+    Sun
 } from 'lucide-react';
 
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
@@ -265,7 +266,7 @@ function DailyPageContent() {
                 {/* 顶部标题与日期选择 */}
                 <header className="text-center mb-8 pt-4">
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
-                        <Compass className="w-8 h-8 text-purple-500" />
+                        <Sun className="w-8 h-8 text-purple-500" />
                         每日运势
                     </h1>
                     <p className="text-foreground-secondary/80 text-sm mb-6">

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Sparkles, HelpCircle, Loader2, Dices } from 'lucide-react';
+import { Coins, Sparkles, Loader2, Dices } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
@@ -92,7 +92,7 @@ export default function LiuyaoPage() {
             <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                 <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                    <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-2xl mb-6 ring-1 ring-amber-500/20">
+                    <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-amber-500/10">
                         <Dices className="w-12 h-12 text-amber-500" />
                     </div>
                     <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -106,30 +106,25 @@ export default function LiuyaoPage() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 -mt-8 relative z-20">
+            <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-20">
                 {/* 问题输入 */}
-                <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50 mb-10">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-accent/10 rounded-lg">
-                            <HelpCircle className="w-5 h-5 text-accent" />
-                        </div>
-                        <h2 className="text-lg font-semibold">请输入您想占卜的问题</h2>
-                        <span className="text-sm font-normal text-foreground-secondary ml-auto">(可选)</span>
-                    </div>
-
-                    <div className="relative">
-                        <textarea
+                {/* 问题输入 */}
+                <div className="mb-10 text-center max-w-2xl mx-auto">
+                    <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                        心中默念您的问题（选填）
+                    </label>
+                    <div className="relative group">
+                        <div className="absolute inset-0 bg-amber-500/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                        <input
+                            type="text"
                             value={question}
                             onChange={(e) => setQuestion(e.target.value)}
                             placeholder="例如：我近期的事业运势如何？这次合作能否顺利达成？"
-                            className="w-full h-32 px-5 py-4 bg-background-secondary/30 border border-border rounded-xl
-                                text-foreground placeholder:text-foreground-tertiary
-                                focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
-                                resize-none transition-all duration-300"
+                            className="relative w-full px-6 py-4 bg-background rounded-xl border border-border shadow-sm 
+                                focus:border-amber-500 focus:ring-0 focus:outline-none 
+                                text-center text-lg placeholder:text-foreground-tertiary/70
+                                transition-all duration-300"
                         />
-                        <div className="absolute bottom-3 right-4 text-xs text-foreground-tertiary">
-                            心诚则灵，一事一占
-                        </div>
                     </div>
                 </div>
 

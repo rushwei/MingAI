@@ -169,7 +169,7 @@ export default function PalmPage() {
                 <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                     <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                     <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                        <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-2xl mb-6 ring-1 ring-amber-500/20">
+                        <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-amber-500/10">
                             <Hand className="w-12 h-12 text-amber-500" />
                         </div>
                         <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -331,18 +331,24 @@ export default function PalmPage() {
                         </div>
 
                         {/* 问题输入 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
-                                <span className="w-1 h-4 bg-amber-500 rounded-full" />
-                                想了解什么？（可选）
+                        {/* 问题输入 */}
+                        <div className="mb-10 text-center max-w-2xl mx-auto">
+                            <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                                心中默念您的问题（选填）
                             </label>
-                            <input
-                                type="text"
-                                value={question}
-                                onChange={(e) => setQuestion(e.target.value)}
-                                placeholder="例如：我的事业运势如何？什么时候会有桃花运？"
-                                className="w-full px-5 py-3.5 bg-background-secondary/30 rounded-xl border border-border focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all"
-                            />
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-amber-500/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                                <input
+                                    type="text"
+                                    value={question}
+                                    onChange={(e) => setQuestion(e.target.value)}
+                                    placeholder="例如：我的事业运势如何？什么时候会有桃花运？"
+                                    className="relative w-full px-6 py-4 bg-background rounded-xl border border-border shadow-sm 
+                                        focus:border-amber-500 focus:ring-0 focus:outline-none 
+                                        text-center text-lg placeholder:text-foreground-tertiary/70
+                                        transition-all duration-300"
+                                />
+                            </div>
                         </div>
 
                         {/* 提示信息 */}

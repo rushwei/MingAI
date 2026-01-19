@@ -227,16 +227,14 @@ function MonthlyPageContent() {
     return (
         <div className="min-h-screen bg-white pb-20">
             {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden border-b border-border/50 pb-8 pt-16">
+            <div className="relative overflow-hidden border-border/50 pb-4 pt-12">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
-
-
                 <div className="max-w-4xl mx-auto px-4 relative z-10">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 rounded-2xl mb-4 ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/10 backdrop-blur-sm">
-                            <CalendarIcon className="w-8 h-8 text-indigo-500" />
-                        </div>
-                        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-4 tracking-tight">
+                    <div className="text-center mb-6">
+                        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-4 tracking-tight flex items-center justify-center gap-3">
+                            <div className="inline-flex items-center justify-center p-2 rounded-xl">
+                                <CalendarIcon className="w-8 h-8 text-indigo-500" />
+                            </div>
                             月度运势
                         </h1>
                         <p className="text-lg text-foreground-secondary/80 max-w-lg mx-auto">

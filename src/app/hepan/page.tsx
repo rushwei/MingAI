@@ -37,7 +37,7 @@ function HepanPageContent() {
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden pt-24 pb-16">
+            <div className="relative overflow-hidden pt-20 pb-16">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2 pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] -translate-x-1/2 translate-y-1/2 pointer-events-none" />

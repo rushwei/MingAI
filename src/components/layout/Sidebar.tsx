@@ -42,6 +42,12 @@ import type { User as SupabaseUser } from '@/lib/supabase';
 // 导航项配置
 const navItems = [
     {
+        href: '/fortune-hub',
+        label: '运势中心',
+        icon: Compass,
+        available: true
+    },
+    {
         href: '/bazi',
         label: '八字',
         icon: Orbit,
@@ -110,7 +116,6 @@ const navItems = [
 // 工具项配置 - 使用不同图标区分每日/每月
 const toolItems = [
     { href: '/user/checkin', label: '签到', icon: CalendarCheck, available: true },
-    { href: '/fortune-hub', label: '运势中心', icon: Compass, available: true },
     { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '每日运势', icon: Sun, available: true },
     { href: '/monthly', label: '月度运势', icon: CalendarRange, available: true },

@@ -39,7 +39,7 @@ export default function TarotPage() {
                 <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                     <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                     <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                        <div className="inline-flex items-center justify-center p-4 bg-purple-500/10 rounded-2xl mb-6 ring-1 ring-purple-500/20">
+                        <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-purple-500/10">
                             <Gem className="w-12 h-12 text-purple-500" />
                         </div>
                         <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -79,8 +79,8 @@ export default function TarotPage() {
                                     <h3 className="text-2xl font-bold mb-2 flex items-center justify-center sm:justify-start gap-3">
                                         {dailyCard.card.nameChinese}
                                         <span className={`px-2 py-0.5 rounded text-xs font-normal border ${dailyCard.orientation === 'reversed'
-                                                ? 'bg-orange-50 text-orange-600 border-orange-200'
-                                                : 'bg-green-50 text-green-600 border-green-200'
+                                            ? 'bg-orange-50 text-orange-600 border-orange-200'
+                                            : 'bg-green-50 text-green-600 border-green-200'
                                             }`}>
                                             {dailyCard.orientation === 'reversed' ? '逆位' : '正位'}
                                         </span>
