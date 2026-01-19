@@ -155,7 +155,7 @@ export default function ChartsPage() {
                     {list.map((chart) => (
                         <Link
                             key={`${chart.type}-${chart.id}`}
-                            href={chart.type === 'bazi' ? `/bazi/result?id=${chart.id}` : `/ziwei/result?id=${chart.id}`}
+                            href={chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`}
                             className={`
                                 group relative bg-white rounded-2xl p-5 border transition-all duration-300 min-h-[110px]
                                 ${chart.is_default ? 'border-accent shadow-sm ring-1 ring-accent/10' : 'border-slate-100 hover:border-accent/30 hover:shadow-md'}
