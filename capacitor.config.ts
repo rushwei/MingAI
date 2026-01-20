@@ -13,6 +13,9 @@ const config: CapacitorConfig = {
       '*.vercel.app',
     ],
   },
+  ios: {
+    contentInset: 'always',
+  },
 };
 
 export default config;

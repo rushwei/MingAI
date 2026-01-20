@@ -42,7 +42,7 @@ export function Header() {
             <header
                 className="
                     sticky top-0 z-40
-                    h-16 px-4
+                    safe-top h-16 px-4
                     bg-background/95 backdrop-blur-md
                     border-b border-border
                     flex items-center justify-between

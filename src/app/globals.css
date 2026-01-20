@@ -7,6 +7,10 @@
 
 /* ===== 主题变量定义 ===== */
 :root {
+  /* ios 安全区域 */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+
   /* 浅色主题 - 参考 PRD 设计规范 */
   --background: #ffffff;
   --background-secondary: #f5f5f5;
@@ -29,6 +33,19 @@
   /* 侧边栏宽度 */
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 72px;
+}
+
+/* 安全区域工具类 */
+.safe-top {
+  padding-top: var(--sat);
+}
+
+.safe-bottom {
+  padding-bottom: var(--sab);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: var(--sab);
 }
 
 /* 深色主题 */
