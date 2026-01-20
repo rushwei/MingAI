@@ -5,8 +5,13 @@ const config: CapacitorConfig = {
   appName: 'MingAI',
   webDir: 'capacitor-www',
   server: {
-    url: 'https://mingai.fun', // 先用 vercel 的 https://xxx.vercel.app 也行
+    url: 'https://www.mingai.fun',
     cleartext: false,
+    allowNavigation: [
+      'mingai.fun',
+      '*.mingai.fun',
+      '*.vercel.app',
+    ],
   },
 };
 
