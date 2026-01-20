@@ -40,6 +40,11 @@
   padding-top: var(--sat);
 }
 
+.safe-top-header {
+  padding-top: var(--sat);
+  min-height: calc(4rem + var(--sat));
+}
+
 .safe-bottom {
   padding-bottom: var(--sab);
 }
