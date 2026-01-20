@@ -811,7 +811,7 @@ export default function ChatPage() {
     // 获取最后一条 AI 消息的命盘信息（用于在 Composer 中显示）
     return (
         <LoginOverlay message="登录后即可使用 AI 对话功能">
-            <div className="flex h-[calc(100vh-5rem)] lg:h-screen">
+            <div className="flex h-[calc(100vh-var(--mobile-header-height)-5rem)] lg:h-screen">
                 {/* 对话历史侧边栏 */}
                 <ConversationSidebar
                     conversations={conversations}

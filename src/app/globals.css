@@ -10,6 +10,7 @@
   /* ios 安全区域 */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+  --mobile-header-height: calc(4rem + var(--sat));
 
   /* 浅色主题 - 参考 PRD 设计规范 */
   --background: #ffffff;
@@ -42,7 +43,7 @@
 
 .safe-top-header {
   padding-top: var(--sat);
-  min-height: calc(4rem + var(--sat));
+  min-height: var(--mobile-header-height);
 }
 
 .safe-bottom {
