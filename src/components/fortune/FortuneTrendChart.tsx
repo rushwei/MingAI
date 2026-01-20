@@ -229,20 +229,22 @@ export function FortuneTrendChart({
                 </div>
 
                 {/* 维度选择器 */}
-                <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                     {(Object.keys(DIMENSION_CONFIG) as FortuneDimension[]).map((dim) => (
                         <button
                             key={dim}
                             onClick={() => toggleDimension(dim)}
-                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                activeDimensions.includes(dim)
-                                    ? 'text-white'
-                                    : 'bg-background-secondary text-foreground-secondary hover:bg-background-tertiary'
-                            }`}
+                            className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 ${activeDimensions.includes(dim)
+                                ? 'text-white shadow-md transform scale-105'
+                                : 'bg-background-secondary/80 text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+                                }`}
                             style={{
                                 backgroundColor: activeDimensions.includes(dim)
                                     ? DIMENSION_CONFIG[dim].color
                                     : undefined,
+                                boxShadow: activeDimensions.includes(dim)
+                                    ? `0 2px 4px ${DIMENSION_CONFIG[dim].color}40`
+                                    : undefined
                             }}
                         >
                             {DIMENSION_CONFIG[dim].label}
@@ -252,7 +254,7 @@ export function FortuneTrendChart({
             </div>
 
             {/* 图表 */}
-            <div className="bg-background-secondary rounded-xl p-4">
+            <div className="bg-background-secondary/30 border border-border/50 rounded-2xl p-4">
                 <ResponsiveContainer width="100%" height={height}>
                     <LineChart
                         data={chartData}
@@ -266,22 +268,25 @@ export function FortuneTrendChart({
                         }}
                     >
                         <CartesianGrid
-                            strokeDasharray="3 3"
+                            strokeDasharray="2 2"
                             stroke="var(--color-border)"
-                            opacity={0.5}
+                            opacity={0.3}
+                            vertical={false}
                         />
                         <XAxis
                             dataKey="date"
-                            tick={{ fontSize: 11, fill: 'var(--color-foreground-secondary)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--color-border)' }}
-                        />
-                        <YAxis
-                            domain={[30, 100]}
-                            tick={{ fontSize: 11, fill: 'var(--color-foreground-secondary)' }}
+                            tick={{ fontSize: 10, fill: 'var(--color-foreground-secondary)' }}
                             tickLine={false}
                             axisLine={false}
-                            tickCount={5}
+                            dy={10}
+                            minTickGap={15}
+                        />
+                        <YAxis
+                            domain={[40, 100]}
+                            tick={{ fontSize: 10, fill: 'var(--color-foreground-secondary)' }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickCount={4}
                         />
                         <Tooltip content={<FortuneTrendTooltip chartData={chartData} />} />
                         {showLegend && <Legend />}
@@ -293,13 +298,13 @@ export function FortuneTrendChart({
                                 type="monotone"
                                 dataKey={dim}
                                 stroke={DIMENSION_CONFIG[dim].color}
-                                strokeWidth={dim === 'overall' ? 2.5 : 2}
-                                dot={false}
+                                strokeWidth={dim === 'overall' ? 3.5 : 2.5}
+                                dot={chartData.length < 15 ? { r: 3, fill: DIMENSION_CONFIG[dim].color, stroke: 'var(--color-background)', strokeWidth: 1.5 } : false}
                                 activeDot={{
-                                    r: 5,
+                                    r: 6,
                                     fill: DIMENSION_CONFIG[dim].color,
                                     stroke: 'var(--color-background)',
-                                    strokeWidth: 2,
+                                    strokeWidth: 3,
                                 }}
                             />
                         ))}
@@ -310,20 +315,22 @@ export function FortuneTrendChart({
                                 key={idx}
                                 x={point.date}
                                 y={point.overall}
-                                r={6}
+                                r={5}
                                 fill={KEY_DATE_COLORS[point.keyDateType || 'lucky']}
                                 stroke="var(--color-background)"
                                 strokeWidth={2}
+                                style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.1))' }}
                             />
                         ))}
                         {selectedPoint && (
                             <ReferenceDot
                                 x={selectedPoint.date}
                                 y={selectedPoint.overall}
-                                r={7}
-                                fill="var(--color-accent)"
+                                r={8}
+                                fill={DIMENSION_CONFIG.overall.color}
                                 stroke="var(--color-background)"
-                                strokeWidth={2}
+                                strokeWidth={3}
+                                style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.1))' }}
                             />
                         )}
                     </LineChart>
@@ -334,16 +341,16 @@ export function FortuneTrendChart({
             {keyDatePoints.length > 0 && (
                 <div className="flex items-center gap-4 flex-wrap text-xs">
                     <span className="text-foreground-secondary">关键日期:</span>
-                    {keyDatePoints.slice(0, 5).map((point, idx) => (
+                    {keyDatePoints.map((point, idx) => (
                         <div
                             key={idx}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1.5 text-xs text-foreground-secondary/90 bg-background-secondary/50 px-2 py-1 rounded-md"
                         >
                             <div
-                                className="w-2 h-2 rounded-full"
+                                className="w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-white/10"
                                 style={{ backgroundColor: KEY_DATE_COLORS[point.keyDateType || 'lucky'] }}
                             />
-                            <span className="text-foreground-secondary">
+                            <span>
                                 {point.dayOfMonth}日 - {point.keyDateDesc}
                             </span>
                         </div>

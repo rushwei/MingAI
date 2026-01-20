@@ -37,6 +37,7 @@ import { supabase } from '@/lib/supabase';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/fortune';
 import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/calendar';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 import type { BaziChart } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 
@@ -248,6 +249,11 @@ function DailyPageContent() {
         };
     }, [selectedDate]);
 
+    const dayStemElement = fortune.dayStem ? getStemElement(fortune.dayStem) : null;
+    const dayBranchElement = fortune.dayBranch ? getBranchElement(fortune.dayBranch) : null;
+    const dayStemColor = dayStemElement ? getElementColor(dayStemElement) : undefined;
+    const dayBranchColor = dayBranchElement ? getElementColor(dayBranchElement) : undefined;
+
     if (loading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center">
@@ -379,12 +385,16 @@ function DailyPageContent() {
                     <div className="flex items-center justify-center gap-6 py-2 text-sm font-medium text-foreground/80 bg-background/40 rounded-xl border border-border/50 mx-4">
                         <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            流日：<span className="text-purple-600 dark:text-purple-400 font-bold">{fortune.dayStem}{fortune.dayBranch}</span>
+                            流日：
+                            <span className="font-bold">
+                                <span style={{ color: dayStemColor }}>{fortune.dayStem}</span>
+                                <span style={{ color: dayBranchColor }}>{fortune.dayBranch}</span>
+                            </span>
                         </div>
                         <div className="w-px h-4 bg-border" />
                         <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                            主神：<span className="text-indigo-600 dark:text-indigo-400 font-bold">{fortune.tenGod}</span>
+                            主神：<span className="font-bold">{fortune.tenGod}</span>
                         </div>
                     </div>
                 )}

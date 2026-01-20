@@ -150,9 +150,12 @@ function clampScore(score: number): number {
 
 /**
  * 基于种子的伪随机函数（用于微调）
+ * @param seed 日期种子
+ * @param offset 维度偏移
+ * @param userSeed 用户种子（可选，用于个性化）
  */
-function seededRandom(seed: number, offset: number = 0): number {
-    const x = Math.sin(seed + offset) * 10000;
+function seededRandom(seed: number, offset: number = 0, userSeed: number = 0): number {
+    const x = Math.sin(seed + offset + userSeed * 0.001) * 10000;
     return x - Math.floor(x);
 }
 
@@ -189,12 +192,16 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
     // 添加日期种子的微调（让每天有变化）
     const dateSeed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
 
+    // 命盘种子：基于出生日期生成唯一值，确保不同命盘同一天运势有差异
+    const birthDate = baziChart.birthDate || '';
+    const chartSeed = birthDate.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
     // 计算各项运势
-    const career = clampScore(baseScore + (godBonus.career || 0) + seededRandom(dateSeed, 1) * 10 - 5);
-    const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(dateSeed, 2) * 10 - 5);
-    const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(dateSeed, 3) * 10 - 5);
-    const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(dateSeed, 4) * 10 - 5);
-    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(dateSeed, 5) * 10 - 5);
+    const career = clampScore(baseScore + (godBonus.career || 0) + seededRandom(dateSeed, 1, chartSeed) * 10 - 5);
+    const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(dateSeed, 2, chartSeed) * 10 - 5);
+    const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(dateSeed, 3, chartSeed) * 10 - 5);
+    const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(dateSeed, 4, chartSeed) * 10 - 5);
+    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(dateSeed, 5, chartSeed) * 10 - 5);
     const overall = clampScore((career + love + wealth + health + social) / 5);
 
     // 生成运势建议

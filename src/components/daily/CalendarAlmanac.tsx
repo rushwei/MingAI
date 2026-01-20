@@ -14,6 +14,7 @@ import {
     Clock,
 } from 'lucide-react';
 import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/calendar';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 
 interface CalendarAlmanacProps {
     date: Date;
@@ -21,6 +22,21 @@ interface CalendarAlmanacProps {
 
 export function CalendarAlmanac({ date }: CalendarAlmanacProps) {
     const data = useMemo(() => getCalendarAlmanac(date), [date]);
+    const renderGanZhi = (value: string) => {
+        const stem = value?.[0] || '';
+        const branch = value?.[1] || '';
+        const stemElement = getStemElement(stem);
+        const branchElement = getBranchElement(branch);
+        const stemColor = stemElement ? getElementColor(stemElement) : undefined;
+        const branchColor = branchElement ? getElementColor(branchElement) : undefined;
+
+        return (
+            <span>
+                <span style={{ color: stemColor }}>{stem}</span>
+                <span style={{ color: branchColor }}>{branch}</span>
+            </span>
+        );
+    };
 
     return (
         <section className="bg-background rounded-xl border border-border overflow-hidden">
@@ -44,7 +60,9 @@ export function CalendarAlmanac({ date }: CalendarAlmanacProps) {
                     </div>
                     <div>
                         <span className="text-foreground-secondary">干支：</span>
-                        <span>{data.ganZhi.year} {data.ganZhi.month} {data.ganZhi.day}</span>
+                        <span>
+                            {renderGanZhi(data.ganZhi.year)} {renderGanZhi(data.ganZhi.month)} {renderGanZhi(data.ganZhi.day)}
+                        </span>
                     </div>
                 </div>
 

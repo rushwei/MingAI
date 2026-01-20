@@ -237,16 +237,17 @@ async function sendReminder(reminder: {
         case 'solar_term':
             title = `🌿 今日节气：${content.term_name}`;
             message = `${content.meaning}\n\n养生建议：${content.tips}`;
-            link = '/fortune';
+            link = '/daily';
             break;
         case 'fortune':
             title = '📅 今日运势提醒';
             message = typeof content.summary === 'string' ? content.summary : '查看您的今日运势分析';
-            link = '/fortune';
+            link = '/daily';
             break;
         case 'key_date':
             title = `🔔 重要日期提醒`;
             message = typeof content.description === 'string' ? content.description : '今天有重要事项';
+            link = '/daily';
             break;
         default:
             title = '系统提醒';

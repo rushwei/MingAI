@@ -25,6 +25,7 @@ import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, generateEnhancedKeyDates, type MonthlyFortune, type EnhancedKeyDate } from '@/lib/fortune';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 import type { BaziChart } from '@/types';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
@@ -215,6 +216,11 @@ function MonthlyPageContent() {
         setShowChartSelector(false);
     };
 
+    const monthStemElement = fortune?.monthStem ? getStemElement(fortune.monthStem) : null;
+    const monthBranchElement = fortune?.monthBranch ? getBranchElement(fortune.monthBranch) : null;
+    const monthStemColor = monthStemElement ? getElementColor(monthStemElement) : undefined;
+    const monthBranchColor = monthBranchElement ? getElementColor(monthBranchElement) : undefined;
+
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto px-4 py-8 text-center">
@@ -323,12 +329,15 @@ function MonthlyPageContent() {
                             <div className="sm:w-1/3 flex flex-col justify-center items-center sm:items-start border-b sm:border-b-0 sm:border-r border-border/50 pb-4 sm:pb-0 sm:pr-6">
                                 <div className="text-sm font-medium text-foreground-secondary mb-1">本月能量</div>
                                 <div className="flex items-baseline gap-2 mb-2">
-                                    <span className="text-3xl font-bold font-serif text-indigo-900 dark:text-indigo-100">{fortune.monthStem}{fortune.monthBranch}</span>
+                                    <span className="text-3xl font-bold font-serif text-indigo-900 dark:text-indigo-100">
+                                        <span style={{ color: monthStemColor }}>{fortune.monthStem}</span>
+                                        <span style={{ color: monthBranchColor }}>{fortune.monthBranch}</span>
+                                    </span>
                                     <span className="text-sm text-foreground-secondary">月</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-background-secondary px-3 py-1.5 rounded-lg border border-border/50">
                                     <span className="text-xs text-foreground-secondary">主运十神</span>
-                                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{fortune.tenGod}</span>
+                                    <span className="text-sm font-bold">{fortune.tenGod}</span>
                                 </div>
                                 {average > 0 && (
                                     <div className="mt-4 flex flex-col items-center sm:items-start w-full">

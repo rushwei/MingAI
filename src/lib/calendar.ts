@@ -128,25 +128,90 @@ export function getCalendarAlmanac(date: Date): CalendarAlmanacData {
     let nextJieQi: CalendarAlmanacData['jieQi']['next'] = null;
 
     try {
+        // 获取前一个节气和下一个节气
         const prevJq = lunar.getPrevJieQi();
-        if (prevJq) {
-            const jqSolar = prevJq.getSolar();
-            currentJieQi = {
-                name: prevJq.getName(),
-                date: `${jqSolar.getYear()}-${String(jqSolar.getMonth()).padStart(2, '0')}-${String(jqSolar.getDay()).padStart(2, '0')}`,
-                time: `${String(jqSolar.getHour()).padStart(2, '0')}:${String(jqSolar.getMinute()).padStart(2, '0')}:00`,
-            };
-        }
-    } catch { /* ignore */ }
-
-    try {
         const nextJq = lunar.getNextJieQi();
+
+        // 检查今天是否就是节气当天
+        // 如果下一个节气的日期是今天，且当前时间已过节气时间点，则下一个节气应该变成当前节气
         if (nextJq) {
             const jqSolar = nextJq.getSolar();
-            nextJieQi = {
-                name: nextJq.getName(),
-                date: `${jqSolar.getYear()}-${String(jqSolar.getMonth()).padStart(2, '0')}-${String(jqSolar.getDay()).padStart(2, '0')}`,
-                time: `${String(jqSolar.getHour()).padStart(2, '0')}:${String(jqSolar.getMinute()).padStart(2, '0')}:00`,
+            const jqDate = `${jqSolar.getYear()}-${String(jqSolar.getMonth()).padStart(2, '0')}-${String(jqSolar.getDay()).padStart(2, '0')}`;
+            const todayStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            // 如果节气日期是今天
+            if (jqDate === todayStr) {
+                // 比较时间：传入的日期时间是否已过节气时刻
+                // 注意：如果传入日期不是今天，则默认认为已过节气时刻（因为无法获取具体时间）
+                const isToday = todayStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                const jqHour = jqSolar.getHour();
+                const jqMinute = jqSolar.getMinute();
+                const jqMinutes = jqHour * 60 + jqMinute;
+
+                // 如果是今天，比较当前时间；如果是查看历史/未来日期，默认认为该日期已过节气时刻
+                const currentMinutes = isToday ? (new Date().getHours() * 60 + new Date().getMinutes()) : 24 * 60;
+
+                if (currentMinutes >= jqMinutes) {
+                    // 已过节气时刻，nextJq 应该成为当前节气
+                    currentJieQi = {
+                        name: nextJq.getName(),
+                        date: jqDate,
+                        time: `${String(jqHour).padStart(2, '0')}:${String(jqMinute).padStart(2, '0')}:00`,
+                    };
+                    // 获取下下个节气：从当前节气日期后1天计算其"下一个节气"
+                    try {
+                        const futureDate = new Date(jqSolar.getYear(), jqSolar.getMonth() - 1, jqSolar.getDay() + 1);
+                        const futureSolar = Solar.fromYmd(futureDate.getFullYear(), futureDate.getMonth() + 1, futureDate.getDate());
+                        const futureLunar = futureSolar.getLunar();
+                        const nextNextJq = futureLunar.getNextJieQi();
+                        if (nextNextJq) {
+                            const nnSolar = nextNextJq.getSolar();
+                            nextJieQi = {
+                                name: nextNextJq.getName(),
+                                date: `${nnSolar.getYear()}-${String(nnSolar.getMonth()).padStart(2, '0')}-${String(nnSolar.getDay()).padStart(2, '0')}`,
+                                time: `${String(nnSolar.getHour()).padStart(2, '0')}:${String(nnSolar.getMinute()).padStart(2, '0')}:00`,
+                            };
+                        }
+                    } catch { /* ignore */ }
+                } else {
+                    // 尚未到节气时刻
+                    if (prevJq) {
+                        const prevSolar = prevJq.getSolar();
+                        currentJieQi = {
+                            name: prevJq.getName(),
+                            date: `${prevSolar.getYear()}-${String(prevSolar.getMonth()).padStart(2, '0')}-${String(prevSolar.getDay()).padStart(2, '0')}`,
+                            time: `${String(prevSolar.getHour()).padStart(2, '0')}:${String(prevSolar.getMinute()).padStart(2, '0')}:00`,
+                        };
+                    }
+                    nextJieQi = {
+                        name: nextJq.getName(),
+                        date: jqDate,
+                        time: `${String(jqHour).padStart(2, '0')}:${String(jqMinute).padStart(2, '0')}:00`,
+                    };
+                }
+            } else {
+                // 节气不是今天，使用常规逻辑
+                if (prevJq) {
+                    const prevSolar = prevJq.getSolar();
+                    currentJieQi = {
+                        name: prevJq.getName(),
+                        date: `${prevSolar.getYear()}-${String(prevSolar.getMonth()).padStart(2, '0')}-${String(prevSolar.getDay()).padStart(2, '0')}`,
+                        time: `${String(prevSolar.getHour()).padStart(2, '0')}:${String(prevSolar.getMinute()).padStart(2, '0')}:00`,
+                    };
+                }
+                const jqSolar2 = nextJq.getSolar();
+                nextJieQi = {
+                    name: nextJq.getName(),
+                    date: `${jqSolar2.getYear()}-${String(jqSolar2.getMonth()).padStart(2, '0')}-${String(jqSolar2.getDay()).padStart(2, '0')}`,
+                    time: `${String(jqSolar2.getHour()).padStart(2, '0')}:${String(jqSolar2.getMinute()).padStart(2, '0')}:00`,
+                };
+            }
+        } else if (prevJq) {
+            const prevSolar = prevJq.getSolar();
+            currentJieQi = {
+                name: prevJq.getName(),
+                date: `${prevSolar.getYear()}-${String(prevSolar.getMonth()).padStart(2, '0')}-${String(prevSolar.getDay()).padStart(2, '0')}`,
+                time: `${String(prevSolar.getHour()).padStart(2, '0')}:${String(prevSolar.getMinute()).padStart(2, '0')}:00`,
             };
         }
     } catch { /* ignore */ }
