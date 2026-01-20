@@ -15,7 +15,9 @@ import {
     Sparkles,
     Clock,
     MessageSquare,
-    Heart
+    Heart,
+    type LucideIcon,
+    type LucideProps
 } from 'lucide-react';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
@@ -138,7 +140,9 @@ function PostCard({ post }: { post: CommunityPost }) {
 }
 
 // 辅助组件：用于处理 Lucide 图标 props 可能不匹配的问题 (仅为示例，实际可直接使用)
-const PropsIconWrapper = ({ icon: Icon, ...props }: any) => <Icon {...props} />;
+const PropsIconWrapper = ({ icon: Icon, ...props }: { icon: LucideIcon } & LucideProps) => (
+    <Icon {...props} />
+);
 
 // =====================================================
 // 主页面组件

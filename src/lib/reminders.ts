@@ -98,12 +98,12 @@ export async function isSubscribed(userId: string, reminderType: ReminderType): 
     const serviceClient = getServiceClient();
     const { data } = await serviceClient
         .from('reminder_subscriptions')
-        .select('enabled')
+        .select('enabled, notify_site')
         .eq('user_id', userId)
         .eq('reminder_type', reminderType)
         .maybeSingle();
 
-    return data?.enabled ?? false;
+    return !!data?.enabled && !!data?.notify_site;
 }
 
 // ===== 提醒调度 =====
@@ -203,9 +203,11 @@ export async function processScheduledReminders(): Promise<number> {
             }
 
             // 发送提醒
-            await sendReminder(reminder);
-            await markReminderSent(reminder.id);
-            processed++;
+            const sent = await sendReminder(reminder);
+            if (sent) {
+                await markReminderSent(reminder.id);
+                processed++;
+            }
         } catch (err) {
             console.error(`[reminders] 处理提醒 ${reminder.id} 失败:`, err);
         }
@@ -222,7 +224,7 @@ async function sendReminder(reminder: {
     user_id: string;
     reminder_type: string;
     content: Record<string, unknown>;
-}): Promise<void> {
+}): Promise<boolean> {
     const content = reminder.content || {};
 
     let title = '';
@@ -249,7 +251,11 @@ async function sendReminder(reminder: {
             message = '您有一条新提醒';
     }
 
-    await createNotification(reminder.user_id, 'system', title, message, link);
+    const success = await createNotification(reminder.user_id, 'system', title, message, link);
+    if (!success) {
+        console.error('[reminders] 创建通知失败:', reminder.user_id, reminder.reminder_type);
+    }
+    return success;
 }
 
 /**

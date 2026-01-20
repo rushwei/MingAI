@@ -166,7 +166,9 @@ export async function createNotification(
     content?: string,
     link?: string
 ): Promise<boolean> {
-    const { error } = await supabase
+    const { getServiceClient } = await import('./supabase-server');
+    const serviceClient = getServiceClient();
+    const { error } = await serviceClient
         .from('notifications')
         .insert({
             user_id: userId,
@@ -404,4 +406,3 @@ export function fillTemplate(
 
     return { title, content };
 }
-

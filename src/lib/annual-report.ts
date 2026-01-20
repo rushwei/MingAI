@@ -4,7 +4,7 @@
  * 生成用户年度命理使用报告
  */
 
-import { supabase } from './supabase';
+import { getServiceClient } from './supabase-server';
 
 // ===== 报告数据类型 =====
 
@@ -74,6 +74,7 @@ export async function generateAnnualReport(
     const endDate = `${year}-12-31T23:59:59`;
 
     try {
+        const supabase = getServiceClient();
         // 1. 获取对话统计
         const { data: conversations } = await supabase
             .from('conversations')
@@ -206,6 +207,7 @@ export async function getCachedAnnualReport(
     userId: string,
     year: number
 ): Promise<AnnualReportData | null> {
+    const supabase = getServiceClient();
     const { data, error } = await supabase
         .from('annual_reports')
         .select('report_data')
@@ -228,6 +230,7 @@ async function cacheAnnualReport(
     year: number,
     report: AnnualReportData
 ): Promise<void> {
+    const supabase = getServiceClient();
     await supabase
         .from('annual_reports')
         .upsert({
@@ -247,6 +250,7 @@ export async function getReportSummary(
     userId: string,
     year: number
 ): Promise<{ hasData: boolean; totalAnalyses: number; topFeature: string } | null> {
+    const supabase = getServiceClient();
     const report = await getCachedAnnualReport(userId, year);
 
     if (!report) {

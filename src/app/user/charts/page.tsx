@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+type ChartType = 'bazi' | 'ziwei';
+
 interface ChartItem {
     id: string;
-    type: 'bazi' | 'ziwei';
+    type: ChartType;
     name: string;
     gender: 'male' | 'female' | 'unknown';
     birth_date: string;
@@ -18,126 +20,55 @@ interface ChartItem {
     is_default: boolean;
 }
 
-export default function ChartsPage() {
-    const router = useRouter();
-    const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
-    const [ziweiCharts, setZiweiCharts] = useState<ChartItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
+interface ChartRow {
+    id: string;
+    name: string;
+    gender: 'male' | 'female' | null;
+    birth_date: string;
+    birth_time: string | null;
+    birth_place: string | null;
+    created_at: string;
+}
 
-    useEffect(() => {
-        const fetchCharts = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                router.push('/login');
-                return;
-            }
-            setUserId(session.user.id);
+const getChartIcon = (type: ChartType) => {
+    if (type === 'bazi') {
+        return (
+            <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30">
+                <ScrollText className="w-5 h-5" />
+            </div>
+        );
+    }
+    return (
+        <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
+            <Star className="w-5 h-5" />
+        </div>
+    );
+};
 
-            // Fetch Bazi Charts
-            const { data: baziData } = await supabase
-                .from('bazi_charts')
-                .select('*')
-                .eq('user_id', session.user.id);
+const getGenderLabel = (gender: ChartItem['gender']) => {
+    return gender === 'female' ? '女' : '男';
+};
 
-            // Fetch Ziwei Charts
-            const { data: ziweiData } = await supabase
-                .from('ziwei_charts')
-                .select('*')
-                .eq('user_id', session.user.id);
+interface ChartListProps {
+    title: string;
+    list: ChartItem[];
+    type: ChartType;
+    onCreateLink: string;
+    onCreateText: string;
+    onDelete: (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => void;
+    onSetDefault: (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => void;
+}
 
-            // Fetch Default Settings
-            const { data: settings } = await supabase
-                .from('user_settings')
-                .select('default_bazi_chart_id, default_ziwei_chart_id')
-                .eq('user_id', session.user.id)
-                .single();
-
-            const defaultBaziId = settings?.default_bazi_chart_id;
-            const defaultZiweiId = settings?.default_ziwei_chart_id;
-
-            const formatChart = (c: any, type: 'bazi' | 'ziwei', defaultId: string | undefined): ChartItem => ({
-                id: c.id,
-                type,
-                name: c.name,
-                gender: c.gender || 'unknown',
-                birth_date: c.birth_date,
-                birth_time: c.birth_time,
-                city: c.birth_place,
-                created_at: c.created_at,
-                is_default: c.id === defaultId
-            });
-
-            const parsedBazi = (baziData || []).map(c => formatChart(c, 'bazi', defaultBaziId))
-                .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-
-            const parsedZiwei = (ziweiData || []).map(c => formatChart(c, 'ziwei', defaultZiweiId))
-                .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-
-            setBaziCharts(parsedBazi);
-            setZiweiCharts(parsedZiwei);
-            setLoading(false);
-        };
-
-        fetchCharts();
-    }, [router, supabase]);
-
-    const handleDelete = async (id: string, type: 'bazi' | 'ziwei', e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!confirm('确定要删除这个命盘吗？')) return;
-
-        const table = type === 'bazi' ? 'bazi_charts' : 'ziwei_charts';
-        const { error } = await supabase
-            .from(table)
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('删除命盘失败:', error);
-            return;
-        }
-
-        if (type === 'bazi') {
-            setBaziCharts(baziCharts.filter(c => c.id !== id));
-        } else {
-            setZiweiCharts(ziweiCharts.filter(c => c.id !== id));
-        }
-    };
-
-    const handleSetDefault = async (id: string, type: 'bazi' | 'ziwei', e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!userId) return;
-
-        // Optimistic update
-        if (type === 'bazi') {
-            setBaziCharts(baziCharts.map(c => ({ ...c, is_default: c.id === id })));
-        } else {
-            setZiweiCharts(ziweiCharts.map(c => ({ ...c, is_default: c.id === id })));
-        }
-
-        const field = type === 'bazi' ? 'default_bazi_chart_id' : 'default_ziwei_chart_id';
-        const { error } = await supabase
-            .from('user_settings')
-            .update({ [field]: id })
-            .eq('user_id', userId);
-
-        if (error) {
-            console.error('设置默认命盘失败:', error);
-        }
-    };
-
-    const getChartIcon = (type: string) => {
-        if (type === 'bazi') return <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30"><ScrollText className="w-5 h-5" /></div>;
-        return <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30"><Star className="w-5 h-5" /></div>;
-    };
-
-    const getGenderLabel = (gender: string) => {
-        return gender === 'female' ? '女' : '男';
-    };
-
-    const ChartList = ({ title, list, type, onCreateLink, onCreateText }: { title: string, list: ChartItem[], type: 'bazi' | 'ziwei', onCreateLink: string, onCreateText: string }) => (
+function ChartList({
+    title,
+    list,
+    type,
+    onCreateLink,
+    onCreateText,
+    onDelete,
+    onSetDefault,
+}: ChartListProps) {
+    return (
         <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -194,7 +125,7 @@ export default function ChartsPage() {
                             <div className="group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 flex items-center gap-1 md:opacity-0">
                                 {!chart.is_default && (
                                     <button
-                                        onClick={(e) => handleSetDefault(chart.id, chart.type, e)}
+                                        onClick={(e) => onSetDefault(chart.id, chart.type, e)}
                                         className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 text-foreground-secondary hover:text-amber-500 transition-colors"
                                         title="设为默认"
                                     >
@@ -202,7 +133,7 @@ export default function ChartsPage() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={(e) => handleDelete(chart.id, chart.type, e)}
+                                    onClick={(e) => onDelete(chart.id, chart.type, e)}
                                     className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-foreground-secondary hover:text-red-500 transition-colors"
                                     title="删除"
                                 >
@@ -229,6 +160,117 @@ export default function ChartsPage() {
             )}
         </div>
     );
+}
+
+export default function ChartsPage() {
+    const router = useRouter();
+    const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
+    const [ziweiCharts, setZiweiCharts] = useState<ChartItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchCharts = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                router.push('/login');
+                return;
+            }
+            setUserId(session.user.id);
+
+            // Fetch Bazi Charts
+            const { data: baziData } = await supabase
+                .from('bazi_charts')
+                .select('*')
+                .eq('user_id', session.user.id);
+
+            // Fetch Ziwei Charts
+            const { data: ziweiData } = await supabase
+                .from('ziwei_charts')
+                .select('*')
+                .eq('user_id', session.user.id);
+
+            // Fetch Default Settings
+            const { data: settings } = await supabase
+                .from('user_settings')
+                .select('default_bazi_chart_id, default_ziwei_chart_id')
+                .eq('user_id', session.user.id)
+                .single();
+
+            const defaultBaziId = settings?.default_bazi_chart_id;
+            const defaultZiweiId = settings?.default_ziwei_chart_id;
+
+            const formatChart = (c: ChartRow, type: ChartType, defaultId: string | undefined): ChartItem => ({
+                id: c.id,
+                type,
+                name: c.name,
+                gender: c.gender === 'male' || c.gender === 'female' ? c.gender : 'unknown',
+                birth_date: c.birth_date,
+                birth_time: c.birth_time,
+                city: c.birth_place,
+                created_at: c.created_at,
+                is_default: c.id === defaultId
+            });
+
+            const parsedBazi = ((baziData as ChartRow[] | null) || []).map(c => formatChart(c, 'bazi', defaultBaziId))
+                .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
+            const parsedZiwei = ((ziweiData as ChartRow[] | null) || []).map(c => formatChart(c, 'ziwei', defaultZiweiId))
+                .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
+            setBaziCharts(parsedBazi);
+            setZiweiCharts(parsedZiwei);
+            setLoading(false);
+        };
+
+        fetchCharts();
+    }, [router]);
+
+    const handleDelete = async (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm('确定要删除这个命盘吗？')) return;
+
+        const table = type === 'bazi' ? 'bazi_charts' : 'ziwei_charts';
+        const { error } = await supabase
+            .from(table)
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('删除命盘失败:', error);
+            return;
+        }
+
+        if (type === 'bazi') {
+            setBaziCharts(baziCharts.filter(c => c.id !== id));
+        } else {
+            setZiweiCharts(ziweiCharts.filter(c => c.id !== id));
+        }
+    };
+
+    const handleSetDefault = async (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!userId) return;
+
+        // Optimistic update
+        if (type === 'bazi') {
+            setBaziCharts(baziCharts.map(c => ({ ...c, is_default: c.id === id })));
+        } else {
+            setZiweiCharts(ziweiCharts.map(c => ({ ...c, is_default: c.id === id })));
+        }
+
+        const field = type === 'bazi' ? 'default_bazi_chart_id' : 'default_ziwei_chart_id';
+        const { error } = await supabase
+            .from('user_settings')
+            .update({ [field]: id })
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('设置默认命盘失败:', error);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-background pb-20">
@@ -263,6 +305,8 @@ export default function ChartsPage() {
                             type="bazi"
                             onCreateLink="/bazi"
                             onCreateText="新建八字"
+                            onDelete={handleDelete}
+                            onSetDefault={handleSetDefault}
                         />
 
                         <ChartList
@@ -271,6 +315,8 @@ export default function ChartsPage() {
                             type="ziwei"
                             onCreateLink="/ziwei"
                             onCreateText="新建紫微"
+                            onDelete={handleDelete}
+                            onSetDefault={handleSetDefault}
                         />
                     </div>
                 )}
