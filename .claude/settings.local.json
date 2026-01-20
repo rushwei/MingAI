@@ -12,7 +12,11 @@
       "Bash(brew info:*)",
       "Bash(claude:*)",
       "Bash(npm view:*)",
-      "Bash(pnpm exec tsc:*)"
+      "Bash(pnpm exec tsc:*)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
