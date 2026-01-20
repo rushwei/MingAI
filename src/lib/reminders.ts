@@ -7,6 +7,8 @@
 import { getServiceClient } from './supabase-server';
 import { createNotification } from './notification';
 import { getNextSolarTerm, getSolarTermMeaning } from './solar-terms';
+import { calculateDailyFortune, generateEnhancedKeyDates } from './fortune';
+import type { BaziChart } from '@/types';
 
 // ===== 提醒类型 =====
 
@@ -300,4 +302,192 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
 
     const success = await scheduleSolarTermReminder(userId, nextTerm.date, nextTerm.name);
     return success ? 1 : 0;
+}
+
+/**
+ * 为用户安排未来7天的运势波动提醒
+ * 识别运势显著变化的日期并创建提醒
+ */
+export async function scheduleUpcomingFortuneReminders(
+    userId: string,
+    baziChart: BaziChart
+): Promise<number> {
+    const serviceClient = getServiceClient();
+    const now = new Date();
+    let scheduled = 0;
+
+    // 计算未来7天的运势
+    for (let i = 1; i <= 7; i++) {
+        const targetDate = new Date(now);
+        targetDate.setDate(now.getDate() + i);
+
+        const fortune = calculateDailyFortune(baziChart, targetDate);
+        const dateStr = fortune.date;
+
+        // 识别运势波动：极高（≥88）或极低（≤55）
+        const isSignificant = fortune.overall >= 88 || fortune.overall <= 55;
+        if (!isSignificant) continue;
+
+        // 检查是否已经安排
+        const { data: existing } = await serviceClient
+            .from('scheduled_reminders')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('reminder_type', 'fortune')
+            .eq('scheduled_for', `${dateStr}T07:00:00+08:00`)
+            .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        // 创建提醒
+        const summaryType = fortune.overall >= 88 ? '大吉日' : '低谷日';
+        const summary = fortune.overall >= 88
+            ? `今日运势极佳（${fortune.overall}分），适合把握机会！`
+            : `今日运势较低（${fortune.overall}分），建议谨慎行事。`;
+
+        const success = await scheduleFortuneReminder(userId, dateStr, {
+            summary,
+            overall: fortune.overall,
+            career: fortune.career,
+            wealth: fortune.wealth,
+            love: fortune.love,
+            health: fortune.health,
+            type: summaryType,
+        });
+
+        if (success) scheduled++;
+    }
+
+    return scheduled;
+}
+
+/**
+ * 为用户安排当月的关键日提醒
+ */
+export async function scheduleKeyDateReminders(
+    userId: string,
+    baziChart: BaziChart
+): Promise<number> {
+    const serviceClient = getServiceClient();
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    let scheduled = 0;
+
+    // 获取当月关键日
+    const keyDates = generateEnhancedKeyDates(baziChart, year, month);
+
+    for (const keyDate of keyDates) {
+        // 只安排未来的日期
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(keyDate.date).padStart(2, '0')}`;
+        if (dateStr <= now.toISOString().split('T')[0]) continue;
+
+        // 检查是否已经安排
+        const { data: existing } = await serviceClient
+            .from('scheduled_reminders')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('reminder_type', 'key_date')
+            .eq('scheduled_for', `${dateStr}T07:00:00+08:00`)
+            .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        // 创建提醒
+        const { error } = await serviceClient
+            .from('scheduled_reminders')
+            .insert({
+                user_id: userId,
+                reminder_type: 'key_date',
+                scheduled_for: `${dateStr}T07:00:00+08:00`,
+                content: {
+                    date: keyDate.date,
+                    type: keyDate.type,
+                    summary: keyDate.summary,
+                    recommendation: keyDate.recommendation,
+                    scores: keyDate.scores,
+                    description: `${month}月${keyDate.date}日：${keyDate.summary}`,
+                },
+            });
+
+        if (!error) scheduled++;
+    }
+
+    return scheduled;
+}
+
+/**
+ * 获取用户的主要八字命盘（用于运势计算）
+ */
+async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null> {
+    const serviceClient = getServiceClient();
+
+    // 查找用户最近保存的八字命盘
+    const { data } = await serviceClient
+        .from('bazi_charts')
+        .select('chart_data')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!data?.chart_data) return null;
+
+    return data.chart_data as BaziChart;
+}
+
+/**
+ * 为所有启用提醒的用户调度提醒（由 Cron 调用）
+ */
+export async function scheduleAllUsersReminders(): Promise<number> {
+    const serviceClient = getServiceClient();
+    let totalScheduled = 0;
+
+    // 获取所有启用了提醒的订阅
+    const { data: subscriptions } = await serviceClient
+        .from('reminder_subscriptions')
+        .select('user_id, reminder_type')
+        .eq('enabled', true)
+        .eq('notify_site', true);
+
+    if (!subscriptions || subscriptions.length === 0) return 0;
+
+    // 按用户分组
+    const userSubscriptions = new Map<string, Set<string>>();
+    for (const sub of subscriptions) {
+        if (!userSubscriptions.has(sub.user_id)) {
+            userSubscriptions.set(sub.user_id, new Set());
+        }
+        userSubscriptions.get(sub.user_id)!.add(sub.reminder_type);
+    }
+
+    // 为每个用户调度提醒
+    for (const [userId, types] of userSubscriptions) {
+        try {
+            // 节气提醒
+            if (types.has('solar_term')) {
+                const count = await scheduleUpcomingSolarTermReminders(userId);
+                totalScheduled += count;
+            }
+
+            // 运势和关键日提醒需要八字数据
+            if (types.has('fortune') || types.has('key_date')) {
+                const baziChart = await getUserPrimaryBaziChart(userId);
+                if (baziChart) {
+                    if (types.has('fortune')) {
+                        const count = await scheduleUpcomingFortuneReminders(userId, baziChart);
+                        totalScheduled += count;
+                    }
+                    if (types.has('key_date')) {
+                        const count = await scheduleKeyDateReminders(userId, baziChart);
+                        totalScheduled += count;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(`[reminders] 为用户 ${userId} 调度提醒失败:`, err);
+        }
+    }
+
+    return totalScheduled;
 }

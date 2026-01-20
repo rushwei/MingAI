@@ -7,8 +7,12 @@ import {
     getReminderSubscriptions,
     updateReminderSubscription,
     scheduleUpcomingSolarTermReminders,
+    scheduleUpcomingFortuneReminders,
+    scheduleKeyDateReminders,
     type ReminderType
 } from '@/lib/reminders';
+import { getServiceClient } from '@/lib/supabase-server';
+import type { BaziChart } from '@/types';
 
 interface RemindersResponse {
     success: boolean;
@@ -95,10 +99,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<Reminders
             return NextResponse.json({ success: false, error: '更新失败' }, { status: 500 });
         }
 
-        // 如果启用了节气提醒，安排下一个节气提醒
+        // 如果启用了提醒，安排对应类型的提醒
         let scheduled = 0;
-        if (reminderType === 'solar_term' && enabled) {
-            scheduled = await scheduleUpcomingSolarTermReminders(user.id);
+        if (enabled) {
+            if (reminderType === 'solar_term') {
+                scheduled = await scheduleUpcomingSolarTermReminders(user.id);
+            } else if (reminderType === 'fortune' || reminderType === 'key_date') {
+                // 获取用户的八字命盘
+                const serviceClient = getServiceClient();
+                const { data: chartData } = await serviceClient
+                    .from('bazi_charts')
+                    .select('chart_data')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (chartData?.chart_data) {
+                    const baziChart = chartData.chart_data as BaziChart;
+                    if (reminderType === 'fortune') {
+                        scheduled = await scheduleUpcomingFortuneReminders(user.id, baziChart);
+                    } else {
+                        scheduled = await scheduleKeyDateReminders(user.id, baziChart);
+                    }
+                }
+            }
         }
 
         return NextResponse.json({
