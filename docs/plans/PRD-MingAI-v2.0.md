@@ -358,7 +358,7 @@
 | -------- | -------------------------------------- |
 | 侧边栏   | 对话历史列表（搜索、折叠、编辑、删除） |
 | 消息区   | 流式输出、编辑按钮、复制按钮、重新生成 |
-| 输入区   | 多行输入框 + 命盘选择器 + 发送按钮     |
+| 输入区   | 多行输入框 + 命盘选择器 + 网络搜索 + 附件上传 + 发送按钮     |
 | 操作提示 | 悬停显示 tooltip                       |
 
 ---
@@ -630,8 +630,8 @@
 | v1.6 | 2026-01-09 | 运营与通知完善: 偏好设置、管理员通知、定时任务迁移                            |
 | v1.7 | 2026-01-12 | Phase 4 完成: 运势中心、关系合盘、MBTI、塔罗、六爻                          |
 | v1.8 | 2026-01-13 | Phase 5 完成: AI统一历史、紫微/八字优化、会员模型分级                        |
-| v2.0 | 2026-01-17 | Phase 6 完成: [Phase6](/docs/deliverables/Phase6-Completion-Report.md) |
-| v2.1 | 2026-01-19 | Phase 7 完成: [Phase7](/docs/deliverables/Phase7-Completion-Report.md) |
+| v1.9 | 2026-01-17 | Phase 6 完成: [Phase6](/docs/deliverables/Phase6-Completion-Report.md) |
+| v2.0 | 2026-01-19 | Phase 7 完成: [Phase7](/docs/deliverables/Phase7-Completion-Report.md) |
 
 ### B. 参考资料
 

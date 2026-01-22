@@ -2,17 +2,22 @@
  * 铜钱起卦组件
  * 
  * 模拟抛掷三枚铜钱，生成六爻
+ * 支持点击按钮和摇动手机两种方式触发
  */
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Coins, RotateCw } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Coins, RotateCw, Smartphone } from 'lucide-react';
 import { tossThreeCoins, type CoinTossResult, type Yao } from '@/lib/liuyao';
 
 interface CoinTossProps {
     onComplete: (yaos: Yao[], results: CoinTossResult[]) => void;
     disabled?: boolean;
 }
+
+// 摇动检测配置
+const SHAKE_THRESHOLD = 15; // 加速度阈值
+const SHAKE_TIMEOUT = 1000; // 两次摇动之间的最小间隔（ms）
 
 const YAO_LABELS = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
@@ -21,6 +26,143 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     const [results, setResults] = useState<CoinTossResult[]>([]);
     const [isAnimating, setIsAnimating] = useState(false);
     const [yaos, setYaos] = useState<Yao[]>([]);
+    const [shakeEnabled, setShakeEnabled] = useState(false); // 是否支持摇动检测
+
+    // 用于防抖的 ref
+    const lastShakeTime = useRef(0);
+    const isAnimatingRef = useRef(false);
+    const currentLineRef = useRef(0);
+    const resultsRef = useRef<CoinTossResult[]>([]);
+
+    // 同步 ref 与 state
+    useEffect(() => {
+        isAnimatingRef.current = isAnimating;
+    }, [isAnimating]);
+
+    useEffect(() => {
+        currentLineRef.current = currentLine;
+    }, [currentLine]);
+
+    useEffect(() => {
+        resultsRef.current = results;
+    }, [results]);
+
+    // 摇动检测逻辑
+    useEffect(() => {
+        if (disabled) return;
+
+        let lastX = 0, lastY = 0, lastZ = 0;
+
+        const handleMotion = (event: DeviceMotionEvent) => {
+            const { accelerationIncludingGravity } = event;
+            if (!accelerationIncludingGravity) return;
+
+            const { x, y, z } = accelerationIncludingGravity;
+            if (x === null || y === null || z === null) return;
+
+            // 计算加速度变化
+            const deltaX = Math.abs(x - lastX);
+            const deltaY = Math.abs(y - lastY);
+            const deltaZ = Math.abs(z - lastZ);
+
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+
+            // 检测是否摇动
+            const totalAcceleration = deltaX + deltaY + deltaZ;
+            const now = Date.now();
+
+            if (totalAcceleration > SHAKE_THRESHOLD &&
+                now - lastShakeTime.current > SHAKE_TIMEOUT &&
+                !isAnimatingRef.current &&
+                currentLineRef.current < 6) {
+
+                lastShakeTime.current = now;
+
+                // 根据当前状态决定调用哪个函数
+                // 如果已经摇完当前爻，需要先进入下一爻
+                if (resultsRef.current.length > currentLineRef.current && currentLineRef.current < 5) {
+                    // 触发自定义事件，让组件调用 goToNextAndToss
+                    window.dispatchEvent(new CustomEvent('shakeDetected', { detail: 'next' }));
+                } else if (resultsRef.current.length <= currentLineRef.current) {
+                    // 触发自定义事件，让组件调用 toss
+                    window.dispatchEvent(new CustomEvent('shakeDetected', { detail: 'toss' }));
+                }
+            }
+        };
+
+        // 请求权限（iOS 13+ 需要）
+        const requestPermission = async () => {
+            // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('devicemotion', handleMotion);
+                        setShakeEnabled(true);
+                    }
+                } catch (e) {
+                    console.log('DeviceMotion permission denied:', e);
+                }
+            } else if ('DeviceMotionEvent' in window) {
+                // 非 iOS 设备，直接添加监听器
+                window.addEventListener('devicemotion', handleMotion);
+                setShakeEnabled(true);
+            }
+        };
+
+        // 检查是否支持 DeviceMotion
+        if ('DeviceMotionEvent' in window) {
+            // 在用户交互后请求权限（iOS 要求）
+            const handleUserInteraction = () => {
+                requestPermission();
+                // 只需要触发一次
+                window.removeEventListener('click', handleUserInteraction);
+                window.removeEventListener('touchstart', handleUserInteraction);
+            };
+
+            // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                // iOS 需要用户交互后才能请求权限
+                window.addEventListener('click', handleUserInteraction);
+                window.addEventListener('touchstart', handleUserInteraction);
+            } else {
+                // 非 iOS 设备直接请求
+                requestPermission();
+            }
+        }
+
+        return () => {
+            window.removeEventListener('devicemotion', handleMotion);
+        };
+    }, [disabled]);
+
+    // 监听摇动事件
+    useEffect(() => {
+        const handleShake = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            if (customEvent.detail === 'next') {
+                // 模拟点击"继续摇卦"按钮
+                const nextButton = document.querySelector('[data-shake-next]') as HTMLButtonElement;
+                if (nextButton && !nextButton.disabled) {
+                    nextButton.click();
+                }
+            } else if (customEvent.detail === 'toss') {
+                // 模拟点击"抛掷铜钱"按钮
+                const tossButton = document.querySelector('[data-shake-toss]') as HTMLButtonElement;
+                if (tossButton && !tossButton.disabled) {
+                    tossButton.click();
+                }
+            }
+        };
+
+        window.addEventListener('shakeDetected', handleShake);
+        return () => {
+            window.removeEventListener('shakeDetected', handleShake);
+        };
+    }, []);
 
     const toss = useCallback(() => {
         if (currentLine >= 6 || isAnimating || disabled) return;
@@ -194,6 +336,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                         <button
                             onClick={goToNextAndToss}
                             disabled={isAnimating}
+                            data-shake-next
                             className="flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
                                 hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
@@ -205,6 +348,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                         <button
                             onClick={toss}
                             disabled={isAnimating || disabled}
+                            data-shake-toss
                             className="flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg
                                 hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
@@ -223,6 +367,14 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                     </button>
                 )}
             </div>
+
+            {/* 摇动手机提示 - 仅在移动端显示 */}
+            {!isComplete && shakeEnabled && (
+                <div className="flex items-center gap-2 text-foreground-secondary text-sm mt-2">
+                    <Smartphone className="w-4 h-4" />
+                    <span>或摇动手机来摇卦</span>
+                </div>
+            )}
         </div>
     );
 }
