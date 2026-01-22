@@ -47,13 +47,23 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
         resultsRef.current = results;
     }, [results]);
 
-    // 摇动检测逻辑
+    const [shakeSupported, setShakeSupported] = useState(false); // 设备是否支持摇动
+    const handleMotionRef = useRef<((event: DeviceMotionEvent) => void) | null>(null);
+
+    // 检测设备是否支持摇动
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+            setShakeSupported(true);
+        }
+    }, []);
+
+    // 摇动检测处理函数
     useEffect(() => {
         if (disabled) return;
 
         let lastX = 0, lastY = 0, lastZ = 0;
 
-        const handleMotion = (event: DeviceMotionEvent) => {
+        handleMotionRef.current = (event: DeviceMotionEvent) => {
             const { accelerationIncludingGravity } = event;
             if (!accelerationIncludingGravity) return;
 
@@ -81,63 +91,46 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 lastShakeTime.current = now;
 
                 // 根据当前状态决定调用哪个函数
-                // 如果已经摇完当前爻，需要先进入下一爻
                 if (resultsRef.current.length > currentLineRef.current && currentLineRef.current < 5) {
-                    // 触发自定义事件，让组件调用 goToNextAndToss
                     window.dispatchEvent(new CustomEvent('shakeDetected', { detail: 'next' }));
                 } else if (resultsRef.current.length <= currentLineRef.current) {
-                    // 触发自定义事件，让组件调用 toss
                     window.dispatchEvent(new CustomEvent('shakeDetected', { detail: 'toss' }));
                 }
             }
         };
 
-        // 请求权限（iOS 13+ 需要）
-        const requestPermission = async () => {
-            // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                try {
-                    // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
-                    const permission = await DeviceMotionEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.addEventListener('devicemotion', handleMotion);
-                        setShakeEnabled(true);
-                    }
-                } catch (e) {
-                    console.log('DeviceMotion permission denied:', e);
-                }
-            } else if ('DeviceMotionEvent' in window) {
-                // 非 iOS 设备，直接添加监听器
-                window.addEventListener('devicemotion', handleMotion);
-                setShakeEnabled(true);
-            }
-        };
-
-        // 检查是否支持 DeviceMotion
-        if ('DeviceMotionEvent' in window) {
-            // 在用户交互后请求权限（iOS 要求）
-            const handleUserInteraction = () => {
-                requestPermission();
-                // 只需要触发一次
-                window.removeEventListener('click', handleUserInteraction);
-                window.removeEventListener('touchstart', handleUserInteraction);
-            };
-
-            // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                // iOS 需要用户交互后才能请求权限
-                window.addEventListener('click', handleUserInteraction);
-                window.addEventListener('touchstart', handleUserInteraction);
-            } else {
-                // 非 iOS 设备直接请求
-                requestPermission();
-            }
-        }
-
         return () => {
-            window.removeEventListener('devicemotion', handleMotion);
+            if (handleMotionRef.current) {
+                window.removeEventListener('devicemotion', handleMotionRef.current);
+            }
         };
     }, [disabled]);
+
+    // 启用摇动检测 - 必须由用户点击触发
+    const enableShakeDetection = useCallback(async () => {
+        if (!handleMotionRef.current) return;
+
+        try {
+            // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                // iOS 13+ 需要请求权限
+                // @ts-expect-error - DeviceMotionEvent.requestPermission 是 iOS 特有的
+                const permission = await DeviceMotionEvent.requestPermission();
+                if (permission === 'granted') {
+                    window.addEventListener('devicemotion', handleMotionRef.current);
+                    setShakeEnabled(true);
+                } else {
+                    console.log('DeviceMotion permission denied');
+                }
+            } else {
+                // Android 和其他设备不需要权限
+                window.addEventListener('devicemotion', handleMotionRef.current);
+                setShakeEnabled(true);
+            }
+        } catch (e) {
+            console.error('Failed to enable shake detection:', e);
+        }
+    }, []);
 
     // 监听摇动事件
     useEffect(() => {
@@ -369,10 +362,23 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
             </div>
 
             {/* 摇动手机提示 - 仅在移动端显示 */}
-            {!isComplete && shakeEnabled && (
-                <div className="flex items-center gap-2 text-foreground-secondary text-sm mt-2">
-                    <Smartphone className="w-4 h-4" />
-                    <span>或摇动手机来摇卦</span>
+            {!isComplete && shakeSupported && (
+                <div className="flex items-center gap-2 text-foreground-secondary text-sm mt-3">
+                    {shakeEnabled ? (
+                        <>
+                            <Smartphone className="w-4 h-4 text-accent" />
+                            <span>摇动手机来摇卦 ✓</span>
+                        </>
+                    ) : (
+                        <button
+                            onClick={enableShakeDetection}
+                            className="flex items-center gap-2 px-4 py-2 bg-background-secondary hover:bg-background-secondary/80 
+                                rounded-lg text-foreground-secondary hover:text-foreground transition-all"
+                        >
+                            <Smartphone className="w-4 h-4" />
+                            启用摇动摇卦
+                        </button>
+                    )}
                 </div>
             )}
         </div>
