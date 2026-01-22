@@ -24,7 +24,7 @@ function MBTIPageContent() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-background md:pb-12">
             {/* 顶部 Hero 区域 */}
             <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />

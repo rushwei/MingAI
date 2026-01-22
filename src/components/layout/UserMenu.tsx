@@ -8,10 +8,10 @@ import {
     ChevronDown,
     ChevronUp,
     Loader2,
-    FileText,
     CircleStar,
     Bell,
     User,
+    Scroll,
 } from 'lucide-react';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
@@ -265,7 +265,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
-                            <FileText className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <Scroll className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>命盘</span>
                         </Link>
                         <Link

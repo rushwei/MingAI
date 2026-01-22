@@ -264,7 +264,7 @@ function DailyPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-background relative overflow-hidden pb-24">
+        <div className="min-h-screen bg-background relative overflow-hidden md:pb-24">
 
 
             <div className="max-w-2xl mx-auto px-4 md:py-8 py-2 relative z-10 space-y-6">

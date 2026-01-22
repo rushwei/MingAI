@@ -231,7 +231,7 @@ function MonthlyPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background md:pb-20">
             {/* 顶部 Hero 区域 - 移动端隐藏 */}
             <div className="hidden md:block relative overflow-hidden border-border/50 pb-4 pt-12">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />

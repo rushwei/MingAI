@@ -82,7 +82,7 @@ function FortuneHubContent() {
     const weekday = weekdays[today.getDay()];
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-background md:pb-12">
             {/* 顶部 Hero 区域 - 移动端隐藏（全宽设计） */}
             <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
@@ -138,14 +138,13 @@ function FortuneHubContent() {
                     </div>
                 </div>
 
-                {/* 服务列表 */}
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-amber-500" />
+                <div className="flex items-center justify-between mb-2 md:mb-6">
+                    <h2 className="text-base md:text-xl font-bold text-foreground flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
                         精选服务
                     </h2>
                 </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 mb-4 md:mb-10">
                     {FORTUNE_SERVICES.map((service) => {
                         const Icon = service.icon;
                         return (
@@ -154,7 +153,7 @@ function FortuneHubContent() {
                                 href={service.href}
                                 className={`
                                     relative overflow-hidden
-                                    bg-background rounded-2xl p-5 border border-border/50
+                                    bg-background rounded-xl md:rounded-2xl p-3 md:p-5 border border-border/50
                                     hover:border-transparent hover:shadow-xl hover:-translate-y-1
                                     transition-all duration-300 group
                                 `}
@@ -162,24 +161,24 @@ function FortuneHubContent() {
                                 <div className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
                                 <div className="relative z-10 flex flex-col h-full">
-                                    <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-start justify-between mb-2 md:mb-4">
                                         <div className={`
-                                            p-3 rounded-xl bg-background-secondary/80 backdrop-blur-sm
+                                            p-2 md:p-3 rounded-lg md:rounded-xl bg-background-secondary/80 backdrop-blur-sm
                                             group-hover:bg-white/90 dark:group-hover:bg-black/20
                                             transition-colors duration-300
                                         `}>
-                                            <Icon className={`w-6 h-6 ${service.iconColor}`} />
+                                            <Icon className={`w-5 h-5 md:w-6 md:h-6 ${service.iconColor}`} />
                                         </div>
-                                        <div className="w-8 h-8 rounded-full bg-background/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 delay-75">
+                                        <div className="hidden md:flex w-8 h-8 rounded-full bg-background/50 items-center justify-center opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 delay-75">
                                             <ArrowRight className="w-4 h-4 text-foreground-secondary" />
                                         </div>
                                     </div>
 
                                     <div className="mt-auto">
-                                        <h3 className="text-lg font-bold text-foreground mb-1 group-hover:text-foreground-primary transition-colors">
+                                        <h3 className="text-sm md:text-lg font-bold text-foreground mb-0.5 md:mb-1 group-hover:text-foreground-primary transition-colors">
                                             {service.name}
                                         </h3>
-                                        <p className="text-sm text-foreground-secondary group-hover:text-foreground-secondary/90 line-clamp-2">
+                                        <p className="text-xs text-foreground-secondary group-hover:text-foreground-secondary/90 line-clamp-1 md:line-clamp-2">
                                             {service.description}
                                         </p>
                                     </div>

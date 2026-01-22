@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Upload, Hand, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
+import { Camera, Upload, Hand, AlertCircle, Loader2 } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
 import { useToast } from '@/components/ui/Toast';
@@ -164,7 +164,7 @@ export default function PalmPage() {
 
     return (
         <LoginOverlay message="登录后体验手相分析">
-            <div className="min-h-screen bg-background pb-12">
+            <div className="min-h-screen bg-background md:pb-12">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                     <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
@@ -186,7 +186,7 @@ export default function PalmPage() {
                 <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20 md:mt-0 mt-4">
                     <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50">
                         {/* 模型选择 */}
-                        <div className="mb-8">
+                        <div className="mb-4 md:mb-8">
                             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
                                 <span className="w-1 h-4 bg-amber-500 rounded-full" />
                                 选择分析模型
@@ -200,13 +200,13 @@ export default function PalmPage() {
                         </div>
 
                         {/* 图片上传区 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                        <div className="mb-4 md:mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2 md:mb-3">
                                 <span className="w-1 h-4 bg-amber-500 rounded-full" />
                                 上传手掌照片
                             </label>
                             <div
-                                className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group
+                                className={`relative border-2 border-dashed rounded-xl p-4 md:p-8 text-center cursor-pointer transition-all duration-300 group
                                     ${imagePreview
                                         ? 'border-amber-500/50 bg-amber-500/5'
                                         : 'border-border hover:border-amber-500/40 hover:bg-background-secondary hover:shadow-lg hover:shadow-amber-500/5'
@@ -219,7 +219,7 @@ export default function PalmPage() {
                                         <img
                                             src={imagePreview}
                                             alt="手相预览"
-                                            className="max-h-80 mx-auto rounded-lg shadow-md"
+                                            className="max-h-48 md:max-h-80 mx-auto rounded-lg shadow-md"
                                         />
                                         <div className="absolute inset-x-0 bottom-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                             <button
@@ -235,20 +235,20 @@ export default function PalmPage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4 py-8">
+                                    <div className="space-y-2 md:space-y-4 py-4 md:py-8">
                                         <div className="flex justify-center gap-4">
-                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
-                                                <Camera className="w-8 h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-background-secondary rounded-xl md:rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                                                <Camera className="w-6 h-6 md:w-8 md:h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
                                             </div>
-                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
-                                                <Upload className="w-8 h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-background-secondary rounded-xl md:rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
+                                                <Upload className="w-6 h-6 md:w-8 md:h-8 text-foreground-secondary group-hover:text-amber-500 transition-colors" />
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="font-medium text-foreground text-lg mb-1">
+                                            <p className="font-medium text-foreground text-sm md:text-lg mb-1">
                                                 点击上传或拖拽图片到此处
                                             </p>
-                                            <p className="text-sm text-foreground-secondary">
+                                            <p className="text-xs md:text-sm text-foreground-secondary">
                                                 支持 JPG、PNG 格式，建议清晰正面照
                                             </p>
                                         </div>
@@ -266,12 +266,12 @@ export default function PalmPage() {
                         </div>
 
                         {/* 手型选择 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                        <div className="mb-4 md:mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2 md:mb-3">
                                 <span className="w-1 h-4 bg-amber-500 rounded-full" />
                                 选择手型
                             </label>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
                                 {[
                                     { value: 'left', label: '左手', desc: '先天命格' },
                                     { value: 'right', label: '右手', desc: '后天发展' },
@@ -279,14 +279,14 @@ export default function PalmPage() {
                                     <button
                                         key={option.value}
                                         onClick={() => setHandType(option.value as HandType)}
-                                        className={`flex flex-col items-center justify-center py-3 px-4 rounded-xl text-center transition-all duration-300 border
+                                        className={`flex flex-row md:flex-col items-center justify-center py-2 md:py-3 px-4 rounded-lg md:rounded-xl text-center transition-all duration-300 border
                                             ${handType === option.value
                                                 ? 'bg-amber-500/10 border-amber-500 text-amber-600 shadow-sm'
                                                 : 'bg-background hover:bg-background-secondary border-transparent hover:border-amber-500/30'
                                             }`}
                                     >
-                                        <span className="text-lg font-bold mb-1">{option.label}</span>
-                                        <span className={`text-xs ${handType === option.value ? 'text-amber-600/70' : 'text-foreground-secondary'}`}>
+                                        <span className="text-base md:text-lg font-bold mb-0.5 md:mb-1">{option.label}</span>
+                                        <span className={`text-[10px] ml-2 md:ml-0 md:text-xs ${handType === option.value ? 'text-amber-600/70' : 'text-foreground-secondary'}`}>
                                             {option.desc}
                                         </span>
                                     </button>
@@ -295,32 +295,31 @@ export default function PalmPage() {
                         </div>
 
                         {/* 分析类型选择 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                        <div className="mb-4 md:mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2 md:mb-3">
                                 <span className="w-1 h-4 bg-amber-500 rounded-full" />
                                 选择分析类型
                             </label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 md:gap-3">
                                 {PALM_ANALYSIS_TYPES.map(type => (
                                     <button
                                         key={type.id}
                                         onClick={() => setSelectedType(type.id)}
-                                        className={`group relative p-4 rounded-xl text-left transition-all duration-300 border
+                                        className={`group relative p-2 md:p-4 rounded-lg md:rounded-xl text-left transition-all duration-300 border
                                             ${selectedType === type.id
                                                 ? 'bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10'
                                                 : 'bg-background border-border hover:border-amber-500/30 hover:bg-background-secondary hover:shadow-sm'
                                             }`}
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`p-2 rounded-lg transition-colors ${selectedType === type.id ? 'bg-amber-500 text-white' : 'bg-background-secondary text-foreground group-hover:bg-amber-500/20 group-hover:text-amber-600'}`}>
+                                        <div className="flex items-center md:items-start gap-2 md:gap-3 justify-center md:justify-start">
+                                            <div className={`hidden md:block p-2 rounded-lg transition-colors ${selectedType === type.id ? 'bg-amber-500 text-white' : 'bg-background-secondary text-foreground group-hover:bg-amber-500/20 group-hover:text-amber-600'}`}>
                                                 <span className="text-xl">{type.icon}</span>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className={`font-semibold mb-1 flex items-center justify-between ${selectedType === type.id ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}>
+                                            <div className="text-center md:text-left">
+                                                <div className={`font-semibold md:mb-1 text-sm md:text-base ${selectedType === type.id ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}>
                                                     {type.name}
-                                                    {selectedType === type.id && <ChevronRight className="w-4 h-4 text-amber-500" />}
                                                 </div>
-                                                <p className="text-xs text-foreground-secondary leading-relaxed line-clamp-2">
+                                                <p className="hidden md:block text-xs text-foreground-secondary leading-relaxed line-clamp-2">
                                                     {type.description}
                                                 </p>
                                             </div>
@@ -332,8 +331,8 @@ export default function PalmPage() {
 
                         {/* 问题输入 */}
                         {/* 问题输入 */}
-                        <div className="mb-10 text-center max-w-2xl mx-auto">
-                            <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                        <div className="mb-6 md:mb-10 text-center max-w-2xl mx-auto">
+                            <label className="block text-sm font-medium text-foreground-secondary mb-2 md:mb-3">
                                 心中默念您的问题（选填）
                             </label>
                             <div className="relative group">
@@ -352,18 +351,25 @@ export default function PalmPage() {
                         </div>
 
                         {/* 提示信息 */}
-                        <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-xl">
-                            <div className="flex gap-3">
-                                <div className="p-1 bg-amber-100 dark:bg-amber-800/30 rounded-full h-fit">
-                                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        <div className="mb-6 md:mb-8 p-4 md:p-5 bg-amber-50/80 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/30 rounded-xl md:rounded-2xl">
+                            <div className="flex items-start gap-3 md:gap-4">
+                                <div className="p-1.5 md:p-2 bg-amber-100 dark:bg-amber-800/40 rounded-full shrink-0 mt-0.5">
+                                    <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-amber-600 dark:text-amber-400" />
                                 </div>
-                                <div className="text-sm text-foreground-secondary">
-                                    <p className="font-bold text-amber-800 dark:text-amber-200 mb-1.5">拍摄小贴士</p>
-                                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 ml-4 list-disc text-amber-700/80 dark:text-amber-300/80">
-                                        <li>手掌自然展开，五指分开</li>
-                                        <li>光线充足，避免阴影遮挡</li>
-                                        <li>正面垂直拍摄，掌纹清晰</li>
-                                        <li>背景干净简洁为佳</li>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-amber-900 dark:text-amber-100 text-sm md:text-base mb-2">拍摄小贴士</h4>
+                                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-x-8 md:gap-y-2">
+                                        {[
+                                            '手掌自然展开，五指分开',
+                                            '光线充足，避免阴影遮挡',
+                                            '正面垂直拍摄，掌纹清晰',
+                                            '背景干净简洁为佳'
+                                        ].map((tip, index) => (
+                                            <li key={index} className="flex items-center gap-2 text-xs md:text-sm text-amber-800/80 dark:text-amber-200/70">
+                                                <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                                {tip}
+                                            </li>
+                                        ))}
                                     </ul>
                                 </div>
                             </div>
@@ -394,7 +400,7 @@ export default function PalmPage() {
 
                         <p className="text-center text-xs text-foreground-secondary/70 mt-4 flex items-center justify-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
-                            手相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
+                            手相分析需要 Plus 会员或以上，每次消耗 1 积分
                         </p>
                     </div>
                 </div>

@@ -87,7 +87,7 @@ export default function LiuyaoPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-background md:pb-12">
             {/* 顶部 Hero 区域 - 移动端隐藏 */}
             <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
@@ -128,27 +128,27 @@ export default function LiuyaoPage() {
                 </div>
 
                 {/* 起卦方式 */}
-                <div className="grid md:grid-cols-2 gap-6 mb-12">
+                <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-8 md:mb-12">
                     {/* 铜钱起卦 */}
                     <button
                         onClick={handleCoinDivine}
-                        className="group relative bg-background rounded-2xl p-8 md:pb-8 pb-0 text-left border border-border hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/5 transition-all duration-300 overflow-hidden"
+                        className="group relative bg-background rounded-2xl p-5 md:p-8 text-left border border-border hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/5 transition-all duration-300 overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-12 bg-yellow-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
                         <div className="relative z-10 flex flex-col h-full">
-                            <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <Coins className="w-8 h-8 text-yellow-600" />
+                            <div className="w-12 h-12 md:w-14 md:h-14 bg-yellow-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <Coins className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
                             </div>
 
-                            <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-yellow-600 transition-colors">
+                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-yellow-600 transition-colors">
                                 铜钱起卦
                             </h3>
-                            <p className="text-foreground-secondary leading-relaxed mb-6 flex-1">
+                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
                                 模拟传统三铜钱起卦法，诚心抛掷六次，亲自感应卦象变化，体验古法占卜的仪式感。
                             </p>
 
-                            <div className="flex items-center text-sm font-medium text-yellow-600 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
+                            <div className="flex items-center text-sm font-medium text-yellow-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
                                 开始起卦 <span className="ml-1">→</span>
                             </div>
                         </div>
@@ -158,27 +158,27 @@ export default function LiuyaoPage() {
                     <button
                         onClick={handleQuickDivine}
                         disabled={isQuickLoading}
-                        className="group relative bg-background rounded-2xl p-8 md:pb-8 pb-0 text-left border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="group relative bg-background rounded-2xl p-5 md:p-8 text-left border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         <div className="absolute top-0 right-0 p-12 bg-purple-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
                         <div className="relative z-10 flex flex-col h-full">
-                            <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                            <div className="w-12 h-12 md:w-14 md:h-14 bg-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                                 {isQuickLoading ? (
-                                    <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-purple-600 animate-spin" />
                                 ) : (
-                                    <Sparkles className="w-8 h-8 text-purple-600" />
+                                    <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
                                 )}
                             </div>
 
-                            <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-purple-600 transition-colors">
+                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-purple-600 transition-colors">
                                 {isQuickLoading ? '正在起卦...' : '快速起卦'}
                             </h3>
-                            <p className="text-foreground-secondary leading-relaxed mb-6 flex-1">
+                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
                                 利用计算机随机算法生成卦象，适合想要快速获得指引，或不方便进行手动起卦的场景。
                             </p>
 
-                            <div className="flex items-center text-sm font-medium text-purple-600 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
+                            <div className="flex items-center text-sm font-medium text-purple-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
                                 立即生成 <span className="ml-1">→</span>
                             </div>
                         </div>
@@ -186,19 +186,19 @@ export default function LiuyaoPage() {
                 </div>
 
                 {/* 说明 */}
-                <div className="bg-background-secondary/30 rounded-2xl p-8 border border-border/50">
-                    <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
-                        <span className="w-1 h-5 bg-foreground rounded-full" />
+                <div className="bg-background-secondary/30 rounded-2xl p-5 md:p-8 border border-border/50">
+                    <h3 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6 flex items-center gap-2">
+                        <span className="w-1 h-4 md:h-5 bg-foreground rounded-full" />
                         六爻占卜说明
                     </h3>
-                    <div className="grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
+                    <div className="grid md:grid-cols-2 gap-6 md:gap-8 text-sm leading-relaxed">
                         <div className="space-y-4">
                             <div>
                                 <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                                     什么是六爻？
                                 </h4>
-                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
                                     六爻是《周易》预测学的一个分支，通过铜钱或其他方式起卦，
                                     得到由六个爻组成的卦象，再根据卦象判断事物吉凶。
                                 </p>
@@ -208,7 +208,7 @@ export default function LiuyaoPage() {
                                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                                     起卦方法
                                 </h4>
-                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
                                     传统铜钱法：三枚铜钱抛掷六次，
                                     三正为老阳（变），三反为老阴（变），
                                     二正一反为少阳，一正二反为少阴。
@@ -221,7 +221,7 @@ export default function LiuyaoPage() {
                                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                                     什么是变爻？
                                 </h4>
-                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
                                     老阳和老阴为变爻，会形成变卦。
                                     变卦代表事物的发展趋势和最终结果，是解卦的重要依据。
                                 </p>
@@ -231,7 +231,7 @@ export default function LiuyaoPage() {
                                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                                     注意事项
                                 </h4>
-                                <p className="text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
                                     起卦时心诚则灵，专注于问题。
                                     同一问题不宜反复占卜，以第一次起卦结果为准。
                                 </p>

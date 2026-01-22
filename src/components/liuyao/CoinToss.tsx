@@ -53,6 +53,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     // 检测设备是否支持摇动
     useEffect(() => {
         if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only capability detection
             setShakeSupported(true);
         }
     }, []);

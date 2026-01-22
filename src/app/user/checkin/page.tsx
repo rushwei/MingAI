@@ -217,14 +217,14 @@ export default function CheckinPage() {
 
                     {/* 等级信息 */}
                     {level && (
-                        <div className="relative overflow-hidden bg-background/80 backdrop-blur-xl border border-border/60 rounded-[2rem] p-8 mb-8 shadow-2xl group">
+                        <div className="relative overflow-hidden bg-background/80 backdrop-blur-xl border border-border/60 rounded-2xl md:rounded-[2rem] p-5 md:p-8 mb-6 md:mb-8 shadow-2xl group">
                             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 group-hover:from-amber-500/10 transition-colors duration-500" />
                             <div className="absolute right-0 top-0 w-32 h-32 bg-gradient-to-br from-amber-400/20 to-transparent rounded-bl-[100px] opacity-50" />
 
-                            <div className="relative flex flex-col sm:flex-row items-center gap-8">
+                            <div className="relative flex flex-col sm:flex-row items-center gap-4 md:gap-8">
                                 <div className="relative flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
-                                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 transform rotate-3 ring-4 ring-background">
-                                        <Trophy className="w-12 h-12 text-white drop-shadow-md" />
+                                    <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 transform rotate-3 ring-4 ring-background">
+                                        <Trophy className="w-8 h-8 md:w-12 md:h-12 text-white drop-shadow-md" />
                                     </div>
                                     <div className="absolute -bottom-3 -right-3 bg-background border-2 border-amber-100 dark:border-amber-900 rounded-full px-3 py-1 text-xs font-black text-amber-600 dark:text-amber-400 shadow-md transform -rotate-3">
                                         Lv.{level.level}
@@ -233,13 +233,13 @@ export default function CheckinPage() {
 
                                 <div className="flex-1 min-w-0 w-full text-center sm:text-left">
                                     <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-2">
-                                        <h2 className="text-2xl font-bold text-foreground">{level.title}</h2>
-                                        <span className="text-sm font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
+                                        <h2 className="text-xl md:text-2xl font-bold text-foreground">{level.title}</h2>
+                                        <span className="text-xs md:text-sm font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
                                             {level.experience} <span className="text-foreground-secondary/70 font-normal">/</span> {getNextLevelXp(level.level)} XP
                                         </span>
                                     </div>
 
-                                    <div className="h-5 bg-background-secondary rounded-full overflow-hidden border border-border/50 p-1 shadow-inner">
+                                    <div className="h-4 md:h-5 bg-background-secondary rounded-full overflow-hidden border border-border/50 p-1 shadow-inner">
                                         <div
                                             className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-1000 ease-out relative overflow-hidden shadow-sm"
                                             style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
@@ -247,7 +247,7 @@ export default function CheckinPage() {
                                             <div className="absolute inset-y-0 left-0 right-0 w-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full" />
                                         </div>
                                     </div>
-                                    <div className="text-sm text-foreground-secondary mt-3 flex items-center justify-center sm:justify-start gap-2">
+                                    <div className="text-xs md:text-sm text-foreground-secondary mt-3 flex items-center justify-center sm:justify-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                                         距离下一级还需 <span className="font-bold text-foreground">{getNextLevelXp(level.level) - level.experience}</span> 经验，加油！
                                     </div>
@@ -257,8 +257,8 @@ export default function CheckinPage() {
                     )}
 
                     {/* 签到卡片 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div className="bg-background backdrop-blur-sm rounded-3xl border border-border p-8 flex flex-col items-center justify-center relative overflow-hidden group">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
+                        <div className="bg-background backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden group">
                             {/* 签到背景光效 */}
                             {status?.canCheckin && !checking && (
                                 <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -266,13 +266,13 @@ export default function CheckinPage() {
 
                             {/* 连续签到 */}
                             <div className="flex flex-col items-center mb-6 relative z-10">
-                                <span className="text-sm text-foreground-secondary mb-1">已连续签到</span>
+                                <span className="text-xs md:text-sm text-foreground-secondary mb-1">已连续签到</span>
                                 <div className="flex items-end gap-2">
-                                    <Flame className="w-8 h-8 text-orange-500 animate-pulse" />
-                                    <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-orange-600 font-mono tracking-tighter">
+                                    <Flame className="w-6 h-6 md:w-8 md:h-8 text-orange-500 animate-pulse" />
+                                    <span className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-orange-600 font-mono tracking-tighter">
                                         {status?.streakDays || 0}
                                     </span>
-                                    <span className="text-lg font-medium text-foreground-secondary mb-1">天</span>
+                                    <span className="text-base md:text-lg font-medium text-foreground-secondary mb-1">天</span>
                                 </div>
                             </div>
 
@@ -281,7 +281,7 @@ export default function CheckinPage() {
                                 onClick={handleCheckin}
                                 disabled={!status?.canCheckin || checking}
                                 className={`
-                                    relative w-40 h-40 rounded-full flex flex-col items-center justify-center gap-3 transition-all duration-500
+                                    relative w-36 h-36 md:w-40 md:h-40 rounded-full flex flex-col items-center justify-center gap-2 md:gap-3 transition-all duration-500
                                     ${status?.todayCheckedIn
                                         ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 text-green-600 border border-green-500/20 cursor-default scale-95 shadow-inner'
                                         : 'bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-[0_10px_30px_-10px_rgba(245,158,11,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(245,158,11,0.6)] hover:scale-105 active:scale-95'
@@ -294,18 +294,18 @@ export default function CheckinPage() {
                                 )}
 
                                 {checking ? (
-                                    <Loader2 className="w-10 h-10 animate-spin" />
+                                    <Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin" />
                                 ) : status?.todayCheckedIn ? (
                                     <>
-                                        <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
-                                            <CheckCircle2 className="w-7 h-7 text-white" />
+                                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+                                            <CheckCircle2 className="w-6 h-6 md:w-7 md:h-7 text-white" />
                                         </div>
-                                        <span className="text-base font-bold">已签到</span>
+                                        <span className="text-sm md:text-base font-bold">已签到</span>
                                     </>
                                 ) : (
                                     <>
-                                        <CalendarCheck className="w-10 h-10 drop-shadow-md" />
-                                        <span className="text-lg font-bold tracking-wider">立即签到</span>
+                                        <CalendarCheck className="w-8 h-8 md:w-10 md:h-10 drop-shadow-md" />
+                                        <span className="text-base md:text-lg font-bold tracking-wider">立即签到</span>
                                         <div className="absolute bottom-6 text-[10px] opacity-80 bg-black/10 px-2 py-0.5 rounded-full">
                                             +{(status?.streakDays || 0) >= 30 ? 11 : 10} 经验
                                         </div>
@@ -332,13 +332,13 @@ export default function CheckinPage() {
                         </div>
 
                         {/* 奖励说明小卡片 */}
-                        <div className="bg-background backdrop-blur-sm rounded-3xl border border-border p-6 flex flex-col">
-                            <h4 className="font-bold mb-4 flex items-center gap-2 text-lg">
+                        <div className="bg-background backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border p-5 md:p-6 flex flex-col">
+                            <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 text-base md:text-lg">
                                 <Gift className="w-5 h-5 text-amber-500" />
                                 奖励规则
                             </h4>
-                            <div className="flex-1 space-y-4">
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
+                            <div className="flex-1 space-y-3 md:space-y-4">
+                                <div className="flex items-start gap-3 p-2.5 md:p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
                                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-500 font-bold text-xs">
                                         日常
                                     </div>
@@ -347,7 +347,7 @@ export default function CheckinPage() {
                                         <div className="text-foreground-secondary text-xs mt-0.5">获得 10 经验值</div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
+                                <div className="flex items-start gap-3 p-2.5 md:p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
                                     <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 text-green-500 font-bold text-xs">
                                         升级
                                     </div>
@@ -356,7 +356,7 @@ export default function CheckinPage() {
                                         <div className="text-foreground-secondary text-xs mt-0.5">+1 积分 & +1 积分上限</div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
+                                <div className="flex items-start gap-3 p-2.5 md:p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
                                     <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0 text-purple-500 font-bold text-xs">
                                         7天
                                     </div>
@@ -365,7 +365,7 @@ export default function CheckinPage() {
                                         <div className="text-foreground-secondary text-xs mt-0.5">额外 +1 积分奖励</div>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
+                                <div className="flex items-start gap-3 p-2.5 md:p-3 rounded-xl bg-background/50 border border-border hover:bg-background transition-colors">
                                     <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 text-red-500 font-bold text-xs">
                                         30天
                                     </div>

@@ -273,10 +273,10 @@ export default function ChartsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            <div className="max-w-2xl mx-auto px-4 py-6 animate-fade-in">
+        <div className="md:min-h-screen bg-background">
+            <div className="max-w-2xl mx-auto px-4 py-2 md:py-6 animate-fade-in">
                 {/* 头部 */}
-                <div className="flex items-center justify-between mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
+                <div className="flex items-center justify-between mb-2 md:mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.push('/user')}

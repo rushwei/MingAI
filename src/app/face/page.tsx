@@ -170,7 +170,7 @@ export default function FacePage() {
 
     return (
         <LoginOverlay message="登录后体验面相分析">
-            <div className="min-h-screen bg-background pb-12">
+            <div className="min-h-screen bg-background md:pb-12">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                     <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
@@ -192,7 +192,7 @@ export default function FacePage() {
                 <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20 md:mt-0 mt-4">
                     <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50">
                         {/* 模型选择 */}
-                        <div className="mb-8">
+                        <div className="mb-4 md:mb-8">
                             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
                                 <span className="w-1 h-4 bg-purple-500 rounded-full" />
                                 选择分析模型
@@ -248,13 +248,13 @@ export default function FacePage() {
                         )}
 
                         {/* 图片上传区 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                        <div className="mb-4 md:mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2 md:mb-3">
                                 <span className="w-1 h-4 bg-purple-500 rounded-full" />
                                 上传正面照片
                             </label>
                             <div
-                                className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group
+                                className={`relative border-2 border-dashed rounded-xl p-4 md:p-8 text-center cursor-pointer transition-all duration-300 group
                                     ${imagePreview
                                         ? 'border-purple-500/50 bg-purple-500/5'
                                         : 'border-border hover:border-purple-500/40 hover:bg-background-secondary hover:shadow-lg hover:shadow-purple-500/5'
@@ -267,7 +267,7 @@ export default function FacePage() {
                                         <img
                                             src={imagePreview}
                                             alt="面相预览"
-                                            className="max-h-80 mx-auto rounded-lg shadow-md"
+                                            className="max-h-48 md:max-h-80 mx-auto rounded-lg shadow-md"
                                         />
                                         <div className="absolute inset-x-0 bottom-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                             <button
@@ -283,20 +283,20 @@ export default function FacePage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4 py-8">
+                                    <div className="space-y-2 md:space-y-4 py-4 md:py-8">
                                         <div className="flex justify-center gap-4">
-                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
-                                                <Camera className="w-8 h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-background-secondary rounded-xl md:rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                                                <Camera className="w-6 h-6 md:w-8 md:h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
                                             </div>
-                                            <div className="w-16 h-16 bg-background-secondary rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
-                                                <Upload className="w-8 h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-background-secondary rounded-xl md:rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 delay-75">
+                                                <Upload className="w-6 h-6 md:w-8 md:h-8 text-foreground-secondary group-hover:text-purple-500 transition-colors" />
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="font-medium text-foreground text-lg mb-1">
+                                            <p className="font-medium text-foreground text-sm md:text-lg mb-1">
                                                 点击上传或拖拽图片到此处
                                             </p>
-                                            <p className="text-sm text-foreground-secondary">
+                                            <p className="text-xs md:text-sm text-foreground-secondary">
                                                 请上传清晰的正面照片，确保光线充足
                                             </p>
                                         </div>
@@ -314,31 +314,31 @@ export default function FacePage() {
                         </div>
 
                         {/* 分析类型选择 */}
-                        <div className="mb-8">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+                        <div className="mb-4 md:mb-8">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2 md:mb-3">
                                 <span className="w-1 h-4 bg-purple-500 rounded-full" />
                                 选择分析类型
                             </label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 md:gap-3">
                                 {FACE_ANALYSIS_TYPES.map(type => (
                                     <button
                                         key={type.id}
                                         onClick={() => setSelectedType(type.id)}
-                                        className={`relative p-4 rounded-xl text-left transition-all duration-300 border
+                                        className={`relative p-2 md:p-4 rounded-lg md:rounded-xl text-left transition-all duration-300 border
                                             ${selectedType === type.id
                                                 ? 'bg-purple-500/10 border-purple-500 shadow-md shadow-purple-500/10'
                                                 : 'bg-background border-border hover:border-purple-500/30 hover:bg-background-secondary hover:shadow-sm'
                                             }`}
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`p-2 rounded-lg ${selectedType === type.id ? 'bg-purple-500 text-white' : 'bg-background-secondary text-foreground'}`}>
+                                        <div className="flex items-center md:items-start gap-2 md:gap-3 justify-center md:justify-start">
+                                            <div className={`hidden md:block p-2 rounded-lg ${selectedType === type.id ? 'bg-purple-500 text-white' : 'bg-background-secondary text-foreground'}`}>
                                                 <span className="text-xl">{type.icon}</span>
                                             </div>
-                                            <div>
-                                                <div className={`font-semibold mb-1 ${selectedType === type.id ? 'text-purple-700 dark:text-purple-300' : 'text-foreground'}`}>
+                                            <div className="text-center md:text-left">
+                                                <div className={`font-semibold md:mb-1 text-sm md:text-base ${selectedType === type.id ? 'text-purple-700 dark:text-purple-300' : 'text-foreground'}`}>
                                                     {type.name}
                                                 </div>
-                                                <p className="text-xs text-foreground-secondary leading-relaxed">
+                                                <p className="hidden md:block text-xs text-foreground-secondary leading-relaxed">
                                                     {type.description}
                                                 </p>
                                             </div>
@@ -394,7 +394,7 @@ export default function FacePage() {
 
                         <p className="text-center text-xs text-foreground-secondary/70 mt-4 flex items-center justify-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
-                            面相分析需要 Plus 会员或以上，每次消耗 1 次对话次数
+                            面相分析需要 Plus 会员或以上，每次消耗 1 积分
                         </p>
                     </div>
                 </div>

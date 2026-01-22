@@ -110,7 +110,7 @@ export default function HelpPage() {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background md:pb-20">
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 头部 */}
                 <div className="flex items-center gap-4 mb-10">

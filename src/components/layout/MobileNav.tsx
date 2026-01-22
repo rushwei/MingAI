@@ -41,7 +41,7 @@ import { usePaymentPause } from '@/lib/usePaymentPause';
 
 // 底部导航栏的 5 个主要入口
 const mainNavItems = [
-    { href: '/bazi', label: '八字', icon: Orbit },
+    { href: '/fortune-hub', label: '运势中心', icon: Compass },
     { href: '/liuyao', label: '六爻', icon: Dices },
     { href: '/chat', label: 'AI', icon: BotMessageSquare },
     { href: '/daily', label: '每日运势', icon: Sun },
@@ -49,20 +49,16 @@ const mainNavItems = [
 
 // 抽屉中显示的所有入口
 const drawerNavItems = [
-    { href: '/fortune-hub', label: '运势中心', icon: Compass, emoji: '🧭' },
+    { href: '/bazi', label: '八字', icon: Orbit, emoji: '🧭' },
     { href: '/user/checkin', label: '每日签到', icon: CalendarCheck, emoji: '📅' },
     { href: '/records', label: '命理记录', icon: Tags, emoji: '📝' },
     { href: '/community', label: '命理社区', icon: Aperture, emoji: '💬' },
-    // { href: '/bazi', label: '八字', icon: Orbit, emoji: '🔮' },
     { href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑' },
     { href: '/ziwei', label: '紫微斗数', icon: Sparkles, emoji: '⭐' },
     { href: '/tarot', label: '塔罗占卜', icon: Gem, emoji: '🃏' },
-    // { href: '/liuyao', label: '六爻占卜', icon: Dices, emoji: '☯️' },
     { href: '/face', label: '面相分析', icon: ScanFace, emoji: '👤' },
     { href: '/palm', label: '手相分析', icon: Hand, emoji: '🖐️' },
     { href: '/mbti', label: 'MBTI测试', icon: Brain, emoji: '🧩' },
-    // { href: '/chat', label: 'AI 对话', icon: BotMessageSquare, emoji: '🤖' },
-    // { href: '/daily', label: '每日运势', icon: Sun, emoji: '☀️' },
     { href: '/monthly', label: '每月运势', icon: CalendarRange, emoji: '📅' },
     { href: '/user', label: '个人中心', icon: User, emoji: '👤' },
     { href: '/user/charts', label: '我的命盘', icon: Scroll, emoji: '📜' },
