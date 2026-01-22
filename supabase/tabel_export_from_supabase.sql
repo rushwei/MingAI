@@ -1,6 +1,15 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.annual_reports (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  year integer NOT NULL,
+  report_data jsonb NOT NULL,
+  generated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT annual_reports_pkey PRIMARY KEY (id),
+  CONSTRAINT annual_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.app_settings (
   setting_key text NOT NULL,
   setting_value boolean NOT NULL DEFAULT false,
@@ -112,6 +121,37 @@ CREATE TABLE public.conversations (
   CONSTRAINT conversations_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id),
   CONSTRAINT conversations_ziwei_chart_id_fkey FOREIGN KEY (ziwei_chart_id) REFERENCES public.ziwei_charts(id)
 );
+CREATE TABLE public.credit_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  amount integer NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['earn'::text, 'spend'::text, 'reward'::text])),
+  source text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT credit_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT credit_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.daily_checkins (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  checkin_date date NOT NULL,
+  streak_days integer DEFAULT 1,
+  reward_credits integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT daily_checkins_pkey PRIMARY KEY (id),
+  CONSTRAINT daily_checkins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.face_readings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  analysis_type text DEFAULT 'full'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
+  CONSTRAINT face_readings_pkey PRIMARY KEY (id),
+  CONSTRAINT face_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT face_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
 CREATE TABLE public.feature_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -222,6 +262,17 @@ CREATE TABLE public.orders (
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.palm_readings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  analysis_type text DEFAULT 'full'::text,
+  hand_type text DEFAULT 'left'::text CHECK (hand_type = ANY (ARRAY['left'::text, 'right'::text, 'both'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  conversation_id uuid,
+  CONSTRAINT palm_readings_pkey PRIMARY KEY (id),
+  CONSTRAINT palm_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT palm_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
 CREATE TABLE public.rate_limits (
   id integer NOT NULL DEFAULT nextval('rate_limits_id_seq'::regclass),
   identifier character varying NOT NULL,
@@ -229,6 +280,30 @@ CREATE TABLE public.rate_limits (
   request_count integer DEFAULT 1,
   window_start timestamp with time zone DEFAULT now(),
   CONSTRAINT rate_limits_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.reminder_subscriptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  reminder_type text NOT NULL CHECK (reminder_type = ANY (ARRAY['solar_term'::text, 'fortune'::text, 'key_date'::text])),
+  enabled boolean DEFAULT true,
+  notify_email boolean DEFAULT false,
+  notify_site boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reminder_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT reminder_subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.scheduled_reminders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  reminder_type text NOT NULL,
+  scheduled_for timestamp with time zone NOT NULL,
+  content jsonb,
+  sent boolean DEFAULT false,
+  sent_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT scheduled_reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT scheduled_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.tarot_readings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -241,6 +316,24 @@ CREATE TABLE public.tarot_readings (
   CONSTRAINT tarot_readings_pkey PRIMARY KEY (id),
   CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT tarot_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
+CREATE TABLE public.user_achievements (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  achievement_key text NOT NULL,
+  unlocked_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_achievements_pkey PRIMARY KEY (id),
+  CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_levels (
+  user_id uuid NOT NULL,
+  level integer DEFAULT 1,
+  experience integer DEFAULT 0,
+  total_experience integer DEFAULT 0,
+  title text DEFAULT '初学者'::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_levels_pkey PRIMARY KEY (user_id),
+  CONSTRAINT user_levels_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.user_settings (
   user_id uuid NOT NULL,
