@@ -80,7 +80,7 @@ export default function DivinePage() {
 
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="md:min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-8">
                 {/* 返回 */}
                 <Link
@@ -113,7 +113,7 @@ export default function DivinePage() {
                 )}
 
                 {/* 铜钱起卦 */}
-                <div className="bg-background rounded-xl p-8">
+                <div className="bg-background rounded-xl p-0 md:p-8">
                     <CoinToss onComplete={handleComplete} disabled={isComplete} />
                 </div>
 

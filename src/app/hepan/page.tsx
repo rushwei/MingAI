@@ -36,8 +36,8 @@ const HEPAN_TYPES: { type: HepanType; icon: typeof Heart; color: string; bg: str
 function HepanPageContent() {
     return (
         <div className="min-h-screen bg-background pb-20">
-            {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden pt-20 pb-16">
+            {/* 顶部 Hero 区域 - 移动端隐藏（顶栏已有图标和标题） */}
+            <div className="hidden md:block relative overflow-hidden pt-20 pb-16">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2 pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] -translate-x-1/2 translate-y-1/2 pointer-events-none" />
@@ -46,58 +46,64 @@ function HepanPageContent() {
                     <div className="inline-flex items-center justify-center p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl mb-8 shadow-2xl shadow-rose-500/10">
                         <HeartHandshake className="w-12 h-12 text-rose-500" />
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 tracking-tight">
+                    <h1 className="text-5xl font-bold text-foreground tracking-tight mb-6">
                         关系合盘
                     </h1>
-                    <p className="text-lg md:text-xl text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-xl text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
                         探索人与人之间微妙的能量场，通过八字命理深度解读双方的缘分契合度，为您的人际关系提供指引。
                     </p>
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-4 py-8 relative z-10">
+            <div className="max-w-5xl mx-auto px-4 py-4 md:py-8 relative z-10">
                 {/* 合盘类型选择 */}
-                <div className="grid md:grid-cols-3 gap-6 mb-16">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-16">
                     {HEPAN_TYPES.map(({ type, icon: Icon, color, bg, description }) => {
                         return (
                             <Link
                                 key={type}
                                 href={`/hepan/create?type=${type}`}
-                                className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8
-                                    hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                                className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-8
+                                    hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center md:block gap-4 md:gap-0"
                             >
-                                <div className={`w-16 h-16 rounded-2xl ${bg} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                                    <Icon className="w-8 h-8 text-white" />
+                                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl ${bg} flex items-center justify-center mb-0 md:mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+                                    <Icon className="w-6 h-6 md:w-8 md:h-8 text-white" />
                                 </div>
 
-                                <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-foreground transition-colors">
-                                    {getHepanTypeName(type)}
-                                </h3>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base md:text-xl font-bold text-foreground mb-1 md:mb-3 group-hover:text-foreground transition-colors">
+                                        {getHepanTypeName(type)}
+                                    </h3>
 
-                                <p className="text-sm text-foreground-secondary leading-relaxed mb-8 h-10">
-                                    {description}
-                                </p>
+                                    <p className="text-xs md:text-sm text-foreground-secondary leading-relaxed mb-0 md:mb-8 md:h-10 line-clamp-1 md:line-clamp-none">
+                                        {description}
+                                    </p>
+                                </div>
 
-                                <div className="flex items-center justify-between text-sm font-medium">
+                                <div className="hidden md:flex items-center justify-between text-sm font-medium">
                                     <span className="text-foreground-secondary group-hover:text-foreground transition-colors">开始分析</span>
                                     <div className={`p-2 rounded-full ${bg}/10 ${color} group-hover:bg-white group-hover:text-foreground transition-all duration-300`}>
                                         <ArrowRight className="w-4 h-4" />
                                     </div>
+                                </div>
+                                <div className="block md:hidden">
+                                    <ArrowRight className="w-4 h-4 text-foreground-secondary" />
                                 </div>
                             </Link>
                         );
                     })}
                 </div>
 
+                {/* 说明部分 - 仅桌面端显示 */}
                 {/* 说明部分 */}
-                <div className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden">
-                    <div className="p-8 md:p-12">
+                <div className="md:block bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden">
+                    <div className="p-6 md:p-12">
                         <div className="flex items-center gap-3 mb-8">
                             <div className="h-8 w-1 bg-rose-500 rounded-full" />
                             <h3 className="text-xl font-bold text-foreground">合盘原理解析</h3>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-x-12 gap-y-10 text-sm text-foreground-secondary/90">
+                        <div className="grid md:grid-cols-2 gap-x-12 gap-y-6 md:gap-y-10 text-xs md:text-sm text-foreground-secondary/90">
                             <div className="space-y-3">
                                 <h4 className="flex items-center gap-2 font-bold text-base text-foreground">
                                     <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />

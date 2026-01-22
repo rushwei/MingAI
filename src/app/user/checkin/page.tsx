@@ -205,7 +205,7 @@ export default function CheckinPage() {
             <div className="min-h-screen bg-background relative overflow-hidden">
                 <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                     {/* 头部 */}
-                    <div className="flex items-center gap-4 mb-8">
+                    <div className="hidden md:block flex items-center gap-4 mb-4 md:mb-8">
                         <div>
                             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-600 tracking-tight">每日签到</h1>
                             <p className="text-foreground-secondary text-sm mt-1.5 flex items-center gap-2">

@@ -232,8 +232,8 @@ function MonthlyPageContent() {
 
     return (
         <div className="min-h-screen bg-background pb-20">
-            {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden border-border/50 pb-4 pt-12">
+            {/* 顶部 Hero 区域 - 移动端隐藏 */}
+            <div className="hidden md:block relative overflow-hidden border-border/50 pb-4 pt-12">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
                 <div className="max-w-4xl mx-auto px-4 relative z-10">
                     <div className="text-center mb-6">
@@ -248,7 +248,7 @@ function MonthlyPageContent() {
                         </p>
                     </div>
 
-                    {/* 月份选择器 - 给它一个漂亮的容器 */}
+                    {/* 月份选择器 */}
                     <div className="flex items-center justify-center gap-6 bg-background/50 backdrop-blur-md rounded-2xl border border-border/50 p-2 max-w-md mx-auto shadow-sm">
                         <button
                             onClick={() => changeMonth(-1)}
@@ -285,10 +285,33 @@ function MonthlyPageContent() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 -mt-4 relative z-20">
+            {/* 移动端月份选择器 */}
+            <div className="md:hidden py-4 px-4">
+                <div className="flex items-center justify-center gap-4 bg-background/50 backdrop-blur-md rounded-xl border border-border/50 p-2">
+                    <button
+                        onClick={() => changeMonth(-1)}
+                        className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
+                    >
+                        <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="text-center">
+                        <div className="text-lg font-bold text-foreground">
+                            {year}年 {monthNames[month - 1]}
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => changeMonth(1)}
+                        className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
+                    >
+                        <ChevronRight className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-8 -mt-4 relative z-20">
                 {/* 命盘选择 / 提示卡片 */}
                 {isPersonalized ? (
-                    <div className="flex justify-center">
+                    <div className="flex justify-center md:mb-8 mb-4">
                         <button
                             onClick={() => setShowChartSelector(true)}
                             className="group flex items-center justify-center gap-2 px-5 py-2.5 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"

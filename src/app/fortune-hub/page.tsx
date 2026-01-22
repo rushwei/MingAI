@@ -83,8 +83,8 @@ function FortuneHubContent() {
 
     return (
         <div className="min-h-screen bg-background pb-12">
-            {/* 顶部 Hero 区域 - 全宽设计 */}
-            <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+            {/* 顶部 Hero 区域 - 移动端隐藏（全宽设计） */}
+            <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                 <div className="max-w-4xl mx-auto px-4 pt-16 pb-8 text-center relative z-10">
                     <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-emerald-500/10">

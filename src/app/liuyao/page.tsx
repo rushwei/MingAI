@@ -88,8 +88,8 @@ export default function LiuyaoPage() {
 
     return (
         <div className="min-h-screen bg-background pb-12">
-            {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+            {/* 顶部 Hero 区域 - 移动端隐藏 */}
+            <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                 <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
                     <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-amber-500/10">
@@ -108,8 +108,7 @@ export default function LiuyaoPage() {
 
             <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-20">
                 {/* 问题输入 */}
-                {/* 问题输入 */}
-                <div className="mb-10 text-center max-w-2xl mx-auto">
+                <div className="md:mt-0 mt-16 mb-10 text-center max-w-2xl mx-auto">
                     <label className="block text-sm font-medium text-foreground-secondary mb-3">
                         心中默念您的问题（选填）
                     </label>
@@ -133,7 +132,7 @@ export default function LiuyaoPage() {
                     {/* 铜钱起卦 */}
                     <button
                         onClick={handleCoinDivine}
-                        className="group relative bg-background rounded-2xl p-8 text-left border border-border hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/5 transition-all duration-300 overflow-hidden"
+                        className="group relative bg-background rounded-2xl p-8 md:pb-8 pb-0 text-left border border-border hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/5 transition-all duration-300 overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-12 bg-yellow-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
@@ -159,7 +158,7 @@ export default function LiuyaoPage() {
                     <button
                         onClick={handleQuickDivine}
                         disabled={isQuickLoading}
-                        className="group relative bg-background rounded-2xl p-8 text-left border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="group relative bg-background rounded-2xl p-8 md:pb-8 pb-0 text-left border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         <div className="absolute top-0 right-0 p-12 bg-purple-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 

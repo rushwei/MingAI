@@ -11,6 +11,22 @@ import { getProvider, createMockStream } from './ai-providers';
 import type { AIRequestMessage } from './ai-providers/base';
 import { getModelConfig, DEFAULT_MODEL_ID } from './ai-config';
 
+// ===== 时间辅助函数 =====
+
+/**
+ * 生成当前时间前缀，用于所有 AI 回复的提示词
+ * 格式：当前时间：2026年1月22日21:30
+ */
+function getCurrentTimePrefix(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    return `当前时间：${year}年${month}月${day}日${hours}:${minutes}\n\n`;
+}
+
 // ===== AI 人格配置 =====
 
 export const AI_PERSONALITIES: Record<AIPersonality, AIPersonalityConfig> = {
@@ -143,7 +159,7 @@ export async function callAI(
     }
 
     const personalityConfig = AI_PERSONALITIES[personality];
-    const systemPrompt = personalityConfig.systemPrompt + chartContext;
+    const systemPrompt = getCurrentTimePrefix() + personalityConfig.systemPrompt + chartContext;
 
     try {
         const provider = getProvider(config);
@@ -184,7 +200,7 @@ export async function callAIStream(
     }
 
     const personalityConfig = AI_PERSONALITIES[personality];
-    const systemPrompt = personalityConfig.systemPrompt + chartContext;
+    const systemPrompt = getCurrentTimePrefix() + personalityConfig.systemPrompt + chartContext;
 
     try {
         const provider = getProvider(config);

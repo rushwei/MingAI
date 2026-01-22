@@ -267,15 +267,15 @@ function DailyPageContent() {
         <div className="min-h-screen bg-background relative overflow-hidden pb-24">
 
 
-            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 space-y-6">
+            <div className="max-w-2xl mx-auto px-4 md:py-8 py-2 relative z-10 space-y-6">
 
                 {/* 顶部标题与日期选择 */}
-                <header className="text-center mb-8 pt-4">
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
+                <header className="text-center md:mb-8 mb-4 md:pt-4 pt-0">
+                    <h1 className="hidden md:block text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
                         <Sun className="w-8 h-8 text-purple-500" />
                         每日运势
                     </h1>
-                    <p className="text-foreground-secondary/80 text-sm mb-6">
+                    <p className="hidden md:block text-foreground-secondary/80 text-sm mb-6">
                         洞察天机，把握当下 | {formatDate(new Date())}
                     </p>
 
@@ -320,10 +320,10 @@ function DailyPageContent() {
                         {isPersonalized ? (
                             <button
                                 onClick={() => setShowChartSelector(true)}
-                                className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 hover:border-purple-500/40 rounded-full transition-all"
+                                className="group flex items-center justify-center gap-2 px-5 py-2.5 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"
                             >
                                 <Sparkles className="w-4 h-4 text-purple-500 group-hover:scale-110 transition-transform" />
-                                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                <span className="text-sm font-medium">
                                     当前解读：{baziChart?.name}
                                 </span>
                                 <ChevronDown className="w-3 h-3 text-purple-400 group-hover:translate-y-0.5 transition-transform" />

@@ -223,7 +223,6 @@ export default function NotificationsPage() {
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div className="flex items-center gap-3">
-                        <Bell className="w-6 h-6 text-accent" />
                         <h1 className="text-xl font-bold">消息通知</h1>
                         {unreadCount > 0 && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-accent/10 text-accent rounded-full">

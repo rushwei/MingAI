@@ -246,8 +246,8 @@ function BaziPageContent() {
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 页面标题 */}
-            <div className="text-center mb-8">
+            {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
+            <div className="hidden md:block text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3">
                     <Orbit className="w-12 h-12 text-accent" />
                 </div>

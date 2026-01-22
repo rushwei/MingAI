@@ -130,7 +130,7 @@ export function ChatComposer({
 
     return (
         <div className={`fixed left-0 right-0 bottom-[calc(3.5rem+var(--sab))] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-3xl mx-auto md:p-0 p-2">
                 {/* 输入框容器 */}
                 <div className={`
                     relative flex flex-col gap-1 p-3 rounded-4xl

@@ -247,12 +247,12 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 ))}
             </div>
 
-            {/* 当前爻标签 */}
+            {/* 当前爻标签
             {!isComplete && (
                 <p className="text-lg font-medium text-foreground">
                     {YAO_LABELS[currentLine]}
                 </p>
-            )}
+            )} */}
 
             {/* 铜钱显示 */}
             <div className="flex gap-4">
@@ -363,7 +363,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
 
             {/* 摇动手机提示 - 仅在移动端显示 */}
             {!isComplete && shakeSupported && (
-                <div className="flex items-center gap-2 text-foreground-secondary text-sm mt-3">
+                <div className="flex md:hidden items-center gap-2 text-foreground-secondary text-sm mt-3">
                     {shakeEnabled ? (
                         <>
                             <Smartphone className="w-4 h-4 text-accent" />

@@ -171,8 +171,8 @@ export default function FacePage() {
     return (
         <LoginOverlay message="登录后体验面相分析">
             <div className="min-h-screen bg-background pb-12">
-                {/* 顶部 Hero 区域 */}
-                <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
+                {/* 顶部 Hero 区域 - 移动端隐藏 */}
+                <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                     <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
                     <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
                         <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-purple-500/10">
@@ -189,7 +189,7 @@ export default function FacePage() {
                     </div>
                 </div>
 
-                <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20">
+                <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-20 md:mt-0 mt-4">
                     <div className="bg-background rounded-2xl p-6 shadow-xl border border-border/50">
                         {/* 模型选择 */}
                         <div className="mb-8">

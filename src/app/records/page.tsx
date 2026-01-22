@@ -655,8 +655,8 @@ export default function RecordsPage() {
     return (
         <LoginOverlay message="登录后使用命理记录功能">
             <div className="min-h-screen bg-background text-foreground pb-20">
-                {/* 顶部 Hero 区域 */}
-                <div className="relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
+                {/* 顶部 Hero 区域 - 移动端隐藏 */}
+                <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
                     <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
 
 
@@ -688,6 +688,24 @@ export default function RecordsPage() {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* 移动端操作栏 */}
+                <div className="md:hidden flex items-center justify-end gap-2 px-4 py-3">
+                    <button
+                        onClick={() => setShowImportExport(true)}
+                        className="p-2 bg-background border border-border rounded-lg text-foreground-secondary"
+                        title="数据管理"
+                    >
+                        <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setShowRecordForm(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-lg shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>新建</span>
+                    </button>
                 </div>
 
                 <div className="max-w-4xl mx-auto px-4 space-y-8">

@@ -370,7 +370,7 @@ function TarotResultContent() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20 relative overflow-x-hidden">
+        <div className="md:min-h-screen bg-background md:pb-20 relative overflow-x-hidden">
             {/* Background Effects */}
             {/* Background Effects Removed */}
 

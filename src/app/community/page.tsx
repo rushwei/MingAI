@@ -200,8 +200,8 @@ export default function CommunityPage() {
 
     return (
         <div className="min-h-screen bg-background text-foreground pb-20">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
+            {/* Hero Section - 移动端隐藏 */}
+            <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
 
 
@@ -228,6 +228,19 @@ export default function CommunityPage() {
                     </div>
                 </div>
             </div>
+
+            {/* 移动端操作栏 */}
+            {user && (
+                <div className="md:hidden flex justify-end px-4 py-3">
+                    <button
+                        onClick={() => router.push('/community/new')}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm rounded-lg shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>发起讨论</span>
+                    </button>
+                </div>
+            )}
 
             <div className="max-w-4xl mx-auto px-4 space-y-6">
                 {/* 匿名提示 */}

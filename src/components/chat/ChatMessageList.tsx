@@ -81,7 +81,7 @@ export function ChatMessageList({
     const displayMessages = messages;
 
     return (
-        <div className="space-y-6 max-w-3xl mx-auto pb-4">
+        <div className="space-y-6 max-w-3xl mx-auto pb-24 md:pb-4">
             {displayMessages.map((message, index) => (
                 <div
                     key={message.id || `msg-${index}`}
