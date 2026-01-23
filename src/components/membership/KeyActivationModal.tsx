@@ -1,0 +1,290 @@
+/**
+ * Key激活弹窗组件
+ * 
+ * 用户输入激活码来激活会员或获得积分
+ */
+'use client';
+
+import { useState } from 'react';
+import { X, Key, Loader2, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+
+interface KeyActivationModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess?: (info: MembershipInfo | null) => void;
+    purchaseLinks?: {
+        plus?: string;
+        pro?: string;
+        credits?: string;
+    };
+}
+
+type ActivationStep = 'input' | 'processing' | 'success' | 'error';
+
+interface ActivationResult {
+    keyType?: 'membership' | 'credits';
+    membershipType?: string;
+    creditsAmount?: number;
+}
+
+export function KeyActivationModal({
+    isOpen,
+    onClose,
+    onSuccess,
+    purchaseLinks,
+}: KeyActivationModalProps) {
+    const [step, setStep] = useState<ActivationStep>('input');
+    const [keyCode, setKeyCode] = useState('');
+    const [error, setError] = useState('');
+    const [result, setResult] = useState<ActivationResult | null>(null);
+
+    if (!isOpen) return null;
+
+    const handleActivate = async () => {
+        const trimmedKey = keyCode.trim();
+
+        if (!trimmedKey) {
+            setError('请输入激活码');
+            return;
+        }
+
+        if (!trimmedKey.startsWith('sk-')) {
+            setError('激活码格式错误，应以 sk- 开头');
+            return;
+        }
+
+        setError('');
+        setStep('processing');
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                setError('请先登录');
+                setStep('input');
+                return;
+            }
+
+            const response = await fetch('/api/activation-keys', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    action: 'activate',
+                    keyCode: trimmedKey,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setResult({
+                    keyType: data.keyType,
+                    membershipType: data.membershipType,
+                    creditsAmount: data.creditsAmount,
+                });
+                const info = session?.user ? await getMembershipInfo(session.user.id) : null;
+                onSuccess?.(info);
+                setStep('success');
+                setTimeout(() => {
+                    handleClose();
+                }, 2000);
+            } else {
+                setError(data.error || '激活失败');
+                setStep('error');
+            }
+        } catch (err) {
+            console.error('Activation error:', err);
+            setError('网络错误，请重试');
+            setStep('error');
+        }
+    };
+
+    const handleClose = () => {
+        if (step !== 'processing') {
+            setStep('input');
+            setKeyCode('');
+            setError('');
+            setResult(null);
+            onClose();
+        }
+    };
+
+    const handleRetry = () => {
+        setStep('input');
+        setError('');
+    };
+
+    const getSuccessMessage = () => {
+        if (!result) return '激活成功';
+        if (result.keyType === 'membership') {
+            const name = result.membershipType === 'plus' ? 'Plus' : 'Pro';
+            return `已成功开通 ${name} 会员`;
+        }
+        return `已获得 ${result.creditsAmount} 积分`;
+    };
+
+    const hasPurchaseLinks = purchaseLinks?.plus || purchaseLinks?.pro || purchaseLinks?.credits;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* 背景遮罩 */}
+            <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={handleClose}
+            />
+
+            {/* 弹窗内容 */}
+            <div className="relative w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl animate-fade-in">
+                {/* 头部 */}
+                <div className="flex items-center justify-between p-6 border-b border-border">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-accent/10 text-accent">
+                            <Key className="w-5 h-5" />
+                        </div>
+                        <h2 className="text-xl font-bold">
+                            {step === 'success' ? '激活成功' : step === 'error' ? '激活失败' : '激活会员'}
+                        </h2>
+                    </div>
+                    {step !== 'processing' && (
+                        <button
+                            onClick={handleClose}
+                            className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="p-6">
+                    {/* 成功状态 */}
+                    {step === 'success' && (
+                        <div className="text-center py-8">
+                            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                                <CheckCircle className="w-8 h-8 text-green-500" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">激活成功！</h3>
+                            <p className="text-foreground-secondary">
+                                {getSuccessMessage()}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* 处理中状态 */}
+                    {step === 'processing' && (
+                        <div className="text-center py-8">
+                            <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
+                            <h3 className="text-xl font-bold mb-2">正在激活</h3>
+                            <p className="text-foreground-secondary">
+                                请稍候...
+                            </p>
+                        </div>
+                    )}
+
+                    {/* 错误状态 */}
+                    {step === 'error' && (
+                        <div className="text-center py-6">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                                <AlertCircle className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">激活失败</h3>
+                            <p className="text-red-500 mb-6">{error}</p>
+                            <button
+                                onClick={handleRetry}
+                                className="px-6 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                            >
+                                重新输入
+                            </button>
+                        </div>
+                    )}
+
+                    {/* 输入状态 */}
+                    {step === 'input' && (
+                        <>
+                            {/* 错误提示 */}
+                            {error && (
+                                <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-sm mb-4">
+                                    {error}
+                                </div>
+                            )}
+
+                            {/* 输入框 */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-foreground-secondary mb-2">
+                                    激活码
+                                </label>
+                                <input
+                                    type="text"
+                                    value={keyCode}
+                                    onChange={(e) => setKeyCode(e.target.value)}
+                                    placeholder="sk-xxxxxxxxxxxxxxxx"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-background-secondary focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
+                                    autoFocus
+                                />
+                                <p className="text-xs text-foreground-secondary mt-2">
+                                    请输入您的激活码，格式为 sk-xxxx
+                                </p>
+                            </div>
+
+                            {/* 激活按钮 */}
+                            <button
+                                onClick={handleActivate}
+                                disabled={!keyCode.trim()}
+                                className="w-full py-3.5 rounded-xl bg-accent text-white text-base font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                激活
+                            </button>
+
+                            {/* 购买链接 */}
+                            {hasPurchaseLinks && (
+                                <div className="mt-6 pt-6 border-t border-border">
+                                    <p className="text-sm text-foreground-secondary mb-3 text-center">
+                                        还没有激活码？
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 justify-center">
+                                        {purchaseLinks?.plus && (
+                                            <a
+                                                href={purchaseLinks.plus}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500/10 text-amber-600 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                获取 Plus
+                                            </a>
+                                        )}
+                                        {purchaseLinks?.pro && (
+                                            <a
+                                                href={purchaseLinks.pro}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-500/10 text-purple-600 text-sm font-medium hover:bg-purple-500/20 transition-colors"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                获取 Pro
+                                            </a>
+                                        )}
+                                        {purchaseLinks?.credits && (
+                                            <a
+                                                href={purchaseLinks.credits}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-600 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                获取积分
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}

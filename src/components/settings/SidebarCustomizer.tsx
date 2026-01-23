@@ -1,0 +1,352 @@
+/**
+ * 侧边栏自定义组件
+ * 
+ * 用户可以隐藏/显示和拖拽排序侧边栏导航项
+ * 使用 @dnd-kit 实现拖拽排序
+ */
+'use client';
+
+import { useState, useMemo } from 'react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+    Orbit,
+    Sparkles,
+    Gem,
+    Dices,
+    ScanFace,
+    Hand,
+    Sun,
+    CalendarRange,
+    BotMessageSquare,
+    Brain,
+    Compass,
+    HeartHandshake,
+    Aperture,
+    Tags,
+    CalendarCheck,
+    Eye,
+    EyeOff,
+    GripVertical,
+    RotateCcw,
+    Loader2,
+    Check,
+    type LucideIcon,
+} from 'lucide-react';
+import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
+
+// 所有可配置的导航项
+const ALL_NAV_ITEMS = [
+    { id: 'fortune-hub', label: '运势中心', icon: Compass },
+    { id: 'bazi', label: '八字', icon: Orbit },
+    { id: 'hepan', label: '八字合盘', icon: HeartHandshake },
+    { id: 'ziwei', label: '紫微斗数', icon: Sparkles },
+    { id: 'tarot', label: '塔罗', icon: Gem },
+    { id: 'liuyao', label: '六爻', icon: Dices },
+    { id: 'face', label: '面相', icon: ScanFace },
+    { id: 'palm', label: '手相', icon: Hand },
+    { id: 'mbti', label: 'MBTI', icon: Brain },
+];
+
+const ALL_TOOL_ITEMS = [
+    { id: 'checkin', label: '签到', icon: CalendarCheck },
+    { id: 'chat', label: 'AI', icon: BotMessageSquare },
+    { id: 'daily', label: '每日运势', icon: Sun },
+    { id: 'monthly', label: '月度运势', icon: CalendarRange },
+    { id: 'records', label: '命理记录', icon: Tags },
+    { id: 'community', label: '命理社区', icon: Aperture },
+];
+
+// 可排序项组件
+function SortableItem({
+    item,
+    isHidden,
+    onToggle,
+}: {
+    item: { id: string; label: string; icon: LucideIcon };
+    isHidden: boolean;
+    onToggle: () => void;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: item.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : undefined,
+    };
+
+    const Icon = item.icon;
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isDragging
+                    ? 'bg-accent/10 border-accent shadow-lg scale-[1.02]'
+                    : isHidden
+                        ? 'bg-background-secondary/50 border-border/50 opacity-60'
+                        : 'bg-background border-border'
+                }`}
+        >
+            <div className="flex items-center gap-3">
+                <button
+                    {...attributes}
+                    {...listeners}
+                    className="p-1 rounded hover:bg-background-secondary cursor-grab active:cursor-grabbing touch-none"
+                    title="拖动排序"
+                >
+                    <GripVertical className="w-4 h-4 text-foreground-secondary" />
+                </button>
+                <Icon className="w-4 h-4 text-foreground-secondary" />
+                <span className="text-sm font-medium">{item.label}</span>
+            </div>
+            <button
+                onClick={onToggle}
+                className={`p-2 rounded-lg transition-colors ${isHidden
+                        ? 'hover:bg-green-500/10 text-foreground-secondary hover:text-green-500'
+                        : 'hover:bg-red-500/10 text-foreground-secondary hover:text-red-500'
+                    }`}
+                title={isHidden ? '显示' : '隐藏'}
+            >
+                {isHidden ? (
+                    <EyeOff className="w-4 h-4" />
+                ) : (
+                    <Eye className="w-4 h-4" />
+                )}
+            </button>
+        </div>
+    );
+}
+
+interface SidebarCustomizerProps {
+    userId: string | null;
+}
+
+export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
+    const { config, setConfig, saveConfig, loading } = useSidebarConfigSafe();
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    // 排序后的导航项
+    const sortedNavItems = useMemo(() => {
+        return [...ALL_NAV_ITEMS].sort((a, b) => {
+            const orderA = config.navOrder?.indexOf(a.id) ?? -1;
+            const orderB = config.navOrder?.indexOf(b.id) ?? -1;
+            if (orderA === -1 && orderB === -1) return 0;
+            if (orderA === -1) return 1;
+            if (orderB === -1) return -1;
+            return orderA - orderB;
+        });
+    }, [config.navOrder]);
+
+    const sortedToolItems = useMemo(() => {
+        return [...ALL_TOOL_ITEMS].sort((a, b) => {
+            const orderA = config.toolOrder?.indexOf(a.id) ?? -1;
+            const orderB = config.toolOrder?.indexOf(b.id) ?? -1;
+            if (orderA === -1 && orderB === -1) return 0;
+            if (orderA === -1) return 1;
+            if (orderB === -1) return -1;
+            return orderA - orderB;
+        });
+    }, [config.toolOrder]);
+
+    const handleSave = async (newConfig: SidebarConfig) => {
+        if (!userId) return;
+        setSaving(true);
+        try {
+            await saveConfig(newConfig);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (error) {
+            console.error('Failed to save sidebar config:', error);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleNavDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldOrder = config.navOrder || ALL_NAV_ITEMS.map(i => i.id);
+        const oldIndex = oldOrder.indexOf(active.id as string);
+        const newIndex = oldOrder.indexOf(over.id as string);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newOrder = arrayMove(oldOrder, oldIndex, newIndex);
+        const newConfig = { ...config, navOrder: newOrder };
+        setConfig(newConfig);
+        handleSave(newConfig);
+    };
+
+    const handleToolDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldOrder = config.toolOrder || ALL_TOOL_ITEMS.map(i => i.id);
+        const oldIndex = oldOrder.indexOf(active.id as string);
+        const newIndex = oldOrder.indexOf(over.id as string);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newOrder = arrayMove(oldOrder, oldIndex, newIndex);
+        const newConfig = { ...config, toolOrder: newOrder };
+        setConfig(newConfig);
+        handleSave(newConfig);
+    };
+
+    const toggleNavItem = (itemId: string) => {
+        const hidden = config.hiddenNavItems || [];
+        const newHidden = hidden.includes(itemId)
+            ? hidden.filter(id => id !== itemId)
+            : [...hidden, itemId];
+        const newConfig = { ...config, hiddenNavItems: newHidden };
+        setConfig(newConfig);
+        handleSave(newConfig);
+    };
+
+    const toggleToolItem = (itemId: string) => {
+        const hidden = config.hiddenToolItems || [];
+        const newHidden = hidden.includes(itemId)
+            ? hidden.filter(id => id !== itemId)
+            : [...hidden, itemId];
+        const newConfig = { ...config, hiddenToolItems: newHidden };
+        setConfig(newConfig);
+        handleSave(newConfig);
+    };
+
+    const handleReset = async () => {
+        if (!confirm('确定恢复默认设置？')) return;
+        const defaultConfig: SidebarConfig = {
+            hiddenNavItems: [],
+            hiddenToolItems: [],
+            navOrder: ALL_NAV_ITEMS.map(i => i.id),
+            toolOrder: ALL_TOOL_ITEMS.map(i => i.id),
+        };
+        setConfig(defaultConfig);
+        await handleSave(defaultConfig);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* 头部 */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="font-bold">侧边栏自定义</h3>
+                    <p className="text-sm text-foreground-secondary mt-1">
+                        拖拽调整顺序，点击眼睛图标显示/隐藏
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    {saving && <Loader2 className="w-4 h-4 animate-spin text-accent" />}
+                    {saved && <Check className="w-4 h-4 text-green-500" />}
+                    <button
+                        onClick={handleReset}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-foreground-secondary hover:bg-background-secondary transition-colors"
+                    >
+                        <RotateCcw className="w-4 h-4" />
+                        恢复默认
+                    </button>
+                </div>
+            </div>
+
+            {/* 命理体系 */}
+            <div>
+                <h4 className="text-sm font-medium text-foreground-secondary mb-3">命理体系</h4>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleNavDragEnd}
+                >
+                    <SortableContext
+                        items={sortedNavItems.map(i => i.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="grid gap-2">
+                            {sortedNavItems.map(item => (
+                                <SortableItem
+                                    key={item.id}
+                                    item={item}
+                                    isHidden={config.hiddenNavItems?.includes(item.id) || false}
+                                    onToggle={() => toggleNavItem(item.id)}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
+            </div>
+
+            {/* 工具 */}
+            <div>
+                <h4 className="text-sm font-medium text-foreground-secondary mb-3">工具</h4>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleToolDragEnd}
+                >
+                    <SortableContext
+                        items={sortedToolItems.map(i => i.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="grid gap-2">
+                            {sortedToolItems.map(item => (
+                                <SortableItem
+                                    key={item.id}
+                                    item={item}
+                                    isHidden={config.hiddenToolItems?.includes(item.id) || false}
+                                    onToggle={() => toggleToolItem(item.id)}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
+            </div>
+
+            <p className="text-xs text-foreground-secondary text-center">
+                更改会立即生效并自动保存
+            </p>
+        </div>
+    );
+}

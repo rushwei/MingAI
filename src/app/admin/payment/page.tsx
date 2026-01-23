@@ -1,20 +1,35 @@
 /**
  * 支付服务管理页面
  * 仅管理员可访问
+ * 
+ * 功能:
+ * - 支付开关控制
+ * - 激活Key管理
+ * - 购买链接配置
  */
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, ToggleLeft, Key, Link2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PaymentPausePanel } from '@/components/admin/PaymentPausePanel';
+import { KeyManagementPanel } from '@/components/admin/KeyManagementPanel';
+import { PurchaseLinkPanel } from '@/components/admin/PurchaseLinkPanel';
 
 type AdminState = {
     loading: boolean;
     isAuthed: boolean;
     isAdmin: boolean;
 };
+
+type TabType = 'pause' | 'keys' | 'links';
+
+const TABS = [
+    { id: 'pause' as const, label: '支付开关', icon: ToggleLeft },
+    { id: 'keys' as const, label: '激活码', icon: Key },
+    { id: 'links' as const, label: '购买链接', icon: Link2 },
+];
 
 export default function AdminPaymentPage() {
     const router = useRouter();
@@ -23,6 +38,7 @@ export default function AdminPaymentPage() {
         isAuthed: false,
         isAdmin: false,
     });
+    const [activeTab, setActiveTab] = useState<TabType>('keys');
 
     useEffect(() => {
         const checkAdmin = async () => {
@@ -83,7 +99,7 @@ export default function AdminPaymentPage() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+        <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in">
             {/* 头部 */}
             <div className="flex items-center gap-3 mb-6">
                 <button
@@ -92,14 +108,33 @@ export default function AdminPaymentPage() {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-xl font-bold">支付服务</h1>
+                <h1 className="text-xl font-bold">支付管理</h1>
             </div>
 
-            <p className="text-sm text-foreground-secondary mb-6">
-                仅管理员可使用。控制全站支付功能的开关状态。
-            </p>
+            {/* 标签页 */}
+            <div className="flex gap-2 mb-6 border-b border-border pb-4">
+                {TABS.map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === id
+                                ? 'bg-accent text-white shadow-sm'
+                                : 'bg-background-secondary text-foreground-secondary hover:bg-background-secondary/80'
+                            }`}
+                    >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                    </button>
+                ))}
+            </div>
 
-            <PaymentPausePanel />
+            {/* 内容区 */}
+            <div className="bg-background rounded-2xl border border-border p-6">
+                {activeTab === 'pause' && <PaymentPausePanel />}
+                {activeTab === 'keys' && <KeyManagementPanel />}
+                {activeTab === 'links' && <PurchaseLinkPanel />}
+            </div>
         </div>
     );
 }
+

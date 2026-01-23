@@ -36,6 +36,7 @@ import { useState, useEffect } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { SidebarUserCard } from './UserMenu';
 import { useSidebarSafe } from './SidebarContext';
+import { useSidebarConfigSafe } from './SidebarConfigContext';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
@@ -126,6 +127,7 @@ const toolItems = [
 export function Sidebar() {
     const pathname = usePathname();
     const { collapsed, setCollapsed } = useSidebarSafe();
+    const { config: sidebarConfig } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const [user, setUser] = useState<SupabaseUser | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -150,6 +152,31 @@ export function Sidebar() {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // 根据配置过滤并排序导航项
+    const filteredNavItems = navItems
+        .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
+        .sort((a, b) => {
+            const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
+            const orderB = sidebarConfig.navOrder?.indexOf(b.href.replace('/', '')) ?? -1;
+            if (orderA === -1 && orderB === -1) return 0;
+            if (orderA === -1) return 1;
+            if (orderB === -1) return -1;
+            return orderA - orderB;
+        });
+
+    const filteredToolItems = toolItems
+        .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
+        .sort((a, b) => {
+            const idA = a.href.replace('/user/', '').replace('/', '');
+            const idB = b.href.replace('/user/', '').replace('/', '');
+            const orderA = sidebarConfig.toolOrder?.indexOf(idA) ?? -1;
+            const orderB = sidebarConfig.toolOrder?.indexOf(idB) ?? -1;
+            if (orderA === -1 && orderB === -1) return 0;
+            if (orderA === -1) return 1;
+            if (orderB === -1) return -1;
+            return orderA - orderB;
+        });
 
     return (
         <>
@@ -226,7 +253,7 @@ export function Sidebar() {
                             命理体系
                         </div>
                         <ul className="space-y-1">
-                            {navItems.map((item) => {
+                            {filteredNavItems.map((item) => {
                                 const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                                 const Icon = item.icon;
 
@@ -264,7 +291,7 @@ export function Sidebar() {
                             工具
                         </div>
                         <ul className="space-y-1">
-                            {toolItems.map((item) => {
+                            {filteredToolItems.map((item) => {
                                 const isActive = pathname === item.href;
                                 const Icon = item.icon;
 

@@ -16,6 +16,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
+import { SidebarConfigProvider } from "@/components/layout/SidebarConfigContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
@@ -92,28 +93,30 @@ export default function RootLayout({
         {/* ThemeProvider 提供主题上下文，包裹整个应用 */}
         <ThemeProvider>
           <ClientProviders>
-            <SidebarProvider>
-              <div className="flex min-h-screen">
-                {/* 左侧导航栏 - 仅桌面端显示 */}
-                <Sidebar />
+            <SidebarConfigProvider>
+              <SidebarProvider>
+                <div className="flex min-h-screen">
+                  {/* 左侧导航栏 - 仅桌面端显示 */}
+                  <Sidebar />
 
-                {/* 主内容区 */}
-                <div className="flex-1 flex flex-col min-h-screen">
-                  {/* 顶部 Header - 仅移动端显示 */}
-                  <div className="lg:hidden">
-                    <Header />
+                  {/* 主内容区 */}
+                  <div className="flex-1 flex flex-col min-h-screen">
+                    {/* 顶部 Header - 仅移动端显示 */}
+                    <div className="lg:hidden">
+                      <Header />
+                    </div>
+
+                    {/* 页面内容 */}
+                    <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
+                      {children}
+                    </main>
                   </div>
-
-                  {/* 页面内容 */}
-                  <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
-                    {children}
-                  </main>
                 </div>
-              </div>
 
-              {/* 移动端底部导航 - 仅移动端显示 */}
-              <MobileNav />
-            </SidebarProvider>
+                {/* 移动端底部导航 - 仅移动端显示 */}
+                <MobileNav />
+              </SidebarProvider>
+            </SidebarConfigProvider>
           </ClientProviders>
         </ThemeProvider>
       </body>

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/components/ui/ThemeProvider';
+import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
+import { PanelLeft } from 'lucide-react';
 
 interface Settings {
     notifications: boolean;
@@ -381,6 +383,15 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
+                    {/* 侧边栏自定义 */}
+                    <div className="bg-background rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6">
+                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
+                            <span className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500"><PanelLeft className="w-4 h-4" /></span>
+                            <h2 className="text-base font-bold text-foreground">界面自定义</h2>
+                        </div>
+                        <SidebarCustomizer userId={userId} />
+                    </div>
+
                     {/* 隐私与安全 */}
                     <div className="bg-background rounded-3xl border border-border/50 shadow-sm overflow-hidden p-6">
                         <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border/50">
@@ -410,7 +421,7 @@ export default function SettingsPage() {
                     <div className="text-center py-8">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background-secondary border border-border/50">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            <p className="text-xs font-medium text-foreground-secondary">MingAI v1.0.0 (Latest)</p>
+                            <p className="text-xs font-medium text-foreground-secondary">MingAI v2.0.0 (Latest)</p>
                         </div>
                         <p className="text-xs text-foreground-secondary/50 mt-4">© 2026 MingAI. All rights reserved.</p>
                     </div>
