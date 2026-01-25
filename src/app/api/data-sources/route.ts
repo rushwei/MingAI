@@ -30,8 +30,11 @@ export async function GET(request: NextRequest) {
 
         const bearer = request.headers.get('authorization');
         const token = bearer?.replace(/Bearer\s+/i, '');
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = token || session?.access_token || null;
+        let accessToken = token || null;
+        if (!accessToken) {
+            const { data: { session } } = await supabase.auth.getSession();
+            accessToken = session?.access_token || null;
+        }
         const authed = accessToken
             ? createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL!,

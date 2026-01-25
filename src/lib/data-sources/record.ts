@@ -21,17 +21,17 @@ export const recordProvider: DataSourceProvider<RecordRow> = {
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('ming_records')
-            .select('id, title, content, created_at')
+            .select('id, title, created_at')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(limit);
 
         if (error) throw new Error(error.message);
-        return (data || []).map((row: { id: string; title: string; content: string | null; created_at: string }) => ({
+        return (data || []).map((row: { id: string; title: string; created_at: string }) => ({
             id: row.id,
             type: 'ming_record',
             name: row.title,
-            preview: row.content ? String(row.content).slice(0, 60) : '',
+            preview: row.title,
             createdAt: row.created_at
         }));
     },
