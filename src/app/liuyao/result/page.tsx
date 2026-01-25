@@ -29,6 +29,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 export default function ResultPage() {
     const router = useRouter();
@@ -45,6 +46,7 @@ export default function ResultPage() {
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
     const errorBanner = error ? (
         <div data-testid="analysis-error" className="flex items-center justify-center gap-2 text-red-500 mb-4">
             <AlertCircle className="w-4 h-4" />
@@ -298,16 +300,27 @@ export default function ResultPage() {
                         <span className="text-sm font-medium">返回</span>
                     </Link>
 
-                    <button
-                        onClick={() => setShowTraditional(!showTraditional)}
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border ${showTraditional
-                            ? 'bg-accent/10 border-accent/20 text-accent'
-                            : 'bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10'
-                            }`}
-                    >
-                        <BookOpen className="w-4 h-4" />
-                        传统分析
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!!divinationId && (
+                            <button
+                                type="button"
+                                onClick={() => setKbModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
+                            >
+                                加入知识库
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setShowTraditional(!showTraditional)}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border ${showTraditional
+                                ? 'bg-accent/10 border-accent/20 text-accent'
+                                : 'bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10'
+                                }`}
+                        >
+                            <BookOpen className="w-4 h-4" />
+                            传统分析
+                        </button>
+                    </div>
                 </div>
 
                 {/* Question Section */}
@@ -473,6 +486,16 @@ export default function ResultPage() {
                     </Link>
                 </div>
             </div>
+
+            {divinationId && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => setKbModalOpen(false)}
+                    sourceTitle={result.question || '六爻占卜'}
+                    sourceType="liuyao_divination"
+                    sourceId={divinationId}
+                />
+            )}
 
             <AuthModal
                 isOpen={showAuthModal}

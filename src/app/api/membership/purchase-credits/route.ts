@@ -6,15 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getPaymentsPaused } from '@/lib/app-settings';
+import { getServiceRoleClient, requireUserContext } from '@/lib/api-utils';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
-
-// 服务端 Supabase 客户端
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // 按量付费套餐配置（与 PayPerUse.tsx 保持一致）
 const PRICE_PER_CREDIT = 9.9;
@@ -60,23 +54,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 获取当前用户
-        const supabase = getSupabase();
-        let userId: string | null = null;
-
-        const authHeader = request.headers.get('authorization');
-        if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user } } = await supabase.auth.getUser(token);
-            userId = user?.id || null;
-        }
-
-        if (!userId) {
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
             return NextResponse.json(
-                { error: '请先登录' },
-                { status: 401 }
+                { error: auth.error.message },
+                { status: auth.error.status }
             );
         }
+        const { user } = auth;
+        const userId = user.id;
+
+        const supabase = getServiceRoleClient();
 
         // [MVP] 模拟支付：创建已支付订单
         // 生产环境应创建 pending 订单，等待支付回调确认

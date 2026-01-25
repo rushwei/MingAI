@@ -4,7 +4,7 @@
  * 生成用户年度命理使用报告
  */
 
-import { getServiceClient } from './supabase-server';
+import { getServiceRoleClient } from './api-utils';
 
 // ===== 报告数据类型 =====
 
@@ -74,7 +74,7 @@ export async function generateAnnualReport(
     const endDate = `${year}-12-31T23:59:59`;
 
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         // 1. 获取对话统计
         const { data: conversations } = await supabase
             .from('conversations')
@@ -83,7 +83,7 @@ export async function generateAnnualReport(
             .gte('created_at', startDate)
             .lte('created_at', endDate);
 
-        const convList = conversations || [];
+        const convList = (conversations || []) as Array<{ id: string; source_type: string | null; created_at: string }>;
 
         // 2. 计算功能使用分布
         const featureUsage = {
@@ -119,7 +119,7 @@ export async function generateAnnualReport(
             .gte('checkin_date', `${year}-01-01`)
             .lte('checkin_date', `${year}-12-31`);
 
-        const checkinList = checkins || [];
+        const checkinList = (checkins || []) as Array<{ streak_days: number; reward_credits: number }>;
         const totalCheckinDays = checkinList.length;
         const longestStreak = Math.max(...checkinList.map(c => c.streak_days), 0);
         const totalCreditsEarned = checkinList.reduce((sum, c) => sum + c.reward_credits, 0);
@@ -207,7 +207,7 @@ export async function getCachedAnnualReport(
     userId: string,
     year: number
 ): Promise<AnnualReportData | null> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const { data, error } = await supabase
         .from('annual_reports')
         .select('report_data')
@@ -230,7 +230,7 @@ async function cacheAnnualReport(
     year: number,
     report: AnnualReportData
 ): Promise<void> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     await supabase
         .from('annual_reports')
         .upsert({
@@ -250,7 +250,7 @@ export async function getReportSummary(
     userId: string,
     year: number
 ): Promise<{ hasData: boolean; totalAnalyses: number; topFeature: string } | null> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const report = await getCachedAnnualReport(userId, year);
 
     if (!report) {

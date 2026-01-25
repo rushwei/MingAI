@@ -97,7 +97,7 @@ export interface BaziFormData {
 // ===== AI 对话相关类型 =====
 
 /** AI 人格类型 */
-export type AIPersonality = 'master' | 'healer' | 'scholar';
+export type AIPersonality = 'master';
 
 /** AI 人格配置 */
 export interface AIPersonalityConfig {
@@ -139,6 +139,7 @@ export interface ChatMessage {
     createdAt: string;
     model?: string;                   // 使用的模型（仅AI消息）
     reasoning?: string;               // 推理/思考过程（仅AI消息）
+    metadata?: Record<string, unknown>;
     // 版本支持（仅用户消息有效）
     versions?: MessageVersion[];      // 所有版本历史
     currentVersionIndex?: number;     // 当前显示的版本索引
@@ -150,6 +151,26 @@ export interface ChatMessage {
     // 附件信息（仅用户消息）- 记录发送该消息时使用的附件/搜索
     attachments?: MessageAttachment;
 }
+
+export interface InjectedSource {
+    type: 'knowledge_base' | 'data_source' | 'mention';
+    sourceType?: string;
+    id: string;
+    name: string;
+    preview: string;
+    tokens: number;
+    truncated: boolean;
+}
+
+export interface AIMessageMetadata {
+    sources: InjectedSource[];
+    promptDiagnostics?: {
+        layers: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
+        totalTokens: number;
+    };
+}
+
+export type { MentionType, Mention, MentionTarget } from './mentions';
 
 /** AI 分析来源类型 */
 export type ConversationSourceType =
@@ -177,6 +198,8 @@ export interface Conversation {
     // 新增：AI 分析来源
     sourceType?: ConversationSourceType;
     sourceData?: Record<string, unknown>;
+    isArchived?: boolean;
+    archivedKbIds?: string[];
 }
 
 // ===== AI 模型相关类型 =====

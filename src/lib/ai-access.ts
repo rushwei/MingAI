@@ -1,5 +1,6 @@
 import type { AIModelConfig } from "@/types";
 import type { MembershipType } from "@/lib/membership";
+import { getModelConfig } from "@/lib/ai-config";
 
 type ModelTier = "free" | "plus" | "pro" | "none";
 
@@ -97,4 +98,42 @@ export function getModelAccessForMembership(
     }
 
     return { allowed, blockedReason: "Plus", reasoningAllowed };
+}
+
+type ResolveModelAccessOptions = {
+    requireVision?: boolean;
+    membershipDeniedMessage?: string;
+    invalidModelMessage?: string;
+    invalidVisionMessage?: string;
+};
+
+export function resolveModelAccess(
+    modelId: string | undefined,
+    defaultModelId: string,
+    membership: MembershipType,
+    reasoning?: boolean,
+    options?: ResolveModelAccessOptions
+):
+    | { modelId: string; modelConfig: AIModelConfig; reasoningEnabled: boolean }
+    | { error: string; status: number } {
+    const requestedModelId = modelId?.trim() ? modelId.trim() : defaultModelId;
+    const modelConfig = getModelConfig(requestedModelId);
+    if (!modelConfig) {
+        return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
+    }
+
+    if (options?.requireVision && !modelConfig.supportsVision) {
+        return { error: options?.invalidVisionMessage ?? "请选择支持图像分析的模型", status: 400 };
+    }
+
+    if (!isModelAllowedForMembership(modelConfig, membership)) {
+        return { error: options?.membershipDeniedMessage ?? "当前会员等级无法使用该模型", status: 403 };
+    }
+
+    const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membership);
+    return {
+        modelId: requestedModelId,
+        modelConfig,
+        reasoningEnabled: reasoningAllowed ? !!reasoning : false,
+    };
 }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MessageSquare, Trash2, X, Check, Search, ChevronDown, ChevronRight, SquarePen, Pencil, Loader2, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine } from 'lucide-react';
+import { MessageSquare, Trash2, Search, ChevronDown, ChevronRight, SquarePen, Loader2, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine, Archive, Ellipsis, ArrowLeft } from 'lucide-react';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface ConversationSidebarProps {
     conversations: Conversation[];
@@ -58,11 +59,15 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [actionConv, setActionConv] = useState<Conversation | null>(null);
+    const [actionView, setActionView] = useState<'menu' | 'rename' | 'delete'>('menu');
+    const [archiveTarget, setArchiveTarget] = useState<Conversation | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<ConversationSourceType>>(new Set());
     const [internalCollapsed, setInternalCollapsed] = useState(false);
+
+    const [actionMenuPos, setActionMenuPos] = useState<{ top: number, left: number } | null>(null);
 
     // 使用外部或内部折叠状态
     const isCollapsed = externalCollapsed ?? internalCollapsed;
@@ -111,99 +116,107 @@ export function ConversationSidebar({
         });
     };
 
-    const handleStartEdit = (conv: Conversation) => {
-        setEditingId(conv.id);
-        setEditTitle(conv.title);
+    const closeActionSheet = () => {
+        setActionConv(null);
+        setActionView('menu');
+        setEditingId(null);
+        setEditTitle('');
+        setActionMenuPos(null);
     };
 
-    const handleSaveEdit = () => {
+    const openActionSheet = (conv: Conversation, e: React.MouseEvent) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        
+        // 计算位置：始终显示在按钮的右侧，稍微向下一点，或者如果空间不足则显示在左侧
+        // 由于侧边栏在左侧，默认向右展开是比较安全的
+        // rect.right 是按钮的右边缘
+        
+        const top = rect.bottom + 4;
+        // 用户调整：菜单左边对齐 "..." 按钮的左边
+        const left = rect.left;
+
+        // 简单处理：记录点击位置，具体渲染时微调
+        setActionMenuPos({ top, left });
+        
+        setActionConv(conv);
+        setActionView('menu');
+        setEditingId(null);
+        setEditTitle('');
+    };
+
+    const openRenameView = () => {
+        if (!actionConv) return;
+        if (!onRename || actionConv.sourceType !== 'chat') return;
+        setEditingId(actionConv.id);
+        setEditTitle(actionConv.title);
+        setActionView('rename');
+    };
+
+    const saveRename = () => {
         if (editingId && onRename && editTitle.trim()) {
             onRename(editingId, editTitle.trim());
-        }
-        setEditingId(null);
-        setEditTitle('');
-    };
-
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setEditTitle('');
-    };
-
-    const handleDeleteClick = (id: string) => {
-        setDeleteConfirmId(id);
-    };
-
-    const handleConfirmDelete = () => {
-        if (deleteConfirmId) {
-            onDelete(deleteConfirmId);
-            setDeleteConfirmId(null);
+            closeActionSheet();
         }
     };
 
-    const handleCancelDelete = () => {
-        setDeleteConfirmId(null);
+    const openDeleteView = () => {
+        if (!actionConv) return;
+        setActionView('delete');
+    };
+
+    const confirmDelete = () => {
+        if (!actionConv) return;
+        onDelete(actionConv.id);
+        closeActionSheet();
+    };
+
+    const openArchive = () => {
+        if (!actionConv) return;
+        setArchiveTarget(actionConv);
+        closeActionSheet();
     };
 
     // 渲染单个对话项
     const renderConversationItem = (conv: Conversation) => {
+        const isActionActive = actionConv?.id === conv.id;
+        
         return (
             <div
                 key={conv.id}
                 className={`
                     group flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
                     transition-colors text-sm
-                    ${activeId === conv.id ? 'bg-background-secondary' : 'hover:bg-background-secondary'}
+                    ${(activeId === conv.id || isActionActive) ? 'bg-background-secondary' : 'hover:bg-background-secondary'}
                 `}
-                onClick={() => editingId !== conv.id && onSelect(conv.id)}
+                onClick={() => onSelect(conv.id)}
             >
-                {editingId === conv.id ? (
-                    <div className="flex-1 flex items-center gap-1 min-w-0">
-                        <input
-                            type="text"
-                            value={editTitle}
-                            onChange={e => setEditTitle(e.target.value)}
-                            className="flex-1 min-w-0 px-2 py-1 text-sm bg-background border border-border rounded"
-                            onClick={e => e.stopPropagation()}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveEdit();
-                                if (e.key === 'Escape') handleCancelEdit();
-                            }}
-                            autoFocus
-                        />
-                        <button
-                            onClick={e => { e.stopPropagation(); handleSaveEdit(); }}
-                            className="p-1.5 hover:bg-green-500/20 rounded flex-shrink-0"
-                        >
-                            <Check className="w-4 h-4 text-green-500" />
-                        </button>
-                        <button
-                            onClick={e => { e.stopPropagation(); handleCancelEdit(); }}
-                            className="p-1.5 hover:bg-red-500/20 rounded flex-shrink-0"
-                        >
-                            <X className="w-4 h-4 text-red-500" />
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <span className="flex-1 text-sm truncate min-w-0">{conv.title}</span>
-                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {onRename && conv.sourceType === 'chat' && (
-                                <button
-                                    onClick={e => { e.stopPropagation(); handleStartEdit(conv); }}
-                                    className="p-1.5 hover:bg-background-tertiary rounded"
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                </button>
-                            )}
-                            <button
-                                onClick={e => { e.stopPropagation(); handleDeleteClick(conv.id); }}
-                                className="p-1.5 hover:bg-red-500/20 rounded"
-                            >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                            </button>
-                        </div>
-                    </>
+                <span className="flex-1 text-sm truncate min-w-0">{conv.title}</span>
+                {conv.isArchived && (
+                    <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border bg-background-tertiary text-[10px] text-foreground-secondary flex-shrink-0"
+                        title={
+                            Array.isArray(conv.archivedKbIds) && conv.archivedKbIds.length
+                                ? `已归档到 ${conv.archivedKbIds.length} 个知识库`
+                                : '已归档到知识库'
+                        }
+                    >
+                        <Archive className="w-3 h-3" />
+                        {!isCollapsed && <span>归档</span>}
+                    </span>
                 )}
+                <div className={`flex items-center flex-shrink-0 transition-opacity ${isActionActive ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100'}`}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            openActionSheet(conv, e);
+                        }}
+                        className="p-1.5 hover:bg-background-tertiary rounded text-foreground-secondary hover:text-foreground"
+                        aria-label="更多操作"
+                    >
+                        <Ellipsis className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
         );
     };
@@ -363,7 +376,6 @@ export function ConversationSidebar({
                 <div
                     className="lg:hidden group relative flex flex-col items-start z-20 cursor-pointer -ml-[1px]"
                     onClick={() => {
-                        console.log('toggle clicked', isOpen);
                         if (onToggle) {
                             onToggle(!isOpen);
                         } else {
@@ -413,31 +425,124 @@ export function ConversationSidebar({
                 </div>
             </aside>
 
-            {/* 删除确认弹窗 */}
-            {deleteConfirmId && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/50" onClick={handleCancelDelete} />
-                    <div className="relative bg-background rounded-xl border border-border shadow-xl p-6 max-w-sm w-full">
-                        <h3 className="text-lg font-semibold mb-2">确认删除</h3>
-                        <p className="text-foreground-secondary mb-6">
-                            确定要删除这个对话记录吗？此操作无法撤销。
-                        </p>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={handleCancelDelete}
-                                className="px-4 py-2 rounded-lg border border-border hover:bg-background-secondary transition-colors"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={handleConfirmDelete}
-                                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-                            >
-                                删除
-                            </button>
-                        </div>
+            {actionConv && actionMenuPos && (
+                <div className="fixed inset-0 z-[60]" onClick={closeActionSheet}>
+                    {/* 透明遮罩，点击关闭 */}
+                    <div className="absolute inset-0 bg-transparent" />
+                    
+                    {/* 菜单内容 */}
+                    <div 
+                        className="fixed z-[61] min-w-[160px] max-w-[240px] bg-background rounded-xl border border-border shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                        style={{ 
+                            top: Math.min(actionMenuPos.top, window.innerHeight - 200), // 防止超出底部
+                            left: isCollapsed 
+                                ? actionMenuPos.left + 48 // 折叠时显示在右侧
+                                : actionMenuPos.left, // 展开时显示在点击位置右侧附近
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {actionView === 'menu' && (
+                            <div className="p-1.5">
+                                <div className="px-2 py-1.5 text-xs text-foreground-secondary truncate border-b border-border/50 mb-1">
+                                    {actionConv.title}
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                    {onRename && actionConv.sourceType === 'chat' && (
+                                        <button
+                                            type="button"
+                                            onClick={openRenameView}
+                                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-background-secondary transition-colors text-sm flex items-center gap-2"
+                                        >
+                                            <SquarePen className="w-4 h-4 text-foreground-secondary" />
+                                            <span>重命名</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={openArchive}
+                                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-background-secondary transition-colors text-sm flex items-center gap-2"
+                                    >
+                                        <Archive className="w-4 h-4 text-foreground-secondary" />
+                                        <span>{actionConv.isArchived ? '已归档' : '归档'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={openDeleteView}
+                                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors text-red-500 text-sm flex items-center gap-2"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span>删除</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {actionView === 'rename' && (
+                            <div className="p-3 w-64">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActionView('menu')}
+                                        className="p-1 rounded hover:bg-background-secondary transition-colors"
+                                    >
+                                        <ArrowLeft className="w-4 h-4" />
+                                    </button>
+                                    <div className="font-medium text-sm">重命名</div>
+                                </div>
+                                <input
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="w-full bg-background-secondary border border-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 mb-2"
+                                    autoFocus
+                                />
+                                <div className="flex gap-2 justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={saveRename}
+                                        disabled={!editTitle.trim()}
+                                        className="px-3 py-1 text-xs rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                                    >
+                                        保存
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {actionView === 'delete' && (
+                            <div className="p-3 w-64">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActionView('menu')}
+                                        className="p-1 rounded hover:bg-background-secondary transition-colors"
+                                    >
+                                        <ArrowLeft className="w-4 h-4" />
+                                    </button>
+                                    <div className="font-medium text-sm text-red-500">确认删除？</div>
+                                </div>
+                                <div className="flex gap-2 justify-end mt-2">
+                                    <button
+                                        type="button"
+                                        onClick={confirmDelete}
+                                        className="px-3 py-1 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                                    >
+                                        确认删除
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
+            )}
+
+            {archiveTarget && (
+                <AddToKnowledgeBaseModal
+                    open={true}
+                    onClose={() => setArchiveTarget(null)}
+                    sourceTitle={archiveTarget.title}
+                    sourceType="conversation"
+                    sourceId={archiveTarget.id}
+                />
             )}
         </>
     );

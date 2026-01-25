@@ -4,7 +4,7 @@
  * 提供激活Key的创建、验证、激活等功能
  */
 
-import { getServiceClient } from "./supabase-server";
+import { getServiceRoleClient } from "./api-utils";
 import type { MembershipType } from "./membership";
 
 // Key类型
@@ -61,7 +61,7 @@ export async function createActivationKeys(
     params: CreateKeyParams
 ): Promise<{ success: boolean; keys?: string[]; error?: string }> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
 
         // 验证参数
         if (params.keyType === 'membership' && !params.membershipType) {
@@ -113,7 +113,7 @@ export async function getAllActivationKeys(
     filters?: { isUsed?: boolean; keyType?: KeyType }
 ): Promise<ActivationKey[]> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
 
         let query = supabase
             .from('activation_keys')
@@ -146,7 +146,7 @@ export async function getAllActivationKeys(
  */
 export async function deleteActivationKey(keyId: string): Promise<boolean> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
 
         const { error } = await supabase
             .from('activation_keys')
@@ -173,147 +173,32 @@ export async function activateKey(
     keyCode: string
 ): Promise<ActivateResult> {
     try {
-        const supabase = getServiceClient();
-
         // 校验Key格式
         if (!keyCode || !keyCode.startsWith('sk-') || keyCode.length < 10) {
             return { success: false, error: '无效的激活码格式' };
         }
+        const supabase = getServiceRoleClient();
+        const { data, error } = await supabase.rpc('activate_key_as_service', {
+            p_user_id: userId,
+            p_key_code: keyCode,
+        });
 
-        // 查找Key
-        const { data: key, error: findError } = await supabase
-            .from('activation_keys')
-            .select('*')
-            .eq('key_code', keyCode)
-            .maybeSingle();
-
-        if (findError || !key) {
-            return { success: false, error: '激活码不存在' };
+        if (error) {
+            console.error('[activation-keys] RPC error:', error);
+            return { success: false, error: '激活失败，请稍后重试' };
         }
 
-        if (key.is_used) {
-            return { success: false, error: '该激活码已被使用' };
+        const result = Array.isArray(data) ? data[0] : data;
+        if (!result?.success) {
+            return { success: false, error: result?.error || '激活失败，请重试' };
         }
 
-        // 标记Key为已使用
-        const { data: updatedKeys, error: updateKeyError } = await supabase
-            .from('activation_keys')
-            .update({
-                is_used: true,
-                used_by: userId,
-                used_at: new Date().toISOString(),
-            })
-            .eq('id', key.id)
-            .eq('is_used', false)
-            .select('id');
-
-        if (updateKeyError || !updatedKeys || updatedKeys.length === 0) {
-            console.error('[activation-keys] Failed to mark key as used:', updateKeyError);
-            return { success: false, error: '激活失败，请重试' };
-        }
-
-        // 根据Key类型执行相应操作
-        if (key.key_type === 'membership') {
-            // 升级会员
-            const membershipType = key.membership_type as MembershipType;
-            const expiresAt = new Date();
-            expiresAt.setMonth(expiresAt.getMonth() + 1); // 一个月有效期
-
-            // 获取套餐配置
-            const planConfig = {
-                plus: { initialCredits: 50, creditLimit: 50 },
-                pro: { initialCredits: 200, creditLimit: 200 },
-            };
-            const config = planConfig[membershipType as 'plus' | 'pro'];
-
-            const { data: user, error: getUserError } = await supabase
-                .from('users')
-                .select('ai_chat_count')
-                .eq('id', userId)
-                .single();
-
-            if (getUserError || !user) {
-                return { success: false, error: '获取用户信息失败' };
-            }
-
-            const currentCredits = typeof user.ai_chat_count === 'number' ? user.ai_chat_count : 0;
-            const newCredits = Math.max(
-                currentCredits,
-                Math.min(currentCredits + config.initialCredits, config.creditLimit)
-            );
-
-            const { error: updateUserError } = await supabase
-                .from('users')
-                .update({
-                    membership: membershipType,
-                    membership_expires_at: expiresAt.toISOString(),
-                    ai_chat_count: newCredits,
-                })
-                .eq('id', userId);
-
-            if (updateUserError) {
-                console.error('[activation-keys] Failed to upgrade membership:', updateUserError);
-                return { success: false, error: '升级会员失败' };
-            }
-
-            // 创建订单记录
-            await supabase.from('orders').insert({
-                user_id: userId,
-                order_type: 'subscription',
-                plan_id: membershipType,
-                amount: 0, // Key激活免费
-                status: 'completed',
-                payment_method: 'activation_key',
-            });
-
-            return {
-                success: true,
-                keyType: 'membership',
-                membershipType,
-            };
-        } else {
-            // 增加积分
-            const creditsAmount = key.credits_amount || 0;
-
-            // 获取当前积分和会员等级
-            const { data: user, error: getUserError } = await supabase
-                .from('users')
-                .select('ai_chat_count, membership')
-                .eq('id', userId)
-                .single();
-
-            if (getUserError || !user) {
-                return { success: false, error: '获取用户信息失败' };
-            }
-
-            const newCount = (user.ai_chat_count || 0) + creditsAmount;
-
-            const { error: updateCreditsError } = await supabase
-                .from('users')
-                .update({ ai_chat_count: newCount })
-                .eq('id', userId);
-
-            if (updateCreditsError) {
-                console.error('[activation-keys] Failed to add credits:', updateCreditsError);
-                return { success: false, error: '添加积分失败' };
-            }
-
-            // 创建订单记录
-            await supabase.from('orders').insert({
-                user_id: userId,
-                order_type: 'credits',
-                credits_count: creditsAmount,
-                amount: 0, // Key激活免费
-                status: 'completed',
-                payment_method: 'activation_key',
-            });
-
-            return {
-                success: true,
-                keyType: 'credits',
-                creditsAmount,
-            };
-        }
+        return {
+            success: true,
+            keyType: result.key_type as KeyType,
+            membershipType: (result.membership_type as MembershipType) || undefined,
+            creditsAmount: result.credits_amount ?? undefined,
+        };
     } catch (error) {
         console.error('[activation-keys] Error activating key:', error);
         return { success: false, error: '服务器错误' };

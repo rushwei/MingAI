@@ -5,35 +5,16 @@
  * DELETE: 删除记录
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { NextRequest } from 'next/server';
+import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(_request);
+        if (!user) return jsonError('请先登录', 401);
 
         const { id } = await params;
 
@@ -46,16 +27,16 @@ export async function GET(
 
         if (error) {
             if (error.code === 'PGRST116') {
-                return NextResponse.json({ error: '记录不存在' }, { status: 404 });
+                return jsonError('记录不存在', 404);
             }
             console.error('获取记录失败:', error);
-            return NextResponse.json({ error: '获取记录失败' }, { status: 500 });
+            return jsonError('获取记录失败', 500);
         }
 
-        return NextResponse.json(data);
+        return jsonOk(data as Record<string, unknown>);
     } catch (error) {
         console.error('获取记录失败:', error);
-        return NextResponse.json({ error: '获取记录失败' }, { status: 500 });
+        return jsonError('获取记录失败', 500);
     }
 }
 
@@ -64,11 +45,8 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(request);
+        if (!user) return jsonError('请先登录', 401);
 
         const { id } = await params;
         const body = await request.json();
@@ -83,7 +61,7 @@ export async function PUT(
                 .single();
 
             if (fetchError || !record) {
-                return NextResponse.json({ error: '记录不存在' }, { status: 404 });
+                return jsonError('记录不存在', 404);
             }
 
             const { data, error } = await supabase
@@ -96,10 +74,10 @@ export async function PUT(
 
             if (error) {
                 console.error('更新记录失败:', error);
-                return NextResponse.json({ error: '更新记录失败' }, { status: 500 });
+                return jsonError('更新记录失败', 500);
             }
 
-            return NextResponse.json(data);
+            return jsonOk(data as Record<string, unknown>);
         }
 
         // 常规更新
@@ -121,13 +99,13 @@ export async function PUT(
 
         if (error) {
             console.error('更新记录失败:', error);
-            return NextResponse.json({ error: '更新记录失败' }, { status: 500 });
+            return jsonError('更新记录失败', 500);
         }
 
-        return NextResponse.json(data);
+        return jsonOk(data as Record<string, unknown>);
     } catch (error) {
         console.error('更新记录失败:', error);
-        return NextResponse.json({ error: '更新记录失败' }, { status: 500 });
+        return jsonError('更新记录失败', 500);
     }
 }
 
@@ -136,11 +114,8 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(_request);
+        if (!user) return jsonError('请先登录', 401);
 
         const { id } = await params;
 
@@ -152,12 +127,12 @@ export async function DELETE(
 
         if (error) {
             console.error('删除记录失败:', error);
-            return NextResponse.json({ error: '删除记录失败' }, { status: 500 });
+            return jsonError('删除记录失败', 500);
         }
 
-        return NextResponse.json({ success: true });
+        return jsonOk({ success: true });
     } catch (error) {
         console.error('删除记录失败:', error);
-        return NextResponse.json({ error: '删除记录失败' }, { status: 500 });
+        return jsonError('删除记录失败', 500);
     }
 }

@@ -9,13 +9,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Lock } from 'lucide-react';
 import Link from 'next/link';
-import type { ChatMessage, Conversation, AttachmentState, DifyContext } from '@/types';
+import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, AIMessageMetadata } from '@/types';
 
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { BaziChartSelector, type SelectedCharts } from '@/components/chat/BaziChartSelector';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import {
@@ -86,6 +87,10 @@ export default function ChatPage() {
         file: undefined,
         webSearchEnabled: false,
     });
+    const [mentions, setMentions] = useState<Mention[]>([]);
+    const [promptKnowledgeBases, setPromptKnowledgeBases] = useState<Array<{ id: string; name: string; description: string | null }>>([]);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [kbTargetMessage, setKbTargetMessage] = useState<ChatMessage | null>(null);
 
     // 滚动到最新消息
     const scrollToBottom = () => {
@@ -95,6 +100,17 @@ export default function ChatPage() {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    const handleArchiveMessage = useCallback((message: ChatMessage) => {
+        if (!activeConversationId) return;
+        setKbTargetMessage(message);
+        setKbModalOpen(true);
+    }, [activeConversationId]);
+
+    const closeKbModal = useCallback(() => {
+        setKbModalOpen(false);
+        setKbTargetMessage(null);
+    }, []);
 
     const refreshMembership = useCallback(async (targetUserId?: string | null) => {
         const id = targetUserId ?? userId;
@@ -106,20 +122,75 @@ export default function ChatPage() {
         }
     }, [userId]);
 
+    const refreshPromptKnowledgeBases = useCallback(async (targetUserId?: string | null) => {
+        const id = targetUserId ?? userId;
+        if (!id) return;
+        const { data: settings } = await supabase
+            .from('user_settings')
+            .select('prompt_kb_ids')
+            .eq('user_id', id)
+            .maybeSingle();
+        const rawIds = Array.isArray((settings as { prompt_kb_ids?: unknown })?.prompt_kb_ids)
+            ? (settings as { prompt_kb_ids: unknown[] }).prompt_kb_ids
+            : [];
+        const kbIds = rawIds.filter((value): value is string => typeof value === 'string' && value.length > 0);
+        if (kbIds.length === 0) {
+            setPromptKnowledgeBases([]);
+            return;
+        }
+        const { data: kbs } = await supabase
+            .from('knowledge_bases')
+            .select('id, name, description')
+            .eq('user_id', id)
+            .in('id', kbIds);
+        const kbMap = new Map((kbs || []).map(kb => [kb.id, kb]));
+        const ordered = kbIds.map(kbId => kbMap.get(kbId)).filter(Boolean) as Array<{ id: string; name: string; description: string | null }>;
+        setPromptKnowledgeBases(ordered);
+    }, [userId]);
+
+    const refreshConversationList = useCallback(async (targetUserId?: string | null) => {
+        const id = targetUserId ?? userId;
+        if (!id) return;
+        const list = await loadConversations(id);
+        setConversations(list);
+        if (activeConversationId && !list.find(c => c.id === activeConversationId)) {
+            setActiveConversationId(null);
+            setMessages([]);
+        }
+    }, [activeConversationId, userId]);
+
     // 获取用户ID并加载对话列表
     useEffect(() => {
         const init = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
-                const list = await loadConversations(session.user.id);
-                setConversations(list);
+                await refreshConversationList(session.user.id);
                 await refreshMembership(session.user.id);
+                await refreshPromptKnowledgeBases(session.user.id);
             }
             setConversationsLoading(false);
         };
         init();
-    }, [refreshMembership]);
+    }, [refreshConversationList, refreshMembership, refreshPromptKnowledgeBases]);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<{ sourceType?: string }>).detail;
+            if (detail?.sourceType === 'conversation') {
+                void refreshConversationList();
+            }
+        };
+        window.addEventListener('mingai:knowledge-base:ingested', handler as EventListener);
+        const onPromptUpdate = () => {
+            void refreshPromptKnowledgeBases();
+        };
+        window.addEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
+        return () => {
+            window.removeEventListener('mingai:knowledge-base:ingested', handler as EventListener);
+            window.removeEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
+        };
+    }, [refreshConversationList, refreshPromptKnowledgeBases]);
 
     // 选择对话
     const handleSelectConversation = useCallback(async (id: string) => {
@@ -233,6 +304,7 @@ export default function ChatPage() {
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         setInputValue('');
+        setMentions([]);
         setIsLoading(true);
 
         // 创建一个空的 AI 消息用于流式更新
@@ -254,6 +326,7 @@ export default function ChatPage() {
         // 提升到 try 外部，以便在 catch 中访问（用于停止时保存）
         let accumulatedContent = '';
         let accumulatedReasoning = '';
+        let accumulatedMetadata: AIMessageMetadata | null = null;
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -327,6 +400,7 @@ export default function ChatPage() {
                     },
                     reasoning: reasoningEnabled,
                     difyContext,
+                    mentions,
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -357,6 +431,15 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
+                                if (parsed?.type === 'meta' && parsed?.metadata) {
+                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
+                                            : msg
+                                    ));
+                                    continue;
+                                }
                                 const delta = parsed.choices?.[0]?.delta;
                                 // 处理推理内容
                                 const reasoningContent = delta?.reasoning_content;
@@ -391,6 +474,7 @@ export default function ChatPage() {
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
+                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
             });
             setMessages(finalMessages);
             setIsLoading(false);
@@ -412,6 +496,7 @@ export default function ChatPage() {
                     const stoppedMessages = newMessages.concat({
                         ...initialAssistantMessage,
                         content: accumulatedContent || '',
+                        metadata: accumulatedMetadata as unknown as Record<string, unknown>,
                     });
                     // 只有当AI有回复内容时才保存
                     if (accumulatedContent.trim()) {
@@ -889,6 +974,9 @@ export default function ChatPage() {
                                     membershipType={membership?.type || 'free'}
                                     attachmentState={attachmentState}
                                     onAttachmentChange={setAttachmentState}
+                                    mentions={mentions}
+                                    onMentionsChange={setMentions}
+                                    promptKnowledgeBases={promptKnowledgeBases}
                                     hideDisclaimer
                                 />
                             </div>
@@ -904,6 +992,7 @@ export default function ChatPage() {
                                     onEditMessage={handleEditMessage}
                                     onRegenerateResponse={handleRegenerateResponse}
                                     onSwitchVersion={handleSwitchVersion}
+                                    onArchiveMessage={activeConversationId ? handleArchiveMessage : undefined}
                                     disabled={isCreditLocked}
                                 />
                             </div>
@@ -960,11 +1049,25 @@ export default function ChatPage() {
                                 membershipType={membership?.type || 'free'}
                                 attachmentState={attachmentState}
                                 onAttachmentChange={setAttachmentState}
+                                mentions={mentions}
+                                onMentionsChange={setMentions}
+                                promptKnowledgeBases={promptKnowledgeBases}
                             />
                         </>
                     )}
                 </div>
             </div>
+
+            {kbTargetMessage && activeConversationId && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={closeKbModal}
+                    sourceTitle={kbTargetMessage.content.slice(0, 40) || '对话回复'}
+                    sourceType="chat_message"
+                    sourceId={kbTargetMessage.id}
+                    sourceMeta={{ conversationId: activeConversationId }}
+                />
+            )}
 
             {/* 命盘选择器弹窗 */}
             {userId && chartSelectorOpen && (

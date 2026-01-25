@@ -1,0 +1,31 @@
+export function hasNonEmptyStrings(
+    obj: Record<string, unknown>,
+    fields: string[]
+): boolean {
+    return fields.every((field) => {
+        const value = obj[field];
+        return typeof value === 'string' && value.trim().length > 0;
+    });
+}
+
+export function missingFields(
+    obj: Record<string, unknown>,
+    fields: string[]
+): string[] {
+    return fields.filter((field) => {
+        const value = obj[field];
+        if (value === undefined || value === null) return true;
+        if (typeof value === 'string') return value.trim().length === 0;
+        return false;
+    });
+}
+
+export function missingSearchParams(
+    params: URLSearchParams,
+    fields: string[]
+): string[] {
+    return fields.filter((field) => {
+        const value = params.get(field);
+        return !value || value.trim().length === 0;
+    });
+}

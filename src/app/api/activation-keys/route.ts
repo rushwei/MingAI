@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getServiceClient } from "@/lib/supabase-server";
+import { requireAdminUser, requireBearerUser } from "@/lib/api-utils";
 import {
     createActivationKeys,
     getAllActivationKeys,
@@ -18,53 +17,16 @@ import {
     type CreateKeyParams,
 } from "@/lib/activation-keys";
 
-// 从请求头获取用户ID
-async function getUserFromRequest(request: NextRequest): Promise<{ userId: string; isAdmin: boolean } | null> {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-        return null;
-    }
-
-    const token = authHeader.slice(7);
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            global: { headers: { Authorization: `Bearer ${token}` } },
-        }
-    );
-
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-        return null;
-    }
-
-    // 检查是否为管理员
-    const serviceClient = getServiceClient();
-    const { data: userData } = await serviceClient
-        .from("users")
-        .select("is_admin")
-        .eq("id", user.id)
-        .maybeSingle();
-
-    return {
-        userId: user.id,
-        isAdmin: !!userData?.is_admin,
-    };
-}
-
 /**
  * GET /api/activation-keys
  * 获取所有激活Key (管理员专用)
  */
 export async function GET(request: NextRequest) {
     try {
-        const auth = await getUserFromRequest(request);
-        if (!auth) {
-            return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
-        }
-        if (!auth.isAdmin) {
-            return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+        const auth = await requireAdminUser(request);
+        if ("error" in auth) {
+            const message = auth.error.status === 401 ? "未登录" : "无权限";
+            return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
         }
 
         const { searchParams } = new URL(request.url);
@@ -93,18 +55,14 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        const auth = await getUserFromRequest(request);
-        if (!auth) {
-            return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
-        }
-
         const body = await request.json();
 
         // 判断是创建还是激活
         if (body.action === "create") {
-            // 创建Key - 需要管理员权限
-            if (!auth.isAdmin) {
-                return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+            const auth = await requireAdminUser(request);
+            if ("error" in auth) {
+                const message = auth.error.status === 401 ? "未登录" : "无权限";
+                return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
             }
 
             const params: CreateKeyParams = {
@@ -114,16 +72,20 @@ export async function POST(request: NextRequest) {
                 count: body.count || 1,
             };
 
-            const result = await createActivationKeys(auth.userId, params);
+            const result = await createActivationKeys(auth.user.id, params);
             return NextResponse.json(result);
         } else if (body.action === "activate") {
+            const auth = await requireBearerUser(request);
+            if ("error" in auth) {
+                return NextResponse.json({ success: false, error: "未登录" }, { status: auth.error.status });
+            }
             // 激活Key - 普通用户可用
             const keyCode = body.keyCode?.trim();
             if (!keyCode) {
                 return NextResponse.json({ success: false, error: "请输入激活码" }, { status: 400 });
             }
 
-            const result = await activateKey(auth.userId, keyCode);
+            const result = await activateKey(auth.user.id, keyCode);
             return NextResponse.json(result);
         } else {
             return NextResponse.json({ success: false, error: "无效的操作" }, { status: 400 });
@@ -140,12 +102,10 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
     try {
-        const auth = await getUserFromRequest(request);
-        if (!auth) {
-            return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
-        }
-        if (!auth.isAdmin) {
-            return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+        const auth = await requireAdminUser(request);
+        if ("error" in auth) {
+            const message = auth.error.status === 401 ? "未登录" : "无权限";
+            return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
         }
 
         const { searchParams } = new URL(request.url);

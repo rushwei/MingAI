@@ -3,32 +3,13 @@
  * GET: 导出所有数据
  */
 
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthContext, jsonError } from '@/lib/api-utils';
 
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(request);
+        if (!user) return jsonError('请先登录', 401);
 
         // 获取所有记录和小记
         const [recordsResult, notesResult] = await Promise.all([
@@ -38,7 +19,7 @@ export async function GET() {
 
         if (recordsResult.error || notesResult.error) {
             console.error('导出数据失败:', recordsResult.error || notesResult.error);
-            return NextResponse.json({ error: '导出数据失败' }, { status: 500 });
+            return jsonError('导出数据失败', 500);
         }
 
         const exportData = {
@@ -59,6 +40,6 @@ export async function GET() {
         });
     } catch (error) {
         console.error('导出数据失败:', error);
-        return NextResponse.json({ error: '导出数据失败' }, { status: 500 });
+        return jsonError('导出数据失败', 500);
     }
 }

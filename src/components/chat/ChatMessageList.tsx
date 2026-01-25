@@ -1,11 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
-import type { ChatMessage } from '@/types';
+import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
+import type { AIMessageMetadata, ChatMessage, InjectedSource } from '@/types';
 import { getModelName } from '@/lib/ai-config';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from './ThinkingBlock';
+import { SourcePanel } from './SourcePanel';
+
+const mentionTokenRegex = /@\{(\{[\s\S]*?\}|[^{}]+)\}/g;
+
+const formatMentionsForDisplay = (content: string) => {
+    return content.replace(mentionTokenRegex, (full, raw) => {
+        try {
+            const parsed = JSON.parse(raw) as { name?: string };
+            if (parsed?.name) return `@${parsed.name}`;
+        } catch {
+        }
+        try {
+            const parsed = JSON.parse(`{${raw}}`) as { name?: string };
+            if (parsed?.name) return `@${parsed.name}`;
+        } catch {
+        }
+        return full;
+    });
+};
 
 interface ChatMessageListProps {
     messages: ChatMessage[];
@@ -14,6 +33,7 @@ interface ChatMessageListProps {
     onEditMessage?: (messageId: string, newContent: string) => void;
     onRegenerateResponse?: (messageId: string) => void;
     onSwitchVersion?: (messageId: string, versionIndex: number) => void;
+    onArchiveMessage?: (message: ChatMessage) => void;
     disabled?: boolean;
 }
 
@@ -24,12 +44,14 @@ export function ChatMessageList({
     onEditMessage,
     onRegenerateResponse,
     onSwitchVersion,
+    onArchiveMessage,
     disabled = false,
 }: ChatMessageListProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+    const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
 
     const handleStartEdit = (message: ChatMessage) => {
         if (disabled) return;
@@ -135,8 +157,8 @@ export function ChatMessageList({
                                         )}
                                         {message.attachments.webSearchEnabled && (
                                             <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-xl text-green-600">
-                                                <Search className="w-4 h-4" />
-                                                <span className="text-sm">网络搜索</span>
+                                                <Globe className="w-4 h-4" />
+                                                <span className="text-sm">搜索</span>
                                             </div>
                                         )}
                                     </div>
@@ -144,7 +166,7 @@ export function ChatMessageList({
                                 {/* 消息气泡 */}
                                 <div className="px-4 py-3 rounded-2xl rounded-tr-md bg-accent text-white shadow-sm">
                                     <p className="whitespace-pre-wrap text-base leading-relaxed">
-                                        {message.content}
+                                        {formatMentionsForDisplay(message.content)}
                                     </p>
                                 </div>
                                 {/* 操作按钮和版本切换 */}
@@ -238,6 +260,19 @@ export function ChatMessageList({
                                 />
                             )}
                             <MarkdownContent content={message.content} className="text-base text-foreground" />
+                            {(() => {
+                                const meta = message.metadata as AIMessageMetadata | undefined;
+                                const sources = (meta?.sources || []) as InjectedSource[];
+                                if (!sources.length) return null;
+                                const isExpanded = !!expandedSources[message.id];
+                                return (
+                                    <SourcePanel
+                                        sources={sources}
+                                        isExpanded={isExpanded}
+                                        onToggle={() => setExpandedSources(prev => ({ ...prev, [message.id]: !isExpanded }))}
+                                    />
+                                );
+                            })()}
                             {/* 操作按钮 - 只有最后一条正在流式输出的消息才隐藏 */}
                             {message.content && !(isStreamingAI && message === lastMessage) && (
                                 <div className="flex gap-1 mt-2">
@@ -272,6 +307,21 @@ export function ChatMessageList({
                                                     {message.model && (
                                                         <div className="opacity-70">已使用 {getModelName(message.model || '')}</div>
                                                     )}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
+                                    {!!onArchiveMessage && (
+                                        <button
+                                            onClick={() => onArchiveMessage(message)}
+                                            onMouseEnter={() => setHoveredAction(`archive-${message.id}`)}
+                                            onMouseLeave={() => setHoveredAction(null)}
+                                            className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                                        >
+                                            <BookOpenText className="w-4.5 h-4.5" />
+                                            {hoveredAction === `archive-${message.id}` && (
+                                                <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
+                                                    加入知识库
                                                 </span>
                                             )}
                                         </button>

@@ -4,37 +4,37 @@
  * POST: 创建新记录
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { RecordCategory, RecordFilters } from '@/lib/records';
+import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
+function quotePostgrestString(value: string): string {
+    const sanitized = value
+        .replace(/\u0000/g, '')
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+    return `"${sanitized}"`;
 }
 
 export async function GET(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(request);
+        if (!user) return jsonError('请先登录', 401);
 
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const pageSize = parseInt(searchParams.get('pageSize') || '20');
+        const rawPage = searchParams.get('page');
+        const rawPageSize = searchParams.get('pageSize');
+
+        const page = rawPage == null ? 1 : Number(rawPage);
+        if (!Number.isInteger(page) || page < 1) {
+            return jsonError('page 参数无效', 400);
+        }
+
+        const pageSize = rawPageSize == null ? 20 : Number(rawPageSize);
+        if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+            return jsonError('pageSize 参数无效', 400);
+        }
+
         const category = searchParams.get('category') as RecordCategory | null;
         const search = searchParams.get('search');
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
         // 构建查询
         let query = supabase
-            .from('ming_records')
+            .from('ming_records_with_archive_status')
             .select('*', { count: 'exact' })
             .eq('user_id', user.id)
             .order('is_pinned', { ascending: false })
@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
             query = query.eq('category', filters.category);
         }
         if (filters.search) {
-            query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
+            const pattern = quotePostgrestString(`%${filters.search}%`);
+            query = query.or(`title.ilike.${pattern},content.ilike.${pattern}`);
         }
 
         // 分页
@@ -67,31 +68,28 @@ export async function GET(request: NextRequest) {
 
         if (error) {
             console.error('获取记录失败:', error);
-            return NextResponse.json({ error: '获取记录失败' }, { status: 500 });
+            return jsonError('获取记录失败', 500);
         }
 
-        return NextResponse.json({
+        return jsonOk({
             records: data,
             total: count || 0,
         });
     } catch (error) {
         console.error('获取记录失败:', error);
-        return NextResponse.json({ error: '获取记录失败' }, { status: 500 });
+        return jsonError('获取记录失败', 500);
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(request);
+        if (!user) return jsonError('请先登录', 401);
 
         const body = await request.json();
 
         if (!body.title) {
-            return NextResponse.json({ error: '标题不能为空' }, { status: 400 });
+            return jsonError('标题不能为空', 400);
         }
 
         const { data, error } = await supabase
@@ -112,12 +110,12 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error('创建记录失败:', error);
-            return NextResponse.json({ error: '创建记录失败' }, { status: 500 });
+            return jsonError('创建记录失败', 500);
         }
 
-        return NextResponse.json(data);
+        return jsonOk(data as Record<string, unknown>);
     } catch (error) {
         console.error('创建记录失败:', error);
-        return NextResponse.json({ error: '创建记录失败' }, { status: 500 });
+        return jsonError('创建记录失败', 500);
     }
 }

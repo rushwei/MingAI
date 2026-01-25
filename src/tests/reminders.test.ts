@@ -6,7 +6,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 
 test('createNotification uses service client for inserts', async (t) => {
-    const notificationModule = require('../lib/notification') as any;
+    const notificationModule = require('../lib/notification-server') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
@@ -46,11 +46,11 @@ test('createNotification uses service client for inserts', async (t) => {
 
     assert.equal(ok, true);
     assert.ok(inserted);
-    assert.equal(inserted?.user_id, 'user-1');
+    assert.equal((inserted as { user_id?: string } | null)?.user_id, 'user-1');
 });
 
 test('processScheduledReminders skips site notifications when notify_site is false', async (t) => {
-    const notificationModule = require('../lib/notification') as any;
+    const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
@@ -121,7 +121,7 @@ test('processScheduledReminders skips site notifications when notify_site is fal
 });
 
 test('processScheduledReminders does not mark sent when notification fails', async (t) => {
-    const notificationModule = require('../lib/notification') as any;
+    const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetServiceClient = supabaseServerModule.getServiceClient;

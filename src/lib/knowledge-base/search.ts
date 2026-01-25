@@ -1,0 +1,281 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { callReranker } from './reranker';
+import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from './embedding-config';
+import type { RankedResult, SearchCandidate, SearchOptions } from './types';
+import { createClient } from '@supabase/supabase-js';
+
+interface SearchConfigInternal {
+    ftsConfig: 'simple' | 'english';
+    enableTrigram: boolean;
+    trigramThreshold: number;
+}
+
+const DEFAULT_SEARCH_CONFIG: SearchConfigInternal = {
+    ftsConfig: 'simple',
+    enableTrigram: true,
+    trigramThreshold: 0.3
+};
+
+async function createSupabaseClient(accessToken?: string) {
+    if (accessToken) {
+        return createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                global: {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
+                }
+            }
+        );
+    }
+    const cookieStore = await cookies();
+    return createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll();
+                },
+            },
+        }
+    );
+}
+
+function normalizeScore(method: 'fts' | 'trigram' | 'vector', rawScore: number): number {
+    switch (method) {
+        case 'fts':
+            return Math.min(rawScore * 3.33, 1);
+        case 'trigram':
+            return rawScore;
+        case 'vector':
+            return 1 - rawScore / 2;
+    }
+}
+
+function deduplicateResults(results: SearchCandidate[]): SearchCandidate[] {
+    const seen = new Map<string, SearchCandidate>();
+
+    for (const r of results) {
+        const existing = seen.get(r.id);
+        if (!existing || r.score > existing.score) {
+            seen.set(r.id, r);
+        }
+    }
+
+    return Array.from(seen.values()).sort((a, b) => b.score - a.score);
+}
+
+async function getCurrentUserMembership(accessToken?: string): Promise<'free' | 'plus' | 'pro'> {
+    const supabase = await createSupabaseClient(accessToken);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 'free';
+    return await getEffectiveMembershipType(user.id);
+}
+
+function getWeightMultiplier(weight?: string | null): number {
+    if (weight === 'high') return 1.15;
+    if (weight === 'low') return 0.85;
+    return 1;
+}
+
+async function applyKnowledgeBaseWeights(
+    candidates: SearchCandidate[],
+    accessToken?: string
+): Promise<{ candidates: SearchCandidate[]; highKbIds: string[] }> {
+    if (candidates.length === 0) return { candidates, highKbIds: [] };
+    const supabase = await createSupabaseClient(accessToken);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { candidates, highKbIds: [] };
+
+    const kbIds = Array.from(new Set(candidates.map(c => c.kbId).filter(Boolean)));
+    if (kbIds.length === 0) return { candidates, highKbIds: [] };
+
+    const { data: kbRows } = await supabase
+        .from('knowledge_bases')
+        .select('id, weight')
+        .eq('user_id', user.id)
+        .in('id', kbIds);
+
+    const weightMap = new Map<string, string>();
+    (kbRows || []).forEach((kb: { id: string; weight: string }) => {
+        weightMap.set(kb.id, kb.weight);
+    });
+
+    const highKbIdSet = new Set<string>();
+    const boosted = candidates.map(candidate => {
+        const weight = weightMap.get(candidate.kbId);
+        if (weight === 'high') highKbIdSet.add(candidate.kbId);
+        const multiplier = getWeightMultiplier(weight);
+        return {
+            ...candidate,
+            score: Math.min(candidate.score * multiplier, 1),
+        };
+    });
+
+    boosted.sort((a, b) => b.score - a.score);
+    return { candidates: boosted, highKbIds: Array.from(highKbIdSet) };
+}
+
+export async function searchCandidates(query: string, options: SearchOptions): Promise<SearchCandidate[]> {
+    const supabase = await createSupabaseClient(options.accessToken);
+    const { kbIds, limit = 20, useVector = false, accessToken } = options;
+    const config: SearchConfigInternal = { ...DEFAULT_SEARCH_CONFIG, ...options.searchConfig };
+
+    const ftsResults = await searchByFTS(supabase, query, kbIds, limit, config);
+
+    if (config.enableTrigram && ftsResults.length < limit) {
+        const trigramResults = await searchByTrigram(
+            supabase,
+            query,
+            kbIds,
+            limit - ftsResults.length,
+            config
+        );
+        const merged = deduplicateResults([...ftsResults, ...trigramResults]);
+        if (useVector) {
+            const vectorResults = await searchByVector(supabase, query, kbIds, limit, accessToken);
+            return deduplicateResults([...merged, ...vectorResults]);
+        }
+        return merged;
+    }
+
+    if (useVector) {
+        const vectorResults = await searchByVector(supabase, query, kbIds, limit, accessToken);
+        return deduplicateResults([...ftsResults, ...vectorResults]);
+    }
+
+    return ftsResults;
+}
+
+async function searchByFTS(
+    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    query: string,
+    kbIds: string[] | undefined,
+    limit: number,
+    config: SearchConfigInternal
+): Promise<SearchCandidate[]> {
+    const { data } = await supabase.rpc('search_knowledge_fts', {
+        p_query: query,
+        p_kb_ids: kbIds,
+        p_limit: limit,
+        p_config: config.ftsConfig
+    });
+
+    const rows = (data || []) as Array<{ id: string; kb_id: string; content: string; metadata: Record<string, unknown>; rank: number }>;
+    return rows.map(r => ({
+        id: r.id,
+        kbId: r.kb_id,
+        content: r.content,
+        metadata: r.metadata || {},
+        method: 'fts',
+        score: normalizeScore('fts', r.rank || 0)
+    }));
+}
+
+async function searchByTrigram(
+    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    query: string,
+    kbIds: string[] | undefined,
+    limit: number,
+    config: SearchConfigInternal
+): Promise<SearchCandidate[]> {
+    const { data } = await supabase.rpc('search_knowledge_trigram', {
+        p_query: query,
+        p_kb_ids: kbIds,
+        p_limit: limit,
+        p_threshold: config.trigramThreshold
+    });
+
+    const rows = (data || []) as Array<{ id: string; kb_id: string; content: string; metadata: Record<string, unknown>; similarity: number }>;
+    return rows.map(r => ({
+        id: r.id,
+        kbId: r.kb_id,
+        content: r.content,
+        metadata: r.metadata || {},
+        method: 'trigram',
+        score: normalizeScore('trigram', r.similarity || 0)
+    }));
+}
+
+async function searchByVector(
+    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    query: string,
+    kbIds: string[] | undefined,
+    limit: number,
+    accessToken?: string
+): Promise<SearchCandidate[]> {
+    const dim = getEmbeddingDimension();
+    const indexExists = await checkVectorIndexExists(dim, accessToken);
+    if (!indexExists) return [];
+
+    const queryVector = await generateEmbedding(query);
+    if (!queryVector) return [];
+
+    const { data } = await supabase.rpc('search_knowledge_vector', {
+        p_query_vector: queryVector,
+        p_kb_ids: kbIds,
+        p_limit: limit,
+        p_dim: dim
+    });
+
+    const rows = (data || []) as Array<{ id: string; kb_id: string; content: string; metadata: Record<string, unknown>; distance: number }>;
+    return rows.map(r => ({
+        id: r.id,
+        kbId: r.kb_id,
+        content: r.content,
+        metadata: r.metadata || {},
+        method: 'vector',
+        score: normalizeScore('vector', r.distance || 2)
+    }));
+}
+
+export async function rerankCandidates(
+    query: string,
+    candidates: SearchCandidate[],
+    topK: number = 5
+): Promise<RankedResult[]> {
+    return await callReranker(query, candidates, topK);
+}
+
+export async function searchKnowledge(query: string, options: SearchOptions = {}): Promise<SearchCandidate[] | RankedResult[]> {
+    const membership = await getCurrentUserMembership(options.accessToken);
+    if (membership === 'free') return [];
+    const candidates = await searchCandidates(query, {
+        ...options,
+        useVector: membership === 'pro' && options.useVector !== false
+    });
+    const weighted = await applyKnowledgeBaseWeights(candidates, options.accessToken);
+    let weightedCandidates = weighted.candidates;
+    const highKbIds = weighted.highKbIds;
+
+    const topK = options.topK ?? 5;
+    if (membership === 'pro' && highKbIds.length > 0) {
+        try {
+            const baseLimit = options.limit ?? 20;
+            const extraCandidates = await searchCandidates(query, {
+                ...options,
+                kbIds: highKbIds,
+                limit: baseLimit + 10,
+                useVector: options.useVector !== false
+            });
+            const weightedExtra = await applyKnowledgeBaseWeights(extraCandidates, options.accessToken);
+            weightedCandidates = deduplicateResults([...weightedCandidates, ...weightedExtra.candidates]);
+        } catch {
+        }
+    }
+
+    if (membership === 'pro' && weightedCandidates.length > Math.max(5, topK)) {
+        try {
+            return await rerankCandidates(query, weightedCandidates, topK);
+        } catch {
+            return weightedCandidates;
+        }
+    }
+
+    return weightedCandidates;
+}

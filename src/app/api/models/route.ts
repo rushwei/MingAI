@@ -5,58 +5,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getModels } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { getModelAccessForMembership } from '@/lib/ai-access';
-
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getAuthContext } from '@/lib/api-utils';
 
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {
-    const supabase = getSupabase();
-    let userId: string | null = null;
-    const membershipHint = request.headers.get('x-membership-type') as MembershipType | null;
-
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-        const token = authHeader.replace('Bearer ', '');
-        try {
-            const { data: { user }, error } = await supabase.auth.getUser(token);
-            if (error) {
-                console.error('[models] Failed to resolve user from auth header:', error.message);
-            }
-            userId = user?.id || null;
-        } catch (error) {
-            console.error('[models] Failed to resolve user from auth header:', error);
-        }
-    }
-
-    if (!userId) {
-        const accessToken = request.cookies.get('sb-access-token')?.value;
-        if (accessToken) {
-            try {
-                const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-                if (error) {
-                    console.error('[models] Failed to resolve user from cookie:', error.message);
-                }
-                userId = user?.id || null;
-            } catch (error) {
-                console.error('[models] Failed to resolve user from cookie:', error);
-            }
-        }
-    }
-
-    if (!userId) {
-        if (membershipHint === 'free' || membershipHint === 'plus' || membershipHint === 'pro') {
-            return membershipHint;
-        }
+    const { user } = await getAuthContext(request);
+    if (!user) {
         return 'free';
     }
-    return getEffectiveMembershipType(userId);
+    return getEffectiveMembershipType(user.id);
 }
 
 export async function GET(request: NextRequest) {

@@ -11,7 +11,7 @@
  */
 
 import { type MembershipType, getPlanConfig } from './membership';
-import { getServiceClient } from './supabase-server';
+import { getServiceRoleClient } from './api-utils';
 
 
 /**
@@ -23,7 +23,7 @@ export async function getUserCreditInfo(userId: string): Promise<{
     lastRestoreAt: Date | null;
     expiresAt: Date | null;
 } | null> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
 
     const { data, error } = await supabase
         .from('users')
@@ -65,50 +65,14 @@ export async function getCredits(userId: string): Promise<number> {
  * @returns 成功返回剩余积分，失败返回 null
  */
 export async function useCredit(userId: string): Promise<number | null> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
 
-    // 直接使用 PostgreSQL 的原子操作扣减
-    // 使用 GREATEST 确保不会变成负数
     const { data, error } = await supabase
         .rpc('decrement_ai_chat_count', { user_id: userId });
 
     if (error) {
-        console.error('[credits] RPC decrement failed, trying direct update:', error.message);
-
-        // 回退到直接更新
-        const { data: current, error: fetchError } = await supabase
-            .from('users')
-            .select('ai_chat_count')
-            .eq('id', userId)
-            .single();
-
-        if (fetchError || !current) {
-            console.error('[credits] Failed to fetch current credits:', fetchError?.message);
-            return null;
-        }
-
-        const currentCount = typeof current.ai_chat_count === 'number' ? current.ai_chat_count : 0;
-
-        if (currentCount <= 0) {
-            console.log('[credits] No credits remaining for user:', userId);
-            return null;
-        }
-
-        // 直接更新，不使用乐观锁（service role 保证原子性）
-        const { data: updated, error: updateError } = await supabase
-            .from('users')
-            .update({ ai_chat_count: currentCount - 1 })
-            .eq('id', userId)
-            .select('ai_chat_count')
-            .single();
-
-        if (updateError) {
-            console.error('[credits] Direct update failed:', updateError.message);
-            return null;
-        }
-
-        console.log('[credits] Direct update succeeded, remaining:', updated?.ai_chat_count);
-        return updated?.ai_chat_count ?? null;
+        console.error('[credits] RPC decrement failed:', error.message);
+        return null;
     }
 
     console.log('[credits] RPC succeeded, remaining:', data);
@@ -119,23 +83,17 @@ export async function useCredit(userId: string): Promise<number | null> {
  * 添加积分（充值）
  */
 export async function addCredits(userId: string, amount: number): Promise<number | null> {
-    const supabase = getServiceClient();
-
-    const currentCredits = await getCredits(userId);
+    const supabase = getServiceRoleClient();
 
     const { data, error } = await supabase
-        .from('users')
-        .update({ ai_chat_count: currentCredits + amount })
-        .eq('id', userId)
-        .select('ai_chat_count')
-        .single();
+        .rpc('increment_ai_chat_count', { user_id: userId, amount });
 
     if (error) {
         console.error('[credits] Failed to add credits:', error.message);
         return null;
     }
 
-    return data?.ai_chat_count ?? null;
+    return typeof data === 'number' ? data : null;
 }
 
 /**
@@ -151,7 +109,7 @@ export async function hasCredits(userId: string): Promise<boolean> {
  * @returns 恢复的积分数量，如果不需要恢复返回 0
  */
 export async function restoreUserCredits(userId: string): Promise<number> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const info = await getUserCreditInfo(userId);
 
     if (!info) return 0;
@@ -182,22 +140,22 @@ export async function restoreUserCredits(userId: string): Promise<number> {
 
     if (actualRestored <= 0) return 0;
 
-    // 更新数据库
-    const { error } = await supabase
-        .from('users')
-        .update({
-            ai_chat_count: newCredits,
-            last_credit_restore_at: now.toISOString(),
-        })
-        .eq('id', userId);
+    const { data, error } = await supabase
+        .rpc('restore_ai_chat_count', {
+            user_id: userId,
+            amount: creditsToRestore,
+            credit_limit: plan.creditLimit,
+            restore_at: now.toISOString(),
+        });
 
-    if (error) {
-        console.error('[credits] Failed to restore credits:', error.message);
+    if (error || typeof data !== 'number') {
+        console.error('[credits] Failed to restore credits:', error?.message);
         return 0;
     }
 
-    console.log(`[credits] Restored ${actualRestored} credits for user ${userId}`);
-    return actualRestored;
+    const restored = Math.max(0, data - info.credits);
+    console.log(`[credits] Restored ${restored} credits for user ${userId}`);
+    return restored;
 }
 
 /**
@@ -208,7 +166,7 @@ export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
     processed: number;
     restored: number;
 }> {
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
 
     // 根据周期选择需要处理的会员类型
     const membershipTypes = period === 'daily'

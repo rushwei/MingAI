@@ -24,7 +24,6 @@ import {
     ChevronDown,
     X,
     Share2,
-    Sun
 } from 'lucide-react';
 
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
@@ -272,7 +271,6 @@ function DailyPageContent() {
                 {/* 顶部标题与日期选择 */}
                 <header className="text-center md:mb-8 mb-4 md:pt-4 pt-0">
                     <h1 className="hidden md:block text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
-                        <Sun className="w-8 h-8 text-purple-500" />
                         每日运势
                     </h1>
                     <p className="hidden md:block text-foreground-secondary/80 text-sm mb-6">

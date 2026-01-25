@@ -78,15 +78,6 @@ export interface CommunityReport {
     created_at: string;
 }
 
-export interface AnonymousMapping {
-    id: string;
-    post_id: string;
-    user_id: string;
-    anonymous_name: string;
-    display_order: number;
-    created_at: string;
-}
-
 export interface PostInput {
     title: string;
     content: string;
@@ -130,78 +121,6 @@ export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
 // =====================================================
 // 匿名相关功能
 // =====================================================
-
-/**
- * 获取或创建用户在帖子中的匿名映射
- */
-export async function getOrCreateAnonymousMapping(
-    postId: string,
-    userId: string,
-    customName?: string
-): Promise<AnonymousMapping> {
-    // 先查找现有映射
-    const { data: existing } = await supabase
-        .from('community_anonymous_mapping')
-        .select('*')
-        .eq('post_id', postId)
-        .eq('user_id', userId)
-        .single();
-
-    if (existing) {
-        return existing as AnonymousMapping;
-    }
-
-    // 获取当前帖子的最大序号
-    const { data: maxOrder } = await supabase
-        .from('community_anonymous_mapping')
-        .select('display_order')
-        .eq('post_id', postId)
-        .order('display_order', { ascending: false })
-        .limit(1)
-        .single();
-
-    const nextOrder = (maxOrder?.display_order || 0) + 1;
-    const defaultName = customName || `匿名用户${String.fromCharCode(64 + nextOrder)}`; // A, B, C...
-
-    const { data, error } = await supabase
-        .from('community_anonymous_mapping')
-        .insert({
-            post_id: postId,
-            user_id: userId,
-            anonymous_name: defaultName,
-            display_order: nextOrder,
-        })
-        .select()
-        .single();
-
-    if (error) {
-        console.error('创建匿名映射失败:', error);
-        throw new Error('创建匿名映射失败');
-    }
-
-    return data as AnonymousMapping;
-}
-
-/**
- * 获取帖子的所有匿名映射
- */
-export async function getPostAnonymousMappings(postId: string): Promise<Map<string, string>> {
-    const { data, error } = await supabase
-        .from('community_anonymous_mapping')
-        .select('user_id, anonymous_name')
-        .eq('post_id', postId);
-
-    if (error) {
-        console.error('获取匿名映射失败:', error);
-        return new Map();
-    }
-
-    const map = new Map<string, string>();
-    data.forEach(item => {
-        map.set(item.user_id, item.anonymous_name);
-    });
-    return map;
-}
 
 // =====================================================
 // 帖子 CRUD 操作
@@ -261,98 +180,63 @@ export async function getPosts(
  * 获取帖子详情
  */
 export async function getPost(postId: string): Promise<CommunityPost | null> {
-    const { data, error } = await supabase
-        .from('community_posts')
-        .select('*')
-        .eq('id', postId)
-        .eq('is_deleted', false)
-        .single();
-
-    if (error) {
-        if (error.code === 'PGRST116') return null;
-        console.error('获取帖子失败:', error);
+    const response = await fetch(`/api/community/posts/${postId}`);
+    if (!response.ok) {
+        if (response.status === 404) return null;
         throw new Error('获取帖子失败');
     }
-
-    // 增加浏览量
-    await supabase
-        .from('community_posts')
-        .update({ view_count: (data.view_count || 0) + 1 })
-        .eq('id', postId);
-
-    return data as CommunityPost;
+    const payload = await response.json();
+    return (payload?.post ?? null) as CommunityPost | null;
 }
 
 /**
  * 创建帖子
  */
-export async function createPost(userId: string, input: PostInput): Promise<CommunityPost> {
-    const { data, error } = await supabase
-        .from('community_posts')
-        .insert({
-            user_id: userId,
-            anonymous_name: input.anonymous_name || '匿名用户',
+export async function createPost(input: PostInput): Promise<CommunityPost> {
+    const response = await fetch('/api/community/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
             title: input.title,
             content: input.content,
             category: input.category || 'general',
             tags: input.tags || [],
-        })
-        .select()
-        .single();
+            anonymous_name: input.anonymous_name || '匿名用户',
+        }),
+    });
 
-    if (error) {
-        console.error('创建帖子失败:', error);
+    if (!response.ok) {
         throw new Error('创建帖子失败');
     }
 
-    const post = data as CommunityPost;
-
-    // 创建作者的匿名映射（楼主）
-    await supabase.from('community_anonymous_mapping').insert({
-        post_id: post.id,
-        user_id: userId,
-        anonymous_name: input.anonymous_name || '匿名用户',
-        display_order: 0, // 楼主序号为0
-    });
-
-    return post;
+    const payload = await response.json();
+    return payload as CommunityPost;
 }
 
 /**
  * 更新帖子
  */
-export async function updatePost(postId: string, userId: string, input: Partial<PostInput>): Promise<CommunityPost> {
-    const { data, error } = await supabase
-        .from('community_posts')
-        .update({
-            ...input,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', postId)
-        .eq('user_id', userId)
-        .select()
-        .single();
+export async function updatePost(postId: string, input: Partial<PostInput>): Promise<CommunityPost> {
+    const response = await fetch(`/api/community/posts/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+    });
 
-    if (error) {
-        console.error('更新帖子失败:', error);
+    if (!response.ok) {
         throw new Error('更新帖子失败');
     }
 
-    return data as CommunityPost;
+    const payload = await response.json();
+    return payload as CommunityPost;
 }
 
 /**
  * 删除帖子（软删除）
  */
-export async function deletePost(postId: string, userId: string): Promise<void> {
-    const { error } = await supabase
-        .from('community_posts')
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', postId)
-        .eq('user_id', userId);
-
-    if (error) {
-        console.error('删除帖子失败:', error);
+export async function deletePost(postId: string): Promise<void> {
+    const response = await fetch(`/api/community/posts/${postId}`, { method: 'DELETE' });
+    if (!response.ok) {
         throw new Error('删除帖子失败');
     }
 }
@@ -365,73 +249,34 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
  * 获取帖子评论
  */
 export async function getComments(postId: string): Promise<CommunityComment[]> {
-    const { data, error } = await supabase
-        .from('community_comments')
-        .select('*')
-        .eq('post_id', postId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-
-    if (error) {
-        console.error('获取评论失败:', error);
+    const response = await fetch(`/api/community/posts/${postId}`);
+    if (!response.ok) {
         throw new Error('获取评论失败');
     }
-
-    // 获取匿名映射
-    const anonymousMap = await getPostAnonymousMappings(postId);
-
-    // 构建评论树并添加匿名名称
-    const comments = data as CommunityComment[];
-    const commentMap = new Map<string, CommunityComment>();
-    const rootComments: CommunityComment[] = [];
-
-    comments.forEach(comment => {
-        comment.anonymous_name = anonymousMap.get(comment.user_id) || '匿名用户';
-        comment.replies = [];
-        commentMap.set(comment.id, comment);
-    });
-
-    comments.forEach(comment => {
-        if (comment.parent_id) {
-            const parent = commentMap.get(comment.parent_id);
-            if (parent) {
-                parent.replies!.push(comment);
-            }
-        } else {
-            rootComments.push(comment);
-        }
-    });
-
-    return rootComments;
+    const payload = await response.json();
+    return (payload?.comments ?? []) as CommunityComment[];
 }
 
 /**
  * 创建评论
  */
-export async function createComment(userId: string, input: CommentInput): Promise<CommunityComment> {
-    // 获取或创建匿名映射
-    const mapping = await getOrCreateAnonymousMapping(input.post_id, userId);
-
-    const { data, error } = await supabase
-        .from('community_comments')
-        .insert({
+export async function createComment(input: CommentInput): Promise<CommunityComment> {
+    const response = await fetch('/api/community/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
             post_id: input.post_id,
-            user_id: userId,
-            parent_id: input.parent_id || null,
             content: input.content,
-        })
-        .select()
-        .single();
+            parent_id: input.parent_id || null,
+        }),
+    });
 
-    if (error) {
-        console.error('创建评论失败:', error);
+    if (!response.ok) {
         throw new Error('创建评论失败');
     }
 
-    const comment = data as CommunityComment;
-    comment.anonymous_name = mapping.anonymous_name;
-
-    return comment;
+    const payload = await response.json();
+    return payload as CommunityComment;
 }
 
 /**

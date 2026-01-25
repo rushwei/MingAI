@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 export default function HepanResultPage() {
     const router = useRouter();
@@ -43,6 +44,7 @@ export default function HepanResultPage() {
     ) : null;
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
 
     useEffect(() => {
         // 获取用户状态
@@ -220,20 +222,31 @@ export default function HepanResultPage() {
         business: { color: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500/20' },
         family: { color: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500/20' },
     }[result.type];
+    const chartId = (result as unknown as { chartId?: string }).chartId;
 
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* 背景装饰 Removed */}
 
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* 返回 */}
-                <Link
-                    href="/hepan"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span className="text-sm font-medium">返回列表</span>
-                </Link>
+                <div className="flex items-center justify-between mb-8">
+                    <Link
+                        href="/hepan"
+                        className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="text-sm font-medium">返回列表</span>
+                    </Link>
+                    {!!chartId && (
+                        <button
+                            type="button"
+                            onClick={() => setKbModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                        >
+                            加入知识库
+                        </button>
+                    )}
+                </div>
 
                 {/* 标题 */}
                 <div className="text-center mb-10">
@@ -401,6 +414,16 @@ export default function HepanResultPage() {
                     </Link>
                 </div>
             </div>
+
+            {chartId && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => setKbModalOpen(false)}
+                    sourceTitle={`${result.person1.name} × ${result.person2.name}`}
+                    sourceType="hepan_chart"
+                    sourceId={chartId}
+                />
+            )}
 
             <AuthModal
                 isOpen={showAuthModal}

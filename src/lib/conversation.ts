@@ -53,9 +53,10 @@ export async function createConversation(params: {
  */
 export async function loadConversations(userId: string): Promise<Conversation[]> {
     const { data, error } = await supabase
-        .from('conversations')
+        .from('conversations_with_archive_status')
         .select('*')
         .eq('user_id', userId)
+        .eq('is_archived', false)
         .order('updated_at', { ascending: false })
         .limit(50);
 
@@ -76,6 +77,8 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
         updatedAt: row.updated_at,
         sourceType: row.source_type || 'chat',
         sourceData: row.source_data,
+        isArchived: row.is_archived,
+        archivedKbIds: row.archived_kb_ids,
     }));
 }
 
@@ -84,7 +87,7 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
  */
 export async function loadConversation(conversationId: string): Promise<Conversation | null> {
     const { data, error } = await supabase
-        .from('conversations')
+        .from('conversations_with_archive_status')
         .select('*')
         .eq('id', conversationId)
         .single();
@@ -94,6 +97,7 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         return null;
     }
 
+    const extra = data as { is_archived?: boolean | null; archived_kb_ids?: string[] | null };
     return {
         id: data.id,
         userId: data.user_id,
@@ -106,6 +110,8 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         updatedAt: data.updated_at,
         sourceType: data.source_type || 'chat',
         sourceData: data.source_data,
+        isArchived: extra.is_archived ?? false,
+        archivedKbIds: extra.archived_kb_ids ?? [],
     };
 }
 

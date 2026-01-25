@@ -1,13 +1,82 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, Search, FileText, ArrowUp } from 'lucide-react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
-import type { AttachmentState } from '@/types';
+import type { AttachmentState, Mention, MentionType } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { useToast } from '@/components/ui/Toast';
+import { MentionPopover } from './MentionPopover';
+import { supabase } from '@/lib/supabase';
+
+type DataSourceSummary = {
+    id: string;
+    type: MentionType;
+    name: string;
+    preview: string;
+    createdAt: string;
+};
+
+type DataSourceLoadError = { type: MentionType; message: string };
+
+type KnowledgeBaseSummary = {
+    id: string;
+    name: string;
+    description: string | null;
+};
+
+type MentionToken = {
+    start: number;
+    end: number;
+    name: string;
+};
+
+const mentionStyleMap: Record<MentionType | 'default', { className: string }> = {
+    knowledge_base: { className: 'text-emerald-500' },
+    bazi_chart: { className: 'text-orange-500' },
+    ziwei_chart: { className: 'text-purple-500' },
+    tarot_reading: { className: 'text-fuchsia-500' },
+    liuyao_divination: { className: 'text-amber-500' },
+    mbti_reading: { className: 'text-blue-500' },
+    hepan_chart: { className: 'text-rose-500' },
+    face_reading: { className: 'text-orange-500' },
+    palm_reading: { className: 'text-yellow-600' },
+    ming_record: { className: 'text-slate-500' },
+    daily_fortune: { className: 'text-lime-600' },
+    monthly_fortune: { className: 'text-lime-600' },
+    default: { className: 'text-foreground' }
+};
+
+const extractMentionTokens = (value: string, mentionList: Mention[]): MentionToken[] => {
+    const tokens: MentionToken[] = [];
+    const names = Array.from(new Set(mentionList.map(m => m.name).filter(Boolean)))
+        .sort((a, b) => b.length - a.length);
+    if (names.length === 0) return tokens;
+    for (let i = 0; i < value.length; i += 1) {
+        if (value[i] !== '@') continue;
+        for (const name of names) {
+            if (value.startsWith(`@${name}`, i)) {
+                const start = i;
+                const end = i + 1 + name.length;
+                tokens.push({ start, end, name });
+                i = end - 1;
+                break;
+            }
+        }
+    }
+    return tokens;
+};
+
+const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number => {
+    for (let i = value.length - 1; i >= 0; i -= 1) {
+        if (value[i] !== '@') continue;
+        const inToken = tokens.some(token => i >= token.start && i < token.end);
+        if (!inToken) return i;
+    }
+    return -1;
+};
 
 interface ChatComposerProps {
     inputValue: string;
@@ -28,6 +97,9 @@ interface ChatComposerProps {
     // 附件和搜索相关
     attachmentState?: AttachmentState;
     onAttachmentChange?: (state: AttachmentState) => void;
+    mentions?: Mention[];
+    onMentionsChange?: (mentions: Mention[]) => void;
+    promptKnowledgeBases?: KnowledgeBaseSummary[];
     // 隐藏底部免责声明
     hideDisclaimer?: boolean;
 }
@@ -50,6 +122,9 @@ export function ChatComposer({
     membershipType = 'free',
     attachmentState,
     onAttachmentChange,
+    mentions = [],
+    onMentionsChange,
+    promptKnowledgeBases = [],
     hideDisclaimer = false,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
@@ -58,6 +133,16 @@ export function ChatComposer({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const { showToast } = useToast();
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState('');
+    const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
+    const [mentionDataSources, setMentionDataSources] = useState<DataSourceSummary[]>([]);
+    const [mentionKnowledgeBases, setMentionKnowledgeBases] = useState<KnowledgeBaseSummary[]>([]);
+    const [mentionLoadError, setMentionLoadError] = useState<string | null>(null);
+    const [mentionDataSourceErrors, setMentionDataSourceErrors] = useState<DataSourceLoadError[]>([]);
+    const [mentionLoading, setMentionLoading] = useState(false);
+    const [mentionDefaultCategory, setMentionDefaultCategory] = useState<'knowledge' | 'data' | null>(null);
+    const mentionCacheTtlMs = 10 * 60 * 1000;
 
     // 权限判断
     const canUseWeb = membershipType !== 'free';
@@ -111,14 +196,241 @@ export function ChatComposer({
         textarea.style.height = 'auto';
         const newHeight = Math.min(Math.max(textarea.scrollHeight, 24), 236);
         textarea.style.height = `${newHeight}px`;
-    }, [inputValue]);
+    }, [inputValue, mentions]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const readMentionCache = useCallback(<T,>(key: string): T | null => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw) as { ts: number; value: T };
+            if (!parsed?.ts || Date.now() - parsed.ts > mentionCacheTtlMs) return null;
+            return parsed.value;
+        } catch {
+            return null;
+        }
+    }, [mentionCacheTtlMs]);
+
+    const writeMentionCache = useCallback(<T,>(key: string, value: T) => {
+        try {
+            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
+        } catch {
+        }
+    }, []);
+
+    const refreshMentionData = useCallback(async (fresh = false) => {
+        if (!userId) return;
+        const dataKey = `mingai.data_sources.${userId}.v1`;
+        const kbKey = `mingai.knowledge_bases.${userId}.v1`;
+        try {
+            setMentionLoading(true);
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+
+            const [dsResp, kbResp] = await Promise.all([
+                fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`, {
+                    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+                }),
+                fetch('/api/knowledge-base', {
+                    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+                })
+            ]);
+
+            setMentionLoadError(null);
+
+            if (dsResp.ok) {
+                const ds = await dsResp.json() as { items?: DataSourceSummary[]; errors?: DataSourceLoadError[] };
+                const items = ds.items || [];
+                const errors = ds.errors || [];
+                setMentionDataSources(items);
+                setMentionDataSourceErrors(errors);
+                writeMentionCache(dataKey, { items, errors });
+            } else {
+                setMentionLoadError('数据加载失败');
+            }
+
+            if (kbResp.ok) {
+                const kb = await kbResp.json() as { knowledgeBases?: KnowledgeBaseSummary[] };
+                const list = kb.knowledgeBases || [];
+                setMentionKnowledgeBases(list);
+                writeMentionCache(kbKey, list);
+            } else {
+                setMentionLoadError('数据加载失败');
+            }
+        } catch {
+            setMentionLoadError('数据加载失败');
+        } finally {
+            setMentionLoading(false);
+        }
+    }, [userId, writeMentionCache]);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const dataKey = `mingai.data_sources.${userId}.v1`;
+        const kbKey = `mingai.knowledge_bases.${userId}.v1`;
+
+        const cachedDs = readMentionCache<{ items: DataSourceSummary[]; errors?: DataSourceLoadError[] }>(dataKey);
+        if (cachedDs?.items) {
+            queueMicrotask(() => {
+                setMentionDataSources(cachedDs.items);
+                setMentionDataSourceErrors(cachedDs.errors || []);
+            });
+        }
+
+        const cachedKb = readMentionCache<KnowledgeBaseSummary[]>(kbKey);
+        if (cachedKb) {
+            queueMicrotask(() => setMentionKnowledgeBases(cachedKb));
+        }
+
+        let cancelled = false;
+        const refresh = async (fresh = false) => {
+            if (cancelled) return;
+            await refreshMentionData(fresh);
+        };
+
+        void refresh(false);
+
+        const onInvalidate = () => void refresh(true);
+        window.addEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
+        };
+    }, [readMentionCache, refreshMentionData, userId]);
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (mentionOpen) return;
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            const textarea = textareaRef.current;
+            if (textarea) {
+                const tokens = extractMentionTokens(inputValue, mentions);
+                if (textarea.selectionStart !== textarea.selectionEnd) {
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const overlaps = tokens.filter(token => token.start < end && token.end > start);
+                    if (overlaps.length > 0) {
+                        e.preventDefault();
+                        const removeStart = Math.min(start, ...overlaps.map(t => t.start));
+                        const removeEnd = Math.max(end, ...overlaps.map(t => t.end));
+                        const nextValue = `${inputValue.slice(0, removeStart)}${inputValue.slice(removeEnd)}`;
+                        onInputChange(nextValue);
+                        if (onMentionsChange) {
+                            const nameSet = new Set(extractMentionTokens(nextValue, mentions).map(t => t.name));
+                            const nextMentions = mentions.filter(m => nameSet.has(m.name));
+                            onMentionsChange(nextMentions);
+                        }
+                        requestAnimationFrame(() => {
+                            textareaRef.current?.setSelectionRange(removeStart, removeStart);
+                        });
+                        return;
+                    }
+                } else {
+                    const caret = e.key === 'Backspace' ? textarea.selectionStart - 1 : textarea.selectionStart;
+                    if (caret >= 0) {
+                        const target = tokens.find(token => caret >= token.start && caret < token.end);
+                        if (target) {
+                            e.preventDefault();
+                            const nextValue = `${inputValue.slice(0, target.start)}${inputValue.slice(target.end)}`;
+                            onInputChange(nextValue);
+                            if (onMentionsChange) {
+                                const nameSet = new Set(extractMentionTokens(nextValue, mentions).map(t => t.name));
+                                const nextMentions = mentions.filter(m => nameSet.has(m.name));
+                                onMentionsChange(nextMentions);
+                            }
+                            requestAnimationFrame(() => {
+                                textareaRef.current?.setSelectionRange(target.start, target.start);
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
+        }
         if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && inputValue.trim()) {
             e.preventDefault();
             onSend();
         }
     };
+
+    const handleInputChange = (value: string) => {
+        onInputChange(value);
+        const tokens = extractMentionTokens(value, mentions);
+        if (onMentionsChange) {
+            const nameSet = new Set(tokens.map(token => token.name));
+            const nextMentions = mentions.filter(m => nameSet.has(m.name));
+            if (nextMentions.length !== mentions.length) {
+                onMentionsChange(nextMentions);
+            }
+        }
+        const atIndex = findLastAtOutsideTokens(value, tokens);
+        if (atIndex >= 0) {
+            const prev = atIndex > 0 ? value[atIndex - 1] : '';
+            const isEmailLike = !!prev && /[A-Za-z0-9._-]/.test(prev);
+            const tail = value.slice(atIndex + 1);
+            const hasSpaceInTail = /\s/.test(tail);
+            if (!isEmailLike && !hasSpaceInTail) {
+                setMentionOpen(true);
+                setMentionQuery(tail || '');
+                setMentionStartIndex(atIndex);
+                return;
+            }
+        }
+        setMentionOpen(false);
+        setMentionQuery('');
+        setMentionStartIndex(null);
+    };
+
+    const handleSelectMention = (mention: Mention) => {
+        if (!onMentionsChange) return;
+        const next = [...mentions, mention].slice(0, 10);
+        onMentionsChange(next);
+
+        const token = `@${mention.name}`;
+        if (mentionStartIndex != null) {
+            const prefix = inputValue.slice(0, mentionStartIndex).trimEnd();
+            const nextValue = `${prefix} ${token} `;
+            onInputChange(nextValue.trimStart());
+        } else {
+            const nextValue = inputValue.trim()
+                ? `${inputValue.trim()} ${token} `
+                : `${token} `;
+            onInputChange(nextValue);
+        }
+
+        setMentionOpen(false);
+        setMentionQuery('');
+        setMentionStartIndex(null);
+        setMentionDefaultCategory(null);
+        textareaRef.current?.focus();
+    };
+
+    const highlightedInput = useMemo(() => {
+        const escape = (value: string) =>
+            value
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        if (!inputValue) return '';
+        const tokens = extractMentionTokens(inputValue, mentions);
+        if (tokens.length === 0) return escape(inputValue);
+        let result = '';
+        let cursor = 0;
+        for (const token of tokens) {
+            if (token.start > cursor) {
+                result += escape(inputValue.slice(cursor, token.start));
+            }
+            const matchedMention = mentions.find(m => m.name === token.name);
+            const style = mentionStyleMap[matchedMention?.type || 'default'] || mentionStyleMap.default;
+            result += `<span class="font-semibold ${style.className}"><span class="font-black">@</span>${escape(token.name)}</span>`;
+            cursor = token.end;
+        }
+        if (cursor < inputValue.length) {
+            result += escape(inputValue.slice(cursor));
+        }
+        return result;
+    }, [inputValue, mentions]);
 
     const handleButtonClick = () => {
         if (isLoading && onStop) {
@@ -164,22 +476,66 @@ export function ChatComposer({
                         </div>
                     )}
 
+                    {promptKnowledgeBases.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 mb-2 px-2">
+                            <span className="text-xs text-foreground-secondary">已参考</span>
+                            {promptKnowledgeBases.map(kb => (
+                                <span
+                                    key={kb.id}
+                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${mentionStyleMap.knowledge_base.className}`}
+                                    title={kb.description || kb.name}
+                                >
+                                    <BookOpenText className="w-3.5 h-3.5" />
+                                    <span className="max-w-[160px] truncate">{kb.name}</span>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
                     {/* 输入框区域 */}
                     <div className="relative">
-                        <textarea
-                            ref={textareaRef}
-                            value={inputValue}
-                            onChange={(e) => onInputChange(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={disabled ? "请充值后继续使用" : "尽管问"}
-                            className="w-full bg-transparent resize-none text-base py-2 px-2
-                               focus:outline-none
-                               placeholder:text-foreground-secondary/80
-                               disabled:cursor-not-allowed
-                               overflow-y-auto"
-                            disabled={disabled}
-                            rows={1}
-                        />
+                        {mentionOpen && userId && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-30"
+                                    onClick={() => setMentionOpen(false)}
+                                />
+                                <MentionPopover
+                                    query={mentionQuery}
+                                    dataSources={mentionDataSources}
+                                    knowledgeBases={mentionKnowledgeBases}
+                                    loadError={mentionLoadError}
+                                    dataSourceErrors={mentionDataSourceErrors}
+                                    loading={mentionLoading}
+                                    defaultCategory={mentionDefaultCategory || undefined}
+                                    onSelect={handleSelectMention}
+                                    onClose={() => {
+                                        setMentionOpen(false);
+                                        setMentionDefaultCategory(null);
+                                    }}
+                                />
+                            </>
+                        )}
+
+                        <div className="relative">
+                            <div className="pointer-events-none absolute inset-0 text-base py-2 px-2 whitespace-pre-wrap break-words text-foreground">
+                                {inputValue ? (
+                                    <span dangerouslySetInnerHTML={{ __html: highlightedInput }} />
+                                ) : (
+                                    <span className="text-foreground-secondary/80">{disabled ? "请充值后继续使用" : "尽管问"}</span>
+                                )}
+                            </div>
+                            <textarea
+                                ref={textareaRef}
+                                value={inputValue}
+                                onChange={(e) => handleInputChange(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder=""
+                                className="w-full bg-transparent resize-none text-base py-2 px-2 text-transparent caret-foreground focus:outline-none placeholder:text-foreground-secondary/80 disabled:cursor-not-allowed overflow-y-auto"
+                                disabled={disabled}
+                                rows={1}
+                            />
+                        </div>
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background/60 to-transparent" />
                     </div>
 
@@ -276,6 +632,26 @@ export function ChatComposer({
                                                     )}
                                                 </div>
                                             )}
+                                            {!!userId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setMentionOpen(true);
+                                                        setMentionQuery('');
+                                                        setMentionStartIndex(null);
+                                                        setMentionLoadError(null);
+                                                        setMentionDefaultCategory('knowledge');
+                                                        setMenuOpen(false);
+                                                        textareaRef.current?.focus();
+                                                        void refreshMentionData(true);
+                                                    }}
+                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
+                                                    disabled={disabled}
+                                                >
+                                                    <BookOpenText className="w-4.5 h-4.5" />
+                                                    <span>知识库</span>
+                                                </button>
+                                            )}
                                             {/* 附件选项 */}
                                             <button
                                                 type="button"
@@ -308,10 +684,30 @@ export function ChatComposer({
                                                     className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
                                                     disabled={disabled}
                                                 >
-                                                    <Search className="w-4.5 h-4.5" />
-                                                    <span>{!canUseWeb ? '搜索 (Plus+)' : hasWebSearch ? '搜索已启用' : '网络搜索'}</span>
+                                                    <Globe className="w-4.5 h-4.5" />
+                                                    <span>{!canUseWeb ? '搜索 (Plus+)' : hasWebSearch ? '搜索已启用' : '搜索'}</span>
                                                 </button>
                                             </div>
+                                            {!!userId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setMentionOpen(true);
+                                                        setMentionQuery('');
+                                                        setMentionStartIndex(null);
+                                                        setMenuOpen(false);
+                                                        textareaRef.current?.focus();
+                                                    }}
+                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
+                                                    disabled={disabled}
+                                                >
+                                                    <AtSign className="w-4.5 h-4.5" />
+                                                    <span className="truncate flex flex-col items-start text-left">
+                                                        <span className="truncate w-full">提及</span>
+                                                        <span className="text-[11px] opacity-70">也可输入 @ 启动</span>
+                                                    </span>
+                                                </button>
+                                            )}
                                         </div>
                                     </>
                                 )}

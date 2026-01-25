@@ -4,31 +4,18 @@
  * 提供历史记录列表与删除操作
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getServiceClient } from '@/lib/supabase-server';
+import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
 
 const MAX_HISTORY = 50;
 
-async function getUserFromRequest(request: NextRequest) {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) return { user: null, error: '请先登录' };
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) {
-        return { user: null, error: '认证失败' };
-    }
-
-    return { user, error: null };
-}
-
 export async function GET(request: NextRequest) {
-    const { user, error } = await getUserFromRequest(request);
-    if (!user) {
-        return NextResponse.json({ success: false, error }, { status: 401 });
+    const auth = await requireBearerUser(request);
+    if ('error' in auth) {
+        return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
     }
+    const { user } = auth;
 
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data, error: fetchError } = await serviceClient
         .from('mbti_readings')
         .select('id, mbti_type, scores, percentages, created_at, conversation_id, conversation:conversations(source_data)')
@@ -44,10 +31,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-    const { user, error } = await getUserFromRequest(request);
-    if (!user) {
-        return NextResponse.json({ success: false, error }, { status: 401 });
+    const auth = await requireBearerUser(request);
+    if ('error' in auth) {
+        return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
     }
+    const { user } = auth;
 
     const body = await request.json().catch(() => ({}));
     const id = body?.id as string | undefined;
@@ -55,7 +43,7 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: '缺少记录ID' }, { status: 400 });
     }
 
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data: row, error: fetchError } = await serviceClient
         .from('mbti_readings')
         .select('id, conversation_id')

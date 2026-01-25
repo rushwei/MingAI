@@ -5,13 +5,13 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
-import { supabase } from '@/lib/supabase';
-import { getServiceClient } from '@/lib/supabase-server';
-import { useCredit, hasCredits } from '@/lib/credits';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { callAIWithReasoning } from '@/lib/ai';
-import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { resolveModelAccess } from '@/lib/ai-access';
+import { getAuthContext, requireBearerUser } from '@/lib/api-utils';
 
 // 请求类型
 interface TarotRequest {
@@ -99,11 +99,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 let readingId: string | null = null;
                 const spreadAuthHeader = request.headers.get('authorization');
                 if (spreadAuthHeader) {
-                    const spreadToken = spreadAuthHeader.replace('Bearer ', '');
-                    const { data: { user: spreadUser } } = await supabase.auth.getUser(spreadToken);
-
+                    const { user: spreadUser } = await getAuthContext(request);
                     if (spreadUser) {
-                        const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
                         const { data: insertedReading, error: insertError } = await serviceClient
                             .from('tarot_readings')
                             .insert({
@@ -164,25 +162,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }, { status: 400 });
                 }
 
-                const saveAuthHeader = request.headers.get('authorization');
-                if (!saveAuthHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
+                const { user: saveUser } = authResult;
 
-                const saveToken = saveAuthHeader.replace('Bearer ', '');
-                const { data: { user: saveUser }, error: saveAuthError } = await supabase.auth.getUser(saveToken);
-
-                if (saveAuthError || !saveUser) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
-
-                const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
                 const { data: insertedReading, error: insertError } = await serviceClient
                     .from('tarot_readings')
                     .insert({
@@ -218,23 +207,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
 
                 // 检查用户认证
-                const authHeader = request.headers.get('authorization');
-                if (!authHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
-
-                const token = authHeader.replace('Bearer ', '');
-                const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-                if (authError || !user) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
+                const { user } = authResult;
 
                 // 检查用户积分（使用服务端客户端绕过 RLS）
                 const hasEnoughCredits = await hasCredits(user.id);
@@ -245,24 +225,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }, { status: 403 });
                 }
 
-                const requestedModelId = modelId || DEFAULT_MODEL_ID;
-                const modelConfig = getModelConfig(requestedModelId);
-                if (!modelConfig) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '模型不可用'
-                    }, { status: 400 });
-                }
-
                 const membershipType = await getEffectiveMembershipType(user.id);
-                if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                const access = resolveModelAccess(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
+                if ('error' in access) {
                     return NextResponse.json({
                         success: false,
-                        error: '当前会员等级无法使用该模型'
-                    }, { status: 403 });
+                        error: access.error
+                    }, { status: access.status });
                 }
-                const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
-                const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+                const { modelId: requestedModelId, reasoningEnabled } = access;
 
                 // 构建解读 prompt
                 const cardsDescription = cards.map((c, i) => {
@@ -286,6 +257,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     ? `问题：${question}\n\n抽到的塔罗牌：\n${cardsDescription}`
                     : `请解读以下塔罗牌：\n${cardsDescription}`;
 
+                const remainingCredits = await useCredit(user.id);
+                if (remainingCredits === null) {
+                    console.error('[tarot] 扣除积分失败');
+                    return NextResponse.json({
+                        success: false,
+                        error: '积分扣减失败，请稍后重试'
+                    }, { status: 500 });
+                }
+
                 try {
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
@@ -297,16 +277,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                             temperature: 0.7,
                         }
                     );
-
-                    // 扣除积分（使用服务端客户端绕过 RLS）
-                    const remainingCredits = await useCredit(user.id);
-                    if (remainingCredits === null) {
-                        console.error('[tarot] 扣除积分失败');
-                        return NextResponse.json({
-                            success: false,
-                            error: '积分扣减失败，请稍后重试'
-                        }, { status: 500 });
-                    }
 
                     // 保存 AI 分析到 conversations 表
                     const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
@@ -330,7 +300,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }
 
                     // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-                    const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
                     if (readingId) {
                         // 更新已有记录
                         const { error: updateError } = await serviceClient
@@ -365,6 +335,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     });
 
                 } catch (aiError) {
+                    await addCredits(user.id, 1);
                     console.error('AI 解读失败:', aiError);
                     return NextResponse.json({
                         success: false,

@@ -90,7 +90,7 @@ function FortuneHubContent() {
                     <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-emerald-500/10">
                         <Compass className="w-12 h-12 text-emerald-500" />
                     </div>
-                    <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 mb-4 tracking-tight">
+                    <h1 className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 tracking-tight">
                         运势中心
                     </h1>
                     <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">

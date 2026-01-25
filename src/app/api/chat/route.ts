@@ -11,21 +11,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
-import { hasCredits, useCredit } from '@/lib/credits';
+import { hasCredits, useCredit, addCredits } from '@/lib/credits';
 import { createClient } from '@supabase/supabase-js';
-import type { ChatMessage, AIPersonality, BaziChart, DifyContext } from '@/types';
+import type { ChatMessage, AIPersonality, BaziChart, DifyContext, InjectedSource } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import { generateBaziChartText } from '@/lib/bazi';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 import { generateMangpaiPrompt, extractDayPillar } from '@/lib/mangpai';
+import '@/lib/data-sources/init';
+import { buildPromptWithSources } from '@/lib/prompt-builder';
+import { searchKnowledge } from '@/lib/knowledge-base/search';
+import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
+import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
+import type { Mention } from '@/types/mentions';
+import { countTokens } from '@/lib/token-utils';
+import { getServiceRoleClient } from '@/lib/api-utils';
 
 // 服务端 Supabase 客户端
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const getSupabase = () => getServiceRoleClient();
 
 // 服务端内部密钥（必须通过环境变量设置，无 fallback）
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
@@ -180,6 +185,37 @@ function formatChartContextPrompt(context: ChartContext, analysisMode?: 'traditi
     return '';
 }
 
+function buildChartSources(context: ChartContext, chartIds: ChartIds): InjectedSource[] {
+    const sources: InjectedSource[] = [];
+    if (context.baziChart && chartIds.baziId) {
+        const content = formatChartContextPrompt({ baziChart: context.baziChart }, chartIds.baziAnalysisMode);
+        const preview = content.slice(0, 100) + (content.length > 100 ? '...' : '');
+        sources.push({
+            type: 'data_source',
+            sourceType: 'bazi_chart',
+            id: chartIds.baziId,
+            name: `八字命盘-${context.baziChart.name}`,
+            preview,
+            tokens: countTokens(content),
+            truncated: false
+        });
+    }
+    if (context.ziweiChart && chartIds.ziweiId) {
+        const content = formatChartContextPrompt({ ziweiChart: context.ziweiChart }, chartIds.baziAnalysisMode);
+        const preview = content.slice(0, 100) + (content.length > 100 ? '...' : '');
+        sources.push({
+            type: 'data_source',
+            sourceType: 'ziwei_chart',
+            id: chartIds.ziweiId,
+            name: `紫微命盘-${context.ziweiChart.name}`,
+            preview,
+            tokens: countTokens(content),
+            truncated: false
+        });
+    }
+    return sources;
+}
+
 // 格式化 Dify 增强上下文为用户消息前缀（不可信内容，不放入系统提示）
 function formatDifyContextAsUserPrefix(difyContext: DifyContext): string {
     const parts: string[] = [];
@@ -200,9 +236,12 @@ function formatDifyContextAsUserPrefix(difyContext: DifyContext): string {
 }
 
 export async function POST(request: NextRequest) {
+    let creditDeducted = false;
+    let userId: string | null = null;
+    let canSkipCredit = false;
     try {
         const body = await request.json();
-        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext } = body as {
+        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext, mentions: requestMentions } = body as {
             messages: ChatMessage[];
             personality: AIPersonality;
             skipCreditCheck?: boolean;
@@ -212,6 +251,7 @@ export async function POST(request: NextRequest) {
             model?: string;
             reasoning?: boolean;
             difyContext?: DifyContext;
+            mentions?: Mention[];
         };
 
         if (!messages || !Array.isArray(messages)) {
@@ -223,23 +263,28 @@ export async function POST(request: NextRequest) {
 
         // 安全检查：必须设置 INTERNAL_API_SECRET 环境变量才能跳过积分检查
         // 如果未设置环境变量，禁止任何跳过请求
-        const canSkipCredit = INTERNAL_SECRET && skipCreditCheck && internalSecret === INTERNAL_SECRET;
+        canSkipCredit = !!(INTERNAL_SECRET && skipCreditCheck && internalSecret === INTERNAL_SECRET);
 
         // 获取用户信息
-        const supabase = getSupabase();
-        let userId: string | null = null;
-
+        const authClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false } }
+        );
+        let accessTokenForKB: string | null = null;
         const authHeader = request.headers.get('authorization');
         if (authHeader) {
             const token = authHeader.replace('Bearer ', '');
-            const { data: { user } } = await supabase.auth.getUser(token);
+            accessTokenForKB = token;
+            const { data: { user } } = await authClient.auth.getUser(token);
             userId = user?.id || null;
         }
 
         if (!userId) {
             const accessToken = request.cookies.get('sb-access-token')?.value;
             if (accessToken) {
-                const { data: { user } } = await supabase.auth.getUser(accessToken);
+                accessTokenForKB = accessToken;
+                const { data: { user } } = await authClient.auth.getUser(accessToken);
                 userId = user?.id || null;
             }
         }
@@ -298,12 +343,14 @@ export async function POST(request: NextRequest) {
                     { status: 500 }
                 );
             }
+            creditDeducted = true;
         }
 
         // 加载命盘上下文（可信数据，放入系统提示）
         let chartContextPrompt = '';
+        let chartContext: ChartContext | null = null;
         if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
-            const chartContext = await loadChartContext(chartIds, userId);
+            chartContext = await loadChartContext(chartIds, userId);
             chartContextPrompt = formatChartContextPrompt(chartContext, chartIds.baziAnalysisMode);
         }
 
@@ -321,16 +368,160 @@ export async function POST(request: NextRequest) {
                 });
             }
         }
+
+        const lastUserMessage = [...processedMessages].reverse().find(m => m.role === 'user');
+        const rawUserContent = lastUserMessage?.content || '';
+        const userQuestionForSearch = (() => {
+            const marker = '【用户的问题如下】';
+            const idx = rawUserContent.lastIndexOf(marker);
+            if (idx >= 0) {
+                return rawUserContent.slice(idx + marker.length).trim();
+            }
+            return rawUserContent.trim();
+        })();
+
+        const parsedMentions = parseMentions(rawUserContent);
+        const mergedMentions = [...(requestMentions || []), ...parsedMentions]
+            .filter(m => m && m.type && m.name)
+            .slice(0, 20);
+
+        const mentionsClient = accessTokenForKB
+            ? createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                { global: { headers: { Authorization: `Bearer ${accessTokenForKB}` } }, auth: { persistSession: false } }
+            )
+            : undefined;
+
+        const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
+            const resolvedContent = await resolveMention(m, userId as string, { client: mentionsClient });
+            return { ...m, resolvedContent };
+        })) : [];
+
+        const knowledgeHits = userId && membershipType !== 'free' ? await (async () => {
+            const cleanedQuery = stripMentionTokens(userQuestionForSearch);
+            if (!cleanedQuery) return [];
+            const results = await searchKnowledge(cleanedQuery, { limit: 12, topK: 5, accessToken: accessTokenForKB || undefined });
+            const candidates = results as Array<SearchCandidate | RankedResult>;
+            const kbIds = Array.from(new Set(candidates.map(r => r.kbId).filter(Boolean))) as string[];
+            if (kbIds.length === 0) return [];
+
+            const { data: kbRows } = await getSupabase()
+                .from('knowledge_bases')
+                .select('id, name, weight')
+                .eq('user_id', userId as string)
+                .in('id', kbIds);
+
+            const kbMap = new Map<string, { name: string; weight: string }>();
+            (kbRows || []).forEach((kb: { id: string; name: string; weight: string }) => kbMap.set(kb.id, { name: kb.name, weight: kb.weight }));
+
+            return candidates.slice(0, 8).map((r): KnowledgeHit => ({
+                kbId: r.kbId,
+                kbName: kbMap.get(r.kbId)?.name || '知识库',
+                content: r.content,
+                score: r.score || 0
+            }));
+        })() : [];
+
+        const userSettings = userId ? await (async () => {
+            const { data } = await getSupabase()
+                .from('user_settings')
+                .select('expression_style, user_profile, custom_instructions, prompt_kb_ids')
+                .eq('user_id', userId as string)
+                .maybeSingle();
+            const row = data as null | {
+                expression_style: 'direct' | 'gentle' | null;
+                user_profile: unknown;
+                custom_instructions: string | null;
+                prompt_kb_ids?: unknown;
+            };
+            const expressionStyle = (row?.expression_style ?? 'direct') as 'direct' | 'gentle';
+            return {
+                expressionStyle,
+                userProfile: row?.user_profile || {},
+                customInstructions: row?.custom_instructions || '',
+                promptKbIds: Array.isArray(row?.prompt_kb_ids)
+                    ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+                    : []
+            };
+        })() : { expressionStyle: 'direct' as const, userProfile: {}, customInstructions: '', promptKbIds: [] as string[] };
+
+        const promptMentions = userId && userSettings.promptKbIds?.length
+            ? await (async () => {
+                const { data: kbRows } = await getSupabase()
+                    .from('knowledge_bases')
+                    .select('id, name, description')
+                    .eq('user_id', userId as string)
+                    .in('id', userSettings.promptKbIds);
+                const resolved = await Promise.all((kbRows || []).map(async (kb: { id: string; name: string; description: string | null }) => {
+                    const mention = { type: 'knowledge_base' as const, id: kb.id, name: kb.name, preview: kb.description || '知识库' };
+                    const resolvedContent = await resolveMention(mention, userId as string, { client: mentionsClient });
+                    return { ...mention, resolvedContent };
+                }));
+                return resolved;
+            })()
+            : [];
+
+        const allMentions = (() => {
+            if (!promptMentions.length) return resolvedMentions;
+            const seen = new Set<string>();
+            const combined = [...resolvedMentions, ...promptMentions].filter(m => {
+                const key = `${m.type}:${m.id || m.name}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            return combined;
+        })();
+
+        const promptBuild = await buildPromptWithSources({
+            modelId: requestedModelId,
+            userMessage: userQuestionForSearch,
+            mentions: allMentions,
+            knowledgeHits,
+            userSettings
+        });
+
+        const systemSources = chartContext && chartIds ? buildChartSources(chartContext, chartIds) : [];
+        const metadata = {
+            sources: [...systemSources, ...promptBuild.sources],
+            promptDiagnostics: {
+                layers: promptBuild.diagnostics,
+                totalTokens: promptBuild.totalTokens
+            }
+        };
+
+        const sanitizedMessages = processedMessages.map((msg, index) => {
+            if (index === processedMessages.length - 1 && msg.role === 'user') {
+                return { ...msg, content: stripMentionTokens(msg.content) };
+            }
+            return msg;
+        });
+
         // 流式响应
         if (stream) {
             const streamBody = await callAIStream(
-                processedMessages,
+                sanitizedMessages,
                 personality || 'master',
                 chartContextPrompt,
                 requestedModelId,
-                { reasoning: reasoningEnabled }
+                { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
             );
-            return new Response(streamBody, {
+            const encoder = new TextEncoder();
+            const wrapped = new ReadableStream<Uint8Array>({
+                async start(controller) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'meta', metadata })}\n\n`));
+                    const reader = streamBody.getReader();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        controller.enqueue(value);
+                    }
+                    controller.close();
+                }
+            });
+
+            return new Response(wrapped, {
                 headers: {
                     'Content-Type': 'text/event-stream',
                     'Cache-Control': 'no-cache',
@@ -341,14 +532,17 @@ export async function POST(request: NextRequest) {
 
         // 非流式响应
         const content = await callAI(
-            processedMessages,
+            sanitizedMessages,
             personality || 'master',
             requestedModelId,
             chartContextPrompt,
-            { reasoning: reasoningEnabled }
+            { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
         );
-        return NextResponse.json({ content });
+        return NextResponse.json({ content, metadata });
     } catch (error) {
+        if (creditDeducted && userId && !canSkipCredit) {
+            await addCredits(userId, 1);
+        }
         console.error('AI API 错误:', error);
         return NextResponse.json(
             { error: '服务暂时不可用' },

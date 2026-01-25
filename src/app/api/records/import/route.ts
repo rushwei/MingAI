@@ -3,38 +3,19 @@
  * POST: 导入数据（覆盖模式）
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { NextRequest } from 'next/server';
+import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
+        const { supabase, user } = await getAuthContext(request);
+        if (!user) return jsonError('请先登录', 401);
 
         const data = await request.json();
 
         // 验证数据格式
         if (!data.version || !Array.isArray(data.records) || !Array.isArray(data.notes)) {
-            return NextResponse.json({ error: '导入数据格式无效' }, { status: 400 });
+            return jsonError('导入数据格式无效', 400);
         }
 
         // 删除现有数据
@@ -63,7 +44,7 @@ export async function POST(request: NextRequest) {
             const { error } = await supabase.from('ming_records').insert(recordsToInsert);
             if (error) {
                 console.error('导入记录失败:', error);
-                return NextResponse.json({ error: '导入记录失败' }, { status: 500 });
+                return jsonError('导入记录失败', 500);
             }
             recordsImported = recordsToInsert.length;
         }
@@ -83,18 +64,18 @@ export async function POST(request: NextRequest) {
             const { error } = await supabase.from('ming_notes').insert(notesToInsert);
             if (error) {
                 console.error('导入小记失败:', error);
-                return NextResponse.json({ error: '导入小记失败' }, { status: 500 });
+                return jsonError('导入小记失败', 500);
             }
             notesImported = notesToInsert.length;
         }
 
-        return NextResponse.json({
+        return jsonOk({
             message: `成功导入 ${recordsImported} 条记录和 ${notesImported} 条小记`,
             recordsImported,
             notesImported,
         });
     } catch (error) {
         console.error('导入数据失败:', error);
-        return NextResponse.json({ error: '导入数据失败' }, { status: 500 });
+        return jsonError('导入数据失败', 500);
     }
 }

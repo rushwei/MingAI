@@ -6,15 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { pricingPlans } from '@/lib/membership';
 import { getPaymentsPaused } from '@/lib/app-settings';
-
-// 服务端 Supabase 客户端
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getServiceRoleClient, requireUserContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -44,23 +38,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 获取当前用户
-        const supabase = getSupabase();
-        let userId: string | null = null;
-
-        const authHeader = request.headers.get('authorization');
-        if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user } } = await supabase.auth.getUser(token);
-            userId = user?.id || null;
-        }
-
-        if (!userId) {
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
             return NextResponse.json(
-                { error: '请先登录' },
-                { status: 401 }
+                { error: auth.error.message },
+                { status: auth.error.status }
             );
         }
+        const { user } = auth;
+        const userId = user.id;
+
+        const supabase = getServiceRoleClient();
 
         // 计算过期时间
         let expiresAt: Date | null = null;

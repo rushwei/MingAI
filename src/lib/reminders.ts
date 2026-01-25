@@ -4,8 +4,8 @@
  * 管理节气提醒、运势提醒、关键日提醒等
  */
 
-import { getServiceClient } from './supabase-server';
-import { createNotification } from './notification';
+import { getServiceRoleClient } from './api-utils';
+import { createNotification } from './notification-server';
 import { getNextSolarTerm, getSolarTermMeaning } from './solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates } from './fortune';
 import type { BaziChart } from '@/types';
@@ -40,7 +40,7 @@ export interface ScheduledReminder {
  */
 export async function getReminderSubscriptions(userId: string): Promise<ReminderSubscription[]> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data, error } = await serviceClient
         .from('reminder_subscriptions')
         .select('*')
@@ -70,7 +70,7 @@ export async function updateReminderSubscription(
     settings: { enabled?: boolean; notifyEmail?: boolean; notifySite?: boolean }
 ): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { error } = await serviceClient
         .from('reminder_subscriptions')
         .upsert({
@@ -97,15 +97,18 @@ export async function updateReminderSubscription(
  */
 export async function isSubscribed(userId: string, reminderType: ReminderType): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data } = await serviceClient
         .from('reminder_subscriptions')
-        .select('enabled, notify_site')
+        .select('enabled, notify_site, user_settings(notifications_enabled, notify_site)')
         .eq('user_id', userId)
         .eq('reminder_type', reminderType)
         .maybeSingle();
 
-    return !!data?.enabled && !!data?.notify_site;
+    const settings = (data as { user_settings?: { notifications_enabled?: boolean; notify_site?: boolean } } | null)?.user_settings;
+    const notificationsEnabled = settings?.notifications_enabled ?? true;
+    const settingsNotifySite = settings?.notify_site ?? true;
+    return !!data?.enabled && !!data?.notify_site && notificationsEnabled && settingsNotifySite;
 }
 
 // ===== 提醒调度 =====
@@ -121,7 +124,7 @@ export async function scheduleSolarTermReminder(
     const meaning = getSolarTermMeaning(termName);
 
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
@@ -152,7 +155,7 @@ export async function scheduleFortuneReminder(
     fortuneData: Record<string, unknown>
 ): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
@@ -179,7 +182,7 @@ export async function processScheduledReminders(): Promise<number> {
 
     // 获取待发送的提醒
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data: pendingReminders, error } = await serviceClient
         .from('scheduled_reminders')
         .select('*')
@@ -266,7 +269,7 @@ async function sendReminder(reminder: {
  */
 async function markReminderSent(reminderId: string): Promise<void> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     await serviceClient
         .from('scheduled_reminders')
         .update({
@@ -287,7 +290,7 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
 
     // 检查是否已经安排
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const { data: existing } = await serviceClient
         .from('scheduled_reminders')
         .select('id')
@@ -313,7 +316,7 @@ export async function scheduleUpcomingFortuneReminders(
     userId: string,
     baziChart: BaziChart
 ): Promise<number> {
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const now = new Date();
     let scheduled = 0;
 
@@ -369,7 +372,7 @@ export async function scheduleKeyDateReminders(
     userId: string,
     baziChart: BaziChart
 ): Promise<number> {
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -421,7 +424,7 @@ export async function scheduleKeyDateReminders(
  * 获取用户的主要八字命盘（用于运势计算）
  */
 async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null> {
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
 
     // 查找用户最近保存的八字命盘
     const { data } = await serviceClient
@@ -441,15 +444,17 @@ async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null
  * 为所有启用提醒的用户调度提醒（由 Cron 调用）
  */
 export async function scheduleAllUsersReminders(): Promise<number> {
-    const serviceClient = getServiceClient();
+    const serviceClient = getServiceRoleClient();
     let totalScheduled = 0;
 
     // 获取所有启用了提醒的订阅
     const { data: subscriptions } = await serviceClient
         .from('reminder_subscriptions')
-        .select('user_id, reminder_type')
+        .select('user_id, reminder_type, user_settings!inner(notifications_enabled, notify_site)')
         .eq('enabled', true)
-        .eq('notify_site', true);
+        .eq('notify_site', true)
+        .eq('user_settings.notifications_enabled', true)
+        .eq('user_settings.notify_site', true);
 
     if (!subscriptions || subscriptions.length === 0) return 0;
 

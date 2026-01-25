@@ -4,7 +4,7 @@
  * 管理每日签到、连续签到奖励等
  */
 
-import { getServiceClient } from './supabase-server';
+import { getServiceRoleClient } from './api-utils';
 import { addExperience } from './gamification';
 
 // ===== 签到奖励配置 =====
@@ -68,7 +68,7 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     // 获取今天的签到记录
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const { data: todayRecord } = await supabase
         .from('daily_checkins')
         .select('*')
@@ -145,7 +145,7 @@ export async function performCheckin(userId: string): Promise<{
     const rewardXp = getCheckinXp(newStreakDays);
 
     // 插入签到记录
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const { error: insertError } = await supabase
         .from('daily_checkins')
         .insert({
@@ -217,7 +217,7 @@ export async function getCheckinCalendar(
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
 
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date')
@@ -231,7 +231,8 @@ export async function getCheckinCalendar(
         return [];
     }
 
-    return data?.map(d => d.checkin_date) || [];
+    const calendarRows = (data || []) as Array<{ checkin_date: string }>;
+    return calendarRows.map(d => d.checkin_date);
 }
 
 /**
@@ -247,7 +248,7 @@ export async function getCheckinStats(userId: string): Promise<{
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     // 获取所有签到记录
-    const supabase = getServiceClient();
+    const supabase = getServiceRoleClient();
     const { data, error } = await supabase
         .from('daily_checkins')
         .select('checkin_date, streak_days')
@@ -258,10 +259,11 @@ export async function getCheckinStats(userId: string): Promise<{
         return { totalDays: 0, currentStreak: 0, longestStreak: 0, thisMonthDays: 0 };
     }
 
-    const totalDays = data.length;
-    const currentStreak = data[0]?.streak_days || 0;
-    const longestStreak = Math.max(...data.map(d => d.streak_days), 0);
-    const thisMonthDays = data.filter(d => d.checkin_date.startsWith(thisMonth)).length;
+    const rows = (data || []) as Array<{ checkin_date: string; streak_days: number }>;
+    const totalDays = rows.length;
+    const currentStreak = rows[0]?.streak_days || 0;
+    const longestStreak = Math.max(...rows.map(d => d.streak_days), 0);
+    const thisMonthDays = rows.filter(d => d.checkin_date.startsWith(thisMonth)).length;
 
     return { totalDays, currentStreak, longestStreak, thisMonthDays };
 }

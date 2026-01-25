@@ -5,42 +5,10 @@
  * DELETE: 删除帖子（软删除）
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getServiceClient } from '@/lib/supabase-server';
+import { NextRequest } from 'next/server';
 import { CommunityPost, CommunityComment } from '@/lib/community';
-
-// 网络请求重试工具
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
-    let lastError: unknown;
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await fn();
-        } catch (err) {
-            lastError = err;
-            if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, delay * (i + 1)));
-            }
-        }
-    }
-    throw lastError;
-}
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { getAuthContext, jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { withRetry } from '@/lib/retry';
 
 // 从帖子数据中移除 user_id 以保护匿名性
 function sanitizePost(post: CommunityPost): Omit<CommunityPost, 'user_id'> {
@@ -54,7 +22,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
+        const { supabase, user } = await getAuthContext(_request);
         const { id } = await params;
 
         // 获取帖子
@@ -67,27 +35,34 @@ export async function GET(
 
         if (postError) {
             if (postError.code === 'PGRST116') {
-                return NextResponse.json({ error: '帖子不存在' }, { status: 404 });
+                return jsonError('帖子不存在', 404);
             }
             console.error('获取帖子失败:', postError);
-            return NextResponse.json({ error: '获取帖子失败' }, { status: 500 });
+            return jsonError('获取帖子失败', 500);
         }
 
         // 使用 Service Role Client 增加浏览量（绕过 RLS）
-        const serviceClient = getServiceClient();
-        await serviceClient
-            .from('community_posts')
-            .update({ view_count: (post.view_count || 0) + 1 })
-            .eq('id', id);
+        const serviceClient = getServiceRoleClient();
+        await withRetry(async () => {
+            const { error } = await serviceClient
+                .rpc('increment_community_post_view_count', { post_id: id });
+            if (error) {
+                throw error;
+            }
+        });
 
         // 获取评论 - 使用 serviceClient 和重试逻辑
         const commentsResult = await withRetry(async () => {
-            return await serviceClient
+            const response = await serviceClient
                 .from('community_comments')
                 .select('*')
                 .eq('post_id', id)
                 .eq('is_deleted', false)
                 .order('created_at', { ascending: true });
+            if (response.error) {
+                throw response.error;
+            }
+            return response;
         });
         const commentsData = commentsResult.data;
         const commentsError = commentsResult.error;
@@ -98,10 +73,14 @@ export async function GET(
 
         // 获取匿名映射 - 使用 serviceClient 和重试逻辑
         const mappingsResult = await withRetry(async () => {
-            return await serviceClient
+            const response = await serviceClient
                 .from('community_anonymous_mapping')
                 .select('user_id, anonymous_name')
                 .eq('post_id', id);
+            if (response.error) {
+                throw response.error;
+            }
+            return response;
         });
         const mappings = mappingsResult.data;
 
@@ -137,7 +116,6 @@ export async function GET(
         });
 
         // 获取当前用户信息（需要在处理评论前获取）
-        const { data: { user } } = await supabase.auth.getUser();
         const currentUserId = user?.id;
         const isPostAuthor = currentUserId ? post.user_id === currentUserId : false;
 
@@ -161,14 +139,14 @@ export async function GET(
         const safePost = sanitizePost(post as CommunityPost);
         const safeComments = rootComments.map(c => processComment(c));
 
-        return NextResponse.json({
+        return jsonOk({
             post: safePost,
             comments: safeComments,
             isAuthor: isPostAuthor,
         });
     } catch (error) {
         console.error('获取帖子失败:', error);
-        return NextResponse.json({ error: '获取帖子失败' }, { status: 500 });
+        return jsonError('获取帖子失败', 500);
     }
 }
 
@@ -177,11 +155,11 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { supabase, user } = auth;
 
         const { id } = await params;
         const body = await request.json();
@@ -208,27 +186,27 @@ export async function PUT(
 
         if (error) {
             console.error('更新帖子失败:', error);
-            return NextResponse.json({ error: '更新帖子失败' }, { status: 500 });
+            return jsonError('更新帖子失败', 500);
         }
 
         // 移除 user_id
-        return NextResponse.json(sanitizePost(data as CommunityPost));
+        return jsonOk(sanitizePost(data as CommunityPost));
     } catch (error) {
         console.error('更新帖子失败:', error);
-        return NextResponse.json({ error: '更新帖子失败' }, { status: 500 });
+        return jsonError('更新帖子失败', 500);
     }
 }
 
 export async function DELETE(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { supabase, user } = auth;
 
         const { id } = await params;
 
@@ -240,12 +218,12 @@ export async function DELETE(
 
         if (error) {
             console.error('删除帖子失败:', error);
-            return NextResponse.json({ error: '删除帖子失败' }, { status: 500 });
+            return jsonError('删除帖子失败', 500);
         }
 
-        return NextResponse.json({ success: true });
+        return jsonOk({ success: true });
     } catch (error) {
         console.error('删除帖子失败:', error);
-        return NextResponse.json({ error: '删除帖子失败' }, { status: 500 });
+        return jsonError('删除帖子失败', 500);
     }
 }

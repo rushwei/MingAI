@@ -7,14 +7,17 @@ import {
     Download,
     Upload,
     Pin,
+    Archive,
     Trash2,
     Edit2,
     Calendar,
     Filter,
     FileText,
     BookOpen,
+    BookOpenText,
     ChevronLeft,
     ChevronRight,
+    X,
 } from 'lucide-react';
 import {
     MingRecord,
@@ -34,12 +37,14 @@ function RecordCard({
     record,
     onEdit,
     onDelete,
-    onTogglePin
+    onTogglePin,
+    onAddToKnowledgeBase
 }: {
     record: MingRecord;
     onEdit: () => void;
     onDelete: () => void;
     onTogglePin: () => void;
+    onAddToKnowledgeBase: () => void;
 }) {
     const categoryInfo = RECORD_CATEGORIES.find(c => c.value === record.category);
 
@@ -54,6 +59,18 @@ function RecordCard({
                         {record.is_pinned && (
                             <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-yellow-600 dark:text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
                                 <Pin className="w-3 h-3" /> 置顶
+                            </span>
+                        )}
+                        {record.is_archived && (
+                            <span
+                                className="flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
+                                title={
+                                    Array.isArray(record.archived_kb_ids) && record.archived_kb_ids.length
+                                        ? `已归档到 ${record.archived_kb_ids.length} 个知识库`
+                                        : '已归档到知识库'
+                                }
+                            >
+                                <Archive className="w-3 h-3" /> 归档
                             </span>
                         )}
                         <span className={`text-xs px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${record.is_pinned
@@ -104,6 +121,13 @@ function RecordCard({
                         title={record.is_pinned ? '取消置顶' : '置顶'}
                     >
                         <Pin className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={onAddToKnowledgeBase}
+                        className="p-2 text-foreground-secondary hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                        title="加入知识库"
+                    >
+                        <BookOpenText className="w-4 h-4" />
                     </button>
                     <button
                         onClick={onEdit}
@@ -582,6 +606,15 @@ export default function RecordsPage() {
     const [editingRecord, setEditingRecord] = useState<MingRecord | null>(null);
     const [showImportExport, setShowImportExport] = useState(false);
     const [user, setUser] = useState<{ id: string } | null>(null);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [kbLoading, setKbLoading] = useState(false);
+    const [kbSaving, setKbSaving] = useState(false);
+    const [kbError, setKbError] = useState<string | null>(null);
+    const [kbSuccess, setKbSuccess] = useState<string | null>(null);
+    const [kbList, setKbList] = useState<Array<{ id: string; name: string; description: string | null }>>([]);
+    const [kbSelectedId, setKbSelectedId] = useState<string>('');
+    const [kbNewName, setKbNewName] = useState('');
+    const [kbTargetRecord, setKbTargetRecord] = useState<MingRecord | null>(null);
 
     const pageSize = 10;
 
@@ -593,6 +626,125 @@ export default function RecordsPage() {
         };
         checkAuth();
     }, []);
+
+    const loadKnowledgeBases = useCallback(async () => {
+        setKbLoading(true);
+        setKbError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            const resp = await fetch('/api/knowledge-base', {
+                headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
+                setKbError(typeof data.error === 'string' ? data.error : '获取知识库失败');
+                setKbList([]);
+                return;
+            }
+            const data = await resp.json() as { knowledgeBases?: Array<{ id: string; name: string; description: string | null }> };
+            const list = data.knowledgeBases || [];
+            setKbList(list);
+            if (!kbSelectedId && list.length) {
+                setKbSelectedId(list[0].id);
+            }
+        } catch {
+            setKbError('获取知识库失败');
+            setKbList([]);
+        } finally {
+            setKbLoading(false);
+        }
+    }, [kbSelectedId]);
+
+    const openAddToKb = useCallback(async (record: MingRecord) => {
+        setKbTargetRecord(record);
+        setKbModalOpen(true);
+        setKbSuccess(null);
+        setKbError(null);
+        if (!kbSelectedId) setKbSelectedId('');
+        await loadKnowledgeBases();
+    }, [kbSelectedId, loadKnowledgeBases]);
+
+    const closeKbModal = useCallback(() => {
+        setKbModalOpen(false);
+        setKbTargetRecord(null);
+        setKbError(null);
+        setKbSuccess(null);
+        setKbSaving(false);
+        setKbNewName('');
+    }, []);
+
+    const createKnowledgeBase = useCallback(async () => {
+        const name = kbNewName.trim();
+        if (!name) {
+            setKbError('请输入知识库名称');
+            return;
+        }
+        setKbSaving(true);
+        setKbError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            const resp = await fetch('/api/knowledge-base', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
+                },
+                body: JSON.stringify({ name })
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
+                setKbError(typeof data.error === 'string' ? data.error : '创建知识库失败');
+                return;
+            }
+            const created = await resp.json() as { id: string };
+            setKbNewName('');
+            setKbSelectedId(created.id);
+            await loadKnowledgeBases();
+        } catch {
+            setKbError('创建知识库失败');
+        } finally {
+            setKbSaving(false);
+        }
+    }, [kbNewName, loadKnowledgeBases]);
+
+    const ingestRecordToKb = useCallback(async () => {
+        if (!kbTargetRecord) return;
+        if (!kbSelectedId) {
+            setKbError('请选择知识库');
+            return;
+        }
+        setKbSaving(true);
+        setKbError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            const resp = await fetch('/api/knowledge-base/ingest', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {})
+                },
+                body: JSON.stringify({
+                    kbId: kbSelectedId,
+                    sourceType: 'record',
+                    sourceId: kbTargetRecord.id
+                })
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({} as Record<string, unknown>));
+                setKbError(typeof data.error === 'string' ? data.error : '加入知识库失败');
+                return;
+            }
+            setKbSuccess('已加入知识库');
+            closeKbModal();
+        } catch {
+            setKbError('加入知识库失败');
+        } finally {
+            setKbSaving(false);
+        }
+    }, [closeKbModal, kbSelectedId, kbTargetRecord]);
 
     // 加载记录
     const loadRecords = useCallback(async () => {
@@ -782,6 +934,7 @@ export default function RecordsPage() {
                                         onEdit={() => { setEditingRecord(record); setShowRecordForm(true); }}
                                         onDelete={() => handleDelete(record.id)}
                                         onTogglePin={() => handleTogglePin(record.id)}
+                                        onAddToKnowledgeBase={() => openAddToKb(record)}
                                     />
                                 ))}
                             </div>
@@ -826,6 +979,107 @@ export default function RecordsPage() {
                             onClose={() => setShowImportExport(false)}
                             onImport={() => { loadRecords(); loadNotes(); }}
                         />
+                    )}
+
+                    {kbModalOpen && kbTargetRecord && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                            <div className="bg-background/95 backdrop-blur-xl rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
+                                <div className="p-4 sm:p-6 border-b border-border/50 flex items-center justify-between">
+                                    <div className="min-w-0">
+                                        <div className="text-base font-semibold truncate">加入知识库</div>
+                                        <div className="text-xs text-foreground-secondary truncate">{kbTargetRecord.title}</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={closeKbModal}
+                                        className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                                        aria-label="关闭"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div className="p-4 sm:p-6 space-y-4">
+                                    {kbLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {kbList.length === 0 ? (
+                                                <div className="text-sm text-foreground-secondary">你还没有知识库，先创建一个。</div>
+                                            ) : (
+                                                <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                                                    {kbList.map(kb => (
+                                                        <label
+                                                            key={kb.id}
+                                                            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${kbSelectedId === kb.id ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border hover:bg-background-secondary'}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name="kb"
+                                                                className="mt-1"
+                                                                checked={kbSelectedId === kb.id}
+                                                                onChange={() => setKbSelectedId(kb.id)}
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <div className="text-sm font-medium truncate">{kb.name}</div>
+                                                                <div className="text-xs text-foreground-secondary truncate">{kb.description || '知识库'}</div>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="border-t border-border/50 pt-4 space-y-2">
+                                        <div className="text-sm font-medium">创建新知识库</div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                value={kbNewName}
+                                                onChange={(e) => setKbNewName(e.target.value)}
+                                                className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
+                                                placeholder="例如：我的命理笔记"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={createKnowledgeBase}
+                                                disabled={kbSaving || !kbNewName.trim()}
+                                                className="px-3 py-2 text-sm rounded-xl bg-background border border-border hover:border-emerald-500/40 hover:text-emerald-500 disabled:opacity-50 transition-colors"
+                                            >
+                                                创建
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {kbError && (
+                                        <div className="text-sm text-red-500">{kbError}</div>
+                                    )}
+                                    {kbSuccess && (
+                                        <div className="text-sm text-emerald-500">{kbSuccess}</div>
+                                    )}
+                                </div>
+
+                                <div className="p-4 sm:p-6 border-t border-border/50 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={closeKbModal}
+                                        className="px-4 py-2 text-sm rounded-xl bg-background border border-border hover:bg-background-secondary transition-colors"
+                                    >
+                                        取消
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={ingestRecordToKb}
+                                        disabled={kbSaving || kbLoading || !kbSelectedId}
+                                        className="px-4 py-2 text-sm rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+                                    >
+                                        加入
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

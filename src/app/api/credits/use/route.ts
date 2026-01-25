@@ -6,20 +6,28 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { useCredit, hasCredits } from '@/lib/credits';
+import { getAuthContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
         const { userId } = await request.json();
-
-        if (!userId) {
+        const { user } = await getAuthContext(request);
+        if (!user) {
             return NextResponse.json(
-                { error: '缺少用户ID' },
-                { status: 400 }
+                { error: '请先登录' },
+                { status: 401 }
             );
         }
+        if (userId && userId !== user.id) {
+            return NextResponse.json(
+                { error: '无权限操作' },
+                { status: 403 }
+            );
+        }
+        const targetUserId = user.id;
 
         // 检查是否有足够积分
-        const hasEnough = await hasCredits(userId);
+        const hasEnough = await hasCredits(targetUserId);
 
         if (!hasEnough) {
             return NextResponse.json(
@@ -29,7 +37,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 扣减积分
-        const remaining = await useCredit(userId);
+        const remaining = await useCredit(targetUserId);
 
         if (remaining === null) {
             return NextResponse.json(

@@ -1,6 +1,21 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.activation_keys (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  key_code text NOT NULL UNIQUE,
+  key_type text NOT NULL CHECK (key_type = ANY (ARRAY['membership'::text, 'credits'::text])),
+  membership_type text,
+  credits_amount integer,
+  is_used boolean DEFAULT false,
+  used_by uuid,
+  used_at timestamp with time zone,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT activation_keys_pkey PRIMARY KEY (id),
+  CONSTRAINT activation_keys_used_by_fkey FOREIGN KEY (used_by) REFERENCES auth.users(id),
+  CONSTRAINT activation_keys_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
 CREATE TABLE public.annual_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -15,6 +30,17 @@ CREATE TABLE public.app_settings (
   setting_value boolean NOT NULL DEFAULT false,
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT app_settings_pkey PRIMARY KEY (setting_key)
+);
+CREATE TABLE public.archived_sources (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  source_type text NOT NULL CHECK (source_type = ANY (ARRAY['conversation'::text, 'record'::text, 'chat_message'::text, 'bazi_chart'::text, 'ziwei_chart'::text, 'tarot_reading'::text, 'liuyao_divination'::text, 'hepan_chart'::text, 'face_reading'::text, 'palm_reading'::text, 'mbti_reading'::text, 'ming_record'::text, 'daily_fortune'::text, 'monthly_fortune'::text])),
+  source_id text NOT NULL,
+  kb_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT archived_sources_pkey PRIMARY KEY (id),
+  CONSTRAINT archived_sources_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT archived_sources_kb_id_fkey FOREIGN KEY (kb_id) REFERENCES public.knowledge_bases(id)
 );
 CREATE TABLE public.bazi_charts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -178,6 +204,30 @@ CREATE TABLE public.hepan_charts (
   CONSTRAINT hepan_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT hepan_charts_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
+CREATE TABLE public.knowledge_bases (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  weight text DEFAULT 'normal'::text CHECK (weight = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT knowledge_bases_pkey PRIMARY KEY (id),
+  CONSTRAINT knowledge_bases_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.knowledge_entries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  kb_id uuid NOT NULL,
+  content text NOT NULL,
+  content_vector USER-DEFINED,
+  source_type text NOT NULL,
+  source_id text NOT NULL,
+  chunk_index integer NOT NULL DEFAULT 0,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT knowledge_entries_pkey PRIMARY KEY (id),
+  CONSTRAINT knowledge_entries_kb_id_fkey FOREIGN KEY (kb_id) REFERENCES public.knowledge_bases(id)
+);
 CREATE TABLE public.liuyao_divinations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -273,6 +323,16 @@ CREATE TABLE public.palm_readings (
   CONSTRAINT palm_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT palm_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
+CREATE TABLE public.purchase_links (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  link_type text NOT NULL UNIQUE CHECK (link_type = ANY (ARRAY['plus'::text, 'pro'::text, 'credits'::text])),
+  url text NOT NULL,
+  description text,
+  updated_by uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT purchase_links_pkey PRIMARY KEY (id),
+  CONSTRAINT purchase_links_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
 CREATE TABLE public.rate_limits (
   id integer NOT NULL DEFAULT nextval('rate_limits_id_seq'::regclass),
   identifier character varying NOT NULL,
@@ -345,6 +405,11 @@ CREATE TABLE public.user_settings (
   updated_at timestamp with time zone DEFAULT now(),
   default_bazi_chart_id uuid,
   default_ziwei_chart_id uuid,
+  sidebar_config jsonb DEFAULT '{}'::jsonb,
+  custom_instructions text,
+  expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
+  user_profile jsonb DEFAULT '{}'::jsonb,
+  prompt_kb_ids jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),

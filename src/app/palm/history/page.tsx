@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Trash2, Loader2, Search, Hand } from 'lucide-react';
+import { ArrowLeft, Calendar, Trash2, Loader2, Search, Hand, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PALM_ANALYSIS_TYPES } from '@/lib/palm';
 import { getModelName } from '@/lib/ai-config';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface PalmReading {
     id: string;
@@ -23,6 +24,8 @@ export default function PalmHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [kbTarget, setKbTarget] = useState<PalmReading | null>(null);
 
     const loadReadings = useCallback(async () => {
         setLoading(true);
@@ -72,6 +75,7 @@ export default function PalmHistoryPage() {
                 }
             }
             setReadings(prev => prev.filter(r => r.id !== id));
+            window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['palm_reading'] } }));
         }
         setDeleteConfirmId(null);
     };
@@ -207,15 +211,31 @@ export default function PalmHistoryPage() {
                                                 {getHandTypeName(reading.hand_type)}{getAnalysisTypeName(reading.analysis_type)}
                                             </p>
                                         </div>
-                                        <button
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setDeleteConfirmId(reading.id);
-                                            }}
-                                            className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setKbTarget(reading);
+                                                    setKbModalOpen(true);
+                                                }}
+                                                className="p-2 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors"
+                                                title="加入知识库"
+                                            >
+                                                <BookOpenText className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setDeleteConfirmId(reading.id);
+                                                }}
+                                                className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
+                                                title="删除"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -249,6 +269,19 @@ export default function PalmHistoryPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {kbTarget && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => {
+                        setKbModalOpen(false);
+                        setKbTarget(null);
+                    }}
+                    sourceTitle={`${getHandTypeName(kbTarget.hand_type)}${getAnalysisTypeName(kbTarget.analysis_type)}`}
+                    sourceType="palm_reading"
+                    sourceId={kbTarget.id}
+                />
             )}
         </div>
     );

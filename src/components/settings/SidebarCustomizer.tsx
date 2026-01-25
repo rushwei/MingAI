@@ -343,10 +343,6 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                     </SortableContext>
                 </DndContext>
             </div>
-
-            <p className="text-xs text-foreground-secondary text-center">
-                更改会立即生效并自动保存
-            </p>
         </div>
     );
 }

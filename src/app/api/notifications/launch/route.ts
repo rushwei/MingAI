@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendFeatureLaunchEmail } from '@/lib/email';
 import { FEATURE_NAMES } from '@/lib/notification';
-import { getServiceClient } from '@/lib/supabase-server';
+import { getServiceRoleClient } from '@/lib/api-utils';
 
 const authClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +29,7 @@ const getAccessToken = (request: NextRequest) => {
 export async function POST(request: NextRequest) {
     try {
         // 延迟初始化 service client，避免构建期缺失环境变量导致失败
-        const supabaseAdmin = getServiceClient();
+        const supabaseAdmin = getServiceRoleClient();
 
         const body = await request.json();
         const { featureKey, featureUrl, adminSecret } = body;

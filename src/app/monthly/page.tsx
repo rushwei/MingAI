@@ -238,9 +238,6 @@ function MonthlyPageContent() {
                 <div className="max-w-4xl mx-auto px-4 relative z-10">
                     <div className="text-center mb-6">
                         <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-4 tracking-tight flex items-center justify-center gap-3">
-                            <div className="inline-flex items-center justify-center p-2 rounded-xl">
-                                <CalendarIcon className="w-8 h-8 text-indigo-500" />
-                            </div>
                             月度运势
                         </h1>
                         <p className="text-lg text-foreground-secondary/80 max-w-lg mx-auto">

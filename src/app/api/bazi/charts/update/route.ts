@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getServiceClient } from '@/lib/supabase-server';
-
-const getAuthClient = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getAuthContext, getServiceRoleClient } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -19,29 +13,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
         }
 
-        const authClient = getAuthClient();
-        let userId: string | null = null;
-
-        const authHeader = request.headers.get('authorization');
-        if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user } } = await authClient.auth.getUser(token);
-            userId = user?.id || null;
-        }
-
-        if (!userId) {
-            const accessToken = request.cookies.get('sb-access-token')?.value;
-            if (accessToken) {
-                const { data: { user } } = await authClient.auth.getUser(accessToken);
-                userId = user?.id || null;
-            }
-        }
-
-        if (!userId) {
+        const { user } = await getAuthContext(request);
+        if (!user) {
             return NextResponse.json({ error: '未登录或登录已过期' }, { status: 401 });
         }
 
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const sanitizedPayload = { ...payload };
         delete (sanitizedPayload as { user_id?: unknown }).user_id;
         delete (sanitizedPayload as { id?: unknown }).id;
@@ -49,7 +26,7 @@ export async function POST(request: NextRequest) {
             .from('bazi_charts')
             .update(sanitizedPayload)
             .eq('id', chartId)
-            .eq('user_id', userId)
+            .eq('user_id', user.id)
             .select('id')
             .maybeSingle();
 

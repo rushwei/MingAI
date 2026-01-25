@@ -4,13 +4,12 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getServiceClient } from '@/lib/supabase-server';
-import { useCredit, hasCredits } from '@/lib/credits';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { callAIWithReasoning } from '@/lib/ai';
-import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { resolveModelAccess } from '@/lib/ai-access';
 import {
     type Hexagram,
     type Yao,
@@ -24,6 +23,7 @@ import {
 } from '@/lib/liuyao';
 import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
 import { getHexagramText } from '@/lib/hexagram-texts';
+import { requireBearerUser } from '@/lib/api-utils';
 
 interface LiuyaoRequest {
     action: 'interpret' | 'save' | 'history';
@@ -47,30 +47,21 @@ export async function POST(request: NextRequest) {
             // 保存起卦记录（不含 AI 解读）
             case 'save': {
                 // 验证用户身份
-                const saveAuthHeader = request.headers.get('authorization');
-                if (!saveAuthHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
-
-                const saveToken = saveAuthHeader.replace('Bearer ', '');
-                const { data: { user: saveUser }, error: saveAuthError } = await supabase.auth.getUser(saveToken);
-
-                if (saveAuthError || !saveUser) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
+                const { user: saveUser } = authResult;
 
                 const hexagramCode = yaos?.map(y => y.type).join('') || '';
                 const changedCode = changedHexagram ? yaos?.map((y, i) =>
                     changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type
                 ).join('') : null;
 
-                const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
                 const { data: insertedDivination, error: insertError } = await serviceClient
                     .from('liuyao_divinations')
                     .insert({
@@ -106,23 +97,14 @@ export async function POST(request: NextRequest) {
                 }
 
                 // 验证用户身份
-                const authHeader = request.headers.get('authorization');
-                if (!authHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
-
-                const token = authHeader.replace('Bearer ', '');
-                const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-                if (authError || !user) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
+                const { user } = authResult;
 
                 // 检查积分
                 const hasEnoughCredits = await hasCredits(user.id);
@@ -133,28 +115,20 @@ export async function POST(request: NextRequest) {
                     }, { status: 403 });
                 }
 
-                const requestedModelId = modelId || DEFAULT_MODEL_ID;
-                const modelConfig = getModelConfig(requestedModelId);
-                if (!modelConfig) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '模型不可用'
-                    }, { status: 400 });
-                }
                 const membershipType = await getEffectiveMembershipType(user.id);
-                if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                const access = resolveModelAccess(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
+                if ('error' in access) {
                     return NextResponse.json({
                         success: false,
-                        error: '当前会员等级无法使用该模型'
-                    }, { status: 403 });
+                        error: access.error
+                    }, { status: access.status });
                 }
-                const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
-                const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+                const { modelId: requestedModelId, reasoningEnabled } = access;
 
                 // 计算传统分析数据（使用完整分析函数）
                 let traditionalInfo = '';
                 let analysisDate = new Date();
-                const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
 
                 if (divinationId) {
                     const { data, error } = await serviceClient
@@ -315,6 +289,15 @@ ${traditionalInfo}
 
 请详细解读此卦的吉凶和指导意义。`;
 
+                const remainingCredits = await useCredit(user.id);
+                if (remainingCredits === null) {
+                    console.error('[liuyao] 扣除积分失败');
+                    return NextResponse.json({
+                        success: false,
+                        error: '积分扣减失败，请稍后重试'
+                    }, { status: 500 });
+                }
+
                 try {
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
@@ -326,16 +309,6 @@ ${traditionalInfo}
                             temperature: 0.7,
                         }
                     );
-
-                    // 扣除积分
-                    const remainingCredits = await useCredit(user.id);
-                    if (remainingCredits === null) {
-                        console.error('[liuyao] 扣除积分失败');
-                        return NextResponse.json({
-                            success: false,
-                            error: '积分扣减失败，请稍后重试'
-                        }, { status: 500 });
-                    }
 
                     // 保存 AI 分析到 conversations 表
                     const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
@@ -401,6 +374,7 @@ ${traditionalInfo}
                     });
 
                 } catch (aiError) {
+                    await addCredits(user.id, 1);
                     console.error('[liuyao] AI 解读失败:', aiError);
                     return NextResponse.json({
                         success: false,
@@ -410,25 +384,16 @@ ${traditionalInfo}
             }
 
             case 'history': {
-                const authHeader = request.headers.get('authorization');
-                if (!authHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
+                const { user } = authResult;
 
-                const token = authHeader.replace('Bearer ', '');
-                const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-                if (authError || !user) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
-
-                const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
                 const { data: history, error: historyError } = await serviceClient
                     .from('liuyao_divinations')
                     .select('*')

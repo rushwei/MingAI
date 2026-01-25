@@ -1,10 +1,10 @@
-import { getServiceClient } from "./supabase-server";
+import { getServiceRoleClient } from "./api-utils";
 
 const PAYMENTS_PAUSED_KEY = "payments_paused";
 
 export async function getPaymentsPaused(): Promise<boolean> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const { data, error } = await supabase
             .from("app_settings")
             .select("setting_value")
@@ -25,7 +25,7 @@ export async function getPaymentsPaused(): Promise<boolean> {
 
 export async function setPaymentsPaused(paused: boolean): Promise<boolean> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const { error } = await supabase
             .from("app_settings")
             .upsert(
@@ -65,7 +65,7 @@ export interface PurchaseLink {
  */
 export async function getPurchaseLink(type: PurchaseLinkType): Promise<string | null> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const { data, error } = await supabase
             .from("purchase_links")
             .select("url")
@@ -89,7 +89,7 @@ export async function getPurchaseLink(type: PurchaseLinkType): Promise<string | 
  */
 export async function getAllPurchaseLinks(): Promise<PurchaseLink[]> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const { data, error } = await supabase
             .from("purchase_links")
             .select("*")
@@ -117,7 +117,7 @@ export async function setPurchaseLink(
     updatedBy?: string
 ): Promise<boolean> {
     try {
-        const supabase = getServiceClient();
+        const supabase = getServiceRoleClient();
         const { error } = await supabase
             .from("purchase_links")
             .upsert(
@@ -142,4 +142,3 @@ export async function setPurchaseLink(
         return false;
     }
 }
-

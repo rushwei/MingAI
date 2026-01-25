@@ -6,17 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { callDifyWorkflow, isDifyAvailable } from '@/lib/dify';
 import { checkDifyAccess } from '@/lib/dify-access';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import type { DifyMode } from '@/types';
-
-// 服务端 Supabase 客户端
-const getSupabase = () => createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { requireUserContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -28,23 +22,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 获取用户信息
-        const supabase = getSupabase();
-        let userId: string | null = null;
-
-        const authHeader = request.headers.get('authorization');
-        if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user } } = await supabase.auth.getUser(token);
-            userId = user?.id || null;
-        }
-
-        if (!userId) {
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
             return NextResponse.json(
-                { success: false, error: '请先登录' },
-                { status: 401 }
+                { success: false, error: auth.error.message },
+                { status: auth.error.status }
             );
         }
+        const userId = auth.user.id;
 
         // 解析 multipart/form-data
         const formData = await request.formData();

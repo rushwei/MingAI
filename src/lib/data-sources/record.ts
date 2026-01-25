@@ -1,0 +1,63 @@
+import { getServiceRoleClient } from '@/lib/api-utils';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+
+type RecordRow = {
+    id: string;
+    user_id: string;
+    title: string;
+    content: string | null;
+    category: string | null;
+    tags: string[] | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export const recordProvider: DataSourceProvider<RecordRow> = {
+    type: 'ming_record',
+    displayName: '命理记录',
+
+    async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
+        const supabase = ctx?.client ?? getServiceRoleClient();
+        const limit = ctx?.limit ?? 50;
+        const { data, error } = await supabase
+            .from('ming_records')
+            .select('id, title, content, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw new Error(error.message);
+        return (data || []).map((row: { id: string; title: string; content: string | null; created_at: string }) => ({
+            id: row.id,
+            type: 'ming_record',
+            name: row.title,
+            preview: row.content ? String(row.content).slice(0, 60) : '',
+            createdAt: row.created_at
+        }));
+    },
+
+    async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<RecordRow | null> {
+        const supabase = ctx?.client ?? getServiceRoleClient();
+        const { data, error } = await supabase
+            .from('ming_records')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (error) throw new Error(error.message);
+        return (data as RecordRow) || null;
+    },
+
+    formatForAI(r: RecordRow): string {
+        return [
+            `## 命理记录：${r.title}`,
+            r.content ? r.content : '',
+            Array.isArray(r.tags) && r.tags.length ? `标签：${r.tags.join(', ')}` : '',
+            r.category ? `分类：${r.category}` : ''
+        ].filter(Boolean).join('\n\n');
+    },
+
+    summarize(r: RecordRow): string {
+        return r.title;
+    }
+};

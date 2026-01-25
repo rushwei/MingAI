@@ -3,54 +3,30 @@
  * PUT: 管理员操作（置顶、精华、删除）
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getServiceClient } from '@/lib/supabase-server';
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { NextRequest } from 'next/server';
+import { jsonError, jsonOk, requireAdminContext, getServiceRoleClient } from '@/lib/api-utils';
+import { missingFields } from '@/lib/validation';
 
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
-        }
-
-        // 检查是否是管理员
-        const { data: userData } = await supabase
-            .from('users')
-            .select('is_admin')
-            .eq('id', user.id)
-            .single();
-
-        if (!userData?.is_admin) {
-            return NextResponse.json({ error: '无权限操作' }, { status: 403 });
+        const auth = await requireAdminContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
 
         const { id } = await params;
         const body = await request.json();
         const { action, value } = body;
 
+        if (missingFields(body, ['action']).length > 0) {
+            return jsonError('缺少参数', 400);
+        }
+
         // 使用 Service Role Client 绕过 RLS
-        const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
 
         switch (action) {
             case 'pin': {
@@ -78,12 +54,12 @@ export async function PUT(
                 break;
             }
             default:
-                return NextResponse.json({ error: '无效操作' }, { status: 400 });
+                return jsonError('无效操作', 400);
         }
 
-        return NextResponse.json({ success: true });
+        return jsonOk({ success: true });
     } catch (error) {
         console.error('管理员操作失败:', error);
-        return NextResponse.json({ error: '操作失败' }, { status: 500 });
+        return jsonError('操作失败', 500);
     }
 }

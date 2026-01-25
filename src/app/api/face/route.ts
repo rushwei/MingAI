@@ -4,12 +4,11 @@
  * 提供面相图片分析、历史记录等功能
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getServiceClient } from '@/lib/supabase-server';
-import { useCredit, hasCredits } from '@/lib/credits';
-import { getModelConfig, DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { useCredit, hasCredits, addCredits } from '@/lib/credits';
+import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { resolveModelAccess } from '@/lib/ai-access';
 import { getProvider } from '@/lib/ai-providers';
 import type { VisionProviderOptions } from '@/lib/ai-providers';
 import {
@@ -19,6 +18,7 @@ import {
     generateFaceTitle,
     FACE_DISCLAIMER
 } from '@/lib/face';
+import { requireBearerUser } from '@/lib/api-utils';
 
 // 请求类型
 interface FaceRequest {
@@ -83,23 +83,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<FaceRespo
                 }
 
                 // 检查用户认证
-                const authHeader = request.headers.get('authorization');
-                if (!authHeader) {
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
                     return NextResponse.json({
                         success: false,
-                        error: '请先登录'
-                    }, { status: 401 });
+                        error: authResult.error.message
+                    }, { status: authResult.error.status });
                 }
-
-                const token = authHeader.replace('Bearer ', '');
-                const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-                if (authError || !user) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '认证失败'
-                    }, { status: 401 });
-                }
+                const { user } = authResult;
 
                 // 检查用户积分
                 const hasEnoughCredits = await hasCredits(user.id);
@@ -111,37 +102,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<FaceRespo
                 }
 
                 // 检查模型权限
-                const requestedModelId = modelId || DEFAULT_VISION_MODEL_ID;
-                const modelConfig = getModelConfig(requestedModelId);
-                if (!modelConfig) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '模型不可用'
-                    }, { status: 400 });
-                }
-
-                // 确保是视觉模型
-                if (!modelConfig.supportsVision) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请选择支持图像分析的模型'
-                    }, { status: 400 });
-                }
-
                 const membershipType = await getEffectiveMembershipType(user.id);
-                if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+                const access = resolveModelAccess(modelId, DEFAULT_VISION_MODEL_ID, membershipType, reasoning, {
+                    requireVision: true,
+                    membershipDeniedMessage: '面相分析需要 Plus 会员或以上'
+                });
+                if ('error' in access) {
                     return NextResponse.json({
                         success: false,
-                        error: '面相分析需要 Plus 会员或以上'
-                    }, { status: 403 });
+                        error: access.error
+                    }, { status: access.status });
                 }
-
-                const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
-                const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+                const { modelId: requestedModelId, modelConfig, reasoningEnabled } = access;
 
                 // 构建提示词
                 const systemPrompt = buildFaceSystemPrompt(analysisType);
                 const userPrompt = buildFaceUserPrompt(analysisType, question);
+
+                const remainingCredits = await useCredit(user.id);
+                if (remainingCredits === null) {
+                    console.error('[face] 扣除积分失败');
+                    return NextResponse.json({
+                        success: false,
+                        error: '积分扣减失败，请稍后重试'
+                    }, { status: 500 });
+                }
 
                 try {
                     const provider = getProvider(modelConfig);
@@ -158,16 +143,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<FaceRespo
                         modelConfig,
                         visionOptions
                     );
-
-                    // 扣除积分
-                    const remainingCredits = await useCredit(user.id);
-                    if (remainingCredits === null) {
-                        console.error('[face] 扣除积分失败');
-                        return NextResponse.json({
-                            success: false,
-                            error: '积分扣减失败，请稍后重试'
-                        }, { status: 500 });
-                    }
 
                     // 保存 AI 分析到 conversations 表
                     let conversationId: string | null = null;
@@ -193,7 +168,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<FaceRespo
                     // 保存分析记录
                     let readingId: string | null = null;
                     if (conversationId) {
-                        const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
                         const { data: insertedReading, error: insertError } = await serviceClient
                             .from('face_readings')
                             .insert({
@@ -221,6 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<FaceRespo
                     });
 
                 } catch (aiError) {
+                    await addCredits(user.id, 1);
                     console.error('AI 分析失败:', aiError);
                     return NextResponse.json({
                         success: false,

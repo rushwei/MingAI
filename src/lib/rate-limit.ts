@@ -4,12 +4,12 @@
  * 支持多实例部署，数据持久化
  */
 
-import { getServiceClient } from './supabase-server';
+import { getServiceRoleClient } from './api-utils';
 
 // 尝试获取服务端客户端，失败返回null
 const getServiceClientSafe = () => {
     try {
-        return getServiceClient();
+        return getServiceRoleClient();
     } catch {
         return null;
     }
@@ -145,7 +145,10 @@ function memoryRateLimit(
  * 获取客户端 IP
  */
 export function getClientIP(request: Request): string {
-    const forwarded = request.headers.get('x-forwarded-for');
+    const vercelId = request.headers.get('x-vercel-id');
+    const forwarded = vercelId
+        ? (request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-forwarded-for'))
+        : null;
     if (forwarded) {
         return forwarded.split(',')[0].trim();
     }

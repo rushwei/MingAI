@@ -4,41 +4,19 @@
  * POST: 创建新帖子
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { PostCategory, PostFilters, CommunityPost } from '@/lib/community';
-import { getServiceClient } from '@/lib/supabase-server';
+import { jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { withRetry } from '@/lib/retry';
+import { parsePagination } from '@/lib/pagination';
+import { hasNonEmptyStrings } from '@/lib/validation';
 
-// 网络请求重试工具
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
-    let lastError: unknown;
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await fn();
-        } catch (err) {
-            lastError = err;
-            if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, delay * (i + 1)));
-            }
-        }
-    }
-    throw lastError;
-}
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
+function quotePostgrestString(value: string): string {
+    const sanitized = value
+        .replace(/\u0000/g, '')
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+    return `"${sanitized}"`;
 }
 
 // 从帖子数据中移除 user_id 以保护匿名性
@@ -52,14 +30,13 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
 
-        const page = parseInt(searchParams.get('page') || '1');
-        const pageSize = parseInt(searchParams.get('pageSize') || '20');
+        const { from, to } = parsePagination(searchParams, { defaultPageSize: 20 });
         const category = searchParams.get('category') as PostCategory | null;
         const search = searchParams.get('search');
         const sortBy = searchParams.get('sortBy') as PostFilters['sortBy'] || 'latest';
 
         // 使用 serviceClient 和重试逻辑
-        const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
 
         const result = await withRetry(async () => {
             let query = serviceClient
@@ -72,7 +49,8 @@ export async function GET(request: NextRequest) {
                 query = query.eq('category', category);
             }
             if (search) {
-                query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+                const pattern = quotePostgrestString(`%${search}%`);
+                query = query.or(`title.ilike.${pattern},content.ilike.${pattern}`);
             }
 
             // 排序
@@ -85,43 +63,45 @@ export async function GET(request: NextRequest) {
             }
 
             // 分页
-            const from = (page - 1) * pageSize;
-            const to = from + pageSize - 1;
             query = query.range(from, to);
 
-            return await query;
+            const response = await query;
+            if (response.error) {
+                throw response.error;
+            }
+            return response;
         });
 
         if (result.error) {
             console.error('获取帖子失败:', result.error);
-            return NextResponse.json({ error: '获取帖子失败' }, { status: 500 });
+            return jsonError('获取帖子失败', 500);
         }
 
         // 移除 user_id 保护匿名性
         const safePosts = (result.data || []).map((post: CommunityPost) => sanitizePost(post));
 
-        return NextResponse.json({
+        return jsonOk({
             posts: safePosts,
             total: result.count || 0,
         });
     } catch (error) {
         console.error('获取帖子失败:', error);
-        return NextResponse.json({ error: '获取帖子失败' }, { status: 500 });
+        return jsonError('获取帖子失败', 500);
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { supabase, user } = auth;
 
         const body = await request.json();
 
-        if (!body.title || !body.content) {
-            return NextResponse.json({ error: '标题和内容不能为空' }, { status: 400 });
+        if (!hasNonEmptyStrings(body, ['title', 'content'])) {
+            return jsonError('标题和内容不能为空', 400);
         }
 
         const anonymousName = body.anonymous_name || '匿名用户';
@@ -142,7 +122,7 @@ export async function POST(request: NextRequest) {
 
         if (postError) {
             console.error('创建帖子失败:', postError);
-            return NextResponse.json({ error: '创建帖子失败' }, { status: 500 });
+            return jsonError('创建帖子失败', 500);
         }
 
         // 创建作者的匿名映射（楼主）
@@ -154,9 +134,9 @@ export async function POST(request: NextRequest) {
         });
 
         // 创建成功后返回时移除 user_id
-        return NextResponse.json(sanitizePost(post as CommunityPost));
+        return jsonOk(sanitizePost(post as CommunityPost));
     } catch (error) {
         console.error('创建帖子失败:', error);
-        return NextResponse.json({ error: '创建帖子失败' }, { status: 500 });
+        return jsonError('创建帖子失败', 500);
     }
 }

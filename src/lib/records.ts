@@ -27,6 +27,8 @@ export interface MingRecord {
     is_pinned: boolean;
     created_at: string;
     updated_at: string;
+    is_archived?: boolean;
+    archived_kb_ids?: string[] | null;
 }
 
 export interface MingNote {

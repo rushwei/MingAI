@@ -2,7 +2,7 @@
  * 年度报告 API
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { requireUserContext } from '@/lib/api-utils';
 import {
     generateAnnualReport,
     getCachedAnnualReport,
@@ -26,17 +26,11 @@ interface AnnualReportResponse {
 // GET - 获取年度报告
 export async function GET(request: NextRequest): Promise<NextResponse<AnnualReportResponse>> {
     try {
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
-            return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
         }
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
-        }
+        const { user } = auth;
 
         const { searchParams } = new URL(request.url);
         const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));

@@ -22,6 +22,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -45,6 +46,7 @@ function MBTIResultContent() {
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
 
     useEffect(() => {
         // useEffect loads session/auth data after client mount.
@@ -238,6 +240,7 @@ function MBTIResultContent() {
 
     // 是否为测试完成模式（有完整分数数据）
     const isTestMode = !isViewMode && result.scores && result.percentages;
+    const readingId = (result as unknown as { readingId?: string }).readingId;
 
     return (
         <div className="min-h-screen bg-background relative overflow-x-hidden pb-20">
@@ -256,6 +259,18 @@ function MBTIResultContent() {
 
                 {/* 结果卡片 */}
                 <PersonalityCard result={result} showDimensions={!!isTestMode} />
+
+                {!!readingId && (
+                    <div className="mt-4 flex justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setKbModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-foreground transition-all"
+                        >
+                            加入知识库
+                        </button>
+                    </div>
+                )}
 
                 {/* AI 深度分析 - 仅测试模式显示 */}
                 {isTestMode && (
@@ -389,6 +404,16 @@ function MBTIResultContent() {
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
             />
+
+            {readingId && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => setKbModalOpen(false)}
+                    sourceTitle={`MBTI - ${result.type}`}
+                    sourceType="mbti_reading"
+                    sourceId={readingId}
+                />
+            )}
         </div>
     );
 }

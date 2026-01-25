@@ -29,6 +29,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 function TarotResultContent() {
     const router = useRouter();
@@ -57,6 +58,7 @@ function TarotResultContent() {
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [userId, setUserId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
 
     useEffect(() => {
         const loadMembership = async () => {
@@ -385,14 +387,24 @@ function TarotResultContent() {
                         <span className="text-sm font-medium">返回占卜</span>
                     </button>
 
-                    <button
-                        onClick={handleReshuffle}
-                        disabled={isShuffling}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
-                    >
-                        <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
-                        {isShuffling ? '洗牌中...' : '重新抽牌'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!!readingId && (
+                            <button
+                                onClick={() => setKbModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                            >
+                                加入知识库
+                            </button>
+                        )}
+                        <button
+                            onClick={handleReshuffle}
+                            disabled={isShuffling}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                        >
+                            <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
+                            {isShuffling ? '洗牌中...' : '重新抽牌'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Spread Info & Question */}
@@ -586,6 +598,7 @@ function TarotResultContent() {
                                             <button
                                                 onClick={handleInterpret}
                                                 disabled={isInterpreting}
+                                                data-testid="reanalyze-button"
                                                 className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${isInterpreting ? 'animate-spin' : ''}`} />
@@ -661,6 +674,16 @@ function TarotResultContent() {
                     </div >
                 )
                 }
+
+                {readingId && (
+                    <AddToKnowledgeBaseModal
+                        open={kbModalOpen}
+                        onClose={() => setKbModalOpen(false)}
+                        sourceTitle={question || selectedSpread?.name || '塔罗占卜'}
+                        sourceType="tarot_reading"
+                        sourceId={readingId}
+                    />
+                )}
 
                 <AuthModal
                     isOpen={showAuthModal}

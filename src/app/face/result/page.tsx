@@ -12,6 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface FaceResultData {
     readingId?: string;
@@ -28,6 +29,7 @@ export default function FaceResultPage() {
     const [resultData, setResultData] = useState<FaceResultData | null>(null);
     const [analysis, setAnalysis] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
 
     useEffect(() => {
         const loadResult = async () => {
@@ -202,6 +204,15 @@ export default function FaceResultPage() {
 
                     {/* 操作按钮 */}
                     <div className="flex flex-wrap gap-4 justify-center">
+                        {!!resultData.readingId && (
+                            <button
+                                type="button"
+                                onClick={() => setKbModalOpen(true)}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-foreground transition-all hover:scale-[1.02] active:scale-95"
+                            >
+                                加入知识库
+                            </button>
+                        )}
                         {resultData.conversationId && (
                             <button
                                 onClick={handleContinueChat}
@@ -221,6 +232,16 @@ export default function FaceResultPage() {
                     </div>
                 </div>
             </div>
+
+            {resultData.readingId && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => setKbModalOpen(false)}
+                    sourceTitle={getAnalysisTypeName(resultData.analysisType)}
+                    sourceType="face_reading"
+                    sourceId={resultData.readingId}
+                />
+            )}
         </LoginOverlay>
     );
 }

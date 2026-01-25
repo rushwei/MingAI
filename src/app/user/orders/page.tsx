@@ -42,18 +42,16 @@ export default function OrdersPage() {
             }
 
             try {
-                // 从数据库获取用户订单
-                const { data, error } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error('获取订单失败:', error);
-                } else {
-                    setOrders(data || []);
+                const response = await fetch('/api/orders', {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || '获取订单失败');
                 }
+                setOrders(result.data || []);
             } catch (err) {
                 console.error('获取订单异常:', err);
             } finally {
@@ -95,11 +93,22 @@ export default function OrdersPage() {
     };
 
     const getPaymentIcon = (method: string | null) => {
-        // Simplified for this example
+        const label = method === 'WeChat'
+            ? '微信支付'
+            : method === 'Alipay'
+            ? '支付宝'
+            : method === 'activation_key'
+            ? '激活码'
+            : method === 'simulated'
+            ? '模拟支付'
+            : method
+            ? '在线支付'
+            : '未知';
+
         return (
             <div className="flex items-center gap-1 text-xs text-foreground-secondary/70 bg-foreground/5 px-2 py-0.5 rounded">
                 <CreditCard className="w-3 h-3" />
-                <span>{method === 'WeChat' ? '微信支付' : method === 'Alipay' ? '支付宝' : '在线支付'}</span>
+                <span>{label}</span>
             </div>
         );
     };

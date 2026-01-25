@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock } from 'lucide-react';
+import { ArrowLeft, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getModelName } from '@/lib/ai-config';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface HepanChart {
     id: string;
@@ -54,6 +55,8 @@ export default function HepanHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [kbTarget, setKbTarget] = useState<HepanChart | null>(null);
 
     const loadCharts = useCallback(async () => {
         setLoading(true);
@@ -103,6 +106,7 @@ export default function HepanHistoryPage() {
                 }
             }
             setCharts(prev => prev.filter(c => c.id !== id));
+            window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['hepan_chart'] } }));
         }
         setDeleteConfirmId(null);
     };
@@ -305,16 +309,31 @@ export default function HepanHistoryPage() {
                                             </div>
                                         </div>
 
-                                        <button
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setDeleteConfirmId(chart.id);
-                                            }}
-                                            className="p-2 rounded-xl text-foreground-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                                            title="删除记录"
-                                        >
-                                            <Trash2 className="w-4.5 h-4.5" />
-                                        </button>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setKbTarget(chart);
+                                                    setKbModalOpen(true);
+                                                }}
+                                                className="p-2 rounded-xl text-foreground-tertiary hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                                                title="加入知识库"
+                                            >
+                                                <BookOpenText className="w-4.5 h-4.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setDeleteConfirmId(chart.id);
+                                                }}
+                                                className="p-2 rounded-xl text-foreground-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                title="删除记录"
+                                            >
+                                                <Trash2 className="w-4.5 h-4.5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -348,6 +367,19 @@ export default function HepanHistoryPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {kbTarget && (
+                <AddToKnowledgeBaseModal
+                    open={kbModalOpen}
+                    onClose={() => {
+                        setKbModalOpen(false);
+                        setKbTarget(null);
+                    }}
+                    sourceTitle={`${kbTarget.person1_name} × ${kbTarget.person2_name}`}
+                    sourceType="hepan_chart"
+                    sourceId={kbTarget.id}
+                />
             )}
         </div>
     );

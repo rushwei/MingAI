@@ -2,7 +2,6 @@
  * 提醒订阅 API
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import {
     getReminderSubscriptions,
     updateReminderSubscription,
@@ -11,7 +10,7 @@ import {
     scheduleKeyDateReminders,
     type ReminderType
 } from '@/lib/reminders';
-import { getServiceClient } from '@/lib/supabase-server';
+import { getAuthContext, getServiceRoleClient } from '@/lib/api-utils';
 import type { BaziChart } from '@/types';
 
 interface RemindersResponse {
@@ -31,15 +30,8 @@ interface RemindersResponse {
 // GET - 获取提醒订阅设置
 export async function GET(request: NextRequest): Promise<NextResponse<RemindersResponse>> {
     try {
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
-            return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
-        }
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
+        const { user } = await getAuthContext(request);
+        if (!user) {
             return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
         }
 
@@ -70,15 +62,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<RemindersR
 // POST - 更新提醒订阅设置
 export async function POST(request: NextRequest): Promise<NextResponse<RemindersResponse>> {
     try {
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
-            return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
-        }
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
+        const { user } = await getAuthContext(request);
+        if (!user) {
             return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
         }
 
@@ -106,7 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Reminders
                 scheduled = await scheduleUpcomingSolarTermReminders(user.id);
             } else if (reminderType === 'fortune' || reminderType === 'key_date') {
                 // 获取用户的八字命盘
-                const serviceClient = getServiceClient();
+                const serviceClient = getServiceRoleClient();
                 const { data: chartData } = await serviceClient
                     .from('bazi_charts')
                     .select('chart_data')

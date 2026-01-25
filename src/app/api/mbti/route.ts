@@ -4,14 +4,14 @@
  * 提供 AI 性格分析功能
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getServiceClient } from '@/lib/supabase-server';
-import { useCredit, hasCredits } from '@/lib/credits';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/mbti';
 import { callAIWithReasoning } from '@/lib/ai';
-import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { resolveModelAccess } from '@/lib/ai-access';
+import { requireBearerUser } from '@/lib/api-utils';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';
@@ -42,25 +42,16 @@ export async function POST(request: NextRequest) {
                 }, { status: 400 });
             }
 
-            const authHeader = request.headers.get('authorization');
-            if (!authHeader) {
+            const authResult = await requireBearerUser(request);
+            if ('error' in authResult) {
                 return NextResponse.json({
                     success: false,
-                    error: '请先登录'
-                }, { status: 401 });
+                    error: authResult.error.message
+                }, { status: authResult.error.status });
             }
+            const { user } = authResult;
 
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-            if (authError || !user) {
-                return NextResponse.json({
-                    success: false,
-                    error: '认证失败'
-                }, { status: 401 });
-            }
-
-            const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
             const { data: insertedReading, error: insertError } = await serviceClient
                 .from('mbti_readings')
                 .insert({
@@ -88,25 +79,16 @@ export async function POST(request: NextRequest) {
 
         // 获取历史记录
         if (action === 'history') {
-            const authHeader = request.headers.get('authorization');
-            if (!authHeader) {
+            const authResult = await requireBearerUser(request);
+            if ('error' in authResult) {
                 return NextResponse.json({
                     success: false,
-                    error: '请先登录'
-                }, { status: 401 });
+                    error: authResult.error.message
+                }, { status: authResult.error.status });
             }
+            const { user } = authResult;
 
-            const token = authHeader.replace('Bearer ', '');
-            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-            if (authError || !user) {
-                return NextResponse.json({
-                    success: false,
-                    error: '认证失败'
-                }, { status: 401 });
-            }
-
-            const serviceClient = getServiceClient();
+            const serviceClient = getServiceRoleClient();
             const { data: history, error: historyError } = await serviceClient
                 .from('mbti_readings')
                 .select('*')
@@ -142,23 +124,14 @@ export async function POST(request: NextRequest) {
         }
 
         // 验证用户身份
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
+        const authResult = await requireBearerUser(request);
+        if ('error' in authResult) {
             return NextResponse.json({
                 success: false,
-                error: '请先登录'
-            }, { status: 401 });
+                error: authResult.error.message
+            }, { status: authResult.error.status });
         }
-
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
-            return NextResponse.json({
-                success: false,
-                error: '认证失败'
-            }, { status: 401 });
-        }
+        const { user } = authResult;
 
         // 检查积分
         const hasEnoughCredits = await hasCredits(user.id);
@@ -169,23 +142,15 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
-        const requestedModelId = modelId || DEFAULT_MODEL_ID;
-        const modelConfig = getModelConfig(requestedModelId);
-        if (!modelConfig) {
-            return NextResponse.json({
-                success: false,
-                error: '模型不可用'
-            }, { status: 400 });
-        }
         const membershipType = await getEffectiveMembershipType(user.id);
-        if (!isModelAllowedForMembership(modelConfig, membershipType)) {
+        const access = resolveModelAccess(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
+        if ('error' in access) {
             return NextResponse.json({
                 success: false,
-                error: '当前会员等级无法使用该模型'
-            }, { status: 403 });
+                error: access.error
+            }, { status: access.status });
         }
-        const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
-        const reasoningEnabled = reasoningAllowed ? !!reasoning : false;
+        const { modelId: requestedModelId, reasoningEnabled } = access;
 
         const basic = PERSONALITY_BASICS[type];
 
@@ -215,6 +180,15 @@ ${basic.description}
 
 请为这位用户提供个性化的深度分析。`;
 
+        const remainingCredits = await useCredit(user.id);
+        if (remainingCredits === null) {
+            console.error('[mbti] 扣除积分失败');
+            return NextResponse.json({
+                success: false,
+                error: '积分扣减失败，请稍后重试'
+            }, { status: 500 });
+        }
+
         try {
             const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                 [{ role: 'user', content: userPrompt }],
@@ -226,16 +200,6 @@ ${basic.description}
                     temperature: 0.7,
                 }
             );
-
-            // 扣除积分
-            const remainingCredits = await useCredit(user.id);
-            if (remainingCredits === null) {
-                console.error('[mbti] 扣除积分失败');
-                return NextResponse.json({
-                    success: false,
-                    error: '积分扣减失败，请稍后重试'
-                }, { status: 500 });
-            }
 
             // 保存 AI 分析到 conversations 表
             const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
@@ -259,7 +223,7 @@ ${basic.description}
             }
 
             // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-            const serviceClient = getServiceClient();
+        const serviceClient = getServiceRoleClient();
             if (readingId) {
                 // 更新已有记录
                 const { error: updateError } = await serviceClient
@@ -293,8 +257,9 @@ ${basic.description}
                 data: { analysis, reasoning: reasoningText, conversationId }
             });
 
-        } catch (aiError) {
-            console.error('[mbti] AI 分析失败:', aiError);
+        } catch (error) {
+            await addCredits(user.id, 1);
+            console.error('[mbti] AI 分析失败:', error);
             return NextResponse.json({
                 success: false,
                 error: 'AI 分析失败，请稍后重试'

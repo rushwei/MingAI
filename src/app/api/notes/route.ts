@@ -6,28 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { getAuthContext } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { supabase, user } = await getAuthContext(request);
         if (!user) {
             return NextResponse.json({ error: '请先登录' }, { status: 401 });
         }
@@ -61,8 +44,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { supabase, user } = await getAuthContext(request);
         if (!user) {
             return NextResponse.json({ error: '请先登录' }, { status: 401 });
         }
@@ -98,8 +80,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
-        const supabase = await createSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { supabase, user } = await getAuthContext(request);
         if (!user) {
             return NextResponse.json({ error: '请先登录' }, { status: 401 });
         }

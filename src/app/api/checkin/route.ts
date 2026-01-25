@@ -2,7 +2,6 @@
  * 签到 API
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import {
     getCheckinStatus,
     performCheckin,
@@ -10,22 +9,7 @@ import {
     getCheckinStats
 } from '@/lib/checkin';
 import { getUserLevel } from '@/lib/gamification';
-
-// 网络请求重试工具
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
-    let lastError: unknown;
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await fn();
-        } catch (err) {
-            lastError = err;
-            if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, delay * (i + 1)));
-            }
-        }
-    }
-    throw lastError;
-}
+import { requireBearerUser } from '@/lib/api-utils';
 
 interface CheckinResponse {
     success: boolean;
@@ -62,21 +46,11 @@ interface CheckinResponse {
 // GET - 获取签到状态
 export async function GET(request: NextRequest): Promise<NextResponse<CheckinResponse>> {
     try {
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
-            return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+        const auth = await requireBearerUser(request);
+        if ('error' in auth) {
+            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
         }
-
-        const token = authHeader.replace('Bearer ', '');
-
-        // 添加重试逻辑以处理网络不稳定问题
-        const { data: { user }, error: authError } = await withRetry(
-            () => supabase.auth.getUser(token)
-        );
-
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
-        }
+        const { user } = auth;
 
         const { searchParams } = new URL(request.url);
         const action = searchParams.get('action') || 'status';
@@ -123,21 +97,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
 // POST - 执行签到
 export async function POST(request: NextRequest): Promise<NextResponse<CheckinResponse>> {
     try {
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader) {
-            return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+        const auth = await requireBearerUser(request);
+        if ('error' in auth) {
+            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
         }
-
-        const token = authHeader.replace('Bearer ', '');
-
-        // 添加重试逻辑以处理网络不稳定问题
-        const { data: { user }, error: authError } = await withRetry(
-            () => supabase.auth.getUser(token)
-        );
-
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
-        }
+        const { user } = auth;
 
         const result = await performCheckin(user.id);
 

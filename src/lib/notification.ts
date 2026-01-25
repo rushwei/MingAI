@@ -157,36 +157,6 @@ export async function deleteNotifications(notificationIds: string[]): Promise<bo
 }
 
 /**
- * 创建通知（服务端使用）
- */
-export async function createNotification(
-    userId: string,
-    type: Notification['type'],
-    title: string,
-    content?: string,
-    link?: string
-): Promise<boolean> {
-    const { getServiceClient } = await import('./supabase-server');
-    const serviceClient = getServiceClient();
-    const { error } = await serviceClient
-        .from('notifications')
-        .insert({
-            user_id: userId,
-            type,
-            title,
-            content,
-            link,
-        });
-
-    if (error) {
-        console.error('创建通知失败:', error);
-        return false;
-    }
-
-    return true;
-}
-
-/**
  * 检查功能订阅状态
  */
 export async function checkSubscription(
@@ -260,37 +230,6 @@ export async function unsubscribeFeature(
 /**
  * 获取功能所有订阅者（服务端用于批量通知）
  */
-export async function getFeatureSubscribers(featureKey: string): Promise<{
-    userId: string;
-    email: string | null;
-    notifyEmail: boolean;
-    notifySite: boolean;
-}[]> {
-    const { data, error } = await supabase
-        .from('feature_subscriptions')
-        .select(`
-            user_id,
-            notify_email,
-            notify_site,
-            users:user_id (
-                email
-            )
-        `)
-        .eq('feature_key', featureKey);
-
-    if (error) {
-        console.error('获取订阅者列表失败:', error);
-        return [];
-    }
-
-    return (data ?? []).map(item => ({
-        userId: item.user_id,
-        email: (item.users as unknown as { email: string })?.email ?? null,
-        notifyEmail: item.notify_email,
-        notifySite: item.notify_site,
-    }));
-}
-
 /**
  * 功能名称映射
  */
