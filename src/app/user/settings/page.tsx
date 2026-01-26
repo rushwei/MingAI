@@ -11,10 +11,7 @@ import {
     Shield,
     Loader2,
     Check,
-    Calendar,
-    Sparkles,
     BookOpenText,
-    PanelLeft,
     ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -95,10 +92,7 @@ function ReminderToggle({
 
     return (
         <div className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-            <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-background-secondary text-foreground-secondary">
-                    <Calendar className="w-4 h-4" />
-                </div>
+            <div className="flex items-center gap-3 px-1">
                 <div>
                     <p className="text-sm font-medium text-foreground">{label}</p>
                     <p className="text-xs text-foreground-secondary">{description}</p>
@@ -250,16 +244,13 @@ export default function SettingsPage() {
                     {/* 外观与语言 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
                         <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <span className="p-1 bg-purple-500/10 rounded text-purple-500"><Moon className="w-3.5 h-3.5" /></span>
                             <h2 className="text-sm font-bold text-foreground">外观与显示</h2>
                         </div>
 
                         {/* 主题切换 */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-xl transition-colors ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-orange-100 text-orange-500'}`}>
-                                    {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-                                </div>
+                                {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                                 <div>
                                     <p className="text-sm font-medium text-foreground">深色模式</p>
                                     <p className="text-xs text-foreground-secondary">
@@ -284,9 +275,7 @@ export default function SettingsPage() {
                         {/* 语言设置 */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-blue-100 text-blue-500">
-                                    <Globe className="w-5 h-5" />
-                                </div>
+                                <Globe className="w-5 h-5" />
                                 <div>
                                     <p className="text-sm font-medium text-foreground">界面语言</p>
                                     <p className="text-xs text-foreground-secondary">选择您偏好的显示语言</p>
@@ -309,7 +298,6 @@ export default function SettingsPage() {
                     {/* AI 设置 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-3">
                         <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <span className="p-1 bg-emerald-500/10 rounded text-emerald-500"><Sparkles className="w-3.5 h-3.5" /></span>
                             <h2 className="text-sm font-bold text-foreground">AI 设置</h2>
                         </div>
                         <button
@@ -335,9 +323,7 @@ export default function SettingsPage() {
                                 }`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 group-hover:scale-110 transition-transform">
-                                    <BookOpenText className="w-4 h-4" />
-                                </div>
+                                <BookOpenText className="w-4.5 h-4.5" />
                                 <div>
                                     <p className="text-sm font-medium text-foreground group-hover:text-emerald-500 transition-colors">知识库管理{membershipType === 'free' ? ' (Plus+)' : ''}</p>
                                     <p className="text-xs text-foreground-secondary mt-0.5">
@@ -352,7 +338,6 @@ export default function SettingsPage() {
                     {/* 通知与提醒 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
                         <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <span className="p-1 bg-red-500/10 rounded text-red-500"><Bell className="w-3.5 h-3.5" /></span>
                             <h2 className="text-sm font-bold text-foreground">通知与提醒</h2>
                         </div>
 
@@ -414,7 +399,6 @@ export default function SettingsPage() {
                     {/* 侧边栏自定义 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                            <span className="p-1 bg-blue-500/10 rounded text-blue-500"><PanelLeft className="w-3.5 h-3.5" /></span>
                             <h2 className="text-sm font-bold text-foreground">界面自定义</h2>
                         </div>
                         <SidebarCustomizer userId={userId} />
@@ -423,7 +407,6 @@ export default function SettingsPage() {
                     {/* 隐私与安全 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                            <span className="p-1 bg-green-500/10 rounded text-green-500"><Shield className="w-3.5 h-3.5" /></span>
                             <h2 className="text-sm font-bold text-foreground">隐私与安全</h2>
                         </div>
 

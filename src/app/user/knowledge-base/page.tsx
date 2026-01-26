@@ -399,9 +399,7 @@ export default function KnowledgeBaseManagePage() {
                     {/* 创建新知识库 */}
                     <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                                <Plus className="w-4 h-4 text-emerald-500" />
-                            </div>
+                            <Plus className="w-4 h-4 text-emerald-500" />
                             <h2 className="text-sm font-semibold text-foreground">新建知识库</h2>
                         </div>
                         <div className="space-y-3">
@@ -434,9 +432,7 @@ export default function KnowledgeBaseManagePage() {
                     {/* 上传文件 */}
                     <div className="bg-background rounded-2xl p-5 border border-border shadow-sm lg:col-span-2">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                                <Upload className="w-4 h-4 text-blue-500" />
-                            </div>
+                            <Upload className="w-4 h-4 text-blue-500" />
                             <h2 className="text-sm font-semibold text-foreground">导入外部资料</h2>
                         </div>
                         <div className="grid sm:grid-cols-2 gap-5">
@@ -539,9 +535,7 @@ export default function KnowledgeBaseManagePage() {
                                             {/* KB Info & Edit */}
                                             <div className="flex-1 space-y-3 min-w-0">
                                                 <div className="flex items-start gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 flex items-center justify-center flex-shrink-0 border border-emerald-500/10">
-                                                        <BookOpenText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                                                    </div>
+                                                    <BookOpenText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                                                     <div className="flex-1 space-y-2 min-w-0">
                                                         <input
                                                             value={kb.name}
@@ -566,7 +560,7 @@ export default function KnowledgeBaseManagePage() {
                                                     <select
                                                         value={kb.weight}
                                                         onChange={(e) => setKbs(prev => prev.map(x => x.id === kb.id ? { ...x, weight: e.target.value as KnowledgeBase['weight'] } : x))}
-                                                        className="bg-transparent text-[10px] font-medium px-2 py-1 rounded focus:outline-none hover:bg-background-secondary transition-colors cursor-pointer"
+                                                        className="bg-transparent text-xs font-medium px-2 py-1 rounded focus:outline-none hover:bg-background-secondary transition-colors cursor-pointer"
                                                     >
                                                         <option value="low">{weightLabel.low}</option>
                                                         <option value="normal">{weightLabel.normal}</option>
@@ -577,7 +571,7 @@ export default function KnowledgeBaseManagePage() {
                                                 <button
                                                     onClick={() => togglePromptKb(kb.id)}
                                                     disabled={membershipType === 'free'}
-                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                                                         promptKbIds.includes(kb.id)
                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                                         : 'bg-background border-border text-foreground-secondary hover:text-foreground'

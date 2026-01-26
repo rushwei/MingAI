@@ -12,9 +12,11 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    DragOverlay,
     useSensor,
     useSensors,
     type DragEndEvent,
+    type DragStartEvent,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -93,8 +95,9 @@ function SortableItem({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: isDragging ? undefined : transition,
         zIndex: isDragging ? 10 : undefined,
+        willChange: 'transform',
     };
 
     const Icon = item.icon;
@@ -103,7 +106,7 @@ function SortableItem({
         <div
             ref={setNodeRef}
             style={style}
-            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isDragging
+            className={`flex items-center justify-between p-3 rounded-xl border transition-all select-none ${isDragging
                     ? 'bg-accent/10 border-accent shadow-lg scale-[1.02]'
                     : isHidden
                         ? 'bg-background-secondary/50 border-border/50 opacity-60'
@@ -140,6 +143,25 @@ function SortableItem({
     );
 }
 
+function DragOverlayItem({
+    item,
+}: {
+    item: { id: string; label: string; icon: LucideIcon };
+}) {
+    const Icon = item.icon;
+    return (
+        <div className="flex items-center justify-between p-3 rounded-xl border bg-background shadow-xl border-accent/40 select-none">
+            <div className="flex items-center gap-3">
+                <span className="p-1 rounded bg-background-secondary">
+                    <GripVertical className="w-4 h-4 text-foreground-secondary" />
+                </span>
+                <Icon className="w-4 h-4 text-foreground-secondary" />
+                <span className="text-sm font-medium">{item.label}</span>
+            </div>
+        </div>
+    );
+}
+
 interface SidebarCustomizerProps {
     userId: string | null;
 }
@@ -148,11 +170,13 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
     const { config, setConfig, saveConfig, loading } = useSidebarConfigSafe();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [activeNavId, setActiveNavId] = useState<string | null>(null);
+    const [activeToolId, setActiveToolId] = useState<string | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 4,
             },
         }),
         useSensor(KeyboardSensor, {
@@ -172,6 +196,10 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         });
     }, [config.navOrder]);
 
+    const navItemMap = useMemo(() => {
+        return new Map(ALL_NAV_ITEMS.map(item => [item.id, item]));
+    }, []);
+
     const sortedToolItems = useMemo(() => {
         return [...ALL_TOOL_ITEMS].sort((a, b) => {
             const orderA = config.toolOrder?.indexOf(a.id) ?? -1;
@@ -182,6 +210,10 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
             return orderA - orderB;
         });
     }, [config.toolOrder]);
+
+    const toolItemMap = useMemo(() => {
+        return new Map(ALL_TOOL_ITEMS.map(item => [item.id, item]));
+    }, []);
 
     const handleSave = async (newConfig: SidebarConfig) => {
         if (!userId) return;
@@ -199,6 +231,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
 
     const handleNavDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveNavId(null);
         if (!over || active.id === over.id) return;
 
         const oldOrder = config.navOrder || ALL_NAV_ITEMS.map(i => i.id);
@@ -215,6 +248,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
 
     const handleToolDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveToolId(null);
         if (!over || active.id === over.id) return;
 
         const oldOrder = config.toolOrder || ALL_TOOL_ITEMS.map(i => i.id);
@@ -261,6 +295,14 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         await handleSave(defaultConfig);
     };
 
+    const handleNavDragStart = (event: DragStartEvent) => {
+        setActiveNavId(event.active.id as string);
+    };
+
+    const handleToolDragStart = (event: DragStartEvent) => {
+        setActiveToolId(event.active.id as string);
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-8">
@@ -298,7 +340,9 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    onDragStart={handleNavDragStart}
                     onDragEnd={handleNavDragEnd}
+                    onDragCancel={() => setActiveNavId(null)}
                 >
                     <SortableContext
                         items={sortedNavItems.map(i => i.id)}
@@ -315,6 +359,11 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                             ))}
                         </div>
                     </SortableContext>
+                    <DragOverlay>
+                        {activeNavId && navItemMap.get(activeNavId) ? (
+                            <DragOverlayItem item={navItemMap.get(activeNavId)!} />
+                        ) : null}
+                    </DragOverlay>
                 </DndContext>
             </div>
 
@@ -324,7 +373,9 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    onDragStart={handleToolDragStart}
                     onDragEnd={handleToolDragEnd}
+                    onDragCancel={() => setActiveToolId(null)}
                 >
                     <SortableContext
                         items={sortedToolItems.map(i => i.id)}
@@ -341,6 +392,11 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                             ))}
                         </div>
                     </SortableContext>
+                    <DragOverlay>
+                        {activeToolId && toolItemMap.get(activeToolId) ? (
+                            <DragOverlayItem item={toolItemMap.get(activeToolId)!} />
+                        ) : null}
+                    </DragOverlay>
                 </DndContext>
             </div>
         </div>

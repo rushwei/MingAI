@@ -306,9 +306,7 @@ export default function AISettingsPage() {
                         {/* 个人档案 */}
                         <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                                    <User className="w-4 h-4 text-amber-500" />
-                                </div>
+                                <User className="w-4 h-4 text-amber-500" />
                                 <h2 className="text-sm font-semibold text-foreground">关于你</h2>
                             </div>
                             
@@ -349,9 +347,7 @@ export default function AISettingsPage() {
                         {/* 对话设置 */}
                         <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                                    <MessageSquare className="w-4 h-4 text-blue-500" />
-                                </div>
+                                <MessageSquare className="w-4 h-4 text-blue-500" />
                                 <h2 className="text-sm font-semibold text-foreground">对话设置</h2>
                             </div>
                             
@@ -440,7 +436,7 @@ export default function AISettingsPage() {
                         <div className="bg-background rounded-3xl p-6 border border-border shadow-sm sticky top-6">
                             <div className="flex items-center gap-3 mb-6">
                                 <Eye className="w-5 h-5 text-accent" />
-                                <h2 className="text-lg font-semibold text-foreground">Prompt 实时预览</h2>
+                                <h2 className="text-lg font-semibold text-foreground">上下文实时预览</h2>
                             </div>
 
                             <div className="space-y-6">
@@ -467,7 +463,7 @@ export default function AISettingsPage() {
                                             ))}
                                         </div>
                                     )}
-                                    <div className="mt-3 text-[11px] text-foreground-tertiary">
+                                    <div className="mt-3 text-[10px] text-foreground-tertiary">
                                         启用大量提示词会损失算命精确度
                                     </div>
                                 </div>

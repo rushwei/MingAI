@@ -807,7 +807,7 @@ export function ChatComposer({
                                     <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-background border border-border px-2 py-1 text-xs text-foreground-secondary opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                                         {promptPreviewLoading
                                             ? '正在加载预览'
-                                            : `Prompt 消耗 ${promptPreviewTokens}/${promptPreviewBudget}`}
+                                            : `上下文消耗 ${promptPreviewTokens}/${promptPreviewBudget}`}
                                     </div>
                                 </div>
                             </div>
