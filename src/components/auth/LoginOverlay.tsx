@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { LogIn, Lock } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { supabase } from '@/lib/supabase';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 interface LoginOverlayProps {
     children: React.ReactNode;
@@ -15,23 +15,12 @@ interface LoginOverlayProps {
  * 未登录时显示模糊内容并提示登录
  */
 export function LoginOverlay({ children, message = '登录后查看完整内容' }: LoginOverlayProps) {
-    const [user, setUser] = useState<boolean | null>(null); // null = loading
     const [showAuthModal, setShowAuthModal] = useState(false);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(!!session?.user);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_, session) => setUser(!!session?.user)
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
+    const { user, loading } = useSessionSafe();
+    const isAuthed = !!user;
 
     // 加载中或已登录，直接显示内容
-    if (user === null || user === true) {
+    if (loading || isAuthed) {
         return <>{children}</>;
     }
 

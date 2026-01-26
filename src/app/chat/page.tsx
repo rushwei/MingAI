@@ -18,6 +18,7 @@ import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { BaziChartSelector, type SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import {
     loadConversations,
@@ -59,13 +60,15 @@ export default function ChatPage() {
     // 对话管理状态
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
+    const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const { user, loading: sessionLoading } = useSessionSafe();
 
     // 消息状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -101,6 +104,12 @@ export default function ChatPage() {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        setSidebarOpen(window.innerWidth < 1024);
+        setSidebarCollapsed(window.innerWidth >= 1024);
+    }, []);
 
     const handleArchiveMessage = useCallback((message: ChatMessage) => {
         if (!activeConversationId) return;
@@ -154,26 +163,66 @@ export default function ChatPage() {
         if (!id) return;
         const list = await loadConversations(id);
         setConversations(list);
+        setHasLoadedConversations(true);
         if (activeConversationId && !list.find(c => c.id === activeConversationId)) {
             setActiveConversationId(null);
             setMessages([]);
         }
     }, [activeConversationId, userId]);
 
+    const triggerConversationListLoad = useCallback((source: 'idle' | 'interaction') => {
+        if (hasLoadedConversations || !userId) return;
+        setConversationsLoading(true);
+        void refreshConversationList(userId).finally(() => {
+            setConversationsLoading(false);
+            if (source === 'interaction') {
+                setHasLoadedConversations(true);
+            }
+        });
+    }, [hasLoadedConversations, refreshConversationList, userId]);
+
     // 获取用户ID并加载对话列表
     useEffect(() => {
+        let isActive = true;
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                setUserId(session.user.id);
-                await refreshConversationList(session.user.id);
-                await refreshMembership(session.user.id);
-                await refreshPromptKnowledgeBases(session.user.id);
+            if (sessionLoading) return;
+            if (!user) {
+                if (!isActive) return;
+                setUserId(null);
+                setConversations([]);
+                setMessages([]);
+                setActiveConversationId(null);
+                setConversationsLoading(false);
+                setHasLoadedConversations(false);
+                return;
             }
+            setUserId(user.id);
+            await refreshMembership(user.id);
+            await refreshPromptKnowledgeBases(user.id);
+            if (!isActive) return;
             setConversationsLoading(false);
+            const idleCallback = (cb: () => void) => {
+                if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+                    (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb);
+                    return;
+                }
+                setTimeout(cb, 1200);
+            };
+            idleCallback(() => {
+                if (!isActive) return;
+                triggerConversationListLoad('idle');
+            });
         };
-        init();
-    }, [refreshConversationList, refreshMembership, refreshPromptKnowledgeBases]);
+        void init();
+        return () => {
+            isActive = false;
+        };
+    }, [refreshMembership, refreshPromptKnowledgeBases, sessionLoading, user, triggerConversationListLoad]);
+
+    useEffect(() => {
+        if (!sidebarOpen) return;
+        triggerConversationListLoad('interaction');
+    }, [sidebarOpen, triggerConversationListLoad]);
 
     useEffect(() => {
         const handler = (event: Event) => {
@@ -912,6 +961,7 @@ export default function ChatPage() {
                     isCollapsed={sidebarCollapsed}
                     onCollapse={setSidebarCollapsed}
                     isLoading={conversationsLoading}
+                    hasLoaded={hasLoadedConversations}
                 />
 
                 {/* 主内容区 */}

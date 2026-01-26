@@ -19,6 +19,7 @@ interface ConversationSidebarProps {
     isCollapsed?: boolean;
     onCollapse?: (collapsed: boolean) => void;
     onToggle?: (isOpen: boolean) => void;
+    hasLoaded?: boolean;
 }
 
 // 分组配置 - 图标与 fortune-hub 保持一致
@@ -56,6 +57,7 @@ export function ConversationSidebar({
     isCollapsed: externalCollapsed,
     onCollapse,
     onToggle,
+    hasLoaded = true,
 }: ConversationSidebarProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -320,10 +322,23 @@ export function ConversationSidebar({
                     {/* 分组对话列表 - 仅在展开状态显示 */}
                     {!isCollapsed && (
                         <div className="flex-1 overflow-y-auto px-2 pb-2">
-                            {isLoading ? (
+                            {!hasLoaded || isLoading ? (
                                 <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>加载中...</span>
+                                    {hasLoaded ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <span>加载中...</span>
+                                        </>
+                                    ) : (
+                                        <div className="w-full px-3 space-y-3">
+                                            <div className="h-4 w-24 rounded-md bg-background-secondary animate-pulse" />
+                                            <div className="space-y-2">
+                                                <div className="h-9 rounded-lg bg-background-secondary animate-pulse" />
+                                                <div className="h-9 rounded-lg bg-background-secondary animate-pulse" />
+                                                <div className="h-9 rounded-lg bg-background-secondary animate-pulse" />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : conversations.length === 0 ? (
                                 <div className="text-center text-foreground-secondary text-sm py-8">

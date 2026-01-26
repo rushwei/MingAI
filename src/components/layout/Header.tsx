@@ -8,7 +8,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -32,8 +32,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { AuthModal } from '../auth/AuthModal';
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@/lib/supabase';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 // 路由到品牌信息的映射（移动端顶栏动态显示）
 // icon 为 null 时表示仅显示文字，不显示图标
@@ -76,27 +75,11 @@ const ROUTE_BRANDING: RouteBranding[] = [
 
 export function Header() {
     const pathname = usePathname();
-    const [user, setUser] = useState<SupabaseUser | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const { user } = useSessionSafe();
 
     // 根据当前路由获取品牌信息
     const currentBranding = ROUTE_BRANDING.find(item => pathname?.startsWith(item.prefix));
-
-    useEffect(() => {
-        // 使用 getSession 从本地缓存读取（比 getUser 快得多）
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-        });
-
-        // 监听认证状态变化
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
-                setUser(session?.user ?? null);
-            }
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     return (
         <>

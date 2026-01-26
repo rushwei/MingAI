@@ -20,7 +20,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { KeyActivationModal } from '@/components/membership/KeyActivationModal';
 import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
 import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
-import type { User as SupabaseUser } from '@/lib/supabase';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 interface PurchaseLinks {
     plus?: string;
@@ -29,7 +29,7 @@ interface PurchaseLinks {
 }
 
 export default function UpgradePage() {
-    const [user, setUser] = useState<SupabaseUser | null>(null);
+    const { user, loading: sessionLoading } = useSessionSafe();
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -57,25 +57,17 @@ export default function UpgradePage() {
 
     useEffect(() => {
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                await refreshMembership(session.user.id);
+            if (sessionLoading) return;
+            if (user) {
+                await refreshMembership(user.id);
+            } else {
+                setMembership(null);
             }
             await fetchPurchaseLinks();
             setLoading(false);
         };
-        init();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                await refreshMembership(session.user.id);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+        void init();
+    }, [sessionLoading, user]);
 
     const handleSelectPlan = (plan: PricingPlan) => {
         if (!user) {

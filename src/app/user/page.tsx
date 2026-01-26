@@ -61,6 +61,10 @@ const membershipLabels: Record<string, string> = {
     pro: 'Pro',
 };
 
+const Skeleton = ({ className }: { className: string }) => (
+    <div className={`animate-pulse bg-background-secondary ${className}`} />
+);
+
 type ProfileSnapshot = {
     nickname: string | null;
     avatar_url: string | null;
@@ -444,17 +448,8 @@ export default function UserPage() {
         }
     };
 
-    // 加载状态
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
-            </div>
-        );
-    }
-
     // 未登录状态
-    if (!user) {
+    if (!user && !loading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
                 <div className="text-center py-16">
@@ -489,12 +484,30 @@ export default function UserPage() {
         );
     }
 
+    if (!user && loading) {
+        return (
+            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+                <div className="text-center py-16">
+                    <Skeleton className="w-20 h-20 rounded-full mx-auto mb-6" />
+                    <Skeleton className="h-6 w-40 rounded-lg mx-auto mb-3" />
+                    <Skeleton className="h-4 w-56 rounded-md mx-auto mb-8" />
+                    <Skeleton className="h-11 w-40 rounded-xl mx-auto" />
+                </div>
+                <Skeleton className="h-3 w-24 rounded-md mx-auto mt-6" />
+            </div>
+        );
+    }
+
+    const isProfileLoading = loading && !profile;
+    const isMembershipLoading = loading && !membership;
+    const isLevelLoading = loading && !level;
     const displayName = profile?.nickname
-        || (user.user_metadata?.nickname as string | undefined)
+        || (user?.user_metadata?.nickname as string | undefined)
         || '命理爱好者';
     const avatarUrl = profile?.avatar_url
-        || (user.user_metadata?.avatar_url as string | undefined)
+        || (user?.user_metadata?.avatar_url as string | undefined)
         || null;
+    const userEmail = user?.email ?? '';
     const isAdmin = profile?.is_admin ?? false;
     const membershipLabel = membership?.type
         ? membershipLabels[membership.type]
@@ -524,7 +537,9 @@ export default function UserPage() {
             <div className="bg-background rounded-2xl p-4 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-background flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
-                        {avatarUrl ? (
+                        {isProfileLoading ? (
+                            <Skeleton className="w-full h-full rounded-full" />
+                        ) : avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
                         ) : (
@@ -532,20 +547,36 @@ export default function UserPage() {
                         )}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-lg font-bold truncate">{displayName}</h1>
-                        <p className="text-sm text-foreground-secondary truncate">{user.email}</p>
-                        {expiryText && (
+                        {isProfileLoading ? (
+                            <>
+                                <Skeleton className="h-5 w-28 rounded-md" />
+                                <Skeleton className="h-4 w-40 rounded-md mt-2" />
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-lg font-bold truncate">{displayName}</h1>
+                                <p className="text-sm text-foreground-secondary truncate">{userEmail}</p>
+                            </>
+                        )}
+                        {!isMembershipLoading && expiryText && (
                             <p className="text-xs text-foreground-secondary mt-0.5">{expiryText}</p>
                         )}
+                        {isMembershipLoading && (
+                            <Skeleton className="h-3 w-24 rounded-md mt-2" />
+                        )}
                     </div>
-                    <span className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
-                        ? 'bg-purple-500/10 text-purple-500'
-                        : membership?.type === 'plus'
-                            ? 'bg-amber-500/10 text-amber-500'
-                            : 'bg-gray-500/10 text-gray-500'
-                        }`}>
-                        {membershipLabel}
-                    </span>
+                    {isMembershipLoading ? (
+                        <Skeleton className="h-7 w-16 rounded-xl flex-shrink-0" />
+                    ) : (
+                        <span className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
+                            ? 'bg-purple-500/10 text-purple-500'
+                            : membership?.type === 'plus'
+                                ? 'bg-amber-500/10 text-amber-500'
+                                : 'bg-gray-500/10 text-gray-500'
+                            }`}>
+                            {membershipLabel}
+                        </span>
+                    )}
                 </div>
 
                 {/* 经验进度条 */}
@@ -568,9 +599,21 @@ export default function UserPage() {
                         </div>
                     </div>
                 )}
+                {!level && isLevelLoading && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                        <div className="flex items-center justify-between mb-2">
+                            <Skeleton className="h-4 w-24 rounded-md" />
+                            <Skeleton className="h-3 w-20 rounded-md" />
+                        </div>
+                        <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                )}
 
                 {/* 升级会员入口 */}
-                {membership?.type === 'free' && (
+                {isMembershipLoading && (
+                    <Skeleton className="h-11 w-full rounded-xl mt-4" />
+                )}
+                {!isMembershipLoading && membership?.type === 'free' && (
                     isPaymentPaused ? (
                         <div className="w-full mt-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 font-medium transition-colors flex items-center justify-center gap-2 cursor-not-allowed">
                             <span>升级会员，解锁全部功能</span>

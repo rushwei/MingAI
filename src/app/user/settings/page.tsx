@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 interface Settings {
     notifications: boolean;
@@ -28,12 +29,14 @@ function ReminderToggle({
     type,
     label,
     description,
-    userId
+    userId,
+    accessToken
 }: {
     type: string;
     label: string;
     description: string;
     userId: string | null;
+    accessToken: string | null;
 }) {
     const [enabled, setEnabled] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -41,11 +44,10 @@ function ReminderToggle({
     const fetchStatus = useCallback(async () => {
         if (!userId) return;
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
+            if (!accessToken) return;
 
             const res = await fetch('/api/reminders', {
-                headers: { Authorization: `Bearer ${session.access_token}` },
+                headers: { Authorization: `Bearer ${accessToken}` },
             });
             const data = await res.json();
             if (data.success) {
@@ -57,7 +59,7 @@ function ReminderToggle({
         } finally {
             setLoading(false);
         }
-    }, [userId, type]);
+    }, [accessToken, userId, type]);
 
     useEffect(() => {
         fetchStatus();
@@ -69,13 +71,12 @@ function ReminderToggle({
         setEnabled(newEnabled);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
+            if (!accessToken) return;
 
             await fetch('/api/reminders', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${session.access_token}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
@@ -119,6 +120,7 @@ function ReminderToggle({
 export default function SettingsPage() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
+    const { user, session, loading: sessionLoading } = useSessionSafe();
     const [loading, setLoading] = useState(true);
     const [settings, setSettings] = useState<Settings>({
         notifications: true,
@@ -129,21 +131,20 @@ export default function SettingsPage() {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-
-            if (!session?.user) {
+            if (sessionLoading) return;
+            if (!user) {
                 router.push('/user');
                 return;
             }
 
-            setUserId(session.user.id);
-            const membership = await getMembershipInfo(session.user.id);
+            setUserId(user.id);
+            const membership = await getMembershipInfo(user.id);
             setMembershipType(membership?.type || 'free');
 
             const { data, error } = await supabase
                 .from('user_settings')
                 .select('notifications_enabled, notify_email, notify_site, language')
-                .eq('user_id', session.user.id)
+                .eq('user_id', user.id)
                 .maybeSingle();
 
             if (error) {
@@ -152,7 +153,7 @@ export default function SettingsPage() {
 
             if (!data) {
                 const defaults = {
-                    user_id: session.user.id,
+                    user_id: user.id,
                     notifications_enabled: true,
                     notify_email: true,
                     notify_site: true,
@@ -180,7 +181,7 @@ export default function SettingsPage() {
         };
 
         checkAuth();
-    }, [router]);
+    }, [router, sessionLoading, user]);
 
     const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
         if (!userId) return;
@@ -377,6 +378,7 @@ export default function SettingsPage() {
                                     label="节气提醒"
                                     description="每个节气当天收到养生建议"
                                     userId={userId}
+                                    accessToken={session?.access_token || null}
                                 />
                                 <div className="h-px bg-border/50" />
                                 <ReminderToggle
@@ -384,6 +386,7 @@ export default function SettingsPage() {
                                     label="运势提醒"
                                     description="每日运势变化提醒"
                                     userId={userId}
+                                    accessToken={session?.access_token || null}
                                 />
                                 <div className="h-px bg-border/50" />
                                 <ReminderToggle
@@ -391,6 +394,7 @@ export default function SettingsPage() {
                                     label="关键日提醒"
                                     description="重要日期（如本命年）提醒"
                                     userId={userId}
+                                    accessToken={session?.access_token || null}
                                 />
                             </div>
                         </div>

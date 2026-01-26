@@ -32,13 +32,12 @@ import {
     Tags,
     CalendarCheck,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { SidebarUserCard } from './UserMenu';
 import { useSidebarSafe } from './SidebarContext';
 import { useSidebarConfigSafe } from './SidebarConfigContext';
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@/lib/supabase';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 // 导航项配置
 const navItems = [
@@ -129,7 +128,7 @@ export function Sidebar() {
     const { collapsed, setCollapsed } = useSidebarSafe();
     const { config: sidebarConfig } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
-    const [user, setUser] = useState<SupabaseUser | null>(null);
+    const { user } = useSessionSafe();
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     // 切换折叠状态
@@ -137,21 +136,6 @@ export function Sidebar() {
         setCollapsed(newState);
         setIsHoveringLogo(false);
     };
-
-    // 获取用户状态
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
-                setUser(session?.user ?? null);
-            }
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     // 根据配置过滤并排序导航项
     const filteredNavItems = navItems

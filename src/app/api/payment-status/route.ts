@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaymentsPaused, setPaymentsPaused } from "@/lib/app-settings";
-import { getAuthContext, requireAdminUser } from "@/lib/api-utils";
+import { requireAdminUser } from "@/lib/api-utils";
 import { createMemoryCache } from "@/lib/cache";
 
 const CACHE_TTL_MS = 30_000;
@@ -9,7 +9,6 @@ const pausedCache = createMemoryCache<boolean>(CACHE_TTL_MS);
 export async function GET(request: NextRequest) {
     const perfEnabled = new URL(request.url).searchParams.get('perf') === '1';
     const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    await getAuthContext(request);
     const cached = pausedCache.get('status');
     if (cached !== null) {
         if (perfEnabled) {

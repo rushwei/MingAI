@@ -8,6 +8,8 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
 export interface SidebarConfig {
     hiddenNavItems: string[];
@@ -23,6 +25,9 @@ const DEFAULT_CONFIG: SidebarConfig = {
     toolOrder: ['checkin', 'chat', 'daily', 'monthly', 'records', 'community'],
 };
 
+const getSidebarCacheKey = (userId: string) => `mingai.sidebar_config.${userId}`;
+const SIDEBAR_CACHE_TTL = 10 * 60 * 1000;
+
 interface SidebarConfigContextType {
     config: SidebarConfig;
     setConfig: (config: SidebarConfig) => void;
@@ -36,66 +41,66 @@ const SidebarConfigContext = createContext<SidebarConfigContextType | undefined>
 
 export function SidebarConfigProvider({ children }: { children: ReactNode }) {
     const [config, setConfigState] = useState<SidebarConfig>(DEFAULT_CONFIG);
-    const [loading, setLoading] = useState(true);
+    const [configLoading, setConfigLoading] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const { user, loading: sessionLoading } = useSessionSafe();
 
     // 加载用户配置
     useEffect(() => {
-        const loadConfig = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) {
-                setLoading(false);
+        let isActive = true;
+
+        const syncConfig = async (nextUser: typeof user) => {
+            if (!nextUser) {
+                setUserId(null);
+                setConfigState(DEFAULT_CONFIG);
+                setConfigLoading(false);
                 return;
             }
 
-            setUserId(session.user.id);
-
+            setUserId(nextUser.id);
+            const cached = readLocalCache<SidebarConfig>(getSidebarCacheKey(nextUser.id), SIDEBAR_CACHE_TTL);
+            if (cached) {
+                setConfigState({
+                    hiddenNavItems: cached.hiddenNavItems || [],
+                    hiddenToolItems: cached.hiddenToolItems || [],
+                    navOrder: cached.navOrder || DEFAULT_CONFIG.navOrder,
+                    toolOrder: cached.toolOrder || DEFAULT_CONFIG.toolOrder,
+                });
+                setConfigLoading(false);
+            } else {
+                setConfigLoading(true);
+            }
             const { data } = await supabase
                 .from('user_settings')
                 .select('sidebar_config')
-                .eq('user_id', session.user.id)
+                .eq('user_id', nextUser.id)
                 .maybeSingle();
 
+            if (!isActive) return;
+
             if (data?.sidebar_config) {
-                setConfigState({
+                const nextConfig = {
                     hiddenNavItems: data.sidebar_config.hiddenNavItems || [],
                     hiddenToolItems: data.sidebar_config.hiddenToolItems || [],
                     navOrder: data.sidebar_config.navOrder || DEFAULT_CONFIG.navOrder,
                     toolOrder: data.sidebar_config.toolOrder || DEFAULT_CONFIG.toolOrder,
-                });
+                };
+                setConfigState(nextConfig);
+                writeLocalCache(getSidebarCacheKey(nextUser.id), nextConfig);
+            } else {
+                setConfigState(DEFAULT_CONFIG);
             }
-            setLoading(false);
+            setConfigLoading(false);
         };
 
-        loadConfig();
+        if (!sessionLoading) {
+            void syncConfig(user ?? null);
+        }
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
-                if (session?.user) {
-                    setUserId(session.user.id);
-                    const { data } = await supabase
-                        .from('user_settings')
-                        .select('sidebar_config')
-                        .eq('user_id', session.user.id)
-                        .maybeSingle();
-
-                    if (data?.sidebar_config) {
-                        setConfigState({
-                            hiddenNavItems: data.sidebar_config.hiddenNavItems || [],
-                            hiddenToolItems: data.sidebar_config.hiddenToolItems || [],
-                            navOrder: data.sidebar_config.navOrder || DEFAULT_CONFIG.navOrder,
-                            toolOrder: data.sidebar_config.toolOrder || DEFAULT_CONFIG.toolOrder,
-                        });
-                    }
-                } else {
-                    setUserId(null);
-                    setConfigState(DEFAULT_CONFIG);
-                }
-            }
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
+        return () => {
+            isActive = false;
+        };
+    }, [sessionLoading, user]);
 
     const setConfig = useCallback((newConfig: SidebarConfig) => {
         setConfigState(newConfig);
@@ -121,7 +126,7 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
             setConfig,
             updateConfig,
             saveConfig,
-            loading,
+            loading: sessionLoading || configLoading,
             userId,
         }}>
             {children}
