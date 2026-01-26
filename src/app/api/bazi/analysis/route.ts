@@ -139,6 +139,10 @@ export async function POST(request: NextRequest) {
         );
 
         if (!content) {
+            if (creditDeducted && userId) {
+                await addCredits(userId, 1);
+                creditDeducted = false;
+            }
             return NextResponse.json(
                 { error: '分析结果为空' },
                 { status: 500 }

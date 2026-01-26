@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
             expiresAt.setMonth(expiresAt.getMonth() + 1);
         } else if (planId === 'pro') {
             expiresAt = new Date();
-            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
         }
 
         // [MVP] 模拟支付：创建已支付订单

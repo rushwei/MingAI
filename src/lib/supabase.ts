@@ -26,7 +26,7 @@ export type Database = {
                     id: string;
                     nickname: string | null;
                     avatar_url: string | null;
-                    membership: 'free' | 'single' | 'monthly' | 'yearly';
+                    membership: 'free' | 'plus' | 'pro';
                     membership_expires_at: string | null;
                     ai_chat_count: number;
                     is_admin: boolean;
@@ -37,7 +37,7 @@ export type Database = {
                     id: string;
                     nickname?: string | null;
                     avatar_url?: string | null;
-                    membership?: 'free' | 'single' | 'monthly' | 'yearly';
+                    membership?: 'free' | 'plus' | 'pro';
                     membership_expires_at?: string | null;
                     ai_chat_count?: number;
                     is_admin?: boolean;
@@ -45,7 +45,7 @@ export type Database = {
                 Update: {
                     nickname?: string | null;
                     avatar_url?: string | null;
-                    membership?: 'free' | 'single' | 'monthly' | 'yearly';
+                    membership?: 'free' | 'plus' | 'pro';
                     membership_expires_at?: string | null;
                     ai_chat_count?: number;
                     is_admin?: boolean;
@@ -159,7 +159,7 @@ export type Database = {
                 Row: {
                     id: string;
                     user_id: string | null;
-                    product_type: 'single' | 'monthly' | 'yearly';
+                    product_type: 'plus' | 'pro' | 'pay_per_use';
                     amount: number;
                     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
                     payment_method: string | null;
@@ -169,7 +169,7 @@ export type Database = {
                 Insert: {
                     id?: string;
                     user_id?: string | null;
-                    product_type: 'single' | 'monthly' | 'yearly';
+                    product_type: 'plus' | 'pro' | 'pay_per_use';
                     amount: number;
                     status?: 'pending' | 'paid' | 'cancelled' | 'refunded';
                     payment_method?: string | null;

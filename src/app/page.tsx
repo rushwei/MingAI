@@ -111,8 +111,8 @@ const membershipBenefits = [
   },
   {
     tier: "Pro",
-    price: "¥299",
-    period: "/年",
+    price: "¥99",
+    period: "/月",
     icon: Infinity,
     color: "text-amber-500",
     borderColor: "border-amber-500/50",

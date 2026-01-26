@@ -167,16 +167,24 @@ export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
     restored: number;
 }> {
     const supabase = getServiceRoleClient();
+    const nowIso = new Date().toISOString();
 
     // 根据周期选择需要处理的会员类型
-    const membershipTypes = period === 'daily'
-        ? ['free', 'plus']
-        : ['pro'];
-
-    const { data: users, error } = await supabase
+    let query = supabase
         .from('users')
-        .select('id')
-        .in('membership', membershipTypes);
+        .select('id, membership, membership_expires_at');
+
+    if (period === 'hourly') {
+        query = query
+            .eq('membership', 'pro')
+            .or(`membership_expires_at.is.null,membership_expires_at.gt.${nowIso}`);
+    } else {
+        query = query.or(
+            `membership.in.(free,plus),and(membership.eq.pro,membership_expires_at.lte.${nowIso})`
+        );
+    }
+
+    const { data: users, error } = await query;
 
     if (error || !users) {
         console.error('[credits] Failed to fetch users for restore:', error?.message);
