@@ -228,7 +228,13 @@ export const AI_MODELS = buildModels();
  * 获取模型配置
  */
 export function getModelConfig(modelId: string): AIModelConfig | undefined {
-    return getModels().find(m => m.id === modelId);
+    const models = getModels();
+    const direct = models.find(m => m.id === modelId);
+    if (direct) return direct;
+    if (modelId === 'deepseek-chat' || modelId === 'deepseek') {
+        return models.find(m => m.id === 'deepseek-v3');
+    }
+    return undefined;
 }
 
 /**
@@ -255,7 +261,7 @@ export function getAllVendors(): AIVendor[] {
 /**
  * 默认模型
  */
-export const DEFAULT_MODEL_ID = 'deepseek-chat';
+export const DEFAULT_MODEL_ID = 'deepseek-v3';
 
 /**
  * 模型名称映射（用于 UI 显示和消息记录）

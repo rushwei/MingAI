@@ -111,7 +111,7 @@ export async function buildPersonalizedPrompt(context: PromptContext): Promise<P
     const budget = calculatePromptBudget(context.modelId);
     const layers: PromptLayer[] = [
         { id: 'master_rules', priority: 0, maxTokens: 800, content: getMasterSystemPrompt(), canTruncate: false, canDrop: false },
-        { id: 'mentioned_data', priority: 1, maxTokens: Math.min(2000, Math.floor(budget * 0.4)), content: '', canTruncate: true, canDrop: false },
+        { id: 'mentioned_data', priority: 1, maxTokens: budget, content: '', canTruncate: true, canDrop: false },
         { id: 'knowledge_hits', priority: 1, maxTokens: Math.min(1500, Math.floor(budget * 0.3)), content: '', canTruncate: true, canDrop: false },
         { id: 'expression_style', priority: 2, maxTokens: 100, content: formatExpressionStyle(context.userSettings.expressionStyle), canTruncate: false, canDrop: true },
         { id: 'user_profile', priority: 2, maxTokens: 300, content: formatUserProfile(context.userSettings.userProfile), canTruncate: true, canDrop: true },
@@ -243,7 +243,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         layersResult.push({ id: layer.id, included: true, tokens, truncated: false });
     }
 
-    const mentionLayerBudget = Math.min(2000, Math.floor(budget * 0.4));
+    const mentionLayerBudget = budget;
     const mentionItems = context.mentions
         .filter(m => m.id && m.resolvedContent)
         .map(m => ({
@@ -268,7 +268,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         layersResult.push({ id: 'mentioned_data', included: false, tokens: 0, truncated: false });
     }
 
-    const knowledgeLayerBudget = Math.min(1500, Math.floor(budget * 0.3));
+    const knowledgeLayerBudget = budget;
     const knowledgeBudget = Math.min(knowledgeLayerBudget, Math.max(0, remaining));
     const knowledgeItems = context.knowledgeHits.map(h => ({
         id: h.kbId,

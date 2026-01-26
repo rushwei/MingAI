@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
+import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
 
 type ZiweiRow = {
@@ -51,6 +52,11 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
+        const payload = chartData as unknown as ZiweiChart;
+
+        if (payload?.palaces) {
+            return generateZiweiChartText(payload);
+        }
 
         return [
             `## 紫微命盘：${name}`,

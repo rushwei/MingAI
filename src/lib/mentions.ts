@@ -101,7 +101,17 @@ export async function resolveMention(mention: Mention, userId: string, ctx?: Dat
     try {
         const provider = await getProvider(mention.type);
         const data = await provider.get(mention.id, userId, ctx);
-        return data ? provider.formatForAI(data) : '';
+        const resolved = data ? provider.formatForAI(data) : '';
+        if (resolved) {
+            console.log('[mentions] resolved', {
+                type: mention.type,
+                id: mention.id,
+                name: mention.name,
+                length: resolved.length,
+                content: resolved
+            });
+        }
+        return resolved;
     } catch {
         return '';
     }
@@ -118,14 +128,24 @@ async function resolveKnowledgeBase(kbId: string, userId: string, ctx?: DataSour
 
     if (!kb) return '';
 
-    const { data: entries } = await supabase
-        .from('knowledge_entries')
-        .select('content, created_at')
-        .eq('kb_id', kbId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+    const pageSize = 500;
+    let offset = 0;
+    const entries: Array<{ content: string | null }> = [];
 
-    const body = (entries || []).map((e: { content: string | null }) => e.content).filter((v): v is string => Boolean(v)).join('\n\n');
+    while (true) {
+        const { data } = await supabase
+            .from('knowledge_entries')
+            .select('content, created_at')
+            .eq('kb_id', kbId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + pageSize - 1);
+        if (!data || data.length === 0) break;
+        entries.push(...(data as Array<{ content: string | null }>));
+        if (data.length < pageSize) break;
+        offset += pageSize;
+    }
+
+    const body = entries.map((e) => e.content).filter((v): v is string => Boolean(v)).join('\n\n');
     const header = [
         `## 知识库：${kb.name}`,
         kb.description ? `- 描述：${kb.description}` : '',

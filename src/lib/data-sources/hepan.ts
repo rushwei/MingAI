@@ -63,6 +63,7 @@ export const hepanProvider: DataSourceProvider<HepanRow> = {
         return [
             `## 合盘：${r.person1_name} × ${r.person2_name}`,
             `- 类型：${r.type}`,
+            `- 类型名称：${getHepanTypeName(r.type as HepanType)}`,
             r.compatibility_score != null ? `- 匹配度：${r.compatibility_score}` : '',
             r.result_data ? `- 结构化结果：${JSON.stringify(r.result_data)}` : ''
         ].filter(Boolean).join('\n');

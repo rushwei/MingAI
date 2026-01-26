@@ -1,16 +1,24 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { findHexagram } from '@/lib/liuyao';
+import { findHexagram, performFullAnalysis, type Yao } from '@/lib/liuyao';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
 
 type LiuyaoRow = {
     id: string;
     user_id: string | null;
-    question: string;
+    question: string | null;
     hexagram_code: string;
     changed_hexagram_code: string | null;
     changed_lines: unknown;
     created_at: string;
     conversation_id: string | null;
+};
+
+const buildYaosFromCode = (hexagramCode: string, changedLines: number[]): Yao[] => {
+    return hexagramCode.split('').map((value, index) => ({
+        type: (parseInt(value, 10) as 0 | 1),
+        change: changedLines.includes(index + 1) ? 'changing' : 'stable',
+        position: index + 1,
+    }));
 };
 
 export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
@@ -59,16 +67,41 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
     },
 
     formatForAI(r: LiuyaoRow): string {
+        const changedLines = Array.isArray(r.changed_lines) ? r.changed_lines.filter((v): v is number => typeof v === 'number') : [];
+        const question = r.question || '';
+        const analysis = r.hexagram_code
+            ? performFullAnalysis(
+                buildYaosFromCode(r.hexagram_code, changedLines),
+                r.hexagram_code,
+                r.changed_hexagram_code || undefined,
+                question,
+                new Date(r.created_at)
+            )
+            : null;
+        const ganZhiTime = analysis
+            ? `${analysis.ganZhiTime.year.gan}${analysis.ganZhiTime.year.zhi}年 ${analysis.ganZhiTime.month.gan}${analysis.ganZhiTime.month.zhi}月 ${analysis.ganZhiTime.day.gan}${analysis.ganZhiTime.day.zhi}日 ${analysis.ganZhiTime.hour.gan}${analysis.ganZhiTime.hour.zhi}时`
+            : '';
+
         return [
             '## 六爻占卜',
-            `- 问题：${r.question}`,
+            question ? `- 问题：${question}` : '',
             `- 本卦：${r.hexagram_code}`,
             r.changed_hexagram_code ? `- 变卦：${r.changed_hexagram_code}` : '',
-            r.changed_lines ? `- 动爻：${JSON.stringify(r.changed_lines)}` : ''
+            changedLines.length ? `- 动爻：${changedLines.join('、')}` : '',
+            ganZhiTime ? `- 起卦时间：${ganZhiTime}` : '',
+            analysis ? `- 用神：${analysis.yongShen.type}（${analysis.yongShen.element}，第${analysis.yongShen.position}爻，${analysis.yongShen.strength}）` : '',
+            analysis?.yongShen?.analysis ? `- 用神分析：${analysis.yongShen.analysis}` : '',
+            analysis?.fuShen?.length ? `- 伏神：${JSON.stringify(analysis.fuShen)}` : '',
+            analysis?.shenSystem ? `- 原神/忌神/仇神：${JSON.stringify(analysis.shenSystem)}` : '',
+            analysis?.liuChongGuaInfo ? `- 六冲卦：${analysis.liuChongGuaInfo.isLiuChongGua ? '是' : '否'}${analysis.liuChongGuaInfo.description ? `（${analysis.liuChongGuaInfo.description}）` : ''}` : '',
+            analysis?.sanHeAnalysis ? `- 三合局：${JSON.stringify(analysis.sanHeAnalysis)}` : '',
+            analysis?.timeRecommendations?.length ? `- 时间建议：${JSON.stringify(analysis.timeRecommendations)}` : '',
+            analysis?.summary ? `- 总结：${JSON.stringify(analysis.summary)}` : '',
+            analysis ? `- 完整分析数据：${JSON.stringify(analysis)}` : ''
         ].filter(Boolean).join('\n');
     },
 
     summarize(r: LiuyaoRow): string {
-        return r.question;
+        return r.question || '六爻占卜';
     }
 };

@@ -556,11 +556,11 @@ export default function KnowledgeBaseManagePage() {
 
                                             {/* Controls Toolbar */}
                                             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                                                <div className="flex items-center gap-1.5 p-1 rounded-lg bg-background border border-border">
+                                                <div className="flex items-center gap-1.5 px-1 rounded-lg bg-background border border-border">
                                                     <select
                                                         value={kb.weight}
                                                         onChange={(e) => setKbs(prev => prev.map(x => x.id === kb.id ? { ...x, weight: e.target.value as KnowledgeBase['weight'] } : x))}
-                                                        className="bg-transparent text-xs font-medium px-2 py-1 rounded focus:outline-none hover:bg-background-secondary transition-colors cursor-pointer"
+                                                        className="bg-transparent text-xs font-medium pl-1 pr-2 py-1 rounded focus:outline-none hover:bg-background-secondary transition-colors cursor-pointer"
                                                     >
                                                         <option value="low">{weightLabel.low}</option>
                                                         <option value="normal">{weightLabel.normal}</option>

@@ -1706,7 +1706,8 @@ export function generateBaziChartText(
     lines.push('【八字命盘】');
     lines.push(`姓名：${chart.name}`);
     lines.push(`性别：${chart.gender === 'male' ? '男' : '女'}`);
-    lines.push(`出生日期：${chart.birthDate} ${chart.birthTime}`);
+    // 只采用四柱八字，不采用出生日期
+    // lines.push(`出生日期：${chart.birthDate} ${chart.birthTime}`);
     if (chart.birthPlace) {
         lines.push(`出生地点：${chart.birthPlace}`);
     }
@@ -1737,67 +1738,68 @@ export function generateBaziChartText(
     lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
     lines.push('');
 
+    // 停止输入这些状态
     // 日主十二长生状态
-    const dayMasterChangSheng = calculateDayMasterChangSheng(
-        dayMaster,
-        fourPillars.month.branch
-    );
-    lines.push('【日主状态】');
-    lines.push(`日主${dayMaster}在月令${fourPillars.month.branch}：${dayMasterChangSheng.stage}（${dayMasterChangSheng.strength === 'strong' ? '旺相' : dayMasterChangSheng.strength === 'weak' ? '衰弱' : '中等'}）`);
-    lines.push(`状态描述：${dayMasterChangSheng.description}`);
-    lines.push('');
+    // const dayMasterChangSheng = calculateDayMasterChangSheng(
+    //     dayMaster,
+    //     fourPillars.month.branch
+    // );
+    // lines.push('【日主状态】');
+    // lines.push(`日主${dayMaster}在月令${fourPillars.month.branch}：${dayMasterChangSheng.stage}（${dayMasterChangSheng.strength === 'strong' ? '旺相' : dayMasterChangSheng.strength === 'weak' ? '衰弱' : '中等'}）`);
+    // lines.push(`状态描述：${dayMasterChangSheng.description}`);
+    // lines.push('');
 
-    // 地支关系分析
-    lines.push('【地支关系】');
+    // // 地支关系分析
+    // lines.push('【地支关系】');
 
-    // 三合局
-    const sanHeResult = analyzeFourPillarsSanHe(
-        fourPillars.year.branch,
-        fourPillars.month.branch,
-        fourPillars.day.branch,
-        fourPillars.hour.branch
-    );
-    if (sanHeResult.hasFullSanHe && sanHeResult.fullSanHe) {
-        lines.push(`三合局：${sanHeResult.fullSanHe.name}（化${sanHeResult.fullSanHe.result}，力量加强）`);
-    } else if (sanHeResult.banHe.length > 0) {
-        const banHeStr = sanHeResult.banHe.map(b =>
-            `${b.branches.join('')}${b.type === 'sheng' ? '生方' : '墓方'}半合${b.result}`
-        ).join('、');
-        lines.push(`半合：${banHeStr}`);
-    }
+    // // 三合局
+    // const sanHeResult = analyzeFourPillarsSanHe(
+    //     fourPillars.year.branch,
+    //     fourPillars.month.branch,
+    //     fourPillars.day.branch,
+    //     fourPillars.hour.branch
+    // );
+    // if (sanHeResult.hasFullSanHe && sanHeResult.fullSanHe) {
+    //     lines.push(`三合局：${sanHeResult.fullSanHe.name}（化${sanHeResult.fullSanHe.result}，力量加强）`);
+    // } else if (sanHeResult.banHe.length > 0) {
+    //     const banHeStr = sanHeResult.banHe.map(b =>
+    //         `${b.branches.join('')}${b.type === 'sheng' ? '生方' : '墓方'}半合${b.result}`
+    //     ).join('、');
+    //     lines.push(`半合：${banHeStr}`);
+    // }
 
-    // 六合
-    const liuHeResult = analyzeFourPillarsLiuHe(
-        fourPillars.year.branch,
-        fourPillars.month.branch,
-        fourPillars.day.branch,
-        fourPillars.hour.branch
-    );
-    if (liuHeResult.pairs.length > 0) {
-        const liuHeStr = liuHeResult.pairs.map(p =>
-            `${p.zhi1}${p.zhi2}合化${p.result}`
-        ).join('、');
-        lines.push(`六合：${liuHeStr}`);
-    }
+    // // 六合
+    // const liuHeResult = analyzeFourPillarsLiuHe(
+    //     fourPillars.year.branch,
+    //     fourPillars.month.branch,
+    //     fourPillars.day.branch,
+    //     fourPillars.hour.branch
+    // );
+    // if (liuHeResult.pairs.length > 0) {
+    //     const liuHeStr = liuHeResult.pairs.map(p =>
+    //         `${p.zhi1}${p.zhi2}合化${p.result}`
+    //     ).join('、');
+    //     lines.push(`六合：${liuHeStr}`);
+    // }
 
-    // 六冲
-    const liuChongResult = analyzeFourPillarsLiuChong(
-        fourPillars.year.branch,
-        fourPillars.month.branch,
-        fourPillars.day.branch,
-        fourPillars.hour.branch
-    );
-    if (liuChongResult.pairs.length > 0) {
-        const liuChongStr = liuChongResult.pairs.map(p =>
-            `${p.position1}${p.zhi1}冲${p.position2}${p.zhi2}`
-        ).join('、');
-        lines.push(`六冲：${liuChongStr}（冲动，变化）`);
-    }
+    // // 六冲
+    // const liuChongResult = analyzeFourPillarsLiuChong(
+    //     fourPillars.year.branch,
+    //     fourPillars.month.branch,
+    //     fourPillars.day.branch,
+    //     fourPillars.hour.branch
+    // );
+    // if (liuChongResult.pairs.length > 0) {
+    //     const liuChongStr = liuChongResult.pairs.map(p =>
+    //         `${p.position1}${p.zhi1}冲${p.position2}${p.zhi2}`
+    //     ).join('、');
+    //     lines.push(`六冲：${liuChongStr}（冲动，变化）`);
+    // }
 
-    if (!sanHeResult.hasFullSanHe && sanHeResult.banHe.length === 0 && liuHeResult.pairs.length === 0 && liuChongResult.pairs.length === 0) {
-        lines.push('四柱地支无明显合冲关系');
-    }
-    lines.push('');
+    // if (!sanHeResult.hasFullSanHe && sanHeResult.banHe.length === 0 && liuHeResult.pairs.length === 0 && liuChongResult.pairs.length === 0) {
+    //     lines.push('四柱地支无明显合冲关系');
+    // }
+    // lines.push('');
 
     // 自动计算大运
     try {

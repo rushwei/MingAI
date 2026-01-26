@@ -66,13 +66,22 @@ export function readLocalCache<T>(key: string, maxAgeMs: number): T | null {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     try {
-        const parsed = JSON.parse(raw) as LocalCachePayload<T> | T;
-        if (typeof parsed === 'object' && parsed !== null && 'cachedAt' in parsed && 'value' in parsed) {
-            const payload = parsed as LocalCachePayload<T>;
-            if (!payload.cachedAt || Date.now() - payload.cachedAt > maxAgeMs) {
-                return null;
+        const parsed = JSON.parse(raw) as LocalCachePayload<T> | { ts?: number; value?: T } | T;
+        if (typeof parsed === 'object' && parsed !== null) {
+            if ('cachedAt' in parsed && 'value' in parsed) {
+                const payload = parsed as LocalCachePayload<T>;
+                if (!payload.cachedAt || Date.now() - payload.cachedAt > maxAgeMs) {
+                    return null;
+                }
+                return payload.value;
             }
-            return payload.value;
+            if ('ts' in parsed && 'value' in parsed) {
+                const legacyPayload = parsed as { ts?: number; value?: T };
+                if (!legacyPayload.ts || Date.now() - legacyPayload.ts > maxAgeMs) {
+                    return null;
+                }
+                return legacyPayload.value ?? null;
+            }
         }
         return parsed as T;
     } catch {

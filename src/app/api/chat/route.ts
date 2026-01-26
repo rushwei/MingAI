@@ -380,12 +380,9 @@ export async function POST(request: NextRequest) {
             .filter(m => m && m.type && m.name)
             .slice(0, 20);
 
-        const knowledgeBaseMentions = mergedMentions.filter(m => m.type === 'knowledge_base' && m.id);
-        const dataMentions = mergedMentions.filter(m => m.type !== 'knowledge_base');
-
         const mentionsClient = getSupabase();
 
-        const resolvedMentions = userId ? await Promise.all(dataMentions.map(async (m) => {
+        const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
             const resolvedContent = await resolveMention(m, userId as string, { client: mentionsClient });
             return { ...m, resolvedContent };
         })) : [];
@@ -416,10 +413,7 @@ export async function POST(request: NextRequest) {
         const knowledgeHits = userId && membershipType !== 'free' ? await (async () => {
             const cleanedQuery = stripMentionTokens(userQuestionForSearch);
             if (!cleanedQuery) return [];
-            const kbScopeIds = Array.from(new Set([
-                ...userSettings.promptKbIds,
-                ...knowledgeBaseMentions.map(m => m.id as string)
-            ]));
+            const kbScopeIds = Array.from(new Set(userSettings.promptKbIds));
             if (kbScopeIds.length === 0) return [];
             const results = await searchKnowledge(cleanedQuery, {
                 limit: 12,

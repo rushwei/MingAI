@@ -8,6 +8,13 @@ type FaceRow = {
     analysis_type: string | null;
     created_at: string;
     conversation_id: string | null;
+    conversation?: { messages?: unknown; source_data?: Record<string, unknown> } | null;
+};
+
+const extractConversationAnalysis = (conversation?: { messages?: unknown } | null): string | null => {
+    const messages = Array.isArray(conversation?.messages) ? conversation?.messages : [];
+    const assistant = messages.find((m: { role?: string; content?: string }) => m?.role === 'assistant' && m?.content);
+    return assistant?.content || null;
 };
 
 export const faceProvider: DataSourceProvider<FaceRow> = {
@@ -41,7 +48,7 @@ export const faceProvider: DataSourceProvider<FaceRow> = {
         const supabase = ctx?.client ?? getServiceRoleClient();
         const { data, error } = await supabase
             .from('face_readings')
-            .select('*')
+            .select('*, conversation:conversations(messages, source_data)')
             .eq('id', id)
             .eq('user_id', userId)
             .maybeSingle();
@@ -50,10 +57,14 @@ export const faceProvider: DataSourceProvider<FaceRow> = {
     },
 
     formatForAI(r: FaceRow): string {
+        const analysisText = extractConversationAnalysis(r.conversation);
+        const sourceData = r.conversation?.source_data || {};
         return [
             '## 面相分析记录',
             r.analysis_type ? `- 类型：${r.analysis_type}` : '',
-            r.conversation_id ? `- 对应对话：${r.conversation_id}` : ''
+            typeof sourceData?.question === 'string' && sourceData.question ? `- 提问：${sourceData.question}` : '',
+            r.conversation_id ? `- 对应对话：${r.conversation_id}` : '',
+            analysisText ? `\n【AI解读】\n${analysisText}` : ''
         ].filter(Boolean).join('\n');
     },
 

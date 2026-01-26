@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
+import { PERSONALITY_BASICS } from '@/lib/mbti';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
 
 type MbtiRow = {
@@ -48,8 +49,11 @@ export const mbtiProvider: DataSourceProvider<MbtiRow> = {
     },
 
     formatForAI(r: MbtiRow): string {
+        const basic = PERSONALITY_BASICS[r.mbti_type as keyof typeof PERSONALITY_BASICS];
         return [
             `## MBTI 测评：${r.mbti_type}`,
+            basic?.title ? `- 类型名称：${basic.title}` : '',
+            basic?.description ? `- 类型描述：${basic.description}` : '',
             r.scores ? `- 分数：${JSON.stringify(r.scores)}` : '',
             r.percentages ? `- 比例：${JSON.stringify(r.percentages)}` : ''
         ].filter(Boolean).join('\n');

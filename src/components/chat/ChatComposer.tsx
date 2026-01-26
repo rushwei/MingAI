@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe } from 'lucide-react';
+import Link from 'next/link';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import type { AttachmentState, Mention, MentionType } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -145,6 +146,8 @@ export function ChatComposer({
     const [mentionDataSourceErrors, setMentionDataSourceErrors] = useState<DataSourceLoadError[]>([]);
     const [mentionLoading, setMentionLoading] = useState(false);
     const [mentionDefaultCategory, setMentionDefaultCategory] = useState<'knowledge' | 'data' | null>(null);
+    const [knowledgeBaseOpen, setKnowledgeBaseOpen] = useState(false);
+    const [knowledgeBaseSavingId, setKnowledgeBaseSavingId] = useState<string | null>(null);
     const mentionCacheTtlMs = 10 * 60 * 1000;
     const [promptPreviewTokens, setPromptPreviewTokens] = useState(0);
     const [promptPreviewBudget, setPromptPreviewBudget] = useState(0);
@@ -166,7 +169,11 @@ export function ChatComposer({
         : 0;
     const promptProgressPercent = Math.round(promptProgress * 100);
     const contextProgressPercent = Math.round(contextProgress * 100);
-    const previewMentions = useMemo(() => mentions.filter(m => m.type !== 'knowledge_base'), [mentions]);
+    const previewMentions = useMemo(
+        () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),
+        [canUseKnowledgeBase, mentions]
+    );
+    const promptKbIdSet = useMemo(() => new Set(promptKnowledgeBases.map(kb => kb.id)), [promptKnowledgeBases]);
 
     useEffect(() => {
         if (!userId) {
@@ -246,15 +253,34 @@ export function ChatComposer({
             showToast('info', '知识库仅限 Plus 以上会员使用');
             return;
         }
-        setMentionOpen(true);
-        setMentionQuery('');
-        setMentionStartIndex(null);
+        setKnowledgeBaseOpen(true);
         setMentionLoadError(null);
-        setMentionDefaultCategory('knowledge');
         setMenuOpen(false);
         textareaRef.current?.focus();
         await refreshMentionData(true);
     };
+
+    const toggleKnowledgeBaseSearch = useCallback(async (kbId: string) => {
+        if (!userId) return;
+        if (membershipType === 'free') {
+            showToast('info', '仅限 Plus 以上会员使用');
+            return;
+        }
+        const nextPromptIds = promptKbIdSet.has(kbId)
+            ? Array.from(promptKbIdSet).filter(id => id !== kbId)
+            : Array.from(new Set([...promptKbIdSet, kbId]));
+        setKnowledgeBaseSavingId(kbId);
+        const { error } = await supabase
+            .from('user_settings')
+            .upsert({ user_id: userId, prompt_kb_ids: nextPromptIds }, { onConflict: 'user_id' });
+        setKnowledgeBaseSavingId(null);
+        if (error) {
+            showToast('error', '保存知识库失败');
+            return;
+        }
+        showToast('success', promptKbIdSet.has(kbId) ? '已关闭知识库搜索' : '已启用知识库搜索');
+        window.dispatchEvent(new CustomEvent('mingai:knowledge-base:prompt-updated'));
+    }, [membershipType, promptKbIdSet, showToast, userId]);
 
     // 自动调整 textarea 高度
     useEffect(() => {
@@ -510,7 +536,91 @@ export function ChatComposer({
 
     return (
         <div className={`fixed left-0 right-0 bottom-[calc(3.5rem+var(--sab))] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
-            <div className="max-w-3xl mx-auto md:p-0 p-2">
+            <div className="relative max-w-3xl mx-auto md:p-0 p-2">
+                {/* 知识库弹窗 */}
+                {knowledgeBaseOpen && userId && (
+                    <>
+                        <div
+                            className="fixed inset-0 z-30 bg-background/20 backdrop-blur-[1px]"
+                            onClick={() => setKnowledgeBaseOpen(false)}
+                        />
+                        <div className="absolute bottom-full left-0 right-0 mb-4 z-40 px-4 md:px-0">
+                            <div className="bg-background border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[60vh] w-full animate-in slide-in-from-bottom-2 fade-in duration-200">
+                                <div className="flex items-center justify-between p-3 px-4 border-b border-border/50 bg-muted/30">
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-semibold">启用知识库搜索</div>
+                                        <Link
+                                            href="/user/knowledge-base"
+                                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                            onClick={() => setKnowledgeBaseOpen(false)}
+                                        >
+                                            <span>更多设置</span>
+                                            <Settings className="w-3 h-3" />
+                                        </Link>
+                                    </div>
+                                    <button
+                                        onClick={() => setKnowledgeBaseOpen(false)}
+                                        className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <div className="overflow-y-auto p-2 space-y-1 min-h-[120px]">
+                                    {mentionKnowledgeBases.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
+                                            <BookOpenText className="w-8 h-8 opacity-20" />
+                                            <div className="text-sm">暂无知识库</div>
+                                            <Link
+                                                href="/user/knowledge-base"
+                                                className="text-xs text-primary hover:underline mt-1"
+                                                onClick={() => setKnowledgeBaseOpen(false)}
+                                            >
+                                                去创建第一个知识库
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        mentionKnowledgeBases.map((kb) => {
+                                            const enabled = promptKbIdSet.has(kb.id);
+                                            return (
+                                                <div
+                                                    key={kb.id}
+                                                    onClick={() => toggleKnowledgeBaseSearch(kb.id)}
+                                                    className={`
+                                                        group flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer
+                                                        ${enabled
+                                                            ? 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                                            : 'bg-card border-border hover:border-primary/30 hover:shadow-sm'
+                                                        }
+                                                    `}
+                                                >
+                                                    <div className="min-w-0 flex-1 mr-3">
+                                                        <div className={`text-sm font-medium truncate transition-colors ${enabled ? 'text-primary' : 'text-foreground'}`}>
+                                                            {kb.name}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground truncate mt-0.5">
+                                                            {kb.description || '暂无描述'}
+                                                        </div>
+                                                    </div>
+                                                    <div className={`
+                                                        flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all
+                                                        ${enabled
+                                                            ? 'bg-primary border-primary text-primary-foreground'
+                                                            : 'border-muted-foreground/30 group-hover:border-primary/50'
+                                                        }
+                                                    `}>
+                                                        {enabled && !knowledgeBaseSavingId && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                        {knowledgeBaseSavingId === kb.id && <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
                 {/* 输入框容器 */}
                 <div className={`
                     relative flex flex-col gap-1 p-3 rounded-4xl
@@ -562,7 +672,7 @@ export function ChatComposer({
 
                     {/* 输入框区域 */}
                     <div className="relative">
-                        {mentionOpen && userId && (
+                                                {mentionOpen && userId && (
                             <>
                                 <div
                                     className="fixed inset-0 z-30"

@@ -67,8 +67,7 @@ export async function POST(request: NextRequest) {
             const entry = m as { type?: unknown; name?: unknown; id?: unknown; preview?: unknown };
             return typeof entry.type === 'string' && typeof entry.name === 'string';
         });
-        const filteredMentions = rawMentions.filter(m => m.type !== 'knowledge_base');
-        const resolvedMentions = await Promise.all(filteredMentions.map(async (m) => {
+        const resolvedMentions = await Promise.all(rawMentions.map(async (m) => {
             const resolvedContent = await resolveMention(m, user.id, { client: supabase });
             return { ...m, resolvedContent };
         }));
