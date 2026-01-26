@@ -23,6 +23,7 @@ import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -91,10 +92,10 @@ function MBTIResultContent() {
         });
 
         // 从 sessionStorage 获取结果
-        const storedResult = sessionStorage.getItem('mbti_result');
-        if (storedResult) {
+        const stored = readSessionJSON<TestResult & { conversationId?: string | null }>('mbti_result');
+        if (stored) {
             try {
-                const parsed = JSON.parse(storedResult) as TestResult & { conversationId?: string | null };
+                const parsed = stored;
                 setResult(parsed);
                 setConversationId(parsed.conversationId || null);
             } catch {
@@ -208,16 +209,10 @@ function MBTIResultContent() {
             setAnalysisReasoning(data.data.reasoning || null);
             if (data.data.conversationId) {
                 setConversationId(data.data.conversationId);
-                const stored = sessionStorage.getItem('mbti_result');
-                if (stored) {
-                    try {
-                        const parsed = JSON.parse(stored);
-                        parsed.conversationId = data.data.conversationId;
-                        sessionStorage.setItem('mbti_result', JSON.stringify(parsed));
-                    } catch {
-                        // ignore
-                    }
-                }
+                updateSessionJSON('mbti_result', (prev) => ({
+                    ...(prev || {}),
+                    conversationId: data.data.conversationId,
+                }));
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : '分析失败');

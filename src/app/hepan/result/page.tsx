@@ -22,6 +22,7 @@ import {
     getRelationshipAdvice,
 } from '@/lib/hepan';
 import { supabase } from '@/lib/supabase';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -64,10 +65,14 @@ export default function HepanResultPage() {
         loadSession();
 
         // 从 sessionStorage 获取结果
-        const storedResult = sessionStorage.getItem('hepan_result');
-        if (storedResult) {
+        type HepanSession = Omit<HepanResult, 'createdAt'> & {
+            createdAt: string;
+            chartId?: string;
+            conversationId?: string | null;
+        };
+        const parsed = readSessionJSON<HepanSession>('hepan_result');
+        if (parsed) {
             try {
-                const parsed = JSON.parse(storedResult);
                 setResult({
                     ...parsed,
                     createdAt: new Date(parsed.createdAt),
@@ -141,16 +146,10 @@ export default function HepanResultPage() {
             setAnalysisReasoning(data.data.reasoning || null);
             if (data.data.conversationId) {
                 setConversationId(data.data.conversationId);
-                const stored = sessionStorage.getItem('hepan_result');
-                if (stored) {
-                    try {
-                        const parsed = JSON.parse(stored);
-                        parsed.conversationId = data.data.conversationId;
-                        sessionStorage.setItem('hepan_result', JSON.stringify(parsed));
-                    } catch {
-                        // ignore
-                    }
-                }
+                updateSessionJSON('hepan_result', (prev) => ({
+                    ...(prev || {}),
+                    conversationId: data.data.conversationId,
+                }));
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : '分析失败');

@@ -21,21 +21,26 @@ import {
 } from 'lucide-react';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
 // =====================================================
 // 匿名提示组件
 // =====================================================
 function AnonymityNotice() {
-    const [dismissed, setDismissed] = useState(false);
-
-    useEffect(() => {
-        const dismissed = localStorage.getItem('community-anonymity-dismissed');
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (dismissed) setDismissed(true);
-    }, []);
+    const [dismissed, setDismissed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const cached = readLocalCache<boolean>('mingai.pref.communityAnonymityDismissed', Number.POSITIVE_INFINITY);
+        if (cached) return true;
+        const legacy = localStorage.getItem('community-anonymity-dismissed');
+        if (legacy) {
+            writeLocalCache('mingai.pref.communityAnonymityDismissed', true);
+            return true;
+        }
+        return false;
+    });
 
     const handleDismiss = () => {
-        localStorage.setItem('community-anonymity-dismissed', 'true');
+        writeLocalCache('mingai.pref.communityAnonymityDismissed', true);
         setDismissed(true);
     };
 

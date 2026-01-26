@@ -30,7 +30,8 @@ import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/usePaymentPause';
-import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { buildMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
 // 菜单项配置
@@ -89,55 +90,96 @@ function getNextLevelXp(level: number): number {
 
 const getProfileCacheKey = (userId: string) => `mingai.profile.${userId}`;
 const getMembershipCacheKey = (userId: string) => `mingai.membership.${userId}`;
+const getLevelCacheKey = (userId: string) => `mingai.level.${userId}`;
+
+type LevelSnapshot = LevelInfo & { cachedAt: number };
 
 const readProfileCache = (userId: string): ProfileSnapshot | null => {
-    if (typeof window === 'undefined') return null;
-    const raw = window.localStorage.getItem(getProfileCacheKey(userId));
-    if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw) as ProfileSnapshot;
-        return {
-            nickname: parsed.nickname ?? null,
-            avatar_url: parsed.avatar_url ?? null,
-            is_admin: parsed.is_admin ?? false,
-        };
-    } catch {
-        return null;
-    }
+    const parsed = readLocalCache<ProfileSnapshot>(getProfileCacheKey(userId), 24 * 60 * 60 * 1000);
+    if (!parsed) return null;
+    return {
+        nickname: parsed.nickname ?? null,
+        avatar_url: parsed.avatar_url ?? null,
+        is_admin: parsed.is_admin ?? false,
+    };
 };
 
 const writeProfileCache = (userId: string, snapshot: ProfileSnapshot) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(getProfileCacheKey(userId), JSON.stringify(snapshot));
+    writeLocalCache(getProfileCacheKey(userId), snapshot);
 };
 
 const readMembershipCache = (userId: string): MembershipInfo | null => {
-    if (typeof window === 'undefined') return null;
-    const raw = window.localStorage.getItem(getMembershipCacheKey(userId));
-    if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw) as MembershipSnapshot;
-        const expiresAt = parsed.expiresAt ? new Date(parsed.expiresAt) : null;
-        return {
-            type: parsed.type,
-            expiresAt,
-            isActive: parsed.type === 'free' || (expiresAt !== null && expiresAt > new Date()),
-            aiChatCount: parsed.aiChatCount,
-            lastCreditRestoreAt: null,
-        };
-    } catch {
-        return null;
-    }
+    const parsed = readLocalCache<MembershipSnapshot>(getMembershipCacheKey(userId), 10 * 60 * 1000);
+    if (!parsed) return null;
+    const expiresAt = parsed.expiresAt ? new Date(parsed.expiresAt) : null;
+    return {
+        type: parsed.type,
+        expiresAt,
+        isActive: parsed.type === 'free' || (expiresAt !== null && expiresAt > new Date()),
+        aiChatCount: parsed.aiChatCount,
+        lastCreditRestoreAt: null,
+    };
+};
+
+const toProfileSnapshot = (profile: {
+    nickname: string | null;
+    avatar_url: string | null;
+    is_admin?: boolean | null;
+} | null): ProfileSnapshot | null => {
+    if (!profile) return null;
+    return {
+        nickname: profile.nickname ?? null,
+        avatar_url: profile.avatar_url ?? null,
+        is_admin: profile.is_admin ?? false,
+    };
 };
 
 const writeMembershipCache = (userId: string, info: MembershipInfo) => {
-    if (typeof window === 'undefined') return;
     const snapshot: MembershipSnapshot = {
         type: info.type,
         aiChatCount: info.aiChatCount,
         expiresAt: info.expiresAt ? info.expiresAt.toISOString() : null,
     };
-    window.localStorage.setItem(getMembershipCacheKey(userId), JSON.stringify(snapshot));
+    writeLocalCache(getMembershipCacheKey(userId), snapshot);
+};
+
+const readLevelCache = (userId: string): LevelInfo | null => {
+    const parsed = readLocalCache<LevelSnapshot>(getLevelCacheKey(userId), 10 * 60 * 1000);
+    if (!parsed) return null;
+    return {
+        level: parsed.level,
+        experience: parsed.experience,
+        totalExperience: parsed.totalExperience,
+        title: parsed.title,
+    };
+};
+
+const writeLevelCache = (userId: string, info: LevelInfo) => {
+    const snapshot: LevelSnapshot = { ...info, cachedAt: Date.now() };
+    writeLocalCache(getLevelCacheKey(userId), snapshot);
+};
+
+const getPerfEnabled = () => {
+    if (typeof window === 'undefined') return false;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('perf') === '1') return true;
+    } catch {
+        return window.localStorage.getItem('mingai.debug.perf') === '1';
+    }
+    return window.localStorage.getItem('mingai.debug.perf') === '1';
+};
+
+const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+const logPerf = (label: string, start: number, data?: Record<string, unknown>) => {
+    if (!getPerfEnabled()) return;
+    const duration = Math.round(perfNow() - start);
+    if (data) {
+        console.info(`[perf:user] ${label} ${duration}ms`, data);
+        return;
+    }
+    console.info(`[perf:user] ${label} ${duration}ms`);
 };
 
 export default function UserPage() {
@@ -157,27 +199,40 @@ export default function UserPage() {
     useEffect(() => {
         let isMounted = true;
         let lastUserId: string | null = null;
+        let hasResolvedSession = false;
+        let hasUserSet = false;
+        let lastDetailsLoadUserId: string | null = null;
+        let lastDetailsLoadAt = 0;
 
-        const loadUserDetails = async (currentUser: SupabaseUser) => {
+        const loadUserDetails = async (currentUser: SupabaseUser, accessToken?: string) => {
             if (!isMounted) return;
             try {
-                await ensureUserRecord(currentUser);
-                const [profileData, membershipData] = await Promise.all([
-                    getUserProfile(currentUser.id),
-                    getMembershipInfo(currentUser.id),
-                ]);
+                const totalStart = perfNow();
+                const ensureStart = perfNow();
+                const ensurePromise = ensureUserRecord(currentUser);
+                const profileStart = perfNow();
+                const profileData = await getUserProfile(currentUser.id);
+                logPerf('profile:first', profileStart, { hasProfile: !!profileData });
+                await ensurePromise;
+                logPerf('ensure', ensureStart);
+                const resolvedProfile = profileData || await getUserProfile(currentUser.id);
+                if (!profileData) {
+                    logPerf('profile:retry', profileStart, { hasProfile: !!resolvedProfile });
+                }
+                const profileSnapshot = toProfileSnapshot(resolvedProfile);
+                const membershipData = buildMembershipInfo(resolvedProfile);
                 if (isMounted) {
-                    setProfile(profileData);
+                    setProfile(profileSnapshot);
                     setMembership(membershipData);
-                    if (profileData) {
-                        writeProfileCache(currentUser.id, profileData);
+                    if (profileSnapshot) {
+                        writeProfileCache(currentUser.id, profileSnapshot);
                     }
                     if (membershipData) {
                         writeMembershipCache(currentUser.id, membershipData);
                     }
-                    if (profileData?.nickname
-                        && profileData.nickname !== currentUser.user_metadata?.nickname) {
-                        supabase.auth.updateUser({ data: { nickname: profileData.nickname } }).catch(() => {
+                    if (profileSnapshot?.nickname
+                        && profileSnapshot.nickname !== currentUser.user_metadata?.nickname) {
+                        supabase.auth.updateUser({ data: { nickname: profileSnapshot.nickname } }).catch(() => {
                             // 更新失败不影响页面展示
                         });
                     }
@@ -185,22 +240,29 @@ export default function UserPage() {
 
                 // 获取用户等级信息
                 try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.access_token && isMounted) {
-                        const levelRes = await fetch('/api/checkin?action=status', {
-                            headers: { Authorization: `Bearer ${session.access_token}` },
+                    const levelStart = perfNow();
+                    const token = accessToken
+                        || (await supabase.auth.getSession()).data.session?.access_token;
+                    if (token && isMounted) {
+                        const levelUrl = getPerfEnabled()
+                            ? '/api/checkin?action=status&perf=1'
+                            : '/api/checkin?action=status';
+                        const levelRes = await fetch(levelUrl, {
+                            headers: { Authorization: `Bearer ${token}` },
                         });
                         const levelData = await levelRes.json();
                         if (levelData.success && isMounted) {
-                            // 使用 API 返回的等级，或默认等级
-                            setLevel(levelData.data?.level || {
+                            const resolvedLevel = levelData.data?.level || {
                                 level: 1,
                                 experience: 0,
                                 totalExperience: 0,
                                 title: '初学者',
-                            });
+                            };
+                            setLevel(resolvedLevel);
+                            writeLevelCache(currentUser.id, resolvedLevel);
                         }
                     }
+                    logPerf('level', levelStart);
                 } catch (levelError) {
                     console.error('Error loading level:', levelError);
                     // 出错时也设置默认等级
@@ -213,16 +275,30 @@ export default function UserPage() {
                         });
                     }
                 }
+                logPerf('total', totalStart);
             } catch (error) {
                 console.error('Error loading user data:', error);
             }
         };
 
-        const handleSession = (session: { user: SupabaseUser } | null, forceReload = false) => {
+        const handleSession = (
+            session: { user: SupabaseUser; access_token?: string | null } | null,
+            forceReload = false
+        ) => {
             if (!isMounted) return;
 
             const currentUser = session?.user ?? null;
+            const currentUserId = currentUser?.id ?? null;
+            if (currentUserId === lastUserId && !forceReload) {
+                if (currentUser && !hasUserSet) {
+                    setUser(currentUser);
+                    hasUserSet = true;
+                }
+                setLoading(false);
+                return;
+            }
             setUser(currentUser);
+            hasUserSet = true;
             setLoading(false);
 
             if (currentUser) {
@@ -230,13 +306,22 @@ export default function UserPage() {
                     lastUserId = currentUser.id;
                     const cachedProfile = readProfileCache(currentUser.id);
                     const cachedMembership = readMembershipCache(currentUser.id);
+                    const cachedLevel = readLevelCache(currentUser.id);
                     if (cachedProfile) {
                         setProfile(cachedProfile);
                     }
                     if (cachedMembership) {
                         setMembership(cachedMembership);
                     }
-                    loadUserDetails(currentUser);
+                    if (cachedLevel) {
+                        setLevel(cachedLevel);
+                    }
+                    const now = perfNow();
+                    if (currentUser.id !== lastDetailsLoadUserId || now - lastDetailsLoadAt > 1500) {
+                        lastDetailsLoadUserId = currentUser.id;
+                        lastDetailsLoadAt = now;
+                        loadUserDetails(currentUser, session?.access_token ?? undefined);
+                    }
                 }
             } else {
                 lastUserId = null;
@@ -245,8 +330,26 @@ export default function UserPage() {
             }
         };
 
-        supabase.auth.getSession()
-            .then(({ data: { session } }) => {
+        const resolveSession = async () => {
+            const resolveStart = perfNow();
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                const attemptStart = perfNow();
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    logPerf(`session:attempt:${attempt + 1}`, attemptStart, { hasSession: true });
+                    logPerf('session:resolve', resolveStart);
+                    return session;
+                }
+                logPerf(`session:attempt:${attempt + 1}`, attemptStart, { hasSession: false });
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            logPerf('session:resolve', resolveStart, { hasSession: false });
+            return null;
+        };
+
+        resolveSession()
+            .then((session) => {
+                hasResolvedSession = true;
                 handleSession(session);
             })
             .catch(() => {
@@ -257,6 +360,9 @@ export default function UserPage() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
+                if (event === 'INITIAL_SESSION' && hasResolvedSession) {
+                    return;
+                }
                 const shouldReload = event === 'USER_UPDATED' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION';
                 handleSession(session, shouldReload);
             }
@@ -274,11 +380,13 @@ export default function UserPage() {
         }
 
         let isActive = true;
-        const fetchCount = async () => {
-            const count = await getUnreadCount(user.id);
+        const fetchCount = async (options?: { bypassCache?: boolean }) => {
+            const countStart = perfNow();
+            const count = await getUnreadCount(user.id, options);
             if (isActive) {
                 setUnreadCount(count);
             }
+            logPerf('notifications:unread', countStart, { count });
         };
 
         fetchCount();
@@ -294,7 +402,7 @@ export default function UserPage() {
                     filter: `user_id=eq.${user.id}`,
                 },
                 () => {
-                    fetchCount();
+                    fetchCount({ bypassCache: true });
                 }
             )
             .subscribe();
@@ -500,7 +608,7 @@ export default function UserPage() {
                         <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
                             {section.section}
                         </h2>
-                        <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                        <div className="bg-background rounded-xl border border-border overflow-hidden">
                             {section.items.map((item, itemIndex) => {
                                 const Icon = item.icon;
                                 const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
@@ -528,7 +636,7 @@ export default function UserPage() {
                                     <Link
                                         key={itemIndex}
                                         href={item.href}
-                                        className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors border-b border-border last:border-b-0"
+                                        className="flex items-center justify-between px-4 py-3 hover:bg-background-secondary transition-colors border-b border-border last:border-b-0"
                                     >
                                         <div className="flex items-center gap-3">
                                             <Icon className="w-5 h-5 text-foreground-secondary" />
@@ -555,10 +663,10 @@ export default function UserPage() {
                 <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
                     帮助
                 </h2>
-                <div className="bg-background-secondary rounded-xl border border-border overflow-hidden">
+                <div className="bg-background rounded-xl border border-border overflow-hidden">
                     <Link
                         href="/help"
-                        className="flex items-center justify-between px-4 py-3 hover:bg-background transition-colors"
+                        className="flex items-center justify-between px-4 py-3 hover:bg-background-secondary transition-colors"
                     >
                         <div className="flex items-center gap-3">
                             <HelpCircle className="w-5 h-5 text-foreground-secondary" />

@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, generateEnhancedKeyDates, type MonthlyFortune, type EnhancedKeyDate } from '@/lib/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 import type { BaziChart } from '@/types';
@@ -78,10 +79,15 @@ function MonthlyPageContent() {
                     .maybeSingle();
 
                 if (!settingsError) {
-                    const storedDefaultId = localStorage.getItem('defaultBaziChartId');
+                    const cachedDefaultId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY);
+                    const legacyDefaultId = cachedDefaultId ? null : localStorage.getItem('defaultBaziChartId');
+                    const storedDefaultId = cachedDefaultId || legacyDefaultId;
+                    if (legacyDefaultId) {
+                        writeLocalCache('mingai.pref.defaultBaziChartId', legacyDefaultId);
+                    }
                     const defaultId = settings?.default_bazi_chart_id || storedDefaultId;
                     if (settings?.default_bazi_chart_id) {
-                        localStorage.setItem('defaultBaziChartId', settings.default_bazi_chart_id);
+                        writeLocalCache('mingai.pref.defaultBaziChartId', settings.default_bazi_chart_id);
                     } else if (!settings && storedDefaultId) {
                         await supabase
                             .from('user_settings')
@@ -93,7 +99,8 @@ function MonthlyPageContent() {
                 }
 
                 // 回退到本地默认
-                const fallbackId = localStorage.getItem('defaultBaziChartId');
+                const fallbackId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY)
+                    || localStorage.getItem('defaultBaziChartId');
                 const defaultChart = fallbackId ? charts.find(c => c.id === fallbackId) : null;
                 setBaziChart(defaultChart || charts[0]);
             }

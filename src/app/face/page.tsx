@@ -12,6 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
 import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';
@@ -148,14 +149,13 @@ export default function FacePage() {
 
             // 跳转到结果页面
             if (data.data?.readingId || data.data?.analysis) {
-                sessionStorage.setItem('face_result', JSON.stringify({
+                writeSessionJSON('face_result', {
                     readingId: data.data.readingId,
                     conversationId: data.data.conversationId,
                     analysisType: selectedType,
                     analysis: data.data.analysis,
-                    // 如果没有 readingId，说明保存失败，添加标记
                     isTemporary: !data.data.readingId
-                }));
+                });
                 router.push('/face/result');
             } else {
                 showToast('error', '未获取到分析结果');

@@ -10,6 +10,11 @@ import {
 } from '@/lib/checkin';
 import { getUserLevel } from '@/lib/gamification';
 import { requireBearerUser } from '@/lib/api-utils';
+import { createMemoryCache, createSingleFlight } from '@/lib/cache';
+
+const STATUS_CACHE_TTL_MS = 60_000;
+const statusCache = createMemoryCache<CheckinResponse['data']>(STATUS_CACHE_TTL_MS);
+const statusSingleFlight = createSingleFlight<CheckinResponse['data']>();
 
 interface CheckinResponse {
     success: boolean;
@@ -46,42 +51,75 @@ interface CheckinResponse {
 // GET - 获取签到状态
 export async function GET(request: NextRequest): Promise<NextResponse<CheckinResponse>> {
     try {
+        const requestUrl = new URL(request.url);
+        const perfEnabled = requestUrl.searchParams.get('perf') === '1';
+        const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const auth = await requireBearerUser(request);
         if ('error' in auth) {
             return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
         }
         const { user } = auth;
 
-        const { searchParams } = new URL(request.url);
-        const action = searchParams.get('action') || 'status';
+        const action = requestUrl.searchParams.get('action') || 'status';
 
         switch (action) {
             case 'status': {
-                const status = await getCheckinStatus(user.id);
-                const level = await getUserLevel(user.id);
+                const cached = statusCache.get(user.id);
+                if (cached !== null) {
+                    if (perfEnabled) {
+                        const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
+                        console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id, cached: true });
+                    }
+                    return NextResponse.json({
+                        success: true,
+                        data: cached,
+                    });
+                }
+
+                const data = await statusSingleFlight.run(user.id, async () => {
+                        const [status, level] = await Promise.all([
+                            getCheckinStatus(user.id),
+                            getUserLevel(user.id),
+                        ]);
+                        const payload: CheckinResponse['data'] = {
+                            status,
+                            level: level ? {
+                                level: level.level,
+                                experience: level.experience,
+                                totalExperience: level.totalExperience,
+                                title: level.title,
+                            } : undefined
+                        };
+                        statusCache.set(user.id, payload);
+                        return payload;
+                    });
+                if (perfEnabled) {
+                    const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
+                    console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id });
+                }
                 return NextResponse.json({
                     success: true,
-                    data: {
-                        status,
-                        level: level ? {
-                            level: level.level,
-                            experience: level.experience,
-                            totalExperience: level.totalExperience,
-                            title: level.title,
-                        } : undefined
-                    },
+                    data,
                 });
             }
 
             case 'calendar': {
-                const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
-                const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
+                const year = parseInt(requestUrl.searchParams.get('year') || String(new Date().getFullYear()));
+                const month = parseInt(requestUrl.searchParams.get('month') || String(new Date().getMonth() + 1));
                 const calendar = await getCheckinCalendar(user.id, year, month);
+                if (perfEnabled) {
+                    const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
+                    console.info(`[perf:checkin:calendar] ${duration}ms`, { userId: user.id, year, month });
+                }
                 return NextResponse.json({ success: true, data: { calendar } });
             }
 
             case 'stats': {
                 const stats = await getCheckinStats(user.id);
+                if (perfEnabled) {
+                    const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
+                    console.info(`[perf:checkin:stats] ${duration}ms`, { userId: user.id });
+                }
                 return NextResponse.json({ success: true, data: { stats } });
             }
 
@@ -111,6 +149,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CheckinRe
                 error: result.error || '签到失败',
             }, { status: 400 });
         }
+
+        statusCache.remove(user.id);
+        statusSingleFlight.clear(user.id);
 
         // 获取更新后的等级信息
         const level = await getUserLevel(user.id);

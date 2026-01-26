@@ -10,6 +10,7 @@ import { ModelSelector } from '@/components/ui/ModelSelector';
 import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from './MentionPopover';
 import { supabase } from '@/lib/supabase';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
 type DataSourceSummary = {
     id: string;
@@ -250,22 +251,11 @@ export function ChatComposer({
     }, [inputValue, mentions]);
 
     const readMentionCache = useCallback(<T,>(key: string): T | null => {
-        try {
-            const raw = localStorage.getItem(key);
-            if (!raw) return null;
-            const parsed = JSON.parse(raw) as { ts: number; value: T };
-            if (!parsed?.ts || Date.now() - parsed.ts > mentionCacheTtlMs) return null;
-            return parsed.value;
-        } catch {
-            return null;
-        }
+        return readLocalCache<T>(key, mentionCacheTtlMs);
     }, [mentionCacheTtlMs]);
 
     const writeMentionCache = useCallback(<T,>(key: string, value: T) => {
-        try {
-            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), value }));
-        } catch {
-        }
+        writeLocalCache(key, value);
     }, []);
 
     const refreshMentionData = useCallback(async (fresh = false) => {
@@ -782,7 +772,7 @@ export function ChatComposer({
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 px-2">
                                 <div className="relative group">
                                     <div className={`w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
                                         <svg viewBox="0 0 36 36" className="w-5 h-5">

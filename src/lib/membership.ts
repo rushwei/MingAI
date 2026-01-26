@@ -19,6 +19,13 @@ export interface MembershipInfo {
     lastCreditRestoreAt: Date | null;
 }
 
+export type MembershipInfoSource = {
+    membership?: MembershipType | null;
+    membership_expires_at?: string | null;
+    ai_chat_count?: number | null;
+    last_credit_restore_at?: string | null;
+};
+
 export interface PricingPlan {
     id: MembershipType;
     name: string;
@@ -123,7 +130,11 @@ export async function getMembershipInfo(userId: string): Promise<MembershipInfo 
         return null;
     }
 
-    if (!data) {
+    return buildMembershipInfo(data);
+}
+
+export function buildMembershipInfo(source: MembershipInfoSource | null): MembershipInfo {
+    if (!source) {
         return {
             type: 'free',
             expiresAt: null,
@@ -133,21 +144,19 @@ export async function getMembershipInfo(userId: string): Promise<MembershipInfo 
         };
     }
 
-    const membershipType = data.membership ? (data.membership as MembershipType) : 'free';
-    const aiChatCount = typeof data.ai_chat_count === 'number' ? data.ai_chat_count : 3;
-    const expiresAt = data.membership_expires_at
-        ? new Date(data.membership_expires_at)
+    const membershipType = source.membership ? (source.membership as MembershipType) : 'free';
+    const aiChatCount = typeof source.ai_chat_count === 'number' ? source.ai_chat_count : 3;
+    const expiresAt = source.membership_expires_at
+        ? new Date(source.membership_expires_at)
         : null;
-    const lastCreditRestoreAt = data.last_credit_restore_at
-        ? new Date(data.last_credit_restore_at)
+    const lastCreditRestoreAt = source.last_credit_restore_at
+        ? new Date(source.last_credit_restore_at)
         : null;
 
-    // 检查会员是否有效
     let isActive = true;
     let effectiveType = membershipType;
 
     if (membershipType !== 'free' && expiresAt !== null && expiresAt <= new Date()) {
-        // 会员已过期，降级为 free
         isActive = false;
         effectiveType = 'free';
     }

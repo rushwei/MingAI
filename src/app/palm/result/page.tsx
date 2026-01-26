@@ -11,6 +11,7 @@ import { Hand, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
+import { readSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
@@ -38,10 +39,9 @@ export default function PalmResultPage() {
             setError(null);
 
             // 尝试从 sessionStorage 获取
-            const storedResult = sessionStorage.getItem('palm_result');
-            if (storedResult) {
+            const parsed = readSessionJSON<PalmResultData>('palm_result');
+            if (parsed) {
                 try {
-                    const parsed = JSON.parse(storedResult) as PalmResultData;
                     setResultData(parsed);
 
                     if (parsed.analysis) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, Hand, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES } from '@/lib/palm';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -120,7 +121,7 @@ export default function PalmHistoryPage() {
             conversationId: reading.conversation_id || null,
         };
 
-        sessionStorage.setItem('palm_result', JSON.stringify(sessionData));
+        writeSessionJSON('palm_result', sessionData);
         router.push('/palm/result');
     };
 

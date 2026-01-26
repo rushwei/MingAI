@@ -26,8 +26,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             return;
         }
 
-        const fetchCount = async () => {
-            const count = await getUnreadCount(userId);
+        const fetchCount = async (options?: { bypassCache?: boolean }) => {
+            const count = await getUnreadCount(userId, options);
             setUnreadCount(count);
         };
 
@@ -45,7 +45,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                     filter: `user_id=eq.${userId}`,
                 },
                 () => {
-                    fetchCount();
+                    fetchCount({ bypassCache: true });
                 }
             )
             .subscribe();

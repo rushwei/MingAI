@@ -126,7 +126,7 @@ export async function getSession() {
 export async function getUserProfile(userId: string) {
     const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
         .eq('id', userId)
         .maybeSingle();
 

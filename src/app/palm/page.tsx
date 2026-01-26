@@ -12,6 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
 import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';
@@ -141,15 +142,14 @@ export default function PalmPage() {
             // 跳转到结果页面
             if (data.data?.readingId || data.data?.analysis) {
                 // 存储分析结果到 sessionStorage
-                sessionStorage.setItem('palm_result', JSON.stringify({
+                writeSessionJSON('palm_result', {
                     readingId: data.data.readingId,
                     conversationId: data.data.conversationId,
                     analysisType: selectedType,
                     handType,
                     analysis: data.data.analysis,
-                    // 如果没有 readingId，说明保存失败，添加标记
                     isTemporary: !data.data.readingId
-                }));
+                });
                 router.push('/palm/result');
             } else {
                 showToast('error', '未获取到分析结果');

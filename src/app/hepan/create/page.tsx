@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2, FolderOpen, X, AlertCircle, Sparkles, ChevronDown }
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 
 function BirthInput({
     label,
@@ -273,7 +274,7 @@ function HepanCreateContent() {
         }
 
         // 存储结果（包含 chartId）
-        sessionStorage.setItem('hepan_result', JSON.stringify({ ...result, chartId }));
+        writeSessionJSON('hepan_result', { ...result, chartId });
 
         // 跳转结果页
         setTimeout(() => {

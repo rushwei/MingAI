@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
@@ -141,7 +142,7 @@ export default function HepanHistoryPage() {
                 chartId: chart.id,
                 conversationId: chart.conversation_id || null,
             };
-            sessionStorage.setItem('hepan_result', JSON.stringify(resultWithId));
+            writeSessionJSON('hepan_result', resultWithId);
             router.push('/hepan/result');
             return;
         }
@@ -163,7 +164,7 @@ export default function HepanHistoryPage() {
             chartId: chart.id,
             conversationId: chart.conversation_id || null,
         };
-        sessionStorage.setItem('hepan_result', JSON.stringify(resultWithId));
+        writeSessionJSON('hepan_result', resultWithId);
         router.push('/hepan/result');
     };
 

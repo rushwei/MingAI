@@ -5,6 +5,15 @@
  */
 
 import { supabase } from './supabase';
+import { createMemoryCache, createSingleFlight } from '@/lib/cache';
+
+const UNREAD_CACHE_TTL_MS = 2_000;
+const unreadCountCache = createMemoryCache<number>(UNREAD_CACHE_TTL_MS);
+const unreadCountSingleFlight = createSingleFlight<number>();
+
+export type UnreadCountOptions = {
+    bypassCache?: boolean;
+};
 
 export interface Notification {
     id: string;
@@ -29,19 +38,32 @@ export interface FeatureSubscription {
 /**
  * 获取未读通知数量
  */
-export async function getUnreadCount(userId: string): Promise<number> {
-    const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
-
-    if (error) {
-        console.error('获取未读数量失败:', error);
-        return 0;
+export async function getUnreadCount(
+    userId: string,
+    options: UnreadCountOptions = {}
+): Promise<number> {
+    if (!userId) return 0;
+    if (!options.bypassCache) {
+        const cached = unreadCountCache.get(userId);
+        if (cached !== null) return cached;
     }
+    return await unreadCountSingleFlight.run(userId, async () => {
+            const { count, error } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('is_read', false);
 
-    return count ?? 0;
+            if (error) {
+                console.error('获取未读数量失败:', error);
+                return 0;
+            }
+
+            return count ?? 0;
+        }).then((value) => {
+            unreadCountCache.set(userId, value);
+            return value;
+        });
 }
 
 /**

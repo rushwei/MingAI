@@ -4,6 +4,7 @@ import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
 import { createSourceTracker } from '@/lib/source-tracker';
 import { countTokens, truncateToTokens } from '@/lib/token-utils';
+import { getModelConfig } from '@/lib/ai-config';
 
 export { countTokens, truncateToTokens } from '@/lib/token-utils';
 
@@ -70,8 +71,12 @@ function resolveModelContextConfig(modelId: string): ModelContextConfig {
 function calculatePromptBudget(modelId: string): number {
     const config = resolveModelContextConfig(modelId);
     const available = config.maxContext - config.reserveOutput - config.reserveHistory;
-    const budget = Math.floor(available * config.promptRatio);
-    return Math.min(Math.max(budget, 2000), 20000);
+    const ratioBudget = Math.floor(available * config.promptRatio);
+    const model = getModelConfig(modelId);
+    const defaultMax = model?.defaultMaxTokens ?? 4000;
+    const defaultCapBudget = Math.floor(defaultMax * 0.4); // 系统提示词最多占默认输出上限的 40%
+    const budget = Math.min(ratioBudget, defaultCapBudget, 4000); // 绝对上限进一步收紧到 4000
+    return Math.min(Math.max(budget, 1000), 4000); // 下限 1000，避免过低导致提示词缺失
 }
 
 // 默认人格的系统提示词（使用 AI_PERSONALITIES 中的定义，避免重复维护）

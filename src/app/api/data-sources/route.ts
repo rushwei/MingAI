@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
 import { getAuthContext, jsonError } from '@/lib/api-utils';
+import { createMemoryCache } from '@/lib/cache';
 
 const CACHE_TTL_MS = 15_000;
-const cache = new Map<string, { expiresAt: number; status: number; payload: unknown }>();
+const cache = createMemoryCache<{ status: number; payload: unknown }>(CACHE_TTL_MS);
 
 export async function GET(request: NextRequest) {
     const { supabase, user } = await getAuthContext(request);
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
         const cacheKey = `${user.id}:${limit}`;
         const cached = cache.get(cacheKey);
-        if (!fresh && cached && cached.expiresAt > Date.now()) {
+        if (!fresh && cached) {
             return NextResponse.json(cached.payload, { status: cached.status });
         }
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
         const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit });
         const status = result.errors.length ? 206 : 200;
-        cache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, status, payload: result });
+        cache.set(cacheKey, { status, payload: result });
         return NextResponse.json(result, { status });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown error';

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { PERSONALITY_BASICS, type MBTIType } from '@/lib/mbti';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -125,7 +126,7 @@ export default function MBTIHistoryPage() {
             readingId: reading.id,
             conversationId: reading.conversation_id || null,
         };
-        sessionStorage.setItem('mbti_result', JSON.stringify(sessionData));
+        writeSessionJSON('mbti_result', sessionData);
         router.push('/mbti/result');
     };
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { findHexagram } from '@/lib/liuyao';
 import { getModelName } from '@/lib/ai-config';
 
@@ -226,7 +227,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     conversationId: data.conversation_id || null,
                 };
 
-                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+                writeSessionJSON(config.sessionKey, sessionData);
             } else if (type === 'mbti') {
                 // 重建 MBTI 结果 - 直接使用数据库中保存的 scores 和 percentages
                 const mbtiType = data.mbti_type as string;
@@ -246,7 +247,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     conversationId: data.conversation_id || null,
                 };
 
-                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+                writeSessionJSON(config.sessionKey, sessionData);
             } else if (type === 'tarot') {
                 // 重建塔罗结果
                 const { TAROT_SPREADS } = await import('@/lib/tarot');
@@ -265,7 +266,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     conversationId: data.conversation_id || null,
                 };
 
-                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+                writeSessionJSON(config.sessionKey, sessionData);
             } else if (type === 'hepan') {
                 // 优先使用保存的完整结果，避免重新计算（有随机性）
                 if (data.result_data) {
@@ -275,7 +276,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         chartId: data.id,
                         conversationId: data.conversation_id || null,
                     };
-                    sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
+                    writeSessionJSON(config.sessionKey, resultWithId);
                 } else {
                     // 兼容旧数据：没有 result_data 时重新计算
                     const { analyzeCompatibility } = await import('@/lib/hepan');
@@ -300,7 +301,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         chartId: data.id,
                         conversationId: data.conversation_id || null,
                     };
-                    sessionStorage.setItem(config.sessionKey, JSON.stringify(resultWithId));
+                    writeSessionJSON(config.sessionKey, resultWithId);
                 }
             } else if (type === 'palm') {
                 // 手相分析结果
@@ -311,7 +312,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     createdAt: data.created_at,
                     conversationId: data.conversation_id || null,
                 };
-                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+                writeSessionJSON(config.sessionKey, sessionData);
             } else if (type === 'face') {
                 // 面相分析结果
                 const sessionData = {
@@ -320,7 +321,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     createdAt: data.created_at,
                     conversationId: data.conversation_id || null,
                 };
-                sessionStorage.setItem(config.sessionKey, JSON.stringify(sessionData));
+                writeSessionJSON(config.sessionKey, sessionData);
             }
 
             // 关闭抽屉并导航

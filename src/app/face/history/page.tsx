@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, ScanFace, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { FACE_ANALYSIS_TYPES } from '@/lib/face';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -109,7 +110,7 @@ export default function FaceHistoryPage() {
             conversationId: reading.conversation_id || null,
         };
 
-        sessionStorage.setItem('face_result', JSON.stringify(sessionData));
+        writeSessionJSON('face_result', sessionData);
         router.push('/face/result');
     };
 

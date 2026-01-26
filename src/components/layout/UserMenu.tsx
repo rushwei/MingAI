@@ -14,7 +14,7 @@ import {
     Scroll,
 } from 'lucide-react';
 import { signOut, getUserProfile } from '@/lib/auth';
-import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { buildMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { getUnreadCount } from '@/lib/notification';
 import { supabase } from '@/lib/supabase';
 import { usePaymentPause } from '@/lib/usePaymentPause';
@@ -81,20 +81,29 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
 
     // 加载用户信息
     useEffect(() => {
-        getUserProfile(user.id).then((profile) => {
+        let isActive = true;
+        const load = async () => {
+            const profile = await getUserProfile(user.id);
+            if (!isActive) return;
             if (profile) {
-                setNickname(profile.nickname);
-                setAvatarUrl(profile.avatar_url);
+                setNickname(profile.nickname ?? null);
+                setAvatarUrl(profile.avatar_url ?? null);
+                setMembership(buildMembershipInfo(profile));
+                return;
             }
-        });
-        getMembershipInfo(user.id).then(setMembership);
+            setMembership(buildMembershipInfo(null));
+        };
+        load();
+        return () => {
+            isActive = false;
+        };
     }, [user.id]);
 
     // 实时更新未读通知数
     useEffect(() => {
         let isActive = true;
-        const fetchCount = async () => {
-            const count = await getUnreadCount(user.id);
+        const fetchCount = async (options?: { bypassCache?: boolean }) => {
+            const count = await getUnreadCount(user.id, options);
             if (isActive) {
                 setUnreadCount(count);
             }
@@ -113,7 +122,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                     filter: `user_id=eq.${user.id}`,
                 },
                 () => {
-                    fetchCount();
+                    fetchCount({ bypassCache: true });
                 }
             )
             .subscribe();

@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 
 export default function LiuyaoPage() {
     const router = useRouter();
@@ -21,7 +22,7 @@ export default function LiuyaoPage() {
 
     // 铜钱起卦 - 跳转到起卦页面
     const handleCoinDivine = () => {
-        sessionStorage.setItem('liuyao_question', question);
+        writeSessionJSON('liuyao_question', question);
         router.push('/liuyao/divine');
     };
 
@@ -76,7 +77,7 @@ export default function LiuyaoPage() {
                 divinationId,
                 createdAt: new Date().toISOString(),
             };
-            sessionStorage.setItem('liuyao_result', JSON.stringify(result));
+        writeSessionJSON('liuyao_result', result);
             router.push('/liuyao/result');
         } catch (error) {
             console.error('快速起卦失败:', error);

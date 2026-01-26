@@ -11,6 +11,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
 // 定义主题类型
 type Theme = 'light' | 'dark';
@@ -32,17 +33,19 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // useState 用于管理当前主题状态
   // 先使用稳定的默认值，避免服务端/客户端首屏不一致
-  const [theme, setTheme] = useState<Theme>('dark');
-
-  // useEffect 用于在客户端读取偏好并更新主题
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    const nextTheme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : systemTheme;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(nextTheme);
-  }, []);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const savedTheme = readLocalCache<Theme>('mingai.pref.theme', Number.POSITIVE_INFINITY);
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
+    }
+    const legacyTheme = localStorage.getItem('theme') as Theme | null;
+    if (legacyTheme === 'light' || legacyTheme === 'dark') {
+      writeLocalCache('mingai.pref.theme', legacyTheme);
+      return legacyTheme;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   // 当主题变化时，更新 DOM 和 localStorage
   useEffect(() => {
@@ -56,7 +59,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     // 保存用户偏好到 localStorage
-    localStorage.setItem('theme', theme);
+    writeLocalCache('mingai.pref.theme', theme);
   }, [theme]);
 
   // 切换主题的函数

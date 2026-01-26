@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User } from '@/lib/supabase';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
@@ -38,20 +39,15 @@ export default function ProfilePage() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     const readProfileCache = (userId: string) => {
-        if (typeof window === 'undefined') return null;
-        const raw = window.localStorage.getItem(`mingai.profile.${userId}`);
-        if (!raw) return null;
-        try {
-            return JSON.parse(raw) as { nickname: string | null; avatar_url: string | null };
-        } catch {
-            return null;
-        }
+        return readLocalCache<{ nickname: string | null; avatar_url: string | null }>(
+            `mingai.profile.${userId}`,
+            24 * 60 * 60 * 1000
+        );
     };
 
     const writeProfileCache = (userId: string, nicknameValue: string | null, avatarValue: string | null) => {
-        if (typeof window === 'undefined') return;
         const payload = { nickname: nicknameValue, avatar_url: avatarValue };
-        window.localStorage.setItem(`mingai.profile.${userId}`, JSON.stringify(payload));
+        writeLocalCache(`mingai.profile.${userId}`, payload);
     };
 
     // useEffect 用于首次加载用户资料与头像信息

@@ -288,7 +288,7 @@ export default function SettingsPage() {
                                     className="appearance-none pl-3 pr-8 py-1.5 rounded-lg bg-background-secondary border border-border hover:border-accent text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
                                 >
                                     <option value="zh">简体中文</option>
-                                    <option value="en" disabled>English</option>
+                                    <option value="en" disabled>English (即将上线)</option>
                                 </select>
                                 <ChevronRight className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary rotate-90" />
                             </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { TAROT_SPREADS, type DrawnCard } from '@/lib/tarot';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -117,7 +118,7 @@ export default function TarotHistoryPage() {
             createdAt: reading.created_at,
             conversationId: reading.conversation_id || null,
         };
-        sessionStorage.setItem('tarot_result', JSON.stringify(sessionData));
+        writeSessionJSON('tarot_result', sessionData);
         router.push(`/tarot/result?from=history&t=${reading.id}`);
     };
 

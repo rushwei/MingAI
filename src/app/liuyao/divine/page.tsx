@@ -12,12 +12,13 @@ import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram } from '@/lib/liuyao';
 import { supabase } from '@/lib/supabase';
+import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 
 export default function DivinePage() {
     const router = useRouter();
     const [question] = useState(() => {
         if (typeof window === 'undefined') return '';
-        return sessionStorage.getItem('liuyao_question') || '';
+        return readSessionJSON<string>('liuyao_question') || '';
     });
     const [isComplete, setIsComplete] = useState(false);
 
@@ -69,7 +70,7 @@ export default function DivinePage() {
             divinationId,
             createdAt: new Date().toISOString(),
         };
-        sessionStorage.setItem('liuyao_result', JSON.stringify(result));
+        writeSessionJSON('liuyao_result', result);
 
         // 延迟跳转结果页
         setTimeout(() => {

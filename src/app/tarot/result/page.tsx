@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { TarotShareCard } from '@/components/tarot/TarotShareCard';
@@ -118,15 +119,24 @@ function TarotResultContent() {
         drawCards();
     }, [spreadId]);
 
+    type TarotSession = {
+        spread?: TarotSpread;
+        spreadId?: string;
+        cards?: DrawnCard[];
+        question?: string;
+        readingId?: string | null;
+        conversationId?: string | null;
+        createdAt?: string;
+    };
+
     // 处理历史记录加载
     useEffect(() => {
         // 如果有 spreadId，说明是新占卜，跳过加载历史
         if (spreadId) return;
 
-        const storedResult = sessionStorage.getItem('tarot_result');
-        if (storedResult) {
+        const parsed = readSessionJSON<TarotSession>('tarot_result');
+        if (parsed) {
             try {
-                const parsed = JSON.parse(storedResult);
                 if (parsed.cards) {
                     const storedSpread = parsed.spread as TarotSpread | undefined;
                     const fallbackSpreadId = parsed.spreadId as string | undefined;
@@ -196,6 +206,10 @@ function TarotResultContent() {
             if (data.success) {
                 setReadingId(data.data?.readingId || null);
                 setHasSaved(true);
+                updateSessionJSON('tarot_result', (prev) => ({
+                    ...(prev || {}),
+                    readingId: data.data?.readingId || null,
+                }));
             }
         } catch (error) {
             console.error('保存记录失败:', error);
@@ -253,6 +267,10 @@ function TarotResultContent() {
                 setInterpretationReasoning(data.data.reasoning || null);
                 if (data.data.conversationId) {
                     setConversationId(data.data.conversationId);
+                    updateSessionJSON('tarot_result', (prev) => ({
+                        ...(prev || {}),
+                        conversationId: data.data.conversationId,
+                    }));
                 }
             } else {
                 alert(data.error || '解读失败');

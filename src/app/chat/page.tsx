@@ -61,6 +61,7 @@ export default function ChatPage() {
     const [conversationsLoading, setConversationsLoading] = useState(true);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
@@ -908,6 +909,8 @@ export default function ChatPage() {
                     isOpen={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
                     onToggle={setSidebarOpen}
+                    isCollapsed={sidebarCollapsed}
+                    onCollapse={setSidebarCollapsed}
                     isLoading={conversationsLoading}
                 />
 

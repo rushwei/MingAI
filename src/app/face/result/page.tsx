@@ -11,6 +11,7 @@ import { ScanFace, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
+import { readSessionJSON } from '@/lib/cache';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
@@ -37,10 +38,9 @@ export default function FaceResultPage() {
             setError(null);
 
             // 尝试从 sessionStorage 获取
-            const storedResult = sessionStorage.getItem('face_result');
-            if (storedResult) {
+            const parsed = readSessionJSON<FaceResultData>('face_result');
+            if (parsed) {
                 try {
-                    const parsed = JSON.parse(storedResult) as FaceResultData;
                     setResultData(parsed);
 
                     if (parsed.analysis) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeLocalCache } from '@/lib/cache';
 
 type ChartType = 'bazi' | 'ziwei';
 
@@ -178,24 +179,21 @@ export default function ChartsPage() {
             }
             setUserId(session.user.id);
 
-            // Fetch Bazi Charts
-            const { data: baziData } = await supabase
-                .from('bazi_charts')
-                .select('*')
-                .eq('user_id', session.user.id);
-
-            // Fetch Ziwei Charts
-            const { data: ziweiData } = await supabase
-                .from('ziwei_charts')
-                .select('*')
-                .eq('user_id', session.user.id);
-
-            // Fetch Default Settings
-            const { data: settings } = await supabase
-                .from('user_settings')
-                .select('default_bazi_chart_id, default_ziwei_chart_id')
-                .eq('user_id', session.user.id)
-                .single();
+            const [{ data: baziData }, { data: ziweiData }, { data: settings }] = await Promise.all([
+                supabase
+                    .from('bazi_charts')
+                    .select('*')
+                    .eq('user_id', session.user.id),
+                supabase
+                    .from('ziwei_charts')
+                    .select('*')
+                    .eq('user_id', session.user.id),
+                supabase
+                    .from('user_settings')
+                    .select('default_bazi_chart_id, default_ziwei_chart_id')
+                    .eq('user_id', session.user.id)
+                    .single(),
+            ]);
 
             const defaultBaziId = settings?.default_bazi_chart_id;
             const defaultZiweiId = settings?.default_ziwei_chart_id;
@@ -266,6 +264,10 @@ export default function ChartsPage() {
             .from('user_settings')
             .update({ [field]: id })
             .eq('user_id', userId);
+
+        if (!error && type === 'bazi') {
+            writeLocalCache('mingai.pref.defaultBaziChartId', id);
+        }
 
         if (error) {
             console.error('设置默认命盘失败:', error);

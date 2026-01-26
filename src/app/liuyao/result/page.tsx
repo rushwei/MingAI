@@ -26,6 +26,7 @@ import { getHexagramText } from '@/lib/hexagram-texts';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -126,10 +127,18 @@ export default function ResultPage() {
         });
 
         // 从 sessionStorage 获取结果
-        const storedResult = sessionStorage.getItem('liuyao_result');
-        if (storedResult) {
+        const parsed = readSessionJSON<{
+            question: string;
+            yaos: Yao[];
+            hexagram: Hexagram;
+            changedHexagram?: Hexagram;
+            changedLines: number[];
+            createdAt: string;
+            divinationId?: string | null;
+            conversationId?: string | null;
+        }>('liuyao_result');
+        if (parsed) {
             try {
-                const parsed = JSON.parse(storedResult);
                 setResult({
                     question: parsed.question,
                     yaos: parsed.yaos as Yao[],
@@ -156,15 +165,10 @@ export default function ResultPage() {
 
         const persistConversationId = (id: string | null) => {
             if (!id) return;
-            const stored = sessionStorage.getItem('liuyao_result');
-            if (!stored) return;
-            try {
-                const parsed = JSON.parse(stored);
-                parsed.conversationId = id;
-                sessionStorage.setItem('liuyao_result', JSON.stringify(parsed));
-            } catch {
-                // ignore
-            }
+            updateSessionJSON('liuyao_result', (prev) => ({
+                ...(prev || {}),
+                conversationId: id,
+            }));
         };
 
         const loadAnalysis = async () => {
@@ -250,16 +254,10 @@ export default function ResultPage() {
             setInterpretationReasoning(data.data.reasoning || null);
             if (data.data.conversationId) {
                 setConversationId(data.data.conversationId);
-                const stored = sessionStorage.getItem('liuyao_result');
-                if (stored) {
-                    try {
-                        const parsed = JSON.parse(stored);
-                        parsed.conversationId = data.data.conversationId;
-                        sessionStorage.setItem('liuyao_result', JSON.stringify(parsed));
-                    } catch {
-                        // ignore
-                    }
-                }
+                updateSessionJSON('liuyao_result', (prev) => ({
+                    ...(prev || {}),
+                    conversationId: data.data.conversationId,
+                }));
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : '解读失败');

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
+import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { ChevronDown, Lightbulb, Loader2 } from 'lucide-react';
 import { Zhipu, DeepSeek, Gemini, Qwen, Claude } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
@@ -78,23 +79,11 @@ export function ModelSelector({
                     ? `mingai.models.${resolvedUserId}.${membershipType}`
                     : 'mingai.models.guest';
 
-                if (typeof window !== 'undefined') {
-                    const cached = window.localStorage.getItem(cacheKey);
-                    if (cached) {
-                        try {
-                            const parsed = JSON.parse(cached) as {
-                                expiresAt: number;
-                                models: ClientModelConfig[];
-                            };
-                            if (parsed.expiresAt > Date.now() && parsed.models?.length) {
-                                setModels(parsed.models);
-                                setModelsLoading(false);
-                                return;
-                            }
-                        } catch {
-                            window.localStorage.removeItem(cacheKey);
-                        }
-                    }
+                const cached = readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000);
+                if (cached && cached.length > 0) {
+                    setModels(cached);
+                    setModelsLoading(false);
+                    return;
                 }
 
                 const response = await fetch('/api/models', { headers });
@@ -104,15 +93,7 @@ export function ModelSelector({
                 }
                 if (isMounted && data.models && data.models.length > 0) {
                     setModels(data.models);
-                    if (typeof window !== 'undefined') {
-                        window.localStorage.setItem(
-                            cacheKey,
-                            JSON.stringify({
-                                expiresAt: Date.now() + 10 * 60 * 1000,
-                                models: data.models,
-                            })
-                        );
-                    }
+                    writeLocalCache(cacheKey, data.models);
                 }
             } catch (err) {
                 console.error('Failed to load models:', err);

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Dices, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { writeSessionJSON } from '@/lib/cache';
 import { findHexagram } from '@/lib/liuyao';
 import { getModelName } from '@/lib/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -136,7 +137,7 @@ export default function LiuyaoHistoryPage() {
             conversationId: div.conversation_id || null,
         };
 
-        sessionStorage.setItem('liuyao_result', JSON.stringify(sessionData));
+        writeSessionJSON('liuyao_result', sessionData);
         router.push('/liuyao/result');
     };
 
