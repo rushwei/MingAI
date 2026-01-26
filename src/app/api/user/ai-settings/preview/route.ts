@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildPromptWithSources } from '@/lib/prompt-builder';
+import { buildPromptWithSources, getModelContextInfo } from '@/lib/prompt-builder';
 import { getAuthContext } from '@/lib/api-utils';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { resolveMention } from '@/lib/mentions';
 import type { Mention } from '@/types/mentions';
+import { countMessageTokens } from '@/lib/token-utils';
 
 type PreviewRequestBody = {
     modelId?: unknown;
@@ -11,6 +12,7 @@ type PreviewRequestBody = {
     customInstructions?: unknown;
     userProfile?: unknown;
     mentions?: unknown;
+    messages?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) {
     const customInstructions = typeof body.customInstructions === 'string' ? body.customInstructions : null;
     const userProfile = body.userProfile ?? null;
     const mentionPayload = Array.isArray(body.mentions) ? body.mentions : [];
+    const messagePayload = Array.isArray(body.messages) ? body.messages : [];
 
     try {
         const { data: settings } = await supabase
@@ -82,10 +85,17 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        const contextConfig = getModelContextInfo(modelId);
+        const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
+        const contextTotal = contextConfig.maxContext;
+        const remainingContext = Math.max(0, contextTotal - historyTokens);
         return NextResponse.json({
             modelId,
             totalTokens: result.totalTokens,
             budgetTotal: result.budgetTotal,
+            historyTokens,
+            contextTotal,
+            remainingContext,
             layers: result.diagnostics,
             promptKnowledgeBases: promptKnowledgeBases.map(kb => ({ id: kb.id, name: kb.name })),
             promptPreview: result.systemPrompt,

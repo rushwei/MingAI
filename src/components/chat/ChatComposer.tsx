@@ -101,6 +101,7 @@ interface ChatComposerProps {
     mentions?: Mention[];
     onMentionsChange?: (mentions: Mention[]) => void;
     promptKnowledgeBases?: KnowledgeBaseSummary[];
+    contextMessages?: Array<{ content?: string }>;
     // 隐藏底部免责声明
     hideDisclaimer?: boolean;
 }
@@ -126,6 +127,7 @@ export function ChatComposer({
     mentions = [],
     onMentionsChange,
     promptKnowledgeBases = [],
+    contextMessages = [],
     hideDisclaimer = false,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
@@ -147,6 +149,8 @@ export function ChatComposer({
     const [promptPreviewTokens, setPromptPreviewTokens] = useState(0);
     const [promptPreviewBudget, setPromptPreviewBudget] = useState(0);
     const [promptPreviewLoading, setPromptPreviewLoading] = useState(false);
+    const [promptHistoryTokens, setPromptHistoryTokens] = useState(0);
+    const [promptContextTotal, setPromptContextTotal] = useState(0);
 
     // 权限判断
     const canUseWeb = membershipType !== 'free';
@@ -157,6 +161,11 @@ export function ChatComposer({
     const promptProgress = promptPreviewBudget > 0
         ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
         : 0;
+    const contextProgress = promptContextTotal > 0
+        ? Math.min(promptHistoryTokens / promptContextTotal, 1)
+        : 0;
+    const promptProgressPercent = Math.round(promptProgress * 100);
+    const contextProgressPercent = Math.round(contextProgress * 100);
     const previewMentions = useMemo(() => mentions.filter(m => m.type !== 'knowledge_base'), [mentions]);
 
     useEffect(() => {
@@ -172,20 +181,26 @@ export function ChatComposer({
                 const resp = await fetch('/api/user/ai-settings/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ modelId: selectedModel, mentions: previewMentions })
+                    body: JSON.stringify({
+                        modelId: selectedModel,
+                        mentions: previewMentions,
+                        messages: contextMessages
+                    })
                 });
                 if (!resp.ok) return;
                 const data = await resp.json();
                 if (cancelled) return;
                 setPromptPreviewTokens(data.totalTokens || 0);
                 setPromptPreviewBudget(data.budgetTotal || 0);
+                setPromptHistoryTokens(data.historyTokens || 0);
+                setPromptContextTotal(data.contextTotal || 0);
             } finally {
                 if (!cancelled) setPromptPreviewLoading(false);
             }
         };
         loadPreview();
         return () => { cancelled = true; };
-    }, [selectedModel, userId, previewMentions]);
+    }, [selectedModel, userId, previewMentions, contextMessages]);
 
     // 文件选择处理
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -772,9 +787,9 @@ export function ChatComposer({
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2 px-2">
+                            <div className="flex items-center gap-2 pl-1.5 pr-2">
                                 <div className="relative group">
-                                    <div className={`w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
+                                    <div className={`relative w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
                                         <svg viewBox="0 0 36 36" className="w-5 h-5">
                                             <path
                                                 d="M18 2a16 16 0 1 1 0 32a16 16 0 0 1 0-32"
@@ -789,15 +804,21 @@ export function ChatComposer({
                                                 className="text-accent"
                                                 stroke="currentColor"
                                                 strokeWidth="2.5"
-                                                strokeDasharray={`${Math.round(promptProgress * 100)}, 100`}
+                                                strokeDasharray={`${contextProgressPercent}, 100`}
                                                 strokeLinecap="round"
                                             />
                                         </svg>
+                                        <div className="absolute inset-[3px] rounded-full bg-border/40 overflow-hidden">
+                                            <div
+                                                className="absolute inset-x-0 bottom-0 bg-accent"
+                                                style={{ height: `${promptProgressPercent}%` }}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-background border border-border px-2 py-1 text-xs text-foreground-secondary opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                                         {promptPreviewLoading
                                             ? '正在加载预览'
-                                            : `上下文消耗 ${promptPreviewTokens}/${promptPreviewBudget}`}
+                                            : `上下文 ${contextProgressPercent}% | 提示词 ${promptProgressPercent}%`}
                                     </div>
                                 </div>
                             </div>

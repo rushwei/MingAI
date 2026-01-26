@@ -980,6 +980,7 @@ export default function ChatPage() {
                                     mentions={mentions}
                                     onMentionsChange={setMentions}
                                     promptKnowledgeBases={promptKnowledgeBases}
+                                    contextMessages={messages}
                                     hideDisclaimer
                                 />
                             </div>
@@ -1055,6 +1056,7 @@ export default function ChatPage() {
                                 mentions={mentions}
                                 onMentionsChange={setMentions}
                                 promptKnowledgeBases={promptKnowledgeBases}
+                                contextMessages={messages}
                             />
                         </>
                     )}

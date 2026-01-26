@@ -45,17 +45,17 @@ interface ModelContextConfig {
 
 // 各模型上下文预算配置：预留输出与历史消息，剩余按比例作为提示词预算
 const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
-    'deepseek-v3': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-v3': { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'deepseek-pro': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'glm-4.6': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'glm-4.7': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'gemini-3': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'gemini-pro': { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
-    'qwen-3-max': { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    deepai: { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'qwen-3-max': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    deepai: { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'qwen-vl-plus': { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'qwen-vl-plus-reasoner': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 5000, reserveHistory: 4000 },
-    'gemini-vl': { maxContext: 128000, promptRatio: 0.2, reserveOutput: 4000, reserveHistory: 8000 },
+    'gemini-vl': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 4000, reserveHistory: 8000 },
     default: { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 }
 };
 
@@ -66,6 +66,10 @@ function resolveModelContextConfig(modelId: string): ModelContextConfig {
     if (modelId.startsWith('gemini-vl-')) return MODEL_CONTEXT_CONFIGS['gemini-vl'];
     if (modelId.startsWith('deepai-')) return MODEL_CONTEXT_CONFIGS.deepai;
     return MODEL_CONTEXT_CONFIGS.default;
+}
+
+export function getModelContextInfo(modelId: string): ModelContextConfig {
+    return resolveModelContextConfig(modelId);
 }
 
 function calculatePromptBudget(modelId: string): number {
