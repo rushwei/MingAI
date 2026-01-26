@@ -19,6 +19,7 @@ interface InjectedBlock {
 export class SourceTracker {
     private sources: InjectedSource[] = [];
     private injectedBlocks: Map<string, InjectedBlock> = new Map();
+    private knowledgeBaseSignatures: Set<string> = new Set();
 
     // 注入一段提示词内容并记录来源，用于前端展示和调试
     trackAndInject(params: {
@@ -35,10 +36,22 @@ export class SourceTracker {
             return { content: '', injected: false };
         }
 
-        // 需要时对内容按 token 截断，避免超出提示词预算
         let finalContent = content;
         let truncated = false;
-        if (maxTokens) {
+        if (type === 'knowledge_base') {
+            const summary = this.summarizeKnowledgeBaseContent(content, maxTokens);
+            finalContent = summary.content;
+            truncated = summary.truncated;
+            const signature = this.buildKnowledgeBaseSignature(finalContent);
+            if (!signature) {
+                return { content: '', injected: false };
+            }
+            const signatureKey = `${id}:${signature}`;
+            if (this.knowledgeBaseSignatures.has(signatureKey)) {
+                return { content: '', injected: false };
+            }
+            this.knowledgeBaseSignatures.add(signatureKey);
+        } else if (maxTokens) {
             const tokens = countTokens(content);
             if (tokens > maxTokens) {
                 finalContent = truncateToTokens(content, maxTokens);
@@ -100,6 +113,35 @@ export class SourceTracker {
     reset(): void {
         this.sources = [];
         this.injectedBlocks.clear();
+        this.knowledgeBaseSignatures.clear();
+    }
+
+    private summarizeKnowledgeBaseContent(content: string, maxTokens?: number): { content: string; truncated: boolean } {
+        const cleaned = content.replace(/\r/g, '').trim();
+        if (!cleaned) return { content: '', truncated: false };
+        const paragraphs = cleaned
+            .split(/\n{2,}/)
+            .map(p => p.trim())
+            .filter(Boolean);
+        const seen = new Set<string>();
+        const deduped: string[] = [];
+        for (const paragraph of paragraphs) {
+            const key = paragraph.replace(/\s+/g, ' ').toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            deduped.push(paragraph);
+        }
+        const joined = deduped.join('\n\n');
+        const limit = typeof maxTokens === 'number' && maxTokens > 0 ? Math.min(maxTokens, 600) : 600;
+        if (countTokens(joined) > limit) {
+            return { content: truncateToTokens(joined, limit), truncated: true };
+        }
+        return { content: joined, truncated: false };
+    }
+
+    private buildKnowledgeBaseSignature(content: string): string {
+        const normalized = content.replace(/\s+/g, ' ').trim().toLowerCase();
+        return normalized.slice(0, 240);
     }
 }
 

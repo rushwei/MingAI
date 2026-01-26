@@ -168,6 +168,17 @@ export function ModelSelector({
                         ? '关闭推理模式'
                         : '开启推理模式';
 
+    useEffect(() => {
+        if (!onReasoningChange) return;
+        if (!currentModelConfig?.supportsReasoning || !reasoningAllowed) {
+            if (reasoningEnabled) onReasoningChange(false);
+            return;
+        }
+        if (currentModelConfig.isReasoningDefault && !reasoningEnabled) {
+            onReasoningChange(true);
+        }
+    }, [currentModelConfig, onReasoningChange, reasoningAllowed, reasoningEnabled]);
+
     const handleReasoningToggle = () => {
         if (canToggleReasoning && onReasoningChange) {
             onReasoningChange(!reasoningEnabled);

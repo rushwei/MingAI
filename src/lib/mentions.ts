@@ -1,6 +1,7 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import type { DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
+import { countTokens, truncateToTokens } from '@/lib/token-utils';
 import type { Mention, MentionTarget, MentionType } from '@/types/mentions';
 
 export function parseMentions(content: string): Mention[] {
@@ -101,17 +102,7 @@ export async function resolveMention(mention: Mention, userId: string, ctx?: Dat
     try {
         const provider = await getProvider(mention.type);
         const data = await provider.get(mention.id, userId, ctx);
-        const resolved = data ? provider.formatForAI(data) : '';
-        if (resolved) {
-            console.log('[mentions] resolved', {
-                type: mention.type,
-                id: mention.id,
-                name: mention.name,
-                length: resolved.length,
-                content: resolved
-            });
-        }
-        return resolved;
+        return data ? provider.formatForAI(data) : '';
     } catch {
         return '';
     }
@@ -128,30 +119,76 @@ async function resolveKnowledgeBase(kbId: string, userId: string, ctx?: DataSour
 
     if (!kb) return '';
 
-    const pageSize = 500;
-    let offset = 0;
-    const entries: Array<{ content: string | null }> = [];
-
-    while (true) {
-        const { data } = await supabase
-            .from('knowledge_entries')
-            .select('content, created_at')
-            .eq('kb_id', kbId)
-            .order('created_at', { ascending: false })
-            .range(offset, offset + pageSize - 1);
-        if (!data || data.length === 0) break;
-        entries.push(...(data as Array<{ content: string | null }>));
-        if (data.length < pageSize) break;
-        offset += pageSize;
-    }
-
-    const body = entries.map((e) => e.content).filter((v): v is string => Boolean(v)).join('\n\n');
     const header = [
         `## 知识库：${kb.name}`,
         kb.description ? `- 描述：${kb.description}` : '',
         kb.weight ? `- 权重：${kb.weight}` : ''
     ].filter(Boolean).join('\n');
 
+    const entryLimit = kb.weight === 'high' ? 320 : kb.weight === 'low' ? 120 : 200;
+    const pageSize = Math.min(200, entryLimit);
+    let offset = 0;
+    const bodyParts: string[] = [];
+    let entriesUsed = 0;
+    const maxTokens = ctx?.maxTokens;
+    const maxChars = ctx?.maxChars;
+    let remainingTokens = typeof maxTokens === 'number' && maxTokens > 0
+        ? Math.max(0, maxTokens - countTokens(header))
+        : null;
+    let remainingChars = typeof maxChars === 'number' && maxChars > 0
+        ? Math.max(0, maxChars - header.length)
+        : null;
+
+    while (true) {
+        if (entriesUsed >= entryLimit) break;
+        const remainingEntries = entryLimit - entriesUsed;
+        const rangeSize = Math.min(pageSize, remainingEntries);
+        const { data } = await supabase
+            .from('knowledge_entries')
+            .select('content, created_at')
+            .eq('kb_id', kbId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + rangeSize - 1);
+        if (!data || data.length === 0) break;
+        for (const row of data as Array<{ content: string | null }>) {
+            if (entriesUsed >= entryLimit) break;
+            const raw = typeof row.content === 'string' ? row.content : '';
+            if (!raw) continue;
+            let next = raw;
+            if (remainingTokens != null) {
+                if (remainingTokens <= 0) break;
+                const tokens = countTokens(next);
+                if (tokens > remainingTokens) {
+                    next = truncateToTokens(next, remainingTokens);
+                }
+            }
+            if (remainingChars != null) {
+                if (remainingChars <= 0) break;
+                if (next.length > remainingChars) {
+                    next = next.slice(0, remainingChars);
+                }
+            }
+            if (!next) continue;
+            bodyParts.push(next);
+            entriesUsed += 1;
+            if (remainingTokens != null) {
+                remainingTokens -= countTokens(next);
+            }
+            if (remainingChars != null) {
+                remainingChars -= next.length;
+            }
+            if ((remainingTokens != null && remainingTokens <= 0) || (remainingChars != null && remainingChars <= 0)) {
+                break;
+            }
+        }
+        if (data.length < pageSize) break;
+        if ((remainingTokens != null && remainingTokens <= 0) || (remainingChars != null && remainingChars <= 0)) {
+            break;
+        }
+        offset += rangeSize;
+    }
+
+    const body = bodyParts.join('\n\n');
     return body ? `${header}\n\n${body}` : header;
 }
 

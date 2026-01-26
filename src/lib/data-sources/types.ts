@@ -16,7 +16,12 @@ export interface DataSourceSummary {
     hepanType?: 'love' | 'business' | 'family';
 }
 
-export type DataSourceQueryContext = { client?: SupabaseClient; limit?: number };
+export type DataSourceQueryContext = {
+    client?: SupabaseClient;
+    limit?: number;
+    maxTokens?: number;
+    maxChars?: number;
+};
 
 export interface DataSourceProvider<T = unknown> {
     type: DataSourceType;

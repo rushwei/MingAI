@@ -190,6 +190,7 @@ export function ChatComposer({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         modelId: selectedModel,
+                        reasoningEnabled,
                         mentions: previewMentions,
                         messages: contextMessages
                     })
@@ -207,7 +208,7 @@ export function ChatComposer({
         };
         loadPreview();
         return () => { cancelled = true; };
-    }, [selectedModel, userId, previewMentions, contextMessages]);
+    }, [selectedModel, reasoningEnabled, userId, previewMentions, contextMessages]);
 
     // 文件选择处理
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

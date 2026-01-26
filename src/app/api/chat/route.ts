@@ -20,7 +20,7 @@ import { generateBaziChartText } from '@/lib/bazi';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 import { generateMangpaiPrompt, extractDayPillar } from '@/lib/mangpai';
 import '@/lib/data-sources/init';
-import { buildPromptWithSources } from '@/lib/prompt-builder';
+import { buildPromptWithSources, getPromptBudget } from '@/lib/prompt-builder';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
@@ -382,8 +382,12 @@ export async function POST(request: NextRequest) {
 
         const mentionsClient = getSupabase();
 
+        const mentionBudget = getPromptBudget(requestedModelId, reasoningEnabled);
         const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
-            const resolvedContent = await resolveMention(m, userId as string, { client: mentionsClient });
+            const resolvedContent = await resolveMention(m, userId as string, {
+                client: mentionsClient,
+                maxTokens: mentionBudget
+            });
             return { ...m, resolvedContent };
         })) : [];
 
@@ -444,6 +448,7 @@ export async function POST(request: NextRequest) {
 
         const promptBuild = await buildPromptWithSources({
             modelId: requestedModelId,
+            reasoningEnabled,
             userMessage: userQuestionForSearch,
             mentions: resolvedMentions,
             knowledgeHits,

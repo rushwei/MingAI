@@ -26,6 +26,7 @@ export interface PromptBuildResult {
 
 export interface PromptContext {
     modelId: string;
+    reasoningEnabled?: boolean;
     userMessage: string;
     mentions: Array<Mention & { resolvedContent?: string }>;
     knowledgeHits: KnowledgeHit[];
@@ -41,26 +42,36 @@ interface ModelContextConfig {
     promptRatio: number;
     reserveOutput: number;
     reserveHistory: number;
+    promptCapRatio?: number;
+    maxPromptTokens?: number;
+    minPromptTokens?: number;
 }
 
 // 各模型上下文预算配置：预留输出与历史消息，剩余按比例作为提示词预算
 const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
-    'deepseek-v3': { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-v3': { maxContext: 32000, promptRatio: 0.25, reserveOutput: 2000, reserveHistory: 4000 },
     'deepseek-pro': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
-    'glm-4.6': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    'glm-4.7': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-pro-reasoner': { maxContext: 64000, promptRatio: 0.35, reserveOutput: 4000, reserveHistory: 4000, promptCapRatio: 0.6, maxPromptTokens: 6000 },
+    'glm-4.6': { maxContext: 128000, promptRatio: 0.25, reserveOutput: 2000, reserveHistory: 4000 },
+    'glm-4.6-reasoner': { maxContext: 128000, promptRatio: 0.35, reserveOutput: 2000, reserveHistory: 4000, promptCapRatio: 0.6, maxPromptTokens: 6000 },
+    'glm-4.7': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 4000, reserveHistory: 4000 },
+    'glm-4.7-reasoner': { maxContext: 128000, promptRatio: 0.35, reserveOutput: 4000, reserveHistory: 4000, promptCapRatio: 0.6, maxPromptTokens: 6000 },
     'gemini-3': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    'gemini-pro': { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
-    'qwen-3-max': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    deepai: { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'gemini-pro': { maxContext: 128000, promptRatio: 0.35, reserveOutput: 4000, reserveHistory: 4000, promptCapRatio: 0.6, maxPromptTokens: 6000 }, // Gemini Pro（包含 2.5/3），默认推理
+    'qwen-3-max': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    deepai: { maxContext: 128000, promptRatio: 0.3, reserveOutput: 4000, reserveHistory: 4000, promptCapRatio: 0.8, maxPromptTokens: 8000 }, // DeepAI 默认推理，提升至 8000
     'qwen-vl-plus': { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'qwen-vl-plus-reasoner': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 5000, reserveHistory: 4000 },
     'gemini-vl': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 4000, reserveHistory: 8000 },
-    default: { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 }
+    default: { maxContext: 32000, promptRatio: 0.25, reserveOutput: 2000, reserveHistory: 4000 }
 };
 
 // 计算系统提示词的总预算（token 级），防止挤压历史对话与输出空间
-function resolveModelContextConfig(modelId: string): ModelContextConfig {
+function resolveModelContextConfig(modelId: string, reasoningEnabled?: boolean): ModelContextConfig {
+    if (reasoningEnabled) {
+        const reasoningId = `${modelId}-reasoner`;
+        if (MODEL_CONTEXT_CONFIGS[reasoningId]) return MODEL_CONTEXT_CONFIGS[reasoningId];
+    }
     if (MODEL_CONTEXT_CONFIGS[modelId]) return MODEL_CONTEXT_CONFIGS[modelId];
     if (modelId.startsWith('gemini-pro-')) return MODEL_CONTEXT_CONFIGS['gemini-pro'];
     if (modelId.startsWith('gemini-vl-')) return MODEL_CONTEXT_CONFIGS['gemini-vl'];
@@ -68,19 +79,36 @@ function resolveModelContextConfig(modelId: string): ModelContextConfig {
     return MODEL_CONTEXT_CONFIGS.default;
 }
 
-export function getModelContextInfo(modelId: string): ModelContextConfig {
-    return resolveModelContextConfig(modelId);
+export function getModelContextInfo(modelId: string, reasoningEnabled?: boolean): ModelContextConfig {
+    return resolveModelContextConfig(modelId, reasoningEnabled);
 }
 
-function calculatePromptBudget(modelId: string): number {
-    const config = resolveModelContextConfig(modelId);
+export function getPromptBudget(modelId: string, reasoningEnabled?: boolean): number {
+    return calculatePromptBudget(modelId, reasoningEnabled);
+}
+
+function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): number {
+    const config = resolveModelContextConfig(modelId, reasoningEnabled);
+    // 可用于系统提示词的剩余上下文
     const available = config.maxContext - config.reserveOutput - config.reserveHistory;
+    // 按模型比例分配的预算
     const ratioBudget = Math.floor(available * config.promptRatio);
     const model = getModelConfig(modelId);
+    // 模型默认输出上限，用于估算提示词占比
     const defaultMax = model?.defaultMaxTokens ?? 4000;
-    const defaultCapBudget = Math.floor(defaultMax * 0.4); // 系统提示词最多占默认输出上限的 40%
-    const budget = Math.min(ratioBudget, defaultCapBudget, 4000); // 绝对上限进一步收紧到 4000
-    return Math.min(Math.max(budget, 1000), 4000); // 下限 1000，避免过低导致提示词缺失
+    // 提示词占默认输出上限的比例与上限
+    const capRatio = config.promptCapRatio ?? 0.4;
+    const capLimit = config.maxPromptTokens ?? 4000;
+    // 提示词预算下限，避免过低
+    const minLimit = config.minPromptTokens ?? 1000;
+    // 预算上限约束：比例预算不超过 capLimit
+    const ratioCapped = Math.min(ratioBudget, capLimit);
+    // 预算上限约束：输出上限约束不超过 capLimit
+    const outputCapped = Math.min(Math.floor(defaultMax * capRatio), capLimit);
+    // 最终取两种约束的更小值
+    const budget = Math.min(ratioCapped, outputCapped);
+    // 在上下限内截断，避免过低/过高
+    return Math.min(Math.max(budget, minLimit), capLimit);
 }
 
 // 默认人格的系统提示词（使用 AI_PERSONALITIES 中的定义，避免重复维护）
@@ -108,7 +136,7 @@ function formatUserProfile(profile?: unknown): string {
 
 // 简化版提示词构建：不追踪 sources，适用于预览或测试
 export async function buildPersonalizedPrompt(context: PromptContext): Promise<PromptBuildResult> {
-    const budget = calculatePromptBudget(context.modelId);
+    const budget = calculatePromptBudget(context.modelId, context.reasoningEnabled);
     const layers: PromptLayer[] = [
         { id: 'master_rules', priority: 0, maxTokens: 800, content: getMasterSystemPrompt(), canTruncate: false, canDrop: false },
         { id: 'mentioned_data', priority: 1, maxTokens: budget, content: '', canTruncate: true, canDrop: false },
@@ -225,7 +253,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     totalTokens: number;
     budgetTotal: number;
 }> {
-    const budget = calculatePromptBudget(context.modelId);
+    const budget = calculatePromptBudget(context.modelId, context.reasoningEnabled);
     const tracker = createSourceTracker();
     let remaining = budget;
 

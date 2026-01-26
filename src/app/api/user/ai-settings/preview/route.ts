@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildPromptWithSources, getModelContextInfo } from '@/lib/prompt-builder';
+import { buildPromptWithSources, getModelContextInfo, getPromptBudget } from '@/lib/prompt-builder';
 import { getAuthContext } from '@/lib/api-utils';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { resolveMention } from '@/lib/mentions';
@@ -8,6 +8,7 @@ import { countMessageTokens } from '@/lib/token-utils';
 
 type PreviewRequestBody = {
     modelId?: unknown;
+    reasoningEnabled?: unknown;
     expressionStyle?: unknown;
     customInstructions?: unknown;
     userProfile?: unknown;
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const modelId = typeof body.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : DEFAULT_MODEL_ID;
+    const reasoningEnabled = body.reasoningEnabled === true;
     const expressionStyle = body.expressionStyle === 'direct' || body.expressionStyle === 'gentle'
         ? body.expressionStyle
         : undefined;
@@ -67,13 +69,18 @@ export async function POST(request: NextRequest) {
             const entry = m as { type?: unknown; name?: unknown; id?: unknown; preview?: unknown };
             return typeof entry.type === 'string' && typeof entry.name === 'string';
         });
+        const mentionBudget = getPromptBudget(modelId, reasoningEnabled);
         const resolvedMentions = await Promise.all(rawMentions.map(async (m) => {
-            const resolvedContent = await resolveMention(m, user.id, { client: supabase });
+            const resolvedContent = await resolveMention(m, user.id, {
+                client: supabase,
+                maxTokens: mentionBudget
+            });
             return { ...m, resolvedContent };
         }));
 
         const result = await buildPromptWithSources({
             modelId,
+            reasoningEnabled,
             userMessage: '',
             mentions: resolvedMentions,
             knowledgeHits: [],
@@ -84,7 +91,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        const contextConfig = getModelContextInfo(modelId);
+        const contextConfig = getModelContextInfo(modelId, reasoningEnabled);
         const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
         const contextTotal = contextConfig.maxContext;
         const remainingContext = Math.max(0, contextTotal - historyTokens);
