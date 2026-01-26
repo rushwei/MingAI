@@ -20,6 +20,7 @@ export class SourceTracker {
     private sources: InjectedSource[] = [];
     private injectedBlocks: Map<string, InjectedBlock> = new Map();
 
+    // 注入一段提示词内容并记录来源，用于前端展示和调试
     trackAndInject(params: {
         type: 'knowledge_base' | 'data_source' | 'mention';
         sourceType?: DataSourceType;
@@ -34,6 +35,7 @@ export class SourceTracker {
             return { content: '', injected: false };
         }
 
+        // 需要时对内容按 token 截断，避免超出提示词预算
         let finalContent = content;
         let truncated = false;
         if (maxTokens) {
@@ -46,6 +48,7 @@ export class SourceTracker {
 
         const tokens = countTokens(finalContent);
         const preview = finalContent.slice(0, 100) + (finalContent.length > 100 ? '...' : '');
+        // 以唯一 blockId 记录注入块，便于诊断统计
         const blockId = `${type}:${id}:${Date.now()}`;
 
         this.injectedBlocks.set(blockId, { content: finalContent, tokens });
@@ -62,6 +65,7 @@ export class SourceTracker {
         return { content: finalContent, injected: true };
     }
 
+    // 批量注入并返回最终写入的文本块
     trackBatch(items: Array<Parameters<SourceTracker['trackAndInject']>[0]>): string[] {
         return items
             .map(item => this.trackAndInject(item))
@@ -69,6 +73,7 @@ export class SourceTracker {
             .map(r => r.content);
     }
 
+    // 统一去重后返回所有来源
     getSources(): InjectedSource[] {
         const seen = new Map<string, InjectedSource>();
         for (const source of this.sources) {
@@ -78,6 +83,7 @@ export class SourceTracker {
         return Array.from(seen.values());
     }
 
+    // 统计注入总量，用于提示词诊断面板
     getDiagnostics(): {
         totalSources: number;
         totalTokens: number;
@@ -90,6 +96,7 @@ export class SourceTracker {
         };
     }
 
+    // 清空注入状态，便于复用同一 tracker
     reset(): void {
         this.sources = [];
         this.injectedBlocks.clear();

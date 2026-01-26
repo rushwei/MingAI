@@ -143,12 +143,48 @@ export function ChatComposer({
     const [mentionLoading, setMentionLoading] = useState(false);
     const [mentionDefaultCategory, setMentionDefaultCategory] = useState<'knowledge' | 'data' | null>(null);
     const mentionCacheTtlMs = 10 * 60 * 1000;
+    const [promptPreviewTokens, setPromptPreviewTokens] = useState(0);
+    const [promptPreviewBudget, setPromptPreviewBudget] = useState(0);
+    const [promptPreviewLoading, setPromptPreviewLoading] = useState(false);
 
     // 权限判断
     const canUseWeb = membershipType !== 'free';
     const canUseBoth = membershipType === 'pro';
+    const canUseKnowledgeBase = membershipType !== 'free';
     const hasFile = !!attachmentState?.file;
     const hasWebSearch = !!attachmentState?.webSearchEnabled;
+    const promptProgress = promptPreviewBudget > 0
+        ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
+        : 0;
+    const previewMentions = useMemo(() => mentions.filter(m => m.type !== 'knowledge_base'), [mentions]);
+
+    useEffect(() => {
+        if (!userId) {
+            setPromptPreviewTokens(0);
+            setPromptPreviewBudget(0);
+            return;
+        }
+        let cancelled = false;
+        const loadPreview = async () => {
+            setPromptPreviewLoading(true);
+            try {
+                const resp = await fetch('/api/user/ai-settings/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modelId: selectedModel, mentions: previewMentions })
+                });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (cancelled) return;
+                setPromptPreviewTokens(data.totalTokens || 0);
+                setPromptPreviewBudget(data.budgetTotal || 0);
+            } finally {
+                if (!cancelled) setPromptPreviewLoading(false);
+            }
+        };
+        loadPreview();
+        return () => { cancelled = true; };
+    }, [selectedModel, userId, previewMentions]);
 
     // 文件选择处理
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,6 +223,21 @@ export function ChatComposer({
                 webSearchEnabled: newWebSearch
             });
         }
+    };
+
+    const handleKnowledgeBaseOpen = async () => {
+        if (!canUseKnowledgeBase) {
+            showToast('info', '知识库仅限 Plus 以上会员使用');
+            return;
+        }
+        setMentionOpen(true);
+        setMentionQuery('');
+        setMentionStartIndex(null);
+        setMentionLoadError(null);
+        setMentionDefaultCategory('knowledge');
+        setMenuOpen(false);
+        textareaRef.current?.focus();
+        await refreshMentionData(true);
     };
 
     // 自动调整 textarea 高度
@@ -230,9 +281,11 @@ export function ChatComposer({
                 fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`, {
                     headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
                 }),
-                fetch('/api/knowledge-base', {
-                    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-                })
+                canUseKnowledgeBase
+                    ? fetch('/api/knowledge-base', {
+                        headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+                    })
+                    : Promise.resolve(null)
             ]);
 
             setMentionLoadError(null);
@@ -248,20 +301,22 @@ export function ChatComposer({
                 setMentionLoadError('数据加载失败');
             }
 
-            if (kbResp.ok) {
+            if (kbResp && kbResp.ok) {
                 const kb = await kbResp.json() as { knowledgeBases?: KnowledgeBaseSummary[] };
                 const list = kb.knowledgeBases || [];
                 setMentionKnowledgeBases(list);
                 writeMentionCache(kbKey, list);
-            } else {
+            } else if (kbResp) {
                 setMentionLoadError('数据加载失败');
+            } else {
+                setMentionKnowledgeBases([]);
             }
         } catch {
             setMentionLoadError('数据加载失败');
         } finally {
             setMentionLoading(false);
         }
-    }, [userId, writeMentionCache]);
+    }, [canUseKnowledgeBase, userId, writeMentionCache]);
 
     useEffect(() => {
         if (!userId) return;
@@ -277,9 +332,13 @@ export function ChatComposer({
             });
         }
 
-        const cachedKb = readMentionCache<KnowledgeBaseSummary[]>(kbKey);
-        if (cachedKb) {
-            queueMicrotask(() => setMentionKnowledgeBases(cachedKb));
+        if (canUseKnowledgeBase) {
+            const cachedKb = readMentionCache<KnowledgeBaseSummary[]>(kbKey);
+            if (cachedKb) {
+                queueMicrotask(() => setMentionKnowledgeBases(cachedKb));
+            }
+        } else {
+            setMentionKnowledgeBases([]);
         }
 
         let cancelled = false;
@@ -296,7 +355,7 @@ export function ChatComposer({
             cancelled = true;
             window.removeEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
         };
-    }, [readMentionCache, refreshMentionData, userId]);
+    }, [canUseKnowledgeBase, readMentionCache, refreshMentionData, userId]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (mentionOpen) return;
@@ -382,6 +441,10 @@ export function ChatComposer({
 
     const handleSelectMention = (mention: Mention) => {
         if (!onMentionsChange) return;
+        if (mention.type === 'knowledge_base' && !canUseKnowledgeBase) {
+            showToast('info', '知识库仅限 Plus 以上会员使用');
+            return;
+        }
         const next = [...mentions, mention].slice(0, 10);
         onMentionsChange(next);
 
@@ -508,6 +571,7 @@ export function ChatComposer({
                                     dataSourceErrors={mentionDataSourceErrors}
                                     loading={mentionLoading}
                                     defaultCategory={mentionDefaultCategory || undefined}
+                                    knowledgeBaseLocked={!canUseKnowledgeBase}
                                     onSelect={handleSelectMention}
                                     onClose={() => {
                                         setMentionOpen(false);
@@ -554,13 +618,13 @@ export function ChatComposer({
                                         }`}
                                     title="更多选项"
                                 >
-                                    <Plus className={`w-5 h-5 transition-transform duration-200 ${menuOpen ? 'rotate-45' : ''}`} />
+                                    <Plus className={`w-5.5 h-5.5 transition-transform duration-200 ${menuOpen ? 'rotate-45' : ''}`} />
                                 </button>
 
                                 {menuOpen && (
                                     <>
                                         <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                                        <div className="absolute bottom-full left-0 mb-2 w-36 bg-background border border-border rounded-xl shadow-lg z-20 overflow-hidden p-1 flex flex-col gap-1">
+                                        <div className="absolute bottom-full left-0 mb-2 w-38 bg-background border border-border rounded-xl shadow-lg z-20 overflow-hidden p-1 flex flex-col gap-1">
                                             {onSelectChart && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasBazi
                                                     ? 'bg-orange-500/10 text-orange-600'
@@ -633,24 +697,20 @@ export function ChatComposer({
                                                 </div>
                                             )}
                                             {!!userId && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setMentionOpen(true);
-                                                        setMentionQuery('');
-                                                        setMentionStartIndex(null);
-                                                        setMentionLoadError(null);
-                                                        setMentionDefaultCategory('knowledge');
-                                                        setMenuOpen(false);
-                                                        textareaRef.current?.focus();
-                                                        void refreshMentionData(true);
-                                                    }}
-                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
-                                                    disabled={disabled}
-                                                >
-                                                    <BookOpenText className="w-4.5 h-4.5" />
-                                                    <span>知识库</span>
-                                                </button>
+                                                <div className={`flex items-center w-full rounded-lg transition-all ${canUseKnowledgeBase
+                                                    ? 'hover:bg-background-secondary text-foreground-secondary'
+                                                    : 'opacity-50 text-foreground-secondary hover:bg-background-secondary'
+                                                    }`}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleKnowledgeBaseOpen}
+                                                        className="flex-1 flex items-center gap-2 w-full px-3 py-2.5 text-sm"
+                                                        disabled={disabled}
+                                                    >
+                                                        <BookOpenText className="w-4.5 h-4.5" />
+                                                        <span>{canUseKnowledgeBase ? '知识库' : '知识库 (Plus+)'}</span>
+                                                    </button>
+                                                </div>
                                             )}
                                             {/* 附件选项 */}
                                             <button
@@ -722,7 +782,35 @@ export function ChatComposer({
                                 />
                             </div>
 
-                            <div className="w-px h-6 bg-border mx-1" />
+                            <div className="flex items-center gap-2">
+                                <div className="relative group">
+                                    <div className={`w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
+                                        <svg viewBox="0 0 36 36" className="w-5 h-5">
+                                            <path
+                                                d="M18 2a16 16 0 1 1 0 32a16 16 0 0 1 0-32"
+                                                fill="none"
+                                                className="text-border"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                            />
+                                            <path
+                                                d="M18 2a16 16 0 1 1 0 32a16 16 0 0 1 0-32"
+                                                fill="none"
+                                                className="text-accent"
+                                                stroke="currentColor"
+                                                strokeWidth="2.5"
+                                                strokeDasharray={`${Math.round(promptProgress * 100)}, 100`}
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-background border border-border px-2 py-1 text-xs text-foreground-secondary opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                                        {promptPreviewLoading
+                                            ? '正在加载预览'
+                                            : `Prompt 消耗 ${promptPreviewTokens}/${promptPreviewBudget}`}
+                                    </div>
+                                </div>
+                            </div>
 
                             <ModelSelector
                                 selectedModel={selectedModel}

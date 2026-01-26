@@ -61,6 +61,7 @@ export type HandType = 'left' | 'right' | 'both';
 /**
  * 构建手相分析系统提示词
  */
+// 手相系统提示词：定义总规则，再按分析类型追加细化要求
 export function buildPalmSystemPrompt(analysisType: string = 'full'): string {
     const basePrompt = `你是一位专业的手相学大师，精通东方与西方手相学理论，拥有丰富的实战经验。
 
@@ -80,6 +81,7 @@ export function buildPalmSystemPrompt(analysisType: string = 'full'): string {
 - 手纹会随时间变化，反映当下的状态
 - 建议用户保持积极心态，主动改变命运`;
 
+    // 不同分析类型的补充提示词，会拼接到 basePrompt 之后
     const typePrompts: Record<string, string> = {
         full: `
 
@@ -148,6 +150,7 @@ export function buildPalmSystemPrompt(analysisType: string = 'full'): string {
 /**
  * 构建用户提示词
  */
+// 手相用户提示词：描述图片类型与用户关注点
 export function buildPalmUserPrompt(
     analysisType: string = 'full',
     handType: HandType = 'left',

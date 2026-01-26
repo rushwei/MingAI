@@ -82,7 +82,9 @@ export async function POST(request: NextRequest) {
         }
         userId = user.id;
 
+        // 根据分析类型选择系统提示词，确保模型走对应的分析维度
         const systemPrompt = type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT;
+        // 用户提示词仅承载命盘摘要，避免混入系统规则
         const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
 
         const supabase = getServiceRoleClient();
@@ -127,6 +129,7 @@ export async function POST(request: NextRequest) {
         }
         creditDeducted = true;
 
+        // 将系统提示词作为 override 注入，覆盖默认人格规则
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
             [{ role: 'user', content: userPrompt }],
             'master',

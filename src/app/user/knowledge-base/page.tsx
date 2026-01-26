@@ -8,6 +8,7 @@ import {
     FileText, Database, Sparkles, AlertCircle 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { useToast } from '@/components/ui/Toast';
 
 type KnowledgeBase = {
@@ -78,6 +79,7 @@ export default function KnowledgeBaseManagePage() {
     const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
     const [promptKbIds, setPromptKbIds] = useState<string[]>([]);
     const [promptSavingId, setPromptSavingId] = useState<string | null>(null);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
     const loadKnowledgeBases = useCallback(async () => {
         setLoading(true);
@@ -129,6 +131,8 @@ export default function KnowledgeBaseManagePage() {
                 return;
             }
             setUserId(session.user.id);
+            const membership = await getMembershipInfo(session.user.id);
+            setMembershipType(membership?.type || 'free');
             await loadKnowledgeBases();
             await loadPromptKbIds(session.user.id);
         };
@@ -213,6 +217,10 @@ export default function KnowledgeBaseManagePage() {
 
     const togglePromptKb = useCallback(async (kbId: string) => {
         if (!userId) return;
+        if (membershipType === 'free') {
+            showToast('info', '仅限 Plus 以上会员使用');
+            return;
+        }
         const next = promptKbIds.includes(kbId)
             ? promptKbIds.filter(id => id !== kbId)
             : [...promptKbIds, kbId];
@@ -223,12 +231,12 @@ export default function KnowledgeBaseManagePage() {
             .upsert({ user_id: userId, prompt_kb_ids: next }, { onConflict: 'user_id' });
         setPromptSavingId(null);
         if (saveError) {
-            setError('保存提示词知识库失败');
-            showToast('error', '保存提示词知识库失败');
+            setError('保存知识库失败');
+            showToast('error', '保存知识库失败');
             return;
         }
         window.dispatchEvent(new CustomEvent('mingai:knowledge-base:prompt-updated'));
-    }, [promptKbIds, showToast, userId]);
+    }, [membershipType, promptKbIds, showToast, userId]);
 
     const updateKb = useCallback(async (kb: KnowledgeBase) => {
         setSavingKbId(kb.id);
@@ -568,14 +576,16 @@ export default function KnowledgeBaseManagePage() {
 
                                                 <button
                                                     onClick={() => togglePromptKb(kb.id)}
+                                                    disabled={membershipType === 'free'}
                                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
                                                         promptKbIds.includes(kb.id)
                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                                         : 'bg-background border-border text-foreground-secondary hover:text-foreground'
-                                                    }`}
+                                                    } ${membershipType === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                    title={membershipType === 'free' ? '仅限 Plus 以上会员使用' : '启用知识库搜索'}
                                                 >
                                                     <Sparkles className="w-3 h-3" />
-                                                    {promptKbIds.includes(kb.id) ? '已启用提示词' : '启用提示词'}
+                                                    {promptKbIds.includes(kb.id) ? '已启用搜索' : '启用搜索'}
                                                     {promptSavingId === kb.id && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
                                                 </button>
 

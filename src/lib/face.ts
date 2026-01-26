@@ -78,6 +78,7 @@ export const FACE_DISCLAIMER = `⚠️ 重要提醒：
 /**
  * 构建面相分析系统提示词
  */
+// 面相系统提示词：统一约束分析原则与输出结构，再叠加具体分析类型
 export function buildFaceSystemPrompt(analysisType: string = 'full'): string {
     const basePrompt = `你是一位专业的面相学大师，精通中国传统相术，拥有丰富的实战经验。
 
@@ -105,6 +106,7 @@ export function buildFaceSystemPrompt(analysisType: string = 'full'): string {
 3. 运势解读
 4. 改善建议`;
 
+    // 不同分析类型的补充提示词，会拼接到 basePrompt 之后
     const typePrompts: Record<string, string> = {
         full: `
 
@@ -193,6 +195,7 @@ export function buildFaceSystemPrompt(analysisType: string = 'full'): string {
 /**
  * 构建用户提示词
  */
+// 面相用户提示词：仅描述任务与用户关注点，不包含系统规则
 export function buildFaceUserPrompt(
     analysisType: string = 'full',
     question?: string

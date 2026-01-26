@@ -255,6 +255,7 @@ ${timeRecommendations.length > 0 ? `
 ${timeRecommendations.map((r: { type: string; timeframe: string; description: string }) => `${r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要'}（${r.timeframe}）：${r.description}`).join('\n')}` : ''}`;
                 }
 
+                // 六爻解读系统提示词：固定的断卦规则 + 输出结构约束
                 const systemPrompt = `你是一位精通《周易》的资深易学大师，深谙野鹤老人《增删卜易》、王洪绪《卜筮正宗》之精髓。
 
 核心断卦原则：
@@ -279,6 +280,7 @@ ${timeRecommendations.map((r: { type: string; timeframe: string; description: st
 
 要求：专业而通俗易懂，让求卦者理解断卦依据。字数800-1200字。`;
 
+                // 用户提示词：携带起卦信息与用户问题，不含系统规则
                 const userPrompt = question
                     ? `【求卦问题】${question}
 
@@ -299,6 +301,7 @@ ${traditionalInfo}
                 }
 
                 try {
+                    // 用系统提示词 override 默认人格，确保解读格式一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
                         'master',

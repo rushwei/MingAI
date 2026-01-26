@@ -109,7 +109,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                 }
                 const { modelId: requestedModelId, modelConfig, reasoningEnabled } = access;
 
-                // 构建提示词
+                // 构建系统提示词与用户提示词，确保手相解读结构稳定
                 const systemPrompt = buildPalmSystemPrompt(analysisType);
                 const userPrompt = buildPalmUserPrompt(analysisType, handType, question);
 
@@ -131,6 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                         imageMimeType,
                     };
 
+                    // 视觉模型直接接收 systemPrompt 与 userPrompt（不走人格系统提示）
                     const analysisResult = await provider.chat(
                         [{ role: 'user', content: userPrompt }],
                         systemPrompt,

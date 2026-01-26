@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
 
         const basic = PERSONALITY_BASICS[type];
 
+        // MBTI 系统提示词：固定分析结构与语气
         const systemPrompt = `你是一位专业的心理学家和 MBTI 性格分析专家。
 请根据用户的 MBTI 测试结果，提供个性化的深度分析和建议。
 
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
 语言应专业但易懂，具有鼓励性和建设性。
 字数控制在 600-800 字。`;
 
+        // 用户提示词：仅携带测试结果数据
         const userPrompt = `用户的 MBTI 测试结果：
 
 性格类型：${type} - ${basic.title}
@@ -190,6 +192,7 @@ ${basic.description}
         }
 
         try {
+            // 覆盖默认人格提示词，确保 MBTI 解读模板稳定
             const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                 [{ role: 'user', content: userPrompt }],
                 'master',

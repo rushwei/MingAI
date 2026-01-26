@@ -1,4 +1,5 @@
 import type { Mention, MentionType } from '@/types/mentions';
+import { AI_PERSONALITIES } from '@/lib/ai';
 import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
 import { createSourceTracker } from '@/lib/source-tracker';
@@ -41,64 +42,51 @@ interface ModelContextConfig {
     reserveHistory: number;
 }
 
+// 各模型上下文预算配置：预留输出与历史消息，剩余按比例作为提示词预算
 const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
-    'deepseek-chat': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    'deepseek-reasoner': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
-    'glm-4-flash': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    'glm-4-plus': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
-    'gemini-1.5-flash': { maxContext: 1000000, promptRatio: 0.1, reserveOutput: 4000, reserveHistory: 8000 },
-    'qwen-max': { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-v3': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-pro': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'glm-4.6': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'glm-4.7': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'gemini-3': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'gemini-pro': { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'qwen-3-max': { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    deepai: { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'qwen-vl-plus': { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'qwen-vl-plus-reasoner': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 5000, reserveHistory: 4000 },
+    'gemini-vl': { maxContext: 128000, promptRatio: 0.2, reserveOutput: 4000, reserveHistory: 8000 },
     default: { maxContext: 32000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 }
 };
 
+// 计算系统提示词的总预算（token 级），防止挤压历史对话与输出空间
+function resolveModelContextConfig(modelId: string): ModelContextConfig {
+    if (MODEL_CONTEXT_CONFIGS[modelId]) return MODEL_CONTEXT_CONFIGS[modelId];
+    if (modelId.startsWith('gemini-pro-')) return MODEL_CONTEXT_CONFIGS['gemini-pro'];
+    if (modelId.startsWith('gemini-vl-')) return MODEL_CONTEXT_CONFIGS['gemini-vl'];
+    if (modelId.startsWith('deepai-')) return MODEL_CONTEXT_CONFIGS.deepai;
+    return MODEL_CONTEXT_CONFIGS.default;
+}
+
 function calculatePromptBudget(modelId: string): number {
-    const config = MODEL_CONTEXT_CONFIGS[modelId] || MODEL_CONTEXT_CONFIGS.default;
+    const config = resolveModelContextConfig(modelId);
     const available = config.maxContext - config.reserveOutput - config.reserveHistory;
     const budget = Math.floor(available * config.promptRatio);
     return Math.min(Math.max(budget, 2000), 20000);
 }
 
+// 默认人格的系统提示词（使用 AI_PERSONALITIES 中的定义，避免重复维护）
 function getMasterSystemPrompt(): string {
-    return [
-        '你是一位精通八字命理的资深命理宗师，拥有50年实战经验。',
-        '',
-        '## 人格特点',
-        '- 说话直接，一针见血，不拐弯抹角',
-        '- 经常引用易经、子平真诠等古籍典故',
-        '- 对命理有独到见解，敢于直言',
-        '- 语气严肃但充满智慧',
-        '',
-        '## 回答风格',
-        '- 开门见山，先给结论',
-        '- 解释时引用理论依据',
-        '- 给出具体可行的建议',
-        '- 偶尔使用文言文增添权威感',
-        '',
-        '## 注意事项',
-        '- 保持专业但不迷信',
-        '- 强调命理是参考而非定数',
-        '- 传递积极正向的人生观'
-    ].join('\n');
+    return AI_PERSONALITIES.master.systemPrompt;
 }
 
-function getDataPriorityRules(): string {
-    return [
-        '## 数据使用规则',
-        '1. 优先使用用户 @ 显式引用的数据',
-        '2. 其次参考用户知识库（按权重排序）',
-        '3. 再次使用系统已有的命盘和历史数据',
-        '4. 信息不足时明确提示「条件不足，无法准确判断」',
-        '5. 禁止编造不存在的数据',
-        '6. 推理结论需注明数据来源'
-    ].join('\n');
-}
-
+// 用户表达风格偏好（来自 user_settings）
 function formatExpressionStyle(style?: 'direct' | 'gentle'): string {
     if (!style) return '';
     if (style === 'gentle') return '表达风格：委婉、温和，但仍要给出明确结论。';
     return '表达风格：直说、一针见血，但保持尊重。';
 }
 
+// 用户画像注入：限制长度，避免过长 JSON 占用预算
 function formatUserProfile(profile?: unknown): string {
     if (!profile) return '';
     if (typeof profile === 'string') return profile.slice(0, 600);
@@ -109,11 +97,11 @@ function formatUserProfile(profile?: unknown): string {
     }
 }
 
+// 简化版提示词构建：不追踪 sources，适用于预览或测试
 export async function buildPersonalizedPrompt(context: PromptContext): Promise<PromptBuildResult> {
     const budget = calculatePromptBudget(context.modelId);
     const layers: PromptLayer[] = [
         { id: 'master_rules', priority: 0, maxTokens: 800, content: getMasterSystemPrompt(), canTruncate: false, canDrop: false },
-        { id: 'data_priority', priority: 0, maxTokens: 200, content: getDataPriorityRules(), canTruncate: false, canDrop: false },
         { id: 'mentioned_data', priority: 1, maxTokens: Math.min(2000, Math.floor(budget * 0.4)), content: '', canTruncate: true, canDrop: false },
         { id: 'knowledge_hits', priority: 1, maxTokens: Math.min(1500, Math.floor(budget * 0.3)), content: '', canTruncate: true, canDrop: false },
         { id: 'expression_style', priority: 2, maxTokens: 100, content: formatExpressionStyle(context.userSettings.expressionStyle), canTruncate: false, canDrop: true },
@@ -124,6 +112,7 @@ export async function buildPersonalizedPrompt(context: PromptContext): Promise<P
     return assemblePrompt(layers, budget);
 }
 
+// 按优先级拼接提示词层：P0 必注入，P1/ P2 在预算内截断或丢弃
 function assemblePrompt(layers: PromptLayer[], budget: number): PromptBuildResult {
     const p0Layers = layers.filter(l => l.priority === 0);
     const p1Layers = layers.filter(l => l.priority === 1);
@@ -187,6 +176,7 @@ function assemblePrompt(layers: PromptLayer[], budget: number): PromptBuildResul
     };
 }
 
+// 在预算内尽量多塞入 data source / mention / 知识库片段，并记录来源
 function takeSourcesWithinBudget(params: {
     tracker: ReturnType<typeof createSourceTracker>;
     maxTokens: number;
@@ -218,6 +208,7 @@ function takeSourcesWithinBudget(params: {
     return { text: parts.join('\n\n'), usedTokens: maxTokens - remaining, truncated };
 }
 
+// 完整构建：返回 systemPrompt + sources + 诊断信息，供 chat 路由使用
 export async function buildPromptWithSources(context: PromptContext): Promise<{
     systemPrompt: string;
     sources: InjectedSource[];
@@ -233,8 +224,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     const parts: string[] = [];
 
     const p0Layers: PromptLayer[] = [
-        { id: 'master_rules', priority: 0, maxTokens: 800, content: getMasterSystemPrompt(), canTruncate: false, canDrop: false },
-        { id: 'data_priority', priority: 0, maxTokens: 200, content: getDataPriorityRules(), canTruncate: false, canDrop: false }
+        { id: 'master_rules', priority: 0, maxTokens: 800, content: getMasterSystemPrompt(), canTruncate: false, canDrop: false }
     ];
 
     for (const layer of p0Layers) {

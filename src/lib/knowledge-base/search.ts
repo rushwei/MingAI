@@ -18,6 +18,7 @@ const DEFAULT_SEARCH_CONFIG: SearchConfigInternal = {
     trigramThreshold: 0.3
 };
 
+// 知识库搜索需要用户身份，用 accessToken 或 cookie 会话初始化客户端
 async function createSupabaseClient(accessToken?: string) {
     if (accessToken) {
         return createClient(
@@ -121,6 +122,7 @@ async function applyKnowledgeBaseWeights(
     return { candidates: boosted, highKbIds: Array.from(highKbIdSet) };
 }
 
+// 知识库检索主入口：FTS -> Trigram -> Vector（可选），并做去重合并
 export async function searchCandidates(query: string, options: SearchOptions): Promise<SearchCandidate[]> {
     const supabase = await createSupabaseClient(options.accessToken);
     const { kbIds, limit = 20, useVector = false, accessToken } = options;
@@ -152,6 +154,7 @@ export async function searchCandidates(query: string, options: SearchOptions): P
     return ftsResults;
 }
 
+// FTS 精确检索：适合关键字匹配，速度快
 async function searchByFTS(
     supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
     query: string,
@@ -177,6 +180,7 @@ async function searchByFTS(
     }));
 }
 
+// Trigram 近似检索：在 FTS 结果不足时补充模糊匹配
 async function searchByTrigram(
     supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
     query: string,

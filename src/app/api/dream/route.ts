@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
     const fortune = await dailyFortuneProvider.get('today', user.id, { client: service });
     const fortuneText = fortune ? dailyFortuneProvider.formatForAI(fortune) : '';
 
+    // 解梦系统提示词：组合梦境规则 + 命盘 + 今日运势（若存在）
     const systemPrompt = [
         '你是一位精通周公解梦与命理的分析师，需结合梦境内容、命盘信息与今日运势给出解读。',
         '解读应包括：象征含义、现实关联、情绪与潜意识、可执行建议。',
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
         fortuneText ? `以下为今日运势信息：\n${fortuneText}` : ''
     ].filter(Boolean).join('\n\n');
 
+    // 用户提示词：仅包含梦境与问题
     const userMessage = [
         `梦境内容：${dream}`,
         question ? `用户问题：${question}` : ''
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        // 用系统提示词 override 默认人格，保持解梦结构一致
         const content = await callAI(
             [{ role: 'user', content: userMessage }],
             'master',

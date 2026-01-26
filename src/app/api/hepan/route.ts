@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
                 ? result.conflicts.map(c => `[${c.severity}] ${c.title}: ${c.description}`).join('\n')
                 : '无明显冲突';
 
+            // 合盘系统提示词：定义分析结构与语气
             const systemPrompt = `你是一位资深的命理学家和关系咨询师，精通八字合盘分析。
 请根据提供的合盘分析结果，给出专业、实用的深度解读和相处建议。
 
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest) {
 语言应温和、建设性，避免过于绝对的论断。
 字数控制在 600-800 字。`;
 
+            // 用户提示词：注入合盘结果与冲突点，避免系统规则混入
             const userPrompt = `合盘类型：${typeName}
 
 双方信息：
@@ -166,6 +168,7 @@ ${conflictsSummary}
             }
 
             try {
+                // 覆盖默认人格提示词，保证合盘输出结构稳定
                 const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                     [{ role: 'user', content: userPrompt }],
                     'master',

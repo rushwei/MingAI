@@ -255,7 +255,7 @@ export function getAllVendors(): AIVendor[] {
 /**
  * 默认模型
  */
-export const DEFAULT_MODEL_ID = 'deepseek-v3';
+export const DEFAULT_MODEL_ID = 'deepseek-chat';
 
 /**
  * 模型名称映射（用于 UI 显示和消息记录）

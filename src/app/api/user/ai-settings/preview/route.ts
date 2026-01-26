@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildPromptWithSources } from '@/lib/prompt-builder';
-import { resolveMention } from '@/lib/mentions';
 import { getAuthContext } from '@/lib/api-utils';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { resolveMention } from '@/lib/mentions';
 import type { Mention } from '@/types/mentions';
 
 type PreviewRequestBody = {
@@ -9,6 +10,7 @@ type PreviewRequestBody = {
     expressionStyle?: unknown;
     customInstructions?: unknown;
     userProfile?: unknown;
+    mentions?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -22,23 +24,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '请求体不是有效的 JSON' }, { status: 400 });
     }
 
-    const modelId = typeof body.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : 'deepseek-chat';
+    const modelId = typeof body.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : DEFAULT_MODEL_ID;
     const expressionStyle = body.expressionStyle === 'direct' || body.expressionStyle === 'gentle'
         ? body.expressionStyle
         : undefined;
     const customInstructions = typeof body.customInstructions === 'string' ? body.customInstructions : null;
     const userProfile = body.userProfile ?? null;
+    const mentionPayload = Array.isArray(body.mentions) ? body.mentions : [];
 
     try {
         const { data: settings } = await supabase
             .from('user_settings')
-            .select('prompt_kb_ids')
+            .select('prompt_kb_ids, expression_style, user_profile, custom_instructions')
             .eq('user_id', user.id)
             .maybeSingle();
         const rawIds = Array.isArray((settings as { prompt_kb_ids?: unknown })?.prompt_kb_ids)
             ? (settings as { prompt_kb_ids: unknown[] }).prompt_kb_ids
             : [];
         const promptKbIds = rawIds.filter((value): value is string => typeof value === 'string' && value.length > 0);
+        const settingRow = settings as null | {
+            expression_style: 'direct' | 'gentle' | null;
+            user_profile: unknown;
+            custom_instructions: string | null;
+        };
+        const resolvedExpressionStyle = expressionStyle ?? (settingRow?.expression_style || undefined);
+        const resolvedUserProfile = userProfile ?? (settingRow?.user_profile ?? null);
+        const resolvedCustomInstructions = customInstructions ?? (settingRow?.custom_instructions ?? null);
         const { data: kbRows } = promptKbIds.length > 0
             ? await supabase
                 .from('knowledge_bases')
@@ -48,20 +59,26 @@ export async function POST(request: NextRequest) {
             : { data: [] as Array<{ id: string; name: string; description: string | null }> };
         const kbMap = new Map((kbRows || []).map(kb => [kb.id, kb]));
         const promptKnowledgeBases = promptKbIds.map(kbId => kbMap.get(kbId)).filter(Boolean) as Array<{ id: string; name: string; description: string | null }>;
-        const resolvedPromptMentions = await Promise.all(promptKnowledgeBases.map(async kb => {
-            const mention: Mention = { type: 'knowledge_base', id: kb.id, name: kb.name, preview: kb.description || '知识库' };
-            const resolvedContent = await resolveMention(mention, user.id, { client: supabase });
-            return { ...mention, resolvedContent };
+        const rawMentions = mentionPayload.filter((m): m is Mention => {
+            if (!m || typeof m !== 'object') return false;
+            const entry = m as { type?: unknown; name?: unknown; id?: unknown; preview?: unknown };
+            return typeof entry.type === 'string' && typeof entry.name === 'string';
+        });
+        const filteredMentions = rawMentions.filter(m => m.type !== 'knowledge_base');
+        const resolvedMentions = await Promise.all(filteredMentions.map(async (m) => {
+            const resolvedContent = await resolveMention(m, user.id, { client: supabase });
+            return { ...m, resolvedContent };
         }));
+
         const result = await buildPromptWithSources({
             modelId,
             userMessage: '',
-            mentions: resolvedPromptMentions,
+            mentions: resolvedMentions,
             knowledgeHits: [],
             userSettings: {
-                expressionStyle,
-                userProfile,
-                customInstructions,
+                expressionStyle: resolvedExpressionStyle,
+                userProfile: resolvedUserProfile,
+                customInstructions: resolvedCustomInstructions,
             },
         });
 
@@ -71,8 +88,8 @@ export async function POST(request: NextRequest) {
             budgetTotal: result.budgetTotal,
             layers: result.diagnostics,
             promptKnowledgeBases: promptKnowledgeBases.map(kb => ({ id: kb.id, name: kb.name })),
-            promptPreview: '',
-            promptChars: 0,
+            promptPreview: result.systemPrompt,
+            promptChars: result.systemPrompt.length,
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown error';

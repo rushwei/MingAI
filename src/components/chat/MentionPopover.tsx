@@ -12,6 +12,7 @@ interface MentionPopoverProps {
     dataSourceErrors?: DataSourceLoadError[];
     loading?: boolean;
     defaultCategory?: 'knowledge' | 'data';
+    knowledgeBaseLocked?: boolean;
     onSelect: (mention: Mention) => void;
     onClose: () => void;
 }
@@ -49,6 +50,7 @@ type ViewItem = {
     hint?: string;
     icon: ReactNode;
     raw?: DataSourceSummary | KnowledgeBaseSummary;
+    disabled?: boolean;
 };
 
 type ViewModel = {
@@ -139,7 +141,7 @@ function getQueryHint(raw: string): 'data' | 'knowledge' | null {
     return null;
 }
 
-export function MentionPopover({ query, dataSources, knowledgeBases, loadError = null, dataSourceErrors = [], loading = false, defaultCategory, onSelect, onClose }: MentionPopoverProps) {
+export function MentionPopover({ query, dataSources, knowledgeBases, loadError = null, dataSourceErrors = [], loading = false, defaultCategory, knowledgeBaseLocked = false, onSelect, onClose }: MentionPopoverProps) {
     const [state, setState] = useState<MentionPopoverState>({ level: 'category', activeIndex: 0 });
     const listRef = useRef<HTMLDivElement | null>(null);
     const normalizedQuery = useMemo(() => normalizeQuery(query), [query]);
@@ -231,13 +233,15 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 icon: TYPE_ICONS[i.type],
                 raw: i
             }));
-            const kbItems = filteredKnowledgeBases.map((kb) => ({
-                key: `kb-${kb.id}`,
-                label: `@知识库 · ${kb.name}`,
-                hint: kb.description || '知识库',
-                icon: <BookOpenText className="w-4 h-4" />,
-                raw: kb
-            }));
+            const kbItems = knowledgeBaseLocked
+                ? []
+                : filteredKnowledgeBases.map((kb) => ({
+                    key: `kb-${kb.id}`,
+                    label: `@知识库 · ${kb.name}`,
+                    hint: kb.description || '知识库',
+                    icon: <BookOpenText className="w-4 h-4" />,
+                    raw: kb
+                }));
             return {
                 title: '搜索结果',
                 items: [...dataItems, ...kbItems]
@@ -249,7 +253,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 title: '选择类别',
                 items: [
                     { key: 'data', label: '@数据', hint: dataSourceErrors.length ? `部分来源失败（${dataSourceErrors.length}）` : '命盘/记录/运势', icon: <Folder className="w-4 h-4" /> },
-                    { key: 'knowledge', label: '@知识库', hint: '你的知识库', icon: <BookOpenText className="w-4 h-4" /> }
+                    { key: 'knowledge', label: knowledgeBaseLocked ? '@知识库 (Plus+)' : '@知识库', hint: knowledgeBaseLocked ? '仅限 Plus 以上会员使用' : '你的知识库', icon: <BookOpenText className="w-4 h-4" />, disabled: knowledgeBaseLocked }
                 ]
             };
         }
@@ -315,9 +319,11 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
         const items = filteredKnowledgeBases;
         return {
             title: '@知识库',
-            items: items.map((kb) => ({ key: kb.id, label: kb.name, hint: kb.description || '知识库', icon: <ChevronRight className="w-4 h-4 opacity-50" />, raw: kb }))
+            items: knowledgeBaseLocked
+                ? [{ key: 'kb-locked', label: '知识库 (Plus+)', hint: '仅限 Plus 以上会员使用', icon: <BookOpenText className="w-4 h-4" />, disabled: true }]
+                : items.map((kb) => ({ key: kb.id, label: kb.name, hint: kb.description || '知识库', icon: <ChevronRight className="w-4 h-4 opacity-50" />, raw: kb }))
         };
-    }, [activeLevel, dataSourceErrors.length, effectiveState.selectedCategory, effectiveState.selectedSubcategory, effectiveState.selectedType, filteredDataSources, filteredKnowledgeBases, hepanTypeCounts, typeCounts]);
+    }, [activeLevel, dataSourceErrors.length, effectiveState.selectedCategory, effectiveState.selectedSubcategory, effectiveState.selectedType, filteredDataSources, filteredKnowledgeBases, hepanTypeCounts, knowledgeBaseLocked, typeCounts]);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -352,7 +358,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                     const key = view.items[effectiveState.activeIndex]?.key;
                     if (key === 'data') {
                         setState({ level: 'subcategory', selectedCategory: 'data', activeIndex: 0 });
-                    } else if (key === 'knowledge') {
+                    } else if (key === 'knowledge' && !knowledgeBaseLocked) {
                         setState({ level: 'item', selectedCategory: 'knowledge', activeIndex: 0 });
                     }
                 } else if (activeLevel === 'subcategory') {
@@ -388,6 +394,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                         onClose();
                         return;
                     }
+                    if (knowledgeBaseLocked) return;
                     onSelect({ type: 'knowledge_base', id: raw.id, name: raw.name, preview: raw.description || '知识库' });
                     onClose();
                     return;
@@ -396,7 +403,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 if (activeLevel === 'category') {
                     if (item.key === 'data') {
                         setState({ level: 'subcategory', selectedCategory: 'data', activeIndex: 0 });
-                    } else {
+                    } else if (!item.disabled) {
                         setState({ level: 'item', selectedCategory: 'knowledge', activeIndex: 0 });
                     }
                     return;
@@ -431,6 +438,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                     onClose();
                     return;
                 }
+                if (knowledgeBaseLocked) return;
                 onSelect({ type: 'knowledge_base', id: raw.id, name: raw.name, preview: raw.description || '知识库' });
                 onClose();
             }
@@ -438,7 +446,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [activeLevel, onClose, onSelect, effectiveState.activeIndex, effectiveState.selectedCategory, effectiveState.selectedSubcategory, view.items]);
+    }, [activeLevel, knowledgeBaseLocked, onClose, onSelect, effectiveState.activeIndex, effectiveState.selectedCategory, effectiveState.selectedSubcategory, view.items]);
 
     useEffect(() => {
         const list = listRef.current;
@@ -485,7 +493,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                             {loadError
                                 ? loadError
                                 : activeLevel === 'item' && state.selectedCategory === 'knowledge'
-                                    ? '你还没有知识库'
+                                    ? (knowledgeBaseLocked ? '仅限 Plus 以上会员使用' : '你还没有知识库')
                                     : activeLevel === 'item' && state.selectedCategory === 'data'
                                         ? '该分类暂无数据'
                                         : '没有匹配项'}
@@ -496,9 +504,10 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                                 key={item.key}
                                 type="button"
                                 data-active={idx === state.activeIndex ? 'true' : 'false'}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-background-secondary ${idx === state.activeIndex ? 'bg-background-secondary' : ''}`}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm ${item.disabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-background-secondary'} ${idx === state.activeIndex ? 'bg-background-secondary' : ''}`}
                                 onMouseEnter={() => setState(prev => ({ ...prev, activeIndex: idx }))}
                                 onClick={() => {
+                                    if (item.disabled) return;
                                     if (activeLevel === 'search') {
                                         const raw = item.raw;
                                         if (!raw) return;
@@ -507,13 +516,14 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                                             onClose();
                                             return;
                                         }
+                                        if (knowledgeBaseLocked) return;
                                         onSelect({ type: 'knowledge_base', id: raw.id, name: raw.name, preview: raw.description || '知识库' });
                                         onClose();
                                         return;
                                     }
                                     if (activeLevel === 'category') {
                                         if (item.key === 'data') setState({ level: 'subcategory', selectedCategory: 'data', activeIndex: 0 });
-                                        else setState({ level: 'item', selectedCategory: 'knowledge', activeIndex: 0 });
+                                        else if (!knowledgeBaseLocked) setState({ level: 'item', selectedCategory: 'knowledge', activeIndex: 0 });
                                         return;
                                     }
                                     if (activeLevel === 'subcategory') {
@@ -537,6 +547,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                                     }
                                     const raw = item.raw;
                                     if (!raw || 'type' in raw) return;
+                                    if (knowledgeBaseLocked) return;
                                     onSelect({ type: 'knowledge_base', id: raw.id, name: raw.name, preview: raw.description || '知识库' });
                                     onClose();
                                 }}

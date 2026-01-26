@@ -235,7 +235,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
                 const { modelId: requestedModelId, reasoningEnabled } = access;
 
-                // 构建解读 prompt
+                // 构建牌面描述，作为用户提示词主体
                 const cardsDescription = cards.map((c, i) => {
                     const pos = c.position ? `【${c.position}】` : `【第${i + 1}张】`;
                     const orientation = c.orientation === 'reversed' ? '（逆位）' : '（正位）';
@@ -244,6 +244,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 - 含义：${c.orientation === 'reversed' ? c.card.reversedMeaning : c.card.uprightMeaning}`;
                 }).join('\n\n');
 
+                // 塔罗系统提示词：约束解读深度、语气与字数
                 const systemPrompt = `你是一位专业的塔罗牌解读师，精通韦特塔罗牌体系。请根据提供的塔罗牌信息，给出深入、有洞察力的解读。
 
 解读要求：
@@ -253,6 +254,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 4. 语言温暖有同理心，避免过于负面的表述
 5. 解读应该在 300-500 字之间`;
 
+                // 用户提示词：包含用户问题与牌面信息
                 const userPrompt = question
                     ? `问题：${question}\n\n抽到的塔罗牌：\n${cardsDescription}`
                     : `请解读以下塔罗牌：\n${cardsDescription}`;
@@ -267,6 +269,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
 
                 try {
+                    // 用系统提示词 override 默认人格，保持解读模板一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
                         'master',

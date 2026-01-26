@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 
 type ExpressionStyle = 'direct' | 'gentle';
 
@@ -29,6 +30,7 @@ export default function AISettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
     const [expressionStyle, setExpressionStyle] = useState<ExpressionStyle>('direct');
     const [customInstructions, setCustomInstructions] = useState('');
@@ -56,6 +58,8 @@ export default function AISettingsPage() {
                 return;
             }
             setUserId(session.user.id);
+            const membership = await getMembershipInfo(session.user.id);
+            setMembershipType(membership?.type || 'free');
 
             const { data, error } = await supabase
                 .from('user_settings')
@@ -262,25 +266,42 @@ export default function AISettingsPage() {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {/* 左侧主要设置区域 */}
                     <div className="xl:col-span-2 space-y-5">
-                        {/* 知识库卡片 */}
-                        <Link
-                            href="/user/knowledge-base"
-                            className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 hover:to-background-secondary rounded-2xl p-4 border border-border hover:border-emerald-500/30 transition-all duration-300 shadow-sm hover:shadow-md"
-                        >
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                                <BookOpenText className="w-5 h-5 text-emerald-500" />
+                        {membershipType === 'free' ? (
+                            <div className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 rounded-2xl p-4 border border-border opacity-60 cursor-not-allowed shadow-sm">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                                    <BookOpenText className="w-5 h-5 text-emerald-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-semibold text-foreground">
+                                        知识库管理 (Plus+)
+                                    </h3>
+                                    <p className="text-xs text-foreground-secondary mt-0.5">
+                                        仅限 Plus 以上会员使用
+                                    </p>
+                                </div>
+                                <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-semibold text-foreground group-hover:text-emerald-500 transition-colors">
-                                    知识库管理
-                                </h3>
-                                <p className="text-xs text-foreground-secondary mt-0.5">
-                                    管理已归档的对话和命理资料，AI 将自动引用这些内容
-                                </p>
-                            </div>
-                            <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
-                        </Link>
+                        ) : (
+                            <Link
+                                href="/user/knowledge-base"
+                                className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 hover:to-background-secondary rounded-2xl p-4 border border-border hover:border-emerald-500/30 transition-all duration-300 shadow-sm hover:shadow-md"
+                            >
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                                    <BookOpenText className="w-5 h-5 text-emerald-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-semibold text-foreground group-hover:text-emerald-500 transition-colors">
+                                        知识库管理
+                                    </h3>
+                                    <p className="text-xs text-foreground-secondary mt-0.5">
+                                        管理已归档的对话和命理资料，AI 将自动引用这些内容
+                                    </p>
+                                </div>
+                                <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                            </Link>
+                        )}
 
                         {/* 个人档案 */}
                         <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
@@ -425,9 +446,13 @@ export default function AISettingsPage() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="text-xs font-medium text-foreground-secondary mb-3 block uppercase tracking-wider">生效的知识库</label>
-                                    {previewPromptKbs.length === 0 ? (
+                                    {membershipType === 'free' ? (
                                         <div className="p-3 rounded-xl bg-background border border-border border-dashed text-xs text-foreground-secondary text-center">
-                                            未启用提示词知识库
+                                            仅限 Plus 以上会员使用
+                                        </div>
+                                    ) : previewPromptKbs.length === 0 ? (
+                                        <div className="p-3 rounded-xl bg-background border border-border border-dashed text-xs text-foreground-secondary text-center">
+                                            未启用知识库
                                         </div>
                                     ) : (
                                         <div className="flex flex-wrap gap-2">
@@ -442,6 +467,9 @@ export default function AISettingsPage() {
                                             ))}
                                         </div>
                                     )}
+                                    <div className="mt-3 text-[11px] text-foreground-tertiary">
+                                        启用大量提示词会损失算命精确度
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

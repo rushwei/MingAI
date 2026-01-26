@@ -85,6 +85,7 @@ export interface AICallOptions {
     reasoning?: boolean;  // 开启推理模式
     temperature?: number;
     maxTokens?: number;
+    // 覆盖默认人格提示词（用于各模块自定义系统提示）
     systemPromptOverride?: string;
 }
 
@@ -110,6 +111,7 @@ export async function callAI(
     }
 
     const personalityConfig = AI_PERSONALITIES[personality];
+    // 最终系统提示词 = 时间前缀 +（自定义系统提示 or 人格默认提示）+ 命盘上下文
     const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
 
     try {
@@ -151,6 +153,7 @@ export async function callAIStream(
     }
 
     const personalityConfig = AI_PERSONALITIES[personality];
+    // 流式调用同样使用统一拼接规则，保证提示词一致
     const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
 
     try {

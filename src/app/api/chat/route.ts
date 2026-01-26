@@ -12,7 +12,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
-import { createClient } from '@supabase/supabase-js';
 import type { ChatMessage, AIPersonality, BaziChart, DifyContext, InjectedSource } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
@@ -266,11 +265,7 @@ export async function POST(request: NextRequest) {
         canSkipCredit = !!(INTERNAL_SECRET && skipCreditCheck && internalSecret === INTERNAL_SECRET);
 
         // 获取用户信息
-        const authClient = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { auth: { persistSession: false } }
-        );
+        const authClient = getSupabase();
         let accessTokenForKB: string | null = null;
         const authHeader = request.headers.get('authorization');
         if (authHeader) {
@@ -385,43 +380,15 @@ export async function POST(request: NextRequest) {
             .filter(m => m && m.type && m.name)
             .slice(0, 20);
 
-        const mentionsClient = accessTokenForKB
-            ? createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-                { global: { headers: { Authorization: `Bearer ${accessTokenForKB}` } }, auth: { persistSession: false } }
-            )
-            : undefined;
+        const knowledgeBaseMentions = mergedMentions.filter(m => m.type === 'knowledge_base' && m.id);
+        const dataMentions = mergedMentions.filter(m => m.type !== 'knowledge_base');
 
-        const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
+        const mentionsClient = getSupabase();
+
+        const resolvedMentions = userId ? await Promise.all(dataMentions.map(async (m) => {
             const resolvedContent = await resolveMention(m, userId as string, { client: mentionsClient });
             return { ...m, resolvedContent };
         })) : [];
-
-        const knowledgeHits = userId && membershipType !== 'free' ? await (async () => {
-            const cleanedQuery = stripMentionTokens(userQuestionForSearch);
-            if (!cleanedQuery) return [];
-            const results = await searchKnowledge(cleanedQuery, { limit: 12, topK: 5, accessToken: accessTokenForKB || undefined });
-            const candidates = results as Array<SearchCandidate | RankedResult>;
-            const kbIds = Array.from(new Set(candidates.map(r => r.kbId).filter(Boolean))) as string[];
-            if (kbIds.length === 0) return [];
-
-            const { data: kbRows } = await getSupabase()
-                .from('knowledge_bases')
-                .select('id, name, weight')
-                .eq('user_id', userId as string)
-                .in('id', kbIds);
-
-            const kbMap = new Map<string, { name: string; weight: string }>();
-            (kbRows || []).forEach((kb: { id: string; name: string; weight: string }) => kbMap.set(kb.id, { name: kb.name, weight: kb.weight }));
-
-            return candidates.slice(0, 8).map((r): KnowledgeHit => ({
-                kbId: r.kbId,
-                kbName: kbMap.get(r.kbId)?.name || '知识库',
-                content: r.content,
-                score: r.score || 0
-            }));
-        })() : [];
 
         const userSettings = userId ? await (async () => {
             const { data } = await getSupabase()
@@ -446,38 +413,45 @@ export async function POST(request: NextRequest) {
             };
         })() : { expressionStyle: 'direct' as const, userProfile: {}, customInstructions: '', promptKbIds: [] as string[] };
 
-        const promptMentions = userId && userSettings.promptKbIds?.length
-            ? await (async () => {
-                const { data: kbRows } = await getSupabase()
-                    .from('knowledge_bases')
-                    .select('id, name, description')
-                    .eq('user_id', userId as string)
-                    .in('id', userSettings.promptKbIds);
-                const resolved = await Promise.all((kbRows || []).map(async (kb: { id: string; name: string; description: string | null }) => {
-                    const mention = { type: 'knowledge_base' as const, id: kb.id, name: kb.name, preview: kb.description || '知识库' };
-                    const resolvedContent = await resolveMention(mention, userId as string, { client: mentionsClient });
-                    return { ...mention, resolvedContent };
-                }));
-                return resolved;
-            })()
-            : [];
-
-        const allMentions = (() => {
-            if (!promptMentions.length) return resolvedMentions;
-            const seen = new Set<string>();
-            const combined = [...resolvedMentions, ...promptMentions].filter(m => {
-                const key = `${m.type}:${m.id || m.name}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
+        const knowledgeHits = userId && membershipType !== 'free' ? await (async () => {
+            const cleanedQuery = stripMentionTokens(userQuestionForSearch);
+            if (!cleanedQuery) return [];
+            const kbScopeIds = Array.from(new Set([
+                ...userSettings.promptKbIds,
+                ...knowledgeBaseMentions.map(m => m.id as string)
+            ]));
+            if (kbScopeIds.length === 0) return [];
+            const results = await searchKnowledge(cleanedQuery, {
+                limit: 12,
+                topK: 5,
+                accessToken: accessTokenForKB || undefined,
+                kbIds: kbScopeIds.length > 0 ? kbScopeIds : undefined
             });
-            return combined;
-        })();
+            const candidates = results as Array<SearchCandidate | RankedResult>;
+            const kbIds = Array.from(new Set(candidates.map(r => r.kbId).filter(Boolean))) as string[];
+            if (kbIds.length === 0) return [];
+
+            const { data: kbRows } = await getSupabase()
+                .from('knowledge_bases')
+                .select('id, name, weight')
+                .eq('user_id', userId as string)
+                .in('id', kbIds);
+
+            const kbMap = new Map<string, { name: string; weight: string }>();
+            (kbRows || []).forEach((kb: { id: string; name: string; weight: string }) => kbMap.set(kb.id, { name: kb.name, weight: kb.weight }));
+
+            return candidates.slice(0, 8).map((r): KnowledgeHit => ({
+                kbId: r.kbId,
+                kbName: kbMap.get(r.kbId)?.name || '知识库',
+                content: r.content,
+                score: r.score || 0
+            }));
+        })() : [];
 
         const promptBuild = await buildPromptWithSources({
             modelId: requestedModelId,
             userMessage: userQuestionForSearch,
-            mentions: allMentions,
+            mentions: resolvedMentions,
             knowledgeHits,
             userSettings
         });

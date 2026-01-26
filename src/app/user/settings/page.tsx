@@ -18,6 +18,7 @@ import {
     ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
 
@@ -130,6 +131,7 @@ export default function SettingsPage() {
         language: 'zh',
     });
     const [userId, setUserId] = useState<string | null>(null);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -141,6 +143,8 @@ export default function SettingsPage() {
             }
 
             setUserId(session.user.id);
+            const membership = await getMembershipInfo(session.user.id);
+            setMembershipType(membership?.type || 'free');
 
             const { data, error } = await supabase
                 .from('user_settings')
@@ -324,16 +328,20 @@ export default function SettingsPage() {
                         <button
                             type="button"
                             onClick={() => router.push('/user/knowledge-base')}
-                            className="group w-full flex items-center justify-between p-3 rounded-xl bg-background border border-border/50 hover:border-emerald-500/30 hover:bg-background-secondary transition-all text-left"
+                            disabled={membershipType === 'free'}
+                            className={`group w-full flex items-center justify-between p-3 rounded-xl bg-background border border-border/50 transition-all text-left ${membershipType === 'free'
+                                ? 'opacity-60 cursor-not-allowed'
+                                : 'hover:border-emerald-500/30 hover:bg-background-secondary'
+                                }`}
                         >
                             <div className="flex items-center gap-3">
                                 <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 group-hover:scale-110 transition-transform">
                                     <BookOpenText className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-foreground group-hover:text-emerald-500 transition-colors">知识库管理</p>
+                                    <p className="text-sm font-medium text-foreground group-hover:text-emerald-500 transition-colors">知识库管理{membershipType === 'free' ? ' (Plus+)' : ''}</p>
                                     <p className="text-xs text-foreground-secondary mt-0.5">
-                                        管理归档内容与知识库
+                                        {membershipType === 'free' ? '仅限 Plus 以上会员使用' : '管理归档内容与知识库'}
                                     </p>
                                 </div>
                             </div>
