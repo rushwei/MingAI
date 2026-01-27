@@ -190,17 +190,60 @@ export function ChatComposer({
     // 优先使用 AI 回复后的诊断信息，否则使用预览 API 的 layers
     const hasPromptDiagnostics = !!(promptDiagnostics?.layers?.length && promptDiagnostics?.budgetTotal) || !!(promptPreviewLayers.length && promptPreviewBudget);
     const displayLayers = promptDiagnostics?.layers?.length ? promptDiagnostics.layers : promptPreviewLayers;
-    const displayTotalTokens = promptDiagnostics?.totalTokens ?? promptPreviewTokens;
-    const displayBudgetTotal = promptDiagnostics?.budgetTotal ?? promptPreviewBudget;
     const displayUserMessageTokens = promptDiagnostics?.userMessageTokens ?? promptPreviewUserTokens;
-    const promptUsageLabel = hasPromptDiagnostics
-        ? `提示词 ${displayTotalTokens} / ${displayBudgetTotal}`
-        : `提示词 ${promptProgressPercent}%`;
+    const promptUsageLabel = `提示词 ${promptProgressPercent}%`;
     const previewMentions = useMemo(
         () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),
         [canUseKnowledgeBase, mentions]
     );
     const promptKbIdSet = useMemo(() => new Set(promptKnowledgeBases.map(kb => kb.id)), [promptKnowledgeBases]);
+    const mentionMap = useMemo(() => new Map(mentions.map(mention => [mention.id, mention])), [mentions]);
+    const kbNameMap = useMemo(() => new Map(promptKnowledgeBases.map(kb => [kb.id, kb.name])), [promptKnowledgeBases]);
+    const mentionTypeLabels: Record<MentionType | 'default', string> = {
+        knowledge_base: '知识库',
+        bazi_chart: '八字命盘',
+        ziwei_chart: '紫微命盘',
+        tarot_reading: '塔罗占卜',
+        liuyao_divination: '六爻占卜',
+        mbti_reading: 'MBTI测评',
+        hepan_chart: '合盘',
+        face_reading: '面相分析',
+        palm_reading: '手相分析',
+        ming_record: '命理记录',
+        daily_fortune: '每日运势',
+        monthly_fortune: '每月运势',
+        default: '数据'
+    };
+    const formatLayerLabel = (layerId: string) => {
+        if (layerId.startsWith('mention_')) {
+            const mentionId = layerId.replace('mention_', '');
+            const mention = mentionMap.get(mentionId);
+            if (!mention) return '提及·数据';
+            const typeLabel = mentionTypeLabels[mention.type] || mentionTypeLabels.default;
+            return `提及·${typeLabel}${mention.name ? `·${mention.name}` : ''}`;
+        }
+        if (layerId.startsWith('kb_')) {
+            const kbId = layerId.replace('kb_', '');
+            const kbName = kbNameMap.get(kbId);
+            return `知识库${kbName ? `·${kbName}` : ''}`;
+        }
+        if (layerId === 'chart_context') {
+            const parts: string[] = [];
+            if (selectedCharts?.bazi?.name) parts.push(`八字·${selectedCharts.bazi.name}`);
+            if (selectedCharts?.ziwei?.name) parts.push(`紫微·${selectedCharts.ziwei.name}`);
+            return parts.length > 0 ? `命盘·${parts.join(' / ')}` : '命盘';
+        }
+        if (layerId === 'master_rules') return '主规则';
+        if (layerId === 'dream_role') return '解梦角色';
+        if (layerId === 'mangpai_role') return '盲派角色';
+        if (layerId === 'expression_style') return '表达风格';
+        if (layerId === 'user_profile') return '用户画像';
+        if (layerId === 'custom_instructions') return '自定义指令';
+        if (layerId === 'mangpai_data') return '盲派口诀';
+        if (layerId === 'dream_bazi') return '解梦·命盘信息';
+        if (layerId === 'dream_fortune') return '解梦·今日运势';
+        return layerId;
+    };
 
     useEffect(() => {
         if (!userId) {
@@ -1008,7 +1051,7 @@ export function ChatComposer({
                                                 setPromptDiagnosticsOpen(prev => !prev);
                                             }
                                         }}
-                                        className={`relative w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''} ${hasPromptDiagnostics ? 'cursor-pointer' : 'cursor-default'}`}
+                                        className={`relative w-5 h-5 flex items-center justify-center ${promptPreviewLoading ? 'opacity-60' : ''} ${hasPromptDiagnostics ? 'cursor-pointer' : 'cursor-default'}`}
                                         aria-label="提示词使用情况"
                                     >
                                         <svg viewBox="0 0 36 36" className="w-5 h-5">
@@ -1051,7 +1094,7 @@ export function ChatComposer({
                                                 <div className="flex items-center justify-between font-medium text-foreground-secondary">
                                                     <span>提示词使用</span>
                                                     <span className="tabular-nums">
-                                                        {displayTotalTokens} / {displayBudgetTotal}
+                                                        {promptProgressPercent}%
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 max-h-40 overflow-auto space-y-1">
@@ -1068,7 +1111,7 @@ export function ChatComposer({
                                                     {displayLayers.map((layer) => (
                                                         <div key={layer.id} className="flex items-center justify-between gap-2">
                                                             <span className={`truncate ${layer.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
-                                                                {layer.priority ? `${layer.priority} · ` : ''}{layer.id}
+                                                                {layer.priority ? `${layer.priority} · ` : ''}{formatLayerLabel(layer.id)}
                                                             </span>
                                                             <span className="tabular-nums text-foreground-secondary">
                                                                 {layer.tokens}
