@@ -16,7 +16,9 @@
       "Bash(xargs:*)",
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test:*)",
+      "Bash(pnpm test:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

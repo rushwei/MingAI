@@ -131,14 +131,15 @@ export default function AISettingsPage() {
                         : null;
                     const { data: { session } } = await supabase.auth.getSession();
                     const accessToken = session?.access_token;
-                    const resp = await fetch('/api/user/ai-settings/preview', {
+                    const resp = await fetch('/api/chat/preview', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
                         },
                         body: JSON.stringify({
-                            modelId: DEFAULT_MODEL_ID,
+                            model: DEFAULT_MODEL_ID,
+                            reasoning: false,
                             expressionStyle,
                             customInstructions,
                             userProfile: profilePayload,
@@ -159,12 +160,12 @@ export default function AISettingsPage() {
                     const data = await resp.json() as {
                         totalTokens: number;
                         budgetTotal: number;
-                        layers: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
+                        diagnostics: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
                         promptKnowledgeBases?: Array<{ id: string; name: string }>;
                     };
 
                     if (cancelled) return;
-                    setPreviewLayers(data.layers);
+                    setPreviewLayers(data.diagnostics || []);
                     setPreviewTotalTokens(data.totalTokens);
                     setPreviewBudgetTotal(data.budgetTotal);
                     setPreviewPromptKbs(data.promptKnowledgeBases || []);

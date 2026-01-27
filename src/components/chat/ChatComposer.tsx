@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
-import type { AttachmentState, Mention, MentionType } from '@/types';
+import type { AttachmentState, Mention, MentionType, PromptDiagnostics, PromptLayerDiagnostic } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -110,6 +110,7 @@ interface ChatComposerProps {
     onDreamModeChange?: (enabled: boolean) => void;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
     dreamContextLoading?: boolean;
+    promptDiagnostics?: PromptDiagnostics;
 }
 
 export function ChatComposer({
@@ -139,6 +140,7 @@ export function ChatComposer({
     onDreamModeChange,
     dreamContext,
     dreamContextLoading = false,
+    promptDiagnostics,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
@@ -161,8 +163,11 @@ export function ChatComposer({
     const [promptPreviewTokens, setPromptPreviewTokens] = useState(0);
     const [promptPreviewBudget, setPromptPreviewBudget] = useState(0);
     const [promptPreviewLoading, setPromptPreviewLoading] = useState(false);
+    const [promptPreviewLayers, setPromptPreviewLayers] = useState<PromptLayerDiagnostic[]>([]);
     const [promptHistoryTokens, setPromptHistoryTokens] = useState(0);
     const [promptContextTotal, setPromptContextTotal] = useState(0);
+    const [promptDiagnosticsOpen, setPromptDiagnosticsOpen] = useState(false);
+    const [promptPreviewUserTokens, setPromptPreviewUserTokens] = useState(0);
 
     // 权限判断
     const canUseWeb = membershipType !== 'free';
@@ -173,11 +178,24 @@ export function ChatComposer({
     const promptProgress = promptPreviewBudget > 0
         ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
         : 0;
+    const promptDiagnosticsProgress = promptDiagnostics?.budgetTotal
+        ? Math.min(promptDiagnostics.totalTokens / promptDiagnostics.budgetTotal, 1)
+        : null;
+    const promptUsageProgress = promptDiagnosticsProgress ?? promptProgress;
     const contextProgress = promptContextTotal > 0
         ? Math.min(promptHistoryTokens / promptContextTotal, 1)
         : 0;
-    const promptProgressPercent = Math.round(promptProgress * 100);
+    const promptProgressPercent = Math.round(promptUsageProgress * 100);
     const contextProgressPercent = Math.round(contextProgress * 100);
+    // 优先使用 AI 回复后的诊断信息，否则使用预览 API 的 layers
+    const hasPromptDiagnostics = !!(promptDiagnostics?.layers?.length && promptDiagnostics?.budgetTotal) || !!(promptPreviewLayers.length && promptPreviewBudget);
+    const displayLayers = promptDiagnostics?.layers?.length ? promptDiagnostics.layers : promptPreviewLayers;
+    const displayTotalTokens = promptDiagnostics?.totalTokens ?? promptPreviewTokens;
+    const displayBudgetTotal = promptDiagnostics?.budgetTotal ?? promptPreviewBudget;
+    const displayUserMessageTokens = promptDiagnostics?.userMessageTokens ?? promptPreviewUserTokens;
+    const promptUsageLabel = hasPromptDiagnostics
+        ? `提示词 ${displayTotalTokens} / ${displayBudgetTotal}`
+        : `提示词 ${promptProgressPercent}%`;
     const previewMentions = useMemo(
         () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),
         [canUseKnowledgeBase, mentions]
@@ -188,20 +206,30 @@ export function ChatComposer({
         if (!userId) {
             setPromptPreviewTokens(0);
             setPromptPreviewBudget(0);
+            setPromptPreviewLayers([]);
             return;
         }
         let cancelled = false;
         const loadPreview = async () => {
             setPromptPreviewLoading(true);
             try {
-                const resp = await fetch('/api/user/ai-settings/preview', {
+                // 构建命盘 ID 参数
+                const chartIds = (hasBazi || hasZiwei) ? {
+                    baziId: hasBazi?.id,
+                    ziweiId: hasZiwei?.id,
+                    baziAnalysisMode: hasBazi?.analysisMode
+                } : undefined;
+
+                const resp = await fetch('/api/chat/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        modelId: selectedModel,
-                        reasoningEnabled,
+                        model: selectedModel,
+                        reasoning: reasoningEnabled,
                         mentions: previewMentions,
-                        messages: contextMessages
+                        messages: contextMessages,
+                        chartIds,
+                        dreamMode
                     })
                 });
                 if (!resp.ok) return;
@@ -209,6 +237,8 @@ export function ChatComposer({
                 if (cancelled) return;
                 setPromptPreviewTokens(data.totalTokens || 0);
                 setPromptPreviewBudget(data.budgetTotal || 0);
+                setPromptPreviewLayers(data.diagnostics || []);
+                setPromptPreviewUserTokens(data.userMessageTokens || 0);
                 setPromptHistoryTokens(data.historyTokens || 0);
                 setPromptContextTotal(data.contextTotal || 0);
             } finally {
@@ -217,7 +247,13 @@ export function ChatComposer({
         };
         loadPreview();
         return () => { cancelled = true; };
-    }, [selectedModel, reasoningEnabled, userId, previewMentions, contextMessages]);
+    }, [selectedModel, reasoningEnabled, userId, previewMentions, contextMessages, hasBazi, hasZiwei, dreamMode]);
+
+    useEffect(() => {
+        if (!hasPromptDiagnostics) {
+            setPromptDiagnosticsOpen(false);
+        }
+    }, [hasPromptDiagnostics]);
 
     // 文件选择处理
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -965,7 +1001,16 @@ export function ChatComposer({
 
                             <div className="flex items-center gap-2 pl-1 pr-2">
                                 <div className="relative group">
-                                    <div className={`relative w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (hasPromptDiagnostics) {
+                                                setPromptDiagnosticsOpen(prev => !prev);
+                                            }
+                                        }}
+                                        className={`relative w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''} ${hasPromptDiagnostics ? 'cursor-pointer' : 'cursor-default'}`}
+                                        aria-label="提示词使用情况"
+                                    >
                                         <svg viewBox="0 0 36 36" className="w-5 h-5">
                                             <path
                                                 d="M18 2a16 16 0 1 1 0 32a16 16 0 0 1 0-32"
@@ -990,12 +1035,50 @@ export function ChatComposer({
                                                 style={{ height: `${promptProgressPercent}%` }}
                                             />
                                         </div>
-                                    </div>
+                                    </button>
                                     <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-background border border-border px-2 py-1 text-xs text-foreground-secondary opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                                         {promptPreviewLoading
                                             ? '正在加载预览'
-                                            : `上下文 ${contextProgressPercent}% | 提示词 ${promptProgressPercent}%`}
+                                            : `上下文 ${contextProgressPercent}% | ${promptUsageLabel}`}
                                     </div>
+                                    {hasPromptDiagnostics && promptDiagnosticsOpen && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-40"
+                                                onClick={() => setPromptDiagnosticsOpen(false)}
+                                            />
+                                            <div className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 w-64 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground shadow-lg z-50">
+                                                <div className="flex items-center justify-between font-medium text-foreground-secondary">
+                                                    <span>提示词使用</span>
+                                                    <span className="tabular-nums">
+                                                        {displayTotalTokens} / {displayBudgetTotal}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2 max-h-40 overflow-auto space-y-1">
+                                                    {displayUserMessageTokens > 0 && (
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="truncate text-foreground">
+                                                                P2 · 用户前缀
+                                                            </span>
+                                                            <span className="tabular-nums text-foreground-secondary">
+                                                                {displayUserMessageTokens}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {displayLayers.map((layer) => (
+                                                        <div key={layer.id} className="flex items-center justify-between gap-2">
+                                                            <span className={`truncate ${layer.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                                                                {layer.priority ? `${layer.priority} · ` : ''}{layer.id}
+                                                            </span>
+                                                            <span className="tabular-nums text-foreground-secondary">
+                                                                {layer.tokens}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

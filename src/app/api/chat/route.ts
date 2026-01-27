@@ -12,23 +12,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
-import type { ChatMessage, AIPersonality, BaziChart, DifyContext, InjectedSource } from '@/types';
+import type { ChatMessage, AIPersonality, DifyContext } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
-import { generateBaziChartText } from '@/lib/bazi';
-import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
-import { generateMangpaiPrompt, extractDayPillar } from '@/lib/mangpai';
 import '@/lib/data-sources/init';
 import { buildPromptWithSources, getPromptBudget } from '@/lib/prompt-builder';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 import type { Mention } from '@/types/mentions';
-import { countTokens } from '@/lib/token-utils';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { baziProvider } from '@/lib/data-sources/bazi';
-import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
+import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat-context';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => getServiceRoleClient();
@@ -36,268 +31,14 @@ const getSupabase = () => getServiceRoleClient();
 // 服务端内部密钥（必须通过环境变量设置，无 fallback）
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 
-interface ChartIds {
-    baziId?: string;
-    ziweiId?: string;
-    baziAnalysisMode?: 'traditional' | 'mangpai';
-}
-
-interface ChartContext {
-    baziChart?: {
-        name: string;
-        gender: string;
-        birthDate: string;
-        birthTime?: string;
-        chartData?: Record<string, unknown>;
-    };
-    ziweiChart?: {
-        name: string;
-        gender: string;
-        birthDate: string;
-        birthTime?: string;
-        chartData?: Record<string, unknown>;
-    };
-}
-
-type DreamContextPayload = {
-    baziChartName?: string;
-    baziText?: string;
-    fortuneText?: string;
-};
-
-// 加载命盘上下文（仅加载属于当前用户的命盘）
-async function loadChartContext(chartIds: ChartIds, userId: string): Promise<ChartContext> {
-    const supabase = getSupabase();
-    const context: ChartContext = {};
-
-    if (chartIds.baziId) {
-        const { data } = await supabase
-            .from('bazi_charts')
-            .select('name, gender, birth_date, birth_time, chart_data')
-            .eq('id', chartIds.baziId)
-            .eq('user_id', userId)
-            .single();
-
-        if (data) {
-            context.baziChart = {
-                name: data.name,
-                gender: data.gender === 'male' ? '男' : '女',
-                birthDate: data.birth_date,
-                birthTime: data.birth_time,
-                chartData: data.chart_data,
-            };
+function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatMessage[] {
+    if (!prefix) return messages;
+    return messages.map((msg, index) => {
+        if (index === messages.length - 1 && msg.role === 'user') {
+            return { ...msg, content: prefix + msg.content };
         }
-    }
-
-    if (chartIds.ziweiId) {
-        const { data } = await supabase
-            .from('ziwei_charts')
-            .select('name, gender, birth_date, birth_time, chart_data')
-            .eq('id', chartIds.ziweiId)
-            .eq('user_id', userId)
-            .single();
-
-        if (data) {
-            context.ziweiChart = {
-                name: data.name,
-                gender: data.gender === 'male' ? '男' : '女',
-                birthDate: data.birth_date,
-                birthTime: data.birth_time,
-                chartData: data.chart_data,
-            };
-        }
-    }
-
-    return context;
-}
-
-// 格式化命盘上下文为文本
-function formatChartContextPrompt(context: ChartContext, analysisMode?: 'traditional' | 'mangpai'): string {
-    const parts: string[] = [];
-
-    // 选择八字命盘信息
-    /**
-     * 
-     */
-    if (context.baziChart) {
-        const { baziChart } = context;
-        // 使用 generateBaziChartText 生成八字命盘文字（自动计算大运）
-        const chartData = baziChart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
-
-        // 检查是否使用盲派分析模式
-        if (analysisMode === 'mangpai' && chartData?.fourPillars) {
-            const dayPillar = extractDayPillar(chartData);
-            if (dayPillar) {
-                // 生成基础命盘信息
-                let basicInfo = `【八字命盘】\n`;
-                basicInfo += `姓名：${baziChart.name}\n`;
-                basicInfo += `性别：${baziChart.gender}\n`;
-                basicInfo += `出生日期：${baziChart.birthDate}${baziChart.birthTime ? ` ${baziChart.birthTime}` : ''}\n`;
-                if (chartData.fourPillars) {
-                    const fp = chartData.fourPillars;
-                    basicInfo += `\n四柱：${fp.year?.stem || ''}${fp.year?.branch || ''}年 ${fp.month?.stem || ''}${fp.month?.branch || ''}月 ${fp.day?.stem || ''}${fp.day?.branch || ''}日 ${fp.hour?.stem || ''}${fp.hour?.branch || ''}时\n`;
-                }
-                let ziweiExtra = '';
-                if (context.ziweiChart) {
-                    const { ziweiChart } = context;
-                    const ziweiData = ziweiChart.chartData as ZiweiChart | undefined;
-                    if (ziweiData?.palaces) {
-                        ziweiExtra = generateZiweiChartText(ziweiData);
-                    } else {
-                        let ziweiInfo = `【紫微命盘】\n`;
-                        ziweiInfo += `姓名：${ziweiChart.name}\n`;
-                        ziweiInfo += `性别：${ziweiChart.gender}\n`;
-                        ziweiInfo += `出生日期：${ziweiChart.birthDate}${ziweiChart.birthTime ? ` ${ziweiChart.birthTime}` : ''}\n`;
-                        ziweiExtra = ziweiInfo;
-                    }
-                }
-                // 使用盲派提示词
-                return generateMangpaiPrompt(dayPillar, basicInfo, ziweiExtra);
-            }
-        }
-
-        // 传统模式或盲派数据不完整时的降级处理
-        if (chartData?.fourPillars) {
-            parts.push(generateBaziChartText(chartData));
-        } else {
-            // 降级：使用简单格式
-            let baziInfo = `【八字命盘】\n`;
-            baziInfo += `姓名：${baziChart.name}\n`;
-            baziInfo += `性别：${baziChart.gender}\n`;
-            baziInfo += `出生日期：${baziChart.birthDate}${baziChart.birthTime ? ` ${baziChart.birthTime}` : ''}\n`;
-            parts.push(baziInfo);
-        }
-    }
-
-    if (context.ziweiChart) {
-        const { ziweiChart } = context;
-        // 使用 generateZiweiChartText 生成紫微命盘文字
-        const chartData = ziweiChart.chartData as ZiweiChart | undefined;
-        if (chartData?.palaces) {
-            parts.push(generateZiweiChartText(chartData));
-        } else {
-            // 降级：使用简单格式
-            let ziweiInfo = `【紫微命盘】\n`;
-            ziweiInfo += `姓名：${ziweiChart.name}\n`;
-            ziweiInfo += `性别：${ziweiChart.gender}\n`;
-            ziweiInfo += `出生日期：${ziweiChart.birthDate}${ziweiChart.birthTime ? ` ${ziweiChart.birthTime}` : ''}\n`;
-            parts.push(ziweiInfo);
-        }
-    }
-
-    if (parts.length > 0) {
-        return `\n\n--- 用户已选择以下命盘作为对话参考 ---\n${parts.join('\n\n')}\n请基于以上命盘信息为用户提供个性化的命理分析和建议。\n--- 命盘信息结束 ---\n`;
-    }
-
-    return '';
-}
-
-function buildChartSources(context: ChartContext, chartIds: ChartIds): InjectedSource[] {
-    const sources: InjectedSource[] = [];
-    if (context.baziChart && chartIds.baziId) {
-        const content = formatChartContextPrompt({ baziChart: context.baziChart }, chartIds.baziAnalysisMode);
-        const preview = content.slice(0, 100) + (content.length > 100 ? '...' : '');
-        sources.push({
-            type: 'data_source',
-            sourceType: 'bazi_chart',
-            id: chartIds.baziId,
-            name: `八字命盘-${context.baziChart.name}`,
-            preview,
-            tokens: countTokens(content),
-            truncated: false
-        });
-    }
-    if (context.ziweiChart && chartIds.ziweiId) {
-        const content = formatChartContextPrompt({ ziweiChart: context.ziweiChart }, chartIds.baziAnalysisMode);
-        const preview = content.slice(0, 100) + (content.length > 100 ? '...' : '');
-        sources.push({
-            type: 'data_source',
-            sourceType: 'ziwei_chart',
-            id: chartIds.ziweiId,
-            name: `紫微命盘-${context.ziweiChart.name}`,
-            preview,
-            tokens: countTokens(content),
-            truncated: false
-        });
-    }
-    return sources;
-}
-
-// 格式化 Dify 增强上下文为用户消息前缀（不可信内容，不放入系统提示）
-function formatDifyContextAsUserPrefix(difyContext: DifyContext): string {
-    const parts: string[] = [];
-
-    if (difyContext.fileContent) {
-        parts.push(`【用户上传的文件内容如下】\n${difyContext.fileContent}\n【文件内容结束】`);
-    }
-
-    if (difyContext.webContent) {
-        parts.push(`【网络搜索结果如下】\n${difyContext.webContent}\n【搜索结果结束】`);
-    }
-
-    if (parts.length > 0) {
-        return `${parts.join('\n\n')}\n\n【用户的问题如下】\n`;
-    }
-
-    return '';
-}
-
-// Token 限制
-const MAX_BAZI_TOKENS = 1500;
-const MAX_FORTUNE_TOKENS = 500;
-
-/**
- * 截断文本到指定 token 数量
- */
-function truncateToTokens(text: string, maxTokens: number): string {
-    if (!text) return '';
-    const tokens = countTokens(text);
-    if (tokens <= maxTokens) return text;
-
-    // 按比例截断
-    const ratio = maxTokens / tokens;
-    const targetLength = Math.floor(text.length * ratio * 0.9); // 留出 10% 余量
-    return text.slice(0, targetLength) + '...（已截断）';
-}
-
-async function buildDreamContextPayload(userId: string) {
-    const supabase = getSupabase();
-
-    const { data: settings } = await supabase
-        .from('user_settings')
-        .select('default_bazi_chart_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-    const defaultBaziId = (settings as { default_bazi_chart_id?: string | null } | null)?.default_bazi_chart_id ?? null;
-
-    const baziQuery = supabase
-        .from('bazi_charts')
-        .select('*')
-        .eq('user_id', userId);
-    const { data: baziChart } = defaultBaziId
-        ? await baziQuery.eq('id', defaultBaziId).maybeSingle()
-        : await baziQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-    const fortune = await dailyFortuneProvider.get('today', userId, { client: supabase });
-
-    let baziText = baziChart ? baziProvider.formatForAI(baziChart as Parameters<typeof baziProvider.formatForAI>[0]) : '';
-    let fortuneText = fortune ? dailyFortuneProvider.formatForAI(fortune) : '';
-
-    // Token 截断
-    baziText = truncateToTokens(baziText, MAX_BAZI_TOKENS);
-    fortuneText = truncateToTokens(fortuneText, MAX_FORTUNE_TOKENS);
-
-    const payload: DreamContextPayload = {
-        baziChartName: baziChart?.name,
-        baziText: baziText || undefined,
-        fortuneText: fortuneText || undefined
-    };
-    const context = {
-        baziChartName: baziChart?.name,
-        dailyFortune: fortuneText ? '已参考' : undefined
-    };
-
-    return { payload, context };
+        return msg;
+    });
 }
 
 export async function POST(request: NextRequest) {
@@ -409,49 +150,20 @@ export async function POST(request: NextRequest) {
         }
 
         // 加载命盘上下文（可信数据，放入系统提示）
-        let chartContextPrompt = '';
-        let chartContext: ChartContext | null = null;
-        if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
-            chartContext = await loadChartContext(chartIds, userId);
-            chartContextPrompt = formatChartContextPrompt(chartContext, chartIds.baziAnalysisMode);
-        }
+        const chartContext = chartIds && (chartIds.baziId || chartIds.ziweiId) && userId
+            ? await loadChartContext(chartIds, userId)
+            : undefined;
 
-        // 解梦模式：获取默认八字命盘和今日运势，构建解梦专用系统提示词
+        // 解梦模式：获取默认八字命盘和今日运势（用于提示词构建）
         let dreamContext: { baziChartName?: string; dailyFortune?: string } | undefined;
-        let dreamSystemPrompt = '';
+        let dreamPayload: { baziText?: string; fortuneText?: string } | undefined;
         if (body.dreamMode && userId) {
-            // 始终从服务端获取最新数据，确保不会使用过期的命盘或运势
-            const { payload } = await buildDreamContextPayload(userId);
-            const baziText = payload.baziText || '';
-            const fortuneText = payload.fortuneText || '';
-            dreamContext = {
-                baziChartName: payload?.baziChartName,
-                dailyFortune: fortuneText ? '已参考' : undefined
-            };
-            dreamSystemPrompt = [
-                '你是一位精通周公解梦与命理的分析师，需结合梦境内容、命盘信息与今日运势给出解读。',
-                '解读应包括：象征含义、现实关联、情绪与潜意识、可执行建议。',
-                baziText ? `以下为用户命盘信息：\n${baziText}` : '',
-                fortuneText ? `以下为今日运势信息：\n${fortuneText}` : ''
-            ].filter(Boolean).join('\n\n');
+            const { payload, context } = await buildDreamContextPayload(userId);
+            dreamPayload = payload;
+            dreamContext = context;
         }
 
-        // 处理 Dify 增强上下文（不可信数据，注入到用户消息中）
-        let processedMessages = messages;
-        if (difyContext && (difyContext.webContent || difyContext.fileContent)) {
-            const difyPrefix = formatDifyContextAsUserPrefix(difyContext);
-            if (difyPrefix) {
-                // 找到最后一条用户消息并在其内容前添加 Dify 上下文
-                processedMessages = messages.map((msg, index) => {
-                    if (index === messages.length - 1 && msg.role === 'user') {
-                        return { ...msg, content: difyPrefix + msg.content };
-                    }
-                    return msg;
-                });
-            }
-        }
-
-        const lastUserMessage = [...processedMessages].reverse().find(m => m.role === 'user');
+        const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
         const rawUserContent = lastUserMessage?.content || '';
         const userQuestionForSearch = (() => {
             const marker = '【用户的问题如下】';
@@ -539,17 +251,29 @@ export async function POST(request: NextRequest) {
             userMessage: userQuestionForSearch,
             mentions: resolvedMentions,
             knowledgeHits,
-            userSettings
+            userSettings,
+            chartContext: chartContext ? { ...chartContext, analysisMode: chartIds?.baziAnalysisMode } : undefined,
+            dreamMode: body.dreamMode ? {
+                enabled: true,
+                baziText: dreamPayload?.baziText,
+                fortuneText: dreamPayload?.fortuneText,
+            } : undefined,
+            difyContext,
         });
 
-        const systemSources = chartContext && chartIds ? buildChartSources(chartContext, chartIds) : [];
+        const processedMessages = promptBuild.userMessagePrefix
+            ? injectToLastUserMessage(messages, promptBuild.userMessagePrefix)
+            : messages;
+
         const metadata = {
-            sources: [...systemSources, ...promptBuild.sources],
+            sources: promptBuild.sources,
             kbSearchEnabled: userSettings.promptKbIds.length > 0,
             kbHitCount: knowledgeHits.length,
             promptDiagnostics: {
                 layers: promptBuild.diagnostics,
-                totalTokens: promptBuild.totalTokens
+                totalTokens: promptBuild.totalTokens,
+                budgetTotal: promptBuild.budgetTotal,
+                userMessageTokens: promptBuild.userMessageTokens,
             },
             dreamContext // 解梦模式上下文（可用于前端显示已参考信息）
         };
@@ -561,21 +285,14 @@ export async function POST(request: NextRequest) {
             return msg;
         });
 
-        const combinedSystemPrompt = dreamSystemPrompt
-            ? [
-                `【解梦系统提示】\n${dreamSystemPrompt}`,
-                promptBuild.systemPrompt ? `【知识库与通用系统提示】\n${promptBuild.systemPrompt}` : ''
-            ].filter(Boolean).join('\n\n')
-            : promptBuild.systemPrompt;
-
         // 流式响应
         if (stream) {
             const streamBody = await callAIStream(
                 sanitizedMessages,
                 personality || 'master',
-                chartContextPrompt,
+                '',
                 requestedModelId,
-                { reasoning: reasoningEnabled, systemPromptOverride: combinedSystemPrompt }
+                { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
             );
             const encoder = new TextEncoder();
             const wrapped = new ReadableStream<Uint8Array>({
@@ -605,8 +322,8 @@ export async function POST(request: NextRequest) {
             sanitizedMessages,
             personality || 'master',
             requestedModelId,
-            chartContextPrompt,
-            { reasoning: reasoningEnabled, systemPromptOverride: combinedSystemPrompt }
+            '',
+            { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
         );
         return NextResponse.json({ content, metadata });
     } catch (error) {

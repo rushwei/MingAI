@@ -29,11 +29,12 @@ export class SourceTracker {
         name: string;
         content: string;
         maxTokens?: number;
-    }): { content: string; injected: boolean } {
-        const { type, sourceType, id, name, content, maxTokens } = params;
+        dryRun?: boolean;
+    }): { content: string; injected: boolean; tokens: number; truncated: boolean; reason?: 'empty' | 'duplicate' } {
+        const { type, sourceType, id, name, content, maxTokens, dryRun } = params;
 
         if (!content?.trim()) {
-            return { content: '', injected: false };
+            return { content: '', injected: false, tokens: 0, truncated: false, reason: 'empty' };
         }
 
         let finalContent = content;
@@ -44,13 +45,15 @@ export class SourceTracker {
             truncated = summary.truncated;
             const signature = this.buildKnowledgeBaseSignature(finalContent);
             if (!signature) {
-                return { content: '', injected: false };
+                return { content: '', injected: false, tokens: 0, truncated: false, reason: 'empty' };
             }
             const signatureKey = `${id}:${signature}`;
             if (this.knowledgeBaseSignatures.has(signatureKey)) {
-                return { content: '', injected: false };
+                return { content: '', injected: false, tokens: 0, truncated: false, reason: 'duplicate' };
             }
-            this.knowledgeBaseSignatures.add(signatureKey);
+            if (!dryRun) {
+                this.knowledgeBaseSignatures.add(signatureKey);
+            }
         } else if (maxTokens) {
             const tokens = countTokens(content);
             if (tokens > maxTokens) {
@@ -60,6 +63,10 @@ export class SourceTracker {
         }
 
         const tokens = countTokens(finalContent);
+        if (dryRun) {
+            return { content: finalContent, injected: true, tokens, truncated };
+        }
+
         const preview = finalContent.slice(0, 100) + (finalContent.length > 100 ? '...' : '');
         // 以唯一 blockId 记录注入块，便于诊断统计
         const blockId = `${type}:${id}:${Date.now()}`;
@@ -75,7 +82,7 @@ export class SourceTracker {
             truncated
         });
 
-        return { content: finalContent, injected: true };
+        return { content: finalContent, injected: true, tokens, truncated };
     }
 
     // 批量注入并返回最终写入的文本块
@@ -132,7 +139,7 @@ export class SourceTracker {
             deduped.push(paragraph);
         }
         const joined = deduped.join('\n\n');
-        const limit = typeof maxTokens === 'number' && maxTokens > 0 ? Math.min(maxTokens, 600) : 600;
+        const limit = typeof maxTokens === 'number' && maxTokens > 0 ? maxTokens : Infinity;
         if (countTokens(joined) > limit) {
             return { content: truncateToTokens(joined, limit), truncated: true };
         }

@@ -172,6 +172,27 @@ export interface InjectedSource {
     truncated: boolean;
 }
 
+/** 提示词层优先级 */
+export type PromptLayerPriority = 'P0' | 'P1' | 'P2';
+
+/** 提示词层诊断信息 */
+export interface PromptLayerDiagnostic {
+    id: string;
+    priority: PromptLayerPriority;
+    included: boolean;
+    tokens: number;
+    truncated: boolean;
+    reason?: 'budget_exceeded' | 'empty' | 'duplicate';
+}
+
+/** 提示词诊断汇总 */
+export interface PromptDiagnostics {
+    layers: PromptLayerDiagnostic[];
+    totalTokens: number;
+    budgetTotal: number;
+    userMessageTokens?: number;
+}
+
 /**
  * 匿名用户显示名（用于隐私保护）
  * @description 当用户未设置昵称时使用此常量，避免暴露邮箱等 PII
@@ -209,11 +230,8 @@ export interface AIMessageMetadata {
         baziChartName?: string;
         dailyFortune?: string;
     };
-    /** 提示词诊断信息（调试用） */
-    promptDiagnostics?: {
-        layers: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
-        totalTokens: number;
-    };
+    /** 提示词诊断信息 */
+    promptDiagnostics?: PromptDiagnostics;
 }
 
 export type { MentionType, Mention, MentionTarget } from './mentions';
