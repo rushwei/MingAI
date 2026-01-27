@@ -21,6 +21,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { ClientProviders } from "@/components/providers/ClientProviders";
+import { Analytics } from "@vercel/analytics/react";
 
 // 字体配置 - 使用 Google Fonts 的 Geist 字体
 const geistSans = Geist({
@@ -119,6 +120,7 @@ export default function RootLayout({
             </SidebarConfigProvider>
           </ClientProviders>
         </ThemeProvider>
+        {process.env.NODE_ENV === "production" ? <Analytics /> : null}
       </body>
     </html>
   );

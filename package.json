@@ -20,6 +20,7 @@
     "@lobehub/icons": "^4.0.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@vercel/analytics": "^1.6.1",
     "html2canvas": "^1.4.1",
     "iztro": "^2.5.4",
     "lucide-react": "^0.562.0",
