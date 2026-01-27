@@ -15,14 +15,14 @@ test('extractAnalysisFromConversation prefers message metadata then source_data'
             role: 'assistant',
             content: 'analysis',
             createdAt: '2024-01-01',
-            model: 'deepseek-v3',
+            model: 'deepseek-v3.2',
             reasoning: 'think',
         },
     ];
     const sourceData = { model_id: 'glm-4', reasoning_text: 'fallback' };
     const result = extractAnalysisFromConversation(messages, sourceData);
     assert.equal(result.analysis, 'analysis');
-    assert.equal(result.modelId, 'deepseek-v3');
+    assert.equal(result.modelId, 'deepseek-v3.2');
     assert.equal(result.reasoning, 'think');
 });
 

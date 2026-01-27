@@ -27,6 +27,8 @@ import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledg
 import type { Mention } from '@/types/mentions';
 import { countTokens } from '@/lib/token-utils';
 import { getServiceRoleClient } from '@/lib/api-utils';
+import { baziProvider } from '@/lib/data-sources/bazi';
+import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => getServiceRoleClient();
@@ -56,6 +58,12 @@ interface ChartContext {
         chartData?: Record<string, unknown>;
     };
 }
+
+type DreamContextPayload = {
+    baziChartName?: string;
+    baziText?: string;
+    fortuneText?: string;
+};
 
 // 加载命盘上下文（仅加载属于当前用户的命盘）
 async function loadChartContext(chartIds: ChartIds, userId: string): Promise<ChartContext> {
@@ -234,6 +242,64 @@ function formatDifyContextAsUserPrefix(difyContext: DifyContext): string {
     return '';
 }
 
+// Token 限制
+const MAX_BAZI_TOKENS = 1500;
+const MAX_FORTUNE_TOKENS = 500;
+
+/**
+ * 截断文本到指定 token 数量
+ */
+function truncateToTokens(text: string, maxTokens: number): string {
+    if (!text) return '';
+    const tokens = countTokens(text);
+    if (tokens <= maxTokens) return text;
+
+    // 按比例截断
+    const ratio = maxTokens / tokens;
+    const targetLength = Math.floor(text.length * ratio * 0.9); // 留出 10% 余量
+    return text.slice(0, targetLength) + '...（已截断）';
+}
+
+async function buildDreamContextPayload(userId: string) {
+    const supabase = getSupabase();
+
+    const { data: settings } = await supabase
+        .from('user_settings')
+        .select('default_bazi_chart_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    const defaultBaziId = (settings as { default_bazi_chart_id?: string | null } | null)?.default_bazi_chart_id ?? null;
+
+    const baziQuery = supabase
+        .from('bazi_charts')
+        .select('*')
+        .eq('user_id', userId);
+    const { data: baziChart } = defaultBaziId
+        ? await baziQuery.eq('id', defaultBaziId).maybeSingle()
+        : await baziQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+    const fortune = await dailyFortuneProvider.get('today', userId, { client: supabase });
+
+    let baziText = baziChart ? baziProvider.formatForAI(baziChart as Parameters<typeof baziProvider.formatForAI>[0]) : '';
+    let fortuneText = fortune ? dailyFortuneProvider.formatForAI(fortune) : '';
+
+    // Token 截断
+    baziText = truncateToTokens(baziText, MAX_BAZI_TOKENS);
+    fortuneText = truncateToTokens(fortuneText, MAX_FORTUNE_TOKENS);
+
+    const payload: DreamContextPayload = {
+        baziChartName: baziChart?.name,
+        baziText: baziText || undefined,
+        fortuneText: fortuneText || undefined
+    };
+    const context = {
+        baziChartName: baziChart?.name,
+        dailyFortune: fortuneText ? '已参考' : undefined
+    };
+
+    return { payload, context };
+}
+
 export async function POST(request: NextRequest) {
     let creditDeducted = false;
     let userId: string | null = null;
@@ -251,6 +317,7 @@ export async function POST(request: NextRequest) {
             reasoning?: boolean;
             difyContext?: DifyContext;
             mentions?: Mention[];
+            dreamMode?: boolean;
         };
 
         if (!messages || !Array.isArray(messages)) {
@@ -347,6 +414,26 @@ export async function POST(request: NextRequest) {
         if (chartIds && (chartIds.baziId || chartIds.ziweiId) && userId) {
             chartContext = await loadChartContext(chartIds, userId);
             chartContextPrompt = formatChartContextPrompt(chartContext, chartIds.baziAnalysisMode);
+        }
+
+        // 解梦模式：获取默认八字命盘和今日运势，构建解梦专用系统提示词
+        let dreamContext: { baziChartName?: string; dailyFortune?: string } | undefined;
+        let dreamSystemPrompt = '';
+        if (body.dreamMode && userId) {
+            // 始终从服务端获取最新数据，确保不会使用过期的命盘或运势
+            const { payload } = await buildDreamContextPayload(userId);
+            const baziText = payload.baziText || '';
+            const fortuneText = payload.fortuneText || '';
+            dreamContext = {
+                baziChartName: payload?.baziChartName,
+                dailyFortune: fortuneText ? '已参考' : undefined
+            };
+            dreamSystemPrompt = [
+                '你是一位精通周公解梦与命理的分析师，需结合梦境内容、命盘信息与今日运势给出解读。',
+                '解读应包括：象征含义、现实关联、情绪与潜意识、可执行建议。',
+                baziText ? `以下为用户命盘信息：\n${baziText}` : '',
+                fortuneText ? `以下为今日运势信息：\n${fortuneText}` : ''
+            ].filter(Boolean).join('\n\n');
         }
 
         // 处理 Dify 增强上下文（不可信数据，注入到用户消息中）
@@ -458,10 +545,13 @@ export async function POST(request: NextRequest) {
         const systemSources = chartContext && chartIds ? buildChartSources(chartContext, chartIds) : [];
         const metadata = {
             sources: [...systemSources, ...promptBuild.sources],
+            kbSearchEnabled: userSettings.promptKbIds.length > 0,
+            kbHitCount: knowledgeHits.length,
             promptDiagnostics: {
                 layers: promptBuild.diagnostics,
                 totalTokens: promptBuild.totalTokens
-            }
+            },
+            dreamContext // 解梦模式上下文（可用于前端显示已参考信息）
         };
 
         const sanitizedMessages = processedMessages.map((msg, index) => {
@@ -471,6 +561,13 @@ export async function POST(request: NextRequest) {
             return msg;
         });
 
+        const combinedSystemPrompt = dreamSystemPrompt
+            ? [
+                `【解梦系统提示】\n${dreamSystemPrompt}`,
+                promptBuild.systemPrompt ? `【知识库与通用系统提示】\n${promptBuild.systemPrompt}` : ''
+            ].filter(Boolean).join('\n\n')
+            : promptBuild.systemPrompt;
+
         // 流式响应
         if (stream) {
             const streamBody = await callAIStream(
@@ -478,7 +575,7 @@ export async function POST(request: NextRequest) {
                 personality || 'master',
                 chartContextPrompt,
                 requestedModelId,
-                { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
+                { reasoning: reasoningEnabled, systemPromptOverride: combinedSystemPrompt }
             );
             const encoder = new TextEncoder();
             const wrapped = new ReadableStream<Uint8Array>({
@@ -509,7 +606,7 @@ export async function POST(request: NextRequest) {
             personality || 'master',
             requestedModelId,
             chartContextPrompt,
-            { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
+            { reasoning: reasoningEnabled, systemPromptOverride: combinedSystemPrompt }
         );
         return NextResponse.json({ content, metadata });
     } catch (error) {

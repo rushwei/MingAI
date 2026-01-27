@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check } from 'lucide-react';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import type { AttachmentState, Mention, MentionType } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -105,6 +105,11 @@ interface ChatComposerProps {
     contextMessages?: Array<{ content?: string }>;
     // 隐藏底部免责声明
     hideDisclaimer?: boolean;
+    // 解梦模式
+    dreamMode?: boolean;
+    onDreamModeChange?: (enabled: boolean) => void;
+    dreamContext?: { baziChartName?: string; dailyFortune?: string };
+    dreamContextLoading?: boolean;
 }
 
 export function ChatComposer({
@@ -130,6 +135,10 @@ export function ChatComposer({
     promptKnowledgeBases = [],
     contextMessages = [],
     hideDisclaimer = false,
+    dreamMode = false,
+    onDreamModeChange,
+    dreamContext,
+    dreamContextLoading = false,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
@@ -437,7 +446,7 @@ export function ChatComposer({
                 }
             }
         }
-        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && inputValue.trim()) {
+        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !dreamContextLoading && inputValue.trim()) {
             e.preventDefault();
             onSend();
         }
@@ -536,16 +545,16 @@ export function ChatComposer({
     };
 
     return (
-        <div className={`fixed left-0 right-0 bottom-[calc(3.5rem+var(--sab))] z-30 md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
+        <div className={`fixed left-0 right-0 bottom-[calc(3.5rem+var(--sab))] ${knowledgeBaseOpen ? 'z-[60]' : 'z-30'} md:sticky md:bottom-0 md:left-auto md:right-auto border-border bg-gradient-to-t from-background/95 to-transparent backdrop-blur-[2px] md:backdrop-blur-none pb-3 ${disabled ? 'opacity-50' : ''}`}>
             <div className="relative max-w-3xl mx-auto md:p-0 p-2">
                 {/* 知识库弹窗 */}
                 {knowledgeBaseOpen && userId && (
                     <>
                         <div
-                            className="fixed inset-0 z-30 bg-background/20 backdrop-blur-[1px]"
+                            className="fixed inset-0 z-[70] bg-background/20 backdrop-blur-[1px]"
                             onClick={() => setKnowledgeBaseOpen(false)}
                         />
-                        <div className="absolute bottom-full left-0 right-0 mb-4 z-40 px-4 md:px-0">
+                        <div className="absolute bottom-full left-0 right-0 mb-4 z-[80] px-4 md:px-0">
                             <div className="bg-background border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[60vh] w-full animate-in slide-in-from-bottom-2 fade-in duration-200">
                                 <div className="flex items-center justify-between p-3 px-4 border-b border-border/50 bg-muted/30">
                                     <div className="flex items-center gap-2">
@@ -655,7 +664,7 @@ export function ChatComposer({
                         </div>
                     )}
 
-                    {promptKnowledgeBases.length > 0 && (
+                    {(promptKnowledgeBases.length > 0 || dreamMode) && (
                         <div className="flex flex-wrap items-center gap-2 mb-2 px-2">
                             <span className="text-xs text-foreground-secondary">已参考</span>
                             {promptKnowledgeBases.map(kb => (
@@ -668,12 +677,35 @@ export function ChatComposer({
                                     <span className="max-w-[160px] truncate">{kb.name}</span>
                                 </span>
                             ))}
+                            {/* 解梦模式已参考 */}
+                            {dreamMode && (
+                                <>
+                                    {dreamContextLoading && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-600 text-xs">
+                                            <Moon className="w-3.5 h-3.5" />
+                                            <span>正在加载</span>
+                                        </span>
+                                    )}
+                                    {dreamContext?.baziChartName && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-600 text-xs">
+                                            <Moon className="w-3.5 h-3.5" />
+                                            <span className="max-w-[160px] truncate">{dreamContext.baziChartName}</span>
+                                        </span>
+                                    )}
+                                    {dreamContext?.dailyFortune && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-600 text-xs">
+                                            <Moon className="w-3.5 h-3.5" />
+                                            <span>今日运势</span>
+                                        </span>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
 
                     {/* 输入框区域 */}
                     <div className="relative">
-                                                {mentionOpen && userId && (
+                        {mentionOpen && userId && (
                             <>
                                 <div
                                     className="fixed inset-0 z-30"
@@ -702,7 +734,9 @@ export function ChatComposer({
                                 {inputValue ? (
                                     <span dangerouslySetInnerHTML={{ __html: highlightedInput }} />
                                 ) : (
-                                    <span className="text-foreground-secondary/80">{disabled ? "请充值后继续使用" : "尽管问"}</span>
+                                    <span className="text-foreground-secondary/80">
+                                        {disabled ? "请充值后继续使用" : dreamMode ? "🌙 做了什么梦" : "尽管问"}
+                                    </span>
                                 )}
                             </div>
                             <textarea
@@ -728,7 +762,7 @@ export function ChatComposer({
                                 <button
                                     type="button"
                                     onClick={() => setMenuOpen(!menuOpen)}
-                                    className={`p-2 rounded-lg transition-all ${menuOpen
+                                    className={`h-10 w-10 rounded-xl transition-all flex items-center justify-center ${menuOpen
                                         ? 'bg-background-tertiary text-foreground'
                                         : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary'
                                         }`}
@@ -741,19 +775,62 @@ export function ChatComposer({
                                     <>
                                         <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                                         <div className="absolute bottom-full left-0 mb-2 w-38 bg-background border border-border rounded-xl shadow-lg z-20 overflow-hidden p-1 flex flex-col gap-1">
+                                            {/* 附件选项 */}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (dreamMode) return;
+                                                    fileInputRef.current?.click();
+                                                    setMenuOpen(false);
+                                                }}
+                                                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${hasFile
+                                                    ? 'bg-blue-500/10 text-blue-600'
+                                                    : dreamMode
+                                                        ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
+                                                        : 'hover:bg-background-secondary text-foreground-secondary'
+                                                    }`}
+                                                disabled={disabled || dreamMode}
+                                            >
+                                                <Paperclip className="w-4.5 h-4.5" />
+                                                <span>{hasFile ? '更换附件' : '上传附件'}</span>
+                                            </button>
+                                            {/* 搜索选项 */}
+                                            <div className={`flex items-center w-full rounded-lg transition-all ${hasWebSearch
+                                                ? 'bg-green-500/10 text-green-600'
+                                                : (!canUseWeb || dreamMode)
+                                                    ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
+                                                    : 'hover:bg-background-secondary text-foreground-secondary'
+                                                }`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (dreamMode) return;
+                                                        handleWebToggle();
+                                                        setMenuOpen(false);
+                                                    }}
+                                                    className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
+                                                    disabled={disabled || dreamMode}
+                                                >
+                                                    <Globe className="w-4.5 h-4.5" />
+                                                    <span>{!canUseWeb ? '搜索 (Plus+)' : '搜索'}</span>
+                                                </button>
+                                            </div>
                                             {onSelectChart && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasBazi
                                                     ? 'bg-orange-500/10 text-orange-600'
-                                                    : 'hover:bg-background-secondary text-foreground-secondary'
+                                                    : dreamMode
+                                                        ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
+                                                        : 'hover:bg-background-secondary text-foreground-secondary'
                                                     }`}>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
+                                                            if (dreamMode) return;
                                                             onSelectChart('bazi');
                                                             setMenuOpen(false);
                                                         }}
-                                                        className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
-                                                        disabled={disabled}
+                                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
+                                                        disabled={disabled || dreamMode}
                                                     >
                                                         <Orbit className="w-4.5 h-4.5" />
                                                         <span className="truncate flex flex-col items-start text-left">
@@ -783,16 +860,19 @@ export function ChatComposer({
                                             {onSelectChart && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasZiwei
                                                     ? 'bg-purple-500/10 text-purple-600'
-                                                    : 'hover:bg-background-secondary text-foreground-secondary'
+                                                    : dreamMode
+                                                        ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
+                                                        : 'hover:bg-background-secondary text-foreground-secondary'
                                                     }`}>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
+                                                            if (dreamMode) return;
                                                             onSelectChart('ziwei');
                                                             setMenuOpen(false);
                                                         }}
-                                                        className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
-                                                        disabled={disabled}
+                                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
+                                                        disabled={disabled || dreamMode}
                                                     >
                                                         <Sparkles className="w-4.5 h-4.5" />
                                                         <span className="truncate">{hasZiwei?.name || '紫微命盘'}</span>
@@ -812,6 +892,26 @@ export function ChatComposer({
                                                     )}
                                                 </div>
                                             )}
+                                            {/* 周公解梦按钮 */}
+                                            {!!userId && onDreamModeChange && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onDreamModeChange(!dreamMode);
+                                                        setMenuOpen(false);
+                                                        textareaRef.current?.focus();
+                                                    }}
+                                                    className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${dreamMode
+                                                        ? 'bg-purple-500/10 text-purple-600'
+                                                        : 'hover:bg-background-secondary text-foreground-secondary'
+                                                        }`}
+                                                    disabled={disabled}
+                                                >
+                                                    <Moon className="w-4.5 h-4.5" />
+                                                    <span>周公解梦</span>
+                                                </button>
+                                            )}
+                                            {/* 知识库按钮 */}
                                             {!!userId && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${canUseKnowledgeBase
                                                     ? 'hover:bg-background-secondary text-foreground-secondary'
@@ -820,7 +920,7 @@ export function ChatComposer({
                                                     <button
                                                         type="button"
                                                         onClick={handleKnowledgeBaseOpen}
-                                                        className="flex-1 flex items-center gap-2 w-full px-3 py-2.5 text-sm"
+                                                        className="flex-1 flex items-center gap-2 w-full px-3 py-2 text-sm"
                                                         disabled={disabled}
                                                     >
                                                         <BookOpenText className="w-4.5 h-4.5" />
@@ -828,42 +928,7 @@ export function ChatComposer({
                                                     </button>
                                                 </div>
                                             )}
-                                            {/* 附件选项 */}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    fileInputRef.current?.click();
-                                                    setMenuOpen(false);
-                                                }}
-                                                className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all ${hasFile
-                                                    ? 'bg-blue-500/10 text-blue-600'
-                                                    : 'hover:bg-background-secondary text-foreground-secondary'
-                                                    }`}
-                                                disabled={disabled}
-                                            >
-                                                <Paperclip className="w-4.5 h-4.5" />
-                                                <span>{hasFile ? '更换附件' : '上传附件'}</span>
-                                            </button>
-                                            {/* 搜索选项 */}
-                                            <div className={`flex items-center w-full rounded-lg transition-all ${hasWebSearch
-                                                ? 'bg-green-500/10 text-green-600'
-                                                : !canUseWeb
-                                                    ? 'opacity-50 text-foreground-secondary hover:bg-background-secondary'
-                                                    : 'hover:bg-background-secondary text-foreground-secondary'
-                                                }`}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        handleWebToggle();
-                                                        setMenuOpen(false);
-                                                    }}
-                                                    className="flex-1 flex items-center gap-2 px-3 py-2.5 text-sm"
-                                                    disabled={disabled}
-                                                >
-                                                    <Globe className="w-4.5 h-4.5" />
-                                                    <span>{!canUseWeb ? '搜索 (Plus+)' : hasWebSearch ? '搜索已启用' : '搜索'}</span>
-                                                </button>
-                                            </div>
+                                            {/* 提及按钮 */}
                                             {!!userId && (
                                                 <button
                                                     type="button"
@@ -874,7 +939,7 @@ export function ChatComposer({
                                                         setMenuOpen(false);
                                                         textareaRef.current?.focus();
                                                     }}
-                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
+                                                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
                                                     disabled={disabled}
                                                 >
                                                     <AtSign className="w-4.5 h-4.5" />
@@ -898,7 +963,7 @@ export function ChatComposer({
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2 pl-1.5 pr-2">
+                            <div className="flex items-center gap-2 pl-1 pr-2">
                                 <div className="relative group">
                                     <div className={`relative w-5 h-5 ${promptPreviewLoading ? 'opacity-60' : ''}`}>
                                         <svg viewBox="0 0 36 36" className="w-5 h-5">
@@ -948,12 +1013,12 @@ export function ChatComposer({
                         {/* 发送/停止按钮 */}
                         <button
                             onClick={handleButtonClick}
-                            disabled={disabled || (!isLoading && !inputValue.trim())}
+                            disabled={disabled || (!isLoading && (!inputValue.trim() || dreamContextLoading))}
                             className={`
                                 px-2 py-2 rounded-full transition-all duration-200 flex items-center gap-2 flex-shrink-0
                                 ${isLoading
                                     ? 'bg-red-500 text-white hover:bg-red-600'
-                                    : inputValue.trim() && !disabled
+                                    : inputValue.trim() && !disabled && !dreamContextLoading
                                         ? 'bg-foreground text-background hover:bg-foreground/90'
                                         : 'bg-background-tertiary text-foreground-secondary cursor-not-allowed'
                                 }

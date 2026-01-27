@@ -10,7 +10,7 @@ function getModelTier(model: AIModelConfig): ModelTier {
     }
 
     if (model.vendor === "deepseek") {
-        if (model.id === "deepseek-v3") return "free";
+        if (model.id === "deepseek-v3.2") return "free";
         if (model.id === "deepseek-pro") return "plus";
         return "none";
     }

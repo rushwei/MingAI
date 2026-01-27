@@ -2621,7 +2621,7 @@ interface ModelContextConfig {
 
 // 各模型上下文预算配置：预留输出与历史消息，剩余按比例作为提示词预算
 const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
-    'deepseek-v3': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
+    'deepseek-v3.2': { maxContext: 64000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'deepseek-pro': { maxContext: 64000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'glm-4.6': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },
     'glm-4.7': { maxContext: 128000, promptRatio: 0.3, reserveOutput: 2000, reserveHistory: 4000 },

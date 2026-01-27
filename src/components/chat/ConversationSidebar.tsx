@@ -37,11 +37,12 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
     hepan: { label: '合盘分析', icon: HeartHandshake, color: 'text-foreground-secondary' },
     palm: { label: '手相分析', icon: Hand, color: 'text-foreground-secondary' },
     face: { label: '面相分析', icon: User, color: 'text-foreground-secondary' },
+    dream: { label: '周公解梦', icon: MessageSquare, color: 'text-foreground-secondary' },
 };
 
 // 显示顺序
 const SOURCE_TYPE_ORDER: ConversationSourceType[] = [
-    'chat', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
+    'chat', 'dream', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
 ];
 
 export function ConversationSidebar({
@@ -89,7 +90,7 @@ export function ConversationSidebar({
             : conversations;
 
         const groups: Record<ConversationSourceType, Conversation[]> = {
-            chat: [], bazi_wuxing: [], bazi_personality: [],
+            chat: [], dream: [], bazi_wuxing: [], bazi_personality: [],
             tarot: [], liuyao: [], mbti: [], hepan: [],
             palm: [], face: []
         };
@@ -128,18 +129,18 @@ export function ConversationSidebar({
 
     const openActionSheet = (conv: Conversation, e: React.MouseEvent) => {
         const rect = e.currentTarget.getBoundingClientRect();
-        
+
         // 计算位置：始终显示在按钮的右侧，稍微向下一点，或者如果空间不足则显示在左侧
         // 由于侧边栏在左侧，默认向右展开是比较安全的
         // rect.right 是按钮的右边缘
-        
+
         const top = rect.bottom + 4;
         // 用户调整：菜单左边对齐 "..." 按钮的左边
         const left = rect.left;
 
         // 简单处理：记录点击位置，具体渲染时微调
         setActionMenuPos({ top, left });
-        
+
         setActionConv(conv);
         setActionView('menu');
         setEditingId(null);
@@ -181,7 +182,7 @@ export function ConversationSidebar({
     // 渲染单个对话项
     const renderConversationItem = (conv: Conversation) => {
         const isActionActive = actionConv?.id === conv.id;
-        
+
         return (
             <div
                 key={conv.id}
@@ -444,13 +445,13 @@ export function ConversationSidebar({
                 <div className="fixed inset-0 z-[60]" onClick={closeActionSheet}>
                     {/* 透明遮罩，点击关闭 */}
                     <div className="absolute inset-0 bg-transparent" />
-                    
+
                     {/* 菜单内容 */}
-                    <div 
+                    <div
                         className="fixed z-[61] min-w-[160px] max-w-[240px] bg-background rounded-xl border border-border shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left"
-                        style={{ 
+                        style={{
                             top: Math.min(actionMenuPos.top, window.innerHeight - 200), // 防止超出底部
-                            left: isCollapsed 
+                            left: isCollapsed
                                 ? actionMenuPos.left + 48 // 折叠时显示在右侧
                                 : actionMenuPos.left, // 展开时显示在点击位置右侧附近
                         }}

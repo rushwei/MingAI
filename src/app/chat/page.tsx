@@ -9,7 +9,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Lock } from 'lucide-react';
 import Link from 'next/link';
-import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, AIMessageMetadata } from '@/types';
+import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
+import { ANONYMOUS_DISPLAY_NAME } from '@/types';
 
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -95,6 +96,59 @@ export default function ChatPage() {
     const [promptKnowledgeBases, setPromptKnowledgeBases] = useState<Array<{ id: string; name: string; description: string | null }>>([]);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [kbTargetMessage, setKbTargetMessage] = useState<ChatMessage | null>(null);
+
+    // 解梦模式状态
+    const [dreamMode, setDreamMode] = useState(false);
+    const [dreamContext, setDreamContext] = useState<{ baziChartName?: string; dailyFortune?: string } | undefined>(undefined);
+    const [dreamContextLoading, setDreamContextLoading] = useState(false);
+
+    // 当解梦模式开启时获取参考数据（仅用于 UI 显示，服务端会始终获取最新数据）
+    useEffect(() => {
+        let isActive = true;
+        if (!dreamMode || !userId) {
+            setDreamContext(undefined);
+            setDreamContextLoading(false);
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const fetchDreamContext = async () => {
+            setDreamContextLoading(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const headers: Record<string, string> = {};
+                if (session?.access_token) {
+                    headers.Authorization = `Bearer ${session.access_token}`;
+                }
+
+                const response = await fetch('/api/dream-context', {
+                    headers,
+                });
+
+                if (!response.ok) {
+                    throw new Error('请求失败');
+                }
+
+                const data = await response.json();
+                if (!isActive) return;
+                setDreamContext(data?.dreamContext);
+            } catch (error) {
+                if (!isActive) return;
+                console.error('获取解梦上下文失败:', error);
+                setDreamContext(undefined);
+            } finally {
+                if (isActive) {
+                    setDreamContextLoading(false);
+                }
+            }
+        };
+
+        fetchDreamContext();
+        return () => {
+            isActive = false;
+        };
+    }, [dreamMode, userId]);
 
     // 滚动到最新消息
     const scrollToBottom = () => {
@@ -337,6 +391,14 @@ export default function ChatPage() {
     // 发送消息
     const handleSend = async () => {
         if (!inputValue.trim() || isLoading) return;
+        if (dreamMode && dreamContextLoading) return;
+
+        // 解梦模式下构建 dreamInfo
+        const dreamInfo: DreamInterpretationInfo | undefined = dreamMode ? {
+            userName: user?.user_metadata?.nickname || ANONYMOUS_DISPLAY_NAME,
+            dreamDate: new Date().toISOString(),
+            dreamContent: inputValue.trim().slice(0, 50),
+        } : undefined;
 
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
@@ -348,6 +410,8 @@ export default function ChatPage() {
                 fileName: attachmentState.file?.name || '',
                 webSearchEnabled: attachmentState.webSearchEnabled,
             } : undefined,
+            // 解梦模式下添加 dreamInfo
+            dreamInfo,
         };
 
         const isNewConversation = !activeConversationId;
@@ -377,6 +441,10 @@ export default function ChatPage() {
         let accumulatedContent = '';
         let accumulatedReasoning = '';
         let accumulatedMetadata: AIMessageMetadata | null = null;
+        const charQueue: string[] = [];
+        let drainTimer: number | null = null;
+        let visibleContent = '';
+        let streamDone = false;
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -435,6 +503,7 @@ export default function ChatPage() {
                 }
             }
 
+            // 统一使用 /api/chat 接口（流式），解梦模式通过 dreamMode 参数处理
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers,
@@ -451,6 +520,7 @@ export default function ChatPage() {
                     reasoning: reasoningEnabled,
                     difyContext,
                     mentions,
+                    dreamMode, // 解梦模式标记（服务端会获取最新上下文）
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -464,6 +534,26 @@ export default function ChatPage() {
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
+
+            const startDrain = () => {
+                if (drainTimer) return;
+                drainTimer = window.setInterval(() => {
+                    if (charQueue.length > 0) {
+                        const ch = charQueue.shift() as string;
+                        visibleContent += ch;
+                        setMessages(prev => prev.map(msg =>
+                            msg.id === assistantMessageId
+                                ? { ...msg, content: visibleContent, reasoning: accumulatedReasoning || undefined }
+                                : msg
+                        ));
+                    } else if (streamDone) {
+                        if (drainTimer) {
+                            clearInterval(drainTimer);
+                            drainTimer = null;
+                        }
+                    }
+                }, 25);
+            };
 
             if (reader) {
                 while (true) {
@@ -483,6 +573,10 @@ export default function ChatPage() {
                                 const parsed = JSON.parse(data);
                                 if (parsed?.type === 'meta' && parsed?.metadata) {
                                     accumulatedMetadata = parsed.metadata as AIMessageMetadata;
+                                    // 提取解梦上下文
+                                    if (parsed.metadata.dreamContext) {
+                                        setDreamContext(parsed.metadata.dreamContext);
+                                    }
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
                                             ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
@@ -503,13 +597,12 @@ export default function ChatPage() {
                                 }
                                 // 处理正常内容
                                 const content = delta?.content;
-                                if (content) {
+                                if (typeof content === 'string' && content) {
                                     accumulatedContent += content;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
-                                            : msg
-                                    ));
+                                    for (const ch of content) {
+                                        charQueue.push(ch);
+                                    }
+                                    startDrain();
                                 }
                             } catch {
                                 // 跳过解析错误
@@ -518,6 +611,21 @@ export default function ChatPage() {
                     }
                 }
             }
+            streamDone = true;
+            await new Promise<void>((resolve) => {
+                const check = () => {
+                    if (charQueue.length === 0) {
+                        if (drainTimer) {
+                            clearInterval(drainTimer);
+                            drainTimer = null;
+                        }
+                        resolve();
+                    } else {
+                        setTimeout(check, 60);
+                    }
+                };
+                check();
+            });
 
             // 完成后更新最终消息并保存
             const finalMessages = newMessages.concat({
@@ -540,6 +648,16 @@ export default function ChatPage() {
                 // 用户停止了回复，保留当前内容并保存
                 setIsLoading(false);
                 abortControllerRef.current = null;
+                if (drainTimer) {
+                    clearInterval(drainTimer);
+                    drainTimer = null;
+                }
+                visibleContent = accumulatedContent;
+                setMessages(prev => prev.map(msg =>
+                    msg.id === assistantMessageId
+                        ? { ...msg, content: visibleContent, reasoning: accumulatedReasoning || undefined }
+                        : msg
+                ));
 
                 // 直接使用 accumulatedContent 构建最终消息并保存
                 if (userId) {
@@ -668,6 +786,7 @@ export default function ChatPage() {
                         baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
+                    dreamMode,
                 }),
             });
 
@@ -810,6 +929,7 @@ export default function ChatPage() {
                         baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
+                    dreamMode,
                 }),
             });
 
@@ -1032,6 +1152,10 @@ export default function ChatPage() {
                                     promptKnowledgeBases={promptKnowledgeBases}
                                     contextMessages={messages}
                                     hideDisclaimer
+                                    dreamMode={dreamMode}
+                                    onDreamModeChange={setDreamMode}
+                                    dreamContext={dreamContext}
+                                    dreamContextLoading={dreamContextLoading}
                                 />
                             </div>
                         </div>
@@ -1107,6 +1231,10 @@ export default function ChatPage() {
                                 onMentionsChange={setMentions}
                                 promptKnowledgeBases={promptKnowledgeBases}
                                 contextMessages={messages}
+                                dreamMode={dreamMode}
+                                onDreamModeChange={setDreamMode}
+                                dreamContext={dreamContext}
+                                dreamContextLoading={dreamContextLoading}
                             />
                         </>
                     )}

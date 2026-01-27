@@ -33,7 +33,7 @@ export function buildModels(): AIModelConfig[] {
     // ===== DeepSeek 普通版 =====
     if (process.env.DEEPSEEK_MODEL_ID) {
         models.push({
-            id: 'deepseek-v3',
+            id: 'deepseek-v3.2',
             name: process.env.DEEPSEEK_MODEL_NAME || 'DeepSeek V3.2',
             vendor: 'deepseek',
             modelId: process.env.DEEPSEEK_MODEL_ID,
@@ -232,7 +232,7 @@ export function getModelConfig(modelId: string): AIModelConfig | undefined {
     const direct = models.find(m => m.id === modelId);
     if (direct) return direct;
     if (modelId === 'deepseek-chat' || modelId === 'deepseek') {
-        return models.find(m => m.id === 'deepseek-v3');
+        return models.find(m => m.id === 'deepseek-v3.2');
     }
     return undefined;
 }
@@ -261,7 +261,7 @@ export function getAllVendors(): AIVendor[] {
 /**
  * 默认模型
  */
-export const DEFAULT_MODEL_ID = 'deepseek-v3';
+export const DEFAULT_MODEL_ID = 'deepseek-v3.2';
 
 /**
  * 模型名称映射（用于 UI 显示和消息记录）

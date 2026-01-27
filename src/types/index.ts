@@ -131,6 +131,14 @@ export interface MessageAttachment {
     webSearchEnabled?: boolean;    // 是否启用了网络搜索
 }
 
+/** 解梦信息 */
+export interface DreamInterpretationInfo {
+    userName: string;        // 解梦用户名
+    dreamDate: string;       // 梦境日期（ISO 格式）
+    dreamContent: string;    // 梦境内容摘要（前50字）
+    baziChartName?: string;  // 使用的八字命盘名称（如果有）
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
     id: string;
@@ -150,6 +158,8 @@ export interface ChatMessage {
     };
     // 附件信息（仅用户消息）- 记录发送该消息时使用的附件/搜索
     attachments?: MessageAttachment;
+    // 解梦信息（解梦模式消息）
+    dreamInfo?: DreamInterpretationInfo;
 }
 
 export interface InjectedSource {
@@ -162,8 +172,44 @@ export interface InjectedSource {
     truncated: boolean;
 }
 
+/**
+ * 匿名用户显示名（用于隐私保护）
+ * @description 当用户未设置昵称时使用此常量，避免暴露邮箱等 PII
+ */
+export const ANONYMOUS_DISPLAY_NAME = '用户';
+
+/**
+ * AI 消息元数据
+ * @description 包含 AI 响应的附加信息，如数据源引用、知识库命中、解梦上下文等
+ * 
+ * @example
+ * ```typescript
+ * const metadata: AIMessageMetadata = {
+ *   sources: [{ type: 'knowledge_base', id: '...', name: '...', preview: '...', tokens: 100, truncated: false }],
+ *   kbSearchEnabled: true,
+ *   kbHitCount: 3,
+ *   dreamContext: { baziChartName: '张三', dailyFortune: '已参考' }
+ * };
+ * ```
+ */
 export interface AIMessageMetadata {
+    /** 注入的数据源列表（知识库、数据源、@提及） */
     sources: InjectedSource[];
+    /** 是否启用知识库搜索 */
+    kbSearchEnabled?: boolean;
+    /** 知识库命中数量 */
+    kbHitCount?: number;
+    /**
+     * 解梦模式上下文
+     * @description 仅在解梦模式下填充，包含用于解梦的命盘和运势参考信息
+     * - baziChartName: 使用的八字命盘名称（用于前端显示"已参考"）
+     * - dailyFortune: 今日运势参考状态，固定值 '已参考' 或 undefined
+     */
+    dreamContext?: {
+        baziChartName?: string;
+        dailyFortune?: string;
+    };
+    /** 提示词诊断信息（调试用） */
     promptDiagnostics?: {
         layers: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
         totalTokens: number;
@@ -182,7 +228,8 @@ export type ConversationSourceType =
     | 'mbti'           // MBTI 人格
     | 'hepan'          // 合盘分析
     | 'palm'           // 手相分析
-    | 'face';          // 面相分析
+    | 'face'           // 面相分析
+    | 'dream';         // 周公解梦
 
 /** 对话会话 */
 export interface Conversation {

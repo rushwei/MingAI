@@ -163,8 +163,14 @@ export function ChatMessageList({
                                         )}
                                     </div>
                                 )}
-                                {/* 消息气泡 */}
-                                <div className="px-4 py-3 rounded-2xl rounded-tr-md bg-accent text-white shadow-sm">
+                                {message.dreamInfo && (
+                                    <div className="flex items-center gap-2 mb-1.5 text-xs text-purple-500/70 dark:text-purple-400/70">
+                                        <span>解梦</span>
+                                        <span>·</span>
+                                        <span>{new Date(message.dreamInfo.dreamDate).toLocaleDateString('zh-CN')}</span>
+                                    </div>
+                                )}
+                                <div className="px-4 py-3 rounded-2xl rounded-tr-md shadow-sm bg-purple-500/10 dark:bg-purple-500/15 text-foreground border border-purple-500/20">
                                     <p className="whitespace-pre-wrap text-base leading-relaxed">
                                         {formatMentionsForDisplay(message.content)}
                                     </p>
@@ -259,12 +265,45 @@ export function ChatMessageList({
                                     isStreaming={isStreamingAI && message.id === lastMessage?.id && !message.content}
                                 />
                             )}
+                            {message.dreamInfo && (
+                                <div className="mb-2 flex items-center gap-2 text-xs text-purple-500/70 dark:text-purple-400/70">
+                                    <span>🌙</span>
+                                    <span>解梦</span>
+                                    <span>·</span>
+                                    <span>{message.dreamInfo.userName}</span>
+                                    <span>·</span>
+                                    <span>{new Date(message.dreamInfo.dreamDate).toLocaleDateString('zh-CN')}</span>
+                                    {message.dreamInfo.baziChartName && (
+                                        <>
+                                            <span>·</span>
+                                            <span>📜 {message.dreamInfo.baziChartName}</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                             <MarkdownContent content={message.content} className="text-base text-foreground" />
+                            {isStreamingAI && message.id === lastMessage?.id && !message.content && (
+                                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-xs text-foreground-secondary backdrop-blur">
+                                    <span className="flex items-center gap-0.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/70 animate-bounce" />
+                                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce [animation-delay:120ms]" />
+                                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce [animation-delay:240ms]" />
+                                    </span>
+                                    <span>生成中</span>
+                                </div>
+                            )}
                             {(() => {
                                 const meta = message.metadata as AIMessageMetadata | undefined;
                                 const sources = (meta?.sources || []) as InjectedSource[];
-                                if (!sources.length) return null;
+                                if (!sources.length && !meta?.kbSearchEnabled) return null;
                                 const isExpanded = !!expandedSources[message.id];
+                                if (sources.length === 0 && !(isStreamingAI && message.id === lastMessage?.id)) {
+                                    return (
+                                        <div className="mt-2 border-t border-border/50 pt-2 px-2 text-xs text-foreground-secondary">
+                                            本次未命中知识库
+                                        </div>
+                                    );
+                                }
                                 return (
                                     <SourcePanel
                                         sources={sources}

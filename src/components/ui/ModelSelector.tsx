@@ -187,7 +187,7 @@ export function ModelSelector({
 
     if (!onModelChange && !onReasoningChange) return null;
 
-    const buttonPadding = compact ? 'px-2 py-1' : 'px-2.5 py-1.5';
+    const buttonPadding = compact ? 'px-2 py-1' : 'px-2 py-1.5';
     const textSize = compact ? 'text-xs' : 'text-sm';
     return (
         <div className={`flex items-center`}>
