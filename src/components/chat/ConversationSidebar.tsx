@@ -494,7 +494,7 @@ export function ConversationSidebar({
                         )}
 
                         {actionView === 'rename' && (
-                            <div className="p-3 w-64">
+                            <div className="p-3">
                                 <div className="flex items-center gap-2 mb-2">
                                     <button
                                         type="button"
@@ -516,7 +516,7 @@ export function ConversationSidebar({
                                         type="button"
                                         onClick={saveRename}
                                         disabled={!editTitle.trim()}
-                                        className="px-3 py-1 text-xs rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
                                     >
                                         保存
                                     </button>
@@ -525,7 +525,7 @@ export function ConversationSidebar({
                         )}
 
                         {actionView === 'delete' && (
-                            <div className="p-3 w-64">
+                            <div className="p-3">
                                 <div className="flex items-center gap-2 mb-2">
                                     <button
                                         type="button"
@@ -540,9 +540,9 @@ export function ConversationSidebar({
                                     <button
                                         type="button"
                                         onClick={confirmDelete}
-                                        className="px-3 py-1 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
                                     >
-                                        确认删除
+                                        删除
                                     </button>
                                 </div>
                             </div>

@@ -1,12 +1,34 @@
 /**
  * OpenAI 兼容格式 Provider
- * 
- * 用于支持 OpenAI 兼容 API 的供应商：DeepSeek, GLM, Qwen, DeepAI, Gemini Pro
+ *
+ * 用于支持 OpenAI 兼容 API 的供应商：DeepSeek, GLM, Qwen, DeepAI, Gemini Pro, Moonshot/Kimi
  */
 
 import type { AIModelConfig, AIVendor } from '@/types';
 import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
 import { toOpenAIMessages, createMockStream, getApiKey } from './base';
+
+/**
+ * 构建思考模式参数
+ * GLM 和 Moonshot(NVIDIA) 使用 thinking 参数控制推理模式
+ */
+function buildThinkingParam(vendor: AIVendor, reasoning?: boolean): Record<string, unknown> {
+    // GLM: 仅在开启推理时添加 thinking 参数
+    if (vendor === 'glm') {
+        return reasoning ? { thinking: { type: 'enabled' } } : {};
+    }
+
+    // Moonshot/Kimi (NVIDIA API): 默认开启 thinking，需要显式禁用
+    if (vendor === 'moonshot') {
+        // 使用对象展开语法明确返回类型
+        if (reasoning) {
+            return { thinking: { type: 'enabled' } };
+        }
+        return { thinking: { type: 'disabled' } };
+    }
+
+    return {};
+}
 
 /**
  * OpenAI 兼容格式 Provider
@@ -50,13 +72,14 @@ export class OpenAICompatibleProvider implements AIProvider {
                 ],
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
                 max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
-                // GLM 思考模式
-                ...(config.vendor === 'glm' && options?.reasoning ? { thinking: { type: 'enabled' } } : {}),
+                ...buildThinkingParam(config.vendor, options?.reasoning),
             }),
         });
 
         if (!response.ok) {
-            throw new Error(`${config.name} API error: ${response.status}`);
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error(`[${config.vendor}] API error ${response.status}:`, errorText);
+            throw new Error(`${config.name} API error: ${response.status} - ${errorText.slice(0, 200)}`);
         }
 
         const data = await response.json();
@@ -95,13 +118,14 @@ export class OpenAICompatibleProvider implements AIProvider {
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
                 max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 stream: true,
-                // GLM 思考模式
-                ...(config.vendor === 'glm' && options?.reasoning ? { thinking: { type: 'enabled' } } : {}),
+                ...buildThinkingParam(config.vendor, options?.reasoning),
             }),
         });
 
         if (!response.ok) {
-            throw new Error(`${config.name} API error: ${response.status}`);
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error(`[${config.vendor}] API stream error ${response.status}:`, errorText);
+            throw new Error(`${config.name} API error: ${response.status} - ${errorText.slice(0, 200)}`);
         }
 
         return response.body!;
