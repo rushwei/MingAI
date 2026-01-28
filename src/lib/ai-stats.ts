@@ -65,7 +65,9 @@ async function writeStats(record: StatsRecord): Promise<void> {
 
     const today = new Date().toISOString().split('T')[0];
 
-    const { error } = await supabase.rpc('upsert_ai_model_stats', {
+    // 使用类型断言绕过 TypeScript 对自定义 RPC 函数的类型检查
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('upsert_ai_model_stats', {
         p_model_key: record.modelKey,
         p_source_key: record.sourceKey || null,
         p_date: today,
