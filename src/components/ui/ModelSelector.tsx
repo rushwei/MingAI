@@ -140,8 +140,8 @@ export function ModelSelector({
         const grouped: Record<AIVendor, ClientModelConfig[]> = {
             deepseek: [],
             glm: [],
-            qwen: [],
             moonshot: [],
+            qwen: [],
             gemini: [],
             deepai: [],
             'qwen-vl': [],

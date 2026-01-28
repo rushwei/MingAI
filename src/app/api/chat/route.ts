@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
             kbSearchEnabled: userSettings.promptKbIds.length > 0,
             kbHitCount: knowledgeHits.length,
             promptDiagnostics: {
+                modelId: requestedModelId,  // 记录模型 ID 用于前端判断
                 layers: promptBuild.diagnostics,
                 totalTokens: promptBuild.totalTokens,
                 budgetTotal: promptBuild.budgetTotal,

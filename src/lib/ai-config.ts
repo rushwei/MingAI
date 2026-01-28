@@ -285,6 +285,8 @@ async function fetchModelsFromDB(): Promise<AIModelConfig[] | null> {
                     // 访问控制
                     requiredTier: m.required_tier,
                     reasoningRequiredTier: m.reasoning_required_tier,
+                    // 来源信息（用于统计）
+                    sourceKey: activeSource.source_key,
                 } as AIModelConfig;
             })
             .filter((m): m is AIModelConfig => m !== null);

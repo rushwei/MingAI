@@ -187,6 +187,7 @@ export interface PromptLayerDiagnostic {
 
 /** 提示词诊断汇总 */
 export interface PromptDiagnostics {
+    modelId?: string;  // 用于判断是否匹配当前选择的模型
     layers: PromptLayerDiagnostic[];
     totalTokens: number;
     budgetTotal: number;
@@ -295,6 +296,8 @@ export interface AIModelConfig {
     // 访问控制（从数据库获取）
     requiredTier?: 'free' | 'plus' | 'pro';  // 基础访问所需等级
     reasoningRequiredTier?: 'free' | 'plus' | 'pro';  // 推理模式所需等级
+    // 来源信息（用于统计）
+    sourceKey?: string;  // 当前活跃来源 key
 }
 
 /** 聊天消息中的推理内容 */

@@ -1062,15 +1062,6 @@ export default function ChatPage() {
 
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
-    const latestPromptDiagnostics = (() => {
-        for (let i = messages.length - 1; i >= 0; i -= 1) {
-            const msg = messages[i];
-            if (msg.role !== 'assistant' || !msg.metadata) continue;
-            const meta = msg.metadata as unknown as AIMessageMetadata;
-            if (meta?.promptDiagnostics) return meta.promptDiagnostics;
-        }
-        return undefined;
-    })();
 
     // 获取最后一条 AI 消息的命盘信息（用于在 Composer 中显示）
     return (
@@ -1165,7 +1156,6 @@ export default function ChatPage() {
                                     onDreamModeChange={setDreamMode}
                                     dreamContext={dreamContext}
                                     dreamContextLoading={dreamContextLoading}
-                                    promptDiagnostics={latestPromptDiagnostics}
                                 />
                             </div>
                         </div>
@@ -1245,7 +1235,6 @@ export default function ChatPage() {
                                 onDreamModeChange={setDreamMode}
                                 dreamContext={dreamContext}
                                 dreamContextLoading={dreamContextLoading}
-                                promptDiagnostics={latestPromptDiagnostics}
                             />
                         </>
                     )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Brain, Clock } from 'lucide-react';
+import { ChevronRight, ChevronDown, Brain } from 'lucide-react';
 
 interface ThinkingBlockProps {
     content: string;
@@ -18,44 +18,58 @@ export function ThinkingBlock({ content, duration, isStreaming = false }: Thinki
 
     if (!content) return null;
 
-    // 预览内容：取前 100 个字符
-    const preview = content.length > 100 ? content.slice(0, 100) + '...' : content;
+    // 格式化时长显示
+    const formatDuration = (seconds: number): string => {
+        if (seconds < 60) {
+            return `${Math.round(seconds)} 秒`;
+        }
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.round(seconds % 60);
+        return remainingSeconds > 0
+            ? `${minutes} 分 ${remainingSeconds} 秒`
+            : `${minutes} 分`;
+    };
 
     return (
-        <div className="mb-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 overflow-hidden">
-            {/* 头部 */}
+        <div className="mb-3">
+            {/* 头部 - 可点击展开/折叠 */}
             <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-yellow-500/10 transition-colors"
+                className="flex items-center gap-1.5 text-accent hover:text-accent/80 transition-colors"
             >
-                <div className="flex items-center gap-2 text-yellow-600">
-                    <Brain className={`w-4 h-4 ${isStreaming ? 'animate-pulse' : ''}`} />
-                    <span className="text-sm font-medium">
-                        {isStreaming ? '思考中...' : '思考过程'}
-                    </span>
+                {/* 脑图标 */}
+                <Brain className="w-4.5 h-4.5" />
+
+                <span className="text-sm font-medium">
+                    {isStreaming ? '思考中...' : '已思考'}
                     {duration && !isStreaming && (
-                        <span className="flex items-center gap-1 text-xs text-yellow-600/70">
-                            <Clock className="w-3 h-3" />
-                            {duration.toFixed(1)}s
-                        </span>
+                        <span className="text-foreground-secondary">（用时 {formatDuration(duration)}）</span>
                     )}
-                </div>
+                </span>
+
+                {/* 展开/折叠箭头 */}
                 {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-yellow-600" />
+                    <ChevronDown className="w-4 h-4" />
                 ) : (
-                    <ChevronDown className="w-4 h-4 text-yellow-600" />
+                    <ChevronRight className="w-4 h-4" />
                 )}
             </button>
 
-            {/* 内容 */}
-            <div className={`px-3 pb-3 text-sm text-foreground-secondary ${isExpanded ? '' : 'line-clamp-2'}`}>
-                {isExpanded ? (
-                    <div className="whitespace-pre-wrap">{content}</div>
-                ) : (
-                    <div className="text-xs opacity-70">{preview}</div>
-                )}
-            </div>
+            {/* 内容区域 - 仅展开时显示 */}
+            {isExpanded && (
+                <div className="mt-2 ml-[7px] flex">
+                    {/* 左侧装饰线 */}
+                    <div className="flex flex-col items-center mr-3 gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                        <span className="w-0.5 flex-1 bg-accent/30" />
+                    </div>
+                    {/* 内容 */}
+                    <div className="text-sm text-foreground-secondary whitespace-pre-wrap flex-1 pb-1">
+                        {content}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

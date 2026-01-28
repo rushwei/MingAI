@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
-import type { AttachmentState, Mention, MentionType, PromptDiagnostics, PromptLayerDiagnostic } from '@/types';
+import type { AttachmentState, Mention, MentionType, PromptLayerDiagnostic } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -85,7 +85,6 @@ interface ChatComposerProps {
     onDreamModeChange?: (enabled: boolean) => void;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
     dreamContextLoading?: boolean;
-    promptDiagnostics?: PromptDiagnostics;
 }
 
 export function ChatComposer({
@@ -115,7 +114,6 @@ export function ChatComposer({
     onDreamModeChange,
     dreamContext,
     dreamContextLoading = false,
-    promptDiagnostics,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
@@ -151,22 +149,19 @@ export function ChatComposer({
     const canUseKnowledgeBase = membershipType !== 'free';
     const hasFile = !!attachmentState?.file;
     const hasWebSearch = !!attachmentState?.webSearchEnabled;
-    const promptProgress = promptPreviewBudget > 0
+    // 始终使用预览 API 的数据（实时反映当前模型的提示词预算）
+    const promptUsageProgress = promptPreviewBudget > 0
         ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
         : 0;
-    const promptDiagnosticsProgress = promptDiagnostics?.budgetTotal
-        ? Math.min(promptDiagnostics.totalTokens / promptDiagnostics.budgetTotal, 1)
-        : null;
-    const promptUsageProgress = promptDiagnosticsProgress ?? promptProgress;
     const contextProgress = promptContextTotal > 0
         ? Math.min(promptHistoryTokens / promptContextTotal, 1)
         : 0;
     const promptProgressPercent = Math.round(promptUsageProgress * 100);
     const contextProgressPercent = Math.round(contextProgress * 100);
-    // 优先使用 AI 回复后的诊断信息，否则使用预览 API 的 layers
-    const hasPromptDiagnostics = !!(promptDiagnostics?.layers?.length && promptDiagnostics?.budgetTotal) || !!(promptPreviewLayers.length && promptPreviewBudget);
-    const displayLayers = promptDiagnostics?.layers?.length ? promptDiagnostics.layers : promptPreviewLayers;
-    const displayUserMessageTokens = promptDiagnostics?.userMessageTokens ?? promptPreviewUserTokens;
+    // 始终使用预览 API 的 layers（AI 回复后的诊断数据已无实际意义）
+    const hasPromptDiagnostics = !!(promptPreviewLayers.length && promptPreviewBudget);
+    const displayLayers = promptPreviewLayers;
+    const displayUserMessageTokens = promptPreviewUserTokens;
     const promptUsageLabel = `提示词 ${promptProgressPercent}%`;
     const previewMentions = useMemo(
         () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),

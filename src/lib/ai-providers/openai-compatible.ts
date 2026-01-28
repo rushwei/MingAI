@@ -9,22 +9,50 @@ import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
 import { toOpenAIMessages, createMockStream, getApiKey } from './base';
 
 /**
- * 构建思考模式参数
- * GLM 和 Moonshot(NVIDIA) 使用 thinking 参数控制推理模式
+ * 检查是否是 NVIDIA API
  */
-function buildThinkingParam(vendor: AIVendor, reasoning?: boolean): Record<string, unknown> {
-    // GLM: 仅在开启推理时添加 thinking 参数
+function isNvidiaApi(apiUrl: string): boolean {
+    return apiUrl.includes('nvidia.com');
+}
+
+/**
+ * 构建思考模式参数
+ * 不同 API 使用不同的参数格式：
+ * - NVIDIA DeepSeek/Kimi: chat_template_kwargs.thinking
+ * - NVIDIA GLM: chat_template_kwargs.enable_thinking + clear_thinking
+ * - 硅基流动 DeepSeek/GLM: enable_thinking 参数
+ */
+function buildThinkingParam(vendor: AIVendor, apiUrl: string, reasoning?: boolean): Record<string, unknown> {
+    const isNvidia = isNvidiaApi(apiUrl);
+
+    // GLM 模型
     if (vendor === 'glm') {
-        return reasoning ? { thinking: { type: 'enabled' } } : {};
+        if (isNvidia) {
+            // NVIDIA GLM: 必须显式设置 enable_thinking，否则默认启用思考模式
+            return {
+                chat_template_kwargs: {
+                    enable_thinking: !!reasoning,
+                    clear_thinking: false
+                }
+            };
+        }
+        // 硅基流动 GLM: 使用 enable_thinking 参数
+        return reasoning ? { enable_thinking: true } : {};
     }
 
-    // Moonshot/Kimi (NVIDIA API): 默认开启 thinking，需要显式禁用
-    if (vendor === 'moonshot') {
-        // 使用对象展开语法明确返回类型
-        if (reasoning) {
-            return { thinking: { type: 'enabled' } };
+    // DeepSeek 模型
+    if (vendor === 'deepseek') {
+        if (isNvidia) {
+            // NVIDIA DeepSeek: 使用 chat_template_kwargs.thinking
+            return { chat_template_kwargs: { thinking: !!reasoning } };
         }
-        return { thinking: { type: 'disabled' } };
+        // 硅基流动 DeepSeek: 使用 enable_thinking 参数
+        return reasoning ? { enable_thinking: true } : {};
+    }
+
+    // Moonshot/Kimi (NVIDIA API): 使用 chat_template_kwargs.thinking
+    if (vendor === 'moonshot') {
+        return { chat_template_kwargs: { thinking: !!reasoning } };
     }
 
     return {};
@@ -72,7 +100,7 @@ export class OpenAICompatibleProvider implements AIProvider {
                 ],
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
                 max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
-                ...buildThinkingParam(config.vendor, options?.reasoning),
+                ...buildThinkingParam(config.vendor, config.apiUrl, options?.reasoning),
             }),
         });
 
@@ -103,12 +131,18 @@ export class OpenAICompatibleProvider implements AIProvider {
             ? config.reasoningModelId
             : config.modelId;
 
+        // NVIDIA API 需要 Accept: text/event-stream for streaming
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        };
+        if (isNvidiaApi(config.apiUrl)) {
+            headers['Accept'] = 'text/event-stream';
+        }
+
         const response = await fetch(config.apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
+            headers,
             body: JSON.stringify({
                 model: modelId,
                 messages: [
@@ -118,7 +152,7 @@ export class OpenAICompatibleProvider implements AIProvider {
                 temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
                 max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 stream: true,
-                ...buildThinkingParam(config.vendor, options?.reasoning),
+                ...buildThinkingParam(config.vendor, config.apiUrl, options?.reasoning),
             }),
         });
 

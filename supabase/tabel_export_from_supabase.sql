@@ -16,6 +16,57 @@ CREATE TABLE public.activation_keys (
   CONSTRAINT activation_keys_used_by_fkey FOREIGN KEY (used_by) REFERENCES auth.users(id),
   CONSTRAINT activation_keys_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
+CREATE TABLE public.ai_model_sources (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  model_id uuid NOT NULL,
+  source_key text NOT NULL,
+  source_name text NOT NULL,
+  api_url text NOT NULL,
+  api_key_env_var text NOT NULL,
+  model_id_override text,
+  reasoning_model_id text,
+  is_active boolean DEFAULT false,
+  is_enabled boolean DEFAULT true,
+  priority integer DEFAULT 0,
+  max_context_tokens integer,
+  max_output_tokens integer,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_model_sources_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_model_sources_model_id_fkey FOREIGN KEY (model_id) REFERENCES public.ai_models(id)
+);
+CREATE TABLE public.ai_model_stats (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  model_key text NOT NULL,
+  source_key text,
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  call_count integer DEFAULT 0,
+  success_count integer DEFAULT 0,
+  error_count integer DEFAULT 0,
+  total_tokens_used bigint DEFAULT 0,
+  total_response_time_ms bigint DEFAULT 0,
+  CONSTRAINT ai_model_stats_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.ai_models (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  model_key text NOT NULL UNIQUE,
+  display_name text NOT NULL,
+  vendor text NOT NULL,
+  is_enabled boolean DEFAULT true,
+  sort_order integer DEFAULT 0,
+  required_tier text NOT NULL DEFAULT 'free'::text CHECK (required_tier = ANY (ARRAY['free'::text, 'plus'::text, 'pro'::text])),
+  supports_reasoning boolean DEFAULT false,
+  reasoning_required_tier text DEFAULT 'plus'::text CHECK (reasoning_required_tier = ANY (ARRAY['free'::text, 'plus'::text, 'pro'::text])),
+  is_reasoning_default boolean DEFAULT false,
+  supports_vision boolean DEFAULT false,
+  default_temperature numeric DEFAULT 0.7,
+  default_max_tokens integer DEFAULT 4000,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_models_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.annual_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -410,6 +461,7 @@ CREATE TABLE public.user_settings (
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,
   prompt_kb_ids jsonb DEFAULT '[]'::jsonb,
+  community_anonymous_name text DEFAULT '匿名用户'::text,
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),

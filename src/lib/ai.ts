@@ -1,6 +1,6 @@
 /**
  * AI API 调用封装
- * 
+ *
  * 服务端组件说明：
  * - 这些函数主要在服务端运行（API Routes 或 Server Actions）
  * - 保护 API 密钥不暴露给客户端
@@ -10,6 +10,7 @@ import type { AIPersonality, AIPersonalityConfig } from '@/types';
 import { getProvider, createMockStream } from './ai-providers';
 import type { AIRequestMessage } from './ai-providers/base';
 import { getModelConfigAsync, DEFAULT_MODEL_ID } from './ai-config';
+import { recordAIStatsAsync } from './ai-stats';
 
 // ===== 时间辅助函数 =====
 
@@ -185,6 +186,7 @@ export async function callAI(
     // 最终系统提示词 = 时间前缀 +（自定义系统提示 or 人格默认提示）+ 命盘上下文
     const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
 
+    const startTime = Date.now();
     try {
         const provider = getProvider(config);
 
@@ -196,12 +198,30 @@ export async function callAI(
         // DeepAI 默认开启推理
         const useReasoning = config.isReasoningDefault || options?.reasoning;
 
-        return await provider.chat(messages, systemPrompt, config, {
+        const result = await provider.chat(messages, systemPrompt, config, {
             reasoning: useReasoning,
             temperature: options?.temperature,
             maxTokens: options?.maxTokens,
         });
+
+        // 记录成功统计（使用 config.id 而非请求参数，避免别名碎片化）
+        await recordAIStatsAsync({
+            modelKey: config.id,
+            sourceKey: config.sourceKey,
+            success: true,
+            responseTimeMs: Date.now() - startTime,
+        });
+
+        return result;
     } catch (error) {
+        // 记录失败统计
+        await recordAIStatsAsync({
+            modelKey: config.id,
+            sourceKey: config.sourceKey,
+            success: false,
+            responseTimeMs: Date.now() - startTime,
+        });
+
         console.error('AI API 调用失败，使用模拟响应:', error);
         return generateMockResponse(personality);
     }
@@ -227,6 +247,7 @@ export async function callAIStream(
     // 流式调用同样使用统一拼接规则，保证提示词一致
     const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
 
+    const startTime = Date.now();
     try {
         const provider = getProvider(config);
 
@@ -238,12 +259,30 @@ export async function callAIStream(
         // DeepAI 默认开启推理
         const useReasoning = config.isReasoningDefault || options?.reasoning;
 
-        return await provider.chatStream(messages, systemPrompt, config, {
+        const stream = await provider.chatStream(messages, systemPrompt, config, {
             reasoning: useReasoning,
             temperature: options?.temperature,
             maxTokens: options?.maxTokens,
         });
+
+        // 记录成功统计（流式请求在获取到流时记录成功，使用 config.id）
+        await recordAIStatsAsync({
+            modelKey: config.id,
+            sourceKey: config.sourceKey,
+            success: true,
+            responseTimeMs: Date.now() - startTime,
+        });
+
+        return stream;
     } catch (error) {
+        // 记录失败统计
+        await recordAIStatsAsync({
+            modelKey: config.id,
+            sourceKey: config.sourceKey,
+            success: false,
+            responseTimeMs: Date.now() - startTime,
+        });
+
         console.error('AI 流式调用失败，使用模拟响应:', error);
         return createMockStream(generateMockResponse(personality));
     }
