@@ -290,7 +290,8 @@ export async function POST(request: NextRequest) {
         // 流式响应
         const personalityResolution = resolvePersonalities({
             chartContext: promptChartContext,
-            dreamMode: promptDreamMode
+            dreamMode: promptDreamMode,
+            mentions: resolvedMentions
         });
         const fallbackPersonality = personalityResolution.personalities[0] ?? 'general';
 

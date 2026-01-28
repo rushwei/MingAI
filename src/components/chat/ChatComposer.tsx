@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from './MentionPopover';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 
 type DataSourceSummary = {
     id: string;
@@ -29,12 +30,6 @@ type KnowledgeBaseSummary = {
     description: string | null;
 };
 
-type MentionToken = {
-    start: number;
-    end: number;
-    name: string;
-};
-
 const mentionStyleMap: Record<MentionType | 'default', { className: string }> = {
     knowledge_base: { className: 'text-emerald-500' },
     bazi_chart: { className: 'text-orange-500' },
@@ -49,26 +44,6 @@ const mentionStyleMap: Record<MentionType | 'default', { className: string }> = 
     daily_fortune: { className: 'text-lime-600' },
     monthly_fortune: { className: 'text-lime-600' },
     default: { className: 'text-foreground' }
-};
-
-const extractMentionTokens = (value: string, mentionList: Mention[]): MentionToken[] => {
-    const tokens: MentionToken[] = [];
-    const names = Array.from(new Set(mentionList.map(m => m.name).filter(Boolean)))
-        .sort((a, b) => b.length - a.length);
-    if (names.length === 0) return tokens;
-    for (let i = 0; i < value.length; i += 1) {
-        if (value[i] !== '@') continue;
-        for (const name of names) {
-            if (value.startsWith(`@${name}`, i)) {
-                const start = i;
-                const end = i + 1 + name.length;
-                tokens.push({ start, end, name });
-                i = end - 1;
-                break;
-            }
-        }
-    }
-    return tokens;
 };
 
 const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number => {
@@ -497,8 +472,7 @@ export function ChatComposer({
                         const nextValue = `${inputValue.slice(0, removeStart)}${inputValue.slice(removeEnd)}`;
                         onInputChange(nextValue);
                         if (onMentionsChange) {
-                            const nameSet = new Set(extractMentionTokens(nextValue, mentions).map(t => t.name));
-                            const nextMentions = mentions.filter(m => nameSet.has(m.name));
+                            const nextMentions = filterMentionsByTokens(mentions, extractMentionTokens(nextValue, mentions));
                             onMentionsChange(nextMentions);
                         }
                         requestAnimationFrame(() => {
@@ -515,8 +489,7 @@ export function ChatComposer({
                             const nextValue = `${inputValue.slice(0, target.start)}${inputValue.slice(target.end)}`;
                             onInputChange(nextValue);
                             if (onMentionsChange) {
-                                const nameSet = new Set(extractMentionTokens(nextValue, mentions).map(t => t.name));
-                                const nextMentions = mentions.filter(m => nameSet.has(m.name));
+                                const nextMentions = filterMentionsByTokens(mentions, extractMentionTokens(nextValue, mentions));
                                 onMentionsChange(nextMentions);
                             }
                             requestAnimationFrame(() => {
@@ -538,8 +511,7 @@ export function ChatComposer({
         onInputChange(value);
         const tokens = extractMentionTokens(value, mentions);
         if (onMentionsChange) {
-            const nameSet = new Set(tokens.map(token => token.name));
-            const nextMentions = mentions.filter(m => nameSet.has(m.name));
+            const nextMentions = filterMentionsByTokens(mentions, tokens);
             if (nextMentions.length !== mentions.length) {
                 onMentionsChange(nextMentions);
             }
@@ -571,7 +543,7 @@ export function ChatComposer({
         const next = [...mentions, mention].slice(0, 10);
         onMentionsChange(next);
 
-        const token = `@${mention.name}`;
+        const token = buildMentionToken(mention);
         if (mentionStartIndex != null) {
             const prefix = inputValue.slice(0, mentionStartIndex).trimEnd();
             const nextValue = `${prefix} ${token} `;
@@ -601,14 +573,16 @@ export function ChatComposer({
         if (!inputValue) return '';
         const tokens = extractMentionTokens(inputValue, mentions);
         if (tokens.length === 0) return escape(inputValue);
+        const tokenMatches = mapMentionsToTokens(tokens, mentions);
         let result = '';
         let cursor = 0;
-        for (const token of tokens) {
+        for (const match of tokenMatches) {
+            const token = match.token;
             if (token.start > cursor) {
                 result += escape(inputValue.slice(cursor, token.start));
             }
-            const matchedMention = mentions.find(m => m.name === token.name);
-            const style = mentionStyleMap[matchedMention?.type || 'default'] || mentionStyleMap.default;
+            const styleType = (match.mention?.type || 'default') as MentionType | 'default';
+            const style = mentionStyleMap[styleType] || mentionStyleMap.default;
             result += `<span class="font-semibold ${style.className}"><span class="font-black">@</span>${escape(token.name)}</span>`;
             cursor = token.end;
         }

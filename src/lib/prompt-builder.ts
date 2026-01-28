@@ -161,25 +161,37 @@ export interface PersonalityResolution {
 export function resolvePersonalities(context: {
     chartContext?: PromptContext['chartContext'];
     dreamMode?: PromptContext['dreamMode'];
+    mentions?: PromptContext['mentions'];
 }): PersonalityResolution {
     const personalities: AIPersonality[] = [];
+    const addPersonality = (personality: AIPersonality) => {
+        if (!personalities.includes(personality)) {
+            personalities.push(personality);
+        }
+    };
 
     if (context.dreamMode?.enabled) {
-        personalities.push('dream');
+        addPersonality('dream');
     }
 
     if (context.chartContext?.analysisMode === 'mangpai') {
-        personalities.push('mangpai');
-    } else if (context.chartContext?.baziChart) {
-        personalities.push('bazi');
+        addPersonality('mangpai');
+    } else {
+        const hasBaziChart = !!context.chartContext?.baziChart;
+        const hasBaziMention = (context.mentions || []).some(mention => mention.type === 'bazi_chart');
+        if (hasBaziChart || hasBaziMention) {
+            addPersonality('bazi');
+        }
     }
 
-    if (context.chartContext?.ziweiChart) {
-        personalities.push('ziwei');
+    const hasZiweiChart = !!context.chartContext?.ziweiChart;
+    const hasZiweiMention = (context.mentions || []).some(mention => mention.type === 'ziwei_chart');
+    if (hasZiweiChart || hasZiweiMention) {
+        addPersonality('ziwei');
     }
 
     if (personalities.length === 0) {
-        personalities.push('general');
+        addPersonality('general');
     }
 
     return {
@@ -372,7 +384,8 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
 
     const personalityResolution = resolvePersonalities({
         chartContext: context.chartContext,
-        dreamMode: context.dreamMode
+        dreamMode: context.dreamMode,
+        mentions: context.mentions
     });
     tryInject('personality_role', 'P0', buildPersonalityPrompt(personalityResolution.personalities));
 

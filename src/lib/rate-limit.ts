@@ -26,6 +26,22 @@ interface RateLimitResult {
     resetAt: Date;
 }
 
+export function resolveRateLimitResetAt(
+    rows: Array<{ window_start: string | Date }>,
+    windowMs: number
+): Date {
+    if (rows.length === 0) return new Date();
+    let earliest = Infinity;
+    for (const row of rows) {
+        const ts = new Date(row.window_start).getTime();
+        if (!Number.isNaN(ts) && ts < earliest) {
+            earliest = ts;
+        }
+    }
+    const base = earliest === Infinity ? Date.now() : earliest;
+    return new Date(base + windowMs);
+}
+
 /**
  * 检查并更新速率限制
  */
@@ -62,11 +78,11 @@ export async function checkRateLimit(
         const rows = (existingRows || []) as Array<{ id: number; request_count: number; window_start: string }>;
         const totalCount = rows.reduce((sum, row) => sum + (row.request_count || 0), 0);
         const latest = rows[0];
+        const resetAt = resolveRateLimitResetAt(rows, config.windowMs);
 
         if (latest) {
             // 已有记录，检查是否超限
             if (totalCount >= config.maxRequests) {
-                const resetAt = new Date(new Date(latest.window_start).getTime() + config.windowMs);
                 return {
                     allowed: false,
                     remaining: 0,
@@ -86,7 +102,7 @@ export async function checkRateLimit(
             return {
                 allowed: true,
                 remaining: config.maxRequests - totalCount - 1,
-                resetAt: new Date(new Date(latest.window_start).getTime() + config.windowMs),
+                resetAt,
             };
         } else {
             // 新记录

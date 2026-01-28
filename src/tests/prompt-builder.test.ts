@@ -102,6 +102,22 @@ test('resolvePersonalities selects bazi/ziwei/general correctly', () => {
     assert.deepEqual(none, { personalities: ['general'], isMultiple: false });
 });
 
+test('resolvePersonalities considers mentions for bazi/ziwei', () => {
+    const pb = require('../lib/prompt-builder') as any;
+    const baziMention = pb.resolvePersonalities({
+        mentions: [{ type: 'bazi_chart', id: 'b1', name: '八字', preview: 'p' }]
+    });
+    assert.deepEqual(baziMention, { personalities: ['bazi'], isMultiple: false });
+
+    const bothMentions = pb.resolvePersonalities({
+        mentions: [
+            { type: 'bazi_chart', id: 'b1', name: '八字', preview: 'p' },
+            { type: 'ziwei_chart', id: 'z1', name: '紫微', preview: 'p' }
+        ]
+    });
+    assert.deepEqual(bothMentions, { personalities: ['bazi', 'ziwei'], isMultiple: true });
+});
+
 test('buildPersonalityPrompt composes single and multi roles', () => {
     const pb = require('../lib/prompt-builder') as any;
     const single = pb.buildPersonalityPrompt(['dream']);
