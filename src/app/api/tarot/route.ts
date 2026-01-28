@@ -272,7 +272,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     // 用系统提示词 override 默认人格，保持解读模板一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
-                        'master',
+                        'general',
                         requestedModelId,
                         `\n\n${systemPrompt}\n\n`,
                         {

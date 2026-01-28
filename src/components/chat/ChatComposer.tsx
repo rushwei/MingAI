@@ -234,9 +234,8 @@ export function ChatComposer({
             if (selectedCharts?.ziwei?.name) parts.push(`紫微·${selectedCharts.ziwei.name}`);
             return parts.length > 0 ? `命盘·${parts.join(' / ')}` : '命盘';
         }
-        if (layerId === 'master_rules') return '主规则';
-        if (layerId === 'dream_role') return '解梦角色';
-        if (layerId === 'mangpai_role') return '盲派角色';
+        if (layerId === 'base_rules') return '通用准则';
+        if (layerId === 'personality_role') return '专业分析师';
         if (layerId === 'expression_style') return '表达风格';
         if (layerId === 'user_profile') return '用户画像';
         if (layerId === 'custom_instructions') return '自定义指令';

@@ -122,7 +122,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
                     messages: [
                         { role: 'user', content: contextMessage }
                     ],
-                    personality: 'master',
+                    personality: 'general',
                     model: 'deepseek',
                     stream: false,
                 }),

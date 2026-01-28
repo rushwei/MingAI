@@ -6,6 +6,7 @@
  */
 
 import { getServiceRoleClient } from './api-utils';
+import type { AIPersonality } from '@/types';
 
 // AI 分析来源类型
 export type AIAnalysisSourceType =
@@ -18,6 +19,11 @@ export type AIAnalysisSourceType =
     | 'hepan'          // 合盘分析
     | 'palm'           // 手相分析
     | 'face';          // 面相分析
+
+const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality>> = {
+    bazi_wuxing: 'bazi',
+    bazi_personality: 'bazi',
+};
 
 // 创建 AI 分析对话记录的参数
 export interface CreateAIAnalysisParams {
@@ -48,6 +54,7 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
         },
     ];
 
+    const personality = SOURCE_PERSONALITY_MAP[params.sourceType] ?? 'general';
     const { data, error } = await serviceClient
         .from('conversations')
         .insert({
@@ -56,7 +63,7 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
             source_data: params.sourceData,
             title: params.title,
             messages: messages,
-            personality: 'master', // AI 分析使用默认人格
+            personality,
             bazi_chart_id: params.baziChartId || null,
             ziwei_chart_id: params.ziweiChartId || null,
         })

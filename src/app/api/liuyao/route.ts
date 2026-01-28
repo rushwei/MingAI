@@ -304,7 +304,7 @@ ${traditionalInfo}
                     // 用系统提示词 override 默认人格，确保解读格式一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
-                        'master',
+                        'general',
                         requestedModelId,
                         `\n\n${systemPrompt}\n\n`,
                         {

@@ -46,20 +46,27 @@ export async function checkRateLimit(
 
     try {
         // 查询当前窗口内的请求记录
-        const { data: existing } = await supabase
+        const { data: existingRows, error: existingError } = await supabase
             .from('rate_limits')
             .select('id, request_count, window_start')
             .eq('identifier', identifier)
             .eq('endpoint', endpoint)
             .gte('window_start', windowStart.toISOString())
             .order('window_start', { ascending: false })
-            .limit(1)
-            .single();
+            .limit(config.maxRequests + 5);
 
-        if (existing) {
+        if (existingError) {
+            throw existingError;
+        }
+
+        const rows = (existingRows || []) as Array<{ id: number; request_count: number; window_start: string }>;
+        const totalCount = rows.reduce((sum, row) => sum + (row.request_count || 0), 0);
+        const latest = rows[0];
+
+        if (latest) {
             // 已有记录，检查是否超限
-            if (existing.request_count >= config.maxRequests) {
-                const resetAt = new Date(new Date(existing.window_start).getTime() + config.windowMs);
+            if (totalCount >= config.maxRequests) {
+                const resetAt = new Date(new Date(latest.window_start).getTime() + config.windowMs);
                 return {
                     allowed: false,
                     remaining: 0,
@@ -68,28 +75,32 @@ export async function checkRateLimit(
             }
 
             // 增加计数
-            await supabase
+            const { error: updateError } = await supabase
                 .from('rate_limits')
-                .update({ request_count: existing.request_count + 1 })
-                .eq('id', existing.id);
+                .update({ request_count: latest.request_count + 1 })
+                .eq('id', latest.id);
+            if (updateError) {
+                throw updateError;
+            }
 
             return {
                 allowed: true,
-                remaining: config.maxRequests - existing.request_count - 1,
-                resetAt: new Date(new Date(existing.window_start).getTime() + config.windowMs),
+                remaining: config.maxRequests - totalCount - 1,
+                resetAt: new Date(new Date(latest.window_start).getTime() + config.windowMs),
             };
         } else {
             // 新记录
-            await supabase
+            const { error: insertError } = await supabase
                 .from('rate_limits')
-                .upsert({
+                .insert({
                     identifier,
                     endpoint,
                     request_count: 1,
                     window_start: now.toISOString(),
-                }, {
-                    onConflict: 'identifier,endpoint',
                 });
+            if (insertError) {
+                throw insertError;
+            }
 
             return {
                 allowed: true,

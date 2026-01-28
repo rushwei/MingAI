@@ -98,17 +98,34 @@ export async function updateReminderSubscription(
 export async function isSubscribed(userId: string, reminderType: ReminderType): Promise<boolean> {
     // 使用 service client 绕过 RLS
     const serviceClient = getServiceRoleClient();
-    const { data } = await serviceClient
+    const { data: subscription, error: subscriptionError } = await serviceClient
         .from('reminder_subscriptions')
-        .select('enabled, notify_site, user_settings(notifications_enabled, notify_site)')
+        .select('enabled, notify_site')
         .eq('user_id', userId)
         .eq('reminder_type', reminderType)
         .maybeSingle();
 
-    const settings = (data as { user_settings?: { notifications_enabled?: boolean; notify_site?: boolean } } | null)?.user_settings;
-    const notificationsEnabled = settings?.notifications_enabled ?? true;
-    const settingsNotifySite = settings?.notify_site ?? true;
-    return !!data?.enabled && !!data?.notify_site && notificationsEnabled && settingsNotifySite;
+    if (subscriptionError) {
+        console.error('[reminders] 获取订阅状态失败:', subscriptionError);
+        return false;
+    }
+
+    let notificationsEnabled = true;
+    let settingsNotifySite = true;
+    const { data: settings, error: settingsError } = await serviceClient
+        .from('user_settings')
+        .select('notifications_enabled, notify_site')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (settingsError) {
+        console.error('[reminders] 获取通知偏好失败:', settingsError);
+    } else if (settings) {
+        notificationsEnabled = settings.notifications_enabled ?? true;
+        settingsNotifySite = settings.notify_site ?? true;
+    }
+
+    return !!subscription?.enabled && !!subscription?.notify_site && notificationsEnabled && settingsNotifySite;
 }
 
 // ===== 提醒调度 =====
@@ -448,19 +465,48 @@ export async function scheduleAllUsersReminders(): Promise<number> {
     let totalScheduled = 0;
 
     // 获取所有启用了提醒的订阅
-    const { data: subscriptions } = await serviceClient
+    const { data: subscriptions, error: subscriptionsError } = await serviceClient
         .from('reminder_subscriptions')
-        .select('user_id, reminder_type, user_settings!inner(notifications_enabled, notify_site)')
+        .select('user_id, reminder_type, enabled, notify_site')
         .eq('enabled', true)
-        .eq('notify_site', true)
-        .eq('user_settings.notifications_enabled', true)
-        .eq('user_settings.notify_site', true);
+        .eq('notify_site', true);
+
+    if (subscriptionsError) {
+        console.error('[reminders] 获取订阅列表失败:', subscriptionsError);
+        return 0;
+    }
 
     if (!subscriptions || subscriptions.length === 0) return 0;
+
+    const userIds = Array.from(new Set(subscriptions.map(sub => sub.user_id)));
+    const settingsMap = new Map<string, { notifications_enabled?: boolean; notify_site?: boolean }>();
+    if (userIds.length > 0) {
+        const { data: settingsRows, error: settingsError } = await serviceClient
+            .from('user_settings')
+            .select('user_id, notifications_enabled, notify_site')
+            .in('user_id', userIds);
+
+        if (settingsError) {
+            console.error('[reminders] 获取用户通知偏好失败:', settingsError);
+        } else {
+            (settingsRows || []).forEach((row: { user_id: string; notifications_enabled?: boolean; notify_site?: boolean }) => {
+                settingsMap.set(row.user_id, {
+                    notifications_enabled: row.notifications_enabled,
+                    notify_site: row.notify_site,
+                });
+            });
+        }
+    }
 
     // 按用户分组
     const userSubscriptions = new Map<string, Set<string>>();
     for (const sub of subscriptions) {
+        const settings = settingsMap.get(sub.user_id);
+        const notificationsEnabled = settings?.notifications_enabled ?? true;
+        const settingsNotifySite = settings?.notify_site ?? true;
+        if (!notificationsEnabled || !settingsNotifySite) {
+            continue;
+        }
         if (!userSubscriptions.has(sub.user_id)) {
             userSubscriptions.set(sub.user_id, new Set());
         }

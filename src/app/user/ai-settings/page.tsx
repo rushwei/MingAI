@@ -16,7 +16,8 @@ type ExpressionStyle = 'direct' | 'gentle';
 const USER_PROFILE_LIMIT = 120;
 const CUSTOM_INSTRUCTIONS_LIMIT = 500;
 const LAYER_LABELS: Record<string, string> = {
-    master_rules: '主规则',
+    base_rules: '通用准则',
+    personality_role: '专业分析师',
     data_priority: '数据优先级',
     mentioned_data: '显式提及',
     knowledge_hits: '知识库命中',

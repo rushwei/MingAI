@@ -19,7 +19,7 @@ const buildMinimalBaziChart = () => ({
     fiveElements: { 金: 1, 木: 2, 水: 2, 火: 1, 土: 0 },
 });
 
-test('buildPromptWithSources includes master rules and dify prefix', async () => {
+test('buildPromptWithSources includes base rules and dify prefix', async () => {
     const pb = require('../lib/prompt-builder') as any;
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',
@@ -31,6 +31,7 @@ test('buildPromptWithSources includes master rules and dify prefix', async () =>
     });
 
     assert.ok(res.systemPrompt.includes('数据使用规则'));
+    assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'base_rules' && layer.included));
     assert.ok(res.userMessagePrefix.includes('【用户上传的文件内容如下】'));
     assert.ok(res.userMessagePrefix.includes('【网络搜索结果如下】'));
     assert.ok(!res.systemPrompt.includes('【用户上传的文件内容如下】'));
@@ -53,7 +54,7 @@ test('buildPromptWithSources injects dream and mangpai layers', async () => {
     assert.ok(res.systemPrompt.includes('【今日运势】'));
     assert.ok(res.systemPrompt.includes('盲派'));
     assert.ok(res.systemPrompt.includes('【盲派口诀】'));
-    assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'mangpai_role' && layer.included));
+    assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'personality_role' && layer.included));
     assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'mangpai_data' && layer.included));
 });
 
@@ -72,4 +73,44 @@ test('buildPromptWithSources skips P2 layers when budget exceeded', async () => 
     assert.ok(mentionLayer);
     assert.equal(mentionLayer.included, false);
     assert.ok(!res.systemPrompt.includes(hugeContent.slice(0, 200)));
+});
+
+test('resolvePersonalities selects dream and mangpai correctly', () => {
+    const pb = require('../lib/prompt-builder') as any;
+    const dreamOnly = pb.resolvePersonalities({ dreamMode: { enabled: true } });
+    assert.deepEqual(dreamOnly, { personalities: ['dream'], isMultiple: false });
+
+    const mangpai = pb.resolvePersonalities({
+        chartContext: { baziChart: buildMinimalBaziChart(), analysisMode: 'mangpai' }
+    });
+    assert.deepEqual(mangpai, { personalities: ['mangpai'], isMultiple: false });
+});
+
+test('resolvePersonalities selects bazi/ziwei/general correctly', () => {
+    const pb = require('../lib/prompt-builder') as any;
+    const baziZiwei = pb.resolvePersonalities({
+        chartContext: { baziChart: buildMinimalBaziChart(), ziweiChart: { palaces: {} } }
+    });
+    assert.deepEqual(baziZiwei, { personalities: ['bazi', 'ziwei'], isMultiple: true });
+
+    const ziweiOnly = pb.resolvePersonalities({
+        chartContext: { ziweiChart: { palaces: {} } }
+    });
+    assert.deepEqual(ziweiOnly, { personalities: ['ziwei'], isMultiple: false });
+
+    const none = pb.resolvePersonalities({});
+    assert.deepEqual(none, { personalities: ['general'], isMultiple: false });
+});
+
+test('buildPersonalityPrompt composes single and multi roles', () => {
+    const pb = require('../lib/prompt-builder') as any;
+    const single = pb.buildPersonalityPrompt(['dream']);
+    assert.ok(single.includes('解梦'));
+    assert.ok(!single.includes('你同时具备以下专业能力'));
+
+    const multi = pb.buildPersonalityPrompt(['bazi', 'ziwei']);
+    assert.ok(multi.includes('你同时具备以下专业能力'));
+    assert.ok(multi.includes('【八字宗师】'));
+    assert.ok(multi.includes('【紫微宗师】'));
+    assert.ok(multi.includes('综合结论'));
 });

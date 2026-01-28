@@ -36,14 +36,7 @@ export async function getFeatureSubscribers(featureKey: string): Promise<{
     const serviceClient = getServiceRoleClient();
     const { data, error } = await serviceClient
         .from('feature_subscriptions')
-        .select(`
-            user_id,
-            notify_email,
-            notify_site,
-            users:user_id (
-                email
-            )
-        `)
+        .select('user_id, notify_email, notify_site')
         .eq('feature_key', featureKey);
 
     if (error) {
@@ -51,9 +44,21 @@ export async function getFeatureSubscribers(featureKey: string): Promise<{
         return [];
     }
 
-    return (data ?? []).map(item => ({
+    const rows = data ?? [];
+    const emailResults = await Promise.all(rows.map(async (item: { user_id: string }) => {
+        const { data: userData, error: userError } = await serviceClient.auth.admin.getUserById(item.user_id);
+        if (userError) {
+            console.error('获取订阅用户邮箱失败:', userError);
+            return { userId: item.user_id, email: null };
+        }
+        return { userId: item.user_id, email: userData?.user?.email ?? null };
+    }));
+
+    const emailMap = new Map(emailResults.map(result => [result.userId, result.email]));
+
+    return rows.map(item => ({
         userId: item.user_id,
-        email: (item.users as unknown as { email: string })?.email ?? null,
+        email: emailMap.get(item.user_id) ?? null,
         notifyEmail: item.notify_email,
         notifySite: item.notify_site,
     }));

@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         };
 
         // 调用 AI 生成标题（不检查积分）
-        const content = await callAI([titleMessage], 'master');
+        const content = await callAI([titleMessage], 'general');
 
         const title = content?.replace(/["""]/g, '').trim().slice(0, 20) ||
             firstUserMessage.content.slice(0, 15);

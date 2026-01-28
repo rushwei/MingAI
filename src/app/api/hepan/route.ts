@@ -171,7 +171,7 @@ ${conflictsSummary}
                 // 覆盖默认人格提示词，保证合盘输出结构稳定
                 const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                     [{ role: 'user', content: userPrompt }],
-                    'master',
+                    'general',
                     requestedModelId,
                     `\n\n${systemPrompt}\n\n`,
                     {

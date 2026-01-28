@@ -373,7 +373,7 @@ export default function ChatPage() {
             const title = await generateAITitle(newMessages);
             const newId = await createConversation({
                 userId,
-                personality: 'master',
+                personality: 'general',
                 title,
                 baziChartId: selectedCharts.bazi?.id,
                 ziweiChartId: selectedCharts.ziwei?.id,
@@ -509,7 +509,7 @@ export default function ChatPage() {
                 headers,
                 body: JSON.stringify({
                     messages: newMessages,
-                    personality: 'master',
+                    personality: 'general',
                     stream: true,
                     model: selectedModel,
                     chartIds: {
@@ -777,7 +777,7 @@ export default function ChatPage() {
                 headers,
                 body: JSON.stringify({
                     messages: newMessages,
-                    personality: 'master',
+                    personality: 'general',
                     stream: true,
                     model: selectedModel,
                     chartIds: {
@@ -920,7 +920,7 @@ export default function ChatPage() {
                 headers,
                 body: JSON.stringify({
                     messages: previousMessages,
-                    personality: 'master',
+                    personality: 'general',
                     stream: true,
                     model: selectedModel,
                     chartIds: {

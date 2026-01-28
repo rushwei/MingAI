@@ -133,16 +133,34 @@ export async function POST(request: NextRequest) {
                 newVote = voteType;
             }
         } else {
-            // 新增投票
+            // 新增投票（先清理可能的重复数据）
+            const cleanupResult = await withRetry(async () => {
+                const response = await serviceClient
+                    .from('community_votes')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('target_type', targetType)
+                    .eq('target_id', targetId);
+                if (response.error) {
+                    throw response.error;
+                }
+                return response;
+            });
+
+            if (cleanupResult.error) {
+                console.error('清理投票失败:', cleanupResult.error);
+                return jsonError('投票失败', 500);
+            }
+
             const insertResult = await withRetry(async () => {
                 const response = await serviceClient
                     .from('community_votes')
-                    .upsert({
+                    .insert({
                         user_id: user.id,
                         target_type: targetType,
                         target_id: targetId,
                         vote_type: voteType,
-                    }, { onConflict: 'user_id,target_type,target_id' });
+                    });
                 if (response.error) {
                     throw response.error;
                 }

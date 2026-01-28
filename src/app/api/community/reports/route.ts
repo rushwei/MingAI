@@ -94,12 +94,34 @@ export async function POST(request: NextRequest) {
         // 通知所有管理员用户（站内通知）
         try {
             const serviceClient = getServiceRoleClient();
-            const { data: admins } = await serviceClient
+            const { data: admins, error: adminError } = await serviceClient
                 .from('users')
-                .select('id, is_admin, user_settings!inner(notifications_enabled, notify_site)')
-                .eq('is_admin', true)
-                .eq('user_settings.notifications_enabled', true)
-                .eq('user_settings.notify_site', true);
+                .select('id, is_admin')
+                .eq('is_admin', true);
+            if (adminError) {
+                console.error('获取管理员失败:', adminError);
+                return jsonOk(data);
+            }
+
+            const adminIds = (admins || []).map((admin: { id: string }) => admin.id);
+            const settingsMap = new Map<string, { notifications_enabled?: boolean; notify_site?: boolean }>();
+            if (adminIds.length > 0) {
+                const { data: settingsRows, error: settingsError } = await serviceClient
+                    .from('user_settings')
+                    .select('user_id, notifications_enabled, notify_site')
+                    .in('user_id', adminIds);
+
+                if (settingsError) {
+                    console.error('获取管理员通知偏好失败:', settingsError);
+                } else {
+                    (settingsRows || []).forEach((row: { user_id: string; notifications_enabled?: boolean; notify_site?: boolean }) => {
+                        settingsMap.set(row.user_id, {
+                            notifications_enabled: row.notifications_enabled,
+                            notify_site: row.notify_site,
+                        });
+                    });
+                }
+            }
             let link = `/community/${targetId}`;
             if (targetType === 'comment') {
                 const { data: commentInfo } = await serviceClient
@@ -114,6 +136,10 @@ export async function POST(request: NextRequest) {
             const title = '有新的社区举报';
             const content = `目标类型：${targetType}，原因：${reason}${description ? `，描述：${description}` : ''}`;
             for (const admin of admins || []) {
+                const settings = settingsMap.get(admin.id);
+                const notificationsEnabled = settings?.notifications_enabled ?? true;
+                const notifySite = settings?.notify_site ?? true;
+                if (!notificationsEnabled || !notifySite) continue;
                 await createNotification(admin.id, 'system', title, content, link);
             }
         } catch (notifyErr) {

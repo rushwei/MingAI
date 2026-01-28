@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
         // [MVP] 模拟支付：创建已支付订单
         // 生产环境应创建 pending 订单，等待支付回调确认
-        const { error: orderError } = await supabase
+        const { data: orderRow, error: orderError } = await supabase
             .from('orders')
             .insert({
                 user_id: userId,
@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
                 status: 'paid', // MVP: 模拟支付直接标记为已支付
                 payment_method: 'simulated',
                 paid_at: new Date().toISOString(),
-            });
+            })
+            .select('id')
+            .single();
 
         if (orderError) {
             console.error('Error creating order:', orderError);
@@ -89,12 +91,15 @@ export async function POST(request: NextRequest) {
             .single();
         const currentCredits = userData?.ai_chat_count || 0;
 
+        const boostedCredits = Math.min(currentCredits + plan.initialCredits, plan.creditLimit);
+        const nextCredits = Math.max(currentCredits, boostedCredits);
+
         // 更新用户会员状态
         const updateData: Record<string, unknown> = {
             membership: planId,
             updated_at: new Date().toISOString(),
             // 叠加初始积分，但不超过上限
-            ai_chat_count: Math.min(currentCredits + plan.initialCredits, plan.creditLimit),
+            ai_chat_count: nextCredits,
             last_credit_restore_at: new Date().toISOString(),
         };
 
@@ -109,6 +114,13 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             console.error('Error updating membership:', updateError);
+            if (orderRow?.id) {
+                await supabase
+                    .from('orders')
+                    .delete()
+                    .eq('id', orderRow.id)
+                    .eq('user_id', userId);
+            }
             return NextResponse.json(
                 { error: '更新会员状态失败' },
                 { status: 500 }

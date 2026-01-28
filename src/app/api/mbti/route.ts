@@ -195,7 +195,7 @@ ${basic.description}
             // 覆盖默认人格提示词，确保 MBTI 解读模板稳定
             const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                 [{ role: 'user', content: userPrompt }],
-                'master',
+                'general',
                 requestedModelId,
                 `\n\n${systemPrompt}\n\n`,
                 {

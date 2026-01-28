@@ -15,6 +15,13 @@ export interface ConversationWithContext extends Conversation {
     ziweiContext?: string;
 }
 
+const normalizePersonality = (value?: string | null): AIPersonality => {
+    if (value === 'bazi' || value === 'ziwei' || value === 'dream' || value === 'mangpai' || value === 'general') {
+        return value;
+    }
+    return 'general';
+};
+
 // ===== 对话管理函数 =====
 
 /**
@@ -31,7 +38,7 @@ export async function createConversation(params: {
         .from('conversations')
         .insert({
             user_id: params.userId,
-            personality: params.personality || 'master',
+            personality: params.personality || 'general',
             title: params.title || '新对话',
             bazi_chart_id: params.baziChartId,
             ziwei_chart_id: params.ziweiChartId,
@@ -70,7 +77,7 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
         userId: row.user_id,
         baziChartId: row.bazi_chart_id,
         ziweiChartId: row.ziwei_chart_id,
-        personality: row.personality as AIPersonality,
+        personality: normalizePersonality(row.personality),
         title: row.title,
         messages: hydrateConversationMessages((row.messages as ChatMessage[]) || [], row.source_data),
         createdAt: row.created_at,
@@ -103,7 +110,7 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         userId: data.user_id,
         baziChartId: data.bazi_chart_id,
         ziweiChartId: data.ziwei_chart_id,
-        personality: data.personality as AIPersonality,
+        personality: normalizePersonality(data.personality),
         title: data.title,
         messages: hydrateConversationMessages((data.messages as ChatMessage[]) || [], data.source_data),
         createdAt: data.created_at,

@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         // 将系统提示词作为 override 注入，覆盖默认人格规则
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
             [{ role: 'user', content: userPrompt }],
-            'master',
+            'bazi',
             requestedModelId,
             `\n\n${systemPrompt}\n\n`,
             {

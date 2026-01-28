@@ -12,12 +12,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
-import type { ChatMessage, AIPersonality, DifyContext } from '@/types';
+import type { ChatMessage, DifyContext } from '@/types';
 import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import '@/lib/data-sources/init';
-import { buildPromptWithSources, getPromptBudget } from '@/lib/prompt-builder';
+import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/prompt-builder';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
@@ -47,9 +47,8 @@ export async function POST(request: NextRequest) {
     let canSkipCredit = false;
     try {
         const body = await request.json();
-        const { messages, personality, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext, mentions: requestMentions } = body as {
+        const { messages, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext, mentions: requestMentions } = body as {
             messages: ChatMessage[];
-            personality: AIPersonality;
             skipCreditCheck?: boolean;
             internalSecret?: string;
             stream?: boolean;
@@ -245,6 +244,13 @@ export async function POST(request: NextRequest) {
             }));
         })() : [];
 
+        const promptChartContext = chartContext ? { ...chartContext, analysisMode: chartIds?.baziAnalysisMode } : undefined;
+        const promptDreamMode = body.dreamMode ? {
+            enabled: true,
+            baziText: dreamPayload?.baziText,
+            fortuneText: dreamPayload?.fortuneText,
+        } : undefined;
+
         const promptBuild = await buildPromptWithSources({
             modelId: requestedModelId,
             reasoningEnabled,
@@ -252,12 +258,8 @@ export async function POST(request: NextRequest) {
             mentions: resolvedMentions,
             knowledgeHits,
             userSettings,
-            chartContext: chartContext ? { ...chartContext, analysisMode: chartIds?.baziAnalysisMode } : undefined,
-            dreamMode: body.dreamMode ? {
-                enabled: true,
-                baziText: dreamPayload?.baziText,
-                fortuneText: dreamPayload?.fortuneText,
-            } : undefined,
+            chartContext: promptChartContext,
+            dreamMode: promptDreamMode,
             difyContext,
         });
 
@@ -286,10 +288,16 @@ export async function POST(request: NextRequest) {
         });
 
         // 流式响应
+        const personalityResolution = resolvePersonalities({
+            chartContext: promptChartContext,
+            dreamMode: promptDreamMode
+        });
+        const fallbackPersonality = personalityResolution.personalities[0] ?? 'general';
+
         if (stream) {
             const streamBody = await callAIStream(
                 sanitizedMessages,
-                personality || 'master',
+                fallbackPersonality,
                 '',
                 requestedModelId,
                 { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
@@ -320,7 +328,7 @@ export async function POST(request: NextRequest) {
         // 非流式响应
         const content = await callAI(
             sanitizedMessages,
-            personality || 'master',
+            fallbackPersonality,
             requestedModelId,
             '',
             { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }

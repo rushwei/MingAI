@@ -1,5 +1,5 @@
 import type { Mention } from '@/types/mentions';
-import type { BaziChart, DifyContext, PromptLayerPriority, PromptLayerDiagnostic } from '@/types';
+import type { AIPersonality, BaziChart, DifyContext, PromptLayerPriority, PromptLayerDiagnostic } from '@/types';
 import { AI_PERSONALITIES } from '@/lib/ai';
 import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
@@ -137,24 +137,73 @@ function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): num
     return Math.min(Math.max(budget, minLimit), capLimit);
 }
 
-// 默认人格的系统提示词（使用 AI_PERSONALITIES 中的定义，避免重复维护）
-function getMasterSystemPrompt(): string {
-    return AI_PERSONALITIES.master.systemPrompt;
+// 通用准则（所有场景共用）
+function getBaseRulesPrompt(): string {
+    return `## 数据使用规则
+1. 优先使用用户 @ 显式引用的数据
+2. 其次参考用户知识库（按权重排序）
+3. 再次使用系统已有的命盘和历史数据
+4. 信息不足时明确提示「条件不足，无法准确判断」
+5. 禁止编造不存在的数据
+6. 推理结论需注明数据来源
+
+## 注意事项
+- 保持专业但不迷信
+- 强调命理是参考而非定数
+- 传递积极正向的人生观`;
 }
 
-// 解梦角色定义
-function getDreamRolePrompt(): string {
-    return '你是一位精通周公解梦与命理的分析师，需结合梦境内容、命盘信息与今日运势给出解读。\n解读应包括：象征含义、现实关联、情绪与潜意识、可执行建议。';
+export interface PersonalityResolution {
+    personalities: AIPersonality[];
+    isMultiple: boolean;
 }
 
-// 盲派分析角色定义
-function getMangpaiRolePrompt(): string {
-    return `你现在是一位精通盲派命理的分析师。在分析时请遵循以下方法：
-1. 首先解读该日柱的称号含义
-2. 逐句解析口诀内容，结合命主实际情况进行分析
-3. 根据口诀中的喜忌指引，给出具体的趋吉避凶建议
-4. 若用户询问特定运势，结合口诀中的关键字进行针对性解读
-请严格基于盲派口诀和命理理论为用户进行分析。`;
+export function resolvePersonalities(context: {
+    chartContext?: PromptContext['chartContext'];
+    dreamMode?: PromptContext['dreamMode'];
+}): PersonalityResolution {
+    const personalities: AIPersonality[] = [];
+
+    if (context.dreamMode?.enabled) {
+        personalities.push('dream');
+    }
+
+    if (context.chartContext?.analysisMode === 'mangpai') {
+        personalities.push('mangpai');
+    } else if (context.chartContext?.baziChart) {
+        personalities.push('bazi');
+    }
+
+    if (context.chartContext?.ziweiChart) {
+        personalities.push('ziwei');
+    }
+
+    if (personalities.length === 0) {
+        personalities.push('general');
+    }
+
+    return {
+        personalities,
+        isMultiple: personalities.length > 1
+    };
+}
+
+export function buildPersonalityPrompt(personalities: AIPersonality[]): string {
+    if (personalities.length === 1) {
+        return AI_PERSONALITIES[personalities[0]].systemPrompt;
+    }
+
+    const roleDescriptions = personalities.map(personality => {
+        const config = AI_PERSONALITIES[personality];
+        return `【${config.name}】\n${config.systemPrompt}`;
+    });
+
+    return `你同时具备以下专业能力：
+
+${roleDescriptions.join('\n\n')}
+
+请根据用户问题和提供的数据，选择合适的角色进行分析。
+如涉及多种数据，请分别从各角度分析，最后给出综合结论。`;
 }
 
 // 用户表达风格偏好（来自 user_settings）
@@ -319,15 +368,13 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     };
 
     // ========== P0 层：必须注入 ==========
-    tryInject('master_rules', 'P0', getMasterSystemPrompt());
+    tryInject('base_rules', 'P0', getBaseRulesPrompt());
 
-    if (context.dreamMode?.enabled) {
-        tryInject('dream_role', 'P0', getDreamRolePrompt());
-    }
-
-    if (context.chartContext?.analysisMode === 'mangpai') {
-        tryInject('mangpai_role', 'P0', getMangpaiRolePrompt());
-    }
+    const personalityResolution = resolvePersonalities({
+        chartContext: context.chartContext,
+        dreamMode: context.dreamMode
+    });
+    tryInject('personality_role', 'P0', buildPersonalityPrompt(personalityResolution.personalities));
 
     // ========== P1 层：指令类 ==========
     const expressionStyle = formatExpressionStyle(context.userSettings?.expressionStyle);

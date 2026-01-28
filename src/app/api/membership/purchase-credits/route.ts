@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaymentsPaused } from '@/lib/app-settings';
 import { getServiceRoleClient, requireUserContext } from '@/lib/api-utils';
+import { addCredits } from '@/lib/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
 // 按量付费套餐配置（与 PayPerUse.tsx 保持一致）
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
 
         // [MVP] 模拟支付：创建已支付订单
         // 生产环境应创建 pending 订单，等待支付回调确认
-        const { error: orderError } = await supabase
+        const { data: orderRow, error: orderError } = await supabase
             .from('orders')
             .insert({
                 user_id: userId,
@@ -77,7 +78,9 @@ export async function POST(request: NextRequest) {
                 status: 'paid', // MVP: 模拟支付直接标记为已支付
                 payment_method: 'simulated',
                 paid_at: new Date().toISOString(),
-            });
+            })
+            .select('id')
+            .single();
 
         if (orderError) {
             console.error('Error creating pay_per_use order:', orderError);
@@ -87,27 +90,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 使用服务端客户端获取当前积分（避免RLS问题）
-        const { data: userData } = await supabase
-            .from('users')
-            .select('ai_chat_count')
-            .eq('id', userId)
-            .single();
-        const currentCredits = userData?.ai_chat_count || 0;
-
-        // 按量付费可以突破常规上限
-        const newCredits = currentCredits + count;
-
-        const { error: updateError } = await supabase
-            .from('users')
-            .update({
-                ai_chat_count: newCredits,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', userId);
-
-        if (updateError) {
-            console.error('Error updating credits:', updateError);
+        // 使用原子增量避免并发覆盖
+        const newCredits = await addCredits(userId, count);
+        if (newCredits === null) {
+            if (orderRow?.id) {
+                await supabase
+                    .from('orders')
+                    .delete()
+                    .eq('id', orderRow.id)
+                    .eq('user_id', userId);
+            }
             return NextResponse.json(
                 { error: '更新积分失败' },
                 { status: 500 }
