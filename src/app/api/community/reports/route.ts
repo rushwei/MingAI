@@ -8,6 +8,7 @@
 import { NextRequest } from 'next/server';
 import { TargetType, ReportReason, ReportStatus } from '@/lib/community';
 import { jsonError, jsonOk, requireAdminContext, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { createNotification } from '@/lib/notification-server';
 import { parsePagination } from '@/lib/pagination';
 import { missingFields } from '@/lib/validation';
 
@@ -88,6 +89,35 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('提交举报失败:', error);
             return jsonError('提交举报失败', 500);
+        }
+
+        // 通知所有管理员用户（站内通知）
+        try {
+            const serviceClient = getServiceRoleClient();
+            const { data: admins } = await serviceClient
+                .from('users')
+                .select('id, is_admin, user_settings!inner(notifications_enabled, notify_site)')
+                .eq('is_admin', true)
+                .eq('user_settings.notifications_enabled', true)
+                .eq('user_settings.notify_site', true);
+            let link = `/community/${targetId}`;
+            if (targetType === 'comment') {
+                const { data: commentInfo } = await serviceClient
+                    .from('community_comments')
+                    .select('post_id')
+                    .eq('id', targetId)
+                    .maybeSingle();
+                if (commentInfo?.post_id) {
+                    link = `/community/${commentInfo.post_id}`;
+                }
+            }
+            const title = '有新的社区举报';
+            const content = `目标类型：${targetType}，原因：${reason}${description ? `，描述：${description}` : ''}`;
+            for (const admin of admins || []) {
+                await createNotification(admin.id, 'system', title, content, link);
+            }
+        } catch (notifyErr) {
+            console.error('发送管理员通知失败:', notifyErr);
         }
 
         return jsonOk(data);

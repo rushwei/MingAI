@@ -122,15 +122,18 @@ export async function GET(
         // 为评论添加 isAuthor 标记，然后移除 user_id
         type SafeComment = Omit<CommentWithReplies, 'user_id' | 'replies'> & {
             isAuthor: boolean;
+            isPostAuthor: boolean;
             replies: SafeComment[];
         };
         function processComment(comment: CommentWithReplies): SafeComment {
             const isCommentAuthor = currentUserId ? comment.user_id === currentUserId : false;
+            const isPostAuthor = comment.user_id === post.user_id;
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { user_id, replies, ...safeComment } = comment;
             return {
                 ...safeComment,
                 isAuthor: isCommentAuthor,
+                isPostAuthor,
                 replies: (replies || []).map(processComment),
             };
         }

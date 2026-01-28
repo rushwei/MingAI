@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
                 .select('anonymous_name')
                 .eq('post_id', body.post_id)
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
             if (response.error) {
                 throw response.error;
             }
@@ -45,6 +45,14 @@ export async function POST(request: NextRequest) {
         if (existingResult.data) {
             anonymousName = existingResult.data.anonymous_name;
         } else {
+            const { data: settings } = await serviceClient
+                .from('user_settings')
+                .select('community_anonymous_name')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            const preferredName = typeof settings?.community_anonymous_name === 'string'
+                ? settings.community_anonymous_name.trim()
+                : '';
             // 获取当前帖子的最大序号
             const maxOrderResult = await withRetry(async () => {
                 const response = await serviceClient
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
                     .eq('post_id', body.post_id)
                     .order('display_order', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
                 if (response.error) {
                     throw response.error;
                 }
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest) {
             });
 
             const nextOrder = (maxOrderResult.data?.display_order || 0) + 1;
-            anonymousName = `匿名用户${String.fromCharCode(64 + nextOrder)}`;
+            anonymousName = preferredName || `匿名用户${String.fromCharCode(64 + nextOrder)}`;
 
             // 创建映射
             await withRetry(async () => {

@@ -24,6 +24,17 @@ export default function NewPostPage() {
                 return;
             }
             setUser(user);
+            const { data } = await supabase
+                .from('user_settings')
+                .select('community_anonymous_name')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            const savedName = typeof data?.community_anonymous_name === 'string'
+                ? data.community_anonymous_name.trim()
+                : '';
+            if (savedName) {
+                setAnonymousName(savedName);
+            }
         };
         checkAuth();
     }, [router]);
@@ -40,6 +51,14 @@ export default function NewPostPage() {
         setError('');
 
         try {
+            if (user) {
+                await supabase
+                    .from('user_settings')
+                    .upsert({
+                        user_id: user.id,
+                        community_anonymous_name: anonymousName.trim() || '匿名用户',
+                    }, { onConflict: 'user_id' });
+            }
             const response = await fetch('/api/community/posts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -47,7 +66,7 @@ export default function NewPostPage() {
                     title,
                     content,
                     category,
-                    anonymous_name: anonymousName,
+                    anonymous_name: anonymousName.trim() || '匿名用户',
                 }),
             });
 

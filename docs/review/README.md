@@ -1,18 +1,30 @@
 # Review guidelines:
 
 ## Project context (MingAI)
-- Stack: Next.js App Router + React 19 + TypeScript + Tailwind + Supabase + Resend.
-- Core domains: 八字/紫微命盘、AI对话、每日/每月运势、订阅体系、通知系统。
-- Data model: `users` (membership + ai_chat_count + is_admin), `user_settings`, `bazi_charts`, `ziwei_charts`, `conversations`, `notifications`, `feature_subscriptions`, `login_attempts`, `rate_limits`, `orders`.
-- Security: RLS is enabled; `notifications` inserts are service-role only; admin actions must not leak service keys to the client.
-- Ops: Credits restoration is triggered by GitHub Actions hitting `/api/credits/restore` with `CRON_SECRET`.
+- Stack: Next.js 16 App Router + React 19 + TypeScript + Tailwind + Lucide; Capacitor for iOS/Android; Supabase (Auth/Postgres/Storage) + Resend; AI providers DeepSeek/GLM/Gemini/Qwen/DeepAI (vision via Qwen-VL/Gemini-VL); deploy to Vercel + Zeabur.
+- Core domains: Bazi/Ziwei charts, AI chat (streaming, memory, model selection), hepan, MBTI, tarot, liuyao, fortune hub, community + ming records, face/palm analysis, gamification, notifications/reminders, annual reports, knowledge base and @ references.
+- Data model: key tables include `users` (membership, ai_chat_count, is_admin), `user_settings` (sidebar_config, custom_instructions, prompt_kb_ids), `bazi_charts`, `ziwei_charts`, `hepan_charts`, `mbti_readings`, `tarot_readings`, `liuyao_divinations`, `face_readings`, `palm_readings`, `conversations`, `knowledge_bases`, `knowledge_entries`, `archived_sources`, `notifications`, `feature_subscriptions`, `reminder_subscriptions`, `scheduled_reminders`, `annual_reports`, `community_*`, `ming_records`, `ming_notes`, `credit_transactions`, `daily_checkins`, `user_levels`, `user_achievements`, `orders`, `activation_keys`, `purchase_links`, `rate_limits`, `login_attempts`, `app_settings`.
+- Security: RLS is enabled; `notifications` inserts are service-role only; admin actions are server-only and must not leak service keys to the client; strict user isolation across charts, knowledge base, and community data.
+- Ops: GitHub Actions call `/api` routes with `CRON_SECRET` for credits restore (daily/hourly), reminders, and annual reports; admin notifications flow through `/admin/notifications`; payments are key-based (activation keys + purchase links), gated by app settings.
 
 ### Review focus for this repo
-- Verify RLS and role boundaries (anon vs service-role).
-- Check that API routes avoid build-time env failures (no service-client init at module scope).
-- Ensure notifications respect `user_settings` and subscription flags.
-- Validate credits consumption/restoration consistency and avoid double-decrement.
-- Guard PII exposure (emails, profile fields) in client payloads and logs.
+- Verify RLS and role boundaries (anon vs service-role), especially for charts, knowledge base, archived sources, records, and community data.
+- Check API routes avoid build-time env failures (no service-client init at module scope) and keep service keys server-only.
+- Validate AI chat + knowledge base data sourcing: @ references, user-owned KB entries, archived sources, and no cross-user leakage; keep streaming responses and attachments scoped.
+- Ensure notifications/reminders/annual reports respect `user_settings`, `feature_subscriptions`, and `reminder_subscriptions`; jobs should be idempotent.
+- Validate credits/membership/payment flows: ai_chat_count decrement + restore, membership expiry, activation key single-use, order status transitions, and app_settings payment toggles.
+- Guard PII exposure (emails, profile fields, images) in client payloads, storage, and logs; enforce privacy for face/palm analysis uploads.
+- Review rate limiting and login attempt tracking to prevent abuse and bypass.
+- Check Supabase Storage access policies, signed URL lifetimes, and cleanup of sensitive uploads (face/palm, attachments, exported reports).
+- Validate data integrity around chart creation/editing and record linking (foreign keys, cascade behavior, null handling).
+- Review AI provider routing, model access tiers, and fallback behavior; ensure errors do not leak prompts or raw provider payloads.
+- Verify streaming/SSE handlers for proper termination, retry/backoff, and client disconnect cleanup to avoid double charges.
+- Ensure time-based logic is timezone-safe (solar terms, daily/monthly fortune, reminders, credit restore windows).
+- Check community moderation flows (reports, delete/restore, pinned/featured) and ensure anonymous mapping cannot be de-anonymized.
+- Validate import/export/backup flows for records and charts; confirm data scoping and encryption/PII handling.
+- Review UI access control: login overlays, gated routes, and membership feature flags should align with server enforcement.
+- Watch for performance regressions (N+1 queries, large JSON payloads, unbounded pagination, expensive AI context assembly).
+- Confirm iOS/Android (Capacitor) specific paths handle deep links, auth callbacks, and file permissions safely.
 
 You are acting as a reviewer for a proposed code change made by another engineer.
 

@@ -146,6 +146,7 @@ export function ChatComposer({
     const hasZiwei = selectedCharts?.ziwei;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const overlayRef = useRef<HTMLDivElement>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const { showToast } = useToast();
     const [mentionOpen, setMentionOpen] = useState(false);
@@ -378,6 +379,9 @@ export function ChatComposer({
         textarea.style.height = 'auto';
         const newHeight = Math.min(Math.max(textarea.scrollHeight, 24), 236);
         textarea.style.height = `${newHeight}px`;
+        if (overlayRef.current) {
+            overlayRef.current.scrollTop = textarea.scrollTop;
+        }
     }, [inputValue, mentions]);
 
     const readMentionCache = useCallback(<T,>(key: string): T | null => {
@@ -809,7 +813,7 @@ export function ChatComposer({
                         )}
 
                         <div className="relative">
-                            <div className="pointer-events-none absolute inset-0 text-base py-2 px-2 whitespace-pre-wrap break-words text-foreground">
+                            <div ref={overlayRef} className="pointer-events-none absolute inset-0 text-base py-2 px-2 whitespace-pre-wrap break-words text-foreground overflow-y-auto">
                                 {inputValue ? (
                                     <span dangerouslySetInnerHTML={{ __html: highlightedInput }} />
                                 ) : (
@@ -823,6 +827,11 @@ export function ChatComposer({
                                 value={inputValue}
                                 onChange={(e) => handleInputChange(e.target.value)}
                                 onKeyDown={handleKeyDown}
+                                onScroll={(e) => {
+                                    if (overlayRef.current) {
+                                        overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+                                    }
+                                }}
                                 placeholder=""
                                 className="w-full bg-transparent resize-none text-base py-2 px-2 text-transparent caret-foreground focus:outline-none placeholder:text-foreground-secondary/80 disabled:cursor-not-allowed overflow-y-auto"
                                 disabled={disabled}

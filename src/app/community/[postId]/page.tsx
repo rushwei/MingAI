@@ -304,7 +304,7 @@ function CommentItem({
     onDelete,
     onReport
 }: {
-    comment: CommunityComment & { isAuthor?: boolean };
+    comment: CommunityComment & { isAuthor?: boolean; isPostAuthor?: boolean };
     postId: string;
     userId: string | null;
     isAdmin: boolean;
@@ -333,10 +333,10 @@ function CommentItem({
                     <div className="bg-background-secondary/30 rounded-xl p-4 border border-border/50 hover:border-border transition-colors">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                                <span className={`text-sm font-medium ${isAuthor ? 'text-purple-600 dark:text-purple-400' : 'text-foreground'}`}>
+                                <span className={`text-sm font-medium ${comment.isPostAuthor ? 'text-purple-600 dark:text-purple-400' : 'text-foreground'}`}>
                                     {comment.anonymous_name}
                                 </span>
-                                {isAuthor && (
+                                {comment.isPostAuthor && (
                                     <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
                                         楼主
                                     </span>
@@ -440,6 +440,7 @@ export default function PostDetailPage() {
     const [userVotes, setUserVotes] = useState<Map<string, VoteType>>(new Map());
     const [postVote, setPostVote] = useState<VoteType | null>(null);
     const [commentContent, setCommentContent] = useState('');
+    const [anonymousName, setAnonymousName] = useState('匿名用户');
     const [replyTo, setReplyTo] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment'; id: string } | null>(null);
@@ -453,6 +454,17 @@ export default function PostDetailPage() {
             if (user) {
                 const { data } = await supabase.from('users').select('is_admin').eq('id', user.id).single();
                 setIsAdmin(data?.is_admin || false);
+                const { data: settings } = await supabase
+                    .from('user_settings')
+                    .select('community_anonymous_name')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                const savedName = typeof settings?.community_anonymous_name === 'string'
+                    ? settings.community_anonymous_name.trim()
+                    : '';
+                if (savedName) {
+                    setAnonymousName(savedName);
+                }
             }
         };
         checkAuth();
@@ -656,9 +668,20 @@ export default function PostDetailPage() {
 
         setSubmitting(true);
         try {
+            await supabase
+                .from('user_settings')
+                .upsert({
+                    user_id: user.id,
+                    community_anonymous_name: anonymousName.trim() || '匿名用户',
+                }, { onConflict: 'user_id' });
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
             const response = await fetch('/api/community/comments', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
                 body: JSON.stringify({
                     post_id: postId,
                     content: commentContent,
@@ -895,6 +918,16 @@ export default function PostDetailPage() {
                     <div className="bg-background-secondary/30 rounded-2xl p-4 mb-8 border border-border/50">
                         {user ? (
                             <form onSubmit={handleComment}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <label className="text-xs text-foreground-secondary">匿名昵称</label>
+                                    <input
+                                        value={anonymousName}
+                                        onChange={(e) => setAnonymousName(e.target.value)}
+                                        className="flex-1 bg-background border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/30"
+                                        placeholder="设置通用匿名昵称"
+                                        maxLength={20}
+                                    />
+                                </div>
                                 {replyTo && (
                                     <div className="flex items-center justify-between bg-purple-500/10 px-3 py-2 rounded-lg mb-3 border border-purple-500/20">
                                         <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">

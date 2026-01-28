@@ -104,7 +104,18 @@ export async function POST(request: NextRequest) {
             return jsonError('标题和内容不能为空', 400);
         }
 
-        const anonymousName = body.anonymous_name || '匿名用户';
+        let anonymousName = typeof body.anonymous_name === 'string' ? body.anonymous_name.trim() : '';
+        if (!anonymousName) {
+            const { data: settings } = await supabase
+                .from('user_settings')
+                .select('community_anonymous_name')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            const savedName = typeof settings?.community_anonymous_name === 'string'
+                ? settings.community_anonymous_name.trim()
+                : '';
+            anonymousName = savedName || '匿名用户';
+        }
 
         // 创建帖子
         const { data: post, error: postError } = await supabase
