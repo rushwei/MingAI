@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { ChevronDown, Lightbulb, Loader2 } from 'lucide-react';
-import { Zhipu, DeepSeek, Gemini, Qwen, Claude } from '@lobehub/icons';
+import { Zhipu, DeepSeek, Gemini, Qwen, Claude, Kimi } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai-config';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +26,7 @@ const VENDOR_ICONS: Record<AIVendor, React.ReactNode> = {
     gemini: <Gemini.Color size={18} />,
     qwen: <Qwen.Color size={18} />,
     deepai: <Claude.Color size={18} />,
+    moonshot: <Kimi.Color size={18} />,
     'qwen-vl': <Qwen.Color size={18} />,
     'gemini-vl': <Gemini.Color size={18} />,
 };
@@ -139,8 +140,9 @@ export function ModelSelector({
         const grouped: Record<AIVendor, ClientModelConfig[]> = {
             deepseek: [],
             glm: [],
-            gemini: [],
             qwen: [],
+            moonshot: [],
+            gemini: [],
             deepai: [],
             'qwen-vl': [],
             'gemini-vl': [],

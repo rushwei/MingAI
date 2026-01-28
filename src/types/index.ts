@@ -270,7 +270,7 @@ export interface Conversation {
 // ===== AI 模型相关类型 =====
 
 /** AI 供应商 */
-export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai' | 'qwen-vl' | 'gemini-vl';
+export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai' | 'qwen-vl' | 'gemini-vl' | 'moonshot';
 
 /** AI 模型 ID - 动态生成，这里只定义基础结构 */
 export type AIModelId = string;
@@ -292,6 +292,9 @@ export interface AIModelConfig {
     // 默认参数
     defaultTemperature?: number;
     defaultMaxTokens?: number;
+    // 访问控制（从数据库获取）
+    requiredTier?: 'free' | 'plus' | 'pro';  // 基础访问所需等级
+    reasoningRequiredTier?: 'free' | 'plus' | 'pro';  // 推理模式所需等级
 }
 
 /** 聊天消息中的推理内容 */

@@ -1,14 +1,15 @@
 /**
  * 获取可用的 AI 模型配置
- * 
+ *
  * 这个 API 在服务端运行，可以访问所有环境变量
+ * 优先从数据库获取配置，环境变量作为回退
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getModels } from '@/lib/ai-config';
+import { getModelsAsync } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { getModelAccessForMembership } from '@/lib/ai-access';
+import { getModelAccessForMembershipAsync } from '@/lib/ai-access';
 import { getAuthContext } from '@/lib/api-utils';
 
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {
@@ -20,15 +21,13 @@ async function resolveMembership(request: NextRequest): Promise<MembershipType> 
 }
 
 export async function GET(request: NextRequest) {
-    // 每次重新构建，避免缓存旧配置
-    // const { buildModels } = await import('@/lib/ai-config');
-    // const models = buildModels();
-    const models = getModels();
+    // 从数据库获取模型配置（带缓存）
+    const models = await getModelsAsync();
     const membership = await resolveMembership(request);
 
     // 返回模型配置（不包含敏感信息）
-    const safeModels = models.map(m => {
-        const access = getModelAccessForMembership(m, membership);
+    const safeModels = await Promise.all(models.map(async m => {
+        const access = await getModelAccessForMembershipAsync(m, membership);
         return {
             id: m.id,
             name: m.name,
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
             blockedReason: access.blockedReason,
             reasoningAllowed: access.reasoningAllowed,
         };
-    });
+    }));
 
     return NextResponse.json({ models: safeModels }, {
         headers: {

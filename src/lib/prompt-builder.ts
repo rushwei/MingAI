@@ -5,7 +5,7 @@ import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
 import { createSourceTracker } from '@/lib/source-tracker';
 import { countTokens } from '@/lib/token-utils';
-import { getModelConfig } from '@/lib/ai-config';
+import { getModelConfigAsync } from '@/lib/ai-config';
 import { generateBaziChartText } from '@/lib/bazi';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/mangpai';
@@ -89,6 +89,8 @@ const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
     'qwen-vl-plus': { maxContext: 32000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
     'qwen-vl-plus-reasoner': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 5000, reserveHistory: 4000 },
     'gemini-vl': { maxContext: 32000, promptRatio: 0.2, reserveOutput: 4000, reserveHistory: 8000 },
+    'kimi-k2.5': { maxContext: 128000, promptRatio: 0.25, reserveOutput: 4000, reserveHistory: 4000 },
+    'kimi-k2.5-reasoner': { maxContext: 128000, promptRatio: 0.35, reserveOutput: 4000, reserveHistory: 4000, promptCapRatio: 0.6, maxPromptTokens: 6000 },
     default: { maxContext: 32000, promptRatio: 0.25, reserveOutput: 2000, reserveHistory: 4000 }
 };
 
@@ -102,6 +104,7 @@ function resolveModelContextConfig(modelId: string, reasoningEnabled?: boolean):
     if (modelId.startsWith('gemini-pro-')) return MODEL_CONTEXT_CONFIGS['gemini-pro'];
     if (modelId.startsWith('gemini-vl-')) return MODEL_CONTEXT_CONFIGS['gemini-vl'];
     if (modelId.startsWith('deepai-')) return MODEL_CONTEXT_CONFIGS.deepai;
+    if (modelId.startsWith('kimi-')) return MODEL_CONTEXT_CONFIGS['kimi-k2.5'];
     return MODEL_CONTEXT_CONFIGS.default;
 }
 
@@ -109,17 +112,17 @@ export function getModelContextInfo(modelId: string, reasoningEnabled?: boolean)
     return resolveModelContextConfig(modelId, reasoningEnabled);
 }
 
-export function getPromptBudget(modelId: string, reasoningEnabled?: boolean): number {
+export async function getPromptBudget(modelId: string, reasoningEnabled?: boolean): Promise<number> {
     return calculatePromptBudget(modelId, reasoningEnabled);
 }
 
-function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): number {
+async function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): Promise<number> {
     const config = resolveModelContextConfig(modelId, reasoningEnabled);
     // 可用于系统提示词的剩余上下文
     const available = config.maxContext - config.reserveOutput - config.reserveHistory;
     // 按模型比例分配的预算
     const ratioBudget = Math.floor(available * config.promptRatio);
-    const model = getModelConfig(modelId);
+    const model = await getModelConfigAsync(modelId);
     // 模型默认输出上限，用于估算提示词占比
     const defaultMax = model?.defaultMaxTokens ?? 4000;
     // 提示词占默认输出上限的比例与上限
@@ -346,7 +349,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     totalTokens: number;
     budgetTotal: number;
 }> {
-    const budget = calculatePromptBudget(context.modelId, context.reasoningEnabled);
+    const budget = await calculatePromptBudget(context.modelId, context.reasoningEnabled);
     const tracker = createSourceTracker();
     let remaining = budget;
 

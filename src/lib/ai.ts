@@ -9,7 +9,7 @@
 import type { AIPersonality, AIPersonalityConfig } from '@/types';
 import { getProvider, createMockStream } from './ai-providers';
 import type { AIRequestMessage } from './ai-providers/base';
-import { getModelConfig, DEFAULT_MODEL_ID } from './ai-config';
+import { getModelConfigAsync, DEFAULT_MODEL_ID } from './ai-config';
 
 // ===== 时间辅助函数 =====
 
@@ -175,7 +175,7 @@ export async function callAI(
     chartContext: string = '',
     options?: AICallOptions
 ): Promise<string> {
-    const config = getModelConfig(modelId);
+    const config = await getModelConfigAsync(modelId);
     if (!config) {
         console.error(`Unknown model: ${modelId}`);
         return generateMockResponse(personality);
@@ -217,7 +217,7 @@ export async function callAIStream(
     modelId: string = DEFAULT_MODEL_ID,
     options?: AICallOptions
 ): Promise<ReadableStream<Uint8Array>> {
-    const config = getModelConfig(modelId);
+    const config = await getModelConfigAsync(modelId);
     if (!config) {
         console.error(`Unknown model: ${modelId}`);
         return createMockStream(generateMockResponse(personality));
@@ -296,7 +296,7 @@ export async function callAIWithReasoning(
     chartContext: string = '',
     options?: AICallOptions
 ): Promise<AICallResult> {
-    const config = getModelConfig(modelId);
+    const config = await getModelConfigAsync(modelId);
     if (!config) {
         return { content: generateMockResponse(personality) };
     }

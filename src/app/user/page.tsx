@@ -24,6 +24,7 @@ import {
     CircleStar,
     Scroll,
     Trophy,
+    Bot,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -643,6 +644,7 @@ export default function UserPage() {
                         items: [
                             { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
                             { icon: Wallet, label: '支付服务', href: '/admin/payment' },
+                            { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
                         ],
                     }]
                     : [])

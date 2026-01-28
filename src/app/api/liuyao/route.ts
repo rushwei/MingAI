@@ -9,7 +9,7 @@ import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { callAIWithReasoning } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccess } from '@/lib/ai-access';
+import { resolveModelAccessAsync } from '@/lib/ai-access';
 import {
     type Hexagram,
     type Yao,
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 const membershipType = await getEffectiveMembershipType(user.id);
-                const access = resolveModelAccess(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
+                const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
                 if ('error' in access) {
                     return NextResponse.json({
                         success: false,

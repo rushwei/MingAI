@@ -1,11 +1,16 @@
 /**
  * AI 模型配置
- * 
- * 完全从环境变量动态加载模型配置
+ *
+ * 支持从数据库动态加载模型配置，环境变量作为回退
  * 支持数组格式的 MODEL_ID 和 MODEL_NAME
  */
 
 import type { AIModelConfig, AIVendor } from '@/types';
+
+// ===== 数据库配置缓存 =====
+let _dbModels: AIModelConfig[] | null = null;
+let _dbLastFetch: number = 0;
+const DB_CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
 
 // ===== 环境变量解析工具 =====
 
@@ -209,14 +214,127 @@ export function buildModels(): AIModelConfig[] {
     return models;
 }
 
-// 懒加载模型配置
+// 懒加载模型配置（环境变量）
 let _models: AIModelConfig[] | null = null;
 
+// ===== 数据库配置获取 =====
+
+/**
+ * 从数据库获取模型配置（仅服务端使用）
+ * 包含 5 分钟内存缓存
+ */
+async function fetchModelsFromDB(): Promise<AIModelConfig[] | null> {
+    // 检查是否在服务端环境
+    if (typeof window !== 'undefined') {
+        return null;
+    }
+
+    const now = Date.now();
+    if (_dbModels && (now - _dbLastFetch) < DB_CACHE_TTL) {
+        return _dbModels;
+    }
+
+    try {
+        // 直接创建 service role 客户端，避免导入 api-utils 引发的 next/headers 问题
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const { data: models, error } = await supabase
+            .from('ai_models')
+            .select(`
+                *,
+                sources:ai_model_sources(*)
+            `)
+            .eq('is_enabled', true)
+            .order('sort_order', { ascending: true });
+
+        if (error) {
+            console.error('[ai-config] Failed to fetch from DB:', error);
+            return null;
+        }
+
+        if (!models || models.length === 0) {
+            return null;
+        }
+
+        _dbModels = models
+            .map(m => {
+                // 找到活跃的来源
+                const activeSource = m.sources?.find((s: { is_active: boolean }) => s.is_active);
+                if (!activeSource) {
+                    console.warn(`[ai-config] Model ${m.model_key} has no active source`);
+                    return null;
+                }
+
+                return {
+                    id: m.model_key,
+                    name: m.display_name,
+                    vendor: m.vendor as AIVendor,
+                    modelId: activeSource.model_id_override || m.model_key,
+                    apiUrl: activeSource.api_url,
+                    apiKeyEnvVar: activeSource.api_key_env_var,
+                    supportsReasoning: m.supports_reasoning,
+                    reasoningModelId: activeSource.reasoning_model_id,
+                    isReasoningDefault: m.is_reasoning_default,
+                    supportsVision: m.supports_vision,
+                    defaultTemperature: m.default_temperature != null ? parseFloat(m.default_temperature) : undefined,
+                    defaultMaxTokens: m.default_max_tokens,
+                    // 访问控制
+                    requiredTier: m.required_tier,
+                    reasoningRequiredTier: m.reasoning_required_tier,
+                } as AIModelConfig;
+            })
+            .filter((m): m is AIModelConfig => m !== null);
+
+        _dbLastFetch = now;
+        return _dbModels;
+    } catch (error) {
+        console.error('[ai-config] Error fetching from DB:', error);
+        return null;
+    }
+}
+
+/**
+ * 异步获取模型配置（数据库优先，环境变量回退）
+ * 用于 API 路由等服务端场景
+ */
+export async function getModelsAsync(): Promise<AIModelConfig[]> {
+    const dbModels = await fetchModelsFromDB();
+    if (dbModels && dbModels.length > 0) {
+        return dbModels;
+    }
+    // 回退到环境变量
+    return buildModels();
+}
+
+/**
+ * 同步获取模型配置
+ * 优先使用数据库缓存，否则使用环境变量配置
+ */
 export function getModels(): AIModelConfig[] {
+    // 如果数据库缓存可用，优先使用
+    if (_dbModels && _dbModels.length > 0) {
+        return _dbModels;
+    }
+    // 回退到环境变量配置
     if (_models === null) {
         _models = buildModels();
     }
     return _models;
+}
+
+/**
+ * 清除模型配置缓存
+ * 在管理员修改配置后调用
+ */
+export function clearModelCache(): void {
+    _models = null;
+    _dbModels = null;
+    _dbLastFetch = 0;
+    console.info('[ai-config] Model cache cleared');
 }
 
 // 为兼容性保留
@@ -229,6 +347,20 @@ export const AI_MODELS = buildModels();
  */
 export function getModelConfig(modelId: string): AIModelConfig | undefined {
     const models = getModels();
+    const direct = models.find(m => m.id === modelId);
+    if (direct) return direct;
+    if (modelId === 'deepseek-chat' || modelId === 'deepseek') {
+        return models.find(m => m.id === 'deepseek-v3.2');
+    }
+    return undefined;
+}
+
+/**
+ * 异步获取模型配置（确保从数据库加载）
+ * 用于 API 路由，确保数据库配置的模型能被正确识别
+ */
+export async function getModelConfigAsync(modelId: string): Promise<AIModelConfig | undefined> {
+    const models = await getModelsAsync();
     const direct = models.find(m => m.id === modelId);
     if (direct) return direct;
     if (modelId === 'deepseek-chat' || modelId === 'deepseek') {
@@ -280,6 +412,7 @@ export const VENDOR_NAMES: Record<AIVendor, string> = {
     gemini: 'Gemini',
     qwen: 'Qwen',
     deepai: 'DeepAI',
+    moonshot: 'Moonshot',
     'qwen-vl': 'Qwen 视觉模型',
     'gemini-vl': 'Gemini 视觉模型',
 };

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
 import { getAuthContext } from '@/lib/api-utils';
-import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID, getModelConfigAsync } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import { buildPromptWithSources, getModelContextInfo, getPromptBudget } from '@/lib/prompt-builder';
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const requestedModelId = typeof body.model === 'string' && body.model.trim()
             ? body.model.trim()
             : DEFAULT_MODEL_ID;
-        const modelConfig = getModelConfig(requestedModelId);
+        const modelConfig = await getModelConfigAsync(requestedModelId);
         if (!modelConfig) {
             return NextResponse.json({ error: '无效的模型' }, { status: 400 });
         }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
             .filter(m => m && m.type && m.name)
             .slice(0, 20);
 
-        const mentionBudget = getPromptBudget(requestedModelId, reasoningEnabled);
+        const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
         const resolvedMentions = await Promise.all(mergedMentions.map(async (m) => {
             const resolvedContent = await resolveMention(m, user.id, {
                 client: supabase,

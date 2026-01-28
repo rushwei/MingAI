@@ -113,3 +113,4 @@ export const deepseekProvider = new OpenAICompatibleProvider('deepseek');
 export const glmProvider = new OpenAICompatibleProvider('glm');
 export const qwenProvider = new OpenAICompatibleProvider('qwen');
 export const deepaiProvider = new OpenAICompatibleProvider('deepai');
+export const moonshotProvider = new OpenAICompatibleProvider('moonshot');

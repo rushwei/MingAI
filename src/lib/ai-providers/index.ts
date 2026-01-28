@@ -6,7 +6,7 @@
 
 import type { AIModelConfig, AIVendor } from '@/types';
 import type { AIProvider } from './base';
-import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider } from './openai-compatible';
+import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider, moonshotProvider } from './openai-compatible';
 import { geminiNativeProvider } from './gemini-native';
 import { OpenAICompatibleProvider } from './openai-compatible';
 import { qwenVlProvider, geminiVlProvider } from './vision-provider';
@@ -18,6 +18,7 @@ const providers: Record<AIVendor, AIProvider> = {
     gemini: geminiNativeProvider,
     qwen: qwenProvider,
     deepai: deepaiProvider,
+    moonshot: moonshotProvider,
     'qwen-vl': qwenVlProvider,
     'gemini-vl': geminiVlProvider,
 };

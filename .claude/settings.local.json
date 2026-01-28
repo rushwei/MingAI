@@ -18,7 +18,9 @@
       "Bash(ls:*)",
       "Bash(tree:*)",
       "Bash(NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm tsc:*)",
+      "mcp__supabase__list_migrations"
     ]
   },
   "enableAllProjectMcpServers": true,

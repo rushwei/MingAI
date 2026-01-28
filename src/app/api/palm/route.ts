@@ -8,7 +8,7 @@ import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccess } from '@/lib/ai-access';
+import { resolveModelAccessAsync } from '@/lib/ai-access';
 import { getProvider } from '@/lib/ai-providers';
 import type { VisionProviderOptions } from '@/lib/ai-providers';
 import {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
 
                 // 检查模型权限
                 const membershipType = await getEffectiveMembershipType(user.id);
-                const access = resolveModelAccess(modelId, DEFAULT_VISION_MODEL_ID, membershipType, reasoning, {
+                const access = await resolveModelAccessAsync(modelId, DEFAULT_VISION_MODEL_ID, membershipType, reasoning, {
                     requireVision: true,
                     membershipDeniedMessage: '手相分析需要 Plus 会员或以上'
                 });

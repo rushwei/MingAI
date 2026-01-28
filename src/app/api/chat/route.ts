@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
 import type { ChatMessage, DifyContext } from '@/types';
-import { DEFAULT_MODEL_ID, getModelConfig } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID, getModelConfigAsync } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
 import '@/lib/data-sources/init';
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         }
 
         const requestedModelId = model || DEFAULT_MODEL_ID;
-        const modelConfig = getModelConfig(requestedModelId);
+        const modelConfig = await getModelConfigAsync(requestedModelId);
         if (!modelConfig) {
             return NextResponse.json(
                 { error: '无效的模型' },
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
         const mentionsClient = getSupabase();
 
-        const mentionBudget = getPromptBudget(requestedModelId, reasoningEnabled);
+        const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
         const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
             const resolvedContent = await resolveMention(m, userId as string, {
                 client: mentionsClient,
