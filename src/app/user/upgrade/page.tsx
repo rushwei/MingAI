@@ -35,6 +35,7 @@ export default function UpgradePage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [purchaseLinks, setPurchaseLinks] = useState<PurchaseLinks>({});
+    const [level, setLevel] = useState<{ level: number } | null>(null);
 
     const refreshMembership = async (userId: string) => {
         const info = await getMembershipInfo(userId);
@@ -60,8 +61,22 @@ export default function UpgradePage() {
             if (sessionLoading) return;
             if (user) {
                 await refreshMembership(user.id);
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.access_token) {
+                        const res = await fetch('/api/checkin?action=status', {
+                            headers: { Authorization: `Bearer ${session.access_token}` },
+                        });
+                        const data = await res.json();
+                        if (data.success && data.data?.level?.level) {
+                            setLevel({ level: data.data.level.level });
+                        }
+                    }
+                } catch {
+                }
             } else {
                 setMembership(null);
+                setLevel(null);
             }
             await fetchPurchaseLinks();
             setLoading(false);
@@ -155,6 +170,7 @@ export default function UpgradePage() {
                         credits={membership.aiChatCount}
                         membershipType={membership.type}
                         lastRestoreAt={membership.lastCreditRestoreAt}
+                        extraLimit={Math.max(0, (level?.level || 1) - 1)}
                     />
                 </div>
             )}

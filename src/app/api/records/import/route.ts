@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
                 }
                 notesImported = notesToInsert.length;
             }
-        } catch (error) {
+        } catch {
             // 回滚：恢复原有数据
             try {
                 await Promise.all([

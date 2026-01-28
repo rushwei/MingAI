@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from './MentionPopover';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
+import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 
 type DataSourceSummary = {
     id: string;
@@ -472,7 +472,7 @@ export function ChatComposer({
                         const nextValue = `${inputValue.slice(0, removeStart)}${inputValue.slice(removeEnd)}`;
                         onInputChange(nextValue);
                         if (onMentionsChange) {
-                            const nextMentions = filterMentionsByTokens(mentions, extractMentionTokens(nextValue, mentions));
+                            const nextMentions = removeMentionsByTokens(mentions, tokens, overlaps);
                             onMentionsChange(nextMentions);
                         }
                         requestAnimationFrame(() => {
@@ -489,7 +489,7 @@ export function ChatComposer({
                             const nextValue = `${inputValue.slice(0, target.start)}${inputValue.slice(target.end)}`;
                             onInputChange(nextValue);
                             if (onMentionsChange) {
-                                const nextMentions = filterMentionsByTokens(mentions, extractMentionTokens(nextValue, mentions));
+                                const nextMentions = removeMentionsByTokens(mentions, tokens, [target]);
                                 onMentionsChange(nextMentions);
                             }
                             requestAnimationFrame(() => {

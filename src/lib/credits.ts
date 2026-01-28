@@ -12,6 +12,7 @@
 
 import { type MembershipType, getPlanConfig } from './membership';
 import { getServiceRoleClient } from './api-utils';
+import { getUserLevel } from './gamification';
 
 
 /**
@@ -115,6 +116,9 @@ export async function restoreUserCredits(userId: string): Promise<number> {
     if (!info) return 0;
 
     const plan = getPlanConfig(info.membership);
+    const levelInfo = await getUserLevel(userId);
+    const levelBonus = Math.max(0, (levelInfo?.level || 1) - 1);
+    const effectiveLimit = plan.creditLimit + levelBonus;
     const now = new Date();
     const lastRestore = info.lastRestoreAt || new Date(0);
 
@@ -135,7 +139,7 @@ export async function restoreUserCredits(userId: string): Promise<number> {
 
     // 计算恢复的积分数
     const creditsToRestore = periodsElapsed * plan.restoreCredits;
-    const newCredits = Math.min(info.credits + creditsToRestore, plan.creditLimit);
+    const newCredits = Math.min(info.credits + creditsToRestore, effectiveLimit);
     const actualRestored = newCredits - info.credits;
 
     if (actualRestored <= 0) return 0;
@@ -144,7 +148,7 @@ export async function restoreUserCredits(userId: string): Promise<number> {
         .rpc('restore_ai_chat_count', {
             user_id: userId,
             amount: creditsToRestore,
-            credit_limit: plan.creditLimit,
+            credit_limit: effectiveLimit,
             restore_at: now.toISOString(),
         });
 

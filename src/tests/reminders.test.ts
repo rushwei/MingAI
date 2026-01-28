@@ -170,6 +170,18 @@ test('processScheduledReminders does not mark sent when notification fails', asy
                     }),
                 };
             }
+            if (table === 'user_settings') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({
+                                data: { notifications_enabled: true, notify_site: true },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
             return {};
         },
     });

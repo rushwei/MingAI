@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Mention } from '../types';
-import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens } from '../lib/mention-tokens';
+import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens, removeMentionsByTokens } from '../lib/mention-tokens';
 
 const baziMention: Mention = {
     type: 'bazi_chart',
@@ -32,4 +32,12 @@ test('filterMentionsByTokens keeps only the number of mentions in text', () => {
     const filtered = filterMentionsByTokens([baziMention, ziweiMention], tokens);
     assert.equal(filtered.length, 1);
     assert.equal(filtered[0].type, 'bazi_chart');
+});
+
+test('removeMentionsByTokens removes the correct duplicate mention', () => {
+    const input = `测试 ${buildMentionToken(baziMention)} 和 ${buildMentionToken(ziweiMention)}`;
+    const tokens = extractMentionTokens(input, [baziMention, ziweiMention]);
+    const nextMentions = removeMentionsByTokens([baziMention, ziweiMention], tokens, [tokens[0]]);
+    assert.equal(nextMentions.length, 1);
+    assert.equal(nextMentions[0].type, 'ziwei_chart');
 });

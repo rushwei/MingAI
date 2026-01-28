@@ -60,18 +60,19 @@ export const mapMentionsToTokens = (tokens: MentionToken[], mentions: Mention[])
 };
 
 export const filterMentionsByTokens = (mentions: Mention[], tokens: MentionToken[]): Mention[] => {
-    const counts = new Map<string, number>();
-    for (const token of tokens) {
-        counts.set(token.name, (counts.get(token.name) || 0) + 1);
-    }
+    return mapMentionsToTokens(tokens, mentions)
+        .map(match => match.mention)
+        .filter((mention): mention is Mention => !!mention);
+};
 
-    const used = new Map<string, number>();
-    return mentions.filter(mention => {
-        const limit = counts.get(mention.name) || 0;
-        if (limit === 0) return false;
-        const usedCount = used.get(mention.name) || 0;
-        if (usedCount >= limit) return false;
-        used.set(mention.name, usedCount + 1);
-        return true;
-    });
+export const removeMentionsByTokens = (
+    mentions: Mention[],
+    tokens: MentionToken[],
+    removedTokens: MentionToken[]
+): Mention[] => {
+    const removedSet = new Set(removedTokens);
+    return mapMentionsToTokens(tokens, mentions)
+        .filter(match => !removedSet.has(match.token))
+        .map(match => match.mention)
+        .filter((mention): mention is Mention => !!mention);
 };

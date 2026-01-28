@@ -110,6 +110,10 @@ export async function isSubscribed(userId: string, reminderType: ReminderType): 
         return false;
     }
 
+    if (!subscription?.enabled || !subscription?.notify_site) {
+        return false;
+    }
+
     let notificationsEnabled = true;
     let settingsNotifySite = true;
     const { data: settings, error: settingsError } = await serviceClient

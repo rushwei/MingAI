@@ -17,15 +17,17 @@ interface CreditProgressBarProps {
     membershipType: MembershipType;
     /** 上次恢复时间 */
     lastRestoreAt?: Date | null;
+    extraLimit?: number;
 }
 
 export function CreditProgressBar({
     credits,
     membershipType,
     lastRestoreAt,
+    extraLimit = 0,
 }: CreditProgressBarProps) {
     const plan = getPlanConfig(membershipType);
-    const limit = plan.creditLimit;
+    const limit = plan.creditLimit + Math.max(0, extraLimit);
     const percentage = Math.min((credits / limit) * 100, 100);
 
     // 恢复率描述
