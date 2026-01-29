@@ -997,11 +997,20 @@ export function ChatComposer({
                                                 <button
                                                     type="button"
                                                     onClick={() => {
+                                                        const textarea = textareaRef.current;
+                                                        const caret = textarea?.selectionStart ?? inputValue.length;
+                                                        const before = inputValue.slice(0, caret);
+                                                        const after = inputValue.slice(caret);
+                                                        const nextValue = `${before}@${after}`;
+                                                        onInputChange(nextValue);
                                                         setMentionOpen(true);
                                                         setMentionQuery('');
-                                                        setMentionStartIndex(null);
+                                                        setMentionStartIndex(caret);
                                                         setMenuOpen(false);
-                                                        textareaRef.current?.focus();
+                                                        requestAnimationFrame(() => {
+                                                            textareaRef.current?.focus();
+                                                            textareaRef.current?.setSelectionRange(caret + 1, caret + 1);
+                                                        });
                                                     }}
                                                     className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all hover:bg-background-secondary text-foreground-secondary"
                                                     disabled={disabled}
@@ -1009,7 +1018,6 @@ export function ChatComposer({
                                                     <AtSign className="w-4.5 h-4.5" />
                                                     <span className="truncate flex flex-col items-start text-left">
                                                         <span className="truncate w-full">提及</span>
-                                                        <span className="text-[11px] opacity-70">也可输入 @ 启动</span>
                                                     </span>
                                                 </button>
                                             )}

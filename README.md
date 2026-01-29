@@ -10,7 +10,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat-square&logo=vercel)](https://vercel.com/)
 
-[🌐 在线体验](https://www.mingai.fun) · [📖 产品文档](docs/plans/PRD-MingAI-v1.9.md) · [🐛 报告问题](https://github.com/hhszzzz/MingAI/issues)
+[🌐 在线体验](https://www.mingai.fun) · [📖 产品文档](docs/plans/PRD-MingAI-v2.0.md)  · [🐛 报告问题](https://github.com/hhszzzz/MingAI/issues)
 
 </div>
 
@@ -18,12 +18,13 @@
 
 ## ✨ 产品亮点
 
-- 🔮 **多命理体系** - 八字、紫微、塔罗、六爻、MBTI、面相、手相、合盘等全覆盖
-- 🤖 **AI智能分析** - 多模型支持(DeepAI/Gemini/Qwen/DeepSeek/GLM)，深度推理，视觉识别
-- 📅 **个性化运势** - 基于命盘的每日/每月运势、节气提醒、年度报告
-- 💬 **命理社区** - 匿名讨论、帖子评论、投票互动，命理爱好者交流平台
-- 🎮 **游戏化激励** - 签到奖励、经验等级、成就系统，提升用户粘性
-- 🎨 **现代化UI** - 深色/浅色主题，响应式设计，移动端优先
+- 🔮 **多命理体系** - 八字、紫微、塔罗、六爻、MBTI、面相、手相、合盘、周公解梦全覆盖
+- 🤖 **AI智能分析** - 多模型支持(DeepAI/Gemini/Qwen/DeepSeek/GLM/Kimi)，深度推理，视觉识别
+- 📚 **知识库与@提及** - 个人知识库 + 显式引用数据源，AI 可解释
+- 🎛️ **AI个性化** - 表达风格/用户画像/自定义指令 + 提示词预算可视化
+- 💳 **订阅与运营** - Key 激活、购买链接配置、支付开关、AI模型/来源管理
+- 📱 **多端体验** - Web + iOS/Android 客户端，移动端优先
+- 💬 **社区与激励** - 匿名讨论、签到等级、成就系统
 - 🔐 **隐私优先** - Row Level Security 数据隔离，用户数据安全可控
 
 ---
@@ -73,19 +74,21 @@ pnpm dev
 
 ### 技术栈
 
-| 类别         | 技术                     | 说明              |
-| ------------ | ------------------------ | ----------------- |
-| **前端框架** | Next.js 16+ (App Router) | 全栈React框架     |
-| **开发语言** | TypeScript 5.x           | 严格类型检查      |
-| **样式方案** | Tailwind CSS 4.x         | 原子化CSS         |
-| **UI组件**   | Lucide React             | 图标库            |
-| **数据库**   | Supabase (PostgreSQL)    | BaaS平台          |
-| **认证**     | Supabase Auth            | 邮箱验证/密码重置 |
-| **AI模型**   | DeepAI/Gemini/Qwen/DeepSeek/GLM | 多模型支持  |
-| **八字算法** | lunar-javascript         | 农历/干支计算     |
-| **紫微算法** | iztro                    | 紫微斗数排盘      |
-| **邮件服务** | Resend                   | 交易邮件          |
-| **部署平台** | Vercel + Zeabur          | 边缘部署          |
+| 类别         | 技术                                | 说明                     |
+| ------------ | ----------------------------------- | ------------------------ |
+| **前端框架** | Next.js 16+ (App Router)            | 全栈React框架            |
+| **开发语言** | TypeScript 5.x                      | 严格类型检查             |
+| **样式方案** | Tailwind CSS 4.x                    | 原子化CSS                |
+| **UI组件**   | Lucide React                        | 图标库                   |
+| **移动端**   | Capacitor 8                         | iOS/Android 客户端       |
+| **数据库**   | Supabase (PostgreSQL + pgvector/FTS) | BaaS平台 + 向量检索      |
+| **认证**     | Supabase Auth                       | 邮箱验证/密码重置        |
+| **AI模型**   | DeepAI/Gemini/Qwen/DeepSeek/GLM/Kimi | 多模型支持               |
+| **RAG**      | FTS + Trigram + Vector + Reranker   | 知识库检索               |
+| **八字算法** | lunar-javascript                    | 农历/干支计算            |
+| **紫微算法** | iztro                               | 紫微斗数排盘             |
+| **邮件服务** | Resend                              | 交易邮件                 |
+| **部署平台** | Vercel + Zeabur                     | 边缘部署                 |
 
 ### 项目结构
 
@@ -104,6 +107,10 @@ MingAI/
 │   │   ├── tarot/             # 塔罗占卜
 │   │   ├── liuyao/            # 六爻占卜
 │   │   ├── mbti/              # MBTI测试
+│   │   ├── face/              # 面相分析
+│   │   ├── palm/              # 手相分析
+│   │   ├── community/         # 命理社区
+│   │   ├── records/           # 命理记账
 │   │   ├── user/              # 用户中心
 │   │   └── admin/             # 管理后台
 │   ├── components/            # React 组件
@@ -122,6 +129,10 @@ MingAI/
 │   │   ├── hepan.ts          # 合盘算法
 │   │   ├── mbti.ts           # MBTI逻辑
 │   │   ├── ai.ts             # AI调用
+│   │   ├── prompt-builder.ts # 提示词构建
+│   │   ├── knowledge-base/   # 知识库
+│   │   ├── data-sources/     # 统一数据源
+│   │   ├── mentions.ts       # @提及解析
 │   │   └── credits.ts        # 积分管理
 │   └── types/                 # TypeScript 类型
 ├── docs/                      # 项目文档
@@ -133,20 +144,22 @@ MingAI/
 
 ### 数据库设计
 
-| 表名                    | 用途               |
-| ----------------------- | ------------------ |
-| `users`                 | 用户信息与会员状态 |
-| `bazi_charts`           | 八字命盘存储       |
-| `ziwei_charts`          | 紫微命盘存储       |
-| `hepan_charts`          | 关系合盘记录       |
-| `conversations`         | 对话历史           |
-| `tarot_readings`        | 塔罗占卜记录       |
-| `liuyao_divinations`    | 六爻占卜记录       |
-| `mbti_readings`         | MBTI测试结果       |
-| `notifications`         | 站内通知           |
-| `feature_subscriptions` | 功能订阅           |
-| `orders`                | 订单记录           |
-| `rate_limits`           | 速率限制           |
+| 表名 | 用途 |
+| --- | --- |
+| `users` | 用户档案、会员等级、管理员标记 |
+| `user_settings` | 偏好设置（默认命盘/侧边栏/AI偏好/知识库搜索） |
+| `app_settings` | 全局配置（支付开关等） |
+| `activation_keys` / `purchase_links` | Key 激活与购买链接 |
+| `ai_models` / `ai_model_sources` / `ai_model_stats` | AI 模型管理与统计 |
+| `knowledge_bases` / `knowledge_entries` / `archived_sources` | 知识库与归档 |
+| `conversations` | AI 对话历史与来源追踪 |
+| `bazi_charts` / `ziwei_charts` / `tarot_readings` / `liuyao_divinations` / `hepan_charts` / `mbti_readings` | 命理与占卜数据 |
+| `face_readings` / `palm_readings` | 视觉分析记录 |
+| `community_posts` / `community_comments` / `community_votes` / `community_reports` | 命理社区 |
+| `ming_records` / `ming_notes` | 命理记账与小记 |
+| `reminder_subscriptions` / `scheduled_reminders` / `annual_reports` | 提醒与年度报告 |
+| `credit_transactions` / `user_levels` / `daily_checkins` / `user_achievements` | 积分与成长体系 |
+| `orders` / `notifications` / `rate_limits` / `login_attempts` | 订单/通知/限流/安全 |
 
 ---
 
@@ -191,26 +204,36 @@ MingAI/
 - [x] 游戏化激励（等级、经验、签到、成就）
 - [x] 推送与年度报告（节气提醒、运势提醒、PDF导出）
 
+#### Phase 8: 移动端与AI体验优化
+- [x] iOS/Android 客户端（Capacitor）
+- [x] 订阅体系升级（Key 激活、购买链接、支付开关）
+- [x] 知识库（创建/归档/上传/检索）
+- [x] @提及 + 统一数据源 API
+- [x] AI 个性化（风格/画像/指令）+ 提示词预算/来源展示
+- [x] 管理员 AI 服务管理（模型/来源/统计）
+- [x] 周公解梦模式
+
 ### 🔜 开发计划
 
-#### Phase 8: 后续功能
+#### Phase 9: 后续功能
 - [ ] 易经占卜
 - [ ] 姓名学分析
 - [ ] 择吉日功能
 - [ ] 微信生态集成（登录、支付、分享）
-- [ ] AI个性化记忆与知识库
 
 ---
 
 ## 💰 会员体系
 
-| 等级     | 价格     | 对话次数 | 恢复规则            | 模型权限           |
-| -------- | -------- | -------- | ------------------- | ------------------ |
-| **Free** | ¥0       | 3次      | 每日+1，上限3次     | 基础模型           |
-| **Plus** | ¥29.9/月 | 50次     | 每日+5，上限50次    | 推理模型           |
-| **Pro**  | ¥99/月   | 200次    | 每小时+1，上限200次 | 高级模型(DeepAI+)  |
+| 等级     | 价格     | 额度上限 | 恢复规则            | 模型权限                                  |
+| -------- | -------- | -------- | ------------------- | ----------------------------------------- |
+| **Free** | ¥0       | 3        | 每日+1，上限3        | 基础模型（DeepSeek/GLM-4.6/Kimi）         |
+| **Plus** | ¥29.9/月 | 50       | 每日+5，上限50       | 推理模型（DeepSeek Pro/GLM-4.7/Gemini）   |
+| **Pro**  | ¥99/月   | 200      | 每小时+1，上限200    | 全模型可用（含 DeepAI）                   |
 
-**按量付费**：¥9.9 = 1次对话
+**额度说明**：1额度 = 1次对话  
+**按量付费**：¥9.9 = 1额度  
+**订阅方式**：Key 激活（`sk-xxxx`），购买链接由管理员配置
 
 ---
 
@@ -218,7 +241,7 @@ MingAI/
 
 | 文档                                                              | 说明         |
 | ----------------------------------------------------------------- | ------------ |
-| [PRD](docs/plans/PRD-MingAI-v1.9.md)                              | 产品需求文档 |
+| [PRD](docs/plans/PRD-MingAI-v2.0.md)                              | 产品需求文档 |
 | [Phase 1 报告](docs/deliverables/Phase1-MVP-Completion-Report.md) | MVP完成报告  |
 | [Phase 2 报告](docs/deliverables/Phase2-Completion-Report.md)     | 体验增强报告 |
 | [Phase 3 报告](docs/deliverables/Phase3-Completion-Report.md)     | 功能完善报告 |
@@ -226,6 +249,7 @@ MingAI/
 | [Phase 5 报告](docs/deliverables/Phase5-Completion-Report.md)     | 体验优化报告 |
 | [Phase 6 报告](docs/deliverables/Phase6-Completion-Report.md)     | 社区与AI增强 |
 | [Phase 7 报告](docs/deliverables/Phase7-Completion-Report.md)     | 高级功能报告 |
+| [Phase 8 报告](docs/deliverables/Phase8-Completion-Report.md)     | 移动端与AI体验 |
 
 ---
 

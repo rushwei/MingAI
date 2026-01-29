@@ -225,7 +225,7 @@ function analyzeHuaBian(originalYao: DiZhi, changedYao: DiZhi): HuaBianType
 | 文件 | 说明 |
 | --- | --- |
 | [liuyao.ts](/src/lib/liuyao.ts) | 六爻核心库（2329行） |
-| [liuyao-PRD.md](/docs/plans/liuyao-PRD.md) | 六爻需求文档 |
+| [liuyao-PRD.md](/docs/deliverables/details/liuyao-PRD.md) | 六爻需求文档 |
 | [TraditionalAnalysis.tsx](/src/components/liuyao/TraditionalAnalysis.tsx) | 传统分析组件 |
 
 ---
