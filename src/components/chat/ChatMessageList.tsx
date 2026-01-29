@@ -170,11 +170,10 @@ export function ChatMessageList({
                                         <span>{new Date(message.dreamInfo.dreamDate).toLocaleDateString('zh-CN')}</span>
                                     </div>
                                 )}
-                                <div className={`px-4 py-3 rounded-2xl rounded-tr-md shadow-sm text-foreground ${
-                                    message.dreamInfo
+                                <div className={`px-4 py-3 rounded-2xl rounded-tr-md shadow-sm text-foreground ${message.dreamInfo
                                         ? 'bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20'
                                         : 'bg-accent/10 border border-accent/20'
-                                }`}>
+                                    }`}>
                                     <p className="whitespace-pre-wrap text-base leading-relaxed">
                                         {formatMentionsForDisplay(message.content)}
                                     </p>
@@ -267,6 +266,8 @@ export function ChatMessageList({
                                 <ThinkingBlock
                                     content={message.reasoning}
                                     isStreaming={isStreamingAI && message.id === lastMessage?.id && !message.content}
+                                    startTime={message.reasoningStartTime}
+                                    duration={message.reasoningDuration}
                                 />
                             )}
                             {message.dreamInfo && (

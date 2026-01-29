@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
-import { callAIWithReasoning } from '@/lib/ai';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
@@ -17,12 +17,13 @@ interface HepanRequest {
     chartId?: string; // 已保存的合盘记录 ID，用于关联 AI 分析（analyze 时更新）
     modelId?: string;
     reasoning?: boolean;
+    stream?: boolean;  // 是否使用流式输出
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: HepanRequest = await request.json();
-        const { action, result, chartId, modelId, reasoning } = body;
+        const { action, result, chartId, modelId, reasoning, stream } = body;
 
         if (action === 'save') {
             // 保存合盘记录（不含 AI 分析）
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({
                     success: false,
                     error: '积分不足，请充值后使用'
-                    }, { status: 403 });
+                }, { status: 403 });
             }
 
             const membershipType = await getEffectiveMembershipType(user.id);
@@ -168,7 +169,105 @@ ${conflictsSummary}
             }
 
             try {
-                // 覆盖默认人格提示词，保证合盘输出结构稳定
+                // 流式输出模式
+                if (stream) {
+                    const streamBody = await callAIStream(
+                        [{ role: 'user', content: userPrompt }],
+                        'general',
+                        `\n\n${systemPrompt}\n\n`,
+                        requestedModelId,
+                        {
+                            reasoning: reasoningEnabled,
+                            temperature: 0.7,
+                        }
+                    );
+                    const [clientStream, tapStream] = streamBody.tee();
+
+                    // 异步持久化流式结果
+                    void (async () => {
+                        try {
+                            const { content: analysis, reasoning: reasoningText } = await readAIStream(tapStream);
+                            const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai-analysis');
+                            const conversationId = await createAIAnalysisConversation({
+                                userId: user.id,
+                                sourceType: 'hepan',
+                                sourceData: {
+                                    type: result.type,
+                                    person1_name: result.person1.name,
+                                    person1_birth: result.person1,
+                                    person2_name: result.person2.name,
+                                    person2_birth: result.person2,
+                                    compatibility_score: result.overallScore,
+                                    dimensions: result.dimensions,
+                                    conflicts: result.conflicts,
+                                    model_id: requestedModelId,
+                                    reasoning: reasoningEnabled,
+                                    reasoning_text: reasoningText || null,
+                                },
+                                title: generateHepanTitle(result.person1.name, result.person2.name, result.type),
+                                aiResponse: analysis,
+                            });
+
+                            if (!conversationId) {
+                                console.error('[hepan] 保存 AI 分析对话失败');
+                            }
+
+                            const serviceClient = getServiceRoleClient();
+                            if (chartId) {
+                                const { error: updateError } = await serviceClient
+                                    .from('hepan_charts')
+                                    .update({ conversation_id: conversationId })
+                                    .eq('id', chartId)
+                                    .eq('user_id', user.id);
+
+                                if (updateError) {
+                                    console.error('[hepan] 更新合盘记录失败:', updateError.message);
+                                }
+                            } else {
+                                const { error: insertError } = await serviceClient
+                                    .from('hepan_charts')
+                                    .insert({
+                                        user_id: user.id,
+                                        type: result.type,
+                                        person1_name: result.person1.name,
+                                        person1_birth: {
+                                            year: result.person1.year,
+                                            month: result.person1.month,
+                                            day: result.person1.day,
+                                            hour: result.person1.hour,
+                                        },
+                                        person2_name: result.person2.name,
+                                        person2_birth: {
+                                            year: result.person2.year,
+                                            month: result.person2.month,
+                                            day: result.person2.day,
+                                            hour: result.person2.hour,
+                                        },
+                                        compatibility_score: result.overallScore,
+                                        conversation_id: conversationId,
+                                        result_data: result,
+                                    });
+
+                                if (insertError) {
+                                    console.error('[hepan] 保存合盘记录失败:', insertError.message, insertError.details);
+                                }
+                            }
+                        } catch (streamError) {
+                            console.error('[hepan] 流式结果保存失败:', streamError);
+                        }
+                    })();
+
+                    // 返回 SSE 格式响应
+                    return new Response(clientStream, {
+                        headers: {
+                            'Content-Type': 'text/event-stream',
+                            'Cache-Control': 'no-cache',
+                            'Connection': 'keep-alive',
+                        },
+                    });
+                }
+
+                // 非流式模式：覆盖默认人格提示词，保证合盘输出结构稳定
                 const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                     [{ role: 'user', content: userPrompt }],
                     'general',

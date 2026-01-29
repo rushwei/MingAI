@@ -535,6 +535,14 @@ export function ChatComposer({
             showToast('info', '知识库仅限 Plus 以上会员使用');
             return;
         }
+        // 检查是否已存在相同的提及
+        const isDuplicate = mentions.some(
+            m => m.id === mention.id && m.type === mention.type
+        );
+        if (isDuplicate) {
+            showToast('info', '已添加过该项');
+            return;
+        }
         const next = [...mentions, mention].slice(0, 10);
         onMentionsChange(next);
 
@@ -578,7 +586,7 @@ export function ChatComposer({
             }
             const styleType = (match.mention?.type || 'default') as MentionType | 'default';
             const style = mentionStyleMap[styleType] || mentionStyleMap.default;
-            result += `<span class="font-semibold ${style.className}"><span class="font-black">@</span>${escape(token.name)}</span>`;
+            result += `<span class="${style.className}">@${escape(token.name)}</span>`;
             cursor = token.end;
         }
         if (cursor < inputValue.length) {
@@ -1088,7 +1096,13 @@ export function ChatComposer({
                                                     {displayLayers.map((layer) => (
                                                         <div key={layer.id} className="flex items-center justify-between gap-2">
                                                             <span className={`truncate ${layer.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
-                                                                {layer.priority ? `${layer.priority} · ` : ''}{formatLayerLabel(layer.id)}
+                                                                {layer.priority ? `${layer.priority} · ` : ''}
+                                                                {!layer.included && layer.reason && (
+                                                                    <span className="text-xs no-underline mr-1">
+                                                                        ({layer.reason === 'budget_exceeded' ? '超出' : layer.reason === 'empty' ? '空' : '重复'})
+                                                                    </span>
+                                                                )}
+                                                                {formatLayerLabel(layer.id)}
                                                             </span>
                                                             <span className="tabular-nums text-foreground-secondary">
                                                                 {layer.tokens}

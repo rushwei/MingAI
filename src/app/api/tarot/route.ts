@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { callAIWithReasoning } from '@/lib/ai';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
@@ -24,6 +24,7 @@ interface TarotRequest {
     readingId?: string; // 已保存的抽牌记录 ID，用于关联 AI 解读
     modelId?: string;
     reasoning?: boolean;
+    stream?: boolean;  // 是否使用流式输出
 }
 
 // 响应类型
@@ -43,10 +44,10 @@ interface TarotResponse {
     error?: string;
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<TarotResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse<TarotResponse> | Response> {
     try {
         const body: TarotRequest = await request.json();
-        const { action, spreadId, count = 1, question, cards, allowReversed = true, readingId, modelId, reasoning } = body;
+        const { action, spreadId, count = 1, question, cards, allowReversed = true, readingId, modelId, reasoning, stream } = body;
 
         switch (action) {
             // 获取所有牌阵列表
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 if (spreadAuthHeader) {
                     const { user: spreadUser } = await getAuthContext(request);
                     if (spreadUser) {
-            const serviceClient = getServiceRoleClient();
+                        const serviceClient = getServiceRoleClient();
                         const { data: insertedReading, error: insertError } = await serviceClient
                             .from('tarot_readings')
                             .insert({
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
                 const { user: saveUser } = authResult;
 
-            const serviceClient = getServiceRoleClient();
+                const serviceClient = getServiceRoleClient();
                 const { data: insertedReading, error: insertError } = await serviceClient
                     .from('tarot_readings')
                     .insert({
@@ -269,7 +270,86 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
 
                 try {
-                    // 用系统提示词 override 默认人格，保持解读模板一致
+                    // 流式输出模式
+                    if (stream) {
+                        const streamBody = await callAIStream(
+                            [{ role: 'user', content: userPrompt }],
+                            'general',
+                            `\n\n${systemPrompt}\n\n`,
+                            requestedModelId,
+                            {
+                                reasoning: reasoningEnabled,
+                                temperature: 0.7,
+                            }
+                        );
+                        const [clientStream, tapStream] = streamBody.tee();
+
+                        // 异步持久化流式结果
+                        void (async () => {
+                            try {
+                                const { content: interpretation, reasoning: reasoningText } = await readAIStream(tapStream);
+                                const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
+                                const conversationId = await createAIAnalysisConversation({
+                                    userId: user.id,
+                                    sourceType: 'tarot',
+                                    sourceData: {
+                                        cards: cards,
+                                        spread_id: spreadId || 'custom',
+                                        question: question || null,
+                                        model_id: requestedModelId,
+                                        reasoning: reasoningEnabled,
+                                        reasoning_text: reasoningText || null,
+                                    },
+                                    title: generateTarotTitle(question, spreadId || 'custom'),
+                                    aiResponse: interpretation,
+                                });
+
+                                if (!conversationId) {
+                                    console.error('[tarot] 保存 AI 分析对话失败');
+                                }
+
+                                const serviceClient = getServiceRoleClient();
+                                if (readingId) {
+                                    const { error: updateError } = await serviceClient
+                                        .from('tarot_readings')
+                                        .update({ conversation_id: conversationId })
+                                        .eq('id', readingId)
+                                        .eq('user_id', user.id);
+
+                                    if (updateError) {
+                                        console.error('[tarot] 更新抽牌记录失败:', updateError.message);
+                                    }
+                                } else {
+                                    const { error: insertError } = await serviceClient
+                                        .from('tarot_readings')
+                                        .insert({
+                                            user_id: user.id,
+                                            spread_id: spreadId || 'custom',
+                                            question: question || null,
+                                            cards: cards,
+                                            conversation_id: conversationId,
+                                        });
+
+                                    if (insertError) {
+                                        console.error('[tarot] 保存抽牌记录失败:', insertError.message);
+                                    }
+                                }
+                            } catch (streamError) {
+                                console.error('[tarot] 流式结果保存失败:', streamError);
+                            }
+                        })();
+
+                        // 返回 SSE 格式响应
+                        return new Response(clientStream, {
+                            headers: {
+                                'Content-Type': 'text/event-stream',
+                                'Cache-Control': 'no-cache',
+                                'Connection': 'keep-alive',
+                            },
+                        });
+                    }
+
+                    // 非流式模式：用系统提示词 override 默认人格，保持解读模板一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
                         'general',
@@ -303,7 +383,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }
 
                     // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-        const serviceClient = getServiceRoleClient();
+                    const serviceClient = getServiceRoleClient();
                     if (readingId) {
                         // 更新已有记录
                         const { error: updateError } = await serviceClient

@@ -193,6 +193,30 @@ export function resolvePersonalities(context: {
         addPersonality('ziwei');
     }
 
+    // 塔罗牌提及
+    const hasTarotMention = (context.mentions || []).some(mention => mention.type === 'tarot_reading');
+    if (hasTarotMention) {
+        addPersonality('tarot');
+    }
+
+    // 六爻提及
+    const hasLiuyaoMention = (context.mentions || []).some(mention => mention.type === 'liuyao_divination');
+    if (hasLiuyaoMention) {
+        addPersonality('liuyao');
+    }
+
+    // MBTI 提及
+    const hasMbtiMention = (context.mentions || []).some(mention => mention.type === 'mbti_reading');
+    if (hasMbtiMention) {
+        addPersonality('mbti');
+    }
+
+    // 合盘提及
+    const hasHepanMention = (context.mentions || []).some(mention => mention.type === 'hepan_chart');
+    if (hasHepanMention) {
+        addPersonality('hepan');
+    }
+
     if (personalities.length === 0) {
         addPersonality('general');
     }

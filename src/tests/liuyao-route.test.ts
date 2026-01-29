@@ -236,3 +236,135 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     assert.ok(capturedDate);
     assert.equal(capturedDate?.toISOString(), createdAt.toISOString());
 });
+
+test('liuyao route persists analysis after streaming completes', async (t) => {
+    const credits = require('../lib/credits') as any;
+    const aiModule = require('../lib/ai') as any;
+    const aiAnalysisModule = require('../lib/ai-analysis') as any;
+    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+
+    const originalHasCredits = credits.hasCredits;
+    const originalUseCredit = credits.useCredit;
+    const originalCallAIStream = aiModule.callAIStream;
+    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+
+    let createArgs: Record<string, unknown> | null = null;
+    let updated: Record<string, unknown> | null = null;
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+            controller.enqueue(
+                encoder.encode('data: {"choices":[{"delta":{"content":"analysis","reasoning_content":"reason"}}]}\n\n')
+            );
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+        },
+    });
+
+    credits.hasCredits = async () => true;
+    credits.useCredit = async () => 1;
+    aiModule.callAIStream = async () => stream;
+    aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
+        createArgs = params;
+        return 'conv-1';
+    };
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    supabaseServerModule.getServiceClient = () => ({
+        from: (table: string) => {
+            if (table === 'users') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({
+                                data: { membership: 'pro', membership_expires_at: null },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'liuyao_divinations') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => ({
+                                maybeSingle: async () => ({
+                                    data: { created_at: new Date().toISOString() },
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                    update: (payload: Record<string, unknown>) => {
+                        updated = payload;
+                        return {
+                            eq: () => ({
+                                eq: async () => ({ error: null }),
+                            }),
+                        };
+                    },
+                    insert: async () => ({ error: null }),
+                };
+            }
+            return {
+                insert: async () => ({ error: null }),
+            };
+        },
+    });
+
+    t.after(() => {
+        credits.hasCredits = originalHasCredits;
+        credits.useCredit = originalUseCredit;
+        aiModule.callAIStream = originalCallAIStream;
+        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        supabaseModule.supabase.auth.getUser = originalGetUser;
+        supabaseServerModule.getServiceClient = originalGetServiceClient;
+    });
+
+    const { POST } = await import('../app/api/liuyao/route');
+
+    const request = new NextRequest('http://localhost/api/liuyao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'interpret',
+            stream: true,
+            divinationId: 'divination-1',
+            hexagram: {
+                name: '乾为天',
+                code: '111111',
+                upperTrigram: '乾',
+                lowerTrigram: '乾',
+                element: '金',
+                nature: '刚健',
+            },
+            yaos: [
+                { type: 1, change: 'stable', position: 1 },
+                { type: 1, change: 'stable', position: 2 },
+                { type: 1, change: 'stable', position: 3 },
+                { type: 1, change: 'stable', position: 4 },
+                { type: 1, change: 'stable', position: 5 },
+                { type: 1, change: 'stable', position: 6 },
+            ],
+            changedLines: [],
+        }),
+    });
+
+    const response = await POST(request);
+    await response.text();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.ok(createArgs);
+    assert.equal((createArgs as Record<string, unknown>).sourceType, 'liuyao');
+    assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+});

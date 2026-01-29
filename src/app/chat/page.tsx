@@ -441,6 +441,7 @@ export default function ChatPage() {
         let accumulatedContent = '';
         let accumulatedReasoning = '';
         let accumulatedMetadata: AIMessageMetadata | null = null;
+        let reasoningStartTime: number | undefined = undefined;  // 推理开始时间
         const charQueue: string[] = [];
         let drainTimer: number | null = null;
         let visibleContent = '';
@@ -588,10 +589,14 @@ export default function ChatPage() {
                                 // 处理推理内容
                                 const reasoningContent = delta?.reasoning_content;
                                 if (reasoningContent) {
+                                    // 第一次收到推理内容，记录开始时间
+                                    if (!accumulatedReasoning && !reasoningStartTime) {
+                                        reasoningStartTime = Date.now();
+                                    }
                                     accumulatedReasoning += reasoningContent;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
                                             : msg
                                     ));
                                 }
@@ -628,10 +633,13 @@ export default function ChatPage() {
             });
 
             // 完成后更新最终消息并保存
+            // 计算推理用时（秒）
+            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
             const finalMessages = newMessages.concat({
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
+                reasoningDuration,
                 metadata: accumulatedMetadata as unknown as Record<string, unknown>,
             });
             setMessages(finalMessages);
@@ -799,6 +807,7 @@ export default function ChatPage() {
             const decoder = new TextDecoder();
             let accumulatedContent = '';
             let accumulatedReasoning = '';
+            let reasoningStartTime: number | undefined = undefined;
             let buffer = '';
 
             if (reader) {
@@ -820,10 +829,13 @@ export default function ChatPage() {
                                 const delta = parsed.choices?.[0]?.delta;
                                 const reasoningContent = delta?.reasoning_content;
                                 if (reasoningContent) {
+                                    if (!accumulatedReasoning && !reasoningStartTime) {
+                                        reasoningStartTime = Date.now();
+                                    }
                                     accumulatedReasoning += reasoningContent;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
                                             : msg
                                     ));
                                 }
@@ -859,10 +871,12 @@ export default function ChatPage() {
                 currentVersionIndex: updatedVersions.length - 1,
             };
 
+            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
             const finalMessages = [...previousMessages, finalUserMessage, {
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
+                reasoningDuration,
             }];
             setMessages(finalMessages);
             setIsLoading(false);
@@ -941,6 +955,7 @@ export default function ChatPage() {
             const decoder = new TextDecoder();
             let accumulatedContent = '';
             let accumulatedReasoning = '';
+            let reasoningStartTime: number | undefined = undefined;
             let buffer = '';
 
             if (reader) {
@@ -962,10 +977,13 @@ export default function ChatPage() {
                                 const delta = parsed.choices?.[0]?.delta;
                                 const reasoningContent = delta?.reasoning_content;
                                 if (reasoningContent) {
+                                    if (!accumulatedReasoning && !reasoningStartTime) {
+                                        reasoningStartTime = Date.now();
+                                    }
                                     accumulatedReasoning += reasoningContent;
                                     setMessages(prev => prev.map(msg =>
                                         msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning }
+                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
                                             : msg
                                     ));
                                 }
@@ -986,10 +1004,12 @@ export default function ChatPage() {
                 }
             }
 
+            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
             const finalMessages = previousMessages.concat({
                 ...initialAssistantMessage,
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
+                reasoningDuration,
             });
             setMessages(finalMessages);
             setIsLoading(false);

@@ -60,6 +60,10 @@ function TarotResultContent() {
     const [userId, setUserId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    // 流式输出状态
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
+    const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
 
     useEffect(() => {
         const loadMembership = async () => {
@@ -236,11 +240,18 @@ function TarotResultContent() {
         if (drawnCards.length === 0) return;
 
         setIsInterpreting(true);
+        setIsStreaming(true);
         setInterpretationReasoning(null);
+        setInterpretation('');
+        setReasoningStartTime(undefined);
+        setReasoningDuration(undefined);
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 alert('请先登录');
+                setIsInterpreting(false);
+                setIsStreaming(false);
                 return;
             }
 
@@ -258,25 +269,82 @@ function TarotResultContent() {
                     readingId: readingId || undefined,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
+                    stream: true,  // 启用流式输出
                 }),
             });
 
-            const data = await res.json();
-            if (data.success && data.data?.interpretation) {
-                setInterpretation(data.data.interpretation);
-                setInterpretationReasoning(data.data.reasoning || null);
-                if (data.data.conversationId) {
-                    setConversationId(data.data.conversationId);
-                    updateSessionJSON('tarot_result', (prev) => ({
-                        ...(prev || {}),
-                        conversationId: data.data.conversationId,
-                    }));
-                }
-            } else {
+            if (!res.ok) {
+                const data = await res.json();
                 alert(data.error || '解读失败');
+                setIsInterpreting(false);
+                setIsStreaming(false);
+                return;
             }
+
+            // 处理流式响应
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedContent = '';
+            let accumulatedReasoning = '';
+            let streamReasoningStartTime: number | undefined = undefined;
+            let buffer = '';
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() ?? '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const delta = parsed.choices?.[0]?.delta;
+
+                                // 处理推理内容
+                                const reasoningContent = delta?.reasoning_content;
+                                if (reasoningContent) {
+                                    if (!accumulatedReasoning && !streamReasoningStartTime) {
+                                        streamReasoningStartTime = Date.now();
+                                        setReasoningStartTime(streamReasoningStartTime);
+                                    }
+                                    accumulatedReasoning += reasoningContent;
+                                    setInterpretationReasoning(accumulatedReasoning);
+                                }
+
+                                // 处理正常内容
+                                const content = delta?.content;
+                                if (content) {
+                                    accumulatedContent += content;
+                                    setInterpretation(accumulatedContent);
+                                }
+                            } catch {
+                                // 跳过解析错误
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 流式结束，计算推理用时
+            if (streamReasoningStartTime) {
+                setReasoningDuration(Math.floor((Date.now() - streamReasoningStartTime) / 1000));
+            }
+            setIsStreaming(false);
+
+            if (!accumulatedContent) {
+                setInterpretation('解读失败，请重试');
+            }
+
         } catch (error) {
             console.error('AI 解读失败:', error);
+            setIsStreaming(false);
         } finally {
             setIsInterpreting(false);
         }
@@ -629,7 +697,12 @@ function TarotResultContent() {
                                 {interpretation ? (
                                     <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300 relative z-10">
                                         {interpretationReasoning && (
-                                            <ThinkingBlock content={interpretationReasoning} />
+                                            <ThinkingBlock
+                                                content={interpretationReasoning}
+                                                isStreaming={isStreaming && !interpretation}
+                                                startTime={reasoningStartTime}
+                                                duration={reasoningDuration}
+                                            />
                                         )}
                                         <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
                                             <MarkdownContent content={interpretation} />

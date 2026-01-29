@@ -48,6 +48,10 @@ export default function ResultPage() {
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    // 流式输出状态
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
+    const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
     const errorBanner = error ? (
         <div data-testid="analysis-error" className="flex items-center justify-center gap-2 text-red-500 mb-4">
             <AlertCircle className="w-4 h-4" />
@@ -220,8 +224,12 @@ export default function ResultPage() {
         if (!result || !user || !traditionalData) return;
 
         setIsLoading(true);
+        setIsStreaming(true);
         setError(null);
         setInterpretationReasoning(null);
+        setInterpretation(null);
+        setReasoningStartTime(undefined);
+        setReasoningDuration(undefined);
 
         try {
             const response = await fetch('/api/liuyao', {
@@ -237,30 +245,86 @@ export default function ResultPage() {
                     changedHexagram: result.changedHexagram,
                     changedLines: result.changedLines,
                     yaos: result.yaos,
-                    dayStem: traditionalData.dayStem, // 传递起卦日干，确保 AI 分析与 UI 一致
-                    divinationId: divinationId, // 使用 state 中的 divinationId
+                    dayStem: traditionalData.dayStem,
+                    divinationId: divinationId,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
+                    stream: true,  // 启用流式输出
                 }),
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json();
                 throw new Error(data.error || '解读失败');
             }
 
-            setInterpretation(data.data.interpretation);
-            setInterpretationReasoning(data.data.reasoning || null);
-            if (data.data.conversationId) {
-                setConversationId(data.data.conversationId);
-                updateSessionJSON('liuyao_result', (prev) => ({
-                    ...(prev || {}),
-                    conversationId: data.data.conversationId,
-                }));
+            // 处理流式响应
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedContent = '';
+            let accumulatedReasoning = '';
+            let streamReasoningStartTime: number | undefined = undefined;
+            let buffer = '';
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() ?? '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const delta = parsed.choices?.[0]?.delta;
+
+                                // 处理推理内容
+                                const reasoningContent = delta?.reasoning_content;
+                                if (reasoningContent) {
+                                    if (!accumulatedReasoning && !streamReasoningStartTime) {
+                                        streamReasoningStartTime = Date.now();
+                                        setReasoningStartTime(streamReasoningStartTime);
+                                    }
+                                    accumulatedReasoning += reasoningContent;
+                                    setInterpretationReasoning(accumulatedReasoning);
+                                }
+
+                                // 处理正常内容
+                                const content = delta?.content;
+                                if (content) {
+                                    accumulatedContent += content;
+                                    setInterpretation(accumulatedContent);
+                                }
+                            } catch {
+                                // 跳过解析错误
+                            }
+                        }
+                    }
+                }
             }
+
+            // 流式结束，计算推理用时
+            if (streamReasoningStartTime) {
+                setReasoningDuration(Math.floor((Date.now() - streamReasoningStartTime) / 1000));
+            }
+            setIsStreaming(false);
+
+            // 设置最终内容
+            if (!accumulatedContent) {
+                setInterpretation('解读失败，请重试');
+            }
+
+            // TODO: 流式模式下保存到数据库需要后端支持，目前先留待后续实现
+
         } catch (err) {
             setError(err instanceof Error ? err.message : '解读失败');
+            setIsStreaming(false);
         } finally {
             setIsLoading(false);
         }
@@ -418,7 +482,12 @@ export default function ResultPage() {
                                 {errorBanner}
                                 <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300">
                                     {interpretationReasoning && (
-                                        <ThinkingBlock content={interpretationReasoning} />
+                                        <ThinkingBlock
+                                            content={interpretationReasoning}
+                                            isStreaming={isStreaming && !interpretation}
+                                            startTime={reasoningStartTime}
+                                            duration={reasoningDuration}
+                                        />
                                     )}
                                     <MarkdownContent content={interpretation} className="text-sm text-foreground" />
                                 </div>
@@ -460,7 +529,6 @@ export default function ResultPage() {
                                             <>
                                                 <Sparkles className="w-5 h-5" />
                                                 获取 AI 深度解读
-                                                <span className="ml-2 text-xs font-normal opacity-80">(消耗 1 次对话)</span>
                                             </>
                                         )}
                                     </button>

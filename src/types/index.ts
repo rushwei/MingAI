@@ -97,7 +97,7 @@ export interface BaziFormData {
 // ===== AI 对话相关类型 =====
 
 /** AI 人格类型 */
-export type AIPersonality = 'bazi' | 'ziwei' | 'dream' | 'mangpai' | 'general';
+export type AIPersonality = 'bazi' | 'ziwei' | 'dream' | 'mangpai' | 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'general';
 
 /** AI 人格配置 */
 export interface AIPersonalityConfig {
@@ -147,6 +147,8 @@ export interface ChatMessage {
     createdAt: string;
     model?: string;                   // 使用的模型（仅AI消息）
     reasoning?: string;               // 推理/思考过程（仅AI消息）
+    reasoningStartTime?: number;      // 推理开始时间戳（ms）（仅AI消息，流式时使用）
+    reasoningDuration?: number;       // 推理用时（秒）（仅AI消息，流式结束后设置）
     metadata?: Record<string, unknown>;
     // 版本支持（仅用户消息有效）
     versions?: MessageVersion[];      // 所有版本历史

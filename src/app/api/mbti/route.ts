@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/mbti';
-import { callAIWithReasoning } from '@/lib/ai';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
@@ -26,12 +26,13 @@ interface MBTIRequest {
     readingId?: string; // 已保存的测试记录 ID，用于关联 AI 分析
     modelId?: string;
     reasoning?: boolean;
+    stream?: boolean;  // 是否使用流式输出
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: MBTIRequest = await request.json();
-        const { action, type, scores, percentages, readingId, modelId, reasoning } = body;
+        const { action, type, scores, percentages, readingId, modelId, reasoning, stream } = body;
 
         // 保存测试记录（不含 AI 分析）
         if (action === 'save') {
@@ -192,7 +193,86 @@ ${basic.description}
         }
 
         try {
-            // 覆盖默认人格提示词，确保 MBTI 解读模板稳定
+            // 流式输出模式
+            if (stream) {
+                const streamBody = await callAIStream(
+                    [{ role: 'user', content: userPrompt }],
+                    'general',
+                    `\n\n${systemPrompt}\n\n`,
+                    requestedModelId,
+                    {
+                        reasoning: reasoningEnabled,
+                        temperature: 0.7,
+                    }
+                );
+                const [clientStream, tapStream] = streamBody.tee();
+
+                // 异步持久化流式结果
+                void (async () => {
+                    try {
+                        const { content: analysis, reasoning: reasoningText } = await readAIStream(tapStream);
+                        const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
+                        const conversationId = await createAIAnalysisConversation({
+                            userId: user.id,
+                            sourceType: 'mbti',
+                            sourceData: {
+                                mbti_type: type,
+                                scores,
+                                percentages,
+                                model_id: requestedModelId,
+                                reasoning: reasoningEnabled,
+                                reasoning_text: reasoningText || null,
+                            },
+                            title: generateMbtiTitle(type),
+                            aiResponse: analysis,
+                        });
+
+                        if (!conversationId) {
+                            console.error('[mbti] 保存 AI 分析对话失败');
+                        }
+
+                        const serviceClient = getServiceRoleClient();
+                        if (readingId) {
+                            const { error: updateError } = await serviceClient
+                                .from('mbti_readings')
+                                .update({ conversation_id: conversationId })
+                                .eq('id', readingId)
+                                .eq('user_id', user.id);
+
+                            if (updateError) {
+                                console.error('[mbti] 更新测试记录失败:', updateError.message);
+                            }
+                        } else {
+                            const { error: insertError } = await serviceClient
+                                .from('mbti_readings')
+                                .insert({
+                                    user_id: user.id,
+                                    mbti_type: type,
+                                    scores,
+                                    percentages,
+                                    conversation_id: conversationId,
+                                });
+
+                            if (insertError) {
+                                console.error('[mbti] 保存测试记录失败:', insertError.message, insertError.details);
+                            }
+                        }
+                    } catch (streamError) {
+                        console.error('[mbti] 流式结果保存失败:', streamError);
+                    }
+                })();
+
+                // 返回 SSE 格式响应
+                return new Response(clientStream, {
+                    headers: {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive',
+                    },
+                });
+            }
+
+            // 非流式模式：覆盖默认人格提示词，确保 MBTI 解读模板稳定
             const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
                 [{ role: 'user', content: userPrompt }],
                 'general',
@@ -226,7 +306,7 @@ ${basic.description}
             }
 
             // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-        const serviceClient = getServiceRoleClient();
+            const serviceClient = getServiceRoleClient();
             if (readingId) {
                 // 更新已有记录
                 const { error: updateError } = await serviceClient

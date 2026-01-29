@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { callAIWithReasoning } from '@/lib/ai';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
@@ -36,12 +36,13 @@ interface LiuyaoRequest {
     divinationId?: string; // 已保存的起卦记录 ID，用于关联 AI 解读
     modelId?: string;
     reasoning?: boolean;
+    stream?: boolean;  // 是否使用流式输出
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body: LiuyaoRequest = await request.json();
-        const { action, question, hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning } = body;
+        const { action, question, hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning, stream } = body;
 
         switch (action) {
             // 保存起卦记录（不含 AI 解读）
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
                     changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type
                 ).join('') : null;
 
-            const serviceClient = getServiceRoleClient();
+                const serviceClient = getServiceRoleClient();
                 const { data: insertedDivination, error: insertError } = await serviceClient
                     .from('liuyao_divinations')
                     .insert({
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
                 // 计算传统分析数据（使用完整分析函数）
                 let traditionalInfo = '';
                 let analysisDate = new Date();
-            const serviceClient = getServiceRoleClient();
+                const serviceClient = getServiceRoleClient();
 
                 if (divinationId) {
                     const { data, error } = await serviceClient
@@ -301,7 +302,93 @@ ${traditionalInfo}
                 }
 
                 try {
-                    // 用系统提示词 override 默认人格，确保解读格式一致
+                    // 流式输出模式
+                    if (stream) {
+                        const streamBody = await callAIStream(
+                            [{ role: 'user', content: userPrompt }],
+                            'general',
+                            `\n\n${systemPrompt}\n\n`,
+                            requestedModelId,
+                            {
+                                reasoning: reasoningEnabled,
+                                temperature: 0.7,
+                            }
+                        );
+                        const [clientStream, tapStream] = streamBody.tee();
+
+                        // 异步持久化流式结果
+                        void (async () => {
+                            try {
+                                const { content: interpretation, reasoning: reasoningText } = await readAIStream(tapStream);
+                                const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
+                                const hexagramCode = yaos?.map(y => y.type).join('') || '';
+                                const changedCode = changedHexagram ? yaos?.map((y, i) =>
+                                    changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type
+                                ).join('') : null;
+                                const conversationId = await createAIAnalysisConversation({
+                                    userId: user.id,
+                                    sourceType: 'liuyao',
+                                    sourceData: {
+                                        hexagram_code: hexagramCode,
+                                        hexagram_name: hexagram.name,
+                                        changed_hexagram_code: changedCode,
+                                        changed_hexagram_name: changedHexagram?.name,
+                                        changed_lines: changedLines,
+                                        question: question || null,
+                                        model_id: requestedModelId,
+                                        reasoning: reasoningEnabled,
+                                        reasoning_text: reasoningText || null,
+                                    },
+                                    title: generateLiuyaoTitle(question, hexagram.name, changedHexagram?.name),
+                                    aiResponse: interpretation,
+                                });
+
+                                if (!conversationId) {
+                                    console.error('[liuyao] 保存 AI 分析对话失败');
+                                }
+
+                                if (divinationId) {
+                                    const { error: updateError } = await serviceClient
+                                        .from('liuyao_divinations')
+                                        .update({ conversation_id: conversationId })
+                                        .eq('id', divinationId)
+                                        .eq('user_id', user.id);
+
+                                    if (updateError) {
+                                        console.error('[liuyao] 更新起卦记录失败:', updateError.message);
+                                    }
+                                } else {
+                                    const { error: insertError } = await serviceClient
+                                        .from('liuyao_divinations')
+                                        .insert({
+                                            user_id: user.id,
+                                            question: question || '',
+                                            hexagram_code: hexagramCode,
+                                            changed_hexagram_code: changedCode,
+                                            changed_lines: changedLines,
+                                            conversation_id: conversationId,
+                                        });
+
+                                    if (insertError) {
+                                        console.error('[liuyao] 保存起卦记录失败:', insertError.message);
+                                    }
+                                }
+                            } catch (streamError) {
+                                console.error('[liuyao] 流式结果保存失败:', streamError);
+                            }
+                        })();
+
+                        // 返回 SSE 格式响应
+                        return new Response(clientStream, {
+                            headers: {
+                                'Content-Type': 'text/event-stream',
+                                'Cache-Control': 'no-cache',
+                                'Connection': 'keep-alive',
+                            },
+                        });
+                    }
+
+                    // 非流式模式：用系统提示词 override 默认人格，确保解读格式一致
                     const { content: interpretation, reasoning: reasoningText } = await callAIWithReasoning(
                         [{ role: 'user', content: userPrompt }],
                         'general',
@@ -396,7 +483,7 @@ ${traditionalInfo}
                 }
                 const { user } = authResult;
 
-        const serviceClient = getServiceRoleClient();
+                const serviceClient = getServiceRoleClient();
                 const { data: history, error: historyError } = await serviceClient
                     .from('liuyao_divinations')
                     .select('*')
