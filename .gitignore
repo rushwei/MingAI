@@ -39,6 +39,7 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+.trae
 
 # worktrees
 .worktrees
@@ -48,9 +49,17 @@ next-env.d.ts
 .AppleDouble
 .LSOverride
 
-# 配置文件（包含敏感信息）
+# pnpm cache
+.pnpm-store
+
+# migration files
+supabase/migrations
+
+# docs
 docs/review/log
 docs/resource
-docs/plans/PRD-MingAI-v1.5_addendum-roadmap-ideas.md
+docs/change
+docs/other
 
 # AI
+.claude
