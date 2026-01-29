@@ -164,7 +164,7 @@ function RecordFormModal({
     const [title, setTitle] = useState(record?.title || '');
     const [content, setContent] = useState(record?.content || '');
     const [category, setCategory] = useState<RecordCategory>(record?.category || 'general');
-    const [eventDate, setEventDate] = useState(record?.event_date || '');
+    const [eventDate, setEventDate] = useState(record?.event_date || new Date().toISOString().split('T')[0]);
     const [tagsInput, setTagsInput] = useState(record?.tags.join(', ') || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
