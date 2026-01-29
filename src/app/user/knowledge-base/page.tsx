@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { 
-    ArrowLeft, BookOpenText, Loader2, Plus, Trash2, 
-    ChevronDown, ChevronUp, Unlink2, Save, Upload, 
-    FileText, Database, Sparkles, AlertCircle 
+import { useRouter } from 'next/navigation';
+import {
+    ArrowLeft, BookOpenText, Loader2, Plus, Trash2,
+    ChevronDown, ChevronUp, Unlink2, Save, Upload,
+    FileText, Database, Sparkles, AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
@@ -58,6 +58,7 @@ async function getAccessToken() {
 }
 
 export default function KnowledgeBaseManagePage() {
+    const router = useRouter();
     const { showToast } = useToast();
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -377,12 +378,13 @@ export default function KnowledgeBaseManagePage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <Link
-                            href="/user/settings/ai"
+                        <button
+                            onClick={() => router.back()}
                             className="p-2 -ml-2 hover:bg-background rounded-full transition-colors text-foreground-secondary hover:text-foreground"
+                            type="button"
                         >
                             <ArrowLeft className="w-5 h-5" />
-                        </Link>
+                        </button>
                         <div>
                             <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
                                 <BookOpenText className="w-5 h-5 text-emerald-500" />

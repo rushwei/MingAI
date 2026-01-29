@@ -236,7 +236,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
                             <User className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>用户中心</span>
+                            <span>我的</span>
                         </Link>
                         {isPaymentPaused ? (
                             <div className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg text-foreground-secondary cursor-not-allowed opacity-60">
@@ -262,7 +262,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
                         >
                             <Bell className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>消息通知</span>
+                            <span>消息</span>
                             {unreadCount > 0 && (
                                 <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
                                     {unreadCount > 99 ? '99+' : unreadCount}

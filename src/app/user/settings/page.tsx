@@ -11,11 +11,9 @@ import {
     Shield,
     Loader2,
     Check,
-    BookOpenText,
     ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
@@ -127,7 +125,6 @@ export default function SettingsPage() {
         language: 'zh',
     });
     const [userId, setUserId] = useState<string | null>(null);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -138,8 +135,6 @@ export default function SettingsPage() {
             }
 
             setUserId(user.id);
-            const membership = await getMembershipInfo(user.id);
-            setMembershipType(membership?.type || 'free');
 
             const { data, error } = await supabase
                 .from('user_settings')
@@ -294,46 +289,6 @@ export default function SettingsPage() {
                                 <ChevronRight className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary rotate-90" />
                             </div>
                         </div>
-                    </div>
-
-                    {/* AI 设置 */}
-                    <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-3">
-                        <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <h2 className="text-sm font-bold text-foreground">AI 设置</h2>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/user/settings/ai')}
-                            className="group w-full flex items-center justify-between p-3 rounded-xl bg-background border border-border/50 hover:border-emerald-500/30 hover:bg-background-secondary transition-all text-left"
-                        >
-                            <div>
-                                <p className="text-sm font-medium text-foreground group-hover:text-emerald-500 transition-colors">个性化配置</p>
-                                <p className="text-xs text-foreground-secondary mt-0.5">
-                                    表达风格、自定义指令、用户画像
-                                </p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-foreground-secondary/50 group-hover:text-emerald-500 transition-colors" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push('/user/knowledge-base')}
-                            disabled={membershipType === 'free'}
-                            className={`group w-full flex items-center justify-between p-3 rounded-xl bg-background border border-border/50 transition-all text-left ${membershipType === 'free'
-                                ? 'opacity-60 cursor-not-allowed'
-                                : 'hover:border-emerald-500/30 hover:bg-background-secondary'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <BookOpenText className="w-4.5 h-4.5" />
-                                <div>
-                                    <p className="text-sm font-medium text-foreground group-hover:text-emerald-500 transition-colors">知识库管理{membershipType === 'free' ? ' (Plus+)' : ''}</p>
-                                    <p className="text-xs text-foreground-secondary mt-0.5">
-                                        {membershipType === 'free' ? '仅限 Plus 以上会员使用' : '管理归档内容与知识库'}
-                                    </p>
-                                </div>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-foreground-secondary/50 group-hover:text-emerald-500 transition-colors" />
-                        </button>
                     </div>
 
                     {/* 通知与提醒 */}

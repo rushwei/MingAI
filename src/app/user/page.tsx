@@ -13,7 +13,6 @@ import {
     Settings,
     ChevronRight,
     LogOut,
-    History,
     Loader2,
     LogIn,
     Bell,
@@ -25,6 +24,8 @@ import {
     Scroll,
     Trophy,
     Bot,
+    BookOpenText,
+    Sparkles,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -40,11 +41,17 @@ const menuItems = [
     {
         section: '我的服务',
         items: [
-            { icon: CircleStar, label: '会员中心', href: '/user/upgrade' },
+            { icon: CircleStar, label: '订阅', href: '/user/upgrade' },
             { icon: Scroll, label: '我的命盘', href: '/user/charts' },
-            { icon: Bell, label: '消息通知', href: '/user/notifications', showBadge: true },
-            { icon: History, label: '对话历史', href: '/chat' },
-            { icon: CreditCard, label: '订单记录', href: '/user/orders' },
+            { icon: Bell, label: '消息', href: '/user/notifications', showBadge: true },
+            { icon: CreditCard, label: '订单', href: '/user/orders' },
+        ],
+    },
+    {
+        section: 'AI 设置',
+        items: [
+            { icon: Sparkles, label: '个性化配置', href: '/user/settings/ai' },
+            { icon: BookOpenText, label: '知识库管理', href: '/user/knowledge-base', requiresPlus: true },
         ],
     },
     {
@@ -658,7 +665,10 @@ export default function UserPage() {
                                 const Icon = item.icon;
                                 const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
                                 const isSubscription = item.href === '/user/upgrade';
-                                const isDisabled = isSubscription && isPaymentPaused;
+                                const isDisabledByPayment = isSubscription && isPaymentPaused;
+                                const requiresPlus = 'requiresPlus' in item && item.requiresPlus;
+                                const isDisabledByMembership = requiresPlus && membership?.type === 'free';
+                                const isDisabled = isDisabledByPayment || isDisabledByMembership;
 
                                 if (isDisabled) {
                                     return (
@@ -671,7 +681,7 @@ export default function UserPage() {
                                                 <span>{item.label}</span>
                                             </div>
                                             <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                                                暂停服务
+                                                {isDisabledByMembership ? 'Plus+' : '暂停服务'}
                                             </span>
                                         </div>
                                     );
