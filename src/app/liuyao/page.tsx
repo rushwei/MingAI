@@ -77,7 +77,7 @@ export default function LiuyaoPage() {
                 divinationId,
                 createdAt: new Date().toISOString(),
             };
-        writeSessionJSON('liuyao_result', result);
+            writeSessionJSON('liuyao_result', result);
             router.push('/liuyao/result');
         } catch (error) {
             console.error('快速起卦失败:', error);
@@ -137,20 +137,22 @@ export default function LiuyaoPage() {
                     >
                         <div className="absolute top-0 right-0 p-12 bg-yellow-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
-                        <div className="relative z-10 flex flex-col h-full">
-                            <div className="w-12 h-12 md:w-14 md:h-14 bg-yellow-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <div className="relative z-10 flex flex-row md:flex-col h-full items-start text-left">
+                            <div className="shrink-0 w-12 h-12 md:w-14 md:h-14 bg-yellow-50 rounded-xl md:rounded-2xl flex items-center justify-center mr-4 md:mr-0 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                                 <Coins className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
                             </div>
 
-                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-yellow-600 transition-colors">
-                                铜钱起卦
-                            </h3>
-                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
-                                模拟传统三铜钱起卦法，诚心抛掷六次，亲自感应卦象变化，体验古法占卜的仪式感。
-                            </p>
+                            <div className="flex-1 flex flex-col">
+                                <h3 className="text-lg md:text-xl font-bold text-foreground mb-1 md:mb-2 group-hover:text-yellow-600 transition-colors">
+                                    铜钱起卦
+                                </h3>
+                                <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-2 md:mb-6 flex-1">
+                                    模拟传统三铜钱起卦法，诚心抛掷六次，亲自感应卦象变化，体验古法占卜的仪式感。
+                                </p>
 
-                            <div className="flex items-center text-sm font-medium text-yellow-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
-                                开始起卦 <span className="ml-1">→</span>
+                                <div className="flex items-center text-sm font-medium text-yellow-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300 mt-auto">
+                                    开始起卦 <span className="ml-1">→</span>
+                                </div>
                             </div>
                         </div>
                     </button>
@@ -163,8 +165,8 @@ export default function LiuyaoPage() {
                     >
                         <div className="absolute top-0 right-0 p-12 bg-purple-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
-                        <div className="relative z-10 flex flex-col h-full">
-                            <div className="w-12 h-12 md:w-14 md:h-14 bg-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <div className="relative z-10 flex flex-row md:flex-col h-full items-start text-left">
+                            <div className="shrink-0 w-12 h-12 md:w-14 md:h-14 bg-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center mr-4 md:mr-0 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                                 {isQuickLoading ? (
                                     <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-purple-600 animate-spin" />
                                 ) : (
@@ -172,15 +174,17 @@ export default function LiuyaoPage() {
                                 )}
                             </div>
 
-                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-purple-600 transition-colors">
-                                {isQuickLoading ? '正在起卦...' : '快速起卦'}
-                            </h3>
-                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
-                                利用计算机随机算法生成卦象，适合想要快速获得指引，或不方便进行手动起卦的场景。
-                            </p>
+                            <div className="flex-1 flex flex-col">
+                                <h3 className="text-lg md:text-xl font-bold text-foreground mb-1 md:mb-2 group-hover:text-purple-600 transition-colors">
+                                    {isQuickLoading ? '正在起卦...' : '快速起卦'}
+                                </h3>
+                                <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-2 md:mb-6 flex-1">
+                                    利用计算机随机算法生成卦象，适合想要快速获得指引，或不方便进行手动起卦的场景。
+                                </p>
 
-                            <div className="flex items-center text-sm font-medium text-purple-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
-                                立即生成 <span className="ml-1">→</span>
+                                <div className="flex items-center text-sm font-medium text-purple-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300 mt-auto">
+                                    立即生成 <span className="ml-1">→</span>
+                                </div>
                             </div>
                         </div>
                     </button>
@@ -192,20 +196,22 @@ export default function LiuyaoPage() {
                     >
                         <div className="absolute top-0 right-0 p-12 bg-teal-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
 
-                        <div className="relative z-10 flex flex-col h-full">
-                            <div className="w-12 h-12 md:w-14 md:h-14 bg-teal-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <div className="relative z-10 flex flex-row md:flex-col h-full items-start text-left">
+                            <div className="shrink-0 w-12 h-12 md:w-14 md:h-14 bg-teal-50 rounded-xl md:rounded-2xl flex items-center justify-center mr-4 md:mr-0 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                                 <Grid3X3 className="w-6 h-6 md:w-8 md:h-8 text-teal-600" />
                             </div>
 
-                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-teal-600 transition-colors">
-                                选卦起卦
-                            </h3>
-                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
-                                手动选择已知卦象和变爻，适合已有卦象需要详细分析的场景。
-                            </p>
+                            <div className="flex-1 flex flex-col">
+                                <h3 className="text-lg md:text-xl font-bold text-foreground mb-1 md:mb-2 group-hover:text-teal-600 transition-colors">
+                                    选卦起卦
+                                </h3>
+                                <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-2 md:mb-6 flex-1">
+                                    手动选择已知卦象和变爻，适合已有卦象需要详细分析的场景。
+                                </p>
 
-                            <div className="flex items-center text-sm font-medium text-teal-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
-                                选择卦象 <span className="ml-1">→</span>
+                                <div className="flex items-center text-sm font-medium text-teal-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300 mt-auto">
+                                    选择卦象 <span className="ml-1">→</span>
+                                </div>
                             </div>
                         </div>
                     </button>
