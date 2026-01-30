@@ -1,7 +1,8 @@
 /**
  * 黄历信息展示组件
- * 
+ *
  * 显示完整的黄历数据，包括宜忌、吉神凶煞、冲煞、神位等
+ * 支持整合日期选择器、命盘选择器和流日/主神信息
  */
 'use client';
 
@@ -12,16 +13,56 @@ import {
     XCircle,
     MapPin,
     Clock,
+    ChevronLeft,
+    ChevronRight,
+    ChevronDown,
+    User,
 } from 'lucide-react';
+import Link from 'next/link';
 import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/calendar';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 
 interface CalendarAlmanacProps {
     date: Date;
+    /** 日期变更回调 */
+    onDateChange?: (days: number) => void;
+    /** 回到今天回调 */
+    onGoToday?: () => void;
+    /** 是否为今天 */
+    isToday?: boolean;
+    /** 命盘名称 */
+    chartName?: string;
+    /** 点击命盘选择器回调 */
+    onChartSelect?: () => void;
+    /** 是否为个性化模式 */
+    isPersonalized?: boolean;
+    /** 流日干支 */
+    dayStem?: string;
+    dayBranch?: string;
+    /** 主神（十神） */
+    tenGod?: string;
 }
 
-export function CalendarAlmanac({ date }: CalendarAlmanacProps) {
+export function CalendarAlmanac({
+    date,
+    onDateChange,
+    onGoToday,
+    isToday = false,
+    chartName,
+    onChartSelect,
+    isPersonalized = false,
+    dayStem,
+    dayBranch,
+    tenGod,
+}: CalendarAlmanacProps) {
     const data = useMemo(() => getCalendarAlmanac(date), [date]);
+
+    // 流日干支颜色
+    const dayStemElement = dayStem ? getStemElement(dayStem) : null;
+    const dayBranchElement = dayBranch ? getBranchElement(dayBranch) : null;
+    const dayStemColor = dayStemElement ? getElementColor(dayStemElement) : undefined;
+    const dayBranchColor = dayBranchElement ? getElementColor(dayBranchElement) : undefined;
+
     const renderGanZhi = (value: string) => {
         const stem = value?.[0] || '';
         const branch = value?.[1] || '';
@@ -40,18 +81,100 @@ export function CalendarAlmanac({ date }: CalendarAlmanacProps) {
 
     return (
         <section className="bg-background rounded-xl border border-border overflow-hidden">
-            {/* 日期标题 */}
-            <div className="p-4 border-b border-border">
-                <div className="flex items-baseline gap-2 mb-1">
-                    <h2 className="text-xl font-bold">{data.solarDateChinese}</h2>
-                    <span className="text-accent font-medium">{data.weekday}</span>
-                </div>
-                <p className="text-foreground-secondary">
-                    农历 {data.lunarDate}
-                </p>
-            </div>
+            {/* 顶部控制栏：日期切换（含日期信息）+ 流日/主神 + 命盘选择 */}
+            {onDateChange && (
+                <div className="px-3 py-8 border-b border-border/50 bg-background">
+                    <div className="flex items-center justify-between gap-3">
+                        {/* 左侧：← 日期信息 → */}
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => onDateChange(-1)}
+                                className="p-1.5 rounded-md hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="text-center px-2">
+                                <div className="flex items-baseline justify-center gap-2">
+                                    <span className="text-xl font-bold">{data.solarDateChinese}</span>
+                                    <span className="text-accent font-medium">{data.weekday}</span>
+                                </div>
+                                <p className="text-foreground-secondary text-sm">
+                                    农历 {data.lunarDate}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => onDateChange(1)}
+                                className="p-1.5 rounded-md hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground"
+                            >
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
 
-            <div className="p-4 space-y-4">
+                            {!isToday && onGoToday && (
+                                <button
+                                    onClick={onGoToday}
+                                    className="ml-1 px-2 py-1 text-xs bg-accent/10 hover:bg-accent/20 text-accent rounded-md transition-colors"
+                                >
+                                    今
+                                </button>
+                            )}
+                        </div>
+
+                        {/* 中间：流日/主神（竖排） */}
+                        {isPersonalized && dayStem && tenGod && (
+                            <div className="flex flex-col items-center gap-0.5 text-sm">
+                                <div className="flex items-center gap-1">
+                                    <span className="text-foreground-secondary">流日: </span>
+                                    <span className="font-bold">
+                                        <span style={{ color: dayStemColor }}>{dayStem}</span>
+                                        <span style={{ color: dayBranchColor }}>{dayBranch}</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-foreground-secondary">主神: </span>
+                                    <span className="font-bold">{tenGod}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 右侧：命盘选择 */}
+                        {isPersonalized && onChartSelect ? (
+                            <button
+                                onClick={onChartSelect}
+                                className="flex items-center gap-1 px-2 py-1 bg-background hover:bg-background-secondary rounded-xl border border-border/60 hover:border-purple-500/30 transition-all text-sm"
+                            >
+                                当前命盘为:
+                                <span className="font-medium text-purple-600 dark:text-purple-400 max-w-[50px] truncate">
+                                    {chartName}
+                                </span>
+                                <ChevronDown className="w-3 h-3 text-foreground-secondary" />
+                            </button>
+                        ) : !isPersonalized && (
+                            <Link
+                                href="/bazi"
+                                className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-xs text-amber-600 hover:bg-amber-500/20 transition-colors"
+                            >
+                                <User className="w-3 h-3" />
+                                <span>个性化</span>
+                            </Link>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 无控制栏时显示日期标题 */}
+            {!onDateChange && (
+                <div className="p-4 border-b border-border">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                        <h2 className="text-xl font-bold">{data.solarDateChinese}</h2>
+                        <span className="text-accent font-medium">{data.weekday}</span>
+                    </div>
+                    <p className="text-foreground-secondary text-sm">
+                        农历 {data.lunarDate}
+                    </p>
+                </div>
+            )}
+
+            <div className="p-6 space-y-6">
                 {/* 生肖 & 干支 */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -209,7 +332,7 @@ export function CalendarAlmanac({ date }: CalendarAlmanacProps) {
                 </div>
 
                 {/* 扩展信息 */}
-                <div className="pt-3 border-t border-border text-sm space-y-2 text-foreground-secondary">
+                <div className="pt-8 border-t border-border text-sm space-y-2 text-foreground-secondary">
                     <div className="flex justify-between">
                         <span>二十八宿：{data.xiu.gong} {data.xiu.name} ({data.xiu.luck})</span>
                         <span>月相：{data.yueXiang}</span>

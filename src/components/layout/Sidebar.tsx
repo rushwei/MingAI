@@ -30,7 +30,6 @@ import {
     Github,
     Aperture,
     Tags,
-    CalendarCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { AuthModal } from '../auth/AuthModal';
@@ -115,7 +114,6 @@ const navItems = [
 
 // 工具项配置 - 使用不同图标区分每日/每月
 const toolItems = [
-    { href: '/user/checkin', label: '签到', icon: CalendarCheck, available: true },
     { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
     { href: '/daily', label: '日运', icon: Sun, available: true },
     { href: '/monthly', label: '月运', icon: CalendarRange, available: true },

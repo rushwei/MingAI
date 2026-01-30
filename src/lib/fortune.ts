@@ -610,7 +610,7 @@ export function generateEnhancedKeyDates(baziChart: BaziChart, year: number, mon
 export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] {
     const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] = [];
 
-    for (let offset = -3; offset <= 3; offset++) {
+    for (let offset = -2; offset <= 4; offset++) {
         const date = new Date(centerDate);
         date.setDate(date.getDate() + offset);
 

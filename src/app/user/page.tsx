@@ -26,8 +26,10 @@ import {
     Bot,
     BookOpenText,
     MessageCircleHeart,
+    CalendarCheck,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { CheckinModal } from '@/components/checkin/CheckinModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
@@ -90,6 +92,11 @@ type LevelInfo = {
     experience: number;
     totalExperience: number;
     title: string;
+};
+
+type CheckinStatus = {
+    todayCheckedIn: boolean;
+    streakDays: number;
 };
 
 // 计算下一级所需经验
@@ -199,6 +206,7 @@ export default function UserPage() {
     const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [level, setLevel] = useState<LevelInfo | null>(null);
+    const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const { isPaused: isPaymentPaused } = usePaymentPause();
@@ -206,6 +214,7 @@ export default function UserPage() {
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showCheckinModal, setShowCheckinModal] = useState(false);
 
     // 获取用户信息 - 先读取本地 session，再监听后续变更
     useEffect(() => {
@@ -272,6 +281,13 @@ export default function UserPage() {
                             };
                             setLevel(resolvedLevel);
                             writeLevelCache(currentUser.id, resolvedLevel);
+                            // 保存签到状态
+                            if (levelData.data?.status) {
+                                setCheckinStatus({
+                                    todayCheckedIn: levelData.data.status.todayCheckedIn,
+                                    streakDays: levelData.data.status.streakDays,
+                                });
+                            }
                         }
                     }
                     logPerf('level', levelStart);
@@ -594,6 +610,17 @@ export default function UserPage() {
                             <div className="flex items-center gap-2">
                                 <Trophy className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm font-medium">Lv.{level.level} {level.title}</span>
+                                <button
+                                    onClick={() => setShowCheckinModal(true)}
+                                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                                        checkinStatus?.todayCheckedIn
+                                            ? 'bg-green-500/10 text-green-600 border border-green-500/20'
+                                            : 'bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20'
+                                    }`}
+                                >
+                                    <CalendarCheck className="w-3 h-3" />
+                                    {checkinStatus?.todayCheckedIn ? '已签到' : '签到'}
+                                </button>
                             </div>
                             <span className="text-xs text-foreground-secondary">
                                 {level.experience} / {getNextLevelXp(level.level)} XP
@@ -610,7 +637,10 @@ export default function UserPage() {
                 {!level && isLevelLoading && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between mb-2">
-                            <Skeleton className="h-4 w-24 rounded-md" />
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-4 w-24 rounded-md" />
+                                <Skeleton className="h-5 w-12 rounded-md" />
+                            </div>
                             <Skeleton className="h-3 w-20 rounded-md" />
                         </div>
                         <Skeleton className="h-2 w-full rounded-full" />
@@ -690,7 +720,7 @@ export default function UserPage() {
                                 return (
                                     <Link
                                         key={itemIndex}
-                                        href={item.href}
+                                        href={item.href!}
                                         className="flex items-center justify-between px-4 py-3 hover:bg-background-secondary transition-colors border-b border-border last:border-b-0"
                                     >
                                         <div className="flex items-center gap-3">
@@ -752,6 +782,11 @@ export default function UserPage() {
             </p>
 
             {/* 弹窗 */}
+            <CheckinModal
+                isOpen={showCheckinModal}
+                onClose={() => setShowCheckinModal(false)}
+                onCheckinSuccess={() => setCheckinStatus(prev => prev ? { ...prev, todayCheckedIn: true } : { todayCheckedIn: true, streakDays: 1 })}
+            />
 
         </div >
     );

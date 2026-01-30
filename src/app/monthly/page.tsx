@@ -11,11 +11,7 @@ import {
     ChevronLeft,
     ChevronRight,
     TrendingUp,
-    TrendingDown,
-    Minus,
-    Star,
     Loader2,
-    Sparkles,
     User,
     ChevronDown,
 } from 'lucide-react';
@@ -25,7 +21,7 @@ import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, generateEnhancedKeyDates, type MonthlyFortune, type EnhancedKeyDate } from '@/lib/fortune';
+import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, type MonthlyFortune } from '@/lib/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 import type { BaziChart } from '@/types';
 
@@ -174,12 +170,6 @@ function MonthlyPageContent() {
         }));
     }, [baziChart, year, month]);
 
-    // 计算增强版关键日期
-    const enhancedKeyDates = useMemo((): EnhancedKeyDate[] => {
-        if (!baziChart) return [];
-        return generateEnhancedKeyDates(baziChart, year, month);
-    }, [baziChart, year, month]);
-
     const changeMonth = (delta: number) => {
         let newMonth = month + delta;
         let newYear = year;
@@ -204,16 +194,10 @@ function MonthlyPageContent() {
     const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
     const isPersonalized = !!baziChart;
 
-    const getTrendIcon = (trend: string) => {
-        if (trend === 'up') return <TrendingUp className="w-3 h-3 text-green-500" />;
-        if (trend === 'down') return <TrendingDown className="w-3 h-3 text-red-500" />;
-        return <Minus className="w-3 h-3 text-foreground-secondary" />;
-    };
-
     const getScoreColor = (score: number) => {
-        if (score >= 80) return 'bg-green-500';
-        if (score >= 70) return 'bg-amber-500';
-        return 'bg-red-500';
+        if (score >= 80) return 'bg-green-500';  // 吉
+        if (score >= 60) return 'bg-gray-400';   // 平
+        return 'bg-red-500';                     // 凶
     };
 
     const average = Math.floor(calendarData.reduce((sum, d) => sum + d.score, 0) / calendarData.length);
@@ -239,11 +223,11 @@ function MonthlyPageContent() {
 
     return (
         <div className="min-h-screen bg-background md:pb-20">
-            {/* 顶部 Hero 区域 - 移动端隐藏 */}
+            {/* 顶部 Hero 区域 - 仅显示标题 */}
             <div className="hidden md:block relative overflow-hidden border-border/50 pb-4 pt-12">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
                 <div className="max-w-4xl mx-auto px-4 relative z-10">
-                    <div className="text-center mb-6">
+                    <div className="text-center">
                         <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 mb-4 tracking-tight flex items-center justify-center gap-3">
                             月度运势
                         </h1>
@@ -251,83 +235,12 @@ function MonthlyPageContent() {
                             把握流月气场，洞悉机遇与挑战，规划最佳行动时机。
                         </p>
                     </div>
-
-                    {/* 月份选择器 */}
-                    <div className="flex items-center justify-center gap-6 bg-background/50 backdrop-blur-md rounded-2xl border border-border/50 p-2 max-w-md mx-auto shadow-sm">
-                        <button
-                            onClick={() => changeMonth(-1)}
-                            className="p-3 rounded-xl hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground hover:shadow-sm"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                        </button>
-
-                        <div className="text-center min-w-[140px]">
-                            <div className="text-2xl font-bold text-foreground tabular-nums tracking-tight">
-                                {year}年 {monthNames[month - 1]}
-                            </div>
-                            {isCurrentMonth ? (
-                                <div className="text-xs font-medium text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full inline-block mt-1">
-                                    本月
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={goToCurrentMonth}
-                                    className="text-xs text-foreground-secondary hover:text-indigo-500 transition-colors mt-1"
-                                >
-                                    回到本月
-                                </button>
-                            )}
-                        </div>
-
-                        <button
-                            onClick={() => changeMonth(1)}
-                            className="p-3 rounded-xl hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground hover:shadow-sm"
-                        >
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            {/* 移动端月份选择器 */}
-            <div className="md:hidden py-4 px-4">
-                <div className="flex items-center justify-center gap-4 bg-background/50 backdrop-blur-md rounded-xl border border-border/50 p-2">
-                    <button
-                        onClick={() => changeMonth(-1)}
-                        className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <div className="text-center">
-                        <div className="text-lg font-bold text-foreground">
-                            {year}年 {monthNames[month - 1]}
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => changeMonth(1)}
-                        className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-8 -mt-4 relative z-20">
-                {/* 命盘选择 / 提示卡片 */}
-                {isPersonalized ? (
-                    <div className="flex justify-center md:mb-8 mb-4">
-                        <button
-                            onClick={() => setShowChartSelector(true)}
-                            className="group flex items-center justify-center gap-2 px-5 py-2.5 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"
-                        >
-                            <Sparkles className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                            <span className="text-sm font-medium text-foreground-secondary group-hover:text-foreground">
-                                当前分析：<span className="text-indigo-600 dark:text-indigo-400">{baziChart.name}</span> 的命盘
-                            </span>
-                            <ChevronDown className="w-4 h-4 text-foreground-secondary group-hover:text-foreground transition-transform group-hover:rotate-180" />
-                        </button>
-                    </div>
-                ) : (
+            <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-6 relative z-20">
+                {/* 非个性化时的提示卡片 */}
+                {!isPersonalized && (
                     <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-amber-500/10 rounded-lg">
@@ -347,50 +260,136 @@ function MonthlyPageContent() {
                     </div>
                 )}
 
-                {/* 月度总结卡片 */}
+                {/* 月度总结卡片 - 整合月份选择器和命盘选择器 */}
                 {isPersonalized && fortune && (
-                    <div className="bg-background border border-border rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                    <div className="bg-background border border-border rounded-3xl shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none" />
 
-                        <div className="flex flex-col sm:flex-row gap-6 relative z-10">
-                            <div className="sm:w-1/3 flex flex-col justify-center items-center sm:items-start border-b sm:border-b-0 sm:border-r border-border/50 pb-4 sm:pb-0 sm:pr-6">
-                                <div className="text-sm font-medium text-foreground-secondary mb-1">本月能量</div>
-                                <div className="flex items-baseline gap-2 mb-2">
-                                    <span className="text-3xl font-bold font-serif text-indigo-900 dark:text-indigo-100">
-                                        <span style={{ color: monthStemColor }}>{fortune.monthStem}</span>
-                                        <span style={{ color: monthBranchColor }}>{fortune.monthBranch}</span>
-                                    </span>
-                                    <span className="text-sm text-foreground-secondary">月</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-background-secondary px-3 py-1.5 rounded-lg border border-border/50">
-                                    <span className="text-xs text-foreground-secondary">主运十神</span>
-                                    <span className="text-sm font-bold">{fortune.tenGod}</span>
-                                </div>
-                                {average > 0 && (
-                                    <div className="mt-4 flex flex-col items-center sm:items-start w-full">
-                                        <div className="flex justify-between w-full text-xs text-foreground-secondary mb-1">
-                                            <span>综合运势</span>
-                                            <span className="font-bold">{average}分</span>
+                        {/* 顶部控制栏：月份选择器 + 命盘选择器 */}
+                        <div className="p-4 border-b border-border/50 bg-background-secondary/30 relative z-10">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                {/* 月份选择器 */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => changeMonth(-1)}
+                                        className="p-2 rounded-lg hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <div className="text-center min-w-[120px]">
+                                        <div className="text-lg font-bold text-foreground tabular-nums">
+                                            {year}年 {monthNames[month - 1]}
                                         </div>
-                                        <div className="h-2 w-full bg-background-secondary rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${getScoreColor(average)} transition-all duration-1000`}
-                                                style={{ width: `${average}%` }}
-                                            />
-                                        </div>
+                                        {isCurrentMonth ? (
+                                            <div className="text-xs font-medium text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full inline-block">
+                                                本月
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={goToCurrentMonth}
+                                                className="text-xs text-foreground-secondary hover:text-indigo-500 transition-colors"
+                                            >
+                                                回到本月
+                                            </button>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                            <div className="sm:w-2/3 flex flex-col justify-center">
-                                <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-amber-500" />
-                                    运势批语
-                                </h3>
-                                <p className="text-foreground leading-relaxed text-justify">
-                                    {fortune.summary}
-                                </p>
+                                    <button
+                                        onClick={() => changeMonth(1)}
+                                        className="p-2 rounded-lg hover:bg-background border border-transparent hover:border-border transition-all text-foreground-secondary hover:text-foreground"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {/* 命盘选择器 */}
+                                <button
+                                    onClick={() => setShowChartSelector(true)}
+                                    className="group flex items-center gap-2 px-4 py-2 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"
+                                >
+                                    <span className="text-sm font-medium text-foreground-secondary group-hover:text-foreground">
+                                        当前命盘为: <span className="text-indigo-600 dark:text-indigo-400">{baziChart.name}</span>
+                                    </span>
+                                    <ChevronDown className="w-4 h-4 text-foreground-secondary group-hover:text-foreground transition-transform group-hover:rotate-180" />
+                                </button>
                             </div>
                         </div>
+
+                        {/* 月度总结内容 */}
+                        <div className="p-6">
+                            <div className="flex flex-col sm:flex-row gap-6 relative z-10">
+                                <div className="sm:w-1/3 flex flex-col justify-center items-center sm:items-start border-b sm:border-b-0 sm:border-r border-border/50 pb-4 sm:pb-0 sm:pr-6">
+                                    <div className="text-sm font-medium text-foreground-secondary mb-1">本月能量</div>
+                                    <div className="flex items-baseline gap-2 mb-2">
+                                        <span className="text-3xl font-bold font-serif text-indigo-900 dark:text-indigo-100">
+                                            <span style={{ color: monthStemColor }}>{fortune.monthStem}</span>
+                                            <span style={{ color: monthBranchColor }}>{fortune.monthBranch}</span>
+                                        </span>
+                                        <span className="text-sm text-foreground-secondary">月</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-background-secondary px-3 py-1.5 rounded-lg border border-border/50">
+                                        <span className="text-xs text-foreground-secondary">主运十神</span>
+                                        <span className="text-sm font-bold">{fortune.tenGod}</span>
+                                    </div>
+                                    {average > 0 && (
+                                        <div className="mt-4 flex flex-col items-center sm:items-start w-full">
+                                            <div className="flex justify-between w-full text-xs text-foreground-secondary mb-1">
+                                                <span>综合运势</span>
+                                                <span className="font-bold">{average}分</span>
+                                            </div>
+                                            <div className="h-2 w-full bg-background-secondary rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${getScoreColor(average)} transition-all duration-1000`}
+                                                    style={{ width: `${average}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="sm:w-2/3 flex flex-col justify-center">
+                                    <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+                                        运势批语
+                                    </h3>
+                                    <p className="text-foreground leading-relaxed text-justify">
+                                        {fortune.summary}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 非个性化时的月份选择器 */}
+                {!isPersonalized && (
+                    <div className="flex items-center justify-center gap-4 bg-background/50 backdrop-blur-md rounded-xl border border-border/50 p-3">
+                        <button
+                            onClick={() => changeMonth(-1)}
+                            className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <div className="text-center min-w-[120px]">
+                            <div className="text-lg font-bold text-foreground">
+                                {year}年 {monthNames[month - 1]}
+                            </div>
+                            {isCurrentMonth ? (
+                                <div className="text-xs font-medium text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full inline-block">
+                                    本月
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={goToCurrentMonth}
+                                    className="text-xs text-foreground-secondary hover:text-indigo-500 transition-colors"
+                                >
+                                    回到本月
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => changeMonth(1)}
+                            className="p-2 rounded-lg hover:bg-background-secondary transition-all text-foreground-secondary"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
                     </div>
                 )}
 
@@ -414,7 +413,9 @@ function MonthlyPageContent() {
                                 <FortuneTrendChart
                                     data={trendData}
                                     height={300}
-                                    multiDimension={true}
+                                    simplifiedMode={true}
+                                    hideKeyDateLegend={true}
+                                    defaultOverallOnly={true}
                                 />
                             </div>
                         )}
@@ -436,7 +437,7 @@ function MonthlyPageContent() {
                                 <span>吉</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/20" />
+                                <div className="w-2.5 h-2.5 rounded-full bg-gray-400 shadow-sm shadow-gray-400/20" />
                                 <span>平</span>
                             </div>
                             <div className="flex items-center gap-1.5">
@@ -480,13 +481,17 @@ function MonthlyPageContent() {
                                             }
                                         `}
                                     >
-                                        <div className={`text-xs sm:text-sm font-medium mb-2 ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-foreground-secondary'}`}>
+                                        <div className={`text-xs sm:text-sm font-medium mb-1 ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-foreground-secondary'}`}>
                                             {day.day}
                                         </div>
                                         <div className="flex flex-col items-center gap-1">
                                             <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getScoreColor(day.score)}`} />
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {getTrendIcon(day.trend)}
+                                            <div className={`text-[10px] sm:text-xs font-medium ${
+                                                day.score >= 80 ? 'text-green-600 dark:text-green-400' :
+                                                day.score >= 60 ? 'text-gray-500 dark:text-gray-400' :
+                                                'text-red-600 dark:text-red-400'
+                                            }`}>
+                                                {day.score}
                                             </div>
                                         </div>
                                     </Link>
@@ -495,67 +500,6 @@ function MonthlyPageContent() {
                         </div>
                     </div>
                 </div>
-
-                {/* 重点日期 */}
-                {isPersonalized && enhancedKeyDates.length > 0 && (
-                    <div className="space-y-4">
-                        <h2 className="font-bold text-xl px-2 flex items-center gap-2">
-                            <Star className="w-5 h-5 text-amber-500" />
-                            本月关键提示
-                        </h2>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            {enhancedKeyDates.map(h => {
-                                const typeStyles = {
-                                    lucky: { bg: 'bg-green-500/5', border: 'border-green-500/20', text: 'text-green-600 dark:text-green-400', label: '吉日', icon: '✨' },
-                                    peak: { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', label: '高峰', icon: '📈' },
-                                    valley: { bg: 'bg-red-500/5', border: 'border-red-500/20', text: 'text-red-600 dark:text-zinc-400', label: '低谷', icon: '📉' },
-                                    warning: { bg: 'bg-red-500/5', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400', label: '警惕', icon: '⚠️' },
-                                    turning: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400', label: '转折', icon: '🔄' },
-                                };
-                                const style = typeStyles[h.type as keyof typeof typeStyles] || typeStyles.turning;
-
-                                return (
-                                    <Link
-                                        key={h.date}
-                                        href={`/daily?date=${year}-${String(month).padStart(2, '0')}-${String(h.date).padStart(2, '0')}`}
-                                        className={`
-                                            group p-5 rounded-2xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
-                                            bg-background ${style.border} hover:border-transparent
-                                        `}
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`
-                                                    w-12 h-12 rounded-xl flex flex-col items-center justify-center
-                                                    ${style.bg} ${style.border} border
-                                                `}>
-                                                    <span className={`text-sm font-bold ${style.text}`}>{month}/{h.date}</span>
-                                                </div>
-                                                <div>
-                                                    <div className={`text-sm font-bold ${style.text} flex items-center gap-1.5`}>
-                                                        {style.icon} {style.label}
-                                                    </div>
-                                                    <div className="text-xs text-foreground-secondary mt-0.5">
-                                                        综合指数: <span className="font-medium">{h.scores.overall}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="w-8 h-8 rounded-full bg-background-secondary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                                                <ChevronRight className="w-4 h-4 text-foreground-secondary" />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1.5 pl-1">
-                                            <h4 className="font-medium text-foreground text-sm">{h.summary}</h4>
-                                            <p className="text-xs text-foreground-secondary line-clamp-2 leading-relaxed opacity-80 group-hover:opacity-100">
-                                                {h.recommendation}
-                                            </p>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
 
                 {/* 底部提示 */}
                 {!isPersonalized && (

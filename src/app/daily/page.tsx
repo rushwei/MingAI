@@ -7,11 +7,8 @@
 
 import { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+
 import {
-    Calendar as CalendarIcon,
-    ChevronLeft,
-    ChevronRight,
     Briefcase,
     Heart,
     Wallet,
@@ -21,7 +18,6 @@ import {
     Sparkles,
     User,
     Compass,
-    ChevronDown,
     X,
     Share2,
 } from 'lucide-react';
@@ -37,7 +33,7 @@ import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/fortune';
 import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/calendar';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
+
 import type { BaziChart } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 
@@ -76,7 +72,7 @@ function DailyPageContent() {
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
     const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('colloquial');
-    const [showTrendChart, setShowTrendChart] = useState(true);
+
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     // 加载用户所有八字命盘
@@ -190,14 +186,7 @@ function DailyPageContent() {
         } as DailyFortune;
     }, [baziChart, selectedDate]);
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('zh-CN', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long',
-        });
-    };
+
 
     const changeDate = (days: number) => {
         const newDate = new Date(selectedDate);
@@ -255,11 +244,6 @@ function DailyPageContent() {
         };
     }, [selectedDate]);
 
-    const dayStemElement = fortune.dayStem ? getStemElement(fortune.dayStem) : null;
-    const dayBranchElement = fortune.dayBranch ? getBranchElement(fortune.dayBranch) : null;
-    const dayStemColor = dayStemElement ? getElementColor(dayStemElement) : undefined;
-    const dayBranchColor = dayBranchElement ? getElementColor(dayBranchElement) : undefined;
-
     if (loading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center">
@@ -271,82 +255,17 @@ function DailyPageContent() {
 
     return (
         <div className="min-h-screen bg-background relative overflow-hidden md:pb-24">
+            <div className="max-w-7xl mx-auto px-4 md:py-8 py-2 relative z-10 space-y-6">
 
-
-            <div className="max-w-2xl mx-auto px-4 md:py-8 py-2 relative z-10 space-y-6">
-
-                {/* 顶部标题与日期选择 */}
-                <header className="text-center md:mb-8 mb-4 md:pt-4 pt-0">
-                    <h1 className="hidden md:block text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2 flex items-center justify-center gap-2">
+                {/* 顶部标题 - 仅桌面端显示 */}
+                {/* <header className="hidden md:block text-center mb-8 pt-4">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2">
                         每日运势
                     </h1>
-                    <p className="hidden md:block text-foreground-secondary/80 text-sm mb-6">
+                    <p className="text-foreground-secondary/80 text-sm">
                         洞察天机，把握当下 | {formatDate(new Date())}
                     </p>
-
-                    {/* Date Navigator & Chart Selector */}
-                    <div className="bg-background/60 backdrop-blur-md border border-border/50 rounded-2xl p-2 shadow-sm flex items-center justify-between gap-2 max-w-md mx-auto">
-                        <button
-                            onClick={() => changeDate(-1)}
-                            className="p-2 rounded-xl hover:bg-background-secondary text-foreground-secondary hover:text-foreground transition-all"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                        </button>
-
-                        <div className="flex-1 flex flex-col items-center">
-                            <div className="flex items-center gap-2 font-medium text-foreground">
-                                <CalendarIcon className="w-4 h-4 text-purple-500" />
-                                {formatDate(selectedDate)}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs mt-0.5">
-                                {isToday ? (
-                                    <span className="text-purple-600 dark:text-purple-400 font-medium bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 rounded text-[10px]">今日</span>
-                                ) : (
-                                    <button
-                                        onClick={goToToday}
-                                        className="text-foreground-secondary hover:text-purple-500 transition-colors"
-                                    >
-                                        回到今天
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => changeDate(1)}
-                            className="p-2 rounded-xl hover:bg-background-secondary text-foreground-secondary hover:text-foreground transition-all"
-                        >
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    {/* Personalization Toggle */}
-                    <div className="mt-4 flex justify-center">
-                        {isPersonalized ? (
-                            <button
-                                onClick={() => setShowChartSelector(true)}
-                                className="group flex items-center justify-center gap-2 px-5 py-2.5 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <Sparkles className="w-4 h-4 text-purple-500 group-hover:scale-110 transition-transform" />
-                                <span className="text-sm font-medium">
-                                    当前解读：{baziChart?.name}
-                                </span>
-                                <ChevronDown className="w-3 h-3 text-purple-400 group-hover:translate-y-0.5 transition-transform" />
-                            </button>
-                        ) : (
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full">
-                                <User className="w-4 h-4 text-amber-600" />
-                                <span className="text-sm text-amber-700 dark:text-amber-400">通用运势模式</span>
-                                <Link
-                                    href="/bazi"
-                                    className="text-xs text-amber-600 underline hover:text-amber-800 ml-1"
-                                >
-                                    切换个性化 &rarr;
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                </header>
+                </header> */}
 
                 {/* 命盘选择器弹窗 */}
                 {showChartSelector && (
@@ -385,170 +304,160 @@ function DailyPageContent() {
                     </div>
                 )}
 
-                {/* 核心运势卡片 */}
-                {isPersonalized && fortune.dayStem && (
-                    <div className="flex items-center justify-center gap-6 py-2 text-sm font-medium text-foreground/80 bg-background/40 rounded-xl border border-border/50 mx-4">
-                        <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            流日：
-                            <span className="font-bold">
-                                <span style={{ color: dayStemColor }}>{fortune.dayStem}</span>
-                                <span style={{ color: dayBranchColor }}>{fortune.dayBranch}</span>
-                            </span>
-                        </div>
-                        <div className="w-px h-4 bg-border" />
-                        <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                            主神：<span className="font-bold">{fortune.tenGod}</span>
+                {/* 主要内容网格区域 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+                    {/* 左侧：黄历信息 */}
+                    <div className="h-full">
+                        <div className="bg-background/60 backdrop-blur-md rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 h-full">
+                            <CalendarAlmanac
+                                date={selectedDate}
+                                onDateChange={changeDate}
+                                onGoToday={goToToday}
+                                isToday={isToday}
+                                chartName={baziChart?.name}
+                                onChartSelect={() => setShowChartSelector(true)}
+                                isPersonalized={isPersonalized}
+                                dayStem={fortune.dayStem}
+                                dayBranch={fortune.dayBranch}
+                                tenGod={fortune.tenGod}
+                            />
                         </div>
                     </div>
-                )}
 
-                {/* 黄历信息 */}
-                <div className="bg-background/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
-                    <CalendarAlmanac date={selectedDate} />
+                    {/* 右侧：趋势图 + 运势分析 */}
+                    <div className="flex flex-col gap-6">
+                        {/* 1. 7日运势趋势 (仅个性化模式显示) */}
+                        {isPersonalized && trendData.length > 0 && (
+                            <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                                <div className="p-4">
+                                    <div className="w-full">
+                                        <FortuneTrendChart
+                                            data={trendData}
+                                            selectedDate={fortune.date}
+                                            height={220}
+                                            multiDimension={false}
+                                            title={
+                                                <div className="flex items-center gap-2">
+                                                    <Activity className="w-5 h-5 text-purple-500" />
+                                                    7日运势趋势
+                                                </div>
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
+                        {/* 2. 详细运势评分与分析 */}
+                        <section className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-lg relative overflow-hidden flex flex-col">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                                    运势分析
+                                </h2>
+                                <button
+                                    onClick={() => setShowShareCard(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/10 to-indigo-500/10 text-purple-600 dark:text-purple-400 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                                >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                    分享好运
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-4 flex-none">
+                                {scoreItems.map(item => {
+                                    const score = fortune[item.key as keyof typeof fortune] as number;
+                                    const Icon = item.icon;
+                                    const isHigh = score >= 80;
+                                    const isMedium = score >= 60;
+
+                                    return (
+                                        <div key={item.key} className="group">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-1 rounded-md ${item.color.replace('text-', 'bg-').replace('500', '500/10')} ${item.color}`}>
+                                                        <Icon className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <span className="font-medium text-xs text-foreground/90">{item.label}</span>
+                                                </div>
+                                                <span className={`text-xs font-bold ${isHigh ? 'text-green-600' : isMedium ? 'text-amber-600' : 'text-red-600'}`}>
+                                                    {score}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 bg-background-secondary/50 rounded-full overflow-hidden border border-border/30">
+                                                <div
+                                                    className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isHigh ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                                                        isMedium ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+                                                            'bg-gradient-to-r from-red-400 to-rose-500'
+                                                        }`}
+                                                    style={{ width: `${score}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex-1 flex flex-col gap-1">
+                                {/* 幸运信息 */}
+                                {isPersonalized && fortune.luckyColor && (
+                                    <div className="grid grid-cols-2 gap-3 py-3 border-t border-border/50">
+                                        <div className="bg-background-secondary/30 rounded-xl p-2.5 flex items-center gap-2.5 border border-border/50">
+                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                                                <span className="text-xs">色</span>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-[10px] text-foreground-secondary leading-none mb-1">幸运色</div>
+                                                <div className="font-bold text-sm text-foreground truncate">{fortune.luckyColor}</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-background-secondary/30 rounded-xl p-2.5 flex items-center gap-2.5 border border-border/50">
+                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                                                <Compass className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-[10px] text-foreground-secondary leading-none mb-1">吉方位</div>
+                                                <div className="font-bold text-sm text-foreground truncate">{fortune.luckyDirection}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 建议区域 */}
+                                <div className="pt-1 border-t border-border/50 flex-1">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="font-semibold flex items-center gap-2 text-sm">
+                                            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                                            运势指引
+                                        </h3>
+                                        {isPersonalized && (
+                                            <InterpretationModeToggle
+                                                mode={interpretationMode}
+                                                onModeChange={setInterpretationMode}
+                                                compact
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="bg-background-secondary/30 rounded-xl p-3 border border-border/50 h-full max-h-[200px] overflow-y-auto custom-scrollbar">
+                                        <ul className="space-y-2.5">
+                                            {interpretedAdvice.map((advice, index) => (
+                                                <li key={index} className="flex gap-2.5 text-xs text-foreground/90 leading-relaxed">
+                                                    <span className="flex-shrink-0 w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold mt-0.5">
+                                                        {index + 1}
+                                                    </span>
+                                                    <span>{advice}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
                 </div>
 
-                {/* 趋势图表 - 可折叠 */}
-                {isPersonalized && trendData.length > 0 && (
-                    <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
-                        <button
-                            onClick={() => setShowTrendChart(!showTrendChart)}
-                            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-transparent to-transparent group-hover:from-purple-500/5 transition-colors"
-                        >
-                            <h2 className="font-bold flex items-center gap-2 text-foreground">
-                                <Activity className="w-5 h-5 text-purple-500" />
-                                7日运势趋势
-                            </h2>
-                            <ChevronDown className={`w-5 h-5 text-foreground-secondary transition-transform duration-300 ${showTrendChart ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${showTrendChart ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                            <div className="overflow-hidden">
-                                <div className="p-4 pt-0">
-                                    <FortuneTrendChart
-                                        data={trendData}
-                                        selectedDate={fortune.date}
-                                        height={200}
-                                        multiDimension={false}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* 详细运势评分卡片 */}
-                <section className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-bold flex items-center gap-2">
-                            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                            运势分析
-                        </h2>
-                        <button
-                            onClick={() => setShowShareCard(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/10 to-indigo-500/10 text-purple-600 dark:text-purple-400 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
-                        >
-                            <Share2 className="w-3.5 h-3.5" />
-                            分享好运
-                        </button>
-                    </div>
-
-                    <div className="grid gap-4 mb-6">
-                        {scoreItems.map(item => {
-                            const score = fortune[item.key as keyof typeof fortune] as number;
-                            const Icon = item.icon;
-                            const isHigh = score >= 80;
-                            const isMedium = score >= 60;
-
-                            return (
-                                <div key={item.key} className="group">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-1.5 rounded-lg ${item.color.replace('text-', 'bg-').replace('500', '500/10')} ${item.color}`}>
-                                                <Icon className="w-4 h-4" />
-                                            </div>
-                                            <span className="font-medium text-sm text-foreground/90">{item.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${isHigh ? 'bg-green-500/10 text-green-600' :
-                                                isMedium ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-600'
-                                                }`}>
-                                                {score}分
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="h-2.5 bg-background-secondary/50 rounded-full overflow-hidden border border-border/30">
-                                        <div
-                                            className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isHigh ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
-                                                isMedium ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
-                                                    'bg-gradient-to-r from-red-400 to-rose-500'
-                                                }`}
-                                            style={{ width: `${score}%` }}
-                                        >
-                                            <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* 幸运信息 */}
-                    {isPersonalized && fortune.luckyColor && (
-                        <div className="grid grid-cols-2 gap-3 py-4 border-t border-border/50">
-                            <div className="bg-background-secondary/30 rounded-xl p-3 flex items-center gap-3 border border-border/50">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white shadow-sm">
-                                    <span className="text-xs">色</span>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-foreground-secondary mb-0.5">幸运色</div>
-                                    <div className="font-bold text-foreground">{fortune.luckyColor}</div>
-                                </div>
-                            </div>
-                            <div className="bg-background-secondary/30 rounded-xl p-3 flex items-center gap-3 border border-border/50">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white shadow-sm">
-                                    <Compass className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <div className="text-xs text-foreground-secondary mb-0.5">吉方位</div>
-                                    <div className="font-bold text-foreground">{fortune.luckyDirection}</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 建议区域 */}
-                    <div className="mt-4 pt-4 border-t border-border/50">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-purple-500" />
-                                运势指引
-                            </h3>
-                            {isPersonalized && (
-                                <InterpretationModeToggle
-                                    mode={interpretationMode}
-                                    onModeChange={setInterpretationMode}
-                                    compact
-                                />
-                            )}
-                        </div>
-                        <div className="bg-background-secondary/30 rounded-xl p-4 border border-border/50">
-                            <ul className="space-y-3">
-                                {interpretedAdvice.map((advice, index) => (
-                                    <li key={index} className="flex gap-3 text-sm leading-relaxed text-foreground/90">
-                                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold mt-0.5">
-                                            {index + 1}
-                                        </span>
-                                        <span>{advice}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-
-                {/* AI Chat 模块 - 玻璃态容器 */}
+                {/* AI Chat 模块 */}
                 <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-sm overflow-hidden mt-6">
                     <div className="p-1">
                         {userId ? (

@@ -13,7 +13,6 @@ import {
     RefreshCw,
     Loader2,
     Send,
-    Eye,
     ArrowLeft,
     Share2,
 } from 'lucide-react';
@@ -493,22 +492,6 @@ function TarotResultContent() {
                     </div>
                 </div>
 
-                {/* Spread Info & Question */}
-                <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-purple-500/10 text-purple-400 mb-4 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                        <Sparkles className="w-6 h-6" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-foreground mb-2">{selectedSpread?.name}</h1>
-                    <p className="text-foreground-secondary text-sm mb-6 max-w-lg mx-auto">{selectedSpread?.description}</p>
-
-                    {question && (
-                        <div className="inline-block max-w-[90%] bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 shadow-lg">
-                            <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">所问之事</h3>
-                            <p className="text-foreground font-medium text-lg leading-relaxed">{question}</p>
-                        </div>
-                    )}
-                </div>
-
                 {/* Card Table */}
                 <div className="relative py-2 bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm">
                     <div className={`grid gap-8 mb-8 px-4 justify-items-center relative z-10 ${drawnCards.length === 1 ? 'grid-cols-1' :
@@ -570,9 +553,8 @@ function TarotResultContent() {
                         <div className="flex justify-center mt-8">
                             <button
                                 onClick={revealAll}
-                                className="inline-flex items-center gap-2 px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl font-bold shadow-lg shadow-purple-600/10 transition-all hover:scale-[1.02] active:scale-95"
                             >
-                                <Eye className="w-5 h-5" />
                                 翻开所有牌面
                             </button>
                         </div>

@@ -47,6 +47,14 @@ interface FortuneTrendChartProps {
     showLegend?: boolean;
     /** 是否显示多维度 */
     multiDimension?: boolean;
+    /** 简化模式：只标记高峰/低谷日（不影响维度切换） */
+    simplifiedMode?: boolean;
+    /** 默认只显示综合运势（但保留维度切换功能） */
+    defaultOverallOnly?: boolean;
+    /** 隐藏底部关键日期图例 */
+    hideKeyDateLegend?: boolean;
+    /** 自定义标题组件 */
+    title?: React.ReactNode;
 }
 
 // 维度配置
@@ -139,9 +147,13 @@ export function FortuneTrendChart({
     height = 250,
     showLegend = false,
     multiDimension = false,
+    simplifiedMode = false,
+    hideKeyDateLegend = false,
+    defaultOverallOnly = false,
+    title,
 }: FortuneTrendChartProps) {
     const [activeDimensions, setActiveDimensions] = useState<FortuneDimension[]>(
-        multiDimension ? ['overall', 'career', 'wealth'] : ['overall']
+        defaultOverallOnly ? ['overall'] : (multiDimension ? ['overall', 'career', 'wealth'] : ['overall'])
     );
 
     // 转换数据为 Recharts 格式
@@ -162,10 +174,14 @@ export function FortuneTrendChart({
         }));
     }, [data]);
 
-    // 识别关键日期点
+    // 识别关键日期点 - 简化模式下只保留 peak 和 valley
     const keyDatePoints = useMemo(() => {
-        return chartData.filter((d) => d.isKeyDate);
-    }, [chartData]);
+        const points = chartData.filter((d) => d.isKeyDate);
+        if (simplifiedMode) {
+            return points.filter((d) => d.keyDateType === 'peak' || d.keyDateType === 'valley');
+        }
+        return points;
+    }, [chartData, simplifiedMode]);
 
     // 计算趋势（比较首尾）
     const trend = useMemo(() => {
@@ -178,19 +194,12 @@ export function FortuneTrendChart({
         return 'neutral';
     }, [chartData]);
 
-    // 切换维度
+    // 切换维度（支持多选）
     const toggleDimension = (dim: FortuneDimension) => {
-        if (!multiDimension) {
-            setActiveDimensions([dim]);
-            return;
-        }
         setActiveDimensions((prev) => {
             if (prev.includes(dim)) {
                 if (prev.length === 1) return prev; // 至少保留一个
                 return prev.filter((d) => d !== dim);
-            }
-            if (prev.length >= 3) {
-                return [...prev.slice(1), dim]; // 最多3个
             }
             return [...prev, dim];
         });
@@ -205,30 +214,39 @@ export function FortuneTrendChart({
         <div className="space-y-4">
             {/* 趋势指示器和维度选择 */}
             <div className="flex items-center justify-between flex-wrap gap-2">
-                {/* 趋势指示 */}
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-foreground-secondary">趋势:</span>
-                    {trend === 'up' && (
-                        <span className="flex items-center gap-1 text-green-500 text-sm">
-                            <TrendingUp className="w-4 h-4" />
-                            上升
-                        </span>
+                <div className="flex items-center gap-4">
+                    {/* 标题 */}
+                    {title && (
+                        <div className="text-foreground font-bold">
+                            {title}
+                        </div>
                     )}
-                    {trend === 'down' && (
-                        <span className="flex items-center gap-1 text-red-500 text-sm">
-                            <TrendingDown className="w-4 h-4" />
-                            下降
-                        </span>
-                    )}
-                    {trend === 'neutral' && (
-                        <span className="flex items-center gap-1 text-foreground-secondary text-sm">
-                            <Minus className="w-4 h-4" />
-                            平稳
-                        </span>
-                    )}
+
+                    {/* 趋势指示 */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-foreground-secondary">趋势:</span>
+                        {trend === 'up' && (
+                            <span className="flex items-center gap-1 text-green-500 text-sm">
+                                <TrendingUp className="w-4 h-4" />
+                                上升
+                            </span>
+                        )}
+                        {trend === 'down' && (
+                            <span className="flex items-center gap-1 text-red-500 text-sm">
+                                <TrendingDown className="w-4 h-4" />
+                                下降
+                            </span>
+                        )}
+                        {trend === 'neutral' && (
+                            <span className="flex items-center gap-1 text-foreground-secondary text-sm">
+                                <Minus className="w-4 h-4" />
+                                平稳
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                {/* 维度选择器 */}
+                {/* 维度选择器 - defaultOverallOnly 模式下也显示，允许用户切换 */}
                 <div className="flex items-center gap-2 flex-wrap">
                     {(Object.keys(DIMENSION_CONFIG) as FortuneDimension[]).map((dim) => (
                         <button
@@ -337,8 +355,8 @@ export function FortuneTrendChart({
                 </ResponsiveContainer>
             </div>
 
-            {/* 关键日期图例 */}
-            {keyDatePoints.length > 0 && (
+            {/* 关键日期图例 - 可通过 hideKeyDateLegend 隐藏 */}
+            {!hideKeyDateLegend && keyDatePoints.length > 0 && (
                 <div className="flex items-center gap-4 flex-wrap text-xs">
                     <span className="text-foreground-secondary">关键日期:</span>
                     {keyDatePoints.map((point, idx) => (
