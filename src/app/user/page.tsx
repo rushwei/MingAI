@@ -25,7 +25,7 @@ import {
     Trophy,
     Bot,
     BookOpenText,
-    Sparkles,
+    MessageCircleHeart,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { supabase } from '@/lib/supabase';
@@ -50,8 +50,8 @@ const menuItems = [
     {
         section: 'AI 设置',
         items: [
-            { icon: Sparkles, label: '个性化配置', href: '/user/settings/ai' },
-            { icon: BookOpenText, label: '知识库管理', href: '/user/knowledge-base', requiresPlus: true },
+            { icon: MessageCircleHeart, label: '个性化', href: '/user/settings/ai' },
+            { icon: BookOpenText, label: '知识库', href: '/user/knowledge-base', requiresPlus: true },
         ],
     },
     {

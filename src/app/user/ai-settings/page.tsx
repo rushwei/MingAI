@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-    ArrowLeft, Loader2, Save, Sparkles, BookOpenText, 
-    MessageSquare, User, Eye, Zap, Layers 
+import {
+    ArrowLeft, Loader2, Save, Sparkles, BookOpenText,
+    MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -253,7 +253,7 @@ export default function AISettingsPage() {
                             </p>
                         </div>
                     </div>
-                    
+
                     <button
                         type="button"
                         onClick={handleSave}
@@ -276,7 +276,7 @@ export default function AISettingsPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-sm font-semibold text-foreground">
-                                        知识库管理 (Plus+)
+                                        知识库 (Plus+)
                                     </h3>
                                     <p className="text-xs text-foreground-secondary mt-0.5">
                                         仅限 Plus 以上会员使用
@@ -295,7 +295,7 @@ export default function AISettingsPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-sm font-semibold text-foreground group-hover:text-emerald-500 transition-colors">
-                                        知识库管理
+                                        知识库
                                     </h3>
                                     <p className="text-xs text-foreground-secondary mt-0.5">
                                         管理已归档的对话和命理资料，AI 将自动引用这些内容
@@ -311,7 +311,7 @@ export default function AISettingsPage() {
                                 <User className="w-4 h-4 text-amber-500" />
                                 <h2 className="text-sm font-semibold text-foreground">关于你</h2>
                             </div>
-                            
+
                             <div className="space-y-3">
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="space-y-1">
@@ -333,7 +333,7 @@ export default function AISettingsPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-medium text-foreground-secondary ml-1">当前关注点</label>
                                     <input
@@ -352,7 +352,7 @@ export default function AISettingsPage() {
                                 <MessageSquare className="w-4 h-4 text-blue-500" />
                                 <h2 className="text-sm font-semibold text-foreground">对话设置</h2>
                             </div>
-                            
+
                             <div className="space-y-4">
                                 {/* 表达风格 */}
                                 <div className="space-y-1">
@@ -361,22 +361,20 @@ export default function AISettingsPage() {
                                         <button
                                             type="button"
                                             onClick={() => setExpressionStyle('direct')}
-                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                                                expressionStyle === 'direct' 
-                                                ? 'bg-accent text-white shadow-sm' 
+                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${expressionStyle === 'direct'
+                                                ? 'bg-accent text-white shadow-sm'
                                                 : 'text-foreground-secondary hover:text-foreground'
-                                            }`}
+                                                }`}
                                         >
                                             直接干练
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setExpressionStyle('gentle')}
-                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                                                expressionStyle === 'gentle' 
-                                                ? 'bg-accent text-white shadow-sm' 
+                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${expressionStyle === 'gentle'
+                                                ? 'bg-accent text-white shadow-sm'
                                                 : 'text-foreground-secondary hover:text-foreground'
-                                            }`}
+                                                }`}
                                         >
                                             温和委婉
                                         </button>
@@ -409,11 +407,10 @@ export default function AISettingsPage() {
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between gap-2 ml-1">
                                         <label className="text-[10px] font-medium text-foreground-secondary">自定义指令 (System Prompt)</label>
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                                            customInstructions.length >= CUSTOM_INSTRUCTIONS_LIMIT 
-                                            ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${customInstructions.length >= CUSTOM_INSTRUCTIONS_LIMIT
+                                            ? 'bg-red-500/10 border-red-500/20 text-red-500'
                                             : 'bg-background border-border text-foreground-tertiary'
-                                        }`}>
+                                            }`}>
                                             {customInstructions.length}/{CUSTOM_INSTRUCTIONS_LIMIT}
                                         </span>
                                     </div>
@@ -485,7 +482,7 @@ export default function AISettingsPage() {
                                             </span>
                                         </div>
                                         <div className="w-full bg-border/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="h-full bg-accent transition-all duration-500"
                                                 style={{ width: `${Math.min((previewTotalTokens / (previewBudgetTotal || 1)) * 100, 100)}%` }}
                                             />
@@ -505,7 +502,7 @@ export default function AISettingsPage() {
                                             </span>
                                         </div>
                                         <div className="w-full bg-border/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="h-full bg-blue-500 transition-all duration-500"
                                                 style={{ width: `${Math.min((previewLayers.filter(l => l.included).length / previewLayers.length) * 100, 100)}%` }}
                                             />
@@ -529,13 +526,12 @@ export default function AISettingsPage() {
                                 <div className="space-y-2.5">
                                     <label className="text-xs font-medium text-foreground-secondary block uppercase tracking-wider">Prompt 结构</label>
                                     {previewLayers.map((layer, index) => (
-                                        <div 
-                                            key={layer.id} 
-                                            className={`flex items-center justify-between gap-3 text-xs p-3 rounded-xl border transition-all ${
-                                                layer.included 
-                                                ? 'bg-background border-border shadow-sm' 
+                                        <div
+                                            key={layer.id}
+                                            className={`flex items-center justify-between gap-3 text-xs p-3 rounded-xl border transition-all ${layer.included
+                                                ? 'bg-background border-border shadow-sm'
                                                 : 'bg-background/50 border-border/50 opacity-60'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                                 <span className="font-mono text-foreground-tertiary w-4 text-center">{index + 1}</span>

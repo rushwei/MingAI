@@ -357,7 +357,7 @@ export default function KnowledgeBaseManagePage() {
             // Reset file input value
             const fileInput = document.getElementById('kb-file-upload') as HTMLInputElement;
             if (fileInput) fileInput.value = '';
-            
+
             setUploadSuccess('文件上传成功');
             // Automatically expand the KB to show new content
             if (uploadKbId !== expandedKbId) {
@@ -388,7 +388,7 @@ export default function KnowledgeBaseManagePage() {
                         <div>
                             <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
                                 <BookOpenText className="w-5 h-5 text-emerald-500" />
-                                知识库管理
+                                知识库
                             </h1>
                             <p className="text-xs text-foreground-secondary mt-0.5">
                                 构建你的个人命理数据库，让 AI 更精准地为你服务
@@ -456,7 +456,7 @@ export default function KnowledgeBaseManagePage() {
                                         )}
                                     </select>
                                 </div>
-                                
+
                                 <div>
                                     <label className="text-xs font-medium text-foreground mb-1.5 block">选择文件</label>
                                     <input
@@ -505,7 +505,7 @@ export default function KnowledgeBaseManagePage() {
                         <Database className="w-4 h-4 text-accent" />
                         我的知识库列表
                     </h2>
-                    
+
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-10 gap-2 text-foreground-secondary">
                             <Loader2 className="w-6 h-6 animate-spin" />
@@ -524,13 +524,12 @@ export default function KnowledgeBaseManagePage() {
                     ) : (
                         <div className="grid grid-cols-1 gap-3">
                             {kbs.map(kb => (
-                                <div 
-                                    key={kb.id} 
-                                    className={`bg-background rounded-2xl border transition-all duration-300 overflow-hidden ${
-                                        expandedKbId === kb.id 
-                                        ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/10' 
-                                        : 'border-border hover:border-emerald-500/20'
-                                    }`}
+                                <div
+                                    key={kb.id}
+                                    className={`bg-background rounded-2xl border transition-all duration-300 overflow-hidden ${expandedKbId === kb.id
+                                            ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/10'
+                                            : 'border-border hover:border-emerald-500/20'
+                                        }`}
                                 >
                                     <div className="p-4 sm:p-5">
                                         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -573,11 +572,10 @@ export default function KnowledgeBaseManagePage() {
                                                 <button
                                                     onClick={() => togglePromptKb(kb.id)}
                                                     disabled={membershipType === 'free'}
-                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                                                        promptKbIds.includes(kb.id)
-                                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                                                        : 'bg-background border-border text-foreground-secondary hover:text-foreground'
-                                                    } ${membershipType === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${promptKbIds.includes(kb.id)
+                                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                                            : 'bg-background border-border text-foreground-secondary hover:text-foreground'
+                                                        } ${membershipType === 'free' ? 'opacity-60 cursor-not-allowed' : ''}`}
                                                     title={membershipType === 'free' ? '仅限 Plus 以上会员使用' : '启用知识库搜索'}
                                                 >
                                                     <Sparkles className="w-3 h-3" />
@@ -600,11 +598,10 @@ export default function KnowledgeBaseManagePage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleExpand(kb.id)}
-                                                    className={`p-1.5 rounded-lg border transition-all ${
-                                                        expandedKbId === kb.id
-                                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                                                        : 'bg-background border-border text-foreground-secondary hover:bg-background-secondary'
-                                                    }`}
+                                                    className={`p-1.5 rounded-lg border transition-all ${expandedKbId === kb.id
+                                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                                            : 'bg-background border-border text-foreground-secondary hover:bg-background-secondary'
+                                                        }`}
                                                     title={expandedKbId === kb.id ? "收起归档" : "查看归档"}
                                                 >
                                                     {expandedKbId === kb.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -635,7 +632,7 @@ export default function KnowledgeBaseManagePage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            
+
                                             {archivesLoading ? (
                                                 <div className="flex items-center justify-center py-6 text-xs text-foreground-secondary">
                                                     <Loader2 className="w-4 h-4 animate-spin mr-1.5" />

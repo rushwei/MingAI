@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Lock } from 'lucide-react';
+import { Sparkles, Lock, BookOpenText, MessageCircleHeart } from 'lucide-react';
 import Link from 'next/link';
 import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
@@ -1105,7 +1105,27 @@ export default function ChatPage() {
                 />
 
                 {/* 主内容区 */}
-                <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex-1 flex flex-col min-w-0 relative">
+                    {/* 右上角个性化与知识库入口 */}
+                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+                        <Link
+                            href="/user/settings/ai"
+                            className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
+                            title="个性化"
+                        >
+                            <MessageCircleHeart className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
+                            {sidebarCollapsed && <span className="text-sm font-medium">个性化</span>}
+                        </Link>
+
+                        <Link
+                            href="/user/knowledge-base"
+                            className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
+                            title="知识库"
+                        >
+                            <BookOpenText className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
+                            {sidebarCollapsed && <span className="text-sm font-medium">知识库</span>}
+                        </Link>
+                    </div>
                     {/* 无对话时居中布局（仅桌面端） */}
                     {messages.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">

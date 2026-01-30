@@ -117,10 +117,10 @@ const navItems = [
 const toolItems = [
     { href: '/user/checkin', label: '签到', icon: CalendarCheck, available: true },
     { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
-    { href: '/daily', label: '每日运势', icon: Sun, available: true },
-    { href: '/monthly', label: '月度运势', icon: CalendarRange, available: true },
+    { href: '/daily', label: '日运', icon: Sun, available: true },
+    { href: '/monthly', label: '月运', icon: CalendarRange, available: true },
     { href: '/records', label: '命理记录', icon: Tags, available: true },
-    { href: '/community', label: '命理社区', icon: Aperture, available: true },
+    { href: '/community', label: '社区', icon: Aperture, available: true },
 ];
 
 export function Sidebar() {
@@ -320,11 +320,11 @@ export function Sidebar() {
                                 text-foreground-secondary hover:bg-background-secondary hover:text-foreground
                                 ${collapsed ? 'justify-center' : 'gap-2'}
                             `}
-                            title={collapsed ? 'GitHub - 反馈意见/提交需求' : undefined}
+                            title={collapsed ? 'GitHub - 反馈' : undefined}
                         >
                             <Github className="w-4.5 h-4.5 flex-shrink-0" />
                             <span className={`text-sm font-medium transition-all duration-300 whitespace-nowrap ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
-                                反馈意见 / 提交需求
+                                反馈
                             </span>
                         </a>
                     </div>
