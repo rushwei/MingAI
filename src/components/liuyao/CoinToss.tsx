@@ -309,30 +309,25 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 </div>
             )}
 
-            {/* 已完成的爻 - 横向紧凑显示 */}
+            {/* 已完成的爻 */}
             {yaos.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 justify-center mt-2">
-                    {yaos.map((yao) => (
-                        <div
-                            key={yao.position}
-                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs
-                                ${yao.change === 'changing' ? 'bg-red-500/10 border border-red-500/30' : 'bg-white/5 border border-white/10'}`}
-                        >
-                            <span className={yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}>
+                <div className="flex flex-col gap-1 mt-4">
+                    {[...yaos].reverse().map((yao) => (
+                        <div key={yao.position} className="flex items-center gap-2">
+                            <span className={`text-xs w-10 ${yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}`}>
                                 {YAO_LABELS[yao.position - 1]}
                             </span>
                             <div className={`flex items-center ${yao.change === 'changing' ? 'text-red-500' : ''}`}>
                                 {yao.type === 1 ? (
-                                    <div className={`w-6 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                    <div className={`w-[62px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                 ) : (
                                     <>
-                                        <div className={`w-2.5 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
-                                        <div className="w-0.5" />
-                                        <div className={`w-2.5 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className="w-2" />
+                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                     </>
                                 )}
                             </div>
-                            {yao.change === 'changing' && <span className="text-red-500">○</span>}
                         </div>
                     ))}
                 </div>

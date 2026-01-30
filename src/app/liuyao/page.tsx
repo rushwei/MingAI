@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Sparkles, Loader2, Dices } from 'lucide-react';
+import { Coins, Sparkles, Loader2, Dices, Grid3X3 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
@@ -129,7 +129,7 @@ export default function LiuyaoPage() {
                 </div>
 
                 {/* 起卦方式 */}
-                <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-8 md:mb-12">
+                <div className="grid md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
                     {/* 铜钱起卦 */}
                     <button
                         onClick={handleCoinDivine}
@@ -181,6 +181,31 @@ export default function LiuyaoPage() {
 
                             <div className="flex items-center text-sm font-medium text-purple-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
                                 立即生成 <span className="ml-1">→</span>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* 选卦起卦 */}
+                    <button
+                        onClick={() => router.push('/liuyao/select')}
+                        className="group relative bg-background rounded-2xl p-5 md:p-8 text-left border border-border hover:border-teal-500/50 hover:shadow-lg hover:shadow-teal-500/5 transition-all duration-300 overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 p-12 bg-teal-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />
+
+                        <div className="relative z-10 flex flex-col h-full">
+                            <div className="w-12 h-12 md:w-14 md:h-14 bg-teal-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <Grid3X3 className="w-6 h-6 md:w-8 md:h-8 text-teal-600" />
+                            </div>
+
+                            <h3 className="text-lg md:text-xl font-bold text-foreground mb-2 group-hover:text-teal-600 transition-colors">
+                                选卦起卦
+                            </h3>
+                            <p className="text-sm md:text-base text-foreground-secondary leading-relaxed mb-4 md:mb-6 flex-1">
+                                手动选择已知卦象和变爻，适合已有卦象需要详细分析的场景。
+                            </p>
+
+                            <div className="flex items-center text-sm font-medium text-teal-600 opacity-100 md:opacity-0 group-hover:opacity-100 transform md:translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300">
+                                选择卦象 <span className="ml-1">→</span>
                             </div>
                         </div>
                     </button>
