@@ -26,28 +26,30 @@ export function ThinkingBlock({ content, duration, isStreaming = false, startTim
         if (!isStreaming || !startTime) {
             return;
         }
-        // 立即计算一次
-        setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
-        
+
+        // 使用立即执行的 interval (0ms 延迟启动)
         const interval = setInterval(() => {
             setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
-        
+
+        // 立即触发第一次更新（通过 microtask 避免同步 setState）
+        queueMicrotask(() => {
+            setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+        });
+
         return () => clearInterval(interval);
     }, [isStreaming, startTime]);
 
-    // 流式开始时展开
+    // 监听流式状态变化
     useEffect(() => {
-        if (isStreaming) {
-            setIsExpanded(true);
+        // 流式开始时展开（通过 microtask 避免同步 setState）
+        if (!prevStreamingRef.current && isStreaming) {
+            queueMicrotask(() => setIsExpanded(true));
         }
-    }, [isStreaming]);
-
-    // 监听流式结束，延迟自动收起
-    useEffect(() => {
+        // 流式刚结束，延迟收起
         if (prevStreamingRef.current && !isStreaming) {
-            // 流式刚结束，延迟 500ms 收起以便用户看到最终内容
             const timer = setTimeout(() => setIsExpanded(false), 500);
+            prevStreamingRef.current = isStreaming;
             return () => clearTimeout(timer);
         }
         prevStreamingRef.current = isStreaming;
@@ -113,4 +115,3 @@ export function ThinkingBlock({ content, duration, isStreaming = false, startTim
         </div>
     );
 }
-

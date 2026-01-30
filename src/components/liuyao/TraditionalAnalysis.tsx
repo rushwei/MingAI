@@ -12,7 +12,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Star, Clock, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Star, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
     type FullYaoInfo,
     type FullYaoInfoExtended,

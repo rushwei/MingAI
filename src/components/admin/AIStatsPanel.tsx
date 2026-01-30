@@ -18,7 +18,8 @@ import {
     AlertCircle,
     Calendar,
     PieChart as PieChartIcon,
-    BarChart3 as BarChart2
+    BarChart3 as BarChart2,
+    type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -51,7 +52,7 @@ interface ModelStats {
     errors: number;
     tokens: number;
     avgResponseTime: number;
-    [key: string]: any; // Recharts compatibility
+    [key: string]: string | number; // Recharts compatibility
 }
 
 interface DateStats {
@@ -59,7 +60,7 @@ interface DateStats {
     calls: number;
     success: number;
     errors: number;
-    [key: string]: any; // Recharts compatibility
+    [key: string]: string | number; // Recharts compatibility
 }
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -393,7 +394,7 @@ export function AIStatsPanel() {
 function Card({ title, value, icon: Icon, iconColor, subValue }: {
     title: string;
     value: string;
-    icon: any;
+    icon: LucideIcon;
     iconColor: string;
     subValue: string;
 }) {
@@ -411,13 +412,27 @@ function Card({ title, value, icon: Icon, iconColor, subValue }: {
     );
 }
 
+// Recharts tooltip types
+interface TooltipPayloadEntry {
+    color: string;
+    name: string;
+    value: number;
+    percent?: number;
+}
+
+interface TooltipProps {
+    active?: boolean;
+    payload?: TooltipPayloadEntry[];
+    label?: string;
+}
+
 // 子组件：自定义 Tooltip
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-background/95 backdrop-blur-md p-3 border border-border/50 rounded-xl shadow-xl text-xs">
                 <p className="font-semibold mb-2">{label}</p>
-                {payload.map((entry: any, index: number) => (
+                {payload.map((entry, index: number) => (
                     <div key={index} className="flex items-center gap-2 mb-1 last:mb-0">
                         <div
                             className="w-2 h-2 rounded-full"
@@ -433,7 +448,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-const CustomPieTooltip = ({ active, payload }: any) => {
+const CustomPieTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
         const data = payload[0];
         return (
@@ -446,7 +461,7 @@ const CustomPieTooltip = ({ active, payload }: any) => {
                 <div className="flex items-center gap-2">
                     <span className="text-foreground-secondary">占比:</span>
                     <span className="font-mono font-medium">
-                        {(data.percent * 100).toFixed(1)}%
+                        {((data.percent ?? 0) * 100).toFixed(1)}%
                     </span>
                 </div>
             </div>

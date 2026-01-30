@@ -18,7 +18,8 @@ import {
     Link as LinkIcon,
     Loader2,
     Sparkles,
-    Eye
+    Eye,
+    type LucideIcon,
 } from 'lucide-react';
 
 const FEATURE_OPTIONS = Object.entries(FEATURE_NAMES);
@@ -355,7 +356,7 @@ export function NotificationLaunchPanel() {
 
 function Section({ title, icon: Icon, children, disabled = false, className = '' }: {
     title: string;
-    icon: any;
+    icon: LucideIcon;
     children: React.ReactNode;
     disabled?: boolean;
     className?: string;
