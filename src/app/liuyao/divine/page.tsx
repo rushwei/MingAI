@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram } from '@/lib/liuyao';
@@ -82,33 +82,33 @@ export default function DivinePage() {
 
     return (
         <div className="md:min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-8">
+            <div className="max-w-2xl mx-auto px-4 py-4 md:py-8">
                 {/* 返回 */}
                 <Link
                     href="/liuyao"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6"
+                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 md:mb-6"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     返回
                 </Link>
 
                 {/* 标题 */}
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-foreground">铜钱起卦</h1>
-                    <p className="text-foreground-secondary mt-2">
+                <div className="text-center mb-4 md:mb-8">
+                    <h1 className="text-xl md:text-2xl font-bold text-foreground">铜钱起卦</h1>
+                    <p className="text-foreground-secondary mt-1 md:mt-2 text-sm md:text-base">
                         静心凝神，点击按钮抛掷铜钱
                     </p>
                 </div>
 
                 {/* 问题显示 */}
                 {question && (
-                    <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 mb-8">
+                    <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 md:p-4 mb-4 md:mb-8">
                         <div className="text-center">
-                            <span className="inline-flex items-center gap-1 text-sm text-accent font-medium">
-                                <AlertCircle className="w-4 h-4" />
+                            <span className="inline-flex items-center gap-1 text-xs md:text-sm text-accent font-medium">
+                                <AlertCircle className="w-3 h-3 md:w-4 md:h-4" />
                                 所问之事
                             </span>
-                            <p className="text-foreground font-semibold text-lg mt-2">{question}</p>
+                            <p className="text-foreground font-semibold text-base md:text-lg mt-1 md:mt-2">{question}</p>
                         </div>
                     </div>
                 )}
@@ -120,8 +120,9 @@ export default function DivinePage() {
 
                 {/* 完成提示 */}
                 {isComplete && (
-                    <div className="text-center mt-8 animate-pulse">
-                        <p className="text-accent font-medium">卦象已成，正在解读...</p>
+                    <div className="text-center mt-4 md:mt-8">
+                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin text-accent mx-auto" />
+                        <p className="text-accent text-sm md:text-base font-medium mt-2">卦象已成，正在跳转...</p>
                     </div>
                 )}
             </div>

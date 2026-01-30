@@ -17,7 +17,8 @@ interface CoinTossProps {
 
 // 摇动检测配置
 const SHAKE_THRESHOLD = 15; // 加速度阈值
-const SHAKE_TIMEOUT = 1000; // 两次摇动之间的最小间隔（ms）
+const SHAKE_TIMEOUT = 1500; // 两次摇动之间的最小间隔（ms），防止快速摇动触发多次
+const ANIMATION_DURATION = 600; // 摇卦动画时长（ms）
 
 const YAO_LABELS = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
@@ -161,7 +162,14 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     const toss = useCallback(() => {
         if (currentLine >= 6 || isAnimating || disabled) return;
 
+        // 立即更新 ref，防止摇动连续触发
+        isAnimatingRef.current = true;
         setIsAnimating(true);
+
+        // 振动反馈（移动端）
+        if ('vibrate' in navigator) {
+            navigator.vibrate(50);
+        }
 
         // 模拟抛掷动画延迟
         setTimeout(() => {
@@ -183,16 +191,24 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
             if (currentLine + 1 === 6) {
                 onComplete(newYaos, newResults);
             }
-        }, 800);
+        }, ANIMATION_DURATION);
     }, [currentLine, isAnimating, disabled, results, yaos, onComplete]);
 
     // 点击按钮前进到下一爸并立即开始摇
     const goToNextAndToss = useCallback(() => {
         if (currentLine < 5 && results.length > currentLine) {
+            // 立即更新 ref，防止摇动连续触发
+            isAnimatingRef.current = true;
             setCurrentLine(currentLine + 1);
             // 延迟一小段时间后自动开始摇
             setTimeout(() => {
                 setIsAnimating(true);
+
+                // 振动反馈（移动端）
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(50);
+                }
+
                 setTimeout(() => {
                     const result = tossThreeCoins();
                     const newYao: Yao = {
@@ -209,7 +225,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                     if (currentLine + 2 === 6) {
                         onComplete(newYaos, newResults);
                     }
-                }, 800);
+                }, ANIMATION_DURATION);
             }, 100);
         }
     }, [currentLine, results, yaos, onComplete]);
@@ -229,13 +245,13 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     const showCoinResult = !isAnimating && lastResult && results.length > currentLine;
 
     return (
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-4 md:gap-6">
             {/* 进度指示 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                     <div
                         key={i}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all
+                        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all
                             ${i < currentLine
                                 ? 'bg-accent text-white'
                                 : i === currentLine
@@ -256,11 +272,11 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
             )} */}
 
             {/* 铜钱显示 */}
-            <div className="flex gap-4">
+            <div className="flex gap-2 md:gap-4">
                 {[0, 1, 2].map((coinIndex) => (
                     <div
                         key={coinIndex}
-                        className={`w-16 h-16 rounded-full border-4 flex items-center justify-center
+                        className={`w-12 h-12 md:w-16 md:h-16 rounded-full border-4 flex items-center justify-center
                             transition-all duration-500
                             ${isAnimating
                                 ? 'animate-spin border-accent bg-accent/20'
@@ -272,7 +288,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                             }`}
                     >
                         {showCoinResult && (
-                            <span className="font-bold text-lg">
+                            <span className="font-bold text-base md:text-lg">
                                 {lastResult!.coins[coinIndex] ? '字' : '花'}
                             </span>
                         )}
@@ -293,32 +309,37 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 </div>
             )}
 
-            {/* 已完成的爻 */}
+            {/* 已完成的爻 - 横向紧凑显示 */}
             {yaos.length > 0 && (
-                <div className="flex flex-col gap-1 mt-4">
-                    {[...yaos].reverse().map((yao) => (
-                        <div key={yao.position} className="flex items-center gap-2">
-                            <span className={`text-xs w-10 ${yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}`}>
+                <div className="flex flex-wrap gap-1.5 justify-center mt-2">
+                    {yaos.map((yao) => (
+                        <div
+                            key={yao.position}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs
+                                ${yao.change === 'changing' ? 'bg-red-500/10 border border-red-500/30' : 'bg-white/5 border border-white/10'}`}
+                        >
+                            <span className={yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}>
                                 {YAO_LABELS[yao.position - 1]}
                             </span>
                             <div className={`flex items-center ${yao.change === 'changing' ? 'text-red-500' : ''}`}>
                                 {yao.type === 1 ? (
-                                    <div className={`w-[62px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                    <div className={`w-6 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                 ) : (
                                     <>
-                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
-                                        <div className="w-2" />
-                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className={`w-2.5 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className="w-0.5" />
+                                        <div className={`w-2.5 h-1 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                     </>
                                 )}
                             </div>
+                            {yao.change === 'changing' && <span className="text-red-500">○</span>}
                         </div>
                     ))}
                 </div>
             )}
 
             {/* 操作按钮 */}
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-2 md:mt-4">
                 {!isComplete ? (
                     isFinalizing ? (
                         <div className="flex items-center gap-2 text-foreground-secondary">
@@ -362,22 +383,22 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 )}
             </div>
 
-            {/* 摇动手机提示 - 仅在移动端显示 */}
+            {/* 摇动手机提示 - 仅在移动端显示，更紧凑 */}
             {!isComplete && shakeSupported && (
-                <div className="flex md:hidden items-center gap-2 text-foreground-secondary text-sm mt-3">
+                <div className="flex md:hidden items-center gap-1.5 text-foreground-secondary text-xs mt-1">
                     {shakeEnabled ? (
                         <>
-                            <Smartphone className="w-4 h-4 text-accent" />
-                            <span>摇动手机来摇卦 ✓</span>
+                            <Smartphone className="w-3 h-3 text-green-500" />
+                            <span className="text-green-500">摇动摇卦已启用</span>
                         </>
                     ) : (
                         <button
                             onClick={enableShakeDetection}
-                            className="flex items-center gap-2 px-4 py-2 bg-background-secondary hover:bg-background-secondary/80 
-                                rounded-lg text-foreground-secondary hover:text-foreground transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10
+                                rounded text-foreground-secondary hover:text-foreground transition-all text-xs"
                         >
-                            <Smartphone className="w-4 h-4" />
-                            启用摇动摇卦
+                            <Smartphone className="w-3 h-3" />
+                            点击启用摇动
                         </button>
                     )}
                 </div>
