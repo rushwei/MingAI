@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
 import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -19,10 +19,17 @@ import {
     type Hexagram,
     type Yao,
     type LiuYaoFullAnalysis,
+    type FullYaoInfoExtended,
     performFullAnalysis,
     yaosTpCode,
+    getLiuQinMeaning,
+    WANG_SHUAI_LABELS,
+    KONG_WANG_LABELS,
+    HUA_TYPE_LABELS,
+    SPECIAL_STATUS_LABELS,
 } from '@/lib/liuyao';
 import { getHexagramText } from '@/lib/hexagram-texts';
+import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
@@ -52,6 +59,7 @@ export default function ResultPage() {
     const [isStreaming, setIsStreaming] = useState(false);
     const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
     const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
+    const [copied, setCopied] = useState(false);
     const errorBanner = error ? (
         <div data-testid="analysis-error" className="flex items-center justify-center gap-2 text-red-500 mb-4">
             <AlertCircle className="w-4 h-4" />
@@ -98,6 +106,134 @@ export default function ResultPage() {
             dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示
         };
     }, [result]);
+
+    // 生成可复制的六爻分析文本（与 AI 分析格式一致）
+    const generateCopyText = () => {
+        if (!result || !traditionalData) return '';
+
+        const { hexagram, changedHexagram, changedLines, question } = result;
+        const { ganZhiTime, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, hexagramText } = traditionalData;
+        const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+
+        // 获取卦码和世应宫位
+        const hexagramCode = yaosTpCode(result.yaos);
+        const shiYing = getShiYingPosition(hexagramCode);
+        const palace = findPalace(hexagramCode);
+
+        const lines: string[] = [];
+
+        // 问题
+        if (question) {
+            lines.push(`【求卦问题】${question}`);
+            lines.push('');
+        }
+
+        // 卦象信息
+        lines.push('【卦象信息】');
+        lines.push(`本卦：${hexagram.name}`);
+        lines.push(`上卦：${hexagram.upperTrigram}（${hexagram.nature}）`);
+        lines.push(`下卦：${hexagram.lowerTrigram}`);
+        lines.push(`五行：${hexagram.element}`);
+        lines.push(`宫位：${palace?.name || '未知'}（${palace?.element || ''}）`);
+        if (changedHexagram && changedLines.length > 0) {
+            lines.push(`变卦：${changedHexagram.name}（${changedHexagram.upperTrigram}/${changedHexagram.lowerTrigram}）`);
+            lines.push(`变爻：${changedLines.map(l => yaoNames[l - 1]).join('、')}`);
+        } else {
+            lines.push('无变爻');
+        }
+
+        // 起卦时间
+        lines.push('');
+        lines.push('【起卦时间】');
+        lines.push(`${ganZhiTime.year.gan}${ganZhiTime.year.zhi}年 ${ganZhiTime.month.gan}${ganZhiTime.month.zhi}月 ${ganZhiTime.day.gan}${ganZhiTime.day.zhi}日 ${ganZhiTime.hour.gan}${ganZhiTime.hour.zhi}时`);
+        lines.push(`旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}`);
+        lines.push(`世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻`);
+
+        // 六爻排盘
+        lines.push('');
+        lines.push('【六爻排盘】');
+        fullYaos.forEach((y) => {
+            const extYao = y as FullYaoInfoExtended;
+            const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
+            const yongShenMark = y.position === yongShen.position ? '【用神】' : '';
+            const changeMark = y.change === 'changing' ? '（动）' : '';
+            const wangShuaiMark = WANG_SHUAI_LABELS[extYao.strength.wangShuai];
+            const kongMark = extYao.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[extYao.kongWangState] : '';
+            const huaMark = extYao.changeAnalysis && extYao.changeAnalysis.huaType !== 'none'
+                ? HUA_TYPE_LABELS[extYao.changeAnalysis.huaType]
+                : '';
+            const specialMark = extYao.strength.specialStatus !== 'none'
+                ? SPECIAL_STATUS_LABELS[extYao.strength.specialStatus]
+                : '';
+            const changShengMark = extYao.changSheng ? `${extYao.changSheng.stage}` : '';
+            const statusParts = [wangShuaiMark, kongMark, huaMark, specialMark, changShengMark].filter(Boolean);
+            lines.push(`${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${statusParts.join('·')}] ${extYao.influence.description}`);
+        });
+
+        // 用神分析
+        lines.push('');
+        lines.push('【用神分析】');
+        lines.push(`用神：${yongShen.type}（${getLiuQinMeaning(yongShen.type)}）`);
+        lines.push(`位置：第${yongShen.position}爻 | 五行：${yongShen.element} | 状态：${yongShen.strength === 'strong' ? '旺相' : yongShen.strength === 'moderate' ? '平和' : '衰弱'}`);
+        if (yongShen.analysis) {
+            lines.push(yongShen.analysis);
+        }
+
+        // 伏神
+        if (fuShen && fuShen.length > 0) {
+            lines.push('');
+            lines.push(`伏神分析（用神${yongShen.type}不上卦）：`);
+            fuShen.forEach(fs => {
+                lines.push(`- ${fs.liuQin}伏于${yaoNames[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin}）下，纳甲${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`);
+            });
+        }
+
+        // 神系
+        if (shenSystem) {
+            lines.push('');
+            lines.push('神系分析：');
+            if (shenSystem.yuanShen) {
+                const pos = shenSystem.yuanShen.positions.length > 0 ? `在${shenSystem.yuanShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
+                lines.push(`原神（生用神）：${shenSystem.yuanShen.liuQin}（${shenSystem.yuanShen.wuXing}）${pos}`);
+            }
+            if (shenSystem.jiShen) {
+                const pos = shenSystem.jiShen.positions.length > 0 ? `在${shenSystem.jiShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
+                lines.push(`忌神（克用神）：${shenSystem.jiShen.liuQin}（${shenSystem.jiShen.wuXing}）${pos}`);
+            }
+            if (shenSystem.chouShen) {
+                const pos = shenSystem.chouShen.positions.length > 0 ? `在${shenSystem.chouShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
+                lines.push(`仇神（克原神）：${shenSystem.chouShen.liuQin}（${shenSystem.chouShen.wuXing}）${pos}`);
+            }
+        }
+
+        // 卦辞
+        if (hexagramText) {
+            lines.push('');
+            lines.push('【卦辞象辞】');
+            lines.push(`卦辞：${hexagramText.gua}`);
+            lines.push(`象辞：${hexagramText.xiang}`);
+        }
+
+        // 时间建议
+        if (timeRecommendations.length > 0) {
+            lines.push('');
+            lines.push('【应期参考】');
+            timeRecommendations.forEach(r => {
+                const typeLabel = r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要';
+                lines.push(`${typeLabel}（${r.timeframe}）：${r.description}`);
+            });
+        }
+
+        return lines.join('\n');
+    };
+
+    const handleCopy = async () => {
+        const text = generateCopyText();
+        if (!text) return;
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     useEffect(() => {
         // 获取用户状态
@@ -347,61 +483,70 @@ export default function ResultPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20 relative overflow-x-hidden">
-            {/* Background Effects */}
-            {/* Background Effects Removed */}
-
-            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
+        <div className="min-h-screen bg-background pb-8 relative overflow-x-hidden">
+            <div className="max-w-3xl mx-auto px-4 py-4 relative z-10 animate-fade-in">
                 {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-4">
                     <Link
                         href="/liuyao"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        <span className="text-sm font-medium">返回</span>
+                        <span className="text-sm">返回</span>
                     </Link>
 
                     <div className="flex items-center gap-2">
+                        <Link
+                            href="/liuyao"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
+                        >
+                            <RotateCw className="w-3.5 h-3.5" />
+                            重新起卦
+                        </Link>
                         {!!divinationId && (
                             <button
                                 type="button"
                                 onClick={() => setKbModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
                             >
                                 加入知识库
                             </button>
                         )}
                         <button
                             onClick={() => setShowTraditional(!showTraditional)}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all border ${showTraditional
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border ${showTraditional
                                 ? 'bg-accent/10 border-accent/20 text-accent'
                                 : 'bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10'
                                 }`}
                         >
-                            <BookOpen className="w-4 h-4" />
+                            <BookOpen className="w-3.5 h-3.5" />
                             传统分析
                         </button>
                     </div>
                 </div>
 
-                {/* Question Section */}
+                {/* Question Section - Compact */}
                 {result.question && (
-                    <div className="text-center mb-10">
-                        <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-purple-500/10 text-purple-400 mb-4 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                            <Sparkles className="w-6 h-6" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-foreground mb-6">六爻神课</h1>
-
-                        <div className="inline-block max-w-[90%] bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 shadow-lg">
-                            <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">所问之事</h3>
-                            <p className="text-foreground font-medium text-lg leading-relaxed">{result.question}</p>
+                    <div className="text-center mb-4">
+                        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs text-foreground-secondary">所问</span>
+                            <span className="text-foreground font-medium">{result.question}</span>
                         </div>
                     </div>
                 )}
 
                 {/* Hexagram Display */}
-                <div className="bg-white/[0.02] border border-white/5 rounded-2xl md:rounded-[2rem] backdrop-blur-sm p-12 md:p-16 mb-10 shadow-xl w-fit mx-auto">
+                <div className="relative bg-white/[0.02] border border-white/5 rounded-xl backdrop-blur-sm p-6 md:p-8 mb-4 shadow-lg w-fit mx-auto">
+                    {/* Copy Button */}
+                    <button
+                        onClick={handleCopy}
+                        className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                        title="复制六爻数据"
+                    >
+                        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copied ? '已复制' : '复制'}</span>
+                    </button>
                     <HexagramDisplay
                         yaos={result.yaos}
                         hexagram={result.hexagram}
@@ -416,13 +561,7 @@ export default function ResultPage() {
 
                 {/* Traditional Analysis */}
                 {showTraditional && traditionalData && (
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-1 md:p-8 mb-10 animate-fade-in-up">
-                        <div className="flex items-center gap-3 mb-6">
-                            <span className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
-                                <BookOpen className="w-5 h-5" />
-                            </span>
-                            <h3 className="text-xl font-bold text-foreground">传统六爻分析</h3>
-                        </div>
+                    <div className="mb-4 animate-fade-in-up">
                         <TraditionalAnalysis
                             fullYaos={traditionalData.fullYaos}
                             yongShen={traditionalData.yongShen}
@@ -440,19 +579,13 @@ export default function ResultPage() {
                 )}
 
                 {/* AI Interpretation */}
-                <div className="relative rounded-3xl p-1 group">
-                    {/* Gradient Background Removed */}
-
-                    <div className="relative bg-background/80 backdrop-blur-xl rounded-[20px] p-6 md:p-8">
-                        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
-                            <div>
-                                <h2 className="text-xl font-bold flex items-center gap-3">
-                                    <span className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
-                                        <Sparkles className="w-5 h-5" />
-                                    </span>
-                                    AI 深度解卦
-                                </h2>
-                            </div>
+                <div className="relative rounded-xl p-px">
+                    <div className="relative bg-background/80 backdrop-blur-xl rounded-xl p-4 md:p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 relative z-20">
+                            <h2 className="text-base font-bold flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                AI 深度解卦
+                            </h2>
                             <div className="flex items-center gap-2">
                                 <ModelSelector
                                     compact
@@ -493,23 +626,23 @@ export default function ResultPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-8 relative z-10">
+                            <div className="text-center py-4 relative z-10">
                                 {errorBanner}
 
                                 {user === null ? (
-                                    <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-2xl p-8 text-center max-w-sm mx-auto backdrop-blur-sm">
-                                        <div className="flex justify-center mb-4">
-                                            <div className="p-4 rounded-full bg-purple-500/10 ring-1 ring-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
-                                                <Sparkles className="w-8 h-8 text-purple-400" />
+                                    <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-xl p-6 text-center max-w-sm mx-auto backdrop-blur-sm">
+                                        <div className="flex justify-center mb-3">
+                                            <div className="p-3 rounded-full bg-purple-500/10 ring-1 ring-purple-500/20">
+                                                <Sparkles className="w-6 h-6 text-purple-400" />
                                             </div>
                                         </div>
-                                        <h3 className="text-xl font-bold mb-3 text-foreground">AI 深度分析</h3>
-                                        <p className="text-foreground-secondary mb-8 text-sm leading-relaxed">
-                                            登录后解锁完整 AI 深度解读<br />获取更精准的个性化建议
+                                        <h3 className="text-lg font-bold mb-2 text-foreground">AI 深度分析</h3>
+                                        <p className="text-foreground-secondary mb-4 text-sm">
+                                            登录后解锁完整 AI 深度解读
                                         </p>
                                         <button
                                             onClick={() => setShowAuthModal(true)}
-                                            className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                                            className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
                                         >
                                             立即登录 / 注册
                                         </button>
@@ -518,16 +651,16 @@ export default function ResultPage() {
                                     <button
                                         onClick={handleGetInterpretation}
                                         disabled={isLoading}
-                                        className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                        className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                                     >
                                         {isLoading ? (
                                             <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <Loader2 className="w-4 h-4 animate-spin" />
                                                 正在解读天机...
                                             </>
                                         ) : (
                                             <>
-                                                <Sparkles className="w-5 h-5" />
+                                                <Sparkles className="w-4 h-4" />
                                                 获取 AI 深度解读
                                             </>
                                         )}
@@ -536,20 +669,6 @@ export default function ResultPage() {
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Reshuffle Button */}
-                <div className="text-center mt-12 pb-8">
-                    <Link
-                        href="/liuyao"
-                        className="inline-flex items-center gap-2 px-6 py-3 
-                            text-foreground-secondary hover:text-foreground
-                            bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10
-                            rounded-xl transition-all hover:scale-105"
-                    >
-                        <RotateCw className="w-4 h-4" />
-                        <span className="font-medium">重新起卦</span>
-                    </Link>
                 </div>
             </div>
 
