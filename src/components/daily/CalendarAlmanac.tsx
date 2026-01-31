@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react'; // Added useState for expand/collapse state
 import {
     Calendar,
     CheckCircle,
@@ -57,6 +57,10 @@ export function CalendarAlmanac({
     tenGod,
 }: CalendarAlmanacProps) {
     const data = useMemo(() => getCalendarAlmanac(date), [date]);
+    
+    // State for expanding 宜/忌 lists - needed for user interaction
+    const [yiExpanded, setYiExpanded] = useState(false);
+    const [jiExpanded, setJiExpanded] = useState(false);
 
     // 流日干支颜色
     const dayStemElement = dayStem ? getStemElement(dayStem) : null;
@@ -316,21 +320,26 @@ export function CalendarAlmanac({
                         </h3>
                         <div className="flex flex-wrap gap-1 md:gap-1.5">
                             {data.yi.length > 0 ? (
-                                data.yi.slice(0, 4).map((item, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                                    >
-                                        {item}
-                                    </span>
-                                ))
+                                <>
+                                    {(yiExpanded ? data.yi : data.yi.slice(0, 4)).map((item, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                        >
+                                            {item}
+                                        </span>
+                                    ))}
+                                    {data.yi.length > 4 && (
+                                        <button
+                                            onClick={() => setYiExpanded(!yiExpanded)}
+                                            className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
+                                        >
+                                            {yiExpanded ? '收起' : `+${data.yi.length - 4}`}
+                                        </button>
+                                    )}
+                                </>
                             ) : (
                                 <span className="text-[10px] md:text-xs text-foreground-secondary">诸事不宜</span>
-                            )}
-                            {data.yi.length > 4 && (
-                                <span className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs text-foreground-secondary">
-                                    +{data.yi.length - 4}
-                                </span>
                             )}
                         </div>
                     </div>
@@ -343,21 +352,26 @@ export function CalendarAlmanac({
                         </h3>
                         <div className="flex flex-wrap gap-1 md:gap-1.5">
                             {data.ji.length > 0 ? (
-                                data.ji.slice(0, 4).map((item, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                                    >
-                                        {item}
-                                    </span>
-                                ))
+                                <>
+                                    {(jiExpanded ? data.ji : data.ji.slice(0, 4)).map((item, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                                        >
+                                            {item}
+                                        </span>
+                                    ))}
+                                    {data.ji.length > 4 && (
+                                        <button
+                                            onClick={() => setJiExpanded(!jiExpanded)}
+                                            className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                                        >
+                                            {jiExpanded ? '收起' : `+${data.ji.length - 4}`}
+                                        </button>
+                                    )}
+                                </>
                             ) : (
                                 <span className="text-[10px] md:text-xs text-foreground-secondary">无</span>
-                            )}
-                            {data.ji.length > 4 && (
-                                <span className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs text-foreground-secondary">
-                                    +{data.ji.length - 4}
-                                </span>
                             )}
                         </div>
                     </div>
