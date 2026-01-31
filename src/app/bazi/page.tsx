@@ -15,6 +15,7 @@ import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { UnifiedBaziForm } from '@/components/bazi/form/UnifiedBaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
+import { normalizeBirthDateForCalendarSwitch } from '@/lib/bazi-form-utils';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -121,9 +122,26 @@ function BaziPageContent() {
 
                 // 从四柱模式切换出来
                 if (prev.calendarType === 'pillars') {
+                    const normalized = normalizeBirthDateForCalendarSwitch(
+                        {
+                            calendarType: prev.calendarType,
+                            birthYear: prev.birthYear,
+                            birthMonth: prev.birthMonth,
+                            birthDay: prev.birthDay,
+                            isLeapMonth: prev.isLeapMonth,
+                            birthHour: prev.birthHour,
+                            birthMinute: prev.birthMinute,
+                        },
+                        value as CalendarType,
+                        new Date()
+                    );
                     return {
                         ...prev,
                         calendarType: value as 'solar' | 'lunar',
+                        birthYear: normalized.birthYear,
+                        birthMonth: normalized.birthMonth,
+                        birthDay: normalized.birthDay,
+                        isLeapMonth: normalized.isLeapMonth,
                         pillars: undefined,
                     };
                 }

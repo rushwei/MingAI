@@ -12,6 +12,7 @@ import { Sparkles } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
 import type { BaziFormData } from '@/types';
 import { calculateBazi } from '@/lib/bazi';
+import { getEarthlyBranchByHour } from '@/lib/bazi-form-utils';
 
 interface InstantBaziPreviewProps {
     onUseInstant: () => void;
@@ -77,7 +78,7 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
             year: lunar.getYear(),
             month: Math.abs(lunar.getMonth()),
             day: lunar.getDay(),
-            hour: currentTime.getHours(),
+            hourBranch: getEarthlyBranchByHour(currentTime.getHours()),
         };
     }, [currentTime]);
 
@@ -134,7 +135,7 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
                         '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
                         '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'][lunarInfo.day - 1]}
                     {' '}
-                    {lunarInfo.hour}时
+                    {lunarInfo.hourBranch}时
                 </div>
                 <div>
                     公历：{currentTime.getFullYear()}年
