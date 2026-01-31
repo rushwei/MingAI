@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CHINA_REGIONS } from '@/lib/china-regions';
 
@@ -29,13 +29,15 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
     const [selectedCity, setSelectedCity] = useState(city);
     const [selectedDistrict, setSelectedDistrict] = useState(district);
 
-    // 同步外部值变化
-    useEffect(() => {
+    // 同步外部值变化（使用条件更新代替 useEffect）
+    const [lastValue, setLastValue] = useState(value);
+    if (value !== lastValue) {
         const [p, c, d] = parseValue(value);
         setSelectedProvince(p);
         setSelectedCity(c);
         setSelectedDistrict(d);
-    }, [value]);
+        setLastValue(value);
+    }
 
     // 获取当前省份的城市列表
     const cities = useMemo(() => {

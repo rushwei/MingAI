@@ -138,32 +138,38 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
         return calculateHourPillars(pillars.day as { stem: HeavenlyStem; branch: EarthlyBranch });
     }, [pillars.day]);
 
-    // 选择年柱天干
+    // 选择年柱天干（清空年地支及后续所有柱）
     const handleSelectYearStem = (stem: HeavenlyStem) => {
         onChange({
-            ...pillars,
             year: { stem, branch: '' },
             month: { stem: '', branch: '' },
+            day: { stem: '', branch: '' },
+            hour: { stem: '', branch: '' },
         });
     };
 
-    // 选择年柱地支
+    // 选择年柱地支（清空月柱及后续所有柱）
     const handleSelectYearBranch = (branch: EarthlyBranch) => {
         onChange({
             ...pillars,
             year: { ...pillars.year, branch },
+            month: { stem: '', branch: '' },
+            day: { stem: '', branch: '' },
+            hour: { stem: '', branch: '' },
         });
     };
 
-    // 选择月柱
+    // 选择月柱（清空日柱及时柱）
     const handleSelectMonth = (month: { stem: HeavenlyStem; branch: EarthlyBranch }) => {
         onChange({
             ...pillars,
             month,
+            day: { stem: '', branch: '' },
+            hour: { stem: '', branch: '' },
         });
     };
 
-    // 选择日柱天干
+    // 选择日柱天干（清空日地支及时柱）
     const handleSelectDayStem = (stem: HeavenlyStem) => {
         onChange({
             ...pillars,
@@ -172,11 +178,12 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
         });
     };
 
-    // 选择日柱地支
+    // 选择日柱地支（清空时柱）
     const handleSelectDayBranch = (branch: EarthlyBranch) => {
         onChange({
             ...pillars,
             day: { ...pillars.day, branch },
+            hour: { stem: '', branch: '' },
         });
     };
 
@@ -238,6 +245,61 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
     };
 
     const pillarLabels = { year: '年柱', month: '月柱', day: '日柱', hour: '时柱' };
+
+    // 处理点击已选择的天干/地支进行清空
+    const handleClickToEdit = (pillarType: PillarType, part: 'stem' | 'branch') => {
+        // 根据点击的位置清空该位置及后续所有柱
+        if (pillarType === 'year') {
+            if (part === 'stem') {
+                // 清空年柱天干及后续所有
+                onChange({
+                    year: { stem: '', branch: '' },
+                    month: { stem: '', branch: '' },
+                    day: { stem: '', branch: '' },
+                    hour: { stem: '', branch: '' },
+                });
+            } else {
+                // 清空年柱地支及后续所有
+                onChange({
+                    ...pillars,
+                    year: { ...pillars.year, branch: '' },
+                    month: { stem: '', branch: '' },
+                    day: { stem: '', branch: '' },
+                    hour: { stem: '', branch: '' },
+                });
+            }
+        } else if (pillarType === 'month') {
+            // 清空月柱及后续所有
+            onChange({
+                ...pillars,
+                month: { stem: '', branch: '' },
+                day: { stem: '', branch: '' },
+                hour: { stem: '', branch: '' },
+            });
+        } else if (pillarType === 'day') {
+            if (part === 'stem') {
+                // 清空日柱天干及后续所有
+                onChange({
+                    ...pillars,
+                    day: { stem: '', branch: '' },
+                    hour: { stem: '', branch: '' },
+                });
+            } else {
+                // 清空日柱地支及后续所有
+                onChange({
+                    ...pillars,
+                    day: { ...pillars.day, branch: '' },
+                    hour: { stem: '', branch: '' },
+                });
+            }
+        } else if (pillarType === 'hour') {
+            // 清空时柱
+            onChange({
+                ...pillars,
+                hour: { stem: '', branch: '' },
+            });
+        }
+    };
 
     // 渲染天干选择按钮
     const renderStemButtons = (onSelect: (stem: HeavenlyStem) => void) => (
@@ -314,12 +376,17 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
                         const pillar = pillars[pillarType];
                         const isComplete = isPillarComplete(pillar);
                         const hasStem = pillar.stem !== '';
+                        const hasBranch = pillar.branch !== '';
                         const isCurrent = (
                             (pillarType === 'year' && (currentStep === 'year_stem' || currentStep === 'year_branch')) ||
                             (pillarType === 'month' && currentStep === 'month') ||
                             (pillarType === 'day' && (currentStep === 'day_stem' || currentStep === 'day_branch')) ||
                             (pillarType === 'hour' && currentStep === 'hour')
                         );
+
+                        // 判断天干/地支是否可点击（已有值才可点击重新编辑）
+                        const canClickStem = hasStem;
+                        const canClickBranch = hasBranch;
 
                         return (
                             <div key={pillarType} className="text-center">
@@ -328,35 +395,43 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
                                 </div>
                                 <div className="space-y-1">
                                     {/* 天干 */}
-                                    <div
+                                    <button
+                                        type="button"
+                                        onClick={() => canClickStem && handleClickToEdit(pillarType, 'stem')}
+                                        disabled={!canClickStem}
                                         className={`
                                             w-12 h-12 rounded-full flex items-center justify-center
                                             text-base font-bold transition-all mx-auto
                                             ${hasStem
-                                                ? ELEMENT_BG_COLORS[pillar.stem]
+                                                ? `${ELEMENT_BG_COLORS[pillar.stem]} ${canClickStem ? 'cursor-pointer hover:ring-2 hover:ring-accent/50' : ''}`
                                                 : isCurrent
                                                     ? 'bg-accent/10 border-2 border-dashed border-accent'
                                                     : 'bg-gray-100 border-2 border-transparent'
                                             }
+                                            disabled:cursor-default
                                         `}
                                     >
                                         {pillar.stem || ''}
-                                    </div>
+                                    </button>
                                     {/* 地支 */}
-                                    <div
+                                    <button
+                                        type="button"
+                                        onClick={() => canClickBranch && handleClickToEdit(pillarType, 'branch')}
+                                        disabled={!canClickBranch}
                                         className={`
                                             w-12 h-12 rounded-full flex items-center justify-center
                                             text-base font-bold transition-all mx-auto
                                             ${isComplete
-                                                ? ELEMENT_BG_COLORS[pillar.branch]
+                                                ? `${ELEMENT_BG_COLORS[pillar.branch]} ${canClickBranch ? 'cursor-pointer hover:ring-2 hover:ring-accent/50' : ''}`
                                                 : isCurrent && hasStem
                                                     ? 'bg-accent/10 border-2 border-dashed border-accent'
                                                     : 'bg-gray-100 border-2 border-transparent'
                                             }
+                                            disabled:cursor-default
                                         `}
                                     >
                                         {pillar.branch || ''}
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         );

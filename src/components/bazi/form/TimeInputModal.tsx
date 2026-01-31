@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Clock, X } from 'lucide-react';
 import type { BaziFormData } from '@/types';
 import { HOUR_OPTIONS } from './options';
@@ -33,14 +33,17 @@ export function TimeInputModal({
     const [localMinute, setLocalMinute] = useState(formData.birthMinute);
     const [localUnknownTime, setLocalUnknownTime] = useState(unknownTime);
 
-    useEffect(() => {
-        if (isOpen) {
-            setLocalHour(formData.birthHour);
-            setLocalMinute(formData.birthMinute);
-            // 打开模态框时默认显示"已知时辰"，方便用户直接选择时间
-            setLocalUnknownTime(false);
-        }
-    }, [isOpen, formData.birthHour, formData.birthMinute]);
+    // 当模态框打开时，同步外部值到本地状态
+    const [lastIsOpen, setLastIsOpen] = useState(isOpen);
+    if (isOpen && !lastIsOpen) {
+        setLocalHour(formData.birthHour);
+        setLocalMinute(formData.birthMinute);
+        // 打开模态框时默认显示"已知时辰"，方便用户直接选择时间
+        setLocalUnknownTime(false);
+    }
+    if (isOpen !== lastIsOpen) {
+        setLastIsOpen(isOpen);
+    }
 
     const handleConfirm = () => {
         onUpdate('birthHour', localHour);

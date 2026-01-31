@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import type { BaziFormData } from '@/types';
 import { RegionPicker } from './RegionPicker';
@@ -25,13 +25,18 @@ export function PlaceInputModal({
     formData,
     onUpdate,
 }: PlaceInputModalProps) {
+    // 使用 isOpen 作为 key 的一部分，每次打开时重新初始化状态
     const [localPlace, setLocalPlace] = useState(formData.birthPlace || '');
 
-    useEffect(() => {
-        if (isOpen) {
-            setLocalPlace(formData.birthPlace || '');
-        }
-    }, [isOpen, formData.birthPlace]);
+    // 当模态框打开时，同步外部值到本地状态
+    // 使用条件初始化而非 useEffect
+    const [lastIsOpen, setLastIsOpen] = useState(isOpen);
+    if (isOpen && !lastIsOpen) {
+        setLocalPlace(formData.birthPlace || '');
+    }
+    if (isOpen !== lastIsOpen) {
+        setLastIsOpen(isOpen);
+    }
 
     const handleConfirm = () => {
         onUpdate('birthPlace', localPlace);
