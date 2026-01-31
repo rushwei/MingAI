@@ -10,8 +10,8 @@
 /** 性别 */
 export type Gender = 'male' | 'female';
 
-/** 农历/公历 */
-export type CalendarType = 'solar' | 'lunar';
+/** 农历/公历/四柱 */
+export type CalendarType = 'solar' | 'lunar' | 'pillars';
 
 // ===== 八字相关类型 =====
 
@@ -26,6 +26,12 @@ export type FiveElement = '金' | '木' | '水' | '火' | '土';
 
 /** 十神 */
 export type TenGod = '比肩' | '劫财' | '食神' | '伤官' | '偏财' | '正财' | '七杀' | '正官' | '偏印' | '正印';
+
+/** 简化的柱数据（用于四柱输入） */
+export interface PillarData {
+    stem: HeavenlyStem | '';      // 天干（空字符串表示未选择）
+    branch: EarthlyBranch | '';   // 地支（空字符串表示未选择）
+}
 
 /** 柱（年、月、日、时） */
 export interface Pillar {
@@ -92,6 +98,13 @@ export interface BaziFormData {
     calendarType: CalendarType;
     isLeapMonth?: boolean;
     isUnknownTime?: boolean;
+    // 新增：四柱模式数据
+    pillars?: {
+        year: PillarData;
+        month: PillarData;
+        day: PillarData;
+        hour: PillarData;
+    };
 }
 
 // ===== AI 对话相关类型 =====

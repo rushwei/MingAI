@@ -10,12 +10,10 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
-import {
-    Loader2,
-    Orbit
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
-import { BaziForm } from '@/components/bazi/form/BaziForm';
+import { UnifiedBaziForm } from '@/components/bazi/form/UnifiedBaziForm';
+import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 
 const parseNumber = (value: string | null, fallback: number) => {
@@ -58,7 +56,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
         birthDay: parseNumber(day, DEFAULT_BAZI_FORM_DATA.birthDay),
         birthHour: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthHour : parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
         birthMinute: parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
-        calendarType: calendar === 'lunar' ? 'lunar' : 'solar',
+        calendarType: calendar === 'pillars' ? 'pillars' : (calendar === 'lunar' ? 'lunar' : 'solar'),
         isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
         birthPlace: place || '',
     };
@@ -72,7 +70,6 @@ function BaziPageContent() {
         const hourParam = searchParams.get('hour');
         return hourParam === null || hourParam === '-1';
     });
-    const autoFillTime = searchParams.get('hour') === null;
 
 
 
@@ -103,6 +100,33 @@ function BaziPageContent() {
         if (field === 'calendarType') {
             setFormData(prev => {
                 if (value === prev.calendarType) return prev;
+
+                // 切换到四柱模式
+                if (value === 'pillars') {
+                    return {
+                        ...prev,
+                        calendarType: 'pillars',
+                        // 清空日期字段，等待四柱反推后填充
+                        birthYear: 0,
+                        birthMonth: 0,
+                        birthDay: 0,
+                        pillars: {
+                            year: { stem: '', branch: '' },
+                            month: { stem: '', branch: '' },
+                            day: { stem: '', branch: '' },
+                            hour: { stem: '', branch: '' },
+                        },
+                    };
+                }
+
+                // 从四柱模式切换出来
+                if (prev.calendarType === 'pillars') {
+                    return {
+                        ...prev,
+                        calendarType: value as 'solar' | 'lunar',
+                        pillars: undefined,
+                    };
+                }
 
                 if (value === 'lunar') {
                     const solar = Solar.fromYmdHms(
@@ -174,65 +198,64 @@ function BaziPageContent() {
         });
     };
 
-    // 设置今天
-    const handleSetToday = () => {
-        const today = new Date();
-        if (formData.calendarType === 'solar') {
-            setFormData(prev => ({
-                ...prev,
-                birthYear: today.getFullYear(),
-                birthMonth: today.getMonth() + 1,
-                birthDay: today.getDate(),
-            }));
-        } else {
-            const solar = Solar.fromYmdHms(
-                today.getFullYear(),
-                today.getMonth() + 1,
-                today.getDate(),
-                today.getHours(),
-                today.getMinutes(),
-                0
-            );
-            const lunar = solar.getLunar();
-            const lunarMonth = Math.abs(lunar.getMonth());
-            const isLeapMonth = lunar.getMonth() < 0;
-            setFormData(prev => ({
-                ...prev,
-                birthYear: lunar.getYear(),
-                birthMonth: lunarMonth,
-                birthDay: lunar.getDay(),
-                isLeapMonth,
-            }));
-        }
-    };
-
     // 提交表单
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // 移除登录检查，允许未登录排盘
-        // if (!user) {
-        //     setShowAuthModal(true);
-        //     return;
-        // }
+        // 四柱模式下必须已反推出日期才能提交
+        if (formData.calendarType === 'pillars') {
+            if (!formData.birthYear || !formData.birthMonth || !formData.birthDay) {
+                alert('请先选择完整的四柱并确认出生时间');
+                return;
+            }
+        }
 
         setIsSubmitting(true);
 
         try {
             const params = new URLSearchParams();
             const chartId = searchParams.get('chart');
-            params.set('name', formData.name || '');
-            params.set('gender', formData.gender || 'male');
-            params.set('year', String(formData.birthYear));
-            params.set('month', String(formData.birthMonth));
-            params.set('day', String(formData.birthDay));
-            params.set('hour', unknownTime ? '-1' : String(formData.birthHour)); // -1 表示未知
-            params.set('minute', unknownTime ? '0' : String(formData.birthMinute || 0));
-            params.set('calendar', formData.calendarType || 'solar');
-            if (formData.calendarType === 'lunar') {
-                params.set('leap', formData.isLeapMonth ? '1' : '0');
+
+            // 四柱模式
+            if (formData.calendarType === 'pillars' && formData.pillars) {
+                params.set('mode', 'pillars');
+                params.set('name', formData.name || '');
+                params.set('gender', formData.gender || 'male');
+                params.set('year_stem', formData.pillars.year.stem);
+                params.set('year_branch', formData.pillars.year.branch);
+                params.set('month_stem', formData.pillars.month.stem);
+                params.set('month_branch', formData.pillars.month.branch);
+                params.set('day_stem', formData.pillars.day.stem);
+                params.set('day_branch', formData.pillars.day.branch);
+                params.set('hour_stem', formData.pillars.hour.stem);
+                params.set('hour_branch', formData.pillars.hour.branch);
+                // 四柱模式下也传递日期参数（如果已反推出时间）
+                if (formData.birthYear && formData.birthMonth && formData.birthDay) {
+                    params.set('year', String(formData.birthYear));
+                    params.set('month', String(formData.birthMonth));
+                    params.set('day', String(formData.birthDay));
+                    params.set('hour', String(formData.birthHour));
+                    params.set('minute', String(formData.birthMinute || 0));
+                    params.set('calendar', 'solar');
+                }
+                // 四柱模式下也保留出生地点
+                params.set('place', formData.birthPlace || '');
+            } else {
+                // 日期模式
+                params.set('name', formData.name || '');
+                params.set('gender', formData.gender || 'male');
+                params.set('year', String(formData.birthYear));
+                params.set('month', String(formData.birthMonth));
+                params.set('day', String(formData.birthDay));
+                params.set('hour', unknownTime ? '-1' : String(formData.birthHour));
+                params.set('minute', unknownTime ? '0' : String(formData.birthMinute || 0));
+                params.set('calendar', formData.calendarType || 'solar');
+                if (formData.calendarType === 'lunar') {
+                    params.set('leap', formData.isLeapMonth ? '1' : '0');
+                }
+                params.set('place', formData.birthPlace || '');
             }
-            params.set('place', formData.birthPlace || '');
+
             if (chartId) {
                 params.set('chart', chartId);
             }
@@ -244,13 +267,32 @@ function BaziPageContent() {
         }
     };
 
+    // 使用即时排盘
+    const handleUseInstant = () => {
+        const now = new Date();
+        setFormData(prev => ({
+            ...prev,
+            birthYear: now.getFullYear(),
+            birthMonth: now.getMonth() + 1,
+            birthDay: now.getDate(),
+            birthHour: now.getHours(),
+            birthMinute: now.getMinutes(),
+            calendarType: 'solar',
+        }));
+        setUnknownTime(false);
+        // 自动提交
+        setTimeout(() => {
+            const form = document.querySelector('form');
+            if (form) {
+                form.requestSubmit();
+            }
+        }, 100);
+    };
+
     return (
-        <div className="max-w-4xl mx-auto px-4 md:py-8 py-4 animate-fade-in">
+        <div className="max-w-xl mx-auto px-4 md:pt-8 pt-4 animate-fade-in">
             {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
             <div className="hidden md:block text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3">
-                    <Orbit className="w-12 h-12 text-accent" />
-                </div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground">八字排盘</h1>
                 <p className="text-foreground-secondary mt-2">
                     请填写您的出生信息，我们将为您生成八字命盘
@@ -259,16 +301,18 @@ function BaziPageContent() {
 
 
 
-            <BaziForm
-                formData={formData}
-                onUpdate={updateField}
-                unknownTime={unknownTime}
-                onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
-                onSubmit={handleSubmit}
-                onSetToday={handleSetToday}
-                isSubmitting={isSubmitting}
-                autoFillTime={autoFillTime}
-            />
+            <div className="space-y-6">
+                <UnifiedBaziForm
+                    formData={formData}
+                    onUpdate={updateField}
+                    unknownTime={unknownTime}
+                    onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
+                    onSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                />
+
+                <InstantBaziPreview onUseInstant={handleUseInstant} />
+            </div>
         </div>
     );
 }
