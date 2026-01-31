@@ -202,7 +202,7 @@ function ZiweiPageContent() {
     };
 
     return (
-        <div className="max-w-xl mx-auto px-4 md:pt-8 pt-4 animate-fade-in">
+        <div className="max-w-xl mx-auto px-4 pt-8 animate-fade-in">
             {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
             <div className="hidden md:block text-center mb-8">
                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground">紫微斗数排盘</h1>
