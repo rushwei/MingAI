@@ -806,7 +806,7 @@ export default function RecordsPage() {
 
     return (
         <LoginOverlay message="登录后使用命理记录功能">
-            <div className="min-h-screen bg-background text-foreground md:pb-20">
+            <div className="min-h-screen bg-background text-foreground">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
                     <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />

@@ -35,7 +35,7 @@ const HEPAN_TYPES: { type: HepanType; icon: typeof Heart; color: string; bg: str
 
 function HepanPageContent() {
     return (
-        <div className="min-h-screen bg-background md:pb-20">
+        <div className="min-h-screen bg-background">
             {/* 顶部 Hero 区域 - 移动端隐藏（顶栏已有图标和标题） */}
             <div className="hidden md:block relative overflow-hidden pt-20 pb-16">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />

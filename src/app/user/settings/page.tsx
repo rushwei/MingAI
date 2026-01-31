@@ -16,6 +16,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
+import { MobileNavCustomizer } from '@/components/settings/MobileNavCustomizer';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 interface Settings {
@@ -125,6 +126,17 @@ export default function SettingsPage() {
         language: 'zh',
     });
     const [userId, setUserId] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // 检测设备类型
+    useEffect(() => {
+        const checkDevice = () => {
+            setIsMobile(window.innerWidth < 1024); // lg breakpoint
+        };
+        checkDevice();
+        window.addEventListener('resize', checkDevice);
+        return () => window.removeEventListener('resize', checkDevice);
+    }, []);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -220,7 +232,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-6">
                 {/* 头部 */}
                 <div className="flex items-center gap-3 mb-6">
@@ -355,12 +367,16 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* 侧边栏自定义 */}
+                    {/* 界面自定义 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
                             <h2 className="text-sm font-bold text-foreground">界面自定义</h2>
                         </div>
-                        <SidebarCustomizer userId={userId} />
+                        {isMobile ? (
+                            <MobileNavCustomizer userId={userId} />
+                        ) : (
+                            <SidebarCustomizer userId={userId} />
+                        )}
                     </div>
 
                     {/* 隐私与安全 */}
@@ -385,15 +401,6 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    {/* 版本信息 */}
-                    <div className="text-center py-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background-secondary border border-border/50">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <p className="text-[10px] font-medium text-foreground-secondary">MingAI v2.0.0 (Latest)</p>
-                        </div>
-                        <p className="text-[10px] text-foreground-secondary/50 mt-3">© 2026 MingAI. All rights reserved.</p>
                     </div>
                 </div>
             </div>

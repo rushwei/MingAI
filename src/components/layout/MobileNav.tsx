@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Orbit,
     Sparkles,
@@ -30,37 +30,89 @@ import {
     Aperture,
     Tags,
     Settings,
+    SlidersHorizontal,
+    Bell,
+    CreditCard,
+    MessageCircleHeart,
+    BookOpenText,
+    CircleHelp,
+    type LucideIcon,
+    CircleStar,
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/usePaymentPause';
+import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 
-// 底部导航栏的 5 个主要入口
-const mainNavItems = [
-    { href: '/fortune-hub', label: '运势中心', icon: Compass },
-    { href: '/liuyao', label: '六爻', icon: Dices },
-    { href: '/chat', label: 'AI', icon: BotMessageSquare },
-    { href: '/daily', label: '日运', icon: Sun },
-];
+// 底部导航栏的默认入口
+const DEFAULT_MAIN_ITEMS = ['fortune-hub', 'liuyao', 'chat', 'daily'];
 
-// 抽屉中显示的所有入口
-const drawerNavItems = [
-    { href: '/bazi', label: '八字', icon: Orbit, emoji: '🧭' },
-    { href: '/records', label: '命理记录', icon: Tags, emoji: '📝' },
-    { href: '/community', label: '社区', icon: Aperture, emoji: '💬' },
-    { href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑' },
-    { href: '/ziwei', label: '紫微斗数', icon: Sparkles, emoji: '⭐' },
-    { href: '/tarot', label: '塔罗', icon: Gem, emoji: '🃏' },
-    { href: '/face', label: '面相', icon: ScanFace, emoji: '👤' },
-    { href: '/palm', label: '手相', icon: Hand, emoji: '🖐️' },
-    { href: '/mbti', label: 'MBTI', icon: Brain, emoji: '🧩' },
-    { href: '/monthly', label: '月运', icon: CalendarRange, emoji: '📅' },
-    { href: '/user', label: '我的', icon: User, emoji: '👤' },
-    { href: '/user/settings', label: '设置', icon: Settings, emoji: '⚙️' },
+// 所有可用的导航项目映射
+const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideIcon }> = {
+    'fortune-hub': { href: '/fortune-hub', label: '运势中心', icon: Compass },
+    'bazi': { href: '/bazi', label: '八字', icon: Orbit },
+    'records': { href: '/records', label: '命理记录', icon: Tags },
+    'community': { href: '/community', label: '社区', icon: Aperture },
+    'hepan': { href: '/hepan', label: '八字合盘', icon: HeartHandshake },
+    'ziwei': { href: '/ziwei', label: '紫微斗数', icon: Sparkles },
+    'tarot': { href: '/tarot', label: '塔罗', icon: Gem },
+    'liuyao': { href: '/liuyao', label: '六爻', icon: Dices },
+    'face': { href: '/face', label: '面相', icon: ScanFace },
+    'palm': { href: '/palm', label: '手相', icon: Hand },
+    'mbti': { href: '/mbti', label: 'MBTI', icon: Brain },
+    'chat': { href: '/chat', label: 'AI', icon: BotMessageSquare },
+    'daily': { href: '/daily', label: '日运', icon: Sun },
+    'monthly': { href: '/monthly', label: '月运', icon: CalendarRange },
+    'user': { href: '/user', label: '我的', icon: User },
+    'user/settings': { href: '/user/settings', label: '设置', icon: Settings },
+    'user/upgrade': { href: '/user/upgrade', label: '订阅', icon: CircleStar },
+    'user/notifications': { href: '/user/notifications', label: '通知', icon: Bell },
+    'user/orders': { href: '/user/orders', label: '订单', icon: CreditCard },
+    'user/settings/ai': { href: '/user/settings/ai', label: '个性化', icon: MessageCircleHeart },
+    'user/knowledge-base': { href: '/user/knowledge-base', label: '知识库', icon: BookOpenText },
+    'user/help': { href: '/user/help', label: '帮助', icon: CircleHelp },
+};
+
+// 抽屉中显示的默认顺序
+const DEFAULT_DRAWER_ORDER = [
+    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
+    'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
+    'user/upgrade', 'user/notifications', 'user/orders',
+    'user/settings/ai', 'user/knowledge-base', 'user/help'
 ];
 
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const { config } = useSidebarConfigSafe();
+
+    // 根据配置计算底部导航栏项目
+    const mainNavItems = useMemo(() => {
+        const items = config.mobileMainItems || DEFAULT_MAIN_ITEMS;
+        return items
+            .map(id => ALL_NAV_ITEMS[id])
+            .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
+    }, [config.mobileMainItems]);
+
+    // 根据配置计算抽屉中的项目
+    const drawerNavItems = useMemo(() => {
+        const order = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
+        const hidden = new Set(config.hiddenMobileItems || []);
+        const mainSet = new Set(config.mobileMainItems || DEFAULT_MAIN_ITEMS);
+        const orderSet = new Set(order);
+
+        // 按顺序排列已有的项目
+        const orderedItems = order
+            .filter(id => !mainSet.has(id) && !hidden.has(id))
+            .map(id => ALL_NAV_ITEMS[id])
+            .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
+
+        // 添加不在 order 中的新项目（追加到末尾）
+        const newItems = Object.entries(ALL_NAV_ITEMS)
+            .filter(([id]) => !orderSet.has(id) && !mainSet.has(id) && !hidden.has(id))
+            .map(([, item]) => item);
+
+        return [...orderedItems, ...newItems];
+    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {
@@ -102,12 +154,22 @@ export function MobileNav() {
                 {/* 抽屉头部 */}
                 <div className="flex items-center justify-between p-4 border-b border-border">
                     <h3 className="font-medium text-foreground">全部功能</h3>
-                    <button
-                        onClick={closeDrawer}
-                        className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <Link
+                            href="/user/settings"
+                            onClick={closeDrawer}
+                            className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
+                            title="自定义导航"
+                        >
+                            <SlidersHorizontal className="w-5 h-5" />
+                        </Link>
+                        <button
+                            onClick={closeDrawer}
+                            className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* 抽屉内容网格 */}
@@ -173,7 +235,13 @@ export function MobileNav() {
                     ${isDrawerOpen ? 'translate-y-full' : 'translate-y-0'}
                 `}
             >
-                <ul className="grid grid-cols-5 px-2 py-1">
+                <ul className={`grid px-2 py-1 ${
+                    mainNavItems.length === 0 ? 'grid-cols-1' :
+                    mainNavItems.length === 1 ? 'grid-cols-2' :
+                    mainNavItems.length === 2 ? 'grid-cols-3' :
+                    mainNavItems.length === 3 ? 'grid-cols-4' :
+                    'grid-cols-5'
+                }`}>
                     {mainNavItems.map((item) => {
                         const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                         const Icon = item.icon;

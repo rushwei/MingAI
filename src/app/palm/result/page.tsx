@@ -147,7 +147,7 @@ export default function PalmResultPage() {
 
     return (
         <LoginOverlay message="登录后查看分析结果">
-            <div className="min-h-screen bg-background pb-20 relative overflow-x-hidden">
+            <div className="min-h-screen bg-background relative overflow-x-hidden">
                 {/* Background Effects */}
                 {/* Background Effects Removed */}
 

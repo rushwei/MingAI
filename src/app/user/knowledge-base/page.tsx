@@ -373,7 +373,7 @@ export default function KnowledgeBaseManagePage() {
     }, [expandedKbId, loadArchives, showToast, uploadFile, uploadKbId]);
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

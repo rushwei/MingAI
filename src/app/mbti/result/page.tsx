@@ -301,7 +301,7 @@ function MBTIResultContent() {
     const readingId = (result as unknown as { readingId?: string }).readingId;
 
     return (
-        <div className="min-h-screen bg-background relative overflow-x-hidden pb-20">
+        <div className="min-h-screen bg-background relative overflow-x-hidden">
             {/* Background Effects */}
             {/* Background Effects Removed */}
 

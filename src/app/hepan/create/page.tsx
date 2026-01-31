@@ -291,7 +291,7 @@ function HepanCreateContent() {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background">
             {/* 背景装饰 - 移除渐变，保留柔和光晕 */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />

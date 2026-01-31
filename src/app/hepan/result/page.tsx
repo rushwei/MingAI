@@ -285,7 +285,7 @@ export default function HepanResultPage() {
     const chartId = (result as unknown as { chartId?: string }).chartId;
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <div className="min-h-screen bg-background">
             {/* 背景装饰 Removed */}
 
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">

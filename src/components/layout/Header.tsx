@@ -60,6 +60,7 @@ const ROUTE_BRANDING: RouteBranding[] = [
     { prefix: '/community', icon: Aperture, label: '命理社区', iconClass: 'text-purple-500', bgClass: 'bg-purple-500/10' },
     // 用户子页面（需放在 /user 之前以优先匹配）
     { prefix: '/user/checkin', icon: null, label: '每日签到', iconClass: '', bgClass: '' },
+    { prefix: '/user/settings/ai', icon: null, label: 'AI 个性化', iconClass: '', bgClass: '' },
     { prefix: '/user/settings', icon: null, label: '偏好设置', iconClass: '', bgClass: '' },
     { prefix: '/user/notifications', icon: null, label: '通知中心', iconClass: '', bgClass: '' },
     { prefix: '/user/charts', icon: null, label: '我的命盘', iconClass: '', bgClass: '' },
@@ -67,6 +68,8 @@ const ROUTE_BRANDING: RouteBranding[] = [
     { prefix: '/user/orders', icon: null, label: '订单记录', iconClass: '', bgClass: '' },
     { prefix: '/user/profile', icon: null, label: '个人资料', iconClass: '', bgClass: '' },
     { prefix: '/user/annual-report', icon: null, label: '年度报告', iconClass: '', bgClass: '' },
+    { prefix: '/user/knowledge-base', icon: null, label: '知识库', iconClass: '', bgClass: '' },
+    { prefix: '/user/help', icon: null, label: '帮助中心', iconClass: '', bgClass: '' },
     // 通用页面
     { prefix: '/user', icon: null, label: '个人中心', iconClass: '', bgClass: '' },
     { prefix: '/chat', icon: null, label: 'AI 对话', iconClass: '', bgClass: '' },

@@ -1118,14 +1118,16 @@ export default function ChatPage() {
                             {sidebarCollapsed && <span className="text-sm font-medium">个性化</span>}
                         </Link>
 
-                        <Link
-                            href="/user/knowledge-base"
-                            className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
-                            title="知识库"
-                        >
-                            <BookOpenText className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
-                            {sidebarCollapsed && <span className="text-sm font-medium">知识库</span>}
-                        </Link>
+                        {membership?.type !== 'free' && (
+                            <Link
+                                href="/user/knowledge-base"
+                                className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
+                                title="知识库"
+                            >
+                                <BookOpenText className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
+                                {sidebarCollapsed && <span className="text-sm font-medium">知识库</span>}
+                            </Link>
+                        )}
                     </div>
                     {/* 无对话时居中布局（仅桌面端） */}
                     {messages.length === 0 ? (

@@ -12,17 +12,35 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
 export interface SidebarConfig {
+    // 桌面端配置
     hiddenNavItems: string[];
     hiddenToolItems: string[];
     navOrder: string[];
     toolOrder: string[];
+
+    // 移动端配置
+    mobileMainItems: string[];      // 底部导航栏显示的项目 ID（0-4 个）
+    mobileDrawerOrder: string[];    // 抽屉中项目的排序
+    hiddenMobileItems: string[];    // 隐藏的移动端项目
 }
+
+// 移动端所有可配置项目的默认顺序
+const DEFAULT_MOBILE_DRAWER_ORDER = [
+    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
+    'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
+    'user/upgrade', 'user/notifications', 'user/orders',
+    'user/settings/ai', 'user/knowledge-base', 'user/help'
+];
 
 const DEFAULT_CONFIG: SidebarConfig = {
     hiddenNavItems: [],
     hiddenToolItems: [],
     navOrder: ['fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'face', 'palm', 'mbti'],
     toolOrder: ['checkin', 'chat', 'daily', 'monthly', 'records', 'community'],
+    // 移动端默认配置
+    mobileMainItems: ['fortune-hub', 'liuyao', 'chat', 'daily'],
+    mobileDrawerOrder: DEFAULT_MOBILE_DRAWER_ORDER,
+    hiddenMobileItems: [],
 };
 
 const getSidebarCacheKey = (userId: string) => `mingai.sidebar_config.${userId}`;
@@ -65,6 +83,9 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
                     hiddenToolItems: cached.hiddenToolItems || [],
                     navOrder: cached.navOrder || DEFAULT_CONFIG.navOrder,
                     toolOrder: cached.toolOrder || DEFAULT_CONFIG.toolOrder,
+                    mobileMainItems: cached.mobileMainItems || DEFAULT_CONFIG.mobileMainItems,
+                    mobileDrawerOrder: cached.mobileDrawerOrder || DEFAULT_CONFIG.mobileDrawerOrder,
+                    hiddenMobileItems: cached.hiddenMobileItems || [],
                 });
                 setConfigLoading(false);
             } else {
@@ -84,6 +105,9 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
                     hiddenToolItems: data.sidebar_config.hiddenToolItems || [],
                     navOrder: data.sidebar_config.navOrder || DEFAULT_CONFIG.navOrder,
                     toolOrder: data.sidebar_config.toolOrder || DEFAULT_CONFIG.toolOrder,
+                    mobileMainItems: data.sidebar_config.mobileMainItems || DEFAULT_CONFIG.mobileMainItems,
+                    mobileDrawerOrder: data.sidebar_config.mobileDrawerOrder || DEFAULT_CONFIG.mobileDrawerOrder,
+                    hiddenMobileItems: data.sidebar_config.hiddenMobileItems || [],
                 };
                 setConfigState(nextConfig);
                 writeLocalCache(getSidebarCacheKey(nextUser.id), nextConfig);

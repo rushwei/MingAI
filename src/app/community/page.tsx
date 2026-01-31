@@ -204,7 +204,7 @@ export default function CommunityPage() {
     const totalPages = Math.ceil(total / pageSize);
 
     return (
-        <div className="md:min-h-screen bg-background text-foreground md:pb-20">
+        <div className="md:min-h-screen bg-background text-foreground">
             {/* Hero Section - 移动端隐藏 */}
             <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
                 <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />

@@ -290,6 +290,10 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
             hiddenToolItems: [],
             navOrder: ALL_NAV_ITEMS.map(i => i.id),
             toolOrder: ALL_TOOL_ITEMS.map(i => i.id),
+            // 保留移动端配置不变
+            mobileMainItems: config.mobileMainItems,
+            mobileDrawerOrder: config.mobileDrawerOrder,
+            hiddenMobileItems: config.hiddenMobileItems,
         };
         setConfig(defaultConfig);
         await handleSave(defaultConfig);
