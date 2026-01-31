@@ -27,7 +27,7 @@ import {
     Brain,
     Compass,
     HeartHandshake,
-    Github,
+    // Github,
     Aperture,
     Tags,
 } from 'lucide-react';
@@ -304,7 +304,7 @@ export function Sidebar() {
                     </div>
 
                     {/* GitHub 反馈 */}
-                    <div className="mb-2">
+                    {/* <div className="mb-2">
                         <div className={`px-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider transition-all duration-300 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-2'}`}>
                             反馈
                         </div>
@@ -325,7 +325,7 @@ export function Sidebar() {
                                 反馈
                             </span>
                         </a>
-                    </div>
+                    </div> */}
                 </nav>
 
                 {/* 底部用户区域 */}

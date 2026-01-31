@@ -14,14 +14,14 @@ import {
     Loader2,
     Send,
     ArrowLeft,
-    Share2,
+    // Share2,
 } from 'lucide-react';
 import Image from 'next/image';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { TarotShareCard } from '@/components/tarot/TarotShareCard';
+// import { TarotShareCard } from '@/components/tarot/TarotShareCard';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
@@ -46,6 +46,7 @@ function TarotResultContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [isInterpreting, setIsInterpreting] = useState(false);
     const [revealedCards, setRevealedCards] = useState<number[]>([]);
+    const [flippedToInterpretation, setFlippedToInterpretation] = useState<number[]>([]);
     const [isShuffling, setIsShuffling] = useState(false);
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [readingId, setReadingId] = useState<string | null>(null);
@@ -457,7 +458,7 @@ function TarotResultContent() {
     }
 
     return (
-        <div className="md:min-h-screen bg-background md:pb-20 relative overflow-x-hidden">
+        <div className="bg-background relative overflow-x-hidden">
             {/* Background Effects */}
             {/* Background Effects Removed */}
 
@@ -501,29 +502,52 @@ function TarotResultContent() {
                         }`}>
                         {drawnCards.map((card, index) => {
                             const isRevealed = revealedCards.includes(index);
+                            const isFlippedToInterpretation = flippedToInterpretation.includes(index);
                             return (
-                                <div key={index} className="flex flex-col items-center group perspective-1000">
+                                <div key={index} className="flex flex-col items-center group" style={{ perspective: '1000px' }}>
                                     <div className="text-xs font-bold text-foreground-secondary/70 uppercase tracking-widest mb-3">
                                         {selectedSpread?.positions[index]?.name}
                                     </div>
                                     <button
-                                        onClick={() => void revealCard(index)}
-                                        disabled={isRevealed}
-                                        className={`relative w-28 h-48 sm:w-32 sm:h-52 rounded-xl transition-all duration-700 transform-style-3d ${isRevealed ? '' : 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(168,85,247,0.2)]'
-                                            }`}
+                                        onClick={() => {
+                                            if (!isRevealed) {
+                                                void revealCard(index);
+                                            } else {
+                                                // 已揭示的卡片，点击翻转查看解读
+                                                setFlippedToInterpretation(prev =>
+                                                    prev.includes(index)
+                                                        ? prev.filter(i => i !== index)
+                                                        : [...prev, index]
+                                                );
+                                            }
+                                        }}
+                                        className={`relative w-28 h-48 sm:w-32 sm:h-52 rounded-xl transition-all duration-500 ${!isRevealed ? 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'cursor-pointer hover:shadow-[0_5px_20px_rgba(168,85,247,0.15)]'}`}
                                         style={{
-                                            transform: isRevealed && card.orientation === 'reversed' ? 'rotate(180deg)' : undefined,
+                                            transformStyle: 'preserve-3d',
+                                            transform: isFlippedToInterpretation ? 'rotateY(180deg)' : undefined,
                                         }}
                                     >
-                                        <div className={`absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl transition-all duration-700 ${isRevealed ? 'opacity-100' : 'bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 border border-white/10'
-                                            }`}>
+                                        {/* 卡片正面 - 牌面 */}
+                                        <div
+                                            className={`absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl transition-all duration-500 ${isRevealed ? 'opacity-100' : 'bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 border border-white/10'}`}
+                                            style={{ backfaceVisibility: 'hidden' }}
+                                        >
                                             {isRevealed ? (
-                                                <Image
-                                                    src={card.card.image}
-                                                    alt={card.card.nameChinese}
-                                                    fill
-                                                    className="object-cover"
-                                                />
+                                                <>
+                                                    <Image
+                                                        src={card.card.image}
+                                                        alt={card.card.nameChinese}
+                                                        fill
+                                                        className={`object-cover ${card.orientation === 'reversed' ? 'rotate-180' : ''}`}
+                                                    />
+                                                    {/* 点击提示 */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-3">
+                                                        <span className="text-xs text-white/90 font-medium flex items-center gap-1">
+                                                            <RotateCcw className="w-3 h-3" />
+                                                            点击查看解读
+                                                        </span>
+                                                    </div>
+                                                </>
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center opacity-30 bg-[url('/noise.png')]">
                                                     <div className="w-16 h-16 rounded-full border-2 border-white/20 flex items-center justify-center">
@@ -531,6 +555,35 @@ function TarotResultContent() {
                                                     </div>
                                                 </div>
                                             )}
+                                        </div>
+
+                                        {/* 卡片背面 - 解读 */}
+                                        <div
+                                            className="absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-purple-900/90 via-indigo-900/90 to-purple-950/90 border border-purple-500/20 p-3 flex flex-col"
+                                            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                                        >
+                                            <div className="text-center mb-2">
+                                                <h4 className="text-sm font-bold text-white truncate">{card.card.nameChinese}</h4>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${card.orientation === 'reversed' ? 'text-rose-300 bg-rose-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
+                                                    {card.orientation === 'reversed' ? '逆位' : '正位'}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                                <p className="text-[10px] sm:text-xs text-white/80 leading-relaxed">
+                                                    {(() => {
+                                                        const meaning = card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning;
+                                                        // 移除开头的"卡片名+正位/逆位："格式
+                                                        return meaning.replace(/^[^:：]+[：:]\s*/, '');
+                                                    })()}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                                                {card.card.keywords.slice(0, 3).map((kw, i) => (
+                                                    <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     </button>
 
@@ -559,83 +612,22 @@ function TarotResultContent() {
                             </button>
                         </div>
                     )}
+
+                    {/* 翻转提示 */}
+                    {revealedCards.length > 0 && revealedCards.length === drawnCards.length && (
+                        <div className="text-center mt-4 pb-4 animate-fade-in">
+                            <p className="text-xs text-foreground-secondary/60 flex items-center justify-center gap-2">
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                点击卡片可翻转查看牌面解读
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Interpretation Section */}
                 {revealedCards.length === drawnCards.length && (
                     <div className="space-y-6 animate-fade-in-up">
-                        {/* 1. Quick Meanings */}
-                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
-                            <h2 className="text-xl font-bold flex items-center gap-3 mb-6">
-                                <span className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
-                                    <Sparkles className="w-5 h-5" />
-                                </span>
-                                牌面解读
-                            </h2>
-                            <div className="space-y-4">
-                                {drawnCards.map((card, index) => (
-                                    <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 hover:border-purple-500/30 hover:bg-white/[0.07] transition-all group">
-                                        {/* Thumbnail */}
-                                        <div className="relative w-full sm:w-24 h-40 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-shadow">
-                                            <Image
-                                                src={card.card.image}
-                                                alt={card.card.nameChinese}
-                                                fill
-                                                className={`object-cover transition-transform duration-700 group-hover:scale-110 ${card.orientation === 'reversed' ? 'rotate-180' : ''
-                                                    }`}
-                                            />
-                                            {/* Element Badge */}
-                                            {card.card.element && (
-                                                <div className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/10 text-[10px] text-white/90 font-bold" title={`${card.card.element}元素`}>
-                                                    {card.card.element}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="flex-1 flex flex-col justify-center">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded-full">
-                                                        {selectedSpread?.positions[index]?.name}
-                                                    </span>
-                                                    {(card.card.zodiac || card.card.element) && (
-                                                        <span className="text-xs text-foreground-secondary/60 hidden sm:inline-block">
-                                                            {[card.card.zodiac, card.card.element].filter(Boolean).join(' · ')}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${card.orientation === 'reversed'
-                                                    ? 'text-rose-400 bg-rose-400/10 border border-rose-400/20'
-                                                    : 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20'
-                                                    }`}>
-                                                    {card.orientation === 'reversed' ? '逆位' : '正位'}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-baseline gap-2 mb-2">
-                                                <h4 className="text-lg font-bold text-foreground">{card.card.nameChinese}</h4>
-                                                <span className="text-xs text-foreground-secondary">{card.card.name}</span>
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-1.5 mb-3">
-                                                {card.card.keywords.map((kw, i) => (
-                                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-foreground-secondary border border-white/5">
-                                                        {kw}
-                                                    </span>
-                                                ))}
-                                            </div>
-
-                                            <p className="text-sm text-foreground-secondary leading-relaxed border-t border-white/5 pt-2 mt-auto">
-                                                {card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 2. AI Deep Dive */}
+                        {/* AI Deep Dive */}
                         <div className="relative rounded-3xl p-1 group">
                             {/* Background Effects Removed */}
 
@@ -643,12 +635,9 @@ function TarotResultContent() {
                                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
                                     <div>
                                         <h2 className="text-xl font-bold flex items-center gap-3">
-                                            <span className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
-                                                <Sparkles className="w-5 h-5" />
-                                            </span>
                                             AI 深度洞察
                                         </h2>
-                                        <p className="text-sm text-foreground-secondary mt-1 ml-11">
+                                        <p className="text-sm text-foreground-secondary mt-1">
                                             基于 {selectedSpread?.name} 的全方位综合解读
                                         </p>
                                     </div>
@@ -731,8 +720,8 @@ function TarotResultContent() {
                             </div>
                         </div>
 
-                        {/* Share Card */}
-                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
+                        {/* Share Card - 暂时隐藏 */}
+                        {/* <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
                             <h2 className="text-lg font-bold flex items-center gap-3 mb-6">
                                 <Share2 className="w-5 h-5 text-purple-400" />
                                 珍藏与分享
@@ -743,7 +732,7 @@ function TarotResultContent() {
                                 question={question || undefined}
                                 interpretation={interpretation || undefined}
                             />
-                        </div>
+                        </div> */}
                     </div >
                 )
                 }
