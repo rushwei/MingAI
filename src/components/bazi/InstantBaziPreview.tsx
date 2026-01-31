@@ -18,12 +18,14 @@ interface InstantBaziPreviewProps {
 }
 
 export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
     // 每秒更新当前时间
     useEffect(() => {
+        const updateTime = () => setCurrentTime(new Date());
+        updateTime();
         const interval = setInterval(() => {
-            setCurrentTime(new Date());
+            updateTime();
         }, 1000);
 
         return () => clearInterval(interval);
@@ -31,6 +33,9 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
 
     // 计算当前时间的八字（使用 useMemo 优化性能）
     const instantBazi = useMemo(() => {
+        if (!currentTime) {
+            return null;
+        }
         const now = currentTime;
         const formData: BaziFormData = {
             name: '',
@@ -56,6 +61,9 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
 
     // 获取农历信息
     const lunarInfo = useMemo(() => {
+        if (!currentTime) {
+            return null;
+        }
         const solar = Solar.fromYmdHms(
             currentTime.getFullYear(),
             currentTime.getMonth() + 1,
@@ -73,7 +81,7 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
         };
     }, [currentTime]);
 
-    if (!instantBazi) {
+    if (!instantBazi || !lunarInfo || !currentTime) {
         return null;
     }
 
