@@ -84,7 +84,12 @@ const STEP_LABELS: Record<SelectionStep, string> = {
     'complete': '完成',
 };
 
-const EMPTY_PILLARS = {
+const EMPTY_PILLARS: {
+    year: PillarData;
+    month: PillarData;
+    day: PillarData;
+    hour: PillarData;
+} = {
     year: { stem: '', branch: '' },
     month: { stem: '', branch: '' },
     day: { stem: '', branch: '' },
