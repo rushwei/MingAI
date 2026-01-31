@@ -327,19 +327,25 @@ export function FortuneTrendChart({
                             />
                         ))}
 
-                        {/* 标记关键日期点 */}
-                        {keyDatePoints.map((point, idx) => (
-                            <ReferenceDot
-                                key={idx}
-                                x={point.date}
-                                y={point.overall}
-                                r={5}
-                                fill={KEY_DATE_COLORS[point.keyDateType || 'lucky']}
-                                stroke="var(--color-background)"
-                                strokeWidth={2}
-                                style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.1))' }}
-                            />
-                        ))}
+                        {/* 标记关键日期点 - 使用运势评分颜色 */}
+                        {keyDatePoints.map((point, idx) => {
+                            // 根据运势分数决定颜色：吉(绿)、平(灰)、凶(红)
+                            const score = point.overall;
+                            const dotColor = score >= 80 ? '#22c55e' : score >= 60 ? '#9ca3af' : '#ef4444';
+                            
+                            return (
+                                <ReferenceDot
+                                    key={idx}
+                                    x={point.date}
+                                    y={point.overall}
+                                    r={5}
+                                    fill={dotColor}
+                                    stroke="var(--color-background)"
+                                    strokeWidth={2}
+                                    style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.1))' }}
+                                />
+                            );
+                        })}
                         {selectedPoint && (
                             <ReferenceDot
                                 x={selectedPoint.date}
