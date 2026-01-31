@@ -88,8 +88,8 @@ export function calculateMonthPillars(yearPillar: PillarData): PillarData[] {
  * 由于日柱是连续的六十甲子循环，我们需要通过实际日期来计算
  */
 export function calculateDayPillars(
-    _yearPillar: PillarData,
-    _monthPillar: PillarData
+    /* _yearPillar: PillarData, */
+    /* _monthPillar: PillarData */
 ): PillarData[] {
     // 日柱是六十甲子的连续循环，理论上所有60个组合都可能
     // 但实际上需要结合具体的年月来确定可能的日柱

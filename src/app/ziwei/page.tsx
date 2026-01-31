@@ -1,21 +1,24 @@
 /**
  * 紫微斗数排盘输入页面
- * 
- * 复用八字表单组件，保持 UI 一致性
+ *
+ * 'use client' 标记说明：
+ * - 页面包含表单交互，需要在客户端运行
+ * - 使用 useState 管理表单状态
  */
 'use client';
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Sparkles } from 'lucide-react';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
+import { Loader2 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
-import { BaziForm } from '@/components/bazi/form/BaziForm';
+import { UnifiedZiweiForm } from '@/components/bazi/form/UnifiedZiweiForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 
-
 const parseNumber = (value: string | null, fallback: number) => {
-    if (value === null || value.trim() === '') return fallback;
+    if (value === null || value.trim() === '') {
+        return fallback;
+    }
     const parsed = Number(value);
     return Number.isNaN(parsed) ? fallback : parsed;
 };
@@ -29,16 +32,16 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
     const hour = searchParams.get('hour');
     const minute = searchParams.get('minute');
     const calendar = searchParams.get('calendar') as CalendarType | null;
-    const leap = searchParams.get('leap');
     const place = searchParams.get('place');
+    const leap = searchParams.get('leap');
 
     if (!name && !year) {
         return { ...DEFAULT_BAZI_FORM_DATA };
     }
 
+    const isUnknownTime = hour === '-1';
     const birthYear = parseNumber(year, DEFAULT_BAZI_FORM_DATA.birthYear);
     const birthMonth = parseNumber(month, DEFAULT_BAZI_FORM_DATA.birthMonth);
-    const isUnknownTime = hour === '-1';
     const isLeapRequested = calendar === 'lunar' && leap === '1';
     const leapMonthOfYear = calendar === 'lunar'
         ? LunarYear.fromYear(birthYear).getLeapMonth()
@@ -51,7 +54,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
         birthMonth,
         birthDay: parseNumber(day, DEFAULT_BAZI_FORM_DATA.birthDay),
         birthHour: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthHour : parseNumber(hour, DEFAULT_BAZI_FORM_DATA.birthHour),
-        birthMinute: isUnknownTime ? DEFAULT_BAZI_FORM_DATA.birthMinute : parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
+        birthMinute: parseNumber(minute, DEFAULT_BAZI_FORM_DATA.birthMinute),
         calendarType: calendar === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
         birthPlace: place || '',
@@ -62,12 +65,12 @@ function ZiweiPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // 紫微必须知道时辰，所以默认为 false
     const [unknownTime, setUnknownTime] = useState(() => {
         const hourParam = searchParams.get('hour');
         return hourParam === null || hourParam === '-1';
     });
-    const autoFillTime = searchParams.get('hour') === null;
+
+    // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
     const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
 
     const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
@@ -89,6 +92,7 @@ function ZiweiPageContent() {
         return day;
     };
 
+    // 更新表单字段（含历法切换与日期校准）
     const updateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => {
         if (field === 'calendarType') {
             setFormData(prev => {
@@ -100,7 +104,7 @@ function ZiweiPageContent() {
                         prev.birthMonth,
                         prev.birthDay,
                         prev.birthHour,
-                        0,
+                        prev.birthMinute,
                         0
                     );
                     const lunar = solar.getLunar();
@@ -122,7 +126,7 @@ function ZiweiPageContent() {
                     prev.isLeapMonth ? -Math.abs(prev.birthMonth) : prev.birthMonth,
                     clampDay('lunar', prev.birthYear, prev.birthMonth, prev.birthDay, prev.isLeapMonth),
                     prev.birthHour,
-                    0,
+                    prev.birthMinute,
                     0
                 );
                 const solar = lunar.getSolar();
@@ -140,9 +144,17 @@ function ZiweiPageContent() {
 
         setFormData(prev => {
             const next = { ...prev, [field]: value };
-            if (field === 'birthYear' || field === 'birthMonth' || field === 'birthDay' || field === 'isLeapMonth') {
-                next.birthDay = clampDay(next.calendarType, next.birthYear, next.birthMonth, next.birthDay, next.isLeapMonth);
+
+            if ((field === 'birthYear' || field === 'birthMonth' || field === 'isLeapMonth') && prev.calendarType) {
+                next.birthDay = clampDay(
+                    prev.calendarType,
+                    field === 'birthYear' ? (value as number) : next.birthYear,
+                    field === 'birthMonth' ? (value as number) : next.birthMonth,
+                    next.birthDay,
+                    field === 'isLeapMonth' ? (value as boolean) : next.isLeapMonth
+                );
             }
+
             if (next.calendarType === 'lunar') {
                 const leapMonth = LunarYear.fromYear(next.birthYear).getLeapMonth();
                 if (next.isLeapMonth && leapMonth !== next.birthMonth) {
@@ -151,92 +163,74 @@ function ZiweiPageContent() {
             } else {
                 next.isLeapMonth = false;
             }
+
             return next;
         });
     };
 
-    const handleSetToday = () => {
-        const today = new Date();
-        if (formData.calendarType === 'lunar') {
-            const lunar = Solar.fromYmd(today.getFullYear(), today.getMonth() + 1, today.getDate()).getLunar();
-            setFormData(prev => ({
-                ...prev,
-                birthYear: lunar.getYear(),
-                birthMonth: Math.abs(lunar.getMonth()),
-                birthDay: lunar.getDay(),
-                isLeapMonth: lunar.getMonth() < 0,
-            }));
-            return;
-        }
-
-        setFormData(prev => ({
-            ...prev,
-            birthYear: today.getFullYear(),
-            birthMonth: today.getMonth() + 1,
-            birthDay: today.getDate(),
-        }));
-    };
-
+    // 提交表单
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const params = new URLSearchParams({
-            name: formData.name || '命主',
-            gender: formData.gender,
-            year: String(formData.birthYear),
-            month: String(formData.birthMonth),
-            day: String(formData.birthDay),
-            hour: unknownTime ? '-1' : String(formData.birthHour),
-            minute: unknownTime ? '0' : String(formData.birthMinute || 0),
-            calendar: formData.calendarType,
-        });
-        const chartId = searchParams.get('chart');
-        if (formData.calendarType === 'lunar') {
-            params.set('leap', formData.isLeapMonth ? '1' : '0');
-        }
-        if (formData.birthPlace) {
-            params.set('place', formData.birthPlace);
-        }
-        if (chartId) {
-            params.set('chart', chartId);
-        }
+        try {
+            const params = new URLSearchParams();
+            const chartId = searchParams.get('chart');
 
-        router.push(`/ziwei/result?${params.toString()}`);
+            params.set('name', formData.name || '命主');
+            params.set('gender', formData.gender || 'male');
+            params.set('year', String(formData.birthYear));
+            params.set('month', String(formData.birthMonth));
+            params.set('day', String(formData.birthDay));
+            params.set('hour', unknownTime ? '-1' : String(formData.birthHour));
+            params.set('minute', unknownTime ? '0' : String(formData.birthMinute || 0));
+            params.set('calendar', formData.calendarType || 'solar');
+            if (formData.calendarType === 'lunar') {
+                params.set('leap', formData.isLeapMonth ? '1' : '0');
+            }
+            params.set('place', formData.birthPlace || '');
+
+            if (chartId) {
+                params.set('chart', chartId);
+            }
+
+            router.push(`/ziwei/result?${params.toString()}`);
+        } catch (error) {
+            console.error('提交失败:', error);
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 animate-fade-in">
+        <div className="max-w-xl mx-auto px-4 md:pt-8 pt-4 animate-fade-in">
             {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
             <div className="hidden md:block text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3">
-                    <Sparkles className="w-12 h-12 text-purple-500" />
-                </div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground">紫微斗数排盘</h1>
                 <p className="text-foreground-secondary mt-2">
                     请填写您的出生信息，我们将为您生成紫微斗数命盘
                 </p>
             </div>
 
-            <BaziForm
-                formData={formData}
-                onUpdate={updateField}
-                unknownTime={unknownTime}
-                onToggleUnknownTime={() => setUnknownTime(prev => !prev)}
-                onSubmit={handleSubmit}
-                onSetToday={handleSetToday}
-                isSubmitting={isSubmitting}
-                autoFillTime={autoFillTime}
-            />
+            <div className="space-y-6">
+                <UnifiedZiweiForm
+                    formData={formData}
+                    onUpdate={updateField}
+                    unknownTime={unknownTime}
+                    onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
+                    onSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                />
 
-            {/* 提示信息 */}
-            <p className="text-center text-sm text-foreground-secondary mt-6">
-                紫微斗数对出生时辰要求精确，请尽量选择准确的时辰以获得更准确的命盘
-            </p>
+                {/* 提示信息 */}
+                <p className="text-center text-xs text-foreground-secondary">
+                    紫微斗数对出生时辰要求精确，请尽量选择准确的时辰以获得更准确的命盘
+                </p>
+            </div>
         </div>
     );
 }
 
+// 主导出组件 - 使用 Suspense 包装
 export default function ZiweiPage() {
     return (
         <Suspense fallback={

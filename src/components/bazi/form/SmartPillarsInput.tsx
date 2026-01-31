@@ -84,17 +84,19 @@ const STEP_LABELS: Record<SelectionStep, string> = {
     'complete': '完成',
 };
 
+const EMPTY_PILLARS = {
+    year: { stem: '', branch: '' },
+    month: { stem: '', branch: '' },
+    day: { stem: '', branch: '' },
+    hour: { stem: '', branch: '' },
+};
+
 export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
     const [possibleDates, setPossibleDates] = useState<ReversedDateTime[]>([]);
     const [showDateSelector, setShowDateSelector] = useState(false);
 
     // 初始化为空的四柱
-    const pillars = value || {
-        year: { stem: '', branch: '' },
-        month: { stem: '', branch: '' },
-        day: { stem: '', branch: '' },
-        hour: { stem: '', branch: '' },
-    };
+    const pillars = value || EMPTY_PILLARS;
 
     // 判断柱是否完整
     const isPillarComplete = (p: PillarData) => p.stem !== '' && p.branch !== '';
