@@ -17,20 +17,20 @@
   --background-secondary: #f5f5f5;
   --foreground: #000000;
   --foreground-secondary: #666666;
-  
+
   /* 强调色 - 金色点缀 */
   --accent: #D4AF37;
   --accent-light: #f5e6b8;
-  
+
   /* 边框和分隔线 */
   --border: #e5e5e5;
   --border-hover: #d4d4d4;
-  
+
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  
+
   /* 侧边栏宽度 */
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 72px;
@@ -60,13 +60,13 @@
   --background-secondary: #1a1a1a;
   --foreground: #ffffff;
   --foreground-secondary: #a0a0a0;
-  
+
   --accent: #D4AF37;
   --accent-light: #3d3520;
-  
+
   --border: #2a2a2a;
   --border-hover: #3a3a3a;
-  
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
@@ -82,7 +82,7 @@
   --color-accent-light: var(--accent-light);
   --color-border: var(--border);
   --color-border-hover: var(--border-hover);
-  
+
   /* 字体 */
   --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: var(--font-geist-mono);
@@ -126,26 +126,49 @@ body {
   background: var(--border-hover);
 }
 
+/* ===== 隐藏滚动条 ===== */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ===== 动画 ===== */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(10px);
   }
-  to { 
+
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes shimmer {
@@ -159,6 +182,7 @@ body {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -181,7 +205,7 @@ body {
 body,
 .theme-transition,
 .theme-transition * {
-  transition: background-color 0.3s ease, 
-              border-color 0.3s ease, 
-              color 0.3s ease;
+  transition: background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }

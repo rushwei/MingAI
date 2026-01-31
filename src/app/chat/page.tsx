@@ -161,7 +161,8 @@ export default function ChatPage() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        setSidebarOpen(window.innerWidth < 1024);
+        // 手机端默认关闭侧边栏，桌面端默认折叠显示
+        setSidebarOpen(false);
         setSidebarCollapsed(window.innerWidth >= 1024);
     }, []);
 

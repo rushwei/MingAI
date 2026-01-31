@@ -130,7 +130,7 @@ export function CheckinModal({ isOpen, onClose, onCheckinSuccess }: CheckinModal
         } finally {
             setChecking(false);
         }
-    }, [checking, status?.canCheckin, showToast]);
+    }, [checking, status?.canCheckin, showToast, onCheckinSuccess]);
 
     // 弹窗打开时获取状态
     useEffect(() => {
@@ -205,11 +205,10 @@ export function CheckinModal({ isOpen, onClose, onCheckinSuccess }: CheckinModal
                                         <button
                                             onClick={handleCheckin}
                                             disabled={!status?.canCheckin || checking}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                                                status?.todayCheckedIn
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${status?.todayCheckedIn
                                                     ? 'bg-green-500/10 text-green-600 border border-green-500/20 cursor-default'
                                                     : 'bg-amber-500 text-white hover:bg-amber-600'
-                                            } ${checking ? 'cursor-wait opacity-90' : ''}`}
+                                                } ${checking ? 'cursor-wait opacity-90' : ''}`}
                                         >
                                             {checking ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />

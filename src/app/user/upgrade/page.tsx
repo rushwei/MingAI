@@ -12,7 +12,9 @@ import {
     Crown,
     Loader2,
     ArrowLeft,
-    Key
+    Key,
+    Sparkles,
+    Zap
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
@@ -123,25 +125,22 @@ export default function UpgradePage() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
             {/* 返回按钮 */}
             <Link
                 href="/user"
-                className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors mb-6"
+                className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors mb-4 sm:mb-6"
             >
                 <ArrowLeft className="w-4 h-4" />
                 返回用户中心
             </Link>
 
             {/* 头部 - 包含当前套餐 */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-accent to-accent/80 text-white">
-                        <Crown className="w-6 h-6" />
-                    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
+                <div className="hidden md:block flex items-center gap-3">
                     <div>
-                        <h1 className="text-2xl font-bold">升级会员</h1>
-                        <p className="text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
+                        <h1 className="text-xl sm:text-2xl font-bold">升级会员</h1>
+                        <p className="text-sm sm:text-base text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
                     </div>
                 </div>
                 {user && membership && (
@@ -155,7 +154,7 @@ export default function UpgradePage() {
                             {currentPlan.toUpperCase()}
                         </span>
                         {membership.type !== 'free' && membership.expiresAt && (
-                            <span className="text-sm text-foreground-secondary">
+                            <span className="text-sm text-foreground-secondary whitespace-nowrap">
                                 {formatExpiryDate(membership.expiresAt)}
                             </span>
                         )}
@@ -165,7 +164,7 @@ export default function UpgradePage() {
 
             {/* 积分进度条 */}
             {user && membership && (
-                <div className="mb-8">
+                <div className="mb-2 sm:mb-8">
                     <CreditProgressBar
                         credits={membership.aiChatCount}
                         membershipType={membership.type}
@@ -175,16 +174,16 @@ export default function UpgradePage() {
                 </div>
             )}
 
-            {/* 激活入口 */}
-            <div className="mb-8 p-6 rounded-2xl border border-accent/30 bg-accent/5">
-                <div className="flex items-center justify-between">
+            {/* 激活码模块 */}
+            <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
+                <div className="flex items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-accent text-white">
+                        <div className="p-2 rounded-xl bg-accent/10 text-accent">
                             <Key className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="font-bold">已有激活码？</h3>
-                            <p className="text-sm text-foreground-secondary">输入激活码立即开通会员或获取积分</p>
+                            <h3 className="font-bold text-sm sm:text-base">激活码</h3>
+                            <p className="text-xs text-foreground-secondary">输入激活码开通会员或获取积分</p>
                         </div>
                     </div>
                     <button
@@ -195,39 +194,23 @@ export default function UpgradePage() {
                             }
                             setShowKeyModal(true);
                         }}
-                        className="px-6 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
+                        className="px-4 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors text-sm"
                     >
-                        激活
+                        立即激活
                     </button>
                 </div>
-            </div>
-
-            {/* 订阅套餐 */}
-            <div className="mb-12">
-                <h2 className="text-xl font-bold mb-6">订阅套餐</h2>
-                <SubscriptionPlans
-                    currentPlan={currentPlan}
-                    onSelectPlan={handleSelectPlan}
-                />
-                <p className="text-center text-sm text-foreground-secondary mt-4">
-                    点击套餐输入激活码开通
-                </p>
-            </div>
-
-            {/* 获取激活码说明 */}
-            {(purchaseLinks.plus || purchaseLinks.pro || purchaseLinks.credits) && (
-                <div className="mb-8 p-6 rounded-2xl border border-border bg-background">
-                    <h3 className="font-bold mb-4">获取激活码</h3>
-                    <div className="flex flex-wrap gap-3">
+                {(purchaseLinks.plus || purchaseLinks.pro || purchaseLinks.credits) && (
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
+                        <span className="text-xs text-foreground-secondary mr-1 leading-7">购买：</span>
                         {purchaseLinks.plus && (
                             <a
                                 href={purchaseLinks.plus}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors font-medium"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-xs font-medium"
                             >
-                                <Crown className="w-4 h-4" />
-                                获取 Plus 会员
+                                <Crown className="w-3.5 h-3.5" />
+                                Plus
                             </a>
                         )}
                         {purchaseLinks.pro && (
@@ -235,10 +218,10 @@ export default function UpgradePage() {
                                 href={purchaseLinks.pro}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 transition-colors font-medium"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 transition-colors text-xs font-medium"
                             >
-                                <Crown className="w-4 h-4" />
-                                获取 Pro 会员
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Pro
                             </a>
                         )}
                         {purchaseLinks.credits && (
@@ -246,15 +229,27 @@ export default function UpgradePage() {
                                 href={purchaseLinks.credits}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors font-medium"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors text-xs font-medium"
                             >
-                                <Key className="w-4 h-4" />
-                                获取积分
+                                <Zap className="w-3.5 h-3.5" />
+                                积分
                             </a>
                         )}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
+
+            {/* 订阅套餐 */}
+            <div>
+                <h2 className="hidden sm:block text-lg sm:text-xl font-bold mb-4 sm:mb-6">订阅套餐</h2>
+                <SubscriptionPlans
+                    currentPlan={currentPlan}
+                    onSelectPlan={handleSelectPlan}
+                />
+                <p className="text-center text-xs sm:text-sm text-foreground-secondary mt-3 sm:mt-4">
+                    点击套餐输入激活码开通
+                </p>
+            </div>
 
             {/* 登录弹窗 */}
             <AuthModal

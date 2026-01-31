@@ -18,7 +18,6 @@ import {
     Bell,
     Megaphone,
     Wallet,
-    Smile,
     HelpCircle,
     CircleStar,
     Scroll,
@@ -59,7 +58,6 @@ const menuItems = [
     {
         section: '账户设置',
         items: [
-            { icon: Smile, label: '个人资料', href: '/user/profile' },
             { icon: Settings, label: '设置', href: '/user/settings' },
         ],
     },
@@ -556,10 +554,13 @@ export default function UserPage() {
 
     // 已登录状态
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+        <div className="max-w-2xl mx-auto px-4 py-2 md:py-8 animate-fade-in">
             {/* 用户信息卡片 */}
-            <div className="bg-background rounded-2xl p-4 mb-6">
-                <div className="flex items-center gap-4">
+            <div className="bg-background rounded-2xl p-4 mb-2 md:mb-6">
+                <Link
+                    href="/user/profile"
+                    className="flex items-center gap-4 hover:bg-background-secondary/50 transition-colors rounded-xl p-2 -m-2"
+                >
                     <div className="w-14 h-14 rounded-full bg-background flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
                         {isProfileLoading ? (
                             <Skeleton className="w-full h-full rounded-full" />
@@ -592,16 +593,22 @@ export default function UserPage() {
                     {isMembershipLoading ? (
                         <Skeleton className="h-7 w-16 rounded-xl flex-shrink-0" />
                     ) : (
-                        <span className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
-                            ? 'bg-purple-500/10 text-purple-500'
-                            : membership?.type === 'plus'
-                                ? 'bg-amber-500/10 text-amber-500'
-                                : 'bg-gray-500/10 text-gray-500'
-                            }`}>
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.href = '/user/upgrade';
+                            }}
+                            className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer ${membership?.type === 'pro'
+                                ? 'bg-purple-500/10 text-purple-500'
+                                : membership?.type === 'plus'
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-gray-500/10 text-gray-500'
+                                }`}>
                             {membershipLabel}
-                        </span>
+                        </button>
                     )}
-                </div>
+                </Link>
 
                 {/* 经验进度条 */}
                 {level && (
@@ -612,11 +619,10 @@ export default function UserPage() {
                                 <span className="text-sm font-medium">Lv.{level.level} {level.title}</span>
                                 <button
                                     onClick={() => setShowCheckinModal(true)}
-                                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
-                                        checkinStatus?.todayCheckedIn
+                                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${checkinStatus?.todayCheckedIn
                                             ? 'bg-green-500/10 text-green-600 border border-green-500/20'
                                             : 'bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20'
-                                    }`}
+                                        }`}
                                 >
                                     <CalendarCheck className="w-3 h-3" />
                                     {checkinStatus?.todayCheckedIn ? '已签到' : '签到'}
@@ -775,11 +781,6 @@ export default function UserPage() {
                 )}
                 {signingOut ? '正在退出...' : '退出登录'}
             </button>
-
-            {/* 版本信息 */}
-            <p className="text-center text-xs text-foreground-secondary mt-6">
-                MingAI v1.9.0
-            </p>
 
             {/* 弹窗 */}
             <CheckinModal

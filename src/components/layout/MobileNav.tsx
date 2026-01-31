@@ -27,15 +27,9 @@ import {
     ScanFace,
     Hand,
     CalendarRange,
-    Github,
     Aperture,
     Tags,
-    Scroll,
-    CalendarCheck,
-    HelpCircle,
-    Bell,
     Settings,
-    CircleStar,
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 
@@ -44,29 +38,23 @@ const mainNavItems = [
     { href: '/fortune-hub', label: '运势中心', icon: Compass },
     { href: '/liuyao', label: '六爻', icon: Dices },
     { href: '/chat', label: 'AI', icon: BotMessageSquare },
-    { href: '/daily', label: '每日运势', icon: Sun },
+    { href: '/daily', label: '日运', icon: Sun },
 ];
 
 // 抽屉中显示的所有入口
 const drawerNavItems = [
     { href: '/bazi', label: '八字', icon: Orbit, emoji: '🧭' },
-    { href: '/user/checkin', label: '每日签到', icon: CalendarCheck, emoji: '📅' },
     { href: '/records', label: '命理记录', icon: Tags, emoji: '📝' },
-    { href: '/community', label: '命理社区', icon: Aperture, emoji: '💬' },
+    { href: '/community', label: '社区', icon: Aperture, emoji: '💬' },
     { href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑' },
     { href: '/ziwei', label: '紫微斗数', icon: Sparkles, emoji: '⭐' },
-    { href: '/tarot', label: '塔罗占卜', icon: Gem, emoji: '🃏' },
-    { href: '/face', label: '面相分析', icon: ScanFace, emoji: '👤' },
-    { href: '/palm', label: '手相分析', icon: Hand, emoji: '🖐️' },
-    { href: '/mbti', label: 'MBTI测试', icon: Brain, emoji: '🧩' },
-    { href: '/monthly', label: '每月运势', icon: CalendarRange, emoji: '📅' },
-    { href: '/user', label: '个人中心', icon: User, emoji: '👤' },
-    { href: '/user/charts', label: '我的命盘', icon: Scroll, emoji: '📜' },
-    { href: '/user/upgrade', label: '订阅', icon: CircleStar, emoji: '👑' },
-    { href: '/user/notifications', label: '通知', icon: Bell, emoji: '🔔' },
+    { href: '/tarot', label: '塔罗', icon: Gem, emoji: '🃏' },
+    { href: '/face', label: '面相', icon: ScanFace, emoji: '👤' },
+    { href: '/palm', label: '手相', icon: Hand, emoji: '🖐️' },
+    { href: '/mbti', label: 'MBTI', icon: Brain, emoji: '🧩' },
+    { href: '/monthly', label: '月运', icon: CalendarRange, emoji: '📅' },
+    { href: '/user', label: '我的', icon: User, emoji: '👤' },
     { href: '/user/settings', label: '设置', icon: Settings, emoji: '⚙️' },
-    { href: '/help', label: '帮助中心', icon: HelpCircle, emoji: '❓' },
-    { href: 'https://github.com/hhszzzz/MingAI/', label: '反馈建议', icon: Github, emoji: '💡', external: true },
 ];
 
 export function MobileNav() {
@@ -128,26 +116,6 @@ export function MobileNav() {
                         {drawerNavItems.map((item) => {
                             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                             const Icon = item.icon;
-
-                            if (item.external) {
-                                return (
-                                    <a
-                                        key={item.href}
-                                        href={item.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex flex-col items-center justify-center p-3 rounded-xl
-                                            bg-background-secondary hover:bg-accent/10
-                                            transition-colors duration-200"
-                                        onClick={closeDrawer}
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center mb-2">
-                                            <Icon className="w-5 h-5 text-foreground-secondary" />
-                                        </div>
-                                        <span className="text-xs text-foreground-secondary text-center">{item.label}</span>
-                                    </a>
-                                );
-                            }
 
                             if (item.href === '/user/upgrade' && isPaymentPaused) {
                                 return (
