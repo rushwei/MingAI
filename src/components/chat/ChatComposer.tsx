@@ -1083,7 +1083,7 @@ export function ChatComposer({
                                                 className="fixed inset-0 z-40"
                                                 onClick={() => setPromptDiagnosticsOpen(false)}
                                             />
-                                            <div className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 w-64 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground shadow-lg z-50">
+                                            <div className="fixed left-2 right-2 bottom-[calc(5rem+var(--sab))] md:absolute md:left-1/2 md:right-auto md:bottom-full mb-2 md:-translate-x-1/2 md:w-64 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground shadow-lg z-50">
                                                 <div className="flex items-center justify-between font-medium text-foreground-secondary">
                                                     <span>提示词使用</span>
                                                     <span className="tabular-nums">

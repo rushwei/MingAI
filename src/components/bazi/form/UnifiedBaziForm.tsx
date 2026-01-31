@@ -65,7 +65,7 @@ export function UnifiedBaziForm({
 
     return (
         <>
-            <form onSubmit={onSubmit} className="bg-background rounded-xl p-4 md:p-6 shadow-sm border border-border/50 space-y-3 md:space-y-6">
+            <form onSubmit={onSubmit} className="bg-background rounded-xl p-4 md:p-6 shadow-sm border border-border/50 space-y-3 mb-5 md:space-y-6">
                 {/* 姓名输入 */}
                 <div>
                     <label className="block text-xs md:text-sm font-medium text-foreground-secondary mb-1.5 md:mb-2">

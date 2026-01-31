@@ -252,7 +252,7 @@ function MonthlyPageContent() {
                             </div>
                         </div>
                         <Link
-                            href="/bazi"
+                            href="/user/charts"
                             className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg hover:shadow-amber-500/20"
                         >
                             去排盘

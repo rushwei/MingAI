@@ -17,6 +17,7 @@ import {
     ChevronRight,
     ChevronDown,
     User,
+    Scroll,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/calendar';
@@ -154,11 +155,11 @@ export function CalendarAlmanac({
                                 </button>
                             ) : !isPersonalized && (
                                 <Link
-                                    href="/bazi"
+                                    href="/user/charts"
                                     className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-600 hover:bg-amber-500/20 transition-colors active:scale-95"
                                 >
-                                    <User className="w-3 h-3" />
-                                    <span>个性化</span>
+                                    <Scroll className="w-3 h-3" />
+                                    <span>设置默认八字命盘以获得个性化运势服务</span>
                                 </Link>
                             )}
                         </div>
