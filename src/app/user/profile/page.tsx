@@ -180,7 +180,7 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            <ProfileHeader onBack={() => router.push('/user')} />
+            <ProfileHeader />
 
             <AvatarSection
                 fileInputRef={fileInputRef}

@@ -7,11 +7,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
     Crown,
     Loader2,
-    ArrowLeft,
     Key,
     Sparkles,
     Zap
@@ -125,59 +123,49 @@ export default function UpgradePage() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
-            {/* 返回按钮 */}
-            <Link
-                href="/user"
-                className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors mb-4 sm:mb-6"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                返回用户中心
-            </Link>
-
-            {/* 头部 - 包含当前套餐 */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
-                <div className="hidden md:block flex items-center gap-3">
-                    <div>
+        <div>
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
+                {/* 头部 - 包含当前套餐 */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
+                    <div className="hidden md:block">
                         <h1 className="text-xl sm:text-2xl font-bold">升级会员</h1>
                         <p className="text-sm sm:text-base text-foreground-secondary">解锁全部功能，尽享AI命理服务</p>
                     </div>
-                </div>
-                {user && membership && (
-                    <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${membership.type === 'pro'
-                            ? 'bg-purple-500/10 text-purple-500'
-                            : membership.type === 'plus'
-                                ? 'bg-amber-500/10 text-amber-500'
-                                : 'bg-gray-500/10 text-gray-500'
-                            }`}>
-                            {currentPlan.toUpperCase()}
-                        </span>
-                        {membership.type !== 'free' && membership.expiresAt && (
-                            <span className="text-sm text-foreground-secondary whitespace-nowrap">
-                                {formatExpiryDate(membership.expiresAt)}
+                    {user && membership && (
+                        <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${membership.type === 'pro'
+                                ? 'bg-purple-500/10 text-purple-500'
+                                : membership.type === 'plus'
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-gray-500/10 text-gray-500'
+                                }`}>
+                                {currentPlan.toUpperCase()}
                             </span>
-                        )}
+                            {membership.type !== 'free' && membership.expiresAt && (
+                                <span className="text-sm text-foreground-secondary whitespace-nowrap">
+                                    {formatExpiryDate(membership.expiresAt)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 积分进度条 */}
+                {user && membership && (
+                    <div className="mb-2 sm:mb-8">
+                        <CreditProgressBar
+                            credits={membership.aiChatCount}
+                            membershipType={membership.type}
+                            lastRestoreAt={membership.lastCreditRestoreAt}
+                            extraLimit={Math.max(0, (level?.level || 1) - 1)}
+                        />
                     </div>
                 )}
-            </div>
 
-            {/* 积分进度条 */}
-            {user && membership && (
-                <div className="mb-2 sm:mb-8">
-                    <CreditProgressBar
-                        credits={membership.aiChatCount}
-                        membershipType={membership.type}
-                        lastRestoreAt={membership.lastCreditRestoreAt}
-                        extraLimit={Math.max(0, (level?.level || 1) - 1)}
-                    />
-                </div>
-            )}
-
-            {/* 激活码模块 */}
-            <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
-                <div className="flex items-center justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-3">
+                {/* 激活码模块 */}
+                <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-accent/10 text-accent">
                             <Key className="w-5 h-5" />
                         </div>
@@ -237,33 +225,34 @@ export default function UpgradePage() {
                         )}
                     </div>
                 )}
-            </div>
+                </div>
 
-            {/* 订阅套餐 */}
-            <div>
-                <h2 className="hidden sm:block text-lg sm:text-xl font-bold mb-4 sm:mb-6">订阅套餐</h2>
-                <SubscriptionPlans
-                    currentPlan={currentPlan}
-                    onSelectPlan={handleSelectPlan}
+                {/* 订阅套餐 */}
+                <div>
+                    <h2 className="hidden sm:block text-lg sm:text-xl font-bold mb-4 sm:mb-6">订阅套餐</h2>
+                    <SubscriptionPlans
+                        currentPlan={currentPlan}
+                        onSelectPlan={handleSelectPlan}
+                    />
+                    <p className="text-center text-xs sm:text-sm text-foreground-secondary mt-3 sm:mt-4">
+                        点击套餐输入激活码开通
+                    </p>
+                </div>
+
+                {/* 登录弹窗 */}
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
                 />
-                <p className="text-center text-xs sm:text-sm text-foreground-secondary mt-3 sm:mt-4">
-                    点击套餐输入激活码开通
-                </p>
+
+                {/* Key激活弹窗 */}
+                <KeyActivationModal
+                    isOpen={showKeyModal}
+                    onClose={() => setShowKeyModal(false)}
+                    onSuccess={handleKeySuccess}
+                    purchaseLinks={purchaseLinks}
+                />
             </div>
-
-            {/* 登录弹窗 */}
-            <AuthModal
-                isOpen={showAuthModal}
-                onClose={() => setShowAuthModal(false)}
-            />
-
-            {/* Key激活弹窗 */}
-            <KeyActivationModal
-                isOpen={showKeyModal}
-                onClose={() => setShowKeyModal(false)}
-                onSuccess={handleKeySuccess}
-                purchaseLinks={purchaseLinks}
-            />
         </div>
     );
 }

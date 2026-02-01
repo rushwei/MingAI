@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    ArrowLeft,
     Moon,
     Sun,
     Bell,
@@ -233,22 +232,14 @@ export default function SettingsPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-6">
-                {/* 头部 */}
-                <div className="flex items-center gap-3 mb-6">
-                    <button
-                        onClick={() => router.push('/user')}
-                        className="p-2 rounded-xl hover:bg-background-secondary transition-colors text-foreground-secondary hover:text-foreground"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-foreground">偏好设置</h1>
-                        <p className="text-xs text-foreground-secondary mt-0.5">定制您的 MingAI 体验</p>
-                    </div>
+            <div className="max-w-2xl mx-auto px-4 py-4 md:py-6">
+                {/* 桌面端头部 */}
+                <div className="hidden md:block mb-6">
+                    <h1 className="text-xl font-bold text-foreground">偏好设置</h1>
+                    <p className="text-xs text-foreground-secondary mt-0.5">定制您的 MingAI 体验</p>
                 </div>
 
-                <div className="space-y-6">
+                <div className="sm:space-y-6 space-y-2">
                     {/* 外观与语言 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
                         <div className="flex items-center gap-2 pb-3 border-b border-border/50">

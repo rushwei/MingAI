@@ -10,7 +10,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
 import { buildViewResult, type TestResult } from '@/lib/mbti';
 import { supabase } from '@/lib/supabase';
@@ -24,10 +24,12 @@ import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { readSessionJSON } from '@/lib/cache';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 function MBTIResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const viewType = searchParams.get('type');
     const isViewMode = searchParams.get('view') === 'true';
 
@@ -300,18 +302,39 @@ function MBTIResultContent() {
     const isTestMode = !isViewMode && result.scores && result.percentages;
     const readingId = (result as unknown as { readingId?: string }).readingId;
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [];
+        if (readingId) {
+            items.push({
+                id: 'add-to-kb',
+                label: '加入知识库',
+                onClick: () => setKbModalOpen(true),
+            });
+        }
+        if (isTestMode) {
+            items.push({
+                id: 'retest',
+                label: '重新测试',
+                icon: <RotateCw className="w-4 h-4" />,
+                onClick: () => router.push('/mbti'),
+            });
+        }
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [readingId, isTestMode, router, setMenuItems, clearMenuItems]);
+
     return (
         <div className="min-h-screen bg-background relative overflow-x-hidden">
             {/* Background Effects */}
             {/* Background Effects Removed */}
 
-            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10">
-                {/* 返回 */}
+            <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 relative z-10">
+                {/* 返回 - 仅桌面端显示 */}
                 <Link
                     href="/mbti"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-8"
+                    className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-8"
                 >
-                    <ArrowLeft className="w-4 h-4" />
                     <span className="text-sm font-medium">返回 MBTI 首页</span>
                 </Link>
 

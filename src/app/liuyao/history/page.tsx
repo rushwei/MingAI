@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Dices, ArrowRight } from 'lucide-react';
+import { Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Dices, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { findHexagram } from '@/lib/liuyao';
@@ -143,25 +143,17 @@ export default function LiuyaoHistoryPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* 头部 */}
-                <div className="flex items-center justify-between gap-4 mb-8">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/liuyao"
-                            className="p-2 rounded-xl hover:bg-background-secondary transition-colors border border-transparent hover:border-border"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-2">
-                                <Dices className="w-6 h-6 text-emerald-500" />
-                                六爻起卦历史
-                            </h1>
-                            <p className="text-foreground-secondary text-sm mt-1">
-                                易经六十四卦，指引人生方向
-                            </p>
-                        </div>
+            <div className="max-w-6xl mx-auto px-4 py-4 md:py-8">
+                {/* 头部 - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold flex items-center gap-2">
+                            <Dices className="w-6 h-6 text-emerald-500" />
+                            六爻起卦历史
+                        </h1>
+                        <p className="text-foreground-secondary text-sm mt-1">
+                            易经六十四卦，指引人生方向
+                        </p>
                     </div>
                 </div>
 

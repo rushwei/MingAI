@@ -109,7 +109,7 @@ export default function LiuyaoPage() {
 
             <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-20">
                 {/* 问题输入 */}
-                <div className="md:mt-0 mt-16 mb-10 text-center max-w-2xl mx-auto">
+                <div className="sm:mt-0 mt-16 sm:mb-10 mb-4 text-center max-w-2xl mx-auto">
                     <label className="block text-sm font-medium text-foreground-secondary mb-3">
                         心中默念您的问题（选填）
                     </label>

@@ -10,7 +10,7 @@ export function ResultTabs({
     onChange: (tab: ResultTab) => void;
 }) {
     return (
-        <div className="flex gap-1 p-1 bg-background-secondary rounded-xl mb-4">
+        <div className="flex gap-1 p-1 bg-background-secondary rounded-xl sm:mb-4 mb-2">
             {[
                 { id: 'basic', label: '基本信息', icon: Sparkles },
                 { id: 'professional', label: '专业排盘', icon: Calendar },

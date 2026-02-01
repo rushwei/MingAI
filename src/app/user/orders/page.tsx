@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, CreditCard, Calendar, ShoppingBag } from 'lucide-react';
+import { CreditCard, Calendar, ShoppingBag } from 'lucide-react';
 
 interface Order {
     id: string;
@@ -125,19 +125,11 @@ export default function OrdersPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* 头部 */}
-                <div className="flex items-center gap-4 mb-10">
-                    <button
-                        onClick={() => router.push('/user')}
-                        className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">订单记录</h1>
-                        <p className="text-sm text-foreground-secondary mt-1">查看您的消费历史</p>
-                    </div>
+            <div className="max-w-2xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
+                {/* 桌面端头部 */}
+                <div className="hidden md:block mb-10">
+                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">订单记录</h1>
+                    <p className="text-sm text-foreground-secondary mt-1">查看您的消费历史</p>
                 </div>
 
                 {loading ? (

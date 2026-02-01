@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
+import { Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai-config';
@@ -177,15 +177,9 @@ export default function HepanHistoryPage() {
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] -translate-x-1/2 translate-y-1/2" />
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* 头部 */}
-                <div className="flex items-center gap-4 mb-8">
-                    <Link
-                        href="/hepan"
-                        className="p-2 rounded-xl hover:bg-white/5 transition-colors text-foreground-secondary hover:text-foreground"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 relative z-10 animate-fade-in">
+                {/* 头部 - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">合盘分析历史</h1>
                         <p className="text-foreground-secondary text-sm mt-1">

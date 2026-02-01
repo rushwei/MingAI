@@ -83,10 +83,10 @@ export default function DivinePage() {
     return (
         <div className="md:min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-8">
-                {/* 返回 */}
+                {/* 返回 - 仅桌面端显示 */}
                 <Link
                     href="/liuyao"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 md:mb-6"
+                    className="hidden md:inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 md:mb-6"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     返回
@@ -94,8 +94,8 @@ export default function DivinePage() {
 
                 {/* 标题 */}
                 <div className="text-center mb-4 md:mb-8">
-                    <h1 className="text-xl md:text-2xl font-bold text-foreground">铜钱起卦</h1>
-                    <p className="text-foreground-secondary mt-1 md:mt-2 text-sm md:text-base">
+                    <h1 className="hidden md:block text-xl md:text-2xl font-bold text-foreground">铜钱起卦</h1>
+                    <p className="text-foreground-secondary md:mt-1 md:mt-2 text-sm md:text-base">
                         静心凝神，点击按钮抛掷铜钱
                     </p>
                 </div>

@@ -15,7 +15,7 @@ export function ProfileSummaryCard({
         : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute || 0).padStart(2, '0')}`;
 
     return (
-        <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-4 border border-accent/20 mb-4">
+        <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-4 border border-accent/20 sm:mb-4 mb-2">
             <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
                     <User className="w-6 h-6 text-accent" />

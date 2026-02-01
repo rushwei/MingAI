@@ -150,24 +150,24 @@ export default function SelectHexagramPage() {
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-8">
-                {/* 返回 */}
+                {/* 返回 - 仅桌面端显示 */}
                 <Link
                     href="/liuyao"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 md:mb-6"
+                    className="hidden md:inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-4 md:mb-6"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     返回
                 </Link>
 
                 {/* 标题 */}
-                <div className="text-center mb-6">
-                    <h1 className="text-xl md:text-2xl font-bold text-foreground">选卦起卦</h1>
-                    <p className="text-foreground-secondary mt-1 text-sm">
+                <div className="text-center sm:mb-6 mb-3">
+                    <h1 className="hidden md:block text-xl md:text-2xl font-bold text-foreground">选卦起卦</h1>
+                    <p className="text-foreground-secondary md:mt-1 text-sm">
                         选择已知卦象，根据当前时间计算分析
                     </p>
                 </div>
 
-                <div className="space-y-6">
+                <div className="sm:space-y-6 space-y-3">
                     {/* 选择方式切换 */}
                     <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
                         <button
@@ -249,7 +249,7 @@ export default function SelectHexagramPage() {
                     </div>
 
                     {/* 问题输入 */}
-                    <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
+                    <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4 max-sm:pt-0">
                         <label className="block text-sm font-medium text-foreground mb-2">
                             所问之事（选填）
                         </label>

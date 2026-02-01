@@ -8,81 +8,140 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     User,
     LogIn,
-    Orbit,
-    Sparkles,
-    Gem,
-    Dices,
-    HeartHandshake,
-    ScanFace,
-    Hand,
-    Brain,
+    ArrowLeft,
+    MoreVertical,
+    Moon,
     Sun,
-    CalendarRange,
-    Compass,
-    Tags,
-    Aperture,
-    type LucideIcon,
 } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { useTheme } from '../ui/ThemeProvider';
 import { AuthModal } from '../auth/AuthModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { useHeaderMenuSafe } from './HeaderMenuContext';
 
-// 路由到品牌信息的映射（移动端顶栏动态显示）
-// icon 为 null 时表示仅显示文字，不显示图标
-type RouteBranding = {
-    prefix: string;
-    icon: LucideIcon | null;
-    label: string;
-    iconClass: string;  // 完整的图标颜色类
-    bgClass: string;    // 完整的背景颜色类
+// 路由到标题的映射
+const ROUTE_LABELS: Record<string, string> = {
+    // 功能子页面
+    '/bazi/result': '八字结果',
+    '/ziwei/result': '紫微结果',
+    '/tarot/result': '塔罗结果',
+    '/tarot/history': '塔罗历史',
+    '/liuyao/result': '六爻结果',
+    '/liuyao/history': '六爻历史',
+    '/hepan/result': '合盘结果',
+    '/hepan/history': '合盘历史',
+    '/face/result': '面相结果',
+    '/face/history': '面相历史',
+    '/palm/result': '手相结果',
+    '/palm/history': '手相历史',
+    '/mbti/result': 'MBTI 结果',
+    '/mbti/history': 'MBTI 历史',
+    // 功能主页面
+    '/bazi': '八字排盘',
+    '/ziwei': '紫微斗数',
+    '/tarot': '塔罗占卜',
+    '/liuyao': '六爻占卜',
+    '/hepan': '关系合盘',
+    '/face': '面相分析',
+    '/palm': '手相分析',
+    '/mbti': 'MBTI',
+    '/daily': '每日运势',
+    '/monthly': '每月运势',
+    '/fortune-hub': '运势中心',
+    '/records': '命理记录',
+    '/community': '命理社区',
+    // 用户子页面
+    '/user/checkin': '每日签到',
+    '/user/settings/ai': 'AI 个性化',
+    '/user/settings': '偏好设置',
+    '/user/notifications': '通知中心',
+    '/user/charts': '我的命盘',
+    '/user/upgrade': '订阅会员',
+    '/user/orders': '订单记录',
+    '/user/profile': '个人资料',
+    '/user/annual-report': '年度报告',
+    '/user/knowledge-base': '知识库',
+    '/user/help': '帮助中心',
+    '/user': '个人中心',
+    '/chat': 'AI 对话',
+    '/help': '帮助中心',
+    // 六爻子页面
+    '/liuyao/select': '选卦起卦',
+    '/liuyao/divine': '铜钱起卦',
+    // 合盘子页面
+    '/hepan/create': '新建合盘',
 };
 
-const ROUTE_BRANDING: RouteBranding[] = [
-    { prefix: '/bazi', icon: Orbit, label: '八字', iconClass: 'text-amber-500', bgClass: 'bg-amber-500/10' },
-    { prefix: '/ziwei', icon: Sparkles, label: '紫微斗数', iconClass: 'text-purple-500', bgClass: 'bg-purple-500/10' },
-    { prefix: '/tarot', icon: Gem, label: '塔罗占卜', iconClass: 'text-purple-500', bgClass: 'bg-purple-500/10' },
-    { prefix: '/liuyao', icon: Dices, label: '六爻占卜', iconClass: 'text-amber-500', bgClass: 'bg-amber-500/10' },
-    { prefix: '/hepan', icon: HeartHandshake, label: '关系合盘', iconClass: 'text-rose-500', bgClass: 'bg-rose-500/10' },
-    { prefix: '/face', icon: ScanFace, label: '面相分析', iconClass: 'text-orange-500', bgClass: 'bg-orange-500/10' },
-    { prefix: '/palm', icon: Hand, label: '手相分析', iconClass: 'text-amber-500', bgClass: 'bg-amber-500/10' },
-    { prefix: '/mbti', icon: Brain, label: 'MBTI', iconClass: 'text-blue-500', bgClass: 'bg-blue-500/10' },
-    { prefix: '/daily', icon: Sun, label: '每日运势', iconClass: 'text-yellow-500', bgClass: 'bg-yellow-500/10' },
-    { prefix: '/monthly', icon: CalendarRange, label: '每月运势', iconClass: 'text-yellow-500', bgClass: 'bg-yellow-500/10' },
-    { prefix: '/fortune-hub', icon: Compass, label: '运势中心', iconClass: 'text-teal-500', bgClass: 'bg-teal-500/10' },
-    { prefix: '/records', icon: Tags, label: '命理记录', iconClass: 'text-emerald-500', bgClass: 'bg-emerald-500/10' },
-    { prefix: '/community', icon: Aperture, label: '命理社区', iconClass: 'text-purple-500', bgClass: 'bg-purple-500/10' },
-    // 用户子页面（需放在 /user 之前以优先匹配）
-    { prefix: '/user/checkin', icon: null, label: '每日签到', iconClass: '', bgClass: '' },
-    { prefix: '/user/settings/ai', icon: null, label: 'AI 个性化', iconClass: '', bgClass: '' },
-    { prefix: '/user/settings', icon: null, label: '偏好设置', iconClass: '', bgClass: '' },
-    { prefix: '/user/notifications', icon: null, label: '通知中心', iconClass: '', bgClass: '' },
-    { prefix: '/user/charts', icon: null, label: '我的命盘', iconClass: '', bgClass: '' },
-    { prefix: '/user/upgrade', icon: null, label: '订阅会员', iconClass: '', bgClass: '' },
-    { prefix: '/user/orders', icon: null, label: '订单记录', iconClass: '', bgClass: '' },
-    { prefix: '/user/profile', icon: null, label: '个人资料', iconClass: '', bgClass: '' },
-    { prefix: '/user/annual-report', icon: null, label: '年度报告', iconClass: '', bgClass: '' },
-    { prefix: '/user/knowledge-base', icon: null, label: '知识库', iconClass: '', bgClass: '' },
-    { prefix: '/user/help', icon: null, label: '帮助中心', iconClass: '', bgClass: '' },
-    // 通用页面
-    { prefix: '/user', icon: null, label: '个人中心', iconClass: '', bgClass: '' },
-    { prefix: '/chat', icon: null, label: 'AI 对话', iconClass: '', bgClass: '' },
-    { prefix: '/help', icon: null, label: '帮助中心', iconClass: '', bgClass: '' },
+// 需要显示返回按钮的子页面路径模式
+const SUB_PAGE_PATTERNS = [
+    '/user/',      // 用户子页面
+    '/bazi/result',
+    '/ziwei/result',
+    '/tarot/result',
+    '/tarot/history',
+    '/liuyao/result',
+    '/liuyao/history',
+    '/liuyao/select',
+    '/liuyao/divine',
+    '/hepan/result',
+    '/hepan/history',
+    '/hepan/create',
+    '/face/result',
+    '/face/history',
+    '/palm/result',
+    '/palm/history',
+    '/mbti/result',
+    '/mbti/history',
+    '/help',
 ];
 
 export function Header() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { theme, toggleTheme } = useTheme();
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
     const { user } = useSessionSafe();
+    const headerMenuContext = useHeaderMenuSafe();
+    const customMenuItems = headerMenuContext?.menuItems || [];
 
-    // 根据当前路由获取品牌信息
-    const currentBranding = ROUTE_BRANDING.find(item => pathname?.startsWith(item.prefix));
+    // 获取当前页面标题
+    const getPageTitle = () => {
+        if (!pathname) return 'MingAI';
+        // 优先匹配更长的路径
+        const sortedKeys = Object.keys(ROUTE_LABELS).sort((a, b) => b.length - a.length);
+        for (const key of sortedKeys) {
+            if (pathname.startsWith(key)) {
+                return ROUTE_LABELS[key];
+            }
+        }
+        return 'MingAI';
+    };
+
+    const pageTitle = getPageTitle();
+
+    // 判断是否是子页面（需要显示返回键的页面）
+    const isSubPage = pathname ? SUB_PAGE_PATTERNS.some(pattern => pathname.startsWith(pattern)) : false;
+
+    // 点击外部关闭菜单
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        if (menuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [menuOpen]);
 
     return (
         <>
@@ -95,50 +154,82 @@ export function Header() {
                     flex items-center justify-between
                 "
             >
-                {/* 移动端 Logo/功能图标 - 桌面端隐藏（已在 Sidebar 中显示） */}
-                <Link href={currentBranding ? pathname?.split('/').slice(0, 2).join('/') || '/' : '/'} className="flex items-center gap-2 lg:hidden">
-                    {currentBranding ? (
-                        currentBranding.icon ? (
-                            // 有图标的路由：显示彩色图标 + 标题
-                            <>
-                                <div className={`w-8 h-8 rounded-lg ${currentBranding.bgClass} flex items-center justify-center`}>
-                                    <currentBranding.icon className={`w-5 h-5 ${currentBranding.iconClass}`} />
-                                </div>
-                                <span className="font-bold text-lg text-foreground">{currentBranding.label}</span>
-                            </>
-                        ) : (
-                            // 无图标的路由：显示 MingAI logo + 自定义标题
-                            <>
-                                <Image
-                                    src="/Logo.png"
-                                    alt="MingAI Logo"
-                                    width={32}
-                                    height={32}
-                                    className="rounded-lg"
-                                />
-                                <span className="font-bold text-lg text-foreground">{currentBranding.label}</span>
-                            </>
-                        )
-                    ) : (
-                        // 默认：MingAI Logo
-                        <>
-                            <Image
-                                src="/Logo.png"
-                                alt="MingAI Logo"
-                                width={32}
-                                height={32}
-                                className="rounded-lg"
-                            />
-                            <span className="font-bold text-lg text-foreground">MingAI</span>
-                        </>
-                    )}
-                </Link>
+                {/* 移动端：返回键(子页面) + 居中标题 + 三点菜单 */}
+                {isSubPage ? (
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 -ml-2 rounded-full hover:bg-background-secondary transition-colors lg:hidden"
+                        type="button"
+                    >
+                        <ArrowLeft className="w-5 h-5 text-foreground" />
+                    </button>
+                ) : (
+                    <div className="w-9 lg:hidden" />
+                )}
 
-                {/* 桌面端占位 - 保持布局平衡 */}
+                <h1 className="text-base font-semibold text-foreground truncate max-w-[60%] lg:hidden">
+                    {pageTitle}
+                </h1>
+
+                <div className="relative lg:hidden" ref={menuRef}>
+                    <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        className="p-2 -mr-2 rounded-full hover:bg-background-secondary transition-colors"
+                        type="button"
+                    >
+                        <MoreVertical className="w-5 h-5 text-foreground-secondary" />
+                    </button>
+
+                    {menuOpen && (
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-background border border-border rounded-xl shadow-lg py-1 z-50">
+                            {/* 页面自定义菜单项 */}
+                            {customMenuItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => {
+                                        item.onClick();
+                                        setMenuOpen(false);
+                                    }}
+                                    disabled={item.disabled}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-background-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {item.icon}
+                                    {item.label}
+                                </button>
+                            ))}
+                            {/* 分隔线 */}
+                            {customMenuItems.length > 0 && (
+                                <div className="my-1 border-t border-border" />
+                            )}
+                            {/* 主题切换 */}
+                            <button
+                                onClick={() => {
+                                    toggleTheme();
+                                    setMenuOpen(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-background-secondary transition-colors"
+                            >
+                                {theme === 'dark' ? (
+                                    <>
+                                        <Sun className="w-4 h-4" />
+                                        切换到浅色
+                                    </>
+                                ) : (
+                                    <>
+                                        <Moon className="w-4 h-4" />
+                                        切换到深色
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* 桌面端占位 */}
                 <div className="hidden lg:block" />
 
-                {/* 右侧操作区 */}
-                <div className="flex items-center gap-2">
+                {/* 右侧操作区 - 移动端隐藏 */}
+                <div className="hidden lg:flex items-center gap-2">
                     {/* 主题切换按钮 */}
                     <ThemeToggle />
 

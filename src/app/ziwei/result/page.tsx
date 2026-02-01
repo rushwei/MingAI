@@ -6,7 +6,7 @@
 import { useMemo, useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Loader2, ArrowLeft, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
+import { Star, Loader2, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { calculateZiwei, type ZiweiFormData } from '@/lib/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
@@ -14,10 +14,12 @@ import { ZiweiHoroscopePanel, type HoroscopeInfo, type HoroscopeHighlight } from
 import { supabase } from '@/lib/supabase';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -274,9 +276,36 @@ function ZiweiResultContent() {
         }
     };
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [
+            {
+                id: 'edit',
+                label: '修改',
+                icon: <Edit3 className="w-4 h-4" />,
+                onClick: handleEdit,
+            },
+            {
+                id: 'save',
+                label: saved ? '已保存' : '保存',
+                icon: <Save className="w-4 h-4" />,
+                onClick: handleSave,
+                disabled: saving || saved,
+            },
+            {
+                id: 'share',
+                label: '分享',
+                icon: <Share2 className="w-4 h-4" />,
+                onClick: handleShare,
+            },
+        ];
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [saving, saved, setMenuItems, clearMenuItems]);
+
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
                 <p className="mt-4 text-foreground-secondary">正在加载命盘...</p>
             </div>
@@ -285,7 +314,7 @@ function ZiweiResultContent() {
 
     if (notFound) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <p className="text-foreground-secondary">未找到该命盘，请返回重新选择</p>
                 <Link href="/user/charts" className="mt-4 inline-block text-accent hover:underline">
                     返回我的命盘
@@ -296,7 +325,7 @@ function ZiweiResultContent() {
 
     if (!chart) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <p className="text-foreground-secondary">命盘计算出错，请返回重新输入</p>
                 <Link href="/ziwei" className="mt-4 inline-block text-accent hover:underline">
                     返回重新输入
@@ -306,14 +335,13 @@ function ZiweiResultContent() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto md:px-4 py-6 animate-fade-in">
-            {/* 头部操作栏 */}
-            <div className="flex items-center justify-between mb-6">
+        <div className="max-w-5xl mx-auto md:px-4 sm:py-6 py-2 animate-fade-in">
+            {/* 头部操作栏 - 仅桌面端显示 */}
+            <div className="hidden md:flex items-center justify-between mb-6">
                 <Link
                     href={chartId ? '/user/charts' : '/ziwei'}
                     className="flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4" />
                     返回
                 </Link>
                 <div className="flex items-center gap-2">
@@ -449,7 +477,7 @@ function ZiweiResultContent() {
 export default function ZiweiResultPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
                 <p className="mt-4 text-foreground-secondary">正在排盘...</p>
             </div>

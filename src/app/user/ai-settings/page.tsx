@@ -232,9 +232,9 @@ export default function AISettingsPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
+                {/* 桌面端 Header */}
+                <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.back()}
@@ -258,16 +258,16 @@ export default function AISettingsPage() {
                         type="button"
                         onClick={handleSave}
                         disabled={saving}
-                        className="hidden md:inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-md shadow-accent/20 font-medium text-sm"
+                        className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-md shadow-accent/20 font-medium text-sm"
                     >
                         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         保存设置
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-3 sm:gap-6 gap-2">
                     {/* 左侧主要设置区域 */}
-                    <div className="xl:col-span-2 space-y-5">
+                    <div className="xl:col-span-2 sm:space-y-5 space-y-2">
                         {membershipType === 'free' ? (
                             <div className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 rounded-2xl p-4 border border-border opacity-60 cursor-not-allowed shadow-sm">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />

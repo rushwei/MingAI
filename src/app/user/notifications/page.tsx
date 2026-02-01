@@ -7,9 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-    ArrowLeft,
     Bell,
     CheckCheck,
     Loader2,
@@ -212,16 +210,10 @@ export default function NotificationsPage() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 标题栏 */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    <Link
-                        href="/user"
-                        className="p-2 -ml-2 rounded-lg hover:bg-background-secondary transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
+        <div className="animate-fade-in">
+            <div className="max-w-2xl mx-auto px-4 py-2 md:py-8">
+                {/* 桌面端标题栏 */}
+                <div className="hidden md:flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <h1 className="text-xl font-bold">消息通知</h1>
                         {unreadCount > 0 && (
@@ -230,46 +222,76 @@ export default function NotificationsPage() {
                             </span>
                         )}
                     </div>
+
+                    {/* 操作按钮 */}
+                    <div className="flex items-center gap-2">
+                        {notifications.length > 0 && !selectMode && (
+                            <button
+                                onClick={handleMarkAllRead}
+                                disabled={isProcessing || unreadCount === 0}
+                                className="text-sm px-3 py-1.5 rounded-lg text-foreground-secondary hover:bg-background-secondary transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isProcessing ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CheckCheck className="w-4 h-4" />
+                                )}
+                                一键已读
+                            </button>
+                        )}
+                        {notifications.length > 0 && (
+                            <button
+                                onClick={toggleSelectMode}
+                                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${selectMode
+                                    ? 'bg-accent/10 text-accent'
+                                    : 'text-foreground-secondary hover:bg-background-secondary'
+                                    }`}
+                            >
+                                {selectMode ? '取消' : '多选'}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* 操作按钮 */}
-                <div className="flex items-center gap-2">
-                    {notifications.length > 0 && !selectMode && (
-                        <button
-                            onClick={handleMarkAllRead}
-                            disabled={isProcessing || unreadCount === 0}
-                            className="text-sm px-3 py-1.5 rounded-lg text-foreground-secondary hover:bg-background-secondary transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isProcessing ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
+                {/* 移动端操作栏 */}
+                <div className="md:hidden flex items-center justify-between sm:mb-4 mb-2">
+                    {unreadCount > 0 && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-accent/10 text-accent rounded-full">
+                            {unreadCount} 未读
+                        </span>
+                    )}
+                    <div className="flex items-center gap-2 ml-auto">
+                        {notifications.length > 0 && !selectMode && unreadCount > 0 && (
+                            <button
+                                onClick={handleMarkAllRead}
+                                disabled={isProcessing}
+                                className="text-sm px-3 py-1.5 rounded-lg text-foreground-secondary hover:bg-background-secondary transition-colors"
+                            >
                                 <CheckCheck className="w-4 h-4" />
-                            )}
-                            一键已读
-                        </button>
-                    )}
-                    {notifications.length > 0 && (
-                        <button
-                            onClick={toggleSelectMode}
-                            className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${selectMode
-                                ? 'bg-accent/10 text-accent'
-                                : 'text-foreground-secondary hover:bg-background-secondary'
-                                }`}
-                        >
-                            {selectMode ? '取消' : '多选'}
-                        </button>
-                    )}
+                            </button>
+                        )}
+                        {notifications.length > 0 && (
+                            <button
+                                onClick={toggleSelectMode}
+                                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${selectMode
+                                    ? 'bg-accent/10 text-accent'
+                                    : 'text-foreground-secondary hover:bg-background-secondary'
+                                    }`}
+                            >
+                                {selectMode ? '取消' : '多选'}
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            {/* 通知列表 */}
-            {notifications.length === 0 ? (
-                <div className="text-center py-16">
-                    <Bell className="w-12 h-12 text-foreground-tertiary mx-auto mb-4" />
-                    <p className="text-foreground-secondary">暂无通知</p>
-                </div>
-            ) : (
-                <div className={`bg-background rounded-xl border border-border overflow-hidden ${selectMode ? 'mb-20' : ''}`}>
+                {/* 通知列表 */}
+                {notifications.length === 0 ? (
+                    <div className="text-center py-16">
+                        <Bell className="w-12 h-12 text-foreground-tertiary mx-auto mb-4" />
+                        <p className="text-foreground-secondary">暂无通知</p>
+                    </div>
+                ) : (
+                    <div className={`bg-background rounded-xl border border-border overflow-hidden ${selectMode ? 'mb-20' : ''}`}>
                     {notifications.map((notification, index) => {
                         const style = typeStyles[notification.type] || typeStyles.system;
                         const isSelected = selectedIds.has(notification.id);
@@ -357,47 +379,48 @@ export default function NotificationsPage() {
                             </div>
                         );
                     })}
-                </div>
-            )}
+                    </div>
+                )}
 
-            {/* 底部选择工具栏 */}
-            <BottomBar show={selectMode && notifications.length > 0}>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={toggleSelectAll}
-                        className="flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors"
-                    >
-                        {allSelected ? (
-                            <CheckSquare className="w-5 h-5 text-accent" />
-                        ) : (
-                            <Square className="w-5 h-5" />
-                        )}
-                        {allSelected ? '取消全选' : '全选'}
-                    </button>
-                    <span className="text-sm text-foreground-secondary">
-                        已选 {selectedCount} 条
-                    </span>
-                </div>
+                {/* 底部选择工具栏 */}
+                <BottomBar show={selectMode && notifications.length > 0}>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={toggleSelectAll}
+                            className="flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground transition-colors"
+                        >
+                            {allSelected ? (
+                                <CheckSquare className="w-5 h-5 text-accent" />
+                            ) : (
+                                <Square className="w-5 h-5" />
+                            )}
+                            {allSelected ? '取消全选' : '全选'}
+                        </button>
+                        <span className="text-sm text-foreground-secondary">
+                            已选 {selectedCount} 条
+                        </span>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleMarkSelectedRead}
-                        disabled={isProcessing || selectedCount === 0}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-background-secondary hover:bg-background border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <CheckCheck className="w-4 h-4" />
-                        已读
-                    </button>
-                    <button
-                        onClick={handleDeleteSelected}
-                        disabled={isProcessing || selectedCount === 0}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        删除
-                    </button>
-                </div>
-            </BottomBar>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleMarkSelectedRead}
+                            disabled={isProcessing || selectedCount === 0}
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-background-secondary hover:bg-background border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <CheckCheck className="w-4 h-4" />
+                            已读
+                        </button>
+                        <button
+                            onClick={handleDeleteSelected}
+                            disabled={isProcessing || selectedCount === 0}
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            删除
+                        </button>
+                    </div>
+                </BottomBar>
+            </div>
         </div>
     );
 }

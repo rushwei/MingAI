@@ -178,7 +178,13 @@ export function MobileNav() {
                 <div className="flex-1 overflow-y-auto p-4">
                     <div className="grid grid-cols-4 gap-3">
                         {drawerNavItems.map((item) => {
-                            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                            // 精确匹配：只有完全匹配或者是该路径的直接子页面才高亮
+                            const isActive = pathname === item.href ||
+                                (pathname?.startsWith(item.href + '/') && !drawerNavItems.some(other =>
+                                    other.href !== item.href &&
+                                    other.href.startsWith(item.href + '/') &&
+                                    (pathname === other.href || pathname?.startsWith(other.href + '/'))
+                                ));
                             const Icon = item.icon;
 
                             if (item.href === '/user/upgrade' && isPaymentPaused) {

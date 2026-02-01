@@ -255,7 +255,7 @@ function DailyPageContent() {
 
     return (
         <div className="min-h-screen bg-background relative overflow-hidden md:pb-24">
-            <div className="max-w-7xl mx-auto px-4 md:py-8 py-2 relative z-10 space-y-6">
+            <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 relative z-10 space-y-6">
 
                 {/* 顶部标题 - 仅桌面端显示 */}
                 {/* <header className="hidden md:block text-center mb-8 pt-4">

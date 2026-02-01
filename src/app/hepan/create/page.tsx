@@ -299,29 +299,29 @@ function HepanCreateContent() {
                 <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2" />
             </div>
 
-            <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* 返回 */}
+            <div className="max-w-2xl mx-auto px-4 sm:py-8 py-2 relative z-10 animate-fade-in">
+                {/* 返回 - 仅桌面端显示 */}
                 <Link
                     href="/hepan"
-                    className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+                    className="hidden md:inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     <span className="text-sm font-medium">返回列表</span>
                 </Link>
 
                 {/* 标题 */}
-                <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 mb-4 shadow-xl backdrop-blur-sm">
+                <div className="text-center sm:mb-10 mb-2">
+                    <div className="hidden md:inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 mb-4 shadow-xl backdrop-blur-sm">
                         <Sparkles className={`w-8 h-8 ${type === 'love' ? 'text-rose-500' :
                             type === 'business' ? 'text-blue-500' : 'text-emerald-500'
                             }`} />
                     </div>
-                    <h1 className="text-3xl font-bold text-foreground tracking-tight">{getHepanTypeName(type)}分析</h1>
-                    <p className="text-foreground-secondary mt-2 text-lg">请输入双方的出生信息，解读彼此的缘分</p>
+                    <h1 className="hidden md:block text-3xl font-bold text-foreground tracking-tight">{getHepanTypeName(type)}分析</h1>
+                    <p className="text-foreground-secondary md:mt-2 text-lg">请输入双方的出生信息，解读彼此的缘分</p>
                 </div>
 
                 {/* 输入表单 */}
-                <div className="space-y-6 mb-10">
+                <div className="sm:space-y-6 space-y-3 sm:mb-10 mb-3">
                     <BirthInput
                         label={labels[type].p1}
                         value={person1}

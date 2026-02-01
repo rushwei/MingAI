@@ -99,7 +99,7 @@ export default function AdminAIServicesPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
+        <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 animate-fade-in">
             {/* 头部 */}
             <div className="flex items-center gap-3 mb-6">
                 <button

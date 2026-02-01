@@ -7,7 +7,7 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit3, Save, Share2 } from 'lucide-react';
 import {
     calculateBazi,
     calculateProfessionalData,
@@ -27,11 +27,13 @@ import { ProfessionalSection } from '@/components/bazi/result/ProfessionalSectio
 import { ResultFooterLinks } from '@/components/bazi/result/ResultFooterLinks';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 // 结果内容组件
 function BaziResultContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     // useState 管理页面交互状态，确保切换与保存流程可控
     const [activeTab, setActiveTab] = useState<ResultTab>('professional');
     const [saving, setSaving] = useState(false);
@@ -385,6 +387,33 @@ function BaziResultContent() {
         router.push(`/bazi?${params.toString()}`);
     };
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [
+            {
+                id: 'edit',
+                label: '修改',
+                icon: <Edit3 className="w-4 h-4" />,
+                onClick: handleEdit,
+            },
+            {
+                id: 'save',
+                label: saved ? '已保存' : '保存',
+                icon: <Save className="w-4 h-4" />,
+                onClick: handleSave,
+                disabled: saving || saved,
+            },
+            {
+                id: 'share',
+                label: '分享',
+                icon: <Share2 className="w-4 h-4" />,
+                onClick: handleShare,
+            },
+        ];
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [saving, saved, setMenuItems, clearMenuItems]);
+
     // 选择大运 - 同时更新流年到该大运第一年
     const handleSelectDaYun = (index: number) => {
         if (selectedDaYunIndex === index) {
@@ -438,7 +467,7 @@ function BaziResultContent() {
 
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
                 <p className="mt-4 text-foreground-secondary">正在加载命盘...</p>
             </div>
@@ -447,7 +476,7 @@ function BaziResultContent() {
 
     if (!baziResult || !proData) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <p className="text-foreground-secondary">八字计算出错，请返回重新输入</p>
                 <Link href="/bazi" className="mt-4 inline-block text-accent hover:underline">
                     返回重新输入
@@ -459,7 +488,7 @@ function BaziResultContent() {
     const dayMasterDescription = getDayMasterDescription(baziResult.dayMaster);
 
     return (
-        <div className="max-w-4xl mx-auto md:px-2 py-6 animate-fade-in">
+        <div className="max-w-4xl mx-auto md:px-2 md:py-6 py-2 animate-fade-in">
             <ResultHeader
                 chartId={chartId}
                 saving={saving}
@@ -542,7 +571,7 @@ function BaziResultContent() {
 export default function BaziResultPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <div className="inline-block w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
                 <p className="mt-4 text-foreground-secondary">正在计算八字命盘...</p>
             </div>

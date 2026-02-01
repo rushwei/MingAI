@@ -101,9 +101,9 @@ function FortuneHubContent() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4">
                 {/* 今日概览 */}
-                <div className="bg-gradient-to-br from-background-secondary to-background border border-border/60 rounded-2xl p-6 mb-10 shadow-sm relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-background-secondary to-background border border-border/60 rounded-2xl p-6 sm:mb-10 mb-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-500" />
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">

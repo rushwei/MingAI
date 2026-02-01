@@ -339,7 +339,7 @@ function BaziPageContent() {
 export default function BaziPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 py-8 text-center">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
                 <p className="mt-4 text-foreground-secondary">加载中...</p>
             </div>

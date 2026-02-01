@@ -4,9 +4,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import {
-    ArrowLeft,
     Calendar,
     BarChart3,
     Trophy,
@@ -197,22 +195,14 @@ export default function AnnualReportPage() {
     return (
         <LoginOverlay message="登录后查看年度报告">
             <div className="min-h-screen bg-background">
-                <div className="max-w-3xl mx-auto px-4 py-8">
-                    {/* 头部 */}
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-4">
-                            <Link
-                                href="/user"
-                                className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                            <div>
-                                <h1 className="text-2xl font-bold">年度报告</h1>
-                                <p className="text-foreground-secondary text-sm mt-1">
-                                    回顾您的命理探索之旅
-                                </p>
-                            </div>
+                <div className="max-w-3xl mx-auto px-4 py-4 md:py-8">
+                    {/* 桌面端头部 */}
+                    <div className="hidden md:flex items-center justify-between mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold">年度报告</h1>
+                            <p className="text-foreground-secondary text-sm mt-1">
+                                回顾您的命理探索之旅
+                            </p>
                         </div>
                         <div className="flex items-center gap-2">
                             <select
@@ -232,6 +222,26 @@ export default function AnnualReportPage() {
                                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
                             </button>
                         </div>
+                    </div>
+
+                    {/* 移动端操作栏 */}
+                    <div className="md:hidden flex items-center justify-between mb-4">
+                        <select
+                            value={selectedYear}
+                            onChange={e => setSelectedYear(parseInt(e.target.value))}
+                            className="px-3 py-2 bg-background-secondary border border-border rounded-lg text-sm"
+                        >
+                            {[2026, 2025, 2024].map(year => (
+                                <option key={year} value={year}>{year}年</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="p-2 hover:bg-background-secondary rounded-lg transition-colors"
+                        >
+                            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
 
                     {error ? (

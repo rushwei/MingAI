@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, RotateCw, Sparkles, Loader2, Lightbulb, RefreshCw, Quote } from 'lucide-react';
+import { RotateCw, Sparkles, Loader2, Lightbulb, RefreshCw, Quote } from 'lucide-react';
 import { CompatibilityChart } from '@/components/hepan/CompatibilityChart';
 import { ConflictPoints } from '@/components/hepan/ConflictPoints';
 import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/components/hepan/CompatibilityTrendChart';
@@ -27,9 +27,11 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 export default function HepanResultPage() {
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const [result, setResult] = useState<HepanResult | null>(null);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -284,17 +286,37 @@ export default function HepanResultPage() {
     }[result.type];
     const chartId = (result as unknown as { chartId?: string }).chartId;
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [];
+        if (chartId) {
+            items.push({
+                id: 'add-to-kb',
+                label: '加入知识库',
+                onClick: () => setKbModalOpen(true),
+            });
+        }
+        items.push({
+            id: 'reanalyze',
+            label: '重新分析',
+            icon: <RotateCw className="w-4 h-4" />,
+            onClick: () => router.push('/hepan'),
+        });
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [chartId, router, setMenuItems, clearMenuItems]);
+
     return (
         <div className="min-h-screen bg-background">
             {/* 背景装饰 Removed */}
 
-            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                <div className="flex items-center justify-between mb-8">
+            <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
+                {/* 头部导航 - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center justify-between mb-8">
                     <Link
                         href="/hepan"
                         className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
                     >
-                        <ArrowLeft className="w-4 h-4" />
                         <span className="text-sm font-medium">返回列表</span>
                     </Link>
                     {!!chartId && (

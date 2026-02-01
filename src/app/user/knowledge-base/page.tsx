@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
-    ArrowLeft, BookOpenText, Loader2, Plus, Trash2,
+    BookOpenText, Loader2, Plus, Trash2,
     ChevronDown, ChevronUp, Unlink2, Save, Upload,
     FileText, Database, Sparkles, AlertCircle
 } from 'lucide-react';
@@ -58,7 +57,6 @@ async function getAccessToken() {
 }
 
 export default function KnowledgeBaseManagePage() {
-    const router = useRouter();
     const { showToast } = useToast();
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -374,26 +372,17 @@ export default function KnowledgeBaseManagePage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => router.back()}
-                            className="p-2 -ml-2 hover:bg-background rounded-full transition-colors text-foreground-secondary hover:text-foreground"
-                            type="button"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                                <BookOpenText className="w-5 h-5 text-emerald-500" />
-                                知识库
-                            </h1>
-                            <p className="text-xs text-foreground-secondary mt-0.5">
-                                构建你的个人命理数据库，让 AI 更精准地为你服务
-                            </p>
-                        </div>
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
+                {/* 桌面端 Header */}
+                <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                            <BookOpenText className="w-5 h-5 text-emerald-500" />
+                            知识库
+                        </h1>
+                        <p className="text-xs text-foreground-secondary mt-0.5">
+                            构建你的个人命理数据库，让 AI 更精准地为你服务
+                        </p>
                     </div>
                 </div>
 

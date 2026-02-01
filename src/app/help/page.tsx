@@ -112,8 +112,8 @@ export default function HelpPage() {
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* 头部 */}
-                <div className="flex items-center gap-4 mb-10">
+                {/* 头部 - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center gap-4 mb-10">
                     <Link
                         href="/user"
                         className="p-2.5 rounded-xl bg-background-secondary/50 border border-border/50 hover:bg-background-secondary hover:shadow-md transition-all text-foreground-secondary hover:text-foreground backdrop-blur-sm"

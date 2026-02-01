@@ -13,15 +13,13 @@ import {
     RefreshCw,
     Loader2,
     Send,
-    ArrowLeft,
-    // Share2,
+    BookOpenText,
 } from 'lucide-react';
 import Image from 'next/image';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-// import { TarotShareCard } from '@/components/tarot/TarotShareCard';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
@@ -30,10 +28,12 @@ import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 function TarotResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const historyTimestamp = searchParams.get('t');
     const spreadId = searchParams.get('spreadId');
     const questionParam = searchParams.get('question');
@@ -431,6 +431,28 @@ function TarotResultContent() {
         }
     };
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [];
+        if (readingId) {
+            items.push({
+                id: 'add-to-kb',
+                label: '加入知识库',
+                icon: <BookOpenText className="w-4 h-4" />,
+                onClick: () => setKbModalOpen(true),
+            });
+        }
+        items.push({
+            id: 'reshuffle',
+            label: isShuffling ? '洗牌中...' : '重新抽牌',
+            icon: <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />,
+            onClick: handleReshuffle,
+            disabled: isShuffling,
+        });
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [readingId, isShuffling, selectedSpread, setMenuItems, clearMenuItems]);
+
     if (isLoading) {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center animate-fade-in">
@@ -462,14 +484,13 @@ function TarotResultContent() {
             {/* Background Effects */}
             {/* Background Effects Removed */}
 
-            <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-8">
+            <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
+                {/* Header Navigation - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center justify-between mb-8">
                     <button
                         onClick={() => router.push('/tarot')}
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
                     >
-                        <ArrowLeft className="w-4 h-4" />
                         <span className="text-sm font-medium">返回占卜</span>
                     </button>
 
@@ -479,6 +500,7 @@ function TarotResultContent() {
                                 onClick={() => setKbModalOpen(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
                             >
+                                <BookOpenText className="w-4 h-4" />
                                 加入知识库
                             </button>
                         )}
@@ -631,15 +653,15 @@ function TarotResultContent() {
                         <div className="relative rounded-3xl p-1 group">
                             {/* Background Effects Removed */}
 
-                            <div className="relative bg-background/80 rounded-[20px] p-6 md:p-6">
+                            <div className="relative bg-background/80 rounded-[20px] p-2 md:p-6">
                                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
                                     <div>
-                                        <h2 className="text-xl font-bold flex items-center gap-3">
+                                        <h2 className="text-base font-bold flex items-center gap-3">
                                             AI 深度洞察
                                         </h2>
-                                        <p className="text-sm text-foreground-secondary mt-1">
+                                        {/* <p className="text-sm text-foreground-secondary mt-1">
                                             基于 {selectedSpread?.name} 的全方位综合解读
-                                        </p>
+                                        </p> */}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <ModelSelector
@@ -680,7 +702,7 @@ function TarotResultContent() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8">
+                                    <div className="text-center sm:py-8 py-2">
                                         {!userId ? (
                                             <div className="max-w-sm mx-auto">
                                                 <Send className="w-12 h-12 text-purple-500/30 mx-auto mb-4" />

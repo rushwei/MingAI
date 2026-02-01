@@ -7,13 +7,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hand, ArrowLeft, Loader2, MessageCircle } from 'lucide-react';
+import { Hand, Loader2, MessageCircle } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 interface PalmResultData {
     readingId?: string;
@@ -27,11 +28,40 @@ interface PalmResultData {
 
 export default function PalmResultPage() {
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const [loading, setLoading] = useState(true);
     const [resultData, setResultData] = useState<PalmResultData | null>(null);
     const [analysis, setAnalysis] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [];
+        if (resultData?.readingId) {
+            items.push({
+                id: 'add-to-kb',
+                label: '加入知识库',
+                onClick: () => setKbModalOpen(true),
+            });
+        }
+        if (resultData?.conversationId) {
+            items.push({
+                id: 'continue-chat',
+                label: '继续对话',
+                icon: <MessageCircle className="w-4 h-4" />,
+                onClick: () => router.push(`/chat?id=${resultData.conversationId}`),
+            });
+        }
+        items.push({
+            id: 'reanalyze',
+            label: '再次分析',
+            icon: <Hand className="w-4 h-4" />,
+            onClick: () => router.push('/palm'),
+        });
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [resultData?.readingId, resultData?.conversationId, router, setMenuItems, clearMenuItems]);
 
     useEffect(() => {
         const loadResult = async () => {
@@ -151,13 +181,12 @@ export default function PalmResultPage() {
                 {/* Background Effects */}
                 {/* Background Effects Removed */}
 
-                <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
-                    {/* 返回按钮 */}
+                <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
+                    {/* 返回按钮 - 仅桌面端显示 */}
                     <button
                         onClick={() => router.push('/palm')}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-6"
+                        className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-6"
                     >
-                        <ArrowLeft className="w-4 h-4" />
                         <span className="text-sm font-medium">返回</span>
                     </button>
 

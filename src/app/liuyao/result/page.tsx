@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check } from 'lucide-react';
+import { Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
 import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -38,9 +38,11 @@ import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 
 export default function ResultPage() {
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const [result, setResult] = useState<DivinationResult | null>(null);
     const [divinationId, setDivinationId] = useState<string | null>(null); // 保存的起卦记录 ID
     const [conversationId, setConversationId] = useState<string | null>(null);
@@ -300,6 +302,33 @@ export default function ResultPage() {
         return () => subscription.unsubscribe();
     }, [router]);
 
+    // 设置移动端 Header 菜单项
+    useEffect(() => {
+        const items = [];
+        items.push({
+            id: 'restart',
+            label: '重新起卦',
+            icon: <RotateCw className="w-4 h-4" />,
+            onClick: () => router.push('/liuyao'),
+        });
+        if (divinationId) {
+            items.push({
+                id: 'add-to-kb',
+                label: '加入知识库',
+                icon: <BookOpenText className="w-4 h-4" />,
+                onClick: () => setKbModalOpen(true),
+            });
+        }
+        items.push({
+            id: 'traditional',
+            label: showTraditional ? '隐藏传统分析' : '显示传统分析',
+            icon: <BookOpen className="w-4 h-4" />,
+            onClick: () => setShowTraditional(!showTraditional),
+        });
+        setMenuItems(items);
+        return () => clearMenuItems();
+    }, [divinationId, showTraditional, router, setMenuItems, clearMenuItems]);
+
     useEffect(() => {
         if (!result || interpretation) return;
 
@@ -485,13 +514,12 @@ export default function ResultPage() {
     return (
         <div className="min-h-screen bg-background pb-8 relative overflow-x-hidden">
             <div className="max-w-3xl mx-auto px-4 py-4 relative z-10 animate-fade-in">
-                {/* Header Navigation */}
-                <div className="flex items-center justify-between mb-4">
+                {/* Header Navigation - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center justify-between mb-4">
                     <Link
                         href="/liuyao"
                         className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
                     >
-                        <ArrowLeft className="w-4 h-4" />
                         <span className="text-sm">返回</span>
                     </Link>
 
@@ -509,6 +537,7 @@ export default function ResultPage() {
                                 onClick={() => setKbModalOpen(true)}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
                             >
+                                <BookOpenText className="w-3.5 h-3.5" />
                                 加入知识库
                             </button>
                         )}
@@ -580,7 +609,7 @@ export default function ResultPage() {
 
                 {/* AI Interpretation */}
                 <div className="relative rounded-xl p-px">
-                    <div className="relative bg-background/80 backdrop-blur-xl rounded-xl p-4 md:p-6">
+                    <div className="relative bg-background/80 backdrop-blur-xl rounded-xl p-2 md:p-6">
                         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 relative z-20">
                             <h2 className="text-base font-bold flex items-center gap-2">
                                 <Sparkles className="w-4 h-4 text-purple-400" />

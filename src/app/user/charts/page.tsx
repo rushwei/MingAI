@@ -3,7 +3,7 @@
 import { useState, useEffect, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
+import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeLocalCache } from '@/lib/cache';
 
@@ -70,7 +70,7 @@ function ChartList({
     onSetDefault,
 }: ChartListProps) {
     return (
-        <div className="mb-8">
+        <div className="sm:mb-8 mb-4">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                     {type === 'bazi' ? <span className="w-1.5 h-6 rounded-full bg-orange-500 block" /> : <span className="w-1.5 h-6 rounded-full bg-purple-500 block" />}
@@ -276,16 +276,10 @@ export default function ChartsPage() {
 
     return (
         <div className="md:min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-2 md:py-6 animate-fade-in">
-                {/* 头部 */}
-                <div className="flex items-center justify-between mb-2 md:mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
+            <div className="max-w-2xl mx-auto px-4 py-4 md:py-6 animate-fade-in">
+                {/* 桌面端头部 */}
+                <div className="hidden md:flex items-center justify-between mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => router.push('/user')}
-                            className="p-2 rounded-full hover:bg-slate-100 transition-colors -ml-2"
-                        >
-                            <ArrowLeft className="w-5 h-5 text-foreground" />
-                        </button>
                         <h1 className="text-xl font-bold">我的命盘</h1>
                     </div>
                 </div>

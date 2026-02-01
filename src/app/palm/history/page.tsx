@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Trash2, Loader2, Search, Hand, BookOpenText } from 'lucide-react';
+import { Calendar, Trash2, Loader2, Search, Hand, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES } from '@/lib/palm';
@@ -127,15 +127,9 @@ export default function PalmHistoryPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* 头部 */}
-                <div className="flex items-center gap-4 mb-8">
-                    <Link
-                        href="/palm"
-                        className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4">
+                {/* 头部 - 仅桌面端显示 */}
+                <div className="hidden md:flex items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-bold">手相分析历史</h1>
                         <p className="text-foreground-secondary text-sm mt-1">

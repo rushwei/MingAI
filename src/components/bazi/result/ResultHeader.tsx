@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, Edit3, Save, Check, Loader2, Share2 } from 'lucide-react';
+import { Edit3, Save, Check, Loader2, Share2 } from 'lucide-react';
 
 export function ResultHeader({
     chartId,
@@ -19,12 +19,11 @@ export function ResultHeader({
     const backHref = chartId ? '/user/charts' : '/bazi';
 
     return (
-        <div className="flex items-center justify-between mb-4">
+        <div className="hidden md:flex items-center justify-between mb-4">
             <Link
                 href={backHref}
                 className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors"
             >
-                <ArrowLeft className="w-4 h-4" />
                 返回
             </Link>
             <div className="flex items-center gap-2">
