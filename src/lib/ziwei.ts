@@ -366,27 +366,35 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
 
 /**
  * 获取大限列表
+ *
+ * 使用 iztro 提供的 palace.decadal 数据，已正确处理阳男阴女顺排、阴男阳女逆排
  */
 export function getDecadalList(chart: ZiweiChart): DecadalInfo[] {
-    // 五行局格式如 "水二局"，需要提取数字
-    const fiveElementMap: Record<string, number> = {
-        '二': 2, '三': 3, '四': 4, '五': 5, '六': 6,
-    };
-    const match = chart.fiveElement.match(/[二三四五六]/);
-    const startAge = match ? (fiveElementMap[match[0]] || 2) : 2;
+    // 从 rawAstrolabe.palaces 获取每个宫位的大限信息
+    // iztro 已经根据性别和年干阴阳正确计算了大限顺逆排
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawPalaces = chart.rawAstrolabe.palaces as any[];
 
-    return chart.palaces.map((palace, i) => ({
-        index: i,
-        startAge: startAge + i * 10,
-        endAge: startAge + (i + 1) * 10 - 1,
-        palace: {
-            index: i,
-            name: palace.name,
-            heavenlyStem: palace.heavenlyStem,
-            earthlyBranch: palace.earthlyBranch,
-        },
-        heavenlyStem: palace.heavenlyStem,
-    }));
+    // 收集所有宫位的大限信息，按起始年龄排序
+    const decadalList: DecadalInfo[] = rawPalaces.map((rawPalace, index) => {
+        const decadal = rawPalace.decadal;
+        const palace = chart.palaces[index];
+        return {
+            index,
+            startAge: decadal?.range?.[0] ?? 0,
+            endAge: decadal?.range?.[1] ?? 0,
+            palace: {
+                index,
+                name: palace.name,
+                heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+                earthlyBranch: decadal?.earthlyBranch ?? palace.earthlyBranch,
+            },
+            heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+        };
+    });
+
+    // 按起始年龄排序
+    return decadalList.sort((a, b) => a.startAge - b.startAge);
 }
 
 // ===== 三方四正 =====

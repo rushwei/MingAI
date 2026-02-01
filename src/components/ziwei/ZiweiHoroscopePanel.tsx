@@ -39,7 +39,7 @@ function SectionHeader({
     return (
         <button
             onClick={onSelect}
-            className="w-full pt-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer hover:opacity-80"
+            className="w-full md:pt-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer hover:opacity-80"
         >
             <div className="flex items-center gap-3">
                 <span className="h-2 rounded-full" />
@@ -207,20 +207,19 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
         return days;
     }, [chart, viewYear, viewMonth]);
 
-    // 大限选择 - 支持取消
+    // 大限选择 - 支持取消，切换大限时清除流年/流月/流日
     const handleDecadalSelect = (d: DecadalInfo) => {
         setSelectedDecadalIndex(prev => {
             const nextIndex = prev === d.index ? null : d.index;
             const nextSelected = nextIndex !== null;
             setDecadalSelected(nextSelected);
-            if (!nextSelected) {
-                setYearlySelected(false);
-                setMonthlySelected(false);
-                setDailySelected(false);
-                setSelectedYear(null);
-                setSelectedMonth(null);
-                setSelectedDay(null);
-            }
+            // 无论是取消还是切换大限，都清除流年/流月/流日
+            setYearlySelected(false);
+            setMonthlySelected(false);
+            setDailySelected(false);
+            setSelectedYear(null);
+            setSelectedMonth(null);
+            setSelectedDay(null);
             return nextIndex;
         });
     };
@@ -265,15 +264,15 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                         });
                     }}
                 />
-                <div className="p-3 pt-0">
-                    {displayDecadal && (
-                        <div className="text-sm text-foreground-secondary mb-2 flex items-center gap-2">
+                <div className="md:p-3 pt-0">
+                    {/* {displayDecadal && (
+                        <div className="text-sm text-foreground-secondary mb-2 flex items-center gap-2 md:pl-0 pl-3">
                             <span>当前: {displayDecadal.palace.name}</span>
                             <span>({displayDecadal.startAge}岁)</span>
                             <span className="font-medium text-purple-500">{displayDecadal.heavenlyStem}{displayDecadal.palace.earthlyBranch}</span>
                         </div>
-                    )}
-                    <div className="flex gap-2 overflow-x-auto pb-2">
+                    )} */}
+                    <div className="flex gap-2 overflow-x-auto md:pb-2">
                         {decadalList.slice(0, 10).map(d => {
                             const isSelected = decadalSelected && selectedDecadalIndex === d.index;
                             return (
@@ -324,11 +323,11 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                     }}
                 />
                 {displayDecadal && (
-                    <div className="p-3 pt-0">
-                        <div className="text-xs text-foreground-secondary mb-2">
+                    <div className="md:p-3 pt-0">
+                        {/* <div className="text-xs text-foreground-secondary mb-2 md:pl-0 pl-3">
                             {displayDecadal.startAge}岁 大限内的流年
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2">
+                        </div> */}
+                        <div className="flex gap-2 overflow-x-auto md:pb-2">
                             {yearlyList.map(yearInfo => {
                                 const isSelected = yearlySelected && selectedYear === yearInfo.year;
                                 return (
@@ -395,11 +394,11 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                         });
                     }}
                 />
-                <div className="p-3 pt-0">
-                    <div className="text-xs text-foreground-secondary mb-2">
+                <div className="md:p-3 pt-0">
+                    {/* <div className="text-xs text-foreground-secondary mb-2 md:pl-0 pl-3">
                         {viewYear}年 12个月
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2">
+                    </div> */}
+                    <div className="flex gap-2 overflow-x-auto md:pb-2">
                         {monthlyList.map(monthInfo => {
                             const isSelected = monthlySelected && selectedMonth === monthInfo.month && selectedYear === viewYear;
                             return (
@@ -459,10 +458,10 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                     }}
                 />
 
-                <div className="p-3 pt-0">
-                    <div className="text-xs text-foreground-secondary mb-2">
+                <div className="md:p-3 pt-0">
+                    {/* <div className="text-xs text-foreground-secondary mb-2 md:pl-0 pl-3">
                         {viewYear}年{viewMonth}月 {dailyList.length}天
-                    </div>
+                    </div> */}
                     <div className="grid grid-cols-7 gap-1">
                         {dailyList.map(dayInfo => {
                             const isSelected = dailySelected && selectedDay === dayInfo.day && selectedMonth === viewMonth && selectedYear === viewYear;

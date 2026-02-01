@@ -146,7 +146,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
     return (
         <div className="w-full">
             {/* 工具栏 */}
-            <div className="flex justify-end gap-2 mb-2">
+            <div className="flex justify-end gap-2 mb-2 md:pr-0 pr-3">
                 <button
                     onClick={handleCopy}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${copied
@@ -256,7 +256,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                     return (
                                         <div
                                             key={`center-${rowIdx}-${colIdx}`}
-                                            className="col-span-2 row-span-2 p-3 rounded-lg bg-gradient-to-br from-background-secondary to-background border border-border"
+                                            className="col-span-2 row-span-2 p-1 rounded-lg bg-gradient-to-br from-background-secondary to-background border border-border"
                                         >
                                             <div className="h-full flex flex-col justify-center text-sm space-y-1.5">
                                                 {/* 四柱信息 - 五行着色 */}

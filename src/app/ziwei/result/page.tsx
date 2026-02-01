@@ -306,7 +306,7 @@ function ZiweiResultContent() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-6 animate-fade-in">
+        <div className="max-w-5xl mx-auto md:px-4 py-6 animate-fade-in">
             {/* 头部操作栏 */}
             <div className="flex items-center justify-between mb-6">
                 <Link
@@ -355,7 +355,7 @@ function ZiweiResultContent() {
             </div>
 
             {/* 命主信息卡片 */}
-            <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl p-4 border border-accent/20 mb-4">
+            <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl md:p-4 p-2 border border-accent/20 md:mb-4 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
                         <Star className="w-6 h-6 text-accent" />
@@ -417,8 +417,8 @@ function ZiweiResultContent() {
                 </div>
             </div>
 
-            <section className="bg-background-secondary rounded-xl p-3 border border-border overflow-x-hidden max-w-[400px] sm:max-w-none mx-auto">
-                <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <section className="bg-background-secondary rounded-xl md:p-3 pt-2 md:border md:border-border overflow-x-hidden max-w-[390px] sm:max-w-none md:mx-auto">
+                <h2 className="text-base font-semibold mb-3 flex items-center gap-2 md:pl-0 pl-3">
                     <Star className="w-4 h-4 text-accent" />
                     紫微斗数命盘
                 </h2>
@@ -426,7 +426,7 @@ function ZiweiResultContent() {
             </section>
 
             {/* 运限分析 */}
-            <section className="mt-4 max-w-[400px] sm:max-w-none mx-auto">
+            <section className="mt-4 max-w-[390px] sm:max-w-none mx-auto">
                 <ZiweiHoroscopePanel
                     chart={chart}
                     onPalaceHighlight={setHoroscopeHighlight}

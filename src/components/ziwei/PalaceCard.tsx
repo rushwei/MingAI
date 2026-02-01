@@ -69,7 +69,7 @@ export function PalaceCard({
                 <span className={`text-xs font-semibold ${isLifePalace ? 'text-accent' : 'text-foreground'}`}>
                     {palace.name}
                     {palace.isBodyPalace && (
-                        <span className="ml-1 px-1 py-0.5 text-[9px] bg-amber-500/20 text-amber-500 rounded font-medium">
+                        <span className="md:ml-1 ml-0 px-1 py-0.5 text-[9px] bg-amber-500/20 text-amber-500 rounded font-medium">
                             身宫
                         </span>
                     )}
