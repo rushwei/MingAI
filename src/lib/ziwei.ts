@@ -49,6 +49,15 @@ export interface PalaceInfo {
     decadalIndex: number; // 大限序号
 }
 
+/** 大限数据（用于持久化存储） */
+export interface DecadalData {
+    palaceIndex: number;
+    startAge: number;
+    endAge: number;
+    heavenlyStem: string;
+    earthlyBranch: string;
+}
+
 /** 紫微命盘完整数据 */
 export interface ZiweiChart {
     // 基本信息
@@ -76,8 +85,11 @@ export interface ZiweiChart {
     // 12宫位
     palaces: PalaceInfo[];
 
-    // 原始数据（供高级功能使用）
-    rawAstrolabe: Astrolabe;
+    // 大限数据（持久化存储，保存时从 rawAstrolabe 提取）
+    decadalData?: DecadalData[];
+
+    // 原始数据（供高级功能使用，保存时会被删除）
+    rawAstrolabe?: Astrolabe;
 }
 
 // ===== 时辰映射 =====
@@ -175,6 +187,19 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
     const dayPillar = pillars[2] || '';
     const hourPillar = pillars[3] || '';
 
+    // 从 rawAstrolabe 提取大限数据（用于持久化）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decadalData: DecadalData[] = (astrolabe.palaces as any[]).map((rawPalace, index) => {
+        const decadal = rawPalace.decadal;
+        return {
+            palaceIndex: index,
+            startAge: decadal?.range?.[0] ?? 0,
+            endAge: decadal?.range?.[1] ?? 0,
+            heavenlyStem: decadal?.heavenlyStem ?? palaces[index].heavenlyStem,
+            earthlyBranch: decadal?.earthlyBranch ?? palaces[index].earthlyBranch,
+        };
+    });
+
     return {
         solarDate: astrolabe.solarDate,
         lunarDate: astrolabe.lunarDate,
@@ -196,6 +221,7 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         fiveElement: astrolabe.fiveElementsClass,
 
         palaces,
+        decadalData,
         rawAstrolabe: astrolabe,
     };
 }
@@ -299,8 +325,14 @@ type HoroscopeData = Record<string, any>;
 
 /**
  * 获取指定日期的运限信息（使用 iztro horoscope API）
+ * 需要 rawAstrolabe 存在才能计算，已保存的命盘无法使用此功能
  */
 export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiHoroscope | null {
+    // rawAstrolabe 不存在时无法计算运限
+    if (!chart.rawAstrolabe) {
+        return null;
+    }
+
     try {
         const horoscope = chart.rawAstrolabe.horoscope(date) as HoroscopeData;
         const dec = horoscope.decadal as HoroscopeData | undefined;
@@ -365,35 +397,91 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
 }
 
 /**
+ * 根据五行局获取大限起始年龄
+ * 水二局=2岁, 木三局=3岁, 金四局=4岁, 土五局=5岁, 火六局=6岁
+ */
+function getFiveElementStartAge(fiveElement: string): number {
+    if (fiveElement.includes('水二')) return 2;
+    if (fiveElement.includes('木三')) return 3;
+    if (fiveElement.includes('金四')) return 4;
+    if (fiveElement.includes('土五')) return 5;
+    if (fiveElement.includes('火六')) return 6;
+    return 2; // 默认水二局
+}
+
+/**
  * 获取大限列表
  *
- * 使用 iztro 提供的 palace.decadal 数据，已正确处理阳男阴女顺排、阴男阳女逆排
+ * 优先级：decadalData > rawAstrolabe > 五行局 fallback
+ * - decadalData: 保存时从 rawAstrolabe 提取的精确数据
+ * - rawAstrolabe: 实时计算时的原始数据
+ * - 五行局 fallback: 最后的降级方案（精度较低）
  */
 export function getDecadalList(chart: ZiweiChart): DecadalInfo[] {
-    // 从 rawAstrolabe.palaces 获取每个宫位的大限信息
-    // iztro 已经根据性别和年干阴阳正确计算了大限顺逆排
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawPalaces = chart.rawAstrolabe.palaces as any[];
+    // 优先使用 decadalData（已保存的精确数据）
+    if (chart.decadalData?.length) {
+        return chart.decadalData
+            .map((data) => {
+                const palace = chart.palaces[data.palaceIndex];
+                return {
+                    index: data.palaceIndex,
+                    startAge: data.startAge,
+                    endAge: data.endAge,
+                    palace: {
+                        index: data.palaceIndex,
+                        name: palace?.name ?? '',
+                        heavenlyStem: data.heavenlyStem,
+                        earthlyBranch: data.earthlyBranch,
+                    },
+                    heavenlyStem: data.heavenlyStem,
+                };
+            })
+            .sort((a, b) => a.startAge - b.startAge);
+    }
 
-    // 收集所有宫位的大限信息，按起始年龄排序
-    const decadalList: DecadalInfo[] = rawPalaces.map((rawPalace, index) => {
-        const decadal = rawPalace.decadal;
-        const palace = chart.palaces[index];
+    // 其次使用 rawAstrolabe（实时计算）
+    if (chart.rawAstrolabe?.palaces) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawPalaces = chart.rawAstrolabe.palaces as any[];
+
+        const decadalList: DecadalInfo[] = rawPalaces.map((rawPalace, index) => {
+            const decadal = rawPalace.decadal;
+            const palace = chart.palaces[index];
+            return {
+                index,
+                startAge: decadal?.range?.[0] ?? 0,
+                endAge: decadal?.range?.[1] ?? 0,
+                palace: {
+                    index,
+                    name: palace.name,
+                    heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+                    earthlyBranch: decadal?.earthlyBranch ?? palace.earthlyBranch,
+                },
+                heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+            };
+        });
+
+        return decadalList.sort((a, b) => a.startAge - b.startAge);
+    }
+
+    // Fallback: 基于五行局计算（精度较低，无法判断顺逆排）
+    const startAge = getFiveElementStartAge(chart.fiveElement);
+    const decadalList: DecadalInfo[] = chart.palaces.map((palace, index) => {
+        const decadalAge = startAge + index * 10;
         return {
             index,
-            startAge: decadal?.range?.[0] ?? 0,
-            endAge: decadal?.range?.[1] ?? 0,
+            startAge: decadalAge,
+            endAge: decadalAge + 9,
             palace: {
                 index,
                 name: palace.name,
-                heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
-                earthlyBranch: decadal?.earthlyBranch ?? palace.earthlyBranch,
+                heavenlyStem: palace.heavenlyStem,
+                earthlyBranch: palace.earthlyBranch,
             },
-            heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+            heavenlyStem: palace.heavenlyStem,
         };
     });
 
-    // 按起始年龄排序
     return decadalList.sort((a, b) => a.startAge - b.startAge);
 }
 
