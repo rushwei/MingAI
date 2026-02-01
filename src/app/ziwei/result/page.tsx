@@ -417,7 +417,7 @@ function ZiweiResultContent() {
                 </div>
             </div>
 
-            <section className="bg-background-secondary rounded-xl md:p-3 pt-2 md:border md:border-border overflow-x-hidden max-w-[390px] sm:max-w-none md:mx-auto">
+            <section className="bg-background-secondary rounded-xl md:p-3 pt-2 md:border md:border-border overflow-x-hidden w-full sm:max-w-none mx-auto">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2 md:pl-0 pl-3">
                     <Star className="w-4 h-4 text-accent" />
                     紫微斗数命盘

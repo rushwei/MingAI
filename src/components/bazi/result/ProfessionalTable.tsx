@@ -220,7 +220,7 @@ export function ProfessionalTable({
                 <colgroup>
                     <col className="w-8 sm:w-auto" />
                     {Array.from({ length: columnCount }).map((_, idx) => (
-                        <col key={idx} className="w-[55px] sm:w-auto" />
+                        <col key={idx} className="w-[48px] sm:w-auto" />
                     ))}
                 </colgroup>
                 <thead>
@@ -244,7 +244,7 @@ export function ProfessionalTable({
                 <tbody>
                     {/* 主星行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">主星</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">主星</td>
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs">
                                 {col.shiShen || '-'}
@@ -258,7 +258,7 @@ export function ProfessionalTable({
                     </tr>
                     {/* 天干行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">天干</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">天干</td>
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center">
                                 <span
@@ -282,7 +282,7 @@ export function ProfessionalTable({
                     </tr>
                     {/* 地支行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">地支</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">地支</td>
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center">
                                 <span
@@ -306,7 +306,7 @@ export function ProfessionalTable({
                     </tr>
                     {/* 藏干行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">藏干</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">藏干</td>
                         {/* 运势柱的藏干 */}
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center">
@@ -361,7 +361,7 @@ export function ProfessionalTable({
                     </tr>
                     {/* 星运行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">星运</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">星运</td>
                         {
                             fortuneColumns.map((col) => (
                                 <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs text-foreground-secondary/70">
@@ -379,7 +379,7 @@ export function ProfessionalTable({
                     </tr>
                     {/* 纳音行 */}
                     <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">纳音</td>
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">纳音</td>
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs text-foreground-secondary/70">
                                 {col.naYin}
@@ -394,7 +394,7 @@ export function ProfessionalTable({
                     {/* 神煞星行 */}
                     {hasShenSha && (
                         <tr>
-                            <td className="py-2 px-0.5 sm:px-1 text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                            <td className="py-2 px-0.5 sm:px-1 text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-white/60 dark:bg-black/60 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                 <button
                                     onClick={() => setShenShaExpanded(!shenShaExpanded)}
                                     className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -418,7 +418,7 @@ export function ProfessionalTable({
                                                 return (
                                                     <span
                                                         key={idx}
-                                                        className={`text-xs px-1 py-0.5 rounded whitespace-nowrap ${style.text} ${style.bg}`}
+                                                        className={`text-xs sm:px-1 py-0.5 sm:rounded whitespace-nowrap ${style.text} sm:${style.bg}`}
                                                     >
                                                         {sha}
                                                     </span>
@@ -447,7 +447,7 @@ export function ProfessionalTable({
                                                 return (
                                                     <span
                                                         key={idx}
-                                                        className={`text-xs px-1 py-0.5 rounded whitespace-nowrap ${style.text} ${style.bg}`}
+                                                        className={`text-xs sm:px-1 py-0.5 sm:rounded whitespace-nowrap ${style.text} sm:${style.bg}`}
                                                     >
                                                         {sha}
                                                     </span>

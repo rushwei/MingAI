@@ -11,8 +11,8 @@ export function DaYunTable({
     onSelect: (index: number) => void;
 }) {
     return (
-        <div className="overflow-x-auto -mx-4 px-4">
-            <div className="flex gap-2 min-w-max pb-2">
+        <div className="overflow-x-auto sm:-mx-4 sm:px-4">
+            <div className="flex sm:gap-2 gap-1 min-w-max sm:pb-2">
                 {daYun.map((dy, index) => {
                     const isSelected = selectedIndex === index;
                     const ganElement = getStemElement(dy.gan);
@@ -23,10 +23,10 @@ export function DaYunTable({
                             key={index}
                             onClick={() => onSelect(index)}
                             className={`
-                                flex-shrink-0 w-12 sm:w-16 text-center p-2 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-9.5 sm:w-16 text-center sm:p-2 rounded-lg border-2 transition-all
                                 ${isSelected
                                     ? 'border-accent bg-accent/10'
-                                    : 'border-transparent bg-background-secondary hover:bg-background'
+                                    : 'border-transparent bg-background hover:bg-background'
                                 }
                             `}
                         >

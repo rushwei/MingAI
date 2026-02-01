@@ -51,8 +51,8 @@ export function ProfessionalSection({
     const activeLiuRi: LiuRiInfo | undefined = liuRi.find(lr => lr.date === selectedLiuRiDate);
 
     return (
-        <div className="space-y-4">
-            <section className="bg-background rounded-xl md:p-4 p-1 border border-border overflow-x-hidden max-w-[390px] sm:max-w-none">
+        <div className="sm:space-y-4 space-y-1">
+            <section className="bg-background rounded-xl md:p-4 p-1 border border-border overflow-x-hidden w-full mx-auto sm:max-w-none">
                 <h2 className="text-base font-semibold mb-3">四柱详解</h2>
                 <ProfessionalTable
                     baziResult={baziResult}
@@ -66,22 +66,13 @@ export function ProfessionalSection({
                     activeLiuYue={activeLiuYue ?? undefined}
                     activeLiuRi={activeLiuRi}
                 />
-                <div className="mt-3 pt-3 border-t border-border text-sm text-foreground-secondary">
+                <div className="mt-1 sm:mt-3 sm:pt-3 border-t border-border sm:text-sm text-xs text-foreground-secondary">
                     起运：{proData.startAgeDetail}
                 </div>
             </section>
 
-            {/* 地支关系 */}
-            <DiZhiRelations
-                yearBranch={baziResult.fourPillars.year.branch}
-                monthBranch={baziResult.fourPillars.month.branch}
-                dayBranch={baziResult.fourPillars.day.branch}
-                hourBranch={baziResult.fourPillars.hour.branch}
-                isUnknownTime={isUnknownTime}
-            />
-
-            <section className="bg-background rounded-xl md:p-4 p-1 border border-border max-w-[390px] sm:max-w-none">
-                <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
+                <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-accent" />
                     大运（每运10年）
                 </h2>
@@ -93,8 +84,8 @@ export function ProfessionalSection({
             </section>
 
             {currentLiuNian.length > 0 && (
-                <section className="bg-background rounded-xl md:p-4 p-1 border border-border max-w-[390px] sm:max-w-none">
-                    <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
+                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         流年
                     </h2>
@@ -107,8 +98,8 @@ export function ProfessionalSection({
             )}
 
             {liuYue.length > 0 && (
-                <section className="bg-background rounded-xl md:p-4 p-1 border border-border max-w-[390px] sm:max-w-none">
-                    <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
+                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         {selectedLiuNianYear}年流月
                     </h2>
@@ -124,8 +115,8 @@ export function ProfessionalSection({
             )}
 
             {liuRi.length > 0 && activeLiuYue && (
-                <section className="bg-background rounded-xl md:p-4 p-1 border border-border max-w-[390px] sm:max-w-none">
-                    <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
+                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-accent" />
                         流日（{activeLiuYue.startDate} ~ {activeLiuYue.endDate}）
                     </h2>
@@ -136,6 +127,15 @@ export function ProfessionalSection({
                     />
                 </section>
             )}
+
+            {/* 地支关系 */}
+            <DiZhiRelations
+                yearBranch={baziResult.fourPillars.year.branch}
+                monthBranch={baziResult.fourPillars.month.branch}
+                dayBranch={baziResult.fourPillars.day.branch}
+                hourBranch={baziResult.fourPillars.hour.branch}
+                isUnknownTime={isUnknownTime}
+            />
         </div>
     );
 }

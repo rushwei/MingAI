@@ -203,7 +203,7 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
     };
 
     return (
-        <section className="bg-background rounded-xl border border-border overflow-hidden">
+        <section className="bg-background rounded-xl overflow-hidden">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full flex items-center justify-between p-4 hover:bg-background-tertiary/50 transition-colors"
