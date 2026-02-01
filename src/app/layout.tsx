@@ -104,8 +104,8 @@ export default function RootLayout({
 
                   {/* 主内容区 */}
                   <div className="flex-1 flex flex-col min-h-screen">
-                    {/* 顶部 Header - 仅移动端显示 */}
-                    <div className="lg:hidden">
+                    {/* 顶部 Header 占位 - 仅移动端显示 */}
+                    <div className="lg:hidden h-[var(--mobile-header-height)] safe-top flex-shrink-0">
                       <Header />
                     </div>
 
