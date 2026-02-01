@@ -58,6 +58,7 @@ import {
     MessageCircleHeart,
     BookOpenText,
     CircleQuestionMark,
+    Scroll,
 } from 'lucide-react';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 
@@ -80,6 +81,7 @@ const ALL_MOBILE_ITEMS = [
     { id: 'user', label: '我的', icon: User },
     { id: 'user/settings', label: '设置', icon: Settings },
     { id: 'user/upgrade', label: '订阅', icon: CircleStar },
+    { id: 'user/charts', label: '命盘', icon: Scroll },
     { id: 'user/notifications', label: '通知', icon: Bell },
     { id: 'user/orders', label: '订单', icon: CreditCard },
     { id: 'user/settings/ai', label: '个性化', icon: MessageCircleHeart },
@@ -91,7 +93,7 @@ const DEFAULT_MAIN_ITEMS = ['fortune-hub', 'liuyao', 'chat', 'daily'];
 const DEFAULT_DRAWER_ORDER = [
     'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
     'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-    'user/upgrade', 'user/notifications', 'user/orders',
+    'user/upgrade', 'user/charts', 'user/notifications', 'user/orders',
     'user/settings/ai', 'user/knowledge-base', 'user/help'
 ];
 
@@ -199,13 +201,14 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         setActiveDrawerId(null);
         if (!over || active.id === over.id) return;
 
-        const oldOrder = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
-        const oldIndex = oldOrder.indexOf(active.id as string);
-        const newIndex = oldOrder.indexOf(over.id as string);
+        // 使用当前显示的 drawerItems 顺序作为基础，确保新项目也能被拖拽
+        const currentOrder = drawerItems.map(item => item.id);
+        const oldIndex = currentOrder.indexOf(active.id as string);
+        const newIndex = currentOrder.indexOf(over.id as string);
 
         if (oldIndex === -1 || newIndex === -1) return;
 
-        const newOrder = arrayMove(oldOrder, oldIndex, newIndex);
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
         const newConfig = { ...config, mobileDrawerOrder: newOrder };
         setConfig(newConfig);
         handleSave(newConfig);

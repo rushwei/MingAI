@@ -38,6 +38,7 @@ import {
     CircleHelp,
     type LucideIcon,
     CircleStar,
+    Scroll,
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
@@ -64,6 +65,7 @@ const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideI
     'user': { href: '/user', label: '我的', icon: User },
     'user/settings': { href: '/user/settings', label: '设置', icon: Settings },
     'user/upgrade': { href: '/user/upgrade', label: '订阅', icon: CircleStar },
+    'user/charts': { href: '/user/charts', label: '命盘', icon: Scroll },
     'user/notifications': { href: '/user/notifications', label: '通知', icon: Bell },
     'user/orders': { href: '/user/orders', label: '订单', icon: CreditCard },
     'user/settings/ai': { href: '/user/settings/ai', label: '个性化', icon: MessageCircleHeart },
@@ -75,7 +77,7 @@ const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideI
 const DEFAULT_DRAWER_ORDER = [
     'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
     'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-    'user/upgrade', 'user/notifications', 'user/orders',
+    'user/upgrade', 'user/charts', 'user/notifications', 'user/orders',
     'user/settings/ai', 'user/knowledge-base', 'user/help'
 ];
 
