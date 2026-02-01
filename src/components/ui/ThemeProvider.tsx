@@ -1,93 +1,118 @@
 /**
  * ThemeProvider 组件
- * 
- * 为什么使用 Context？
- * - useContext 允许我们在组件树中共享主题状态，无需通过 props 层层传递
- * - 任何子组件都可以通过 useTheme() 获取和修改当前主题
- * 
- * 'use client' 标记说明：
- * - 主题切换需要与浏览器交互（localStorage、DOM 操作），所以必须在客户端运行
+ *
+ * 支持三种主题模式：
+ * - light: 浅色主题
+ * - dark: 深色主题
+ * - system: 跟随系统设置自动切换
  */
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 
-// 定义主题类型
-type Theme = 'light' | 'dark';
+// 主题模式：light、dark 或 system（跟随系统）
+type ThemeMode = 'light' | 'dark' | 'system';
+// 实际应用的主题（只有 light 或 dark）
+type AppliedTheme = 'light' | 'dark';
 
-// 定义 Context 类型
 interface ThemeContextType {
-  theme: Theme;
+  theme: AppliedTheme;
+  themeMode: ThemeMode;
   toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  setThemeMode: (mode: ThemeMode) => void;
 }
 
-// 创建 Context，默认值为 undefined
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-/**
- * Theme Provider 组件
- * 包裹应用根组件，提供主题状态管理
- */
+// 获取系统主题偏好
+function getSystemTheme(): AppliedTheme {
+  if (typeof window === 'undefined') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // useState 用于管理当前主题状态
-  // 先使用稳定的默认值，避免服务端/客户端首屏不一致
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    const savedTheme = readLocalCache<Theme>('mingai.pref.theme', Number.POSITIVE_INFINITY);
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      return savedTheme;
+  // 用户选择的主题模式
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'system';
+    const saved = readLocalCache<ThemeMode>('mingai.pref.themeMode', Number.POSITIVE_INFINITY);
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
+      return saved;
     }
-    const legacyTheme = localStorage.getItem('theme') as Theme | null;
-    if (legacyTheme === 'light' || legacyTheme === 'dark') {
-      writeLocalCache('mingai.pref.theme', legacyTheme);
-      return legacyTheme;
+    // 兼容旧版本存储
+    const legacy = readLocalCache<string>('mingai.pref.theme', Number.POSITIVE_INFINITY);
+    if (legacy === 'light' || legacy === 'dark') {
+      return legacy;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return 'system';
   });
 
-  // 当主题变化时，更新 DOM 和 localStorage
+  // 实际应用的主题
+  const [theme, setTheme] = useState<AppliedTheme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    if (themeMode === 'system') {
+      return getSystemTheme();
+    }
+    return themeMode;
+  });
+
+  // 监听系统主题变化
+  useEffect(() => {
+    if (themeMode !== 'system') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setTheme(e.matches ? 'dark' : 'light');
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [themeMode]);
+
+  // 当主题模式变化时，更新实际主题
+  useEffect(() => {
+    if (themeMode === 'system') {
+      setTheme(getSystemTheme());
+    } else {
+      setTheme(themeMode);
+    }
+    writeLocalCache('mingai.pref.themeMode', themeMode);
+  }, [themeMode]);
+
+  // 当实际主题变化时，更新 DOM
   useEffect(() => {
     const root = document.documentElement;
-
-    // 切换 dark class
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-
-    // 保存用户偏好到 localStorage
-    writeLocalCache('mingai.pref.theme', theme);
   }, [theme]);
 
-  // 切换主题的函数
+  // 切换主题：light -> dark -> system -> light
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    setThemeModeState(prev => {
+      if (prev === 'light') return 'dark';
+      if (prev === 'dark') return 'system';
+      return 'light';
+    });
   };
 
-  // 始终提供 Context，避免 useTheme 在 SSR 时报错
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode);
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, themeMode, toggleTheme, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
-/**
- * 自定义 Hook：获取主题上下文
- * 
- * 为什么封装成 Hook？
- * - 提供类型安全，确保在 Provider 内使用
- * - 简化使用方式：const { theme, toggleTheme } = useTheme()
- */
 export function useTheme() {
   const context = useContext(ThemeContext);
-
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
-
   return context;
 }

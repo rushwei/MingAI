@@ -109,8 +109,8 @@ export default function RootLayout({
                       <Header />
                     </div>
 
-                    {/* 页面内容 */}
-                    <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
+                    {/* 页面内容 - 移动端需要顶部 padding 来补偿 fixed header */}
+                    <main className="flex-1 pb-20 lg:pb-0 overflow-x-hidden pt-14 lg:pt-0">
                       {children}
                     </main>
                   </div>

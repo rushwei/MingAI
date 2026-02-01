@@ -147,11 +147,12 @@ export function Header() {
         <>
             <header
                 className="
-                    sticky top-0 z-40
+                    fixed top-0 left-0 right-0 z-40
                     safe-top-header px-4
                     bg-background/95 backdrop-blur-md
                     border-b border-border
                     flex items-center justify-between
+                    lg:hidden
                 "
             >
                 {/* 移动端：返回键(子页面) + 居中标题 + 三点菜单 */}

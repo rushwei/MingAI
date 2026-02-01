@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
     Moon,
     Sun,
+    Monitor,
     Bell,
     Globe,
     Shield,
@@ -117,7 +118,7 @@ function ReminderToggle({
 
 export default function SettingsPage() {
     const router = useRouter();
-    const { theme, toggleTheme } = useTheme();
+    const { theme, themeMode, setThemeMode } = useTheme();
     const { user, session, loading: sessionLoading } = useSessionSafe();
     const [loading, setLoading] = useState(true);
     const [settings, setSettings] = useState<Settings>({
@@ -249,26 +250,47 @@ export default function SettingsPage() {
                         {/* 主题切换 */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                                {themeMode === 'system' ? (
+                                    <Monitor className="w-5 h-5" />
+                                ) : theme === 'dark' ? (
+                                    <Moon className="w-5 h-5" />
+                                ) : (
+                                    <Sun className="w-5 h-5" />
+                                )}
                                 <div>
-                                    <p className="text-sm font-medium text-foreground">深色模式</p>
+                                    <p className="text-sm font-medium text-foreground">外观模式</p>
                                     <p className="text-xs text-foreground-secondary">
-                                        {theme === 'dark' ? '当前已开启深色外观' : '当前使用浅色外观'}
+                                        {themeMode === 'system'
+                                            ? '跟随系统自动切换'
+                                            : themeMode === 'dark'
+                                                ? '当前已开启深色外观'
+                                                : '当前使用浅色外观'}
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={toggleTheme}
-                                className={`
-                                    w-12 h-7 rounded-full transition-all duration-300 relative shadow-inner
-                                    ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}
-                                `}
-                            >
-                                <div className={`
-                                    w-5 h-5 rounded-full bg-white absolute top-1 shadow-md transition-transform duration-300
-                                    ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}
-                                `} />
-                            </button>
+                            <div className="flex gap-1 bg-background-secondary rounded-lg p-1">
+                                <button
+                                    onClick={() => setThemeMode('light')}
+                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'light' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
+                                    title="浅色模式"
+                                >
+                                    <Sun className={`w-4 h-4 ${themeMode === 'light' ? 'text-amber-500' : 'text-foreground-secondary'}`} />
+                                </button>
+                                <button
+                                    onClick={() => setThemeMode('dark')}
+                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'dark' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
+                                    title="深色模式"
+                                >
+                                    <Moon className={`w-4 h-4 ${themeMode === 'dark' ? 'text-blue-500' : 'text-foreground-secondary'}`} />
+                                </button>
+                                <button
+                                    onClick={() => setThemeMode('system')}
+                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'system' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
+                                    title="跟随系统"
+                                >
+                                    <Monitor className={`w-4 h-4 ${themeMode === 'system' ? 'text-accent' : 'text-foreground-secondary'}`} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* 语言设置 */}

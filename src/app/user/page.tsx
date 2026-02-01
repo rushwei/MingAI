@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
+import { CalendarModal } from '@/components/checkin/CalendarModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
@@ -213,6 +214,7 @@ export default function UserPage() {
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCheckinModal, setShowCheckinModal] = useState(false);
+    const [showCalendarModal, setShowCalendarModal] = useState(false);
 
     // 获取用户信息 - 先读取本地 session，再监听后续变更
     useEffect(() => {
@@ -618,7 +620,7 @@ export default function UserPage() {
                                 <Trophy className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm font-medium">Lv.{level.level} {level.title}</span>
                                 <button
-                                    onClick={() => setShowCheckinModal(true)}
+                                    onClick={() => checkinStatus?.todayCheckedIn ? setShowCalendarModal(true) : setShowCheckinModal(true)}
                                     className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${checkinStatus?.todayCheckedIn
                                             ? 'bg-green-500/10 text-green-600 border border-green-500/20'
                                             : 'bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20'
@@ -787,6 +789,11 @@ export default function UserPage() {
                 isOpen={showCheckinModal}
                 onClose={() => setShowCheckinModal(false)}
                 onCheckinSuccess={() => setCheckinStatus(prev => prev ? { ...prev, todayCheckedIn: true } : { todayCheckedIn: true, streakDays: 1 })}
+            />
+
+            <CalendarModal
+                isOpen={showCalendarModal}
+                onClose={() => setShowCalendarModal(false)}
             />
 
         </div >
