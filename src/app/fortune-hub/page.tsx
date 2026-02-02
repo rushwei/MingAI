@@ -13,7 +13,9 @@ import {
     HeartHandshake,
     Gem,
     Dices,
-    Orbit
+    Orbit,
+    ScanFace,
+    Hand,
 } from 'lucide-react';
 
 
@@ -72,6 +74,24 @@ const FORTUNE_SERVICES = [
         color: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30',
         iconColor: 'text-blue-500',
     },
+    {
+        id: 'face',
+        name: '面相分析',
+        description: 'AI 解读面部特征与运势',
+        icon: ScanFace,
+        href: '/face',
+        color: 'from-teal-500/20 to-emerald-500/20 border-teal-500/30',
+        iconColor: 'text-teal-500',
+    },
+    {
+        id: 'palm',
+        name: '手相分析',
+        description: 'AI 解读掌纹与命运线',
+        icon: Hand,
+        href: '/palm',
+        color: 'from-orange-500/20 to-rose-500/20 border-orange-500/30',
+        iconColor: 'text-orange-500',
+    },
 ];
 
 function FortuneHubContent() {
@@ -82,7 +102,7 @@ function FortuneHubContent() {
     const weekday = weekdays[today.getDay()];
 
     return (
-        <div className="min-h-screen bg-background md:pb-12">
+        <div className="sm:min-h-screen bg-background md:pb-12">
             {/* 顶部 Hero 区域 - 移动端隐藏（全宽设计） */}
             <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
@@ -101,7 +121,7 @@ function FortuneHubContent() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4">
+            <div className="max-w-4xl mx-auto px-4 sm:py-8 pt-4">
                 {/* 今日概览 */}
                 <div className="bg-gradient-to-br from-background-secondary to-background border border-border/60 rounded-2xl p-6 sm:mb-10 mb-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-500" />
@@ -189,7 +209,7 @@ function FortuneHubContent() {
                 </div>
 
                 {/* 使用提示 */}
-                <div className="bg-background-secondary/50 rounded-xl p-6 border border-border/50">
+                <div className="sm:block hidden bg-background-secondary/50 rounded-xl p-6 border border-border/50">
                     <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                         <span className="w-1 h-4 bg-emerald-500 rounded-full" />
                         使用指南
@@ -218,6 +238,14 @@ function FortuneHubContent() {
                         <li className="flex items-start gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
                             <span><strong>MBTI 测试</strong>：了解自己的性格特点和优势</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 flex-shrink-0" />
+                            <span><strong>面相分析</strong>：上传正面照片，AI 解读面部特征</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0" />
+                            <span><strong>手相分析</strong>：上传手掌照片，AI 解读掌纹命理</span>
                         </li>
                     </ul>
                 </div>

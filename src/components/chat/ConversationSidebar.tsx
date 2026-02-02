@@ -179,24 +179,70 @@ export function ConversationSidebar({
         closeActionSheet();
     };
 
+    // 格式化菜单标题显示
+    const formatMenuTitle = (conv: Conversation) => {
+        let title = conv.title.replace(/ -> /g, ' 变 ');
+        // 对于六爻和塔罗，从标题中提取内容部分
+        if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && title.includes(' - ')) {
+            title = title.split(' - ').slice(1).join(' - ');
+        }
+        return title;
+    };
+
     // 渲染单个对话项
     const renderConversationItem = (conv: Conversation) => {
         const isActionActive = actionConv?.id === conv.id;
+
+        // 从 sourceData 中提取问题
+        const question = typeof conv.sourceData?.question === 'string' ? conv.sourceData.question : null;
+        // 判断是否显示问题（塔罗、六爻等有问题的类型）
+        const showQuestion = conv.sourceType && conv.sourceType !== 'chat' && question;
+
+        // 处理标题：对于六爻和塔罗，从标题中提取内容部分（去掉问题前缀）
+        let displayTitle = conv.title.replace(/ -> /g, ' 变 ');
+        if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && displayTitle.includes(' - ')) {
+            // 标题格式为 "问题 - 内容"，只显示内容部分
+            displayTitle = displayTitle.split(' - ').slice(1).join(' - ');
+        }
+
+        // 六爻：分离主卦和变卦，用小字"变"连接
+        let mainTitle = displayTitle;
+        let changedTitle: string | null = null;
+        if (conv.sourceType === 'liuyao' && displayTitle.includes(' 变 ')) {
+            const parts = displayTitle.split(' 变 ');
+            mainTitle = parts[0];
+            changedTitle = parts.slice(1).join(' 变 ');
+        }
 
         return (
             <div
                 key={conv.id}
                 className={`
-                    group flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
+                    group flex items-start gap-3 px-4 py-2 rounded-lg cursor-pointer
                     transition-colors text-sm
                     ${(activeId === conv.id || isActionActive) ? 'bg-background-secondary' : 'hover:bg-background-secondary'}
                 `}
                 onClick={() => onSelect(conv.id)}
             >
-                <span className="flex-1 text-sm truncate min-w-0">{conv.title}</span>
+                <div className="flex-1 min-w-0">
+                    <span className="text-sm truncate flex items-center gap-1">
+                        <span className="truncate">{mainTitle}</span>
+                        {changedTitle && (
+                            <>
+                                <span className="text-[10px] text-foreground-secondary shrink-0">变</span>
+                                <span className="truncate">{changedTitle}</span>
+                            </>
+                        )}
+                    </span>
+                    {showQuestion && (
+                        <p className="text-[11px] text-foreground-secondary truncate mt-0.5">
+                            {question}
+                        </p>
+                    )}
+                </div>
                 {conv.isArchived && (
                     <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border bg-background-tertiary text-[10px] text-foreground-secondary flex-shrink-0"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border bg-background-tertiary text-[10px] text-foreground-secondary flex-shrink-0 mt-0.5"
                         title={
                             Array.isArray(conv.archivedKbIds) && conv.archivedKbIds.length
                                 ? `已归档到 ${conv.archivedKbIds.length} 个知识库`
@@ -207,7 +253,7 @@ export function ConversationSidebar({
                         {!isCollapsed && <span>归档</span>}
                     </span>
                 )}
-                <div className={`flex items-center flex-shrink-0 transition-opacity ${isActionActive ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100'}`}>
+                <div className={`flex items-center flex-shrink-0 transition-opacity mt-0.5 ${isActionActive ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100'}`}>
                     <button
                         type="button"
                         onClick={(e) => {
@@ -460,7 +506,7 @@ export function ConversationSidebar({
                         {actionView === 'menu' && (
                             <div className="p-1.5">
                                 <div className="px-2 py-1.5 text-xs text-foreground-secondary truncate border-b border-border/50 mb-1">
-                                    {actionConv.title}
+                                    {formatMenuTitle(actionConv)}
                                 </div>
                                 <div className="flex flex-col gap-0.5">
                                     {onRename && actionConv.sourceType === 'chat' && (

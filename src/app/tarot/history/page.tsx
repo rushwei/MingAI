@@ -208,14 +208,9 @@ export default function TarotHistoryPage() {
                                         </span>
                                     </div>
 
-                                    {/* 问题 */}
-                                    <h3 className="text-base font-semibold mb-3 line-clamp-2 group-hover:text-purple-500 transition-colors">
-                                        {reading.question || '无特定问题'}
-                                    </h3>
-
-                                    {/* 牌面预览 */}
-                                    <div className="flex-1">
-                                        <div className="flex flex-wrap gap-1.5 mb-4">
+                                    {/* 牌面预览 - 作为主要内容 */}
+                                    <div className="mb-3">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {reading.cards.slice(0, 3).map((card, i) => (
                                                 <div
                                                     key={i}
@@ -235,6 +230,15 @@ export default function TarotHistoryPage() {
                                                 </span>
                                             )}
                                         </div>
+                                    </div>
+
+                                    {/* 问题 - 放在下方，字体小 */}
+                                    <div className="flex-1">
+                                        {reading.question && (
+                                            <p className="text-xs text-foreground-secondary line-clamp-2">
+                                                {reading.question}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* 底部操作栏 - 默认隐藏，hover显示 */}

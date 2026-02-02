@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Dices, ArrowRight } from 'lucide-react';
+import { Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Dices } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { findHexagram } from '@/lib/liuyao';
@@ -215,7 +215,7 @@ export default function LiuyaoHistoryPage() {
                                             </span>
                                             {div.changed_hexagram_code && (
                                                 <>
-                                                    <ArrowRight className="w-3 h-3 text-foreground-tertiary" />
+                                                    <span className="text-[10px] text-foreground-tertiary">变</span>
                                                     <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/10">
                                                         {getHexagramName(div.changed_hexagram_code)}
                                                     </span>
@@ -227,24 +227,26 @@ export default function LiuyaoHistoryPage() {
                                         </span>
                                     </div>
 
-                                    {/* 问题 */}
-                                    <h3 className="text-base font-semibold mb-3 line-clamp-2 group-hover:text-emerald-500 transition-colors">
-                                        {div.question || '无特定问题'}
-                                    </h3>
-
-                                    {/* 底部信息 */}
-                                    <div className="flex-1">
+                                    {/* 变爻信息 - 作为主要内容 */}
+                                    <div className="mb-3">
                                         {div.changed_lines && div.changed_lines.length > 0 && (
                                             <p className="text-xs text-foreground-secondary bg-background/50 px-2 py-1 rounded-md inline-block">
                                                 变爻：{div.changed_lines.map(l => `第${l}爻`).join('、')}
                                             </p>
                                         )}
                                         {modelName && (
-                                            <div className="mt-2">
-                                                <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block">
-                                                    {modelName}
-                                                </span>
-                                            </div>
+                                            <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block ml-2">
+                                                {modelName}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* 问题 - 放在下方，字体小 */}
+                                    <div className="flex-1">
+                                        {div.question && (
+                                            <p className="text-xs text-foreground-secondary line-clamp-2">
+                                                {div.question}
+                                            </p>
                                         )}
                                     </div>
 

@@ -15,6 +15,8 @@ type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
 interface HistoryItem {
     id: string;
     title: string;
+    changedTitle?: string; // 变卦名称（六爻专用）
+    question?: string;
     createdAt: string;
     subType?: string;
     modelName?: string;
@@ -102,7 +104,16 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     const spreadId = item.spread_id as string;
                     const spreadName = spreadNames[spreadId] || spreadId || '塔罗占卜';
                     const question = (item.question as string)?.trim();
-                    title = question ? `${question} - ${spreadName}` : spreadName;
+                    // 标题只显示牌阵名称，问题单独存储
+                    title = spreadName;
+                    return {
+                        id: item.id as string,
+                        title,
+                        question: question || undefined,
+                        createdAt: item.created_at as string,
+                        subType,
+                        modelName,
+                    };
                 } else if (type === 'liuyao') {
                     // 使用卦名显示，支持变卦
                     const hexagramCode = item.hexagram_code as string;
@@ -111,17 +122,22 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     const hexagram = findHexagram(hexagramCode);
                     const hexagramName = hexagram?.name || '未知卦';
 
-                    let hexagramDisplay: string;
+                    let changedName: string | undefined;
                     if (changedHexagramCode) {
                         const changedHexagram = findHexagram(changedHexagramCode);
-                        const changedName = changedHexagram?.name || '未知卦';
-                        hexagramDisplay = `${hexagramName} -> ${changedName}`;
-                    } else {
-                        hexagramDisplay = hexagramName;
+                        changedName = changedHexagram?.name || '未知卦';
                     }
 
                     const question = (item.question as string)?.trim();
-                    title = question ? `${question} - ${hexagramDisplay}` : hexagramDisplay;
+                    return {
+                        id: item.id as string,
+                        title: hexagramName,
+                        changedTitle: changedName,
+                        question: question || undefined,
+                        createdAt: item.created_at as string,
+                        subType,
+                        modelName,
+                    };
                 } else if (type === 'palm') {
                     // 手相分析标题
                     const analysisType = item.analysis_type as string;
@@ -478,8 +494,14 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                             <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-yellow-400/50 group-hover/item:bg-yellow-500 transition-colors shrink-0" />
 
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-medium text-foreground group-hover/item:text-yellow-700 dark:group-hover/item:text-yellow-400 truncate transition-colors flex items-center gap-2">
+                                                <h4 className="text-sm font-medium text-foreground group-hover/item:text-yellow-700 dark:group-hover/item:text-yellow-400 truncate transition-colors flex items-center gap-1.5">
                                                     <span className="truncate">{item.title}</span>
+                                                    {item.changedTitle && (
+                                                        <>
+                                                            <span className="text-[10px] text-foreground-secondary shrink-0">变</span>
+                                                            <span className="truncate">{item.changedTitle}</span>
+                                                        </>
+                                                    )}
                                                     {item.subType && (
                                                         <span className={`
                                                             text-[10px] px-1.5 py-0.5 rounded-full shrink-0
@@ -492,6 +514,12 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                                         </span>
                                                     )}
                                                 </h4>
+                                                {/* 问题显示在标题下方 */}
+                                                {item.question && (
+                                                    <p className="text-[11px] text-foreground-secondary truncate mt-0.5">
+                                                        {item.question}
+                                                    </p>
+                                                )}
                                                 <div className="flex items-center gap-2 mt-1.5">
                                                     <span className="text-[10px] text-foreground-secondary flex items-center gap-1 bg-background/50 px-1.5 py-0.5 rounded">
                                                         <Calendar className="w-2.5 h-2.5" />
