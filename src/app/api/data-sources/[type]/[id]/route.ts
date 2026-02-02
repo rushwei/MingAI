@@ -1,31 +1,21 @@
 import '@/lib/data-sources/init';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getProvider } from '@/lib/data-sources';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { getAuthContext, jsonError } from '@/lib/api-utils';
+import { getAuthContext, jsonError, getAccessToken, createAuthedClient } from '@/lib/api-utils';
 
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ type: string; id: string }> }
 ) {
-    const { supabase, user } = await getAuthContext(_request);
+    const { user } = await getAuthContext(_request);
     if (!user) return jsonError('请先登录', 401);
 
     const { type, id } = await params;
     try {
-        const bearer = _request.headers.get('authorization');
-        const token = bearer?.replace(/Bearer\s+/i, '');
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = token || session?.access_token || null;
-        const authed = accessToken
-            ? createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-                { global: { headers: { Authorization: `Bearer ${accessToken}` } }, auth: { persistSession: false } }
-            )
-            : undefined;
+        const accessToken = await getAccessToken(_request);
+        const authed = accessToken ? createAuthedClient(accessToken) : undefined;
 
         const provider = await getProvider(type as DataSourceType);
         const data = await provider.get(id, user.id, { client: authed });

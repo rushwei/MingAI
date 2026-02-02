@@ -1,30 +1,16 @@
 /**
  * 功能上线通知 API
- * 
+ *
  * 管理员触发功能上线，批量发送邮件和站内通知
- * 
+ *
  * POST /api/notifications/launch
  * Body: { featureKey: string, featureUrl: string, adminSecret: string }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendFeatureLaunchEmail } from '@/lib/email';
 import { FEATURE_NAMES } from '@/lib/notification';
-import { getServiceRoleClient } from '@/lib/api-utils';
-
-const authClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-const getAccessToken = (request: NextRequest) => {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-        return authHeader.replace('Bearer ', '');
-    }
-    return request.cookies.get('sb-access-token')?.value ?? null;
-};
+import { getServiceRoleClient, getAccessToken, createAuthedClient } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -38,8 +24,9 @@ export async function POST(request: NextRequest) {
         let isAdminUser = false;
 
         if (!hasAdminSecret) {
-            const token = getAccessToken(request);
+            const token = await getAccessToken(request);
             if (token) {
+                const authClient = createAuthedClient(token);
                 const { data: { user }, error: authError } = await authClient.auth.getUser(token);
                 if (authError) {
                     console.error('管理员验证失败:', authError);

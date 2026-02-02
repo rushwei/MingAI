@@ -1,16 +1,15 @@
 import '@/lib/data-sources/init';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
-import { getAuthContext, jsonError } from '@/lib/api-utils';
+import { getAuthContext, jsonError, getAccessToken, createAuthedClient } from '@/lib/api-utils';
 import { createMemoryCache } from '@/lib/cache';
 
 const CACHE_TTL_MS = 15_000;
 const cache = createMemoryCache<{ status: number; payload: unknown }>(CACHE_TTL_MS);
 
 export async function GET(request: NextRequest) {
-    const { supabase, user } = await getAuthContext(request);
+    const { user } = await getAuthContext(request);
     if (!user) return jsonError('请先登录', 401);
 
     try {
@@ -29,20 +28,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(cached.payload, { status: cached.status });
         }
 
-        const bearer = request.headers.get('authorization');
-        const token = bearer?.replace(/Bearer\s+/i, '');
-        let accessToken = token || null;
-        if (!accessToken) {
-            const { data: { session } } = await supabase.auth.getSession();
-            accessToken = session?.access_token || null;
-        }
-        const authed = accessToken
-            ? createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-                { global: { headers: { Authorization: `Bearer ${accessToken}` } }, auth: { persistSession: false } }
-            )
-            : undefined;
+        const accessToken = await getAccessToken(request);
+        const authed = accessToken ? createAuthedClient(accessToken) : undefined;
 
         const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit });
         const status = result.errors.length ? 206 : 200;

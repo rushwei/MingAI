@@ -127,6 +127,34 @@ export function getServiceRoleClient() {
     return getServiceClient();
 }
 
+/**
+ * 创建带有用户 access token 的 Supabase 客户端
+ * 用于需要 RLS 策略识别用户身份的场景
+ */
+export function createAuthedClient(accessToken: string) {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            global: { headers: { Authorization: `Bearer ${accessToken}` } },
+            auth: { persistSession: false }
+        }
+    );
+}
+
+/**
+ * 从请求中获取 access token（优先 Bearer，其次 session）
+ */
+export async function getAccessToken(request: NextRequest): Promise<string | null> {
+    const bearer = request.headers.get('authorization');
+    const token = bearer?.replace(/Bearer\s+/i, '');
+    if (token) return token;
+
+    const supabase = await createRequestSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+}
+
 export function jsonError(message: string, status = 400) {
     return NextResponse.json({ error: message }, { status });
 }

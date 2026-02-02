@@ -1,35 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import type { RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
-
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-            },
-        }
-    );
-}
+import { getAuthContext, jsonError, getAccessToken } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
-    const supabase = await createSupabaseClient();
-    const bearer = request.headers.get('authorization');
-    const token = bearer?.replace('Bearer ', '');
-    const { data: { user } } = token
-        ? await supabase.auth.getUser(token)
-        : await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    const { user } = await getAuthContext(request);
+    if (!user) return jsonError('请先登录', 401);
+
+    const token = await getAccessToken(request);
 
     const body = await request.json() as { query?: string; kbIds?: string[]; topK?: number };
-    if (!body.query?.trim()) return NextResponse.json({ error: 'query 不能为空' }, { status: 400 });
+    if (!body.query?.trim()) return jsonError('query 不能为空', 400);
 
     const results = await searchKnowledge(body.query, {
         kbIds: body.kbIds,

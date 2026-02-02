@@ -123,12 +123,13 @@ src/
 │   └── user/              # User dashboard (profile, charts, orders, settings, achievements, knowledge-base, ai-settings)
 ├── components/            # React components by feature
 │   ├── admin/             # Admin panels (AIModelPanel, AISourcePanel, AIStatsPanel, KeyManagementPanel, etc.)
-│   ├── bazi/form/         # Bazi form sections
+│   ├── bazi/              # Bazi components (form/, InstantBaziPreview, FourPillarsSelect)
 │   ├── ziwei/             # Ziwei chart display
 │   ├── chat/              # Chat UI (MentionPopover, MentionBadge, SourceBadge, SourcePanel)
+│   ├── checkin/           # Check-in components (CheckinModal, CalendarModal)
 │   ├── knowledge-base/    # Knowledge base management UI
-│   ├── layout/            # Sidebar, Header, MobileNav
-│   └── ui/                # Shared UI (ThemeProvider, ThemeToggle)
+│   ├── layout/            # Sidebar, Header, MobileNav, HeaderMenuContext
+│   └── ui/                # Shared UI (ThemeProvider, ThemeToggle, Toast)
 ├── lib/                   # Business logic
 │   ├── supabase.ts        # Browser-side Supabase client + types
 │   ├── supabase-server.ts # Server-side service role client
@@ -162,7 +163,13 @@ src/
 │   ├── data-sources/      # Unified data source access for AI
 │   ├── mentions.ts        # @mention parsing and resolution
 │   ├── prompt-builder.ts  # Dynamic prompt construction with context
-│   └── source-tracker.ts  # Track data sources used in AI responses
+│   ├── source-tracker.ts  # Track data sources used in AI responses
+│   ├── useStreamingWorker.ts      # Web Worker streaming hook
+│   ├── useStreamingResponse.ts    # Basic streaming response hook
+│   ├── usePaymentPause.ts         # Payment pause state hook
+│   └── checkin.ts         # Check-in system (daily checkins, rewards)
+├── workers/               # Web Workers
+│   └── sse-parser.worker.ts  # SSE stream parser (offloads JSON parsing)
 ├── tests/                 # Test files (Node.js test runner)
 └── types/index.ts         # Centralized TypeScript types
 supabase/
@@ -220,6 +227,17 @@ POST       /api/notifications/launch         # Batch send notifications
 
 ### Reusable Utilities
 
+#### Supabase Client Usage
+**Important**: Always use `api-utils.ts` helpers in API routes, avoid creating Supabase clients directly.
+
+| Scenario | Function |
+|----------|----------|
+| API route with user auth | `requireUserContext(request)` or `requireBearerUser(request)` |
+| API route with admin auth | `requireAdminUser(request)` or `requireAdminContext(request)` |
+| Bypass RLS (server-side) | `getServiceRoleClient()` |
+| Get user from request | `getAuthContext(request)` |
+| Browser-side client | `import { supabase } from '@/lib/supabase'` |
+
 #### API Utilities (`lib/api-utils.ts`)
 Standard helpers for API route handlers:
 ```typescript
@@ -235,11 +253,8 @@ jsonOk(payload, status)        // Standardized success response
 
 #### Authentication (`lib/auth.ts`)
 ```typescript
-signInWithEmail() / signUpWithEmail() / signOut()
 getCurrentUser() / getSession() / getUserProfile()
-sendOTP() / verifyOTP() / resetPasswordWithOTP()
 checkLoginAttempts() / recordLoginAttempt()
-signInWithEmailProtected()     // Login with attempt limiting
 ```
 
 #### Credits & Membership (`lib/credits.ts`, `lib/membership.ts`)
@@ -288,6 +303,83 @@ missingSearchParams(params, keys) // List missing URL params
 | `lib/source-tracker.ts` | `SourceTracker` class - Track data sources injected into prompts |
 | `lib/mentions.ts` | `parseMentions()`, `searchMentionTargets()` - @mention resolution |
 | `lib/prompt-builder.ts` | Build prompts with knowledge base, chart context, mentions |
+| `lib/streaming-utils.ts` | `createStreamingResponse()`, `createSSEResponse()`, `handleStreamingAnalysis()`, `persistWithRetry()` - Backend streaming utilities |
+| `lib/gamification.ts` | `getUserLevel()`, `addExperience()`, `calculateLevel()`, `LEVEL_CONFIG`, `XP_REWARDS` - Level & XP system |
+| `lib/format-mentions.ts` | `formatMentionsForDisplay()` - Convert @{...} tokens to readable @name format |
+| `lib/api-route-handler.ts` | `withAuth()`, `withAuthAndMembership()`, `withAuthCreditsAndModel()`, `withAIHandler()` - API route middleware chain |
+
+#### Streaming Hooks (`lib/useStreaming*.ts`)
+| Hook | Description |
+|------|-------------|
+| `useStreamingWorker` | Web Worker 版流式响应，将 SSE 解析移到 Worker 线程，释放主线程 |
+| `useStreamingResponse` | 基础流式响应处理，支持 content/reasoning 分离、平滑渲染、abort 控制 |
+| `useStreamingResponseWorker` | 结合 Worker 的流式响应处理（旧版兼容） |
+| `useStreamingText` | 流式文本平滑渲染，队列机制避免卡顿，支持动态批量大小、首字符立即显示 |
+| `usePaymentPause` | 获取支付暂停状态 |
+
+**useStreamingText 配置选项**:
+```typescript
+useStreamingText({
+    updateInterval: 25,      // 字符消费间隔 (ms)
+    batchSize: 1,            // 每次消费字符数
+    dynamicBatchSize: true,  // 根据队列长度自动调整批量
+    immediateFirstChar: true // 首字符立即显示
+});
+```
+
+#### UI Hooks & Context
+| Hook/Context | Description |
+|--------------|-------------|
+| `useToast` | Toast 通知，替代浏览器原生 alert，支持 success/error/info/warning |
+| `useHeaderMenu` | 从 HeaderMenuContext 获取菜单注入方法，允许子页面向 Header 注入自定义菜单项 |
+| `HeaderMenuProvider` | Header 菜单上下文 Provider |
+
+#### Web Workers (`src/workers/`)
+| Worker | Description |
+|--------|-------------|
+| `sse-parser.worker.ts` | SSE 流解析 Worker，支持新旧两种消息格式，处理 UTF-8 多字节字符跨 chunk |
+
+#### Reusable UI Components (`src/components/ui/`)
+| Component | Description |
+|-----------|-------------|
+| `Toast` / `ToastProvider` | Toast 通知系统，替代原生 alert |
+| `ConfirmDialog` | 通用确认弹窗，支持 danger/warning/default 样式 |
+| `CreditsModal` | 积分不足提示弹窗，引导用户购买 |
+| `MarkdownContent` | Markdown 渲染组件，已优化性能（memo + useMemo） |
+| `ModelSelector` | AI 模型选择器下拉框 |
+| `VisionModelSelector` | 视觉模型选择器（面相/手相） |
+| `PaymentPauseOverlay` | 支付暂停时的遮罩层 |
+| `ComingSoonPage` | 即将上线占位页面 |
+
+#### Auth Components (`src/components/auth/`)
+| Component | Description |
+|-----------|-------------|
+| `AuthModal` | 认证弹窗（登录/注册/忘记密码/OTP验证） |
+| `LoginOverlay` | 登录覆盖层，未登录时模糊内容并提示登录 |
+
+#### Common Components (`src/components/common/`)
+| Component | Description |
+|-----------|-------------|
+| `ChartPickerModal` | 命盘选择器弹窗，支持单选/多选 |
+
+#### Providers (`src/components/providers/`)
+| Component | Description |
+|-----------|-------------|
+| `ClientProviders` | 客户端 Provider 包装（Session + Toast） |
+| `useSessionSafe` | 安全获取 session 的 hook，未包裹时返回默认值 |
+
+#### Layout Components (`src/components/layout/`)
+| Component | Description |
+|-----------|-------------|
+| `SidebarContext` / `SidebarProvider` | 侧边栏展开/收起状态上下文 |
+| `HeaderMenuContext` / `useHeaderMenu` | Header 菜单注入上下文 |
+| `HistoryDrawer` | 通用历史记录抽屉（塔罗/六爻/MBTI/合盘/面相/手相） |
+
+#### Chat Components (`src/components/chat/`)
+| Component | Description |
+|-----------|-------------|
+| `VirtualizedChatMessageList` | 虚拟化消息列表，使用 @tanstack/react-virtual，支持动态高度估算 |
+| `ThinkingBlock` | AI 思考过程展示，可折叠，支持流式实时计时 |
 
 ### Key Patterns
 
@@ -297,7 +389,7 @@ missingSearchParams(params, keys) // List missing URL params
 
 **API Route Pattern**: Parse request → Validate → Check auth → Check credits/rate limits → Execute → Return/stream response
 
-**Styling**: Tailwind CSS classes inline, CSS variables for theming (--accent, --foreground), gold accent (#D4AF37), light/dark theme support
+**Styling**: Tailwind CSS classes inline, CSS variables for theming (--accent, --foreground), gold accent (#D4AF37), light/dark/system theme support
 
 ## Environment Variables
 
@@ -340,3 +432,43 @@ RESEND_API_KEY=...                # Email notifications
 - Keep page files thin, extract logic to feature components
 - Add teaching-mode comments for hooks explaining *why* they're needed
 - Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`
+
+### Performance Optimization
+
+**Static Constants**: Extract static objects/arrays outside components to avoid recreation on each render
+```typescript
+// ✅ Good - outside component
+const LABELS = ['甲', '乙', '丙', '丁'];
+const CONFIG = { timeout: 5000, retries: 3 };
+
+// ❌ Bad - inside component (recreated every render)
+function Component() {
+    const labels = ['甲', '乙', '丙', '丁'];
+}
+```
+
+**useMemo**: Wrap expensive computations and derived data
+```typescript
+// ✅ Memoize computed values
+const sortedItems = useMemo(() => items.sort((a, b) => b.score - a.score), [items]);
+const filteredData = useMemo(() => data.filter(d => d.active), [data]);
+```
+
+**useCallback**: Wrap event handlers and functions passed to children
+```typescript
+// ✅ Stable function reference
+const handleClick = useCallback(() => {
+    doSomething(id);
+}, [id]);
+```
+
+**Skeleton Loading**: Use inline Skeleton component for loading states
+```typescript
+// ✅ Inline Skeleton pattern (no separate component file needed)
+const Skeleton = ({ className }: { className: string }) => (
+    <div className={`animate-pulse bg-background-secondary ${className}`} />
+);
+
+// Usage in component
+{loading ? <Skeleton className="h-6 w-32 rounded-md" /> : <span>{data}</span>}
+```
