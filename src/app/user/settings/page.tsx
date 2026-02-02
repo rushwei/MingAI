@@ -269,7 +269,6 @@ export default function SettingsPage() {
                 {/* 桌面端头部 */}
                 <div className="hidden md:block mb-6">
                     <h1 className="text-xl font-bold text-foreground">偏好设置</h1>
-                    <p className="text-xs text-foreground-secondary mt-0.5">定制您的 MingAI 体验</p>
                 </div>
 
                 <div className="sm:space-y-6 space-y-2">

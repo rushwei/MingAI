@@ -493,13 +493,6 @@ export default function UserPage() {
                     </button>
                 </div>
 
-
-
-                {/* 版本信息 */}
-                <p className="text-center text-xs text-foreground-secondary mt-6">
-                    MingAI v1.9.0
-                </p>
-
                 <AuthModal
                     isOpen={showAuthModal}
                     onClose={() => setShowAuthModal(false)}

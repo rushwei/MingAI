@@ -38,7 +38,7 @@ const geistMono = Geist_Mono({
 // SEO 元数据配置
 export const metadata: Metadata = {
   title: {
-    default: "MingAI - AI智能命理平台",
+    default: "MingAI",
     template: "%s | MingAI"
   },
   description: "将传统命理文化与前沿AI技术深度融合，为您提供专业、私密、便捷的命理咨询服务。八字精批、紫微斗数、塔罗占卜等多种命理体系。",
@@ -49,12 +49,12 @@ export const metadata: Metadata = {
     type: "website",
     locale: "zh_CN",
     siteName: "MingAI",
-    title: "MingAI - AI智能命理平台",
+    title: "MingAI",
     description: "AI驱动的个性化命理分析，多人格AI命理师，记忆式对话体验",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MingAI - AI智能命理平台",
+    title: "MingAI",
     description: "AI驱动的个性化命理分析",
   },
   robots: {

@@ -213,6 +213,16 @@ MingAI/
 - [x] 管理员 AI 服务管理（模型/来源/统计）
 - [x] 周公解梦模式
 
+#### Phase 8.5: 重构与体验优化
+- [x] 八字即时排盘、四柱排盘
+- [x] 六爻选卦起卦、卦象信息复制
+- [x] 移动端自定义底部栏与菜单
+- [x] 黑夜模式支持随系统切换
+- [x] AI流式输出与响应速度优化
+- [x] 出生地点覆盖全区/县
+- [x] 历史记录UI优化
+- [x] 项目性能与加载速度优化
+
 ### 🔜 开发计划
 
 #### Phase 9: 后续功能
@@ -241,7 +251,7 @@ MingAI/
 
 | 文档                                                              | 说明         |
 | ----------------------------------------------------------------- | ------------ |
-| [PRD](docs/plans/PRD-MingAI-v2.0.md)                              | 产品需求文档 |
+| [PRD](docs/plans/PRD-MingAI.md)                                   | 产品需求文档 |
 | [Phase 1 报告](docs/deliverables/Phase1-MVP-Completion-Report.md) | MVP完成报告  |
 | [Phase 2 报告](docs/deliverables/Phase2-Completion-Report.md)     | 体验增强报告 |
 | [Phase 3 报告](docs/deliverables/Phase3-Completion-Report.md)     | 功能完善报告 |
