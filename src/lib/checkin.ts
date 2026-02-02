@@ -215,7 +215,9 @@ export async function getCheckinCalendar(
     month: number
 ): Promise<string[]> {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    // 使用 Date 对象计算月末日期，避免无效日期（如 2月31日）
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     const supabase = getServiceRoleClient();
     const { data, error } = await supabase

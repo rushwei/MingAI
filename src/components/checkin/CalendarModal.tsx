@@ -34,7 +34,7 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
             );
             const data = await res.json();
             if (data.success) {
-                setCalendar(data.data.calendar);
+                setCalendar(data.data.calendar || []);
             }
         } catch (error) {
             console.error('获取签到日历失败:', error);
@@ -116,11 +116,11 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
         return days;
     }, [currentMonth, calendar]);
 
-    // 统计本月签到天数（使用 useMemo 避免每次渲染重新计算）
-    const checkedInThisMonth = useMemo(() => calendar.filter(date => {
-        const d = new Date(date);
-        return d.getFullYear() === currentMonth.year && d.getMonth() + 1 === currentMonth.month;
-    }).length, [calendar, currentMonth]);
+    // 统计本月签到天数（使用字符串前缀匹配，避免时区问题）
+    const checkedInThisMonth = useMemo(() => {
+        const prefix = `${currentMonth.year}-${String(currentMonth.month).padStart(2, '0')}`;
+        return calendar.filter(date => date.startsWith(prefix)).length;
+    }, [calendar, currentMonth]);
 
     if (!isOpen) return null;
 
