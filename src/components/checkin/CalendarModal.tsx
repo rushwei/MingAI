@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -60,26 +60,26 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose]);
 
-    const prevMonth = () => {
+    const prevMonth = useCallback(() => {
         setCurrentMonth(prev => {
             if (prev.month === 1) {
                 return { year: prev.year - 1, month: 12 };
             }
             return { ...prev, month: prev.month - 1 };
         });
-    };
+    }, []);
 
-    const nextMonth = () => {
+    const nextMonth = useCallback(() => {
         setCurrentMonth(prev => {
             if (prev.month === 12) {
                 return { year: prev.year + 1, month: 1 };
             }
             return { ...prev, month: prev.month + 1 };
         });
-    };
+    }, []);
 
-    // 生成日历格子
-    const renderCalendar = () => {
+    // 生成日历格子（使用 useMemo 避免每次渲染重新计算）
+    const calendarDays = useMemo(() => {
         const { year, month } = currentMonth;
         const firstDay = new Date(year, month - 1, 1).getDay();
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -114,13 +114,13 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
         }
 
         return days;
-    };
+    }, [currentMonth, calendar]);
 
-    // 统计本月签到天数
-    const checkedInThisMonth = calendar.filter(date => {
+    // 统计本月签到天数（使用 useMemo 避免每次渲染重新计算）
+    const checkedInThisMonth = useMemo(() => calendar.filter(date => {
         const d = new Date(date);
         return d.getFullYear() === currentMonth.year && d.getMonth() + 1 === currentMonth.month;
-    }).length;
+    }).length, [calendar, currentMonth]);
 
     if (!isOpen) return null;
 
@@ -186,7 +186,7 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
 
                             {/* 日历格子 */}
                             <div className="grid grid-cols-7 gap-2">
-                                {renderCalendar()}
+                                {calendarDays}
                             </div>
 
                             {/* 图例 */}

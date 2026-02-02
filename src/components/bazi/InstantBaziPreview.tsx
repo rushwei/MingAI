@@ -21,13 +21,13 @@ interface InstantBaziPreviewProps {
 export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
     const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
-    // 每秒更新当前时间
+    // 每分钟更新当前时间（八字只在分钟变化时可能改变）
     useEffect(() => {
         const updateTime = () => setCurrentTime(new Date());
         updateTime();
         const interval = setInterval(() => {
             updateTime();
-        }, 1000);
+        }, 60000); // 改为每分钟更新
 
         return () => clearInterval(interval);
     }, []);

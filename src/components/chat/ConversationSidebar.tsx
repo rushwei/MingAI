@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { MessageSquare, Trash2, Search, ChevronDown, ChevronRight, SquarePen, Loader2, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine, Archive, Ellipsis, ArrowLeft } from 'lucide-react';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
@@ -111,7 +111,7 @@ export function ConversationSidebar({
         return groups;
     }, [conversations, searchQuery]);
 
-    const toggleGroup = (type: ConversationSourceType) => {
+    const toggleGroup = useCallback((type: ConversationSourceType) => {
         setCollapsedGroups(prev => {
             const next = new Set(prev);
             if (next.has(type)) {
@@ -121,17 +121,17 @@ export function ConversationSidebar({
             }
             return next;
         });
-    };
+    }, []);
 
-    const closeActionSheet = () => {
+    const closeActionSheet = useCallback(() => {
         setActionConv(null);
         setActionView('menu');
         setEditingId(null);
         setEditTitle('');
         setActionMenuPos(null);
-    };
+    }, []);
 
-    const openActionSheet = (conv: Conversation, e: React.MouseEvent) => {
+    const openActionSheet = useCallback((conv: Conversation, e: React.MouseEvent) => {
         const rect = e.currentTarget.getBoundingClientRect();
 
         // 计算位置：始终显示在按钮的右侧，稍微向下一点，或者如果空间不足则显示在左侧
@@ -149,42 +149,42 @@ export function ConversationSidebar({
         setActionView('menu');
         setEditingId(null);
         setEditTitle('');
-    };
+    }, []);
 
-    const openRenameView = () => {
+    const openRenameView = useCallback(() => {
         if (!actionConv) return;
         if (!onRename || actionConv.sourceType !== 'chat') return;
         setEditingId(actionConv.id);
         setEditTitle(actionConv.title);
         setActionView('rename');
-    };
+    }, [actionConv, onRename]);
 
-    const saveRename = () => {
+    const saveRename = useCallback(() => {
         if (editingId && onRename && editTitle.trim()) {
             onRename(editingId, editTitle.trim());
             closeActionSheet();
         }
-    };
+    }, [editingId, onRename, editTitle, closeActionSheet]);
 
-    const openDeleteView = () => {
+    const openDeleteView = useCallback(() => {
         if (!actionConv) return;
         setActionView('delete');
-    };
+    }, [actionConv]);
 
-    const confirmDelete = () => {
+    const confirmDelete = useCallback(() => {
         if (!actionConv) return;
         onDelete(actionConv.id);
         closeActionSheet();
-    };
+    }, [actionConv, onDelete, closeActionSheet]);
 
-    const openArchive = () => {
+    const openArchive = useCallback(() => {
         if (!actionConv) return;
         setArchiveTarget(actionConv);
         closeActionSheet();
-    };
+    }, [actionConv, closeActionSheet]);
 
     // 格式化菜单标题显示
-    const formatMenuTitle = (conv: Conversation) => {
+    const formatMenuTitle = useCallback((conv: Conversation) => {
         let title = conv.title.replace(/ -> /g, ' 变 ');
         // 对于六爻和塔罗，从标题中提取内容部分
         if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && title.includes(' - ')) {
@@ -203,10 +203,10 @@ export function ConversationSidebar({
             title = title.split(' - ').slice(1).join(' - ');
         }
         return title;
-    };
+    }, []);
 
     // 渲染单个对话项
-    const renderConversationItem = (conv: Conversation) => {
+    const renderConversationItem = useCallback((conv: Conversation) => {
         const isActionActive = actionConv?.id === conv.id;
 
         // 从 sourceData 中提取信息
@@ -303,7 +303,7 @@ export function ConversationSidebar({
                 </div>
             </div>
         );
-    };
+    }, [actionConv?.id, activeId, isCollapsed, onSelect, openActionSheet]);
 
     return (
         <>

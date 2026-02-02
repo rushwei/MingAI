@@ -12,6 +12,12 @@ import { getModelName } from '@/lib/ai-config';
 // 支持的历史类型
 type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
 
+// 格式化日期（提取到组件外部，避免每次渲染重新创建）
+function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 interface HistoryItem {
     id: string;
     title: string;
@@ -195,11 +201,6 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             loadHistory();
         }
         setIsOpen(!isOpen);
-    };
-
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     };
 
     // 点击查看历史记录详情

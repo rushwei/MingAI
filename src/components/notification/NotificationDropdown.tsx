@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { CheckCheck, ExternalLink, Loader2 } from 'lucide-react';
 import { getNotifications, markAsRead, markAllAsRead, type Notification } from '@/lib/notification';
 
@@ -41,15 +41,6 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
     const [isLoading, setIsLoading] = useState(true);
     const [markingAll, setMarkingAll] = useState(false);
 
-    const resolveNotificationLink = (link: string) => {
-        try {
-            const url = new URL(link, window.location.origin);
-            return `${url.pathname}${url.search}${url.hash}`;
-        } catch {
-            return link.startsWith('/') ? link : `/${link}`;
-        }
-    };
-
     // 加载通知
     useEffect(() => {
         const load = async () => {
@@ -62,7 +53,7 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
     }, [userId]);
 
     // 标记单条已读
-    const handleMarkRead = async (notification: Notification) => {
+    const handleMarkRead = useCallback(async (notification: Notification) => {
         if (notification.is_read) return;
 
         const success = await markAsRead(notification.id);
@@ -72,19 +63,25 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
             );
             onReadCountChange(-1);
         }
-    };
+    }, [onReadCountChange]);
 
     // 点击通知
-    const handleClick = async (notification: Notification) => {
+    const handleClick = useCallback(async (notification: Notification) => {
         await handleMarkRead(notification);
         if (notification.link) {
-            window.location.assign(resolveNotificationLink(notification.link));
+            try {
+                const url = new URL(notification.link, window.location.origin);
+                window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+            } catch {
+                const link = notification.link.startsWith('/') ? notification.link : `/${notification.link}`;
+                window.location.assign(link);
+            }
         }
         onClose();
-    };
+    }, [handleMarkRead, onClose]);
 
     // 标记全部已读
-    const handleMarkAllRead = async () => {
+    const handleMarkAllRead = useCallback(async () => {
         setMarkingAll(true);
         const unreadCount = notifications.filter(n => !n.is_read).length;
         const success = await markAllAsRead(userId);
@@ -93,9 +90,9 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
             onReadCountChange(-unreadCount);
         }
         setMarkingAll(false);
-    };
+    }, [notifications, userId, onReadCountChange]);
 
-    const hasUnread = notifications.some(n => !n.is_read);
+    const hasUnread = useMemo(() => notifications.some(n => !n.is_read), [notifications]);
 
     return (
         <div className="absolute right-0 top-full mt-2 w-80 max-h-[480px] bg-background rounded-xl border border-border shadow-xl overflow-hidden z-50 animate-fade-in">

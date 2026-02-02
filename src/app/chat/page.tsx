@@ -479,6 +479,7 @@ export default function ChatPage() {
         let accumulatedMetadata: AIMessageMetadata | null = null;
         let reasoningStartTime: number | undefined = undefined;  // 推理开始时间
         const charQueue: string[] = [];
+        let queueHead = 0; // 队列头部索引，避免 shift() 的 O(n) 操作
         let drainTimer: number | null = null;
         let visibleContent = '';
         let streamDone = false;
@@ -583,14 +584,22 @@ export default function ChatPage() {
             const startDrain = () => {
                 if (drainTimer) return;
                 drainTimer = window.setInterval(() => {
-                    if (charQueue.length > 0) {
-                        const ch = charQueue.shift() as string;
+                    const remaining = charQueue.length - queueHead;
+                    if (remaining > 0) {
+                        // 使用索引访问，O(1) 操作
+                        const ch = charQueue[queueHead];
+                        queueHead++;
                         visibleContent += ch;
                         setMessages(prev => prev.map(msg =>
                             msg.id === assistantMessageId
                                 ? { ...msg, content: visibleContent, reasoning: accumulatedReasoning || undefined }
                                 : msg
                         ));
+                        // 定期压缩队列，避免内存泄漏
+                        if (queueHead > 500) {
+                            charQueue.splice(0, queueHead);
+                            queueHead = 0;
+                        }
                     } else if (streamDone) {
                         if (drainTimer) {
                             clearInterval(drainTimer);
@@ -663,7 +672,7 @@ export default function ChatPage() {
             streamDone = true;
             await new Promise<void>((resolve) => {
                 const check = () => {
-                    if (charQueue.length === 0) {
+                    if (charQueue.length - queueHead === 0) {
                         if (drainTimer) {
                             clearInterval(drainTimer);
                             drainTimer = null;

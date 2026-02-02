@@ -124,14 +124,14 @@ export function MBTITestFlow() {
         }
     }, [answers, highlightedQuestion]);
 
-    const goToPreviousPage = () => {
+    const goToPreviousPage = useCallback(() => {
         if (currentPage > 0) {
             setCurrentPage(currentPage - 1);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    };
+    }, [currentPage]);
 
-    const handleJumpToQuestion = (index: number) => {
+    const handleJumpToQuestion = useCallback((index: number) => {
         const targetPage = Math.floor(index / QUESTIONS_PER_PAGE);
         const needsPageChange = targetPage !== currentPage;
 
@@ -154,9 +154,9 @@ export function MBTITestFlow() {
         } else {
             scrollToQuestion();
         }
-    };
+    }, [currentPage]);
 
-    const goToNextPage = () => {
+    const goToNextPage = useCallback(() => {
         if (!currentPageAllAnswered) {
             showToast('warning', '请完成当前页的所有题目后再翻页');
             return;
@@ -165,9 +165,9 @@ export function MBTITestFlow() {
             const nextIndex = (currentPage + 1) * QUESTIONS_PER_PAGE;
             handleJumpToQuestion(nextIndex);
         }
-    };
+    }, [currentPageAllAnswered, currentPage, totalPages, handleJumpToQuestion, showToast]);
 
-    const finishTest = async () => {
+    const finishTest = useCallback(async () => {
         if (answers.length < questions.length) {
             const unanswered = questions.length - answers.length;
             showToast('warning', `还有 ${unanswered} 道题未完成，请完成所有题目后再提交`);
@@ -213,7 +213,7 @@ export function MBTITestFlow() {
         setTimeout(() => {
             router.push('/mbti/result');
         }, 1500);
-    };
+    }, [answers, questions, showToast, router]);
 
     if (isCalculating) {
         return (

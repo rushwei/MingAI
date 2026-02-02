@@ -5,7 +5,7 @@
  */
 'use client'; // 客户端组件：需要管理实时输入与聊天状态
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Send, Calendar, RefreshCw, Info, Loader2 } from 'lucide-react';
 import { getCalendarAlmanac } from '@/lib/calendar';
 import { getMembershipInfo } from '@/lib/membership';
@@ -60,13 +60,19 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
         setIsLoading(false);
     }, [date]);
 
-    // 格式化农历信息
-    const almanac = getCalendarAlmanac(date);
-    const dateDisplay = `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`;
-    const lunarDisplay = `农历${almanac.lunarMonthDay}（${almanac.ganZhi.year}年 ${almanac.ganZhi.month}月 ${almanac.ganZhi.day}日）`;
+    // 格式化农历信息（使用 useMemo 避免每次渲染重新计算）
+    const almanac = useMemo(() => getCalendarAlmanac(date), [date]);
+    const dateDisplay = useMemo(() =>
+        `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`,
+        [date]
+    );
+    const lunarDisplay = useMemo(() =>
+        `农历${almanac.lunarMonthDay}（${almanac.ganZhi.year}年 ${almanac.ganZhi.month}月 ${almanac.ganZhi.day}日）`,
+        [almanac]
+    );
 
     // 发送消息
-    const sendMessage = async (question: string) => {
+    const sendMessage = useCallback(async (question: string) => {
         if (!question.trim() || isLoading) return;
 
         if (!userId) {
@@ -154,27 +160,27 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userId, dateDisplay, almanac, loadCredits, isLoading]);
 
-    const handleSubmit = () => {
+    const handleSubmit = useCallback(() => {
         sendMessage(inputValue);
-    };
+    }, [sendMessage, inputValue]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSubmit();
         }
-    };
+    }, [handleSubmit]);
 
-    const handleSuggestionClick = (question: string) => {
+    const handleSuggestionClick = useCallback((question: string) => {
         sendMessage(question);
-    };
+    }, [sendMessage]);
 
-    const clearChat = () => {
+    const clearChat = useCallback(() => {
         setMessages([]);
         setError(null);
-    };
+    }, []);
 
     return (
         <section className="bg-background rounded-xl border-border overflow-hidden">

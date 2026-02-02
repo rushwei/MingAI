@@ -46,6 +46,23 @@ const mentionStyleMap: Record<MentionType | 'default', { className: string }> = 
     default: { className: 'text-foreground' }
 };
 
+// 提及类型标签映射（提取到组件外部，避免每次渲染重新创建）
+const mentionTypeLabels: Record<MentionType | 'default', string> = {
+    knowledge_base: '知识库',
+    bazi_chart: '八字命盘',
+    ziwei_chart: '紫微命盘',
+    tarot_reading: '塔罗占卜',
+    liuyao_divination: '六爻占卜',
+    mbti_reading: 'MBTI测评',
+    hepan_chart: '合盘',
+    face_reading: '面相分析',
+    palm_reading: '手相分析',
+    ming_record: '命理记录',
+    daily_fortune: '每日运势',
+    monthly_fortune: '每月运势',
+    default: '数据'
+};
+
 const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number => {
     for (let i = value.length - 1; i >= 0; i -= 1) {
         if (value[i] !== '@') continue;
@@ -170,22 +187,7 @@ export function ChatComposer({
     const promptKbIdSet = useMemo(() => new Set(promptKnowledgeBases.map(kb => kb.id)), [promptKnowledgeBases]);
     const mentionMap = useMemo(() => new Map(mentions.map(mention => [mention.id, mention])), [mentions]);
     const kbNameMap = useMemo(() => new Map(promptKnowledgeBases.map(kb => [kb.id, kb.name])), [promptKnowledgeBases]);
-    const mentionTypeLabels: Record<MentionType | 'default', string> = {
-        knowledge_base: '知识库',
-        bazi_chart: '八字命盘',
-        ziwei_chart: '紫微命盘',
-        tarot_reading: '塔罗占卜',
-        liuyao_divination: '六爻占卜',
-        mbti_reading: 'MBTI测评',
-        hepan_chart: '合盘',
-        face_reading: '面相分析',
-        palm_reading: '手相分析',
-        ming_record: '命理记录',
-        daily_fortune: '每日运势',
-        monthly_fortune: '每月运势',
-        default: '数据'
-    };
-    const formatLayerLabel = (layerId: string) => {
+    const formatLayerLabel = useCallback((layerId: string) => {
         if (layerId.startsWith('mention_')) {
             const mentionId = layerId.replace('mention_', '');
             const mention = mentionMap.get(mentionId);
@@ -213,7 +215,7 @@ export function ChatComposer({
         if (layerId === 'dream_bazi') return '解梦·命盘信息';
         if (layerId === 'dream_fortune') return '解梦·今日运势';
         return layerId;
-    };
+    }, [mentionMap, kbNameMap, selectedCharts]);
 
     useEffect(() => {
         if (!userId) {

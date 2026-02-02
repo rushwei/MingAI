@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Search, Orbit, Star, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -100,9 +100,9 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
         );
     }, [charts, searchQuery]);
 
-    // 分类
-    const baziCharts = filteredCharts.filter(c => c.type === 'bazi');
-    const ziweiCharts = filteredCharts.filter(c => c.type === 'ziwei');
+    // 分类（使用 useMemo 避免每次渲染重新计算）
+    const baziCharts = useMemo(() => filteredCharts.filter(c => c.type === 'bazi'), [filteredCharts]);
+    const ziweiCharts = useMemo(() => filteredCharts.filter(c => c.type === 'ziwei'), [filteredCharts]);
 
     const selectedBazi = useMemo(
         () => charts.find(chart => chart.type === 'bazi' && chart.id === selectedIds.bazi) || null,
@@ -114,15 +114,15 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
     );
 
     // 格式化显示信息
-    const formatInfo = (chart: ChartItem) => {
+    const formatInfo = useCallback((chart: ChartItem) => {
         const genderText = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : '';
         const dateText = chart.birth_date
             ? new Date(`${chart.birth_date}T00:00:00`).toLocaleDateString('zh-CN')
             : '';
         return [genderText, dateText].filter(Boolean).join(' · ');
-    };
+    }, []);
 
-    const handleToggle = (chart: ChartItem) => {
+    const handleToggle = useCallback((chart: ChartItem) => {
         if (chart.type === 'bazi') {
             setSelectedIds(prev => ({
                 ...prev,
@@ -134,9 +134,9 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
                 ziwei: prev.ziwei === chart.id ? undefined : chart.id,
             }));
         }
-    };
+    }, []);
 
-    const handleConfirm = () => {
+    const handleConfirm = useCallback(() => {
         const result: SelectedCharts = {};
         if (selectedBazi) {
             result.bazi = {
@@ -155,12 +155,12 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
         }
         onSelect(result);
         onClose();
-    };
+    }, [selectedBazi, selectedZiwei, formatInfo, baziAnalysisMode, onSelect, onClose]);
 
-    const handleClear = () => {
+    const handleClear = useCallback(() => {
         setSelectedIds({ bazi: undefined, ziwei: undefined });
         setBaziAnalysisMode('traditional');
-    };
+    }, []);
 
     if (!isOpen) return null;
 

@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
     DndContext,
     closestCenter,
@@ -144,7 +144,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         return new Map(ALL_MOBILE_ITEMS.map(item => [item.id, item]));
     }, []);
 
-    const handleSave = async (newConfig: SidebarConfig) => {
+    const handleSave = useCallback(async (newConfig: SidebarConfig) => {
         if (!userId) return;
         setSaving(true);
         try {
@@ -156,19 +156,19 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         } finally {
             setSaving(false);
         }
-    };
+    }, [userId, saveConfig]);
 
     // 添加项目到底部导航栏
-    const addToMain = (itemId: string) => {
+    const addToMain = useCallback((itemId: string) => {
         if (mainItems.length >= 4) return;
         const newMainItems = [...mainItems, itemId];
         const newConfig = { ...config, mobileMainItems: newMainItems };
         setConfig(newConfig);
         handleSave(newConfig);
-    };
+    }, [mainItems, config, setConfig, handleSave]);
 
     // 从底部导航栏移除项目
-    const removeFromMain = (itemId: string) => {
+    const removeFromMain = useCallback((itemId: string) => {
         const newMainItems = mainItems.filter(id => id !== itemId);
         // 确保移除的项目在抽屉顺序中（添加到开头）
         const currentDrawerOrder = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
@@ -182,10 +182,10 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         };
         setConfig(newConfig);
         handleSave(newConfig);
-    };
+    }, [mainItems, config, setConfig, handleSave]);
 
     // 切换抽屉项目的显示/隐藏
-    const toggleDrawerItem = (itemId: string) => {
+    const toggleDrawerItem = useCallback((itemId: string) => {
         const hidden = config.hiddenMobileItems || [];
         const newHidden = hidden.includes(itemId)
             ? hidden.filter(id => id !== itemId)
@@ -193,10 +193,10 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         const newConfig = { ...config, hiddenMobileItems: newHidden };
         setConfig(newConfig);
         handleSave(newConfig);
-    };
+    }, [config, setConfig, handleSave]);
 
     // 抽屉项目拖拽排序
-    const handleDrawerDragEnd = (event: DragEndEvent) => {
+    const handleDrawerDragEnd = useCallback((event: DragEndEvent) => {
         const { active, over } = event;
         setActiveDrawerId(null);
         if (!over || active.id === over.id) return;
@@ -212,14 +212,14 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         const newConfig = { ...config, mobileDrawerOrder: newOrder };
         setConfig(newConfig);
         handleSave(newConfig);
-    };
+    }, [drawerItems, config, setConfig, handleSave]);
 
-    const handleDrawerDragStart = (event: DragStartEvent) => {
+    const handleDrawerDragStart = useCallback((event: DragStartEvent) => {
         setActiveDrawerId(event.active.id as string);
-    };
+    }, []);
 
     // 恢复默认设置
-    const handleReset = async () => {
+    const handleReset = useCallback(async () => {
         if (!confirm('确定恢复默认设置？')) return;
         const defaultConfig: SidebarConfig = {
             ...config,
@@ -229,7 +229,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         };
         setConfig(defaultConfig);
         await handleSave(defaultConfig);
-    };
+    }, [config, setConfig, handleSave]);
 
     if (loading) {
         return (

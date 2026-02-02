@@ -17,8 +17,14 @@ const ELEMENT_ICONS: Record<FiveElement, string> = {
 const ELEMENT_ORDER: FiveElement[] = ['木', '火', '土', '金', '水'];
 
 export function FiveElementsChart({ elements }: { elements: Record<FiveElement, number> }) {
-    const maxValue = Math.max(...Object.values(elements), 1);
-    const total = Object.values(elements).reduce((a, b) => a + b, 0);
+    // 使用 useMemo 缓存计算结果，避免每次渲染重新计算
+    const { maxValue, total } = useMemo(() => {
+        const values = Object.values(elements);
+        return {
+            maxValue: Math.max(...values, 1),
+            total: values.reduce((a, b) => a + b, 0)
+        };
+    }, [elements]);
 
     // 五行分析
     const analysis = useMemo(() => {

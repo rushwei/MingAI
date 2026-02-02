@@ -7,6 +7,7 @@
  */
 'use client';
 
+import { useMemo } from 'react';
 import {
     type Yao,
     type Hexagram,
@@ -17,6 +18,18 @@ import {
     KONG_WANG_LABELS,
 } from '@/lib/liuyao';
 import { YaoLine } from './YaoLine';
+
+// 静态常量提取到组件外部，避免每次渲染重新创建
+const YAO_LABELS = ['初', '二', '三', '四', '五', '上'];
+const ROW_HEIGHT = 'h-5';
+const LIU_SHEN_COLORS: Record<string, string> = {
+    '青龙': 'text-green-500',
+    '朱雀': 'text-red-500',
+    '勾陈': 'text-yellow-600',
+    '螣蛇': 'text-purple-500',
+    '白虎': 'text-gray-400',
+    '玄武': 'text-blue-500',
+};
 
 interface HexagramDisplayProps {
     yaos: Yao[];
@@ -41,24 +54,15 @@ export function HexagramDisplay({
     showTraditional = false,
     yongShenPosition,
 }: HexagramDisplayProps) {
-    // 从上到下显示，所以反转数组
-    const displayYaos = [...yaos].reverse();
-    const displayFullYaos = fullYaos ? [...fullYaos].reverse() : undefined;
-    const yaoLabels = ['初', '二', '三', '四', '五', '上'];
-    const rowHeight = 'h-5';
-
-    // 六神颜色映射
-    const liuShenColors: Record<string, string> = {
-        '青龙': 'text-green-500',
-        '朱雀': 'text-red-500',
-        '勾陈': 'text-yellow-600',
-        '螣蛇': 'text-purple-500',
-        '白虎': 'text-gray-400',
-        '玄武': 'text-blue-500',
-    };
+    // 使用 useMemo 缓存计算结果，避免每次渲染重新计算
+    const displayYaos = useMemo(() => [...yaos].reverse(), [yaos]);
+    const displayFullYaos = useMemo(() => fullYaos ? [...fullYaos].reverse() : undefined, [fullYaos]);
 
     // 检查是否有扩展信息
-    const hasExtendedInfo = displayFullYaos && displayFullYaos.length > 0 && 'strength' in displayFullYaos[0];
+    const hasExtendedInfo = useMemo(() =>
+        displayFullYaos && displayFullYaos.length > 0 && 'strength' in displayFullYaos[0],
+        [displayFullYaos]
+    );
 
     return (
         <div className="flex flex-col items-center gap-3">
@@ -94,7 +98,7 @@ export function HexagramDisplay({
                                         >
                                             {/* 爻位 */}
                                             <td className={`px-1.5 py-1 text-center ${isChanging ? 'text-red-500 font-medium' : 'text-foreground-secondary'}`}>
-                                                {yaoLabels[yao.position - 1]}
+                                                {YAO_LABELS[yao.position - 1]}
                                                 {isChanging && '○'}
                                             </td>
 
@@ -115,7 +119,7 @@ export function HexagramDisplay({
 
                                             {/* 卦象 */}
                                             <td className="px-2 py-1">
-                                                <div className={`flex items-center justify-center ${rowHeight}`}>
+                                                <div className={`flex items-center justify-center ${ROW_HEIGHT}`}>
                                                     <YaoLine yao={yao} size={size} />
                                                 </div>
                                             </td>
@@ -130,7 +134,7 @@ export function HexagramDisplay({
 
                                             {/* 六神 */}
                                             {showTraditional && fullYao && (
-                                                <td className={`px-1.5 py-1 text-center ${liuShenColors[fullYao.liuShen] || 'text-foreground-secondary'}`}>
+                                                <td className={`px-1.5 py-1 text-center ${LIU_SHEN_COLORS[fullYao.liuShen] || 'text-foreground-secondary'}`}>
                                                     {fullYao.liuShen}
                                                 </td>
                                             )}
@@ -186,10 +190,10 @@ export function HexagramDisplay({
                                             return (
                                                 <tr key={yao.position}>
                                                     <td className="px-1.5 py-1 text-center text-foreground-secondary">
-                                                        {yaoLabels[yao.position - 1]}
+                                                        {YAO_LABELS[yao.position - 1]}
                                                     </td>
                                                     <td className="px-2 py-1">
-                                                        <div className={`flex items-center justify-center ${rowHeight}`}>
+                                                        <div className={`flex items-center justify-center ${ROW_HEIGHT}`}>
                                                             <YaoLine yao={changedYao} size={size} />
                                                         </div>
                                                     </td>
