@@ -14,11 +14,13 @@ import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 
 interface AIPersonalityAnalysisProps {
     chartId: string;
     userId: string;
     chartSummary: string;
+    credits?: number | null;
     savedAnalysis?: string | null;
     savedReasoning?: string | null;
     savedModelId?: string | null;
@@ -30,6 +32,7 @@ export function AIPersonalityAnalysis({
     chartId,
     userId,
     chartSummary,
+    credits,
     savedAnalysis,
     savedReasoning,
     savedModelId,
@@ -44,6 +47,7 @@ export function AIPersonalityAnalysis({
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
 
     useEffect(() => {
         if (savedAnalysis) {
@@ -104,6 +108,12 @@ export function AIPersonalityAnalysis({
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    setLoading(false);
+                    return;
+                }
                 throw new Error(data.error || '分析请求失败');
             }
 
@@ -237,11 +247,16 @@ export function AIPersonalityAnalysis({
                 isUnlocked={isUnlocked}
                 placeholder={placeholder}
                 userId={userId}
+                credits={credits}
                 onUnlock={handleUnlock}
                 onLoginRequired={onLoginRequired}
             >
                 {content}
             </AIAnalysisLock>
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
+            />
         </div>
     );
 }

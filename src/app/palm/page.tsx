@@ -11,6 +11,7 @@ import { Camera, Upload, Hand, AlertCircle, Loader2 } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
 import { useToast } from '@/components/ui/Toast';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
@@ -37,6 +38,7 @@ export default function PalmPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
 
     useEffect(() => {
         const loadSession = async () => {
@@ -135,6 +137,11 @@ export default function PalmPage() {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    return;
+                }
                 showToast('error', data.error || '分析失败');
                 return;
             }
@@ -406,6 +413,10 @@ export default function PalmPage() {
                 </div>
             </div>
             <HistoryDrawer type="palm" />
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
+            />
         </LoginOverlay>
     );
 }

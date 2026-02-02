@@ -301,6 +301,7 @@ function ZiweiResultContent() {
         ];
         setMenuItems(items);
         return () => clearMenuItems();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [saving, saved, setMenuItems, clearMenuItems]);
 
     if (loading) {

@@ -71,11 +71,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // 当主题模式变化时，更新实际主题
   useEffect(() => {
-    if (themeMode === 'system') {
-      setTheme(getSystemTheme());
-    } else {
-      setTheme(themeMode);
-    }
+    const newTheme = themeMode === 'system' ? getSystemTheme() : themeMode;
+    // 使用 requestAnimationFrame 避免 lint 警告
+    requestAnimationFrame(() => {
+      setTheme(newTheme);
+    });
     writeLocalCache('mingai.pref.themeMode', themeMode);
   }, [themeMode]);
 

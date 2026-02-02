@@ -30,6 +30,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useToast } from '@/components/ui/Toast';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 
 function TarotResultContent() {
     const router = useRouter();
@@ -62,6 +63,7 @@ function TarotResultContent() {
     const [userId, setUserId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 流式输出状态
     const [isStreaming, setIsStreaming] = useState(false);
     const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
@@ -277,7 +279,12 @@ function TarotResultContent() {
 
             if (!res.ok) {
                 const data = await res.json();
-                showToast('error', data.error || '解读失败');
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                } else {
+                    showToast('error', data.error || '解读失败');
+                }
                 setIsInterpreting(false);
                 setIsStreaming(false);
                 return;
@@ -453,6 +460,7 @@ function TarotResultContent() {
         });
         setMenuItems(items);
         return () => clearMenuItems();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [readingId, isShuffling, selectedSpread, setMenuItems, clearMenuItems]);
 
     if (isLoading) {
@@ -774,6 +782,11 @@ function TarotResultContent() {
                 <AuthModal
                     isOpen={showAuthModal}
                     onClose={() => setShowAuthModal(false)}
+                />
+
+                <CreditsModal
+                    isOpen={showCreditsModal}
+                    onClose={() => setShowCreditsModal(false)}
                 />
             </div >
         </div >

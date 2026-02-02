@@ -75,7 +75,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         if (!error && data) {
             setItems(data.map((item: Record<string, unknown>) => {
                 let title = '';
-                let subType = '';
+                const subType = '';
                 let modelName: string | undefined;
 
                 const sourceData = (item.conversation as { source_data?: Record<string, unknown> } | null)?.source_data;

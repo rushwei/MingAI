@@ -48,6 +48,7 @@ function BaziResultContent() {
     const [savedPersonalityReasoning, setSavedPersonalityReasoning] = useState<string | null>(null);
     const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [credits, setCredits] = useState<number | null>(null);
     const { showToast } = useToast();
 
     const now = new Date();
@@ -157,9 +158,18 @@ function BaziResultContent() {
             });
         }
 
-        // 获取当前用户ID
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUserId(session?.user?.id || null);
+        // 获取当前用户ID和积分
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+            const uid = session?.user?.id || null;
+            setUserId(uid);
+            if (uid) {
+                const { data } = await supabase
+                    .from('users')
+                    .select('ai_chat_count')
+                    .eq('id', uid)
+                    .single();
+                setCredits(data?.ai_chat_count ?? null);
+            }
         });
     }, [chartId, hasFormParams]);
 
@@ -412,6 +422,7 @@ function BaziResultContent() {
         ];
         setMenuItems(items);
         return () => clearMenuItems();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [saving, saved, setMenuItems, clearMenuItems]);
 
     // 选择大运 - 同时更新流年到该大运第一年
@@ -513,6 +524,7 @@ function BaziResultContent() {
                     dayMasterDescription={dayMasterDescription}
                     chartId={chartId}
                     userId={userId}
+                    credits={credits}
                     savedWuxingAnalysis={savedWuxingAnalysis}
                     savedWuxingReasoning={savedWuxingReasoning}
                     savedWuxingModelId={savedWuxingModelId}

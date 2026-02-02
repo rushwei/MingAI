@@ -11,6 +11,7 @@ import { Camera, Upload, AlertTriangle, Loader2, X, ScanFace } from 'lucide-reac
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
 import { useToast } from '@/components/ui/Toast';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
@@ -38,6 +39,7 @@ export default function FacePage() {
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_VISION_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
 
     useEffect(() => {
         const loadSession = async () => {
@@ -143,6 +145,11 @@ export default function FacePage() {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    return;
+                }
                 showToast('error', data.error || '分析失败');
                 return;
             }
@@ -400,6 +407,10 @@ export default function FacePage() {
                 </div>
             </div>
             <HistoryDrawer type="face" />
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
+            />
         </LoginOverlay>
     );
 }

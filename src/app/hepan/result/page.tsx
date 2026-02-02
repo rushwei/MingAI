@@ -28,6 +28,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 
 export default function HepanResultPage() {
     const router = useRouter();
@@ -48,6 +49,7 @@ export default function HepanResultPage() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 流式输出状态
     const [isStreaming, setIsStreaming] = useState(false);
     const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
@@ -149,6 +151,13 @@ export default function HepanResultPage() {
 
             if (!response.ok) {
                 const data = await response.json();
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    setLoadingAI(false);
+                    setIsStreaming(false);
+                    return;
+                }
                 throw new Error(data.error || '分析失败');
             }
 
@@ -271,23 +280,12 @@ export default function HepanResultPage() {
         void loadAnalysis();
     }, [aiAnalysis, conversationId, result]);
 
-    if (!result) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
-            </div>
-        );
-    }
-
-    const typeConfig = {
-        love: { color: 'text-rose-500', bg: 'bg-rose-500', border: 'border-rose-500/20' },
-        business: { color: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500/20' },
-        family: { color: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500/20' },
-    }[result.type];
-    const chartId = (result as unknown as { chartId?: string }).chartId;
+    // 从 result 中提取 chartId（在 early return 之前）
+    const chartId = result ? (result as unknown as { chartId?: string }).chartId : undefined;
 
     // 设置移动端 Header 菜单项
     useEffect(() => {
+        if (!result) return;
         const items = [];
         if (chartId) {
             items.push({
@@ -304,7 +302,21 @@ export default function HepanResultPage() {
         });
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [chartId, router, setMenuItems, clearMenuItems]);
+    }, [chartId, result, router, setMenuItems, clearMenuItems]);
+
+    if (!result) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+        );
+    }
+
+    const typeConfig = {
+        love: { color: 'text-rose-500', bg: 'bg-rose-500', border: 'border-rose-500/20' },
+        business: { color: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500/20' },
+        family: { color: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500/20' },
+    }[result.type];
 
     return (
         <div className="min-h-screen bg-background">
@@ -515,6 +527,11 @@ export default function HepanResultPage() {
             <AuthModal
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
+            />
+
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
             />
         </div>
     );

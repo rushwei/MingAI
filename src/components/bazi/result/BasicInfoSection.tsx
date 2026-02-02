@@ -14,6 +14,8 @@ interface BasicInfoSectionProps {
     chartId?: string | null;
     /** 用户ID */
     userId?: string | null;
+    /** 用户当前积分 */
+    credits?: number | null;
     /** 命盘数据摘要（用于AI分析） */
     chartSummary?: string;
     /** 已保存的五行分析 */
@@ -41,6 +43,7 @@ export function BasicInfoSection({
     dayMasterDescription,
     chartId,
     userId,
+    credits,
     chartSummary,
     savedWuxingAnalysis,
     savedWuxingReasoning,
@@ -136,6 +139,7 @@ export function BasicInfoSection({
                 <AIWuxingAnalysis
                     chartId={chartId!}
                     userId={userId}
+                    credits={credits}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedWuxingAnalysis}
                     savedReasoning={savedWuxingReasoning}
@@ -183,6 +187,7 @@ export function BasicInfoSection({
                 <AIPersonalityAnalysis
                     chartId={chartId!}
                     userId={userId}
+                    credits={credits}
                     chartSummary={defaultChartSummary}
                     savedAnalysis={savedPersonalityAnalysis}
                     savedReasoning={savedPersonalityReasoning}

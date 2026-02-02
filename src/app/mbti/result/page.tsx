@@ -25,6 +25,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { readSessionJSON } from '@/lib/cache';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -50,6 +51,7 @@ function MBTIResultContent() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 流式输出状态
     const [isStreaming, setIsStreaming] = useState(false);
     const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
@@ -214,6 +216,13 @@ function MBTIResultContent() {
 
             if (!response.ok) {
                 const data = await response.json();
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    setLoadingAI(false);
+                    setIsStreaming(false);
+                    return;
+                }
                 throw new Error(data.error || '分析失败');
             }
 
@@ -286,24 +295,13 @@ function MBTIResultContent() {
         }
     };
 
-    if (!result) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
-                {/* Background Effects Removed */}
-                <div className="relative z-10 text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" />
-                    <p className="text-foreground-secondary">正在加载测试结果...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // 是否为测试完成模式（有完整分数数据）
-    const isTestMode = !isViewMode && result.scores && result.percentages;
-    const readingId = (result as unknown as { readingId?: string }).readingId;
+    // 从 result 中提取数据（在 early return 之前）
+    const isTestMode = result ? (!isViewMode && result.scores && result.percentages) : false;
+    const readingId = result ? (result as unknown as { readingId?: string }).readingId : undefined;
 
     // 设置移动端 Header 菜单项
     useEffect(() => {
+        if (!result) return;
         const items = [];
         if (readingId) {
             items.push({
@@ -322,7 +320,19 @@ function MBTIResultContent() {
         }
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [readingId, isTestMode, router, setMenuItems, clearMenuItems]);
+    }, [readingId, isTestMode, result, router, setMenuItems, clearMenuItems]);
+
+    if (!result) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" />
+                    <p className="text-foreground-secondary">正在加载测试结果...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background relative overflow-x-hidden">
@@ -489,6 +499,11 @@ function MBTIResultContent() {
             <AuthModal
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
+            />
+
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
             />
 
             {readingId && (

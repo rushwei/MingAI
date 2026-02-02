@@ -204,7 +204,7 @@ export default function UpgradePage() {
                 </div>
                 {(purchaseLinks.plus || purchaseLinks.pro || purchaseLinks.credits) && (
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
-                        <span className="text-xs text-foreground-secondary mr-1 leading-7">购买：</span>
+                        <span className="text-xs text-foreground-secondary mr-1 leading-7">点击前往购买：</span>
                         {purchaseLinks.plus && (
                             <button
                                 onClick={() => copyToClipboard(purchaseLinks.plus!, 'plus')}

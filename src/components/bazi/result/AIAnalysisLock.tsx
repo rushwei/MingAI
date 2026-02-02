@@ -1,13 +1,14 @@
 /**
  * AI分析锁定覆盖层组件
- * 
+ *
  * 参考 LoginOverlay，用于 AI 分析功能的模糊锁定
  * 消耗积分解锁，解锁后永久可见
  */
 'use client';
 
 import { useState } from 'react';
-import { Lock, Sparkles, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Lock, Sparkles, Loader2, Coins } from 'lucide-react';
 
 interface AIAnalysisLockProps {
     /** 分析类型 */
@@ -24,6 +25,8 @@ interface AIAnalysisLockProps {
     placeholder: React.ReactNode;
     /** 用户ID */
     userId: string;
+    /** 用户当前积分 */
+    credits?: number | null;
     /** 解锁回调 */
     onUnlock: () => void;
     /** 登录回调 */
@@ -38,11 +41,16 @@ export function AIAnalysisLock({
     children,
     placeholder,
     userId,
+    credits,
     onUnlock,
     onLoginRequired,
 }: AIAnalysisLockProps) {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // 检测积分是否不足
+    const isCreditsInsufficient = credits !== undefined && credits !== null && credits <= 0;
 
     const handleUnlock = async () => {
         if (!userId) {
@@ -86,6 +94,35 @@ export function AIAnalysisLock({
     // 已解锁，直接显示内容
     if (isUnlocked) {
         return <>{children}</>;
+    }
+
+    // 积分不足时的覆盖层
+    if (isCreditsInsufficient) {
+        return (
+            <div className="relative rounded-2xl border border-amber-500/30 overflow-hidden">
+                <div className="blur-sm pointer-events-none select-none opacity-60 min-h-[280px]">
+                    {placeholder}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+                    <div className="text-center p-6 max-w-md">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/10 flex items-center justify-center mx-auto mb-4">
+                            <Coins className="w-7 h-7 text-amber-500" />
+                        </div>
+                        <h3 className="text-lg font-bold mb-2">积分不足</h3>
+                        <p className="text-sm text-foreground-secondary mb-4">
+                            您的积分已用完，请前往会员页面购买积分或升级会员
+                        </p>
+                        <button
+                            onClick={() => router.push('/user/upgrade')}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90 transition-opacity"
+                        >
+                            <Coins className="w-4 h-4" />
+                            前往充值
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     // 未解锁，显示模糊锁定效果

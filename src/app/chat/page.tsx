@@ -19,6 +19,7 @@ import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { BaziChartSelector, type SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import {
@@ -68,6 +69,7 @@ export default function ChatPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { user, loading: sessionLoading } = useSessionSafe();
 
@@ -529,6 +531,14 @@ export default function ChatPage() {
 
             if (!response.ok) {
                 const errorData = await response.json();
+                // 检测积分不足错误
+                if (errorData.error?.includes('积分不足') || errorData.error?.includes('充值')) {
+                    // 移除空的 assistant 消息
+                    setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
+                    setShowCreditsModal(true);
+                    setIsLoading(false);
+                    return;
+                }
                 throw new Error(errorData.error || '请求失败');
             }
 
@@ -1313,6 +1323,11 @@ export default function ChatPage() {
                     focusType={chartFocusType}
                 />
             )}
+
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
+            />
         </LoginOverlay>
     );
 }

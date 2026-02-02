@@ -39,6 +39,7 @@ import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { CreditsModal } from '@/components/ui/CreditsModal';
 
 export default function ResultPage() {
     const router = useRouter();
@@ -57,6 +58,7 @@ export default function ResultPage() {
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 流式输出状态
     const [isStreaming, setIsStreaming] = useState(false);
     const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
@@ -420,6 +422,13 @@ export default function ResultPage() {
 
             if (!response.ok) {
                 const data = await response.json();
+                // 检测积分不足错误
+                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
+                    setShowCreditsModal(true);
+                    setIsLoading(false);
+                    setIsStreaming(false);
+                    return;
+                }
                 throw new Error(data.error || '解读失败');
             }
 
@@ -714,6 +723,11 @@ export default function ResultPage() {
             <AuthModal
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
+            />
+
+            <CreditsModal
+                isOpen={showCreditsModal}
+                onClose={() => setShowCreditsModal(false)}
             />
         </div>
     );
