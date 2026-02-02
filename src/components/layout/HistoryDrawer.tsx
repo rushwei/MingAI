@@ -85,12 +85,21 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                 }
 
                 if (type === 'hepan') {
-                    title = `${item.person1_name || ''} & ${item.person2_name || ''}`;
-                    // 映射合盘类型
+                    // 合盘：类型作为主标题，名字放下方
                     const hepanType = item.type as string;
-                    if (hepanType === 'love') subType = '情侣';
-                    else if (hepanType === 'business') subType = '商业';
-                    else if (hepanType === 'family') subType = '亲子';
+                    if (hepanType === 'love') title = '情侣合盘';
+                    else if (hepanType === 'business') title = '商业合盘';
+                    else if (hepanType === 'family') title = '亲子合盘';
+                    else title = '合盘分析';
+
+                    const names = `${item.person1_name || ''} & ${item.person2_name || ''}`;
+                    return {
+                        id: item.id as string,
+                        title,
+                        question: names, // 名字显示在下方
+                        createdAt: item.created_at as string,
+                        modelName,
+                    };
                 } else if (type === 'mbti') {
                     title = `${item.mbti_type} 人格`;
                 } else if (type === 'tarot') {

@@ -29,8 +29,8 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
     color: string
 }> = {
     chat: { label: '普通对话', icon: MessageSquare, color: 'text-foreground-secondary' },
-    bazi_wuxing: { label: '八字五行分析', icon: Orbit, color: 'text-foreground-secondary' },
-    bazi_personality: { label: '八字人格分析', icon: Orbit, color: 'text-foreground-secondary' },
+    bazi_wuxing: { label: '八字五行/人格分析', icon: Orbit, color: 'text-foreground-secondary' },
+    bazi_personality: { label: '八字五行/人格分析', icon: Orbit, color: 'text-foreground-secondary' },
     tarot: { label: '塔罗占卜', icon: Gem, color: 'text-foreground-secondary' },
     liuyao: { label: '六爻占卜', icon: Dices, color: 'text-foreground-secondary' },
     mbti: { label: 'MBTI 分析', icon: Brain, color: 'text-foreground-secondary' },
@@ -40,9 +40,9 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
     dream: { label: '周公解梦', icon: MessageSquare, color: 'text-foreground-secondary' },
 };
 
-// 显示顺序
+// 显示顺序 - 八字合并为一个分组，用 bazi_wuxing 代表
 const SOURCE_TYPE_ORDER: ConversationSourceType[] = [
-    'chat', 'dream', 'bazi_wuxing', 'bazi_personality', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
+    'chat', 'dream', 'bazi_wuxing', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
 ];
 
 export function ConversationSidebar({
@@ -96,7 +96,11 @@ export function ConversationSidebar({
         };
 
         filtered.forEach(conv => {
-            const type = conv.sourceType || 'chat';
+            let type = conv.sourceType || 'chat';
+            // 将八字人格分析合并到八字分析分组
+            if (type === 'bazi_personality') {
+                type = 'bazi_wuxing';
+            }
             if (groups[type]) {
                 groups[type].push(conv);
             } else {
@@ -186,6 +190,18 @@ export function ConversationSidebar({
         if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && title.includes(' - ')) {
             title = title.split(' - ').slice(1).join(' - ');
         }
+        // 八字人格/五行分析：只显示分析类型
+        if ((conv.sourceType === 'bazi_personality' || conv.sourceType === 'bazi_wuxing') && title.includes(' - ')) {
+            title = title.split(' - ').slice(1).join(' - ');
+        }
+        // 合盘：只显示合盘类型
+        if (conv.sourceType === 'hepan' && title.includes(' - ')) {
+            title = title.split(' - ').slice(1).join(' - ');
+        }
+        // 手相/面相：去掉前缀
+        if ((conv.sourceType === 'palm' || conv.sourceType === 'face') && title.includes(' - ')) {
+            title = title.split(' - ').slice(1).join(' - ');
+        }
         return title;
     };
 
@@ -193,25 +209,44 @@ export function ConversationSidebar({
     const renderConversationItem = (conv: Conversation) => {
         const isActionActive = actionConv?.id === conv.id;
 
-        // 从 sourceData 中提取问题
+        // 从 sourceData 中提取信息
         const question = typeof conv.sourceData?.question === 'string' ? conv.sourceData.question : null;
-        // 判断是否显示问题（塔罗、六爻等有问题的类型）
-        const showQuestion = conv.sourceType && conv.sourceType !== 'chat' && question;
 
-        // 处理标题：对于六爻和塔罗，从标题中提取内容部分（去掉问题前缀）
-        let displayTitle = conv.title.replace(/ -> /g, ' 变 ');
-        if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && displayTitle.includes(' - ')) {
-            // 标题格式为 "问题 - 内容"，只显示内容部分
-            displayTitle = displayTitle.split(' - ').slice(1).join(' - ');
+        // 处理标题和副标题
+        let mainTitle = conv.title.replace(/ -> /g, ' 变 ');
+        let subTitle: string | null = null;
+        let changedTitle: string | null = null;
+
+        // 六爻/塔罗：从标题中提取内容部分（去掉问题前缀），问题显示在下方
+        if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && mainTitle.includes(' - ')) {
+            mainTitle = mainTitle.split(' - ').slice(1).join(' - ');
+            subTitle = question;
         }
 
-        // 六爻：分离主卦和变卦，用小字"变"连接
-        let mainTitle = displayTitle;
-        let changedTitle: string | null = null;
-        if (conv.sourceType === 'liuyao' && displayTitle.includes(' 变 ')) {
-            const parts = displayTitle.split(' 变 ');
+        // 六爻：分离主卦和变卦
+        if (conv.sourceType === 'liuyao' && mainTitle.includes(' 变 ')) {
+            const parts = mainTitle.split(' 变 ');
             mainTitle = parts[0];
             changedTitle = parts.slice(1).join(' 变 ');
+        }
+
+        // 八字人格/五行分析：标题显示"人格分析"或"五行分析"，命盘人名放下方
+        if ((conv.sourceType === 'bazi_personality' || conv.sourceType === 'bazi_wuxing') && mainTitle.includes(' - ')) {
+            const parts = mainTitle.split(' - ');
+            subTitle = parts[0]; // 人名
+            mainTitle = parts.slice(1).join(' - '); // 分析类型
+        }
+
+        // 合盘：标题显示合盘类型，名字放下方
+        if (conv.sourceType === 'hepan' && mainTitle.includes(' - ')) {
+            const parts = mainTitle.split(' - ');
+            subTitle = parts[0]; // 名字组合
+            mainTitle = parts.slice(1).join(' - '); // 合盘类型
+        }
+
+        // 手相/面相：去掉前缀，只保留具体分析类型
+        if ((conv.sourceType === 'palm' || conv.sourceType === 'face') && mainTitle.includes(' - ')) {
+            mainTitle = mainTitle.split(' - ').slice(1).join(' - ');
         }
 
         return (
@@ -234,9 +269,9 @@ export function ConversationSidebar({
                             </>
                         )}
                     </span>
-                    {showQuestion && (
+                    {subTitle && (
                         <p className="text-[11px] text-foreground-secondary truncate mt-0.5">
-                            {question}
+                            {subTitle}
                         </p>
                     )}
                 </div>
