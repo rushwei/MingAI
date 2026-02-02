@@ -29,11 +29,13 @@ import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { useToast } from '@/components/ui/Toast';
 
 function TarotResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { showToast } = useToast();
     const historyTimestamp = searchParams.get('t');
     const spreadId = searchParams.get('spreadId');
     const questionParam = searchParams.get('question');
@@ -249,7 +251,7 @@ function TarotResultContent() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                alert('请先登录');
+                showToast('warning', '请先登录');
                 setIsInterpreting(false);
                 setIsStreaming(false);
                 return;
@@ -275,7 +277,7 @@ function TarotResultContent() {
 
             if (!res.ok) {
                 const data = await res.json();
-                alert(data.error || '解读失败');
+                showToast('error', data.error || '解读失败');
                 setIsInterpreting(false);
                 setIsStreaming(false);
                 return;

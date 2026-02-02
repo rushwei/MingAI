@@ -16,6 +16,7 @@ import { UnifiedBaziForm } from '@/components/bazi/form/UnifiedBaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { normalizeBirthDateForCalendarSwitch } from '@/lib/bazi-form-utils';
+import { useToast } from '@/components/ui/Toast';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -66,6 +67,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
 function BaziPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { showToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [unknownTime, setUnknownTime] = useState(() => {
         const hourParam = searchParams.get('hour');
@@ -223,7 +225,7 @@ function BaziPageContent() {
         // 四柱模式下必须已反推出日期才能提交
         if (formData.calendarType === 'pillars') {
             if (!formData.birthYear || !formData.birthMonth || !formData.birthDay) {
-                alert('请先选择完整的四柱并确认出生时间');
+                showToast('warning', '请先选择完整的四柱并确认出生时间');
                 return;
             }
         }

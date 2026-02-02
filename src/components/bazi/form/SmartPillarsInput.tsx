@@ -16,6 +16,7 @@ import {
     calculateHourPillars,
     getAvailableBranches,
 } from '@/lib/pillars-calculator';
+import { useToast } from '@/components/ui/Toast';
 
 // 天干选项
 const HEAVENLY_STEMS: HeavenlyStem[] = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -99,6 +100,7 @@ const EMPTY_PILLARS: {
 export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
     const [possibleDates, setPossibleDates] = useState<ReversedDateTime[]>([]);
     const [showDateSelector, setShowDateSelector] = useState(false);
+    const { showToast } = useToast();
 
     // 初始化为空的四柱
     const pillars = value || EMPTY_PILLARS;
@@ -210,7 +212,7 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
         if (dates.length === 0) {
             // 没有找到匹配时间，但仍然保存四柱
             onChange(newPillars);
-            alert('在1900-2100年范围内未找到匹配的时间，四柱已保存');
+            showToast('warning', '在1900-2100年范围内未找到匹配的时间，四柱已保存');
         } else if (dates.length === 1) {
             onChange(newPillars, {
                 year: dates[0].year,

@@ -19,6 +19,7 @@ import {
     Filter
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 interface ActivationKey {
     id: string;
@@ -38,6 +39,7 @@ export function KeyManagementPanel() {
     const [keys, setKeys] = useState<ActivationKey[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
+    const { showToast } = useToast();
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
     // 创建表单
@@ -116,11 +118,11 @@ export function KeyManagementPanel() {
                 setCreateCount(1);
                 fetchKeys();
             } else {
-                alert(data.error || '创建失败');
+                showToast('error', data.error || '创建失败');
             }
         } catch (error) {
             console.error('Failed to create keys:', error);
-            alert('创建失败');
+            showToast('error', '创建失败');
         } finally {
             setCreating(false);
         }

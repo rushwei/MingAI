@@ -21,6 +21,7 @@ import {
     Eye,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 // 类型定义
 interface ModelSource {
@@ -75,6 +76,7 @@ export function AIModelPanel() {
     const [error, setError] = useState<string | null>(null);
     const [expandedModel, setExpandedModel] = useState<string | null>(null);
     const [updating, setUpdating] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     // 获取 token
     const getToken = useCallback(async () => {
@@ -142,7 +144,7 @@ export function AIModelPanel() {
             await loadModels();
         } catch (e) {
             console.error('Update model failed:', e);
-            alert(e instanceof Error ? e.message : '更新失败');
+            showToast('error', e instanceof Error ? e.message : '更新失败');
         } finally {
             setUpdating(null);
         }
@@ -173,7 +175,7 @@ export function AIModelPanel() {
             await loadModels();
         } catch (e) {
             console.error('Activate source failed:', e);
-            alert(e instanceof Error ? e.message : '切换来源失败');
+            showToast('error', e instanceof Error ? e.message : '切换来源失败');
         } finally {
             setUpdating(null);
         }
@@ -191,7 +193,7 @@ export function AIModelPanel() {
             });
 
             if (response.ok) {
-                alert('缓存已清除');
+                showToast('success', '缓存已清除');
             }
         } catch (e) {
             console.error('Clear cache failed:', e);

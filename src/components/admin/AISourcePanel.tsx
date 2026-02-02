@@ -19,6 +19,7 @@ import {
     ChevronUp,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 // 类型定义
 interface ModelSource {
@@ -50,6 +51,7 @@ export function AISourcePanel() {
     const [error, setError] = useState<string | null>(null);
     const [expandedModel, setExpandedModel] = useState<string | null>(null);
     const [addingToModel, setAddingToModel] = useState<string | null>(null);
+    const { showToast } = useToast();
     const [updating, setUpdating] = useState(false);
 
     // 新来源表单状态
@@ -127,7 +129,7 @@ export function AISourcePanel() {
 
             await loadModels();
         } catch (e) {
-            alert(e instanceof Error ? e.message : '切换来源失败');
+            showToast('error', e instanceof Error ? e.message : '切换来源失败');
         } finally {
             setUpdating(false);
         }
@@ -158,7 +160,7 @@ export function AISourcePanel() {
 
             await loadModels();
         } catch (e) {
-            alert(e instanceof Error ? e.message : '删除来源失败');
+            showToast('error', e instanceof Error ? e.message : '删除来源失败');
         } finally {
             setUpdating(false);
         }
@@ -167,7 +169,7 @@ export function AISourcePanel() {
     // 添加来源
     const addSource = async (modelId: string) => {
         if (!newSource.sourceKey || !newSource.sourceName || !newSource.apiUrl || !newSource.apiKeyEnvVar) {
-            alert('请填写所有必填字段');
+            showToast('warning', '请填写所有必填字段');
             return;
         }
 
@@ -204,7 +206,7 @@ export function AISourcePanel() {
             });
             await loadModels();
         } catch (e) {
-            alert(e instanceof Error ? e.message : '添加来源失败');
+            showToast('error', e instanceof Error ? e.message : '添加来源失败');
         } finally {
             setUpdating(false);
         }

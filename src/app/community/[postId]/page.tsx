@@ -23,6 +23,7 @@ import {
     REPORT_REASONS
 } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 // 客户端 fetch 重试工具
 async function fetchWithRetry(
@@ -205,6 +206,7 @@ function EditPostModal({
 }) {
     const [title, setTitle] = useState(post.title);
     const [content, setContent] = useState(post.content);
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -224,7 +226,7 @@ function EditPostModal({
                 onSave({ ...post, ...updatedPost, title, content });
                 onClose();
             } else {
-                alert('更新失败，请重试');
+                showToast('error', '更新失败，请重试');
             }
         } finally {
             setLoading(false);
@@ -430,6 +432,7 @@ export default function PostDetailPage() {
     const router = useRouter();
     const params = useParams();
     const postId = params.postId as string;
+    const { showToast } = useToast();
 
     const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<CommunityPost | null>(null);
@@ -541,7 +544,7 @@ export default function PostDetailPage() {
     // 投票
     const handleVote = async (targetType: 'post' | 'comment', targetId: string, voteType: VoteType) => {
         if (!user) {
-            alert('请先登录');
+            showToast('warning', '请先登录');
             return;
         }
 

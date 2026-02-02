@@ -251,7 +251,7 @@ function ZiweiResultContent() {
             }
         } catch (error) {
             console.error('保存失败:', error);
-            alert('保存失败，请重试');
+            showToast('error', '保存失败，请重试');
         } finally {
             setSaving(false);
         }
@@ -272,7 +272,7 @@ function ZiweiResultContent() {
             }
         } else {
             await navigator.clipboard.writeText(url);
-            alert('链接已复制到剪贴板');
+            showToast('success', '链接已复制到剪贴板');
         }
     };
 
