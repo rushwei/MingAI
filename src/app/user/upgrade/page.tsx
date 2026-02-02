@@ -12,8 +12,10 @@ import {
     Loader2,
     Key,
     Sparkles,
-    Zap
+    Zap,
+    Check
 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -36,6 +38,8 @@ export default function UpgradePage() {
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [purchaseLinks, setPurchaseLinks] = useState<PurchaseLinks>({});
     const [level, setLevel] = useState<{ level: number } | null>(null);
+    const [copiedLink, setCopiedLink] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     const refreshMembership = async (userId: string) => {
         const info = await getMembershipInfo(userId);
@@ -107,6 +111,17 @@ export default function UpgradePage() {
     };
 
     const currentPlan = membership?.type || 'free';
+
+    const copyToClipboard = async (url: string, type: string) => {
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopiedLink(type);
+            showToast('success', '链接已复制，请前往闲鱼购买');
+            setTimeout(() => setCopiedLink(null), 2000);
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
+    };
 
     // 格式化到期时间
     const formatExpiryDate = (date: Date | null) => {
@@ -191,37 +206,31 @@ export default function UpgradePage() {
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
                         <span className="text-xs text-foreground-secondary mr-1 leading-7">购买：</span>
                         {purchaseLinks.plus && (
-                            <a
-                                href={purchaseLinks.plus}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <button
+                                onClick={() => copyToClipboard(purchaseLinks.plus!, 'plus')}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-xs font-medium"
                             >
-                                <Crown className="w-3.5 h-3.5" />
+                                {copiedLink === 'plus' ? <Check className="w-3.5 h-3.5" /> : <Crown className="w-3.5 h-3.5" />}
                                 Plus
-                            </a>
+                            </button>
                         )}
                         {purchaseLinks.pro && (
-                            <a
-                                href={purchaseLinks.pro}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <button
+                                onClick={() => copyToClipboard(purchaseLinks.pro!, 'pro')}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 transition-colors text-xs font-medium"
                             >
-                                <Sparkles className="w-3.5 h-3.5" />
+                                {copiedLink === 'pro' ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
                                 Pro
-                            </a>
+                            </button>
                         )}
                         {purchaseLinks.credits && (
-                            <a
-                                href={purchaseLinks.credits}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <button
+                                onClick={() => copyToClipboard(purchaseLinks.credits!, 'credits')}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors text-xs font-medium"
                             >
-                                <Zap className="w-3.5 h-3.5" />
+                                {copiedLink === 'credits' ? <Check className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                                 积分
-                            </a>
+                            </button>
                         )}
                     </div>
                 )}
