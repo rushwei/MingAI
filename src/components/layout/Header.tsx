@@ -161,6 +161,7 @@ export function Header() {
                         onClick={() => router.back()}
                         className="p-2 -ml-2 rounded-full hover:bg-background-secondary transition-colors lg:hidden"
                         type="button"
+                        aria-label="返回上一页"
                     >
                         <ArrowLeft className="w-5 h-5 text-foreground" />
                     </button>
@@ -177,6 +178,8 @@ export function Header() {
                         onClick={() => setMenuOpen(!menuOpen)}
                         className="p-2 -mr-2 rounded-full hover:bg-background-secondary transition-colors"
                         type="button"
+                        aria-label="打开菜单"
+                        aria-expanded={menuOpen}
                     >
                         <MoreVertical className="w-5 h-5 text-foreground-secondary" />
                     </button>

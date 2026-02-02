@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { InjectedSource } from '@/types';
 import { SourceBadge } from './SourceBadge';
@@ -10,7 +11,8 @@ interface SourcePanelProps {
     onToggle: () => void;
 }
 
-export function SourcePanel({ sources, isExpanded, onToggle }: SourcePanelProps) {
+// memo 优化：避免父组件重渲染时不必要的重渲染
+export const SourcePanel = memo(function SourcePanel({ sources, isExpanded, onToggle }: SourcePanelProps) {
     if (!sources || sources.length === 0) return null;
 
     return (
@@ -33,4 +35,4 @@ export function SourcePanel({ sources, isExpanded, onToggle }: SourcePanelProps)
             )}
         </div>
     );
-}
+});

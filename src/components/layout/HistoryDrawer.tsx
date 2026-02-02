@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { findHexagram } from '@/lib/liuyao';
 import { getModelName } from '@/lib/ai-config';
 
 // 支持的历史类型
@@ -79,7 +78,8 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         const { data, error } = await query;
 
         if (!error && data) {
-            setItems(data.map((item: Record<string, unknown>) => {
+            // 使用 Promise.all 处理异步映射（liuyao 需要动态导入）
+            const items = await Promise.all(data.map(async (item: Record<string, unknown>) => {
                 let title = '';
                 const subType = '';
                 let modelName: string | undefined;
@@ -130,10 +130,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         modelName,
                     };
                 } else if (type === 'liuyao') {
-                    // 使用卦名显示，支持变卦
+                    // 使用卦名显示，支持变卦（动态导入避免首屏加载大型库）
                     const hexagramCode = item.hexagram_code as string;
                     const changedHexagramCode = item.changed_hexagram_code as string | null;
 
+                    const { findHexagram } = await import('@/lib/liuyao');
                     const hexagram = findHexagram(hexagramCode);
                     const hexagramName = hexagram?.name || '未知卦';
 
@@ -192,6 +193,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     modelName,
                 };
             }));
+            setItems(items);
         }
         setLoading(false);
     }, [userId, config.tableName, type]);

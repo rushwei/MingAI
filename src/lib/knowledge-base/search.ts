@@ -84,28 +84,72 @@ function getWeightMultiplier(weight?: string | null): number {
     return 1;
 }
 
+// 缓存知识库权重信息，避免重复查询
+const kbWeightCache = new Map<string, { weights: Map<string, string>; timestamp: number }>();
+const KB_WEIGHT_CACHE_TTL = 60000; // 1 分钟缓存
+
 async function applyKnowledgeBaseWeights(
     candidates: SearchCandidate[],
-    accessToken?: string
+    accessToken?: string,
+    supabaseClient?: Awaited<ReturnType<typeof createSupabaseClient>>,
+    userId?: string
 ): Promise<{ candidates: SearchCandidate[]; highKbIds: string[] }> {
     if (candidates.length === 0) return { candidates, highKbIds: [] };
-    const supabase = await createSupabaseClient(accessToken);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { candidates, highKbIds: [] };
+
+    // 复用已有的 supabase 客户端和用户 ID，避免重复创建和查询
+    const supabase = supabaseClient || await createSupabaseClient(accessToken);
+    let effectiveUserId = userId;
+    if (!effectiveUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { candidates, highKbIds: [] };
+        effectiveUserId = user.id;
+    }
 
     const kbIds = Array.from(new Set(candidates.map(c => c.kbId).filter(Boolean)));
     if (kbIds.length === 0) return { candidates, highKbIds: [] };
 
-    const { data: kbRows } = await supabase
-        .from('knowledge_bases')
-        .select('id, weight')
-        .eq('user_id', user.id)
-        .in('id', kbIds);
+    // 检查缓存
+    const cacheKey = effectiveUserId;
+    const cached = kbWeightCache.get(cacheKey);
+    let weightMap: Map<string, string>;
 
-    const weightMap = new Map<string, string>();
-    (kbRows || []).forEach((kb: { id: string; weight: string }) => {
-        weightMap.set(kb.id, kb.weight);
-    });
+    // 检查缓存是否有效且包含所有需要的 kbIds
+    const cacheValid = cached && Date.now() - cached.timestamp < KB_WEIGHT_CACHE_TTL;
+    const missingKbIds = cacheValid
+        ? kbIds.filter(id => !cached.weights.has(id))
+        : kbIds;
+
+    if (cacheValid && missingKbIds.length === 0) {
+        // 缓存完全命中
+        weightMap = cached.weights;
+    } else if (cacheValid && missingKbIds.length > 0) {
+        // 缓存部分命中，补充查询缺失的 kbIds
+        const { data: kbRows } = await supabase
+            .from('knowledge_bases')
+            .select('id, weight')
+            .eq('user_id', effectiveUserId)
+            .in('id', missingKbIds);
+
+        // 合并到现有缓存
+        weightMap = new Map(cached.weights);
+        (kbRows || []).forEach((kb: { id: string; weight: string }) => {
+            weightMap.set(kb.id, kb.weight);
+        });
+        kbWeightCache.set(cacheKey, { weights: weightMap, timestamp: cached.timestamp });
+    } else {
+        // 缓存未命中，完整查询
+        const { data: kbRows } = await supabase
+            .from('knowledge_bases')
+            .select('id, weight')
+            .eq('user_id', effectiveUserId)
+            .in('id', kbIds);
+
+        weightMap = new Map<string, string>();
+        (kbRows || []).forEach((kb: { id: string; weight: string }) => {
+            weightMap.set(kb.id, kb.weight);
+        });
+        kbWeightCache.set(cacheKey, { weights: weightMap, timestamp: Date.now() });
+    }
 
     const highKbIdSet = new Set<string>();
     const boosted = candidates.map(candidate => {
