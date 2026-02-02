@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { type Dimension, type TestResult, type PersonalityData, PERSONALITY_BASICS, loadPersonalityData, getDimensionDescription } from '@/lib/mbti';
-import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PersonalityCardProps {
     result: TestResult;
@@ -126,8 +126,21 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
 
             {/* 详细描述 */}
             {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                <div className="space-y-4">
+                    {/* 标题骨架 */}
+                    <div className="flex items-center gap-2 px-2">
+                        <div className="w-1 h-5 rounded-full bg-purple-500/30 animate-pulse" />
+                        <div className="h-5 w-20 rounded bg-white/10 animate-pulse" />
+                    </div>
+                    {/* 折叠卡片骨架 */}
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-5">
+                            <div className="flex items-center justify-between">
+                                <div className="h-5 w-32 rounded bg-white/10 animate-pulse" />
+                                <div className="w-5 h-5 rounded bg-white/10 animate-pulse" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : personalityData ? (
                 <div className="space-y-4">

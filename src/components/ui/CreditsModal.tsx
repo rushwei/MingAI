@@ -5,6 +5,7 @@
  */
 'use client';
 
+import { useCallback } from 'react';
 import { X, Coins, Crown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -17,12 +18,12 @@ interface CreditsModalProps {
 export function CreditsModal({ isOpen, onClose, message }: CreditsModalProps) {
     const router = useRouter();
 
-    if (!isOpen) return null;
-
-    const handleGoToUpgrade = () => {
+    const handleGoToUpgrade = useCallback(() => {
         onClose();
         router.push('/user/upgrade');
-    };
+    }, [onClose, router]);
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

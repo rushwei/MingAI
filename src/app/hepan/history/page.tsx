@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Trash2, Loader2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
+import { Trash2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai-config';
@@ -207,12 +207,33 @@ export default function HepanHistoryPage() {
 
                 {/* 列表 */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-4">
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full" />
-                            <Loader2 className="w-10 h-10 animate-spin text-accent relative z-10" />
-                        </div>
-                        <span className="text-foreground-secondary font-medium">正在加载记录...</span>
+                    <div className="grid gap-4">
+                        {/* 骨架屏 - 模拟合盘记录卡片 */}
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+                                <div className="flex items-start gap-5">
+                                    {/* 图标骨架 */}
+                                    <div className="w-12 h-12 rounded-2xl bg-foreground/10 animate-pulse shrink-0" />
+                                    <div className="flex-1 min-w-0 pt-1">
+                                        {/* 标题骨架 */}
+                                        <div className="flex items-center justify-between gap-4 mb-2">
+                                            <div className="h-6 w-40 rounded bg-foreground/10 animate-pulse" />
+                                            <div className="h-6 w-20 rounded-full bg-foreground/10 animate-pulse" />
+                                        </div>
+                                        {/* 生日信息骨架 */}
+                                        <div className="flex gap-4 mb-4">
+                                            <div className="h-4 w-24 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-4 w-24 rounded bg-foreground/5 animate-pulse" />
+                                        </div>
+                                        {/* 底部信息骨架 */}
+                                        <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                            <div className="h-4 w-20 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-6 w-16 rounded bg-foreground/10 animate-pulse" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : filteredCharts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-center">

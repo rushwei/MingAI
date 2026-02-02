@@ -11,7 +11,6 @@ import {
     ChevronLeft,
     ChevronRight,
     TrendingUp,
-    Loader2,
     User,
     ChevronDown,
 } from 'lucide-react';
@@ -214,9 +213,50 @@ function MonthlyPageContent() {
 
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            <div className="min-h-screen bg-background">
+                <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-6">
+                    {/* 月度总结卡片骨架 */}
+                    <div className="bg-background border border-border rounded-3xl overflow-hidden">
+                        <div className="p-4 border-b border-border/50 bg-background-secondary/30">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                    <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                </div>
+                                <div className="h-8 w-40 rounded-full bg-foreground/5 animate-pulse" />
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex flex-col sm:flex-row gap-6">
+                                <div className="sm:w-1/3 space-y-3">
+                                    <div className="h-4 w-20 rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-10 w-24 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="h-8 w-28 rounded-lg bg-foreground/5 animate-pulse" />
+                                </div>
+                                <div className="sm:w-2/3 space-y-3">
+                                    <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-4 w-3/4 rounded bg-foreground/5 animate-pulse" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* 日历骨架 */}
+                    <div className="bg-background rounded-3xl border border-border overflow-hidden">
+                        <div className="p-5 border-b border-border/50 bg-background-secondary/30">
+                            <div className="h-6 w-28 rounded bg-foreground/10 animate-pulse" />
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-7 gap-2 sm:gap-4">
+                                {Array.from({ length: 35 }).map((_, i) => (
+                                    <div key={i} className="h-14 sm:h-16 rounded-2xl bg-foreground/5 animate-pulse" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

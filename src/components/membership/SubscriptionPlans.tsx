@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, Crown, Sparkles, Zap } from 'lucide-react';
 import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/membership';
 
@@ -30,7 +30,7 @@ export function SubscriptionPlans({
     const [selectedTab, setSelectedTab] = useState<MembershipType>(getDefaultTab);
     const [expandedPlans, setExpandedPlans] = useState<Set<MembershipType>>(new Set());
 
-    const toggleExpand = (planId: MembershipType) => {
+    const toggleExpand = useCallback((planId: MembershipType) => {
         setExpandedPlans(prev => {
             const next = new Set(prev);
             if (next.has(planId)) {
@@ -40,7 +40,7 @@ export function SubscriptionPlans({
             }
             return next;
         });
-    };
+    }, []);
 
     const getIcon = (planId: MembershipType) => {
         switch (planId) {
@@ -59,15 +59,13 @@ export function SubscriptionPlans({
     };
 
     // 根据当前会员等级确定推荐的套餐
-    const getRecommendedPlan = (): MembershipType | null => {
+    const recommendedPlan = useMemo((): MembershipType | null => {
         switch (currentPlan) {
             case 'free': return 'plus';
             case 'plus': return 'pro';
             case 'pro': return null; // 已是最高级
         }
-    };
-
-    const recommendedPlan = getRecommendedPlan();
+    }, [currentPlan]);
 
     // 渲染单个套餐卡片
     const renderPlanCard = (plan: PricingPlan) => {

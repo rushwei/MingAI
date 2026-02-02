@@ -231,8 +231,20 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
                 {/* 命盘列表 */}
                 <div className="flex-1 overflow-y-auto p-3" style={{ maxHeight: '260px' }}>
                     {loading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                        <div className="space-y-3">
+                            {/* 骨架屏 - 模拟命盘分组 */}
+                            <div className="space-y-2">
+                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
+                                {[1, 2].map(i => (
+                                    <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg border border-border">
+                                        <div className="w-8 h-8 rounded-full bg-foreground/10 animate-pulse" />
+                                        <div className="flex-1 space-y-1.5">
+                                            <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse" />
+                                            <div className="h-3 w-28 rounded bg-foreground/5 animate-pulse" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     ) : filteredCharts.length === 0 ? (
                         <div className="text-center py-8 text-foreground-secondary text-sm">

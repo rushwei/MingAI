@@ -184,9 +184,35 @@ export function CheckinModal({ isOpen, onClose, onCheckinSuccess }: CheckinModal
                     {/* 主体内容 */}
                     <div className="relative px-5 pb-5">
                         {loading ? (
-                            <div className="flex flex-col items-center py-10">
-                                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-                                <span className="text-sm text-foreground-secondary mt-3">加载中...</span>
+                            <div className="space-y-4">
+                                {/* 签到状态卡片骨架 */}
+                                <div className="bg-background-secondary/50 rounded-xl p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 rounded bg-foreground/10 animate-pulse" />
+                                            <div className="space-y-1.5">
+                                                <div className="h-3 w-16 rounded bg-foreground/10 animate-pulse" />
+                                                <div className="h-6 w-12 rounded bg-foreground/10 animate-pulse" />
+                                            </div>
+                                        </div>
+                                        <div className="h-9 w-20 rounded-lg bg-foreground/10 animate-pulse" />
+                                    </div>
+                                </div>
+                                {/* 等级进度骨架 */}
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between">
+                                        <div className="h-3 w-20 rounded bg-foreground/10 animate-pulse" />
+                                        <div className="h-3 w-16 rounded bg-foreground/10 animate-pulse" />
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-foreground/10 animate-pulse" />
+                                </div>
+                                {/* 奖励规则骨架 */}
+                                <div className="border-t border-border pt-3 space-y-2">
+                                    <div className="h-3 w-16 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="h-3 w-full rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-3 w-4/5 rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-3 w-full rounded bg-foreground/5 animate-pulse" />
+                                </div>
                             </div>
                         ) : (
                             <>

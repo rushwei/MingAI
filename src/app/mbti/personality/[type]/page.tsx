@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { PERSONALITY_BASICS, type MBTIType } from '@/lib/mbti';
 
 interface PersonalityData {
@@ -49,8 +49,31 @@ export default function PersonalityPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="min-h-screen bg-background">
+                <div className="max-w-3xl mx-auto px-4 py-8">
+                    {/* 返回按钮骨架 */}
+                    <div className="h-5 w-16 rounded bg-foreground/5 animate-pulse mb-6" />
+                    {/* 头部骨架 */}
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 mx-auto rounded-full bg-foreground/10 animate-pulse mb-4" />
+                        <div className="h-8 w-24 mx-auto rounded bg-foreground/10 animate-pulse mb-2" />
+                        <div className="h-6 w-32 mx-auto rounded bg-foreground/5 animate-pulse mb-4" />
+                        <div className="h-4 w-64 mx-auto rounded bg-foreground/5 animate-pulse" />
+                    </div>
+                    {/* 内容骨架 */}
+                    <div className="space-y-8">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="bg-background-secondary rounded-xl p-6">
+                                <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse mb-4" />
+                                <div className="space-y-2">
+                                    <div className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-4 w-5/6 rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-4 w-4/5 rounded bg-foreground/5 animate-pulse" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }

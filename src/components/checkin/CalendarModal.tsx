@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface CalendarModalProps {
@@ -170,8 +170,21 @@ export function CalendarModal({ isOpen, onClose }: CalendarModalProps) {
                 {/* 日历内容 */}
                 <div className="p-5">
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                        <div className="space-y-2">
+                            {/* 星期标题骨架 */}
+                            <div className="grid grid-cols-7 gap-2 mb-2">
+                                {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                                    <div key={i} className="h-8 flex items-center justify-center">
+                                        <div className="h-3 w-4 rounded bg-foreground/10 animate-pulse" />
+                                    </div>
+                                ))}
+                            </div>
+                            {/* 日历格子骨架 */}
+                            <div className="grid grid-cols-7 gap-2">
+                                {Array.from({ length: 35 }).map((_, i) => (
+                                    <div key={i} className="h-9 rounded-lg bg-foreground/10 animate-pulse" />
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         <>

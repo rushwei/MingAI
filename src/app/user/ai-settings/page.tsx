@@ -224,8 +224,56 @@ export default function AISettingsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-foreground-secondary" />
+            <div className="min-h-screen bg-background">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
+                    {/* 标题骨架 */}
+                    <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-foreground/5 animate-pulse" />
+                            <div className="space-y-1.5">
+                                <div className="h-6 w-36 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-4 w-56 rounded bg-foreground/5 animate-pulse" />
+                            </div>
+                        </div>
+                        <div className="h-10 w-28 rounded-full bg-foreground/10 animate-pulse" />
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        {/* 左侧设置区域骨架 */}
+                        <div className="xl:col-span-2 space-y-5">
+                            {/* 知识库卡片骨架 */}
+                            <div className="h-20 rounded-2xl bg-foreground/5 animate-pulse" />
+                            {/* 个人档案骨架 */}
+                            <div className="bg-background rounded-2xl p-5 border border-border">
+                                <div className="h-5 w-20 rounded bg-foreground/10 animate-pulse mb-4" />
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="h-16 rounded-lg bg-foreground/5 animate-pulse" />
+                                    <div className="h-16 rounded-lg bg-foreground/5 animate-pulse" />
+                                </div>
+                            </div>
+                            {/* 对话设置骨架 */}
+                            <div className="bg-background rounded-2xl p-5 border border-border">
+                                <div className="h-5 w-20 rounded bg-foreground/10 animate-pulse mb-4" />
+                                <div className="space-y-4">
+                                    <div className="h-10 rounded-lg bg-foreground/5 animate-pulse" />
+                                    <div className="h-24 rounded-lg bg-foreground/5 animate-pulse" />
+                                </div>
+                            </div>
+                        </div>
+                        {/* 右侧预览区域骨架 */}
+                        <div className="xl:col-span-1">
+                            <div className="bg-background rounded-3xl p-6 border border-border">
+                                <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse mb-6" />
+                                <div className="space-y-4">
+                                    <div className="h-16 rounded-xl bg-foreground/5 animate-pulse" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="h-24 rounded-2xl bg-foreground/5 animate-pulse" />
+                                        <div className="h-24 rounded-2xl bg-foreground/5 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

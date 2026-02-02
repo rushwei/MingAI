@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText } from 'lucide-react';
+import { Calendar, Trash2, Search, MessageSquare, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { PERSONALITY_BASICS, type MBTIType } from '@/lib/mbti';
@@ -157,9 +157,36 @@ export default function MBTIHistoryPage() {
 
                 {/* 列表 */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-accent" />
-                        <span className="text-foreground-secondary">加载中...</span>
+                    <div className="space-y-3">
+                        {/* 骨架屏 - 模拟 MBTI 记录卡片 */}
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-background-secondary rounded-xl p-4 border border-border">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        {/* 类型标签骨架 */}
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="h-7 w-16 rounded-lg bg-foreground/10 animate-pulse" />
+                                            <div className="h-5 w-20 rounded bg-foreground/10 animate-pulse" />
+                                            <div className="ml-auto flex items-center gap-2">
+                                                <div className="h-4 w-28 rounded bg-foreground/5 animate-pulse" />
+                                            </div>
+                                        </div>
+                                        {/* 维度百分比骨架 */}
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            <div className="h-5 w-24 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-5 w-24 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-5 w-24 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-5 w-24 rounded bg-foreground/5 animate-pulse" />
+                                        </div>
+                                    </div>
+                                    {/* 操作按钮骨架 */}
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                        <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : filteredReadings.length === 0 ? (
                     <div className="text-center py-16">

@@ -31,7 +31,7 @@ import {
     Aperture,
     Tags,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AuthModal } from '../auth/AuthModal';
 import { SidebarUserCard } from './UserMenu';
 import { useSidebarSafe } from './SidebarContext';
@@ -130,13 +130,13 @@ export function Sidebar() {
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     // 切换折叠状态
-    const toggleCollapsed = (newState: boolean) => {
+    const toggleCollapsed = useCallback((newState: boolean) => {
         setCollapsed(newState);
         setIsHoveringLogo(false);
-    };
+    }, [setCollapsed]);
 
     // 根据配置过滤并排序导航项
-    const filteredNavItems = navItems
+    const filteredNavItems = useMemo(() => navItems
         .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
         .sort((a, b) => {
             const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
@@ -145,9 +145,9 @@ export function Sidebar() {
             if (orderA === -1) return 1;
             if (orderB === -1) return -1;
             return orderA - orderB;
-        });
+        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder]);
 
-    const filteredToolItems = toolItems
+    const filteredToolItems = useMemo(() => toolItems
         .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
         .sort((a, b) => {
             const idA = a.href.replace('/user/', '').replace('/', '');
@@ -158,7 +158,7 @@ export function Sidebar() {
             if (orderA === -1) return 1;
             if (orderB === -1) return -1;
             return orderA - orderB;
-        });
+        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder]);
 
     return (
         <>

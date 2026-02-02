@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useMemo, useState } from 'react'; // Added useState for expand/collapse state
+import { useMemo, useState, useCallback } from 'react'; // Added useState for expand/collapse state, useCallback for memoized functions
 import {
     Calendar,
     CheckCircle,
@@ -62,13 +62,17 @@ export function CalendarAlmanac({
     const [yiExpanded, setYiExpanded] = useState(false);
     const [jiExpanded, setJiExpanded] = useState(false);
 
-    // 流日干支颜色
-    const dayStemElement = dayStem ? getStemElement(dayStem) : null;
-    const dayBranchElement = dayBranch ? getBranchElement(dayBranch) : null;
-    const dayStemColor = dayStemElement ? getElementColor(dayStemElement) : undefined;
-    const dayBranchColor = dayBranchElement ? getElementColor(dayBranchElement) : undefined;
+    // 流日干支颜色 - 使用 useMemo 缓存计算结果
+    const { dayStemColor, dayBranchColor } = useMemo(() => {
+        const stemElement = dayStem ? getStemElement(dayStem) : null;
+        const branchElement = dayBranch ? getBranchElement(dayBranch) : null;
+        return {
+            dayStemColor: stemElement ? getElementColor(stemElement) : undefined,
+            dayBranchColor: branchElement ? getElementColor(branchElement) : undefined,
+        };
+    }, [dayStem, dayBranch]);
 
-    const renderGanZhi = (value: string) => {
+    const renderGanZhi = useCallback((value: string) => {
         const stem = value?.[0] || '';
         const branch = value?.[1] || '';
         const stemElement = getStemElement(stem);
@@ -82,7 +86,7 @@ export function CalendarAlmanac({
                 <span style={{ color: branchColor }}>{branch}</span>
             </span>
         );
-    };
+    }, []);
 
     return (
         <section className="bg-background rounded-xl border border-border overflow-hidden">

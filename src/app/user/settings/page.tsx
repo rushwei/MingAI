@@ -9,7 +9,6 @@ import {
     Bell,
     Globe,
     Shield,
-    Loader2,
     Check,
     ChevronRight
 } from 'lucide-react';
@@ -225,8 +224,34 @@ export default function SettingsPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+            <div className="min-h-screen bg-background">
+                <div className="max-w-2xl mx-auto px-4 py-4 md:py-6">
+                    {/* 标题骨架 */}
+                    <div className="hidden md:block mb-6">
+                        <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse mt-1" />
+                    </div>
+                    {/* 设置卡片骨架 */}
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="bg-background rounded-2xl border border-border/50 p-5">
+                                <div className="h-5 w-28 rounded bg-foreground/10 animate-pulse mb-4" />
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-foreground/5 animate-pulse" />
+                                            <div className="space-y-1.5">
+                                                <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse" />
+                                                <div className="h-3 w-32 rounded bg-foreground/5 animate-pulse" />
+                                            </div>
+                                        </div>
+                                        <div className="h-7 w-12 rounded-full bg-foreground/10 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }

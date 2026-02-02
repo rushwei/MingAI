@@ -496,9 +496,30 @@ export default function KnowledgeBaseManagePage() {
                     </h2>
 
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-2 text-foreground-secondary">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <p className="text-xs">正在加载知识库...</p>
+                        <div className="grid grid-cols-1 gap-3">
+                            {/* 骨架屏 - 模拟知识库卡片 */}
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-background rounded-2xl border border-border p-4 sm:p-5">
+                                    <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                                        <div className="flex-1 space-y-3 min-w-0">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-5 h-5 rounded bg-foreground/10 animate-pulse" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse" />
+                                                    <div className="h-4 w-48 rounded bg-foreground/5 animate-pulse" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="h-7 w-20 rounded-lg bg-foreground/5 animate-pulse" />
+                                            <div className="h-7 w-24 rounded-lg bg-foreground/5 animate-pulse" />
+                                            <div className="h-7 w-7 rounded-lg bg-foreground/5 animate-pulse" />
+                                            <div className="h-7 w-7 rounded-lg bg-foreground/5 animate-pulse" />
+                                            <div className="h-7 w-7 rounded-lg bg-foreground/5 animate-pulse" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : kbs.length === 0 ? (
                         <div className="bg-background rounded-2xl p-10 text-center border border-border border-dashed">
@@ -623,9 +644,17 @@ export default function KnowledgeBaseManagePage() {
                                             </div>
 
                                             {archivesLoading ? (
-                                                <div className="flex items-center justify-center py-6 text-xs text-foreground-secondary">
-                                                    <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-                                                    正在加载归档数据...
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {/* 骨架屏 - 模拟归档数据项 */}
+                                                    {[1, 2, 3, 4].map(i => (
+                                                        <div key={i} className="p-2.5 rounded-xl bg-background border border-border">
+                                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
+                                                                <div className="h-3 w-20 rounded bg-foreground/5 animate-pulse" />
+                                                            </div>
+                                                            <div className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ) : (archives[kb.id] || []).length === 0 ? (
                                                 <div className="text-center py-6 rounded-xl border border-dashed border-border/50">

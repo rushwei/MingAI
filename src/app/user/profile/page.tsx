@@ -6,9 +6,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    Loader2,
-} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
@@ -172,8 +169,31 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="max-w-2xl mx-auto px-4 py-8">
+                {/* 标题骨架 */}
+                <div className="mb-8">
+                    <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
+                    <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse mt-2" />
+                </div>
+                {/* 头像骨架 */}
+                <div className="flex justify-center mb-8">
+                    <div className="w-24 h-24 rounded-full bg-foreground/10 animate-pulse" />
+                </div>
+                {/* 表单骨架 */}
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
+                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="space-y-2">
+                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
+                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="space-y-2">
+                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
+                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                    </div>
+                </div>
             </div>
         );
     }

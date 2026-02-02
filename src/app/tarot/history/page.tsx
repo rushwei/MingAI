@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Trash2, Loader2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
+import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { TAROT_SPREADS, type DrawnCard } from '@/lib/tarot';
@@ -155,9 +155,36 @@ export default function TarotHistoryPage() {
 
                 {/* 列表 */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-accent" />
-                        <span className="text-foreground-secondary">加载记录中...</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* 骨架屏 - 模拟历史记录卡片 */}
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="bg-background-secondary rounded-2xl p-5 border border-border">
+                                {/* 顶部标签骨架 */}
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="h-6 w-20 rounded-lg bg-foreground/10 animate-pulse" />
+                                    <div className="h-4 w-24 rounded bg-foreground/5 animate-pulse" />
+                                </div>
+                                {/* 牌面预览骨架 */}
+                                <div className="flex gap-1.5 mb-3">
+                                    <div className="h-6 w-16 rounded-md bg-foreground/10 animate-pulse" />
+                                    <div className="h-6 w-16 rounded-md bg-foreground/10 animate-pulse" />
+                                    <div className="h-6 w-12 rounded-md bg-foreground/5 animate-pulse" />
+                                </div>
+                                {/* 问题骨架 */}
+                                <div className="space-y-1.5 mb-3">
+                                    <div className="h-3 w-full rounded bg-foreground/5 animate-pulse" />
+                                    <div className="h-3 w-2/3 rounded bg-foreground/5 animate-pulse" />
+                                </div>
+                                {/* 底部操作栏骨架 */}
+                                <div className="pt-3 border-t border-border flex items-center justify-between">
+                                    <div className="h-3 w-16 rounded bg-foreground/5 animate-pulse" />
+                                    <div className="flex gap-1">
+                                        <div className="w-7 h-7 rounded-lg bg-foreground/5 animate-pulse" />
+                                        <div className="w-7 h-7 rounded-lg bg-foreground/5 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : filteredReadings.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-background-secondary/30 rounded-3xl border border-border border-dashed">

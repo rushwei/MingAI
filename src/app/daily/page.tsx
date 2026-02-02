@@ -14,7 +14,6 @@ import {
     Wallet,
     Activity,
     Star,
-    Loader2,
     Sparkles,
     User,
     Compass,
@@ -246,9 +245,38 @@ function DailyPageContent() {
 
     if (loading) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">加载中...</p>
+            <div className="min-h-screen bg-background">
+                <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* 左侧黄历骨架 */}
+                        <div className="bg-background/60 rounded-xl shadow-sm p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                <div className="h-10 w-32 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
+                            </div>
+                            <div className="h-24 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="h-20 rounded-xl bg-foreground/5 animate-pulse" />
+                                <div className="h-20 rounded-xl bg-foreground/5 animate-pulse" />
+                            </div>
+                        </div>
+                        {/* 右侧运势骨架 */}
+                        <div className="space-y-6">
+                            <div className="bg-background/60 rounded-2xl p-4 space-y-4">
+                                <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse" />
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                        <div key={i} className="space-y-2">
+                                            <div className="h-4 w-20 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-2 w-full rounded-full bg-foreground/5 animate-pulse" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -494,10 +522,26 @@ function DailyPageContent() {
 export default function DailyPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-                    <p className="text-foreground-secondary animate-pulse">正在推演天机...</p>
+            <div className="min-h-screen bg-background">
+                <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-background/60 rounded-xl shadow-sm p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                <div className="h-10 w-32 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
+                            </div>
+                            <div className="h-24 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                        </div>
+                        <div className="bg-background/60 rounded-2xl p-4 space-y-4">
+                            <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse" />
+                            <div className="grid grid-cols-2 gap-3">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-12 rounded bg-foreground/5 animate-pulse" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         }>

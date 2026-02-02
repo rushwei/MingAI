@@ -118,8 +118,20 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
             {/* 通知列表 */}
             <div className="overflow-y-auto max-h-[380px]">
                 {isLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-6 h-6 animate-spin text-accent" />
+                    <div className="space-y-0">
+                        {/* 骨架屏 - 模拟通知列表项 */}
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="px-4 py-3 border-b border-border">
+                                <div className="flex gap-3">
+                                    <div className="w-6 h-6 rounded bg-foreground/10 animate-pulse flex-shrink-0" />
+                                    <div className="flex-1 min-w-0 space-y-2">
+                                        <div className="h-4 w-3/4 rounded bg-foreground/10 animate-pulse" />
+                                        <div className="h-3 w-full rounded bg-foreground/5 animate-pulse" />
+                                        <div className="h-3 w-16 rounded bg-foreground/5 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="py-12 text-center text-foreground-secondary">

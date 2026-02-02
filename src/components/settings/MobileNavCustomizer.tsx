@@ -233,8 +233,38 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+            <div className="space-y-6">
+                {/* 头部骨架 */}
+                <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                        <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-52 rounded bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="h-8 w-20 rounded-lg bg-foreground/5 animate-pulse" />
+                </div>
+                {/* 底部导航栏骨架 */}
+                <div>
+                    <div className="h-4 w-20 rounded bg-foreground/5 animate-pulse mb-3" />
+                    <div className="grid grid-cols-4 gap-2">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="h-16 rounded-xl bg-foreground/5 animate-pulse" />
+                        ))}
+                    </div>
+                </div>
+                {/* 更多菜单骨架 */}
+                <div>
+                    <div className="h-4 w-16 rounded bg-foreground/5 animate-pulse mb-3" />
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border mb-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 rounded bg-foreground/5 animate-pulse" />
+                                <div className="w-4 h-4 rounded bg-foreground/5 animate-pulse" />
+                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }

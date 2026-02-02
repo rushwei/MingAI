@@ -203,8 +203,38 @@ export default function NotificationsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="animate-fade-in">
+                <div className="max-w-2xl mx-auto px-4 py-2 md:py-8">
+                    {/* 标题栏骨架 */}
+                    <div className="hidden md:flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
+                            <div className="h-5 w-14 rounded-full bg-foreground/10 animate-pulse" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-20 rounded-lg bg-foreground/5 animate-pulse" />
+                            <div className="h-8 w-14 rounded-lg bg-foreground/5 animate-pulse" />
+                        </div>
+                    </div>
+                    {/* 通知列表骨架 */}
+                    <div className="bg-background rounded-xl border border-border overflow-hidden">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="px-4 py-4 border-b border-border last:border-b-0">
+                                <div className="flex gap-3">
+                                    <div className="w-6 h-6 rounded bg-foreground/10 animate-pulse flex-shrink-0" />
+                                    <div className="flex-1 min-w-0 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-16 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-5 w-40 rounded bg-foreground/10 animate-pulse" />
+                                        </div>
+                                        <div className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
+                                        <div className="h-3 w-20 rounded bg-foreground/5 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }

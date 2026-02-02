@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
@@ -65,7 +65,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         });
     }, []);
 
-    const loadHistory = async () => {
+    const loadHistory = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
 
@@ -194,17 +194,17 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             }));
         }
         setLoading(false);
-    };
+    }, [userId, config.tableName, type]);
 
-    const handleToggle = () => {
+    const handleToggle = useCallback(() => {
         if (!isOpen) {
             loadHistory();
         }
         setIsOpen(!isOpen);
-    };
+    }, [isOpen, loadHistory]);
 
     // 点击查看历史记录详情
-    const handleViewItem = async (itemId: string) => {
+    const handleViewItem = useCallback(async (itemId: string) => {
         setNavigating(itemId);
 
         try {
@@ -362,7 +362,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             console.error('Navigation error:', err);
             setNavigating(null);
         }
-    };
+    }, [config.tableName, config.sessionKey, config.useTimestamp, config.detailPath, type, router]);
 
     if (!userId) return null;
 
@@ -474,9 +474,23 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     {/* 列表 */}
                     <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-foreground/20">
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center h-40 gap-3">
-                                <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
-                                <span className="text-xs text-foreground-secondary">加载中...</span>
+                            <div className="space-y-2">
+                                {/* 骨架屏 - 模拟历史记录项 */}
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="p-3 rounded-xl bg-foreground/5">
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-yellow-400/30 animate-pulse shrink-0" />
+                                            <div className="flex-1 min-w-0 space-y-2">
+                                                <div className="h-4 w-3/4 rounded bg-foreground/10 animate-pulse" />
+                                                <div className="h-3 w-1/2 rounded bg-foreground/5 animate-pulse" />
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-3 w-16 rounded bg-foreground/5 animate-pulse" />
+                                                    <div className="h-3 w-12 rounded bg-foreground/5 animate-pulse" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : items.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-64 text-foreground-secondary/60 gap-3">

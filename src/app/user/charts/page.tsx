@@ -288,8 +288,20 @@ export default function ChartsPage() {
                     <div className="space-y-8">
                         {[1, 2].map(i => (
                             <div key={i} className="space-y-4">
-                                <div className="h-6 w-24 bg-slate-100 rounded animate-pulse" />
-                                <div className="h-32 bg-slate-50 rounded-2xl animate-pulse" />
+                                <div className="flex items-center justify-between">
+                                    <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="h-5 w-20 rounded bg-foreground/5 animate-pulse" />
+                                </div>
+                                <div className="bg-background rounded-2xl p-5 border border-border">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-foreground/10 animate-pulse" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse" />
+                                            <div className="h-4 w-48 rounded bg-foreground/5 animate-pulse" />
+                                            <div className="h-4 w-36 rounded bg-foreground/5 animate-pulse" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>

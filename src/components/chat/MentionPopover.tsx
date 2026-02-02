@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronRight, Folder, BookOpenText, ArrowLeft, Loader2, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText } from 'lucide-react';
+import { ChevronRight, Folder, BookOpenText, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText } from 'lucide-react';
 import type { Mention, MentionType } from '@/types';
 
 interface MentionPopoverProps {
@@ -484,9 +484,14 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 )}
                 <div ref={listRef} className="max-h-48 overflow-auto">
                     {loading ? (
-                        <div className="flex items-center gap-2 px-3 py-3 text-sm text-foreground-secondary">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            加载中
+                        <div className="space-y-1 p-2">
+                            {/* 骨架屏 - 模拟列表项 */}
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="flex items-center gap-2 px-2 py-2">
+                                    <div className="w-5 h-5 rounded bg-foreground/10 animate-pulse" />
+                                    <div className="h-4 w-24 rounded bg-foreground/10 animate-pulse" />
+                                </div>
+                            ))}
                         </div>
                     ) : view.items.length === 0 ? (
                         <div className="px-3 py-3 text-sm text-foreground-secondary">

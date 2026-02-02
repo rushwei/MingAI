@@ -309,8 +309,29 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
+            <div className="space-y-6">
+                {/* 头部骨架 */}
+                <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                        <div className="h-5 w-28 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-48 rounded bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="h-8 w-20 rounded-lg bg-foreground/5 animate-pulse" />
+                </div>
+                {/* 列表骨架 */}
+                <div className="space-y-3">
+                    <div className="h-4 w-16 rounded bg-foreground/5 animate-pulse" />
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 rounded bg-foreground/5 animate-pulse" />
+                                <div className="w-4 h-4 rounded bg-foreground/5 animate-pulse" />
+                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-foreground/5 animate-pulse" />
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }

@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource } from '@/types';
 import { getModelName } from '@/lib/ai-config';
@@ -49,26 +49,26 @@ export const ChatMessageItem = memo(function ChatMessageItem({
         [message.role, message.content]
     );
 
-    const handleStartEdit = () => {
+    const handleStartEdit = useCallback(() => {
         if (disabled) return;
         setEditingId(message.id);
         setEditContent(message.content);
-    };
+    }, [disabled, message.id, message.content]);
 
-    const handleSaveEdit = () => {
+    const handleSaveEdit = useCallback(() => {
         if (editingId && onEditMessage && editContent.trim()) {
             onEditMessage(editingId, editContent.trim());
         }
         setEditingId(null);
         setEditContent('');
-    };
+    }, [editingId, onEditMessage, editContent]);
 
-    const handleCancelEdit = () => {
+    const handleCancelEdit = useCallback(() => {
         setEditingId(null);
         setEditContent('');
-    };
+    }, []);
 
-    const handleCopy = async () => {
+    const handleCopy = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(message.content);
             setCopiedId(message.id);
@@ -76,7 +76,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
         } catch {
             // 复制失败
         }
-    };
+    }, [message.content, message.id]);
 
     const isCurrentStreaming = isStreamingAI && isLastMessage;
 

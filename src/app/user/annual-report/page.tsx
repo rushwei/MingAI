@@ -9,7 +9,6 @@ import {
     BarChart3,
     Trophy,
     Flame,
-    Loader2,
     RefreshCw,
     Star,
     TrendingUp
@@ -180,10 +179,45 @@ export default function AnnualReportPage() {
     if (loading) {
         return (
             <LoginOverlay message="登录后查看年度报告">
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto mb-4" />
-                        <p className="text-foreground-secondary">正在生成您的年度报告...</p>
+                <div className="min-h-screen bg-background">
+                    <div className="max-w-3xl mx-auto px-4 py-4 md:py-8">
+                        {/* 头部骨架 */}
+                        <div className="hidden md:flex items-center justify-between mb-8">
+                            <div className="space-y-2">
+                                <div className="h-7 w-28 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse" />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-10 w-24 rounded-lg bg-foreground/5 animate-pulse" />
+                                <div className="h-10 w-10 rounded-lg bg-foreground/5 animate-pulse" />
+                            </div>
+                        </div>
+                        {/* 移动端操作栏骨架 */}
+                        <div className="md:hidden flex items-center justify-between mb-4">
+                            <div className="h-10 w-24 rounded-lg bg-foreground/5 animate-pulse" />
+                            <div className="h-10 w-10 rounded-lg bg-foreground/5 animate-pulse" />
+                        </div>
+                        {/* 总览卡片骨架 */}
+                        <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-6 mb-6">
+                            <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse mb-4" />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="text-center p-4 bg-background/50 rounded-xl">
+                                        <div className="h-8 w-16 mx-auto rounded bg-foreground/10 animate-pulse mb-2" />
+                                        <div className="h-4 w-20 mx-auto rounded bg-foreground/5 animate-pulse" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        {/* 其他卡片骨架 */}
+                        <div className="space-y-6">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-background-secondary rounded-2xl border border-border p-6">
+                                    <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse mb-4" />
+                                    <div className="h-32 rounded-xl bg-foreground/5 animate-pulse" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </LoginOverlay>

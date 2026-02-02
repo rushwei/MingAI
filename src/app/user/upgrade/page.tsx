@@ -9,7 +9,6 @@
 import { useState, useEffect } from 'react';
 import {
     Crown,
-    Loader2,
     Key,
     Sparkles,
     Zap,
@@ -131,8 +130,41 @@ export default function UpgradePage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:py-8 sm:pb-8">
+                {/* 头部骨架 */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 sm:mb-8">
+                    <div className="hidden md:block space-y-2">
+                        <div className="h-7 w-32 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-48 rounded bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="h-8 w-20 rounded-full bg-foreground/10 animate-pulse" />
+                </div>
+                {/* 积分进度条骨架 */}
+                <div className="mb-2 sm:mb-8">
+                    <div className="h-20 rounded-2xl bg-foreground/5 animate-pulse" />
+                </div>
+                {/* 激活码模块骨架 */}
+                <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border border-border bg-background-secondary/50">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse" />
+                            <div className="space-y-1.5">
+                                <div className="h-4 w-16 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-3 w-32 rounded bg-foreground/5 animate-pulse" />
+                            </div>
+                        </div>
+                        <div className="h-9 w-20 rounded-lg bg-foreground/10 animate-pulse" />
+                    </div>
+                </div>
+                {/* 订阅套餐骨架 */}
+                <div>
+                    <div className="hidden sm:block h-6 w-24 rounded bg-foreground/10 animate-pulse mb-4 sm:mb-6" />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="h-64 rounded-2xl bg-foreground/5 animate-pulse" />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
