@@ -71,7 +71,7 @@ export function VirtualizedChatMessageList({
     });
 
     // 滚动到底部
-    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const scrollToBottom = useCallback((behavior: 'auto' | 'smooth' = 'smooth') => {
         if (messages.length > 0) {
             virtualizer.scrollToIndex(messages.length - 1, {
                 align: 'end',
@@ -108,15 +108,25 @@ export function VirtualizedChatMessageList({
         lastMessageCountRef.current = messages.length;
     }, [messages, scrollToBottom]);
 
-    // 流式输出时持续滚动到底部
+    // 流式输出时，监听最后一条消息内容变化来滚动（包括 reasoning 和 content）
+    const lastMessageContent = lastMessage?.content;
+    const lastMessageReasoning = lastMessage?.reasoning;
+    const lastMessageTotalLengthRef = useRef(0);
+
     useEffect(() => {
         if (isStreamingAI) {
-            const scrollInterval = setInterval(() => {
+            // 计算 content + reasoning 的总长度
+            const totalLength = (lastMessageContent?.length || 0) + (lastMessageReasoning?.length || 0);
+            // 只在内容实际增加时滚动
+            if (totalLength > lastMessageTotalLengthRef.current) {
+                lastMessageTotalLengthRef.current = totalLength;
                 scrollToBottom('auto');
-            }, 100);
-            return () => clearInterval(scrollInterval);
+            }
+        } else {
+            // 流式结束，重置长度记录
+            lastMessageTotalLengthRef.current = 0;
         }
-    }, [isStreamingAI, scrollToBottom]);
+    }, [isStreamingAI, lastMessageContent, lastMessageReasoning, scrollToBottom]);
 
     // 空消息状态
     if (messages.length === 0) {

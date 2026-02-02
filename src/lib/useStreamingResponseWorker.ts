@@ -144,6 +144,8 @@ export function useStreamingResponseWorker(): UseStreamingResponseWorkerReturn {
         setMetadata(null);
         setIsStreaming(false);
         setError(null);
+        // 重置 Worker 的 lineBuffer
+        workerRef.current?.postMessage({ type: 'reset' });
     }, []);
 
     // 停止流
@@ -152,6 +154,8 @@ export function useStreamingResponseWorker(): UseStreamingResponseWorkerReturn {
         readerRef.current?.cancel();
         readerRef.current = null;
         setIsStreaming(false);
+        // 重置 Worker 的 lineBuffer
+        workerRef.current?.postMessage({ type: 'reset' });
     }, []);
 
     return {

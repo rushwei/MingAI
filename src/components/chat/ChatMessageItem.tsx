@@ -7,31 +7,14 @@
  */
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useMemo } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource } from '@/types';
 import { getModelName } from '@/lib/ai-config';
+import { formatMentionsForDisplay } from '@/lib/format-mentions';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from './ThinkingBlock';
 import { SourcePanel } from './SourcePanel';
-
-const mentionTokenRegex = /@\{(\{[\s\S]*?\}|[^{}]+)\}/g;
-
-const formatMentionsForDisplay = (content: string) => {
-    return content.replace(mentionTokenRegex, (full, raw) => {
-        try {
-            const parsed = JSON.parse(raw) as { name?: string };
-            if (parsed?.name) return `@${parsed.name}`;
-        } catch {
-        }
-        try {
-            const parsed = JSON.parse(`{${raw}}`) as { name?: string };
-            if (parsed?.name) return `@${parsed.name}`;
-        } catch {
-        }
-        return full;
-    });
-};
 
 export interface ChatMessageItemProps {
     message: ChatMessage;
@@ -59,6 +42,12 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [hoveredAction, setHoveredAction] = useState<string | null>(null);
     const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+
+    // 缓存格式化后的用户消息内容，避免每次渲染重新执行正则替换
+    const formattedUserContent = useMemo(
+        () => message.role === 'user' ? formatMentionsForDisplay(message.content) : '',
+        [message.role, message.content]
+    );
 
     const handleStartEdit = () => {
         if (disabled) return;
@@ -158,7 +147,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                             : 'bg-accent/10 border border-accent/20'
                         }`}>
                             <p className="whitespace-pre-wrap text-base leading-relaxed">
-                                {formatMentionsForDisplay(message.content)}
+                                {formattedUserContent}
                             </p>
                         </div>
                         {/* 操作按钮和版本切换 */}

@@ -165,12 +165,19 @@ export async function handleStreamingAnalysis(
         }
     );
 
-    // 异步持久化
+    // 异步持久化（含空流检测）
     if (persistence) {
         const { persist, logTag = 'streaming' } = persistence;
         void (async () => {
             try {
                 const { content, reasoning: reasoningText } = await contentPromise;
+
+                // 空流检测：如果内容为空，跳过持久化
+                if (!content || content.trim() === '') {
+                    console.warn(`[${logTag}] 流式结果为空，跳过持久化`);
+                    return;
+                }
+
                 await persistWithRetry(
                     () => persist(content, reasoningText),
                     {

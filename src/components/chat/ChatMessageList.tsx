@@ -11,27 +11,10 @@ import { useState } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource } from '@/types';
 import { getModelName } from '@/lib/ai-config';
+import { formatMentionsForDisplay } from '@/lib/format-mentions';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from './ThinkingBlock';
 import { SourcePanel } from './SourcePanel';
-
-const mentionTokenRegex = /@\{(\{[\s\S]*?\}|[^{}]+)\}/g;
-
-const formatMentionsForDisplay = (content: string) => {
-    return content.replace(mentionTokenRegex, (full, raw) => {
-        try {
-            const parsed = JSON.parse(raw) as { name?: string };
-            if (parsed?.name) return `@${parsed.name}`;
-        } catch {
-        }
-        try {
-            const parsed = JSON.parse(`{${raw}}`) as { name?: string };
-            if (parsed?.name) return `@${parsed.name}`;
-        } catch {
-        }
-        return full;
-    });
-};
 
 export interface ChatMessageListProps {
     messages: ChatMessage[];

@@ -10,6 +10,18 @@ interface ThinkingBlockProps {
     startTime?: number;  // 开始时间戳（ms），用于实时计时
 }
 
+// 格式化时长显示（提取到组件外部，避免每次渲染重新创建）
+function formatDuration(seconds: number): string {
+    if (seconds < 60) {
+        return `${Math.round(seconds)} 秒`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return remainingSeconds > 0
+        ? `${minutes} 分 ${remainingSeconds} 秒`
+        : `${minutes} 分`;
+}
+
 /**
  * 思考过程展示组件
  * 可折叠，显示 AI 的推理过程
@@ -56,18 +68,6 @@ export function ThinkingBlock({ content, duration, isStreaming = false, startTim
     }, [isStreaming]);
 
     if (!content) return null;
-
-    // 格式化时长显示
-    const formatDuration = (seconds: number): string => {
-        if (seconds < 60) {
-            return `${Math.round(seconds)} 秒`;
-        }
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.round(seconds % 60);
-        return remainingSeconds > 0
-            ? `${minutes} 分 ${remainingSeconds} 秒`
-            : `${minutes} 分`;
-    };
 
     // 显示的时长：流式时使用实时计时，结束后使用传入的 duration
     const displayDuration = isStreaming ? elapsedSeconds : duration;

@@ -3,7 +3,7 @@
  *
  * 性能优化：
  * - 使用 React.memo 避免不必要的重渲染
- * - 使用 useMemo 缓存组件定义
+ * - 使用 useMemo 缓存组件定义和 textClass
  * - 静态组件提取到组件外部
  */
 import { memo, useMemo } from 'react';
@@ -66,7 +66,11 @@ const staticComponents: Partial<Components> = {
 const remarkPlugins = [remarkGfm];
 
 function MarkdownContentInner({ content, className }: MarkdownContentProps) {
-    const textClass = `leading-relaxed ${className ?? 'text-sm text-foreground'}`;
+    // 使用 useMemo 缓存 textClass，避免每次渲染重新拼接字符串
+    const textClass = useMemo(
+        () => `leading-relaxed ${className ?? 'text-sm text-foreground'}`,
+        [className]
+    );
 
     // 使用 useMemo 缓存依赖 className 的组件
     const dynamicComponents = useMemo<Partial<Components>>(() => ({

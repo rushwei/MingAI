@@ -170,8 +170,6 @@ export function useStreamingText(
             // 立即显示第一个字符
             accumulatedRef.current = chars[0];
             setVisibleContent(accumulatedRef.current);
-            setIsRendering(true);
-            isActiveRef.current = true;
 
             // 剩余字符加入队列
             for (let i = 1; i < chars.length; i++) {
@@ -179,12 +177,8 @@ export function useStreamingText(
             }
             setPendingCount(charQueueRef.current.length - queueHeadRef.current);
 
-            // 启动队列消费（即使首块只有1个字符也要启动，以处理后续字符）
-            if (useRAF) {
-                rafIdRef.current = requestAnimationFrame(rafLoopRef.current);
-            } else {
-                drainTimerRef.current = window.setInterval(drainQueue, updateInterval);
-            }
+            // 复用 startDrain 启动队列消费
+            startDrain();
             return;
         }
 
@@ -197,7 +191,7 @@ export function useStreamingText(
         if (!isActiveRef.current) {
             startDrain();
         }
-    }, [startDrain, immediateFirstChar, useRAF, drainQueue, updateInterval]);
+    }, [startDrain, immediateFirstChar]);
 
     // 重置状态
     const reset = useCallback(() => {

@@ -23,7 +23,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/usePaymentPause';
-import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useRouter } from 'next/navigation';
 import {
     loadConversations,
@@ -64,7 +64,7 @@ async function generateAITitle(messages: ChatMessage[]): Promise<string> {
 export default function ChatPage() {
     // 路由和菜单
     const router = useRouter();
-    const headerMenu = useHeaderMenuSafe();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
 
     // 对话管理状态
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -112,11 +112,7 @@ export default function ChatPage() {
     const [dreamContextLoading, setDreamContextLoading] = useState(false);
 
     // 注册移动端顶部菜单项（个性化和知识库）
-    const setHeaderMenuItems = headerMenu?.setMenuItems;
-    const clearHeaderMenuItems = headerMenu?.clearMenuItems;
     useEffect(() => {
-        if (!setHeaderMenuItems || !clearHeaderMenuItems) return;
-
         const menuItems = [
             {
                 id: 'ai-settings',
@@ -136,12 +132,10 @@ export default function ChatPage() {
             });
         }
 
-        setHeaderMenuItems(menuItems);
-
-        return () => {
-            clearHeaderMenuItems();
-        };
-    }, [setHeaderMenuItems, clearHeaderMenuItems, membership?.type, router]);
+        setMenuItems(menuItems);
+        return () => clearMenuItems();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [membership?.type]);
 
     // 当解梦模式开启时获取参考数据（仅用于 UI 显示，服务端会始终获取最新数据）
     useEffect(() => {
