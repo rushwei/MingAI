@@ -31,6 +31,7 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
 
 function TarotResultContent() {
     const router = useRouter();
@@ -64,10 +65,8 @@ function TarotResultContent() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
-    // 流式输出状态
-    const [isStreaming, setIsStreaming] = useState(false);
-    const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
-    const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
+    // 使用共享的流式响应 hook
+    const streaming = useStreamingResponse();
 
     useEffect(() => {
         const loadMembership = async () => {
@@ -244,22 +243,19 @@ function TarotResultContent() {
         if (drawnCards.length === 0) return;
 
         setIsInterpreting(true);
-        setIsStreaming(true);
+        streaming.reset();
         setInterpretationReasoning(null);
         setInterpretation('');
-        setReasoningStartTime(undefined);
-        setReasoningDuration(undefined);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 showToast('warning', '请先登录');
                 setIsInterpreting(false);
-                setIsStreaming(false);
                 return;
             }
 
-            const res = await fetch('/api/tarot', {
+            const result = await streaming.startStream('/api/tarot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -273,87 +269,29 @@ function TarotResultContent() {
                     readingId: readingId || undefined,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
-                    stream: true,  // 启用流式输出
+                    stream: true,
                 }),
             });
 
-            if (!res.ok) {
-                const data = await res.json();
-                // 检测积分不足错误
-                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
-                    setShowCreditsModal(true);
-                } else {
-                    showToast('error', data.error || '解读失败');
+            // 检测积分不足错误（使用返回值而非状态，避免异步问题）
+            if (result?.error && isCreditsError(result.error)) {
+                setShowCreditsModal(true);
+            } else if (result?.error) {
+                showToast('error', result.error);
+            }
+
+            // 更新最终内容
+            if (result?.content) {
+                setInterpretation(result.content);
+                if (result.reasoning) {
+                    setInterpretationReasoning(result.reasoning);
                 }
-                setIsInterpreting(false);
-                setIsStreaming(false);
-                return;
-            }
-
-            // 处理流式响应
-            const reader = res.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedContent = '';
-            let accumulatedReasoning = '';
-            let streamReasoningStartTime: number | undefined = undefined;
-            let buffer = '';
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() ?? '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                const delta = parsed.choices?.[0]?.delta;
-
-                                // 处理推理内容
-                                const reasoningContent = delta?.reasoning_content;
-                                if (reasoningContent) {
-                                    if (!accumulatedReasoning && !streamReasoningStartTime) {
-                                        streamReasoningStartTime = Date.now();
-                                        setReasoningStartTime(streamReasoningStartTime);
-                                    }
-                                    accumulatedReasoning += reasoningContent;
-                                    setInterpretationReasoning(accumulatedReasoning);
-                                }
-
-                                // 处理正常内容
-                                const content = delta?.content;
-                                if (content) {
-                                    accumulatedContent += content;
-                                    setInterpretation(accumulatedContent);
-                                }
-                            } catch {
-                                // 跳过解析错误
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 流式结束，计算推理用时
-            if (streamReasoningStartTime) {
-                setReasoningDuration(Math.floor((Date.now() - streamReasoningStartTime) / 1000));
-            }
-            setIsStreaming(false);
-
-            if (!accumulatedContent) {
+            } else if (!result?.error) {
                 setInterpretation('解读失败，请重试');
             }
 
         } catch (error) {
             console.error('AI 解读失败:', error);
-            setIsStreaming(false);
         } finally {
             setIsInterpreting(false);
         }
@@ -702,9 +640,9 @@ function TarotResultContent() {
                                         {interpretationReasoning && (
                                             <ThinkingBlock
                                                 content={interpretationReasoning}
-                                                isStreaming={isStreaming && !interpretation}
-                                                startTime={reasoningStartTime}
-                                                duration={reasoningDuration}
+                                                isStreaming={streaming.isStreaming && !interpretation}
+                                                startTime={streaming.reasoningStartTime}
+                                                duration={streaming.reasoningDuration}
                                             />
                                         )}
                                         <div className="bg-white/5 rounded-2xl p-6 border border-white/5">

@@ -13,6 +13,7 @@ import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, 
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
 
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
+import { VirtualizedChatMessageList } from '@/components/chat/VirtualizedChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
@@ -22,6 +23,8 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/usePaymentPause';
+import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
+import { useRouter } from 'next/navigation';
 import {
     loadConversations,
     loadConversation,
@@ -59,6 +62,10 @@ async function generateAITitle(messages: ChatMessage[]): Promise<string> {
 }
 
 export default function ChatPage() {
+    // 路由和菜单
+    const router = useRouter();
+    const headerMenu = useHeaderMenuSafe();
+
     // 对话管理状态
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
@@ -103,6 +110,38 @@ export default function ChatPage() {
     const [dreamMode, setDreamMode] = useState(false);
     const [dreamContext, setDreamContext] = useState<{ baziChartName?: string; dailyFortune?: string } | undefined>(undefined);
     const [dreamContextLoading, setDreamContextLoading] = useState(false);
+
+    // 注册移动端顶部菜单项（个性化和知识库）
+    const setHeaderMenuItems = headerMenu?.setMenuItems;
+    const clearHeaderMenuItems = headerMenu?.clearMenuItems;
+    useEffect(() => {
+        if (!setHeaderMenuItems || !clearHeaderMenuItems) return;
+
+        const menuItems = [
+            {
+                id: 'ai-settings',
+                label: '个性化',
+                icon: <MessageCircleHeart className="w-4 h-4" />,
+                onClick: () => router.push('/user/settings/ai'),
+            },
+        ];
+
+        // 非免费用户显示知识库入口
+        if (membership?.type !== 'free') {
+            menuItems.push({
+                id: 'knowledge-base',
+                label: '知识库',
+                icon: <BookOpenText className="w-4 h-4" />,
+                onClick: () => router.push('/user/knowledge-base'),
+            });
+        }
+
+        setHeaderMenuItems(menuItems);
+
+        return () => {
+            clearHeaderMenuItems();
+        };
+    }, [setHeaderMenuItems, clearHeaderMenuItems, membership?.type, router]);
 
     // 当解梦模式开启时获取参考数据（仅用于 UI 显示，服务端会始终获取最新数据）
     useEffect(() => {
@@ -1117,8 +1156,8 @@ export default function ChatPage() {
 
                 {/* 主内容区 */}
                 <div className="flex-1 flex flex-col min-w-0 relative">
-                    {/* 右上角个性化与知识库入口 */}
-                    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+                    {/* 右上角个性化与知识库入口 - 仅桌面端显示，移动端通过顶部菜单访问 */}
+                    <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-col gap-2 items-end">
                         <Link
                             href="/user/settings/ai"
                             className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
@@ -1214,19 +1253,33 @@ export default function ChatPage() {
                         </div>
                     ) : (
                         <>
-                            {/* 消息列表 */}
-                            <div className="flex-1 overflow-y-auto px-4 py-4 relative">
-                                <ChatMessageList
-                                    messages={messages}
-                                    isLoading={isLoading}
-                                    messagesEndRef={messagesEndRef}
-                                    onEditMessage={handleEditMessage}
-                                    onRegenerateResponse={handleRegenerateResponse}
-                                    onSwitchVersion={handleSwitchVersion}
-                                    onArchiveMessage={activeConversationId ? handleArchiveMessage : undefined}
-                                    disabled={isCreditLocked}
-                                />
-                            </div>
+                            {/* 消息列表 - 消息数量超过 20 条时使用虚拟化 */}
+                            {messages.length > 20 ? (
+                                <div className="flex-1 px-4 py-4 relative">
+                                    <VirtualizedChatMessageList
+                                        messages={messages}
+                                        isLoading={isLoading}
+                                        onEditMessage={handleEditMessage}
+                                        onRegenerateResponse={handleRegenerateResponse}
+                                        onSwitchVersion={handleSwitchVersion}
+                                        onArchiveMessage={activeConversationId ? handleArchiveMessage : undefined}
+                                        disabled={isCreditLocked}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto px-4 py-4 relative">
+                                    <ChatMessageList
+                                        messages={messages}
+                                        isLoading={isLoading}
+                                        messagesEndRef={messagesEndRef}
+                                        onEditMessage={handleEditMessage}
+                                        onRegenerateResponse={handleRegenerateResponse}
+                                        onSwitchVersion={handleSwitchVersion}
+                                        onArchiveMessage={activeConversationId ? handleArchiveMessage : undefined}
+                                        disabled={isCreditLocked}
+                                    />
+                                </div>
+                            )}
 
                             {/* 积分不足提示 */}
                             {isCreditLocked && (

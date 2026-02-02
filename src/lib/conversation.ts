@@ -280,3 +280,84 @@ export function generateConversationTitle(messages: ChatMessage[]): string {
     if (content.length <= 20) return content;
     return content.substring(0, 20) + '...';
 }
+
+// ===== 分页加载支持 =====
+
+export interface PaginatedMessages {
+    messages: ChatMessage[];
+    total: number;
+    hasMore: boolean;
+}
+
+/**
+ * 分页加载对话消息
+ *
+ * 从最新消息开始加载，支持向上滚动加载更多历史消息
+ */
+export async function loadConversationMessages(
+    conversationId: string,
+    options: {
+        /** 每页消息数量，默认 20 */
+        limit?: number;
+        /** 偏移量（从最新消息往前数），默认 0 */
+        offset?: number;
+    } = {}
+): Promise<PaginatedMessages | null> {
+    const { limit = 20, offset = 0 } = options;
+
+    const { data, error } = await supabase
+        .from('conversations_with_archive_status')
+        .select('messages, source_data')
+        .eq('id', conversationId)
+        .single();
+
+    if (error || !data) {
+        console.error('加载对话消息失败:', error);
+        return null;
+    }
+
+    const allMessages = hydrateConversationMessages(
+        (data.messages as ChatMessage[]) || [],
+        data.source_data
+    );
+    const total = allMessages.length;
+
+    // 从最新消息开始，向前取 limit 条
+    // offset=0 表示最新的 limit 条消息
+    const startIndex = Math.max(0, total - offset - limit);
+    const endIndex = Math.max(0, total - offset);
+    const messages = allMessages.slice(startIndex, endIndex);
+
+    return {
+        messages,
+        total,
+        hasMore: startIndex > 0,
+    };
+}
+
+/**
+ * 加载对话的初始消息（最新的 N 条）
+ */
+export async function loadInitialMessages(
+    conversationId: string,
+    initialCount: number = 20
+): Promise<PaginatedMessages | null> {
+    return loadConversationMessages(conversationId, {
+        limit: initialCount,
+        offset: 0,
+    });
+}
+
+/**
+ * 加载更多历史消息
+ */
+export async function loadMoreMessages(
+    conversationId: string,
+    currentCount: number,
+    batchSize: number = 20
+): Promise<PaginatedMessages | null> {
+    return loadConversationMessages(conversationId, {
+        limit: batchSize,
+        offset: currentCount,
+    });
+}

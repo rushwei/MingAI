@@ -26,6 +26,7 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { readSessionJSON } from '@/lib/cache';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -52,10 +53,8 @@ function MBTIResultContent() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
-    // 流式输出状态
-    const [isStreaming, setIsStreaming] = useState(false);
-    const [reasoningStartTime, setReasoningStartTime] = useState<number | undefined>(undefined);
-    const [reasoningDuration, setReasoningDuration] = useState<number | undefined>(undefined);
+    // 使用共享的流式响应 hook
+    const streaming = useStreamingResponse();
 
     useEffect(() => {
         // useEffect loads session/auth data after client mount.
@@ -179,12 +178,10 @@ function MBTIResultContent() {
         if (!result || !user) return;
 
         setLoadingAI(true);
-        setIsStreaming(true);
+        streaming.reset();
         setError(null);
         setAnalysisReasoning(null);
         setAiAnalysis(null);
-        setReasoningStartTime(undefined);
-        setReasoningDuration(undefined);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -192,11 +189,10 @@ function MBTIResultContent() {
             if (!session?.access_token) {
                 setError('请先登录');
                 setLoadingAI(false);
-                setIsStreaming(false);
                 return;
             }
 
-            const response = await fetch('/api/mbti', {
+            const streamResult = await streaming.startStream('/api/mbti', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -210,86 +206,32 @@ function MBTIResultContent() {
                     readingId: (result as unknown as { readingId?: string }).readingId,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
-                    stream: true,  // 启用流式输出
+                    stream: true,
                 }),
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                // 检测积分不足错误
-                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
-                    setShowCreditsModal(true);
-                    setLoadingAI(false);
-                    setIsStreaming(false);
-                    return;
+            // 检测积分不足错误（使用返回值而非状态，避免异步问题）
+            if (streamResult?.error && isCreditsError(streamResult.error)) {
+                setShowCreditsModal(true);
+                return;
+            }
+
+            if (streamResult?.error) {
+                throw new Error(streamResult.error);
+            }
+
+            // 更新最终内容
+            if (streamResult?.content) {
+                setAiAnalysis(streamResult.content);
+                if (streamResult.reasoning) {
+                    setAnalysisReasoning(streamResult.reasoning);
                 }
-                throw new Error(data.error || '分析失败');
-            }
-
-            // 处理流式响应
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedContent = '';
-            let accumulatedReasoning = '';
-            let streamReasoningStartTime: number | undefined = undefined;
-            let buffer = '';
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() ?? '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                const delta = parsed.choices?.[0]?.delta;
-
-                                // 处理推理内容
-                                const reasoningContent = delta?.reasoning_content;
-                                if (reasoningContent) {
-                                    if (!accumulatedReasoning && !streamReasoningStartTime) {
-                                        streamReasoningStartTime = Date.now();
-                                        setReasoningStartTime(streamReasoningStartTime);
-                                    }
-                                    accumulatedReasoning += reasoningContent;
-                                    setAnalysisReasoning(accumulatedReasoning);
-                                }
-
-                                // 处理正常内容
-                                const content = delta?.content;
-                                if (content) {
-                                    accumulatedContent += content;
-                                    setAiAnalysis(accumulatedContent);
-                                }
-                            } catch {
-                                // 跳过解析错误
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 流式结束，计算推理用时
-            if (streamReasoningStartTime) {
-                setReasoningDuration(Math.floor((Date.now() - streamReasoningStartTime) / 1000));
-            }
-            setIsStreaming(false);
-
-            if (!accumulatedContent) {
+            } else {
                 setAiAnalysis('分析失败，请重试');
             }
 
         } catch (err) {
             setError(err instanceof Error ? err.message : '分析失败');
-            setIsStreaming(false);
         } finally {
             setLoadingAI(false);
         }
@@ -408,9 +350,9 @@ function MBTIResultContent() {
                                     {analysisReasoning && (
                                         <ThinkingBlock
                                             content={analysisReasoning}
-                                            isStreaming={isStreaming && !aiAnalysis}
-                                            startTime={reasoningStartTime}
-                                            duration={reasoningDuration}
+                                            isStreaming={streaming.isStreaming && !aiAnalysis}
+                                            startTime={streaming.reasoningStartTime}
+                                            duration={streaming.reasoningDuration}
                                         />
                                     )}
                                     <MarkdownContent content={aiAnalysis} />

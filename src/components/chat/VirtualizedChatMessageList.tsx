@@ -1,0 +1,190 @@
+/**
+ * 虚拟化聊天消息列表
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useRef, useEffect, useCallback)
+ * - 使用 @tanstack/react-virtual 进行虚拟滚动
+ */
+'use client';
+
+import { useRef, useEffect, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { RefreshCw } from 'lucide-react';
+import type { ChatMessage } from '@/types';
+import { ChatMessageItem } from './ChatMessageItem';
+
+interface VirtualizedChatMessageListProps {
+    messages: ChatMessage[];
+    isLoading: boolean;
+    onEditMessage?: (messageId: string, newContent: string) => void;
+    onRegenerateResponse?: (messageId: string) => void;
+    onSwitchVersion?: (messageId: string, versionIndex: number) => void;
+    onArchiveMessage?: (message: ChatMessage) => void;
+    disabled?: boolean;
+}
+
+// 估算消息高度（用于虚拟化初始计算）
+function estimateMessageHeight(message: ChatMessage): number {
+    const baseHeight = 80; // 基础高度（padding + 操作按钮）
+    const contentLength = message.content.length;
+    const reasoningLength = message.reasoning?.length || 0;
+
+    // 根据内容长度估算行数（假设每行约 60 个字符）
+    const contentLines = Math.ceil(contentLength / 60);
+    const reasoningLines = Math.ceil(reasoningLength / 60);
+
+    // 每行约 24px
+    const contentHeight = contentLines * 24;
+    const reasoningHeight = reasoningLines * 20;
+
+    // 附件额外高度
+    const attachmentHeight = message.attachments?.fileName ? 60 : 0;
+
+    return baseHeight + contentHeight + reasoningHeight + attachmentHeight;
+}
+
+export function VirtualizedChatMessageList({
+    messages,
+    isLoading,
+    onEditMessage,
+    onRegenerateResponse,
+    onSwitchVersion,
+    onArchiveMessage,
+    disabled = false,
+}: VirtualizedChatMessageListProps) {
+    const parentRef = useRef<HTMLDivElement>(null);
+    const lastMessageCountRef = useRef(0);
+    const hasInitialScrollRef = useRef(false);
+    const conversationIdRef = useRef<string | null>(null); // 通过首条消息 ID 追踪当前对话
+
+    // 找到最后一条正在流式输出的AI消息
+    const lastMessage = messages[messages.length - 1];
+    const isStreamingAI = isLoading && lastMessage?.role === 'assistant';
+
+    // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual 库特性，不影响功能
+    const virtualizer = useVirtualizer({
+        count: messages.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: (index) => estimateMessageHeight(messages[index]),
+        overscan: 5, // 预渲染上下各 5 条消息
+        getItemKey: (index) => messages[index]?.id || `msg-${index}`,
+    });
+
+    // 滚动到底部
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        if (messages.length > 0) {
+            virtualizer.scrollToIndex(messages.length - 1, {
+                align: 'end',
+                behavior,
+            });
+        }
+    }, [messages.length, virtualizer]);
+
+    // 新消息时自动滚动到底部
+    useEffect(() => {
+        // 通过首条消息 ID 检测对话切换
+        const currentConversationId = messages[0]?.id || null;
+        const isConversationChanged = currentConversationId !== conversationIdRef.current;
+
+        if (isConversationChanged) {
+            // 对话切换，重置状态
+            conversationIdRef.current = currentConversationId;
+            hasInitialScrollRef.current = false;
+            lastMessageCountRef.current = 0;
+        }
+
+        // 首次渲染或切换对话时，立即滚动到底部
+        if (!hasInitialScrollRef.current && messages.length > 0) {
+            hasInitialScrollRef.current = true;
+            scrollToBottom('auto');
+            lastMessageCountRef.current = messages.length;
+            return;
+        }
+
+        if (messages.length > lastMessageCountRef.current) {
+            // 新消息添加，滚动到底部
+            scrollToBottom('smooth');
+        }
+        lastMessageCountRef.current = messages.length;
+    }, [messages, scrollToBottom]);
+
+    // 流式输出时持续滚动到底部
+    useEffect(() => {
+        if (isStreamingAI) {
+            const scrollInterval = setInterval(() => {
+                scrollToBottom('auto');
+            }, 100);
+            return () => clearInterval(scrollInterval);
+        }
+    }, [isStreamingAI, scrollToBottom]);
+
+    // 空消息状态
+    if (messages.length === 0) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
+                <div className="relative z-10 max-w-2xl w-full flex flex-col items-center animate-fade-in-up">
+                    <p className="text-xl text-foreground-secondary mb-8">
+                        今天运势如何？
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const virtualItems = virtualizer.getVirtualItems();
+
+    return (
+        <div
+            ref={parentRef}
+            className="h-full overflow-auto"
+            style={{ contain: 'strict' }}
+        >
+            <div
+                className="max-w-3xl mx-auto relative"
+                style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                }}
+            >
+                <div
+                    className="absolute top-0 left-0 w-full"
+                    style={{
+                        transform: `translateY(${virtualItems[0]?.start ?? 0}px)`,
+                    }}
+                >
+                    {virtualItems.map((virtualRow) => {
+                        const message = messages[virtualRow.index];
+                        if (!message) return null;
+
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                data-index={virtualRow.index}
+                                ref={virtualizer.measureElement}
+                                className="py-3"
+                            >
+                                <ChatMessageItem
+                                    message={message}
+                                    isStreamingAI={isStreamingAI}
+                                    isLastMessage={virtualRow.index === messages.length - 1}
+                                    disabled={disabled}
+                                    onEditMessage={onEditMessage}
+                                    onRegenerateResponse={onRegenerateResponse}
+                                    onSwitchVersion={onSwitchVersion}
+                                    onArchiveMessage={onArchiveMessage}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* 初始加载状态 */}
+            {isLoading && !isStreamingAI && (
+                <div className="flex items-center gap-2 max-w-3xl mx-auto px-4 py-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-accent" />
+                    <span className="text-sm text-foreground-secondary">正在思考...</span>
+                </div>
+            )}
+        </div>
+    );
+}

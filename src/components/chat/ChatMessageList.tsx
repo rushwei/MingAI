@@ -1,3 +1,10 @@
+/**
+ * 聊天消息列表组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 需要处理用户交互事件
+ */
 'use client';
 
 import { useState } from 'react';
@@ -26,7 +33,7 @@ const formatMentionsForDisplay = (content: string) => {
     });
 };
 
-interface ChatMessageListProps {
+export interface ChatMessageListProps {
     messages: ChatMessage[];
     isLoading: boolean;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;

@@ -1,13 +1,13 @@
 /**
  * AI八字分析API
- * 
+ *
  * 支持五行分析和人格分析
- * 非流式输出 + 结果保存
+ * 支持流式输出 + 结果保存
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { callAIWithReasoning } from '@/lib/ai';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     let creditDeducted = false;
     let userId: string | null = null;
     try {
-        const { chartId, type, chartSummary, modelId, reasoning } = await request.json();
+        const { chartId, type, chartSummary, modelId, reasoning, stream } = await request.json();
 
         if (!chartId || !type || !chartSummary) {
             return NextResponse.json(
@@ -129,7 +129,69 @@ export async function POST(request: NextRequest) {
         }
         creditDeducted = true;
 
-        // 将系统提示词作为 override 注入，覆盖默认人格规则
+        // 流式输出模式
+        if (stream) {
+            const streamBody = await callAIStream(
+                [{ role: 'user', content: userPrompt }],
+                'bazi',
+                `\n\n${systemPrompt}\n\n`,
+                requestedModelId,
+                {
+                    reasoning: reasoningEnabled,
+                    temperature: 0.7,
+                }
+            );
+            const [clientStream, tapStream] = streamBody.tee();
+
+            // 异步持久化流式结果（含空流退款逻辑）
+            void (async () => {
+                try {
+                    const { content: analysisContent, reasoning: reasoningText } = await readAIStream(tapStream);
+
+                    // 空流检测：如果内容为空，退还积分
+                    if (!analysisContent || analysisContent.trim() === '') {
+                        console.error('[bazi/analysis] 流式结果为空，退还积分');
+                        if (userId) {
+                            await addCredits(userId, 1);
+                        }
+                        return;
+                    }
+
+                    const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai-analysis');
+                    await createAIAnalysisConversation({
+                        userId: chart.user_id,
+                        sourceType: type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality',
+                        sourceData: {
+                            chart_id: chartId,
+                            chart_name: chart.name,
+                            chart_summary: chartSummary,
+                            model_id: requestedModelId,
+                            reasoning: reasoningEnabled,
+                            reasoning_text: reasoningText || null,
+                        },
+                        title: generateBaziAnalysisTitle(chart.name || '命盘', type),
+                        aiResponse: analysisContent,
+                        baziChartId: chartId,
+                    });
+                } catch (saveError) {
+                    console.error('[bazi/analysis] 保存流式结果失败，退还积分:', saveError);
+                    // 流式处理失败时退还积分
+                    if (userId) {
+                        await addCredits(userId, 1);
+                    }
+                }
+            })();
+
+            return new Response(clientStream, {
+                headers: {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                },
+            });
+        }
+
+        // 非流式输出模式（保持原有逻辑）
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
             [{ role: 'user', content: userPrompt }],
             'bazi',

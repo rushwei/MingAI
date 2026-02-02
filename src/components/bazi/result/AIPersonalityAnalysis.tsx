@@ -1,8 +1,8 @@
 /**
  * AI人格分析组件
- * 
+ *
  * 基于八字命盘进行深度人格分析
- * 非流式输出 - 加载完成后一次性显示
+ * 支持流式输出
  */
 'use client';
 
@@ -15,6 +15,7 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
 
 interface AIPersonalityAnalysisProps {
     chartId: string;
@@ -48,6 +49,8 @@ export function AIPersonalityAnalysis({
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [showCreditsModal, setShowCreditsModal] = useState(false);
+    // 使用共享的流式响应 hook
+    const streaming = useStreamingResponse();
 
     useEffect(() => {
         if (savedAnalysis) {
@@ -89,11 +92,12 @@ export function AIPersonalityAnalysis({
         if (loading) return;
 
         setLoading(true);
+        streaming.reset();
         setAnalysis('');
         setAnalysisReasoning(null);
 
         try {
-            const response = await fetch('/api/bazi/analysis', {
+            const result = await streaming.startStream('/api/bazi/analysis', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -102,24 +106,30 @@ export function AIPersonalityAnalysis({
                     chartSummary,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
+                    stream: true,
                 }),
             });
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                // 检测积分不足错误
-                if (data.error?.includes('积分不足') || data.error?.includes('充值')) {
-                    setShowCreditsModal(true);
-                    setLoading(false);
-                    return;
-                }
-                throw new Error(data.error || '分析请求失败');
+            // 检测积分不足错误（使用返回值而非状态，避免异步问题）
+            if (result?.error && isCreditsError(result.error)) {
+                setShowCreditsModal(true);
+                return;
             }
 
-            setAnalysis(data.content);
-            setAnalysisReasoning(data.reasoning || null);
-            onSaveAnalysis(data.content);
+            if (result?.error) {
+                throw new Error(result.error);
+            }
+
+            // 更新最终内容
+            if (result?.content) {
+                setAnalysis(result.content);
+                if (result.reasoning) {
+                    setAnalysisReasoning(result.reasoning);
+                }
+                onSaveAnalysis(result.content);
+            } else {
+                setAnalysis('分析失败，请点击重新分析按钮重试。');
+            }
         } catch (error) {
             console.error('Analysis error:', error);
             setAnalysis('分析失败，请点击重新分析按钮重试。');
@@ -219,13 +229,37 @@ export function AIPersonalityAnalysis({
             <div className="p-4 prose prose-sm dark:prose-invert max-w-none min-h-[200px] overflow-hidden">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-3">
-                        <Loader2 className="w-10 h-10 animate-spin text-accent" />
-                        <p className="text-sm text-foreground-secondary">AI正在分析您的人格特征，请稍候...</p>
+                        {streaming.isStreaming && (streaming.content || streaming.reasoning) ? (
+                            <>
+                                {streaming.reasoning && (
+                                    <ThinkingBlock
+                                        content={streaming.reasoning}
+                                        isStreaming={streaming.isStreaming && !streaming.content}
+                                        startTime={streaming.reasoningStartTime}
+                                        duration={streaming.reasoningDuration}
+                                    />
+                                )}
+                                {streaming.content && (
+                                    <MarkdownContent
+                                        content={streaming.content}
+                                        className="text-sm text-foreground-secondary"
+                                    />
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <Loader2 className="w-10 h-10 animate-spin text-accent" />
+                                <p className="text-sm text-foreground-secondary">AI正在分析您的人格特征，请稍候...</p>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <>
                         {analysisReasoning && (
-                            <ThinkingBlock content={analysisReasoning} />
+                            <ThinkingBlock
+                                content={analysisReasoning}
+                                duration={streaming.reasoningDuration}
+                            />
                         )}
                         <MarkdownContent
                             content={analysis || '点击「重新分析」开始AI分析'}
