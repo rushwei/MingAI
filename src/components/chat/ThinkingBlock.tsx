@@ -1,3 +1,10 @@
+/**
+ * AI 思考过程展示组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useRef)
+ * - 有折叠/展开交互和实时计时功能
+ */
 'use client';
 
 import { useState, useEffect, useRef } from 'react';

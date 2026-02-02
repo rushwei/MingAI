@@ -1,3 +1,10 @@
+/**
+ * 支付暂停状态 Hook
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useCallback)
+ * - 需要访问 window 对象和 localStorage
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from "react";

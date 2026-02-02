@@ -1,3 +1,10 @@
+/**
+ * 八字命盘选择器组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useMemo, useRef, useCallback)
+ * - 有搜索和选择交互功能
+ */
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';

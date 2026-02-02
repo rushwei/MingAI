@@ -1,3 +1,9 @@
+/**
+ * @提及标签组件
+ *
+ * 'use client' 标记说明：
+ * - 有移除按钮交互功能
+ */
 'use client';
 
 import { X, AtSign, BookOpenText, FileText } from 'lucide-react';

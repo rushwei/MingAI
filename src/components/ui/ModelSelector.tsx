@@ -1,3 +1,10 @@
+/**
+ * AI 模型选择器组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useMemo)
+ * - 有下拉选择交互功能
+ */
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';

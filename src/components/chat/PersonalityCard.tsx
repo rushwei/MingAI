@@ -1,3 +1,9 @@
+/**
+ * AI 人格卡片组件
+ *
+ * 'use client' 标记说明：
+ * - 有按钮点击选择交互功能
+ */
 'use client';
 
 import type { AIPersonalityConfig } from '@/types';

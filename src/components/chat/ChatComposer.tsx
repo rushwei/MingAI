@@ -1,3 +1,10 @@
+/**
+ * 消息输入框组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useRef, useCallback, useMemo)
+ * - 有文本输入、@mention、附件上传等交互功能
+ */
 'use client';
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';

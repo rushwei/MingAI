@@ -1,3 +1,10 @@
+/**
+ * 支付暂停控制面板组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 有开关切换交互功能
+ */
 'use client';
 
 import { useState } from "react";

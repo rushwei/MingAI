@@ -1,3 +1,10 @@
+/**
+ * 添加到知识库弹窗组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useCallback)
+ * - 有弹窗交互和表单提交功能
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

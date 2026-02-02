@@ -1,3 +1,10 @@
+/**
+ * 数据来源面板组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React memo 优化
+ * - 有交互按钮需要事件处理
+ */
 'use client';
 
 import { memo } from 'react';

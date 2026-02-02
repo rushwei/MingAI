@@ -1,3 +1,10 @@
+/**
+ * 用户菜单组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useRef, useEffect)
+ * - 有下拉菜单交互功能
+ */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';

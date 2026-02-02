@@ -1,3 +1,9 @@
+/**
+ * 数据来源标签组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 Next.js Link 组件进行客户端导航
+ */
 'use client';
 
 import Link from 'next/link';

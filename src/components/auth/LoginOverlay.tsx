@@ -1,3 +1,10 @@
+/**
+ * 登录覆盖层组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 有登录弹窗交互功能
+ */
 'use client';
 
 import { useState } from 'react';

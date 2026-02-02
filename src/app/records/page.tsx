@@ -1,3 +1,10 @@
+/**
+ * 命理记账页面
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useCallback)
+ * - 有搜索、筛选、导入导出等交互功能
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

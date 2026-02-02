@@ -1,3 +1,10 @@
+/**
+ * 紫微命盘网格组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 有宫位显示/隐藏交互功能
+ */
 'use client';
 
 import { useState } from 'react';

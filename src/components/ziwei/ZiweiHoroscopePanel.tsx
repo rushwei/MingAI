@@ -1,3 +1,10 @@
+/**
+ * 紫微运势面板组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useMemo, useEffect, useCallback)
+ * - 有大限/流年选择交互功能
+ */
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';

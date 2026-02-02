@@ -1,3 +1,10 @@
+/**
+ * 地点自动补全组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useRef, useEffect, useCallback)
+ * - 有输入框交互和下拉建议列表功能
+ */
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';

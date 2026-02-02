@@ -1,3 +1,10 @@
+/**
+ * @mention 弹出选择器组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useMemo, useRef)
+ * - 有键盘导航和交互功能
+ */
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';

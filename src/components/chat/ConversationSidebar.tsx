@@ -1,3 +1,10 @@
+/**
+ * 对话列表侧边栏组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useMemo, useCallback)
+ * - 有交互按钮和搜索功能
+ */
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';

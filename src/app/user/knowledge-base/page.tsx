@@ -1,3 +1,10 @@
+/**
+ * 知识库管理页面
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect, useCallback)
+ * - 使用 useToast 进行通知
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

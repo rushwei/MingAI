@@ -1,3 +1,10 @@
+/**
+ * 验证码输入组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useRef, useEffect)
+ * - 有键盘导航和粘贴交互功能
+ */
 'use client';
 
 import { useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';

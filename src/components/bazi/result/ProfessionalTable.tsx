@@ -1,3 +1,10 @@
+/**
+ * 八字专业排盘表格组件
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 有折叠/展开交互功能
+ */
 'use client';
 
 import { useState } from 'react';

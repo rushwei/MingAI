@@ -1,3 +1,10 @@
+/**
+ * 发布新帖子页面
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState, useEffect)
+ * - 使用 useRouter 进行客户端导航
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
