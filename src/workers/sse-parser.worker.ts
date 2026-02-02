@@ -57,9 +57,6 @@ let lineBuffer = '';
 // 持久的 TextDecoder 实例，用于处理 UTF-8 多字节字符跨 chunk 的情况
 let streamingDecoder: TextDecoder | null = null;
 
-// 当前使用的消息格式 ('new' | 'legacy')
-let messageFormat: 'new' | 'legacy' | null = null;
-
 // ============ 解析函数 ============
 
 /** 解析 SSE 数据行，返回新格式的 ParsedChunk */
@@ -153,7 +150,6 @@ function sendLegacyMessage(chunk: ParsedChunk): void {
 function resetState(): void {
     lineBuffer = '';
     streamingDecoder = null;
-    messageFormat = null;
 }
 
 // ============ 消息处理 ============
@@ -167,8 +163,6 @@ self.onmessage = (event: MessageEvent<InputMessage>) => {
     // 检测消息格式
     if (msg.type === 'start' || msg.type === 'stop') {
         // 新格式
-        messageFormat = 'new';
-
         if (msg.type === 'stop') {
             resetState();
             return;
@@ -187,8 +181,6 @@ self.onmessage = (event: MessageEvent<InputMessage>) => {
         }
     } else if (msg.type === 'parse' || msg.type === 'done' || msg.type === 'reset') {
         // 旧格式
-        messageFormat = 'legacy';
-
         if (msg.type === 'reset') {
             resetState();
             return;
