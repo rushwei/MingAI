@@ -355,7 +355,7 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     .filter((dy) => dy.getGanZhi()) // 过滤掉童限（无干支）
     .slice(0, 10)
     .map((dy) => ({
-      startYear: (dy as unknown as { getStartYear: () => number }).getStartYear(),
+      startYear: dy.getStartYear(),
       ganZhi: dy.getGanZhi(),
     }));
 

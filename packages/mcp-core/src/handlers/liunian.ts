@@ -123,7 +123,7 @@ export async function handleLiunianAnalyze(input: LiunianInput): Promise<Liunian
   for (const dy of daYunList) {
     const ganZhi = dy.getGanZhi() || '';
     if (!ganZhi) continue; // 跳过童限
-    const startYear = (dy as unknown as { getStartYear: () => number }).getStartYear();
+    const startYear = dy.getStartYear();
     const endYear = startYear + 10;
     if (currentYear >= startYear && currentYear < endYear) {
       const gan = ganZhi.charAt(0);
