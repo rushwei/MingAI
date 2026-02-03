@@ -1639,7 +1639,7 @@ export async function handleLiuyaoAnalyze(input) {
         ganZhiTime,
         kongWang,
         // 爻信息
-        fullYaos: fullYaos.map((y, idx) => {
+        fullYaos: fullYaos.map((y) => {
             const yaoWangShuai = WANG_SHUAI_TABLE[monthZhi]?.[y.wuXing] || 'xiu';
             const yaoKongWang = checkYaoKongWang(y.naJia, kongWang, monthZhi, dayZhi, y.change === 'changing');
             const yaoStrength = getYaoStrength(y.wuXing, monthZhi);
