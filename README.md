@@ -10,7 +10,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat-square&logo=vercel)](https://vercel.com/)
 
-[🌐 在线体验](https://www.mingai.fun) · [📖 产品文档](docs/plans/PRD-MingAI-v2.0.md)  · [🐛 报告问题](https://github.com/hhszzzz/MingAI/issues)
+[🌐 在线体验](https://www.mingai.fun) · [📖 产品文档](docs/plans/PRD-MingAI.md)  · [🐛 报告问题](https://github.com/hhszzzz/MingAI/issues)
 
 </div>
 
@@ -20,6 +20,7 @@
 
 - 🔮 **多命理体系** - 八字、紫微、塔罗、六爻、MBTI、面相、手相、合盘、周公解梦全覆盖
 - 🤖 **AI智能分析** - 多模型支持(DeepAI/Gemini/Qwen/DeepSeek/GLM/Kimi)，深度推理，视觉识别
+- 🔌 **MCP Server** - 支持 Model Context Protocol（MCP），可在支持MCP的客户端中直接调用命理工具
 - 📚 **知识库与@提及** - 个人知识库 + 显式引用数据源，AI 可解释
 - 🎛️ **AI个性化** - 表达风格/用户画像/自定义指令 + 提示词预算可视化
 - 💳 **订阅与运营** - Key 激活、购买链接配置、支付开关、AI模型/来源管理
@@ -89,6 +90,7 @@ pnpm dev
 | **紫微算法** | iztro                               | 紫微斗数排盘             |
 | **邮件服务** | Resend                              | 交易邮件                 |
 | **部署平台** | Vercel + Zeabur                     | 边缘部署                 |
+| **MCP Server** | Model Context Protocol              | 6个命理功能集成      |
 
 ### 项目结构
 
@@ -134,11 +136,30 @@ MingAI/
 │   │   ├── data-sources/     # 统一数据源
 │   │   ├── mentions.ts       # @提及解析
 │   │   └── credits.ts        # 积分管理
-│   └── types/                 # TypeScript 类型
+│   ├── tests/                 # 测试文件
+│   ├── types/                 # TypeScript 类型
+│   └── workers/               # Web Workers
 ├── docs/                      # 项目文档
 │   ├── plans/                # 产品规划
 │   └── deliverables/         # 开发报告
-├── supabase/                  # 数据库迁移
+├── packages/                  # 独立包
+│   ├── mcp-core/             # MCP 核心逻辑
+│   │   ├── src/
+│   │   │   ├── tools.ts      # 工具定义
+│   │   │   └── handlers/     # 工具处理器
+│   │   └── package.json
+│   ├── mcp-local/            # MCP 本地运行
+│   │   ├── src/index.ts      # stdio 入口
+│   │   └── package.json
+│   └── mcp-server/           # MCP 远程服务
+│       ├── src/index.ts      # SSE 服务入口
+│       ├── Dockerfile        # 容器部署
+│       └── package.json
+├── supabase/                  # 数据库迁移/表
+├── android/                   # Android 客户端 (Capacitor)
+├── ios/                       # iOS 客户端 (Capacitor)
+├── scripts/                   # 构建脚本
+├── .github/                   # GitHub Actions
 └── public/                    # 静态资源
 ```
 
@@ -223,6 +244,8 @@ MingAI/
 - [x] 历史记录UI优化
 - [x] 项目性能与加载速度优化
 
+#### Phase 8.6: 支持MCP
+
 ### 🔜 开发计划
 
 #### Phase 9: 后续功能
@@ -244,6 +267,56 @@ MingAI/
 **额度说明**：1额度 = 1次对话  
 **按量付费**：¥9.9 = 1额度  
 **订阅方式**：Key 激活（`sk-xxxx`），购买链接由管理员配置
+
+---
+
+## 🔌 MCP Server
+
+MingAI 提供 MCP (Model Context Protocol) Server，可在支持 MCP 的客户端中直接调用命理工具。
+
+### 支持的工具
+
+| 工具 | 功能 |
+| --- | --- |
+| `bazi_calculate` | 八字排盘计算 |
+| `ziwei_calculate` | 紫微斗数排盘 |
+| `daily_fortune` | 每日运势查询 |
+| `monthly_fortune` | 每月运势查询 |
+| `tarot_draw` | 塔罗牌抽取 |
+| `liuyao_divine` | 六爻起卦 |
+| `hepan_analyze` | 关系合盘分析 |
+
+### MCP 配置
+
+详细的[操作手册](/docs/plans/MCP-Server-Manual.md)
+
+#### 方式一：本地运行 (Local)
+
+```json
+{
+  "mcpServers": {
+    "mingai": {
+      "command": "npx",
+      "args": ["tsx", "/path/to/MingAI/packages/mcp-local/src/index.ts"],
+    }
+  }
+}
+```
+
+#### 方式二：远程服务器 (Server)
+
+```json
+{
+  "mcpServers": {
+    "mingai": {
+      "url": "https://localhost:3000/sse",
+      "headers": {
+        "x-api-key": "你的API密钥"
+      }
+    }
+  }
+}
+```
 
 ---
 
