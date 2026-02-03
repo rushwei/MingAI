@@ -111,7 +111,6 @@ export async function handleLiunianAnalyze(input: LiunianInput): Promise<Liunian
 
   // 确定目标年份
   const currentYear = targetYear || new Date().getFullYear();
-  const currentAge = currentYear - birthYear;
 
   // 找到当前大运
   let currentDaYun = {
