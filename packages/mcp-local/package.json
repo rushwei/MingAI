@@ -1,0 +1,21 @@
+{
+  "name": "@mingai/mcp-local",
+  "version": "1.0.0",
+  "description": "MingAI MCP Server - Local (stdio)",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mingai-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@mingai/mcp-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

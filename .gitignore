@@ -63,3 +63,6 @@ docs/other
 
 # AI
 .claude
+
+# MCP Server
+packages/mcp-server/.env

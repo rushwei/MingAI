@@ -1,0 +1,10 @@
+{
+  "name": "mingai-mcp-server",
+  "build": {
+    "type": "nodejs"
+  },
+  "env": {
+    "MCP_API_KEY": "@MCP_API_KEY",
+    "PORT": "3001"
+  }
+}

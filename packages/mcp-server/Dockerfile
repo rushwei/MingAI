@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+# 安装 pnpm
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# 复制 workspace 配置
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# 复制所有 packages
+COPY packages/mcp-core ./packages/mcp-core
+COPY packages/mcp-server ./packages/mcp-server
+
+# 安装依赖
+RUN pnpm install --frozen-lockfile --prod
+
+EXPOSE 3001
+
+WORKDIR /app/packages/mcp-server
+
+CMD ["node", "dist/index.js"]

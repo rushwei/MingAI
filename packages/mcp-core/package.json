@@ -1,0 +1,26 @@
+{
+  "name": "@mingai/mcp-core",
+  "version": "1.0.0",
+  "description": "MingAI MCP Core - 命理计算工具核心库",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "lunar-javascript": "^1.7.7",
+    "iztro": "^2.5.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

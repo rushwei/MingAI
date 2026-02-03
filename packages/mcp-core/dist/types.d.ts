@@ -1,0 +1,357 @@
+/**
+ * MCP Core 类型定义
+ */
+export type Gender = 'male' | 'female';
+export type CalendarType = 'solar' | 'lunar';
+export interface BaziInput {
+    gender: Gender;
+    birthYear: number;
+    birthMonth: number;
+    birthDay: number;
+    birthHour: number;
+    birthMinute?: number;
+    calendarType?: CalendarType;
+    isLeapMonth?: boolean;
+    birthPlace?: string;
+}
+export interface BaziOutput {
+    gender: Gender;
+    birthPlace?: string;
+    dayMaster: string;
+    fourPillars: {
+        year: PillarInfo;
+        month: PillarInfo;
+        day: PillarInfo;
+        hour: PillarInfo;
+    };
+    daYun: {
+        startAgeDetail: string;
+        list: Array<{
+            startYear: number;
+            ganZhi: string;
+        }>;
+    };
+    shenSha?: ShenShaInfo;
+}
+export interface ShenShaInfo {
+    tianYiGuiRen?: string[];
+    wenChangGuiRen?: string[];
+    yiMa?: string[];
+    taoHua?: string[];
+    huaGai?: string[];
+    jiangXing?: string[];
+    yangRen?: string[];
+    luShen?: string[];
+    tianDeGuiRen?: string;
+    yueDeGuiRen?: string;
+    kuiGang?: boolean;
+    jinYu?: boolean;
+    tianLuodiWang?: string[];
+}
+export interface PillarInfo {
+    stem: string;
+    branch: string;
+    tenGod?: string;
+    hiddenStems: string[];
+    naYin?: string;
+    diShi?: string;
+}
+export interface ZiweiInput {
+    gender: Gender;
+    birthYear: number;
+    birthMonth: number;
+    birthDay: number;
+    birthHour: number;
+    birthMinute?: number;
+    calendarType?: CalendarType;
+    isLeapMonth?: boolean;
+}
+export interface ZiweiOutput {
+    solarDate: string;
+    lunarDate: string;
+    fourPillars: {
+        year: string;
+        month: string;
+        day: string;
+        hour: string;
+    };
+    soul: string;
+    body: string;
+    fiveElement: string;
+    zodiac: string;
+    sign: string;
+    palaces: PalaceInfo[];
+    decadalList: DecadalInfo[];
+}
+export interface PalaceInfo {
+    name: string;
+    heavenlyStem: string;
+    earthlyBranch: string;
+    isBodyPalace: boolean;
+    majorStars: StarInfo[];
+    minorStars: StarInfo[];
+    adjStars?: StarInfo[];
+}
+export interface StarInfo {
+    name: string;
+    brightness?: string;
+    mutagen?: string;
+}
+export interface DecadalInfo {
+    startAge: number;
+    endAge: number;
+    heavenlyStem: string;
+    palace: {
+        earthlyBranch: string;
+        name: string;
+    };
+}
+export interface LiuyaoInput {
+    question: string;
+    method?: 'auto' | 'select';
+    hexagramName?: string;
+    changedHexagramName?: string;
+    date?: string;
+}
+export interface LiuyaoOutput {
+    question: string;
+    hexagramName: string;
+    hexagramGong: string;
+    hexagramElement: string;
+    hexagramBrief?: string;
+    guaCi?: string;
+    xiangCi?: string;
+    changedHexagramName?: string;
+    changedHexagramGong?: string;
+    changedHexagramElement?: string;
+    changedLines: number[];
+    changedYaoCi?: string[];
+    ganZhiTime: GanZhiTime;
+    kongWang?: KongWangInfo;
+    fullYaos?: FullYaoInfo[];
+    changedYaos?: ChangedYaoInfo[];
+    yongShen: YongShenInfo;
+    fuShen?: FuShenInfo[];
+    shenSystem?: ShenSystemInfo;
+    liuChongGuaInfo?: LiuChongGuaInfo;
+    sanHeAnalysis?: SanHeAnalysisInfo;
+    warnings?: string[];
+    timeRecommendations?: TimeRecommendation[];
+    summary?: SummaryInfo;
+}
+export interface ChangedYaoInfo {
+    position: number;
+    type: number;
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+}
+export interface GanZhiTime {
+    year: {
+        gan: string;
+        zhi: string;
+    };
+    month: {
+        gan: string;
+        zhi: string;
+    };
+    day: {
+        gan: string;
+        zhi: string;
+    };
+    hour: {
+        gan: string;
+        zhi: string;
+    };
+}
+export interface YongShenInfo {
+    type: string;
+    liuQin: string;
+    element: string;
+    position: number;
+    strengthScore: number;
+    isStrong: boolean;
+    strengthLabel: string;
+    kongWangState?: string;
+    factors?: string[];
+}
+export interface KongWangInfo {
+    xun: string;
+    kongZhi: [string, string];
+}
+export interface FullYaoInfo {
+    position: number;
+    type: number;
+    change: string;
+    liuQin: string;
+    liuShen: string;
+    naJia: string;
+    wuXing: string;
+    isShiYao: boolean;
+    isYingYao: boolean;
+    wangShuai: string;
+    wangShuaiLabel: string;
+    kongWangState?: string;
+    kongWangLabel?: string;
+    strengthScore?: number;
+    isStrong?: boolean;
+    strengthFactors?: string[];
+    changSheng?: string;
+    changeAnalysis?: {
+        huaType: string;
+        huaLabel: string;
+        isGood: boolean;
+    };
+}
+export interface FuShenInfo {
+    liuQin: string;
+    wuXing: string;
+    naJia: string;
+    feiShenPosition: number;
+    isAvailable: boolean;
+    availabilityReason: string;
+}
+export interface ShenSystemInfo {
+    yuanShen?: {
+        liuQin: string;
+        wuXing: string;
+        positions: number[];
+    };
+    jiShen?: {
+        liuQin: string;
+        wuXing: string;
+        positions: number[];
+    };
+    chouShen?: {
+        liuQin: string;
+        wuXing: string;
+        positions: number[];
+    };
+}
+export interface LiuChongGuaInfo {
+    isLiuChongGua: boolean;
+    description?: string;
+}
+export interface SanHeAnalysisInfo {
+    hasFullSanHe: boolean;
+    fullSanHe?: {
+        name: string;
+        result: string;
+        positions: number[];
+    };
+    hasBanHe: boolean;
+    banHe?: Array<{
+        branches: string[];
+        result: string;
+        type: string;
+        positions: number[];
+    }>;
+}
+export interface TimeRecommendation {
+    type: 'favorable' | 'unfavorable' | 'critical';
+    timeframe: string;
+    earthlyBranch?: string;
+    description: string;
+}
+export interface SummaryInfo {
+    overallTrend: 'favorable' | 'neutral' | 'unfavorable';
+    keyFactors: string[];
+}
+export interface TarotInput {
+    spreadType?: string;
+    question?: string;
+    allowReversed?: boolean;
+}
+export interface TarotOutput {
+    spreadId: string;
+    spreadName: string;
+    question?: string;
+    cards: TarotCardResult[];
+}
+export interface TarotCardResult {
+    position: string;
+    card: {
+        name: string;
+        nameChinese: string;
+        keywords: string[];
+    };
+    orientation: 'upright' | 'reversed';
+    meaning: string;
+}
+export interface FortuneInput {
+    dayMaster?: string;
+    birthYear?: number;
+    birthMonth?: number;
+    birthDay?: number;
+    birthHour?: number;
+    date?: string;
+}
+export interface FortuneOutput {
+    date: string;
+    dayInfo: {
+        stem: string;
+        branch: string;
+        ganZhi: string;
+    };
+    tenGod?: string;
+    scores: {
+        overall: number;
+        career: number;
+        love: number;
+        wealth: number;
+        health: number;
+        social: number;
+    };
+    advice: string[];
+    luckyColor?: string;
+    luckyDirection?: string;
+    almanac: AlmanacInfo;
+}
+export interface AlmanacInfo {
+    lunarDate: string;
+    lunarMonth: string;
+    lunarDay: string;
+    zodiac: string;
+    solarTerm?: string;
+    suitable: string[];
+    avoid: string[];
+    chongSha: string;
+    pengZuBaiJi: string[];
+    jishen: string[];
+    xiongsha: string[];
+}
+export interface LiunianInput {
+    gender: Gender;
+    birthYear: number;
+    birthMonth: number;
+    birthDay: number;
+    birthHour: number;
+    birthMinute?: number;
+    calendarType?: CalendarType;
+    isLeapMonth?: boolean;
+    targetYear?: number;
+    targetMonth?: number;
+}
+export interface LiunianOutput {
+    currentDaYun: {
+        startYear: number;
+        endYear: number;
+        ganZhi: string;
+        tenGod: string;
+    };
+    liunian: {
+        year: number;
+        ganZhi: string;
+        tenGod: string;
+    };
+    liuyue?: {
+        month: number;
+        ganZhi: string;
+        tenGod: string;
+    };
+    analysis: {
+        trend: 'favorable' | 'neutral' | 'unfavorable';
+        keyFactors: string[];
+    };
+}
+//# sourceMappingURL=types.d.ts.map
