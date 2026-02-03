@@ -907,7 +907,7 @@ function checkLiuChongGua(yaos) {
     return { isLiuChongGua: false };
 }
 // 计算神系（原神、忌神、仇神）
-function calculateShenSystem(yongShenLiuQin, yongShenElement, yaos, gongElement) {
+function calculateShenSystem(_yongShenLiuQin, yongShenElement, yaos, gongElement) {
     const order = ['木', '火', '土', '金', '水'];
     const yongIdx = order.indexOf(yongShenElement);
     // 原神：生用神者

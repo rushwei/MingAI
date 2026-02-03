@@ -966,7 +966,7 @@ function checkLiuChongGua(yaos: InternalYaoInfo[]): { isLiuChongGua: boolean; de
 
 // 计算神系（原神、忌神、仇神）
 function calculateShenSystem(
-  yongShenLiuQin: LiuQin,
+  _yongShenLiuQin: LiuQin,
   yongShenElement: WuXing,
   yaos: InternalYaoInfo[],
   gongElement: WuXing
