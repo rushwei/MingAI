@@ -157,7 +157,7 @@ function BaziPageContent() {
                         prev.birthMinute,
                         0
                     );
-                    const lunar = solar.getLunar() as unknown as { getMonth: () => number; getYear: () => number; getDay: () => number };
+                    const lunar = solar.getLunar();
                     const lunarMonth = Math.abs(lunar.getMonth());
                     const isLeapMonth = lunar.getMonth() < 0;
                     const lunarDay = clampDay('lunar', lunar.getYear(), lunarMonth, lunar.getDay(), isLeapMonth);
@@ -178,7 +178,7 @@ function BaziPageContent() {
                     prev.birthHour,
                     prev.birthMinute,
                     0
-                ) as unknown as { getSolar: () => { getYear: () => number; getMonth: () => number; getDay: () => number } };
+                );
                 const solar = lunar.getSolar();
                 return {
                     ...prev,

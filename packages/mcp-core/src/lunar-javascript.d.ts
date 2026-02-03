@@ -28,6 +28,9 @@ declare module 'lunar-javascript' {
     ): Lunar;
     getEightChar(): EightChar;
     getDay(): LunarDay;
+    getSolar(): Solar;
+    getYear(): number;
+    getMonth(): number;
     toString(): string;
     getMonthInChinese(): string;
     getDayInChinese(): string;
