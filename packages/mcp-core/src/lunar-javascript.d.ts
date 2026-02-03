@@ -1,13 +1,18 @@
+/**
+ * lunar-javascript 库的类型声明
+ */
+
 declare module 'lunar-javascript' {
   export class Solar {
     static fromDate(date: Date): Solar;
+    static fromYmd(year: number, month: number, day: number): Solar;
     static fromYmdHms(
       year: number,
       month: number,
       day: number,
-      hour: number,
-      minute: number,
-      second: number
+      hour?: number,
+      minute?: number,
+      second?: number
     ): Solar;
     getLunar(): Lunar;
     getYear(): number;
@@ -15,36 +20,101 @@ declare module 'lunar-javascript' {
     getDay(): number;
     getHour(): number;
     getMinute(): number;
+    toYmd(): string;
+    next(days: number, onlyWorkday?: boolean): Solar;
   }
 
   export class Lunar {
+    static fromYmd(year: number, month: number, day: number): Lunar;
     static fromYmdHms(
       year: number,
       month: number,
       day: number,
-      hour: number,
-      minute: number,
-      second: number
+      hour?: number,
+      minute?: number,
+      second?: number
     ): Lunar;
     getEightChar(): EightChar;
-    getDay(): LunarDay;
     getSolar(): Solar;
     getYear(): number;
     getMonth(): number;
+    getDay(): number;
     toString(): string;
     getMonthInChinese(): string;
     getDayInChinese(): string;
+    getYearInChinese(): string;
     getYearShengXiao(): string;
+    getMonthShengXiao(): string;
+    getDayShengXiao(): string;
     getJieQi(): string | null;
-    // 黄历相关方法
+    getPrevJieQi(): JieQi | null;
+    getNextJieQi(): JieQi | null;
+    getCurrentJie(): JieQi | null;
+    getCurrentQi(): JieQi | null;
+    getJieQiTable(): Record<string, Solar>;
+    getJieQiList(): string[];
+    getDayInGanZhi(): string;
+    getMonthInGanZhiExact(): string;
+    // 黄历相关
     getDayYi(): string[];
     getDayJi(): string[];
+    getDayJiShen(): string[];
+    getDayXiongSha(): string[];
+    getYearShenSha(): string[];
+    getMonthShenSha(): string[];
+    getChongShengXiao(): string;
+    getChongDesc(): string;
     getDayChongDesc(): string;
+    getSha(): string;
     getDaySha(): string;
     getPengZuGan(): string[];
     getPengZuZhi(): string[];
-    getDayJiShen(): string[];
-    getDayXiongSha(): string[];
+    getDayTianShen(): string;
+    getDayTianShenType(): string;
+    getDayTianShenLuck(): string;
+    getDayPositionTai(): string;
+    getDayPositionCaiDesc(): string;
+    getDayPositionXiDesc(): string;
+    getDayPositionFuDesc(): string;
+    getDayPositionYangGuiDesc(): string;
+    getDayPositionYinGuiDesc(): string;
+    getXiu(): string;
+    getXiuLuck(): string;
+    getGong(): string;
+    getShou(): string;
+    getZheng(): string;
+    getYueXiang(): string;
+    getWuHou(): string;
+    getHou(): string;
+    getLiuYao(): string;
+    getDayNineStar(): NineStar;
+    getDayXunKong(): string;
+  }
+
+  export class JieQi {
+    getName(): string;
+    getSolar(): Solar;
+  }
+
+  export class NineStar {
+    toString(): string;
+    toFullString(): string;
+    getNumber(): number;
+    getColor(): string;
+    getWuXing(): string;
+    getPositionDesc(): string;
+  }
+
+  export class LunarMonth {
+    static fromYm(year: number, month: number): LunarMonth;
+    getDayCount(): number;
+    getYear(): number;
+    getMonth(): number;
+  }
+
+  export class LunarYear {
+    static fromYear(year: number): LunarYear;
+    getLeapMonth(): number;
   }
 
   export class EightChar {
@@ -56,28 +126,48 @@ declare module 'lunar-javascript' {
     getDayZhi(): string;
     getTimeGan(): string;
     getTimeZhi(): string;
+    getYear(): string;
+    getMonth(): string;
+    getDay(): string;
+    getTime(): string;
+    getYearNaYin(): string;
+    getMonthNaYin(): string;
+    getDayNaYin(): string;
+    getTimeNaYin(): string;
+    getYearDiShi(): string;
+    getMonthDiShi(): string;
+    getDayDiShi(): string;
+    getTimeDiShi(): string;
+    getYearShiShenGan(): string;
+    getMonthShiShenGan(): string;
+    getTimeShiShenGan(): string;
+    getYearShiShenZhi(): string[];
+    getMonthShiShenZhi(): string[];
+    getDayShiShenZhi(): string[];
+    getTimeShiShenZhi(): string[];
     getYun(gender: number): Yun;
   }
 
   export class Yun {
     getStartYear(): number;
+    getStartMonth(): number;
+    getStartDay(): number;
     getStartSolar(): Solar;
     getDaYun(): DaYun[];
   }
 
   export class DaYun {
     getStartAge(): number;
+    getStartYear(): number;
     getGanZhi(): string;
+    getGan(): string;
+    getZhi(): string;
+    getLiuNian(): LiuNian[];
   }
 
-  export class LunarDay {
-    getYi(): string[];
-    getJi(): string[];
-    getChongDesc(): string;
-    getSha(): string;
-    getPengZuGan(): string[];
-    getPengZuZhi(): string[];
-    getDayJiShen(): string[];
-    getDayXiongSha(): string[];
+  export class LiuNian {
+    getYear(): number;
+    getAge(): number;
+    getGanZhi(): string;
   }
 }
