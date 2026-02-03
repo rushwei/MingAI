@@ -12,11 +12,17 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/mcp-core ./packages/mcp-core
 COPY packages/mcp-server ./packages/mcp-server
 
-# 安装依赖
-RUN pnpm install --frozen-lockfile --prod
+# 安装依赖（包括 devDependencies 用于构建）
+RUN pnpm install --frozen-lockfile
+
+# 构建 mcp-core
+WORKDIR /app/packages/mcp-core
+RUN pnpm build
+
+# 构建 mcp-server
+WORKDIR /app/packages/mcp-server
+RUN pnpm build
 
 EXPOSE 3001
-
-WORKDIR /app/packages/mcp-server
 
 CMD ["node", "dist/index.js"]
