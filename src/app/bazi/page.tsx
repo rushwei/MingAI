@@ -178,7 +178,7 @@ function BaziPageContent() {
                     prev.birthHour,
                     prev.birthMinute,
                     0
-                );
+                ) as unknown as { getSolar: () => { getYear: () => number; getMonth: () => number; getDay: () => number } };
                 const solar = lunar.getSolar();
                 return {
                     ...prev,
