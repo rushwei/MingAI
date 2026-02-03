@@ -63,7 +63,7 @@ app.get('/health', (_req, res) => {
 const transports = new Map<string, SSEServerTransport>();
 
 // SSE 端点
-app.get('/sse', authMiddleware, rateLimitMiddleware, async (req, res) => {
+app.get('/sse', authMiddleware, rateLimitMiddleware, async (_req, res) => {
   const sessionId = crypto.randomUUID();
 
   const transport = new SSEServerTransport(`/message/${sessionId}`, res);
