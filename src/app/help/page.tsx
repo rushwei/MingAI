@@ -224,7 +224,7 @@ export default function HelpPage() {
                         </div>
                         <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background border border-border/50 shadow-sm text-sm font-medium text-foreground hover:shadow-md transition-all">
                             <Mail className="w-4 h-4 text-accent" />
-                            <span>huanghesen1@gmail.com</span>
+                            <span>feedback@mingai.fun</span>
                         </div>
                     </div>
                 </section>
