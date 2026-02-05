@@ -32,6 +32,7 @@ import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/fortune';
 import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/calendar';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
 
 import type { BaziChart } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -184,6 +185,26 @@ function DailyPageContent() {
             luckyDirection: '',
         } as DailyFortune;
     }, [baziChart, selectedDate]);
+
+    const dayStemElement = useMemo(() => {
+        if (!fortune.dayStem) return null;
+        return getStemElement(String(fortune.dayStem));
+    }, [fortune.dayStem]);
+
+    const dayBranchElement = useMemo(() => {
+        if (!fortune.dayBranch) return null;
+        return getBranchElement(String(fortune.dayBranch));
+    }, [fortune.dayBranch]);
+
+    const dayStemStyle = useMemo(() => {
+        if (!dayStemElement) return undefined;
+        return { color: getElementColor(dayStemElement) };
+    }, [dayStemElement]);
+
+    const dayBranchStyle = useMemo(() => {
+        if (!dayBranchElement) return undefined;
+        return { color: getElementColor(dayBranchElement) };
+    }, [dayBranchElement]);
 
 
 
@@ -380,10 +401,19 @@ function DailyPageContent() {
                         {/* 2. 详细运势评分与分析 */}
                         <section className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-lg relative overflow-hidden flex flex-col">
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                    <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                                    运势分析
-                                </h2>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-lg font-bold flex items-center gap-2">
+                                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                                        运势分析
+                                    </h2>
+                                    {fortune.dayStem && fortune.dayBranch && (
+                                        <span className="text-xs text-foreground-secondary">
+                                            日干支：
+                                            <span className="font-semibold" style={dayStemStyle}>{fortune.dayStem}</span>
+                                            <span className="font-semibold" style={dayBranchStyle}>{fortune.dayBranch}</span>
+                                        </span>
+                                    )}
+                                </div>
                                 <button
                                     onClick={() => setShowShareCard(true)}
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/10 to-indigo-500/10 text-purple-600 dark:text-purple-400 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-200 dark:border-purple-800 transition-all active:scale-95"

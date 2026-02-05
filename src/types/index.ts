@@ -5,6 +5,8 @@
  * 便于类型复用和统一管理
  */
 
+import type { Mention } from './mentions';
+
 // ===== 基础类型 =====
 
 /** 性别 */
@@ -132,6 +134,7 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 /** 消息版本（用于编辑历史） */
 export interface MessageVersion {
     userContent: string;
+    mentions?: Mention[];
     aiContent: string;
     createdAt: string;
     // 编辑时被截断的后续消息（用于保留分支历史）
@@ -158,6 +161,8 @@ export interface ChatMessage {
     role: MessageRole;
     content: string;
     createdAt: string;
+    // 提及信息（仅用户消息）- 用于渲染高亮与复用输入框颜色
+    mentions?: Mention[];
     model?: string;                   // 使用的模型（仅AI消息）
     reasoning?: string;               // 推理/思考过程（仅AI消息）
     reasoningStartTime?: number;      // 推理开始时间戳（ms）（仅AI消息，流式时使用）

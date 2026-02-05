@@ -81,6 +81,11 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
         const ganZhiTime = analysis
             ? `${analysis.ganZhiTime.year.gan}${analysis.ganZhiTime.year.zhi}年 ${analysis.ganZhiTime.month.gan}${analysis.ganZhiTime.month.zhi}月 ${analysis.ganZhiTime.day.gan}${analysis.ganZhiTime.day.zhi}日 ${analysis.ganZhiTime.hour.gan}${analysis.ganZhiTime.hour.zhi}时`
             : '';
+        const kongWangSummary = analysis?.kongWangByPillar
+            ? `年${analysis.kongWangByPillar.year.xun}（${analysis.kongWangByPillar.year.kongDizhi.join(' ')}）；月${analysis.kongWangByPillar.month.xun}（${analysis.kongWangByPillar.month.kongDizhi.join(' ')}）；日${analysis.kongWangByPillar.day.xun}（${analysis.kongWangByPillar.day.kongDizhi.join(' ')}）；时${analysis.kongWangByPillar.hour.xun}（${analysis.kongWangByPillar.hour.kongDizhi.join(' ')}）`
+            : analysis
+                ? `日${analysis.kongWang.xun}（${analysis.kongWang.kongDizhi.join(' ')}）`
+                : '';
 
         return [
             '## 六爻占卜',
@@ -89,6 +94,8 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
             r.changed_hexagram_code ? `- 变卦：${r.changed_hexagram_code}` : '',
             changedLines.length ? `- 动爻：${changedLines.join('、')}` : '',
             ganZhiTime ? `- 起卦时间：${ganZhiTime}` : '',
+            kongWangSummary ? `- 旬空（年/月/日/时）：${kongWangSummary}` : '',
+            kongWangSummary ? '- 注：六爻断卦判空亡以“日旬空”为主，年/月/时旬空供参考。' : '',
             analysis ? `- 用神：${analysis.yongShen.type}（${analysis.yongShen.element}，第${analysis.yongShen.position}爻，${analysis.yongShen.strength}）` : '',
             analysis?.yongShen?.analysis ? `- 用神分析：${analysis.yongShen.analysis}` : '',
             analysis?.fuShen?.length ? `- 伏神：${JSON.stringify(analysis.fuShen)}` : '',

@@ -7,21 +7,23 @@
  */
 'use client';
 
-import { memo, useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback, useRef } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
-import type { AIMessageMetadata, ChatMessage, InjectedSource } from '@/types';
+import type { AIMessageMetadata, ChatMessage, InjectedSource, Mention } from '@/types';
 import { getModelName } from '@/lib/ai-config';
 import { formatMentionsForDisplay } from '@/lib/format-mentions';
+import { extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens } from '@/lib/mention-tokens';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from './ThinkingBlock';
 import { SourcePanel } from './SourcePanel';
+import { buildMentionHighlightedParts } from './mentionHighlight';
 
 export interface ChatMessageItemProps {
     message: ChatMessage;
     isStreamingAI: boolean;
     isLastMessage: boolean;
     disabled?: boolean;
-    onEditMessage?: (messageId: string, newContent: string) => void;
+    onEditMessage?: (messageId: string, newContent: string, mentions?: Mention[]) => void;
     onRegenerateResponse?: (messageId: string) => void;
     onSwitchVersion?: (messageId: string, versionIndex: number) => void;
     onArchiveMessage?: (message: ChatMessage) => void;
@@ -39,34 +41,95 @@ export const ChatMessageItem = memo(function ChatMessageItem({
 }: ChatMessageItemProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
+    const [editMentions, setEditMentions] = useState<Mention[]>([]);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [hoveredAction, setHoveredAction] = useState<string | null>(null);
     const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+    const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const editOverlayRef = useRef<HTMLDivElement | null>(null);
 
-    // 缓存格式化后的用户消息内容，避免每次渲染重新执行正则替换
-    const formattedUserContent = useMemo(
-        () => message.role === 'user' ? formatMentionsForDisplay(message.content) : '',
-        [message.role, message.content]
-    );
+    const highlightedUserContentParts = useMemo(() => {
+        if (message.role !== 'user') return [];
+        const displayContent = formatMentionsForDisplay(message.content);
+        return buildMentionHighlightedParts(displayContent, message.mentions ?? []);
+    }, [message.content, message.mentions, message.role]);
 
     const handleStartEdit = useCallback(() => {
         if (disabled) return;
         setEditingId(message.id);
-        setEditContent(message.content);
-    }, [disabled, message.id, message.content]);
+        setEditContent(formatMentionsForDisplay(message.content));
+        setEditMentions(message.mentions ?? []);
+    }, [disabled, message.content, message.id, message.mentions]);
 
     const handleSaveEdit = useCallback(() => {
-        if (editingId && onEditMessage && editContent.trim()) {
-            onEditMessage(editingId, editContent.trim());
+        const trimmed = editContent.trim();
+        if (editingId && onEditMessage && trimmed) {
+            const tokens = extractMentionTokens(trimmed, editMentions);
+            const nextMentions = filterMentionsByTokens(editMentions, tokens);
+            onEditMessage(editingId, trimmed, nextMentions);
         }
         setEditingId(null);
         setEditContent('');
-    }, [editingId, onEditMessage, editContent]);
+        setEditMentions([]);
+    }, [editingId, editContent, editMentions, onEditMessage]);
 
     const handleCancelEdit = useCallback(() => {
         setEditingId(null);
         setEditContent('');
+        setEditMentions([]);
     }, []);
+
+    const handleEditInputChange = useCallback((value: string) => {
+        setEditContent(value);
+        const tokens = extractMentionTokens(value, editMentions);
+        const next = filterMentionsByTokens(editMentions, tokens);
+        if (next.length !== editMentions.length) {
+            setEditMentions(next);
+        }
+    }, [editMentions]);
+
+    const handleEditKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+        const textarea = editTextareaRef.current;
+        if (!textarea) return;
+
+        const tokens = extractMentionTokens(editContent, editMentions);
+        if (tokens.length === 0) return;
+
+        if (textarea.selectionStart !== textarea.selectionEnd) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const overlaps = tokens.filter(token => token.start < end && token.end > start);
+            if (overlaps.length === 0) return;
+            e.preventDefault();
+            const removeStart = Math.min(start, ...overlaps.map(t => t.start));
+            const removeEnd = Math.max(end, ...overlaps.map(t => t.end));
+            const nextValue = `${editContent.slice(0, removeStart)}${editContent.slice(removeEnd)}`;
+            setEditContent(nextValue);
+            setEditMentions(removeMentionsByTokens(editMentions, tokens, overlaps));
+            requestAnimationFrame(() => {
+                editTextareaRef.current?.setSelectionRange(removeStart, removeStart);
+            });
+            return;
+        }
+
+        const caret = e.key === 'Backspace' ? textarea.selectionStart - 1 : textarea.selectionStart;
+        if (caret < 0) return;
+        const target = tokens.find(token => caret >= token.start && caret < token.end);
+        if (!target) return;
+        e.preventDefault();
+        const nextValue = `${editContent.slice(0, target.start)}${editContent.slice(target.end)}`;
+        setEditContent(nextValue);
+        setEditMentions(removeMentionsByTokens(editMentions, tokens, [target]));
+        requestAnimationFrame(() => {
+            editTextareaRef.current?.setSelectionRange(target.start, target.start);
+        });
+    }, [editContent, editMentions]);
+
+    const highlightedEditContentParts = useMemo(() => {
+        if (!editContent) return [];
+        return buildMentionHighlightedParts(editContent, editMentions);
+    }, [editContent, editMentions]);
 
     const handleCopy = useCallback(async () => {
         try {
@@ -85,13 +148,36 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             <div className="group flex justify-end">
                 {editingId === message.id ? (
                     <div className="max-w-[75%] space-y-2">
-                        <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            className="w-full px-4 py-3 rounded-2xl bg-background-secondary border border-border focus:outline-none focus:ring-2 focus:ring-accent/30 text-base resize-none"
-                            rows={3}
-                            autoFocus
-                        />
+                        <div className="relative w-full rounded-2xl bg-background-secondary border border-border focus-within:ring-2 focus-within:ring-accent/30">
+                            <div
+                                ref={editOverlayRef}
+                                className="pointer-events-none absolute inset-0 px-4 py-3 whitespace-pre-wrap break-words text-base leading-relaxed text-foreground overflow-y-auto"
+                            >
+                                {highlightedEditContentParts.map((part) => (
+                                    part.kind === 'mention'
+                                        ? (
+                                            <span key={`${part.start}-${part.end}`} className={part.className}>
+                                                {part.value}
+                                            </span>
+                                        )
+                                        : part.value
+                                ))}
+                            </div>
+                            <textarea
+                                ref={editTextareaRef}
+                                value={editContent}
+                                onChange={(e) => handleEditInputChange(e.target.value)}
+                                onKeyDown={handleEditKeyDown}
+                                onScroll={(e) => {
+                                    if (editOverlayRef.current) {
+                                        editOverlayRef.current.scrollTop = e.currentTarget.scrollTop;
+                                    }
+                                }}
+                                className="w-full bg-transparent px-4 py-3 rounded-2xl text-base leading-relaxed resize-none text-transparent caret-foreground focus:outline-none overflow-y-auto"
+                                rows={3}
+                                autoFocus
+                            />
+                        </div>
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={handleSaveEdit}
@@ -147,7 +233,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                             : 'bg-accent/10 border border-accent/20'
                         }`}>
                             <p className="whitespace-pre-wrap text-base leading-relaxed">
-                                {formattedUserContent}
+                                {highlightedUserContentParts.map((part) => (
+                                    part.kind === 'mention'
+                                        ? (
+                                            <span key={`${part.start}-${part.end}`} className={part.className}>
+                                                {part.value}
+                                            </span>
+                                        )
+                                        : part.value
+                                ))}
                             </p>
                         </div>
                         {/* 操作按钮和版本切换 */}
@@ -171,13 +265,6 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     // AI 消息
     return (
         <div className="group w-full">
-            {/* 正在思考指示器 */}
-            {isCurrentStreaming && !message.reasoning && (
-                <div className="flex items-center gap-2 mb-2">
-                    <RefreshCw className="w-4 h-4 animate-spin text-accent" />
-                    <span className="text-sm text-foreground-secondary">正在思考...</span>
-                </div>
-            )}
             {/* 显示思考过程 */}
             {message.reasoning && (
                 <ThinkingBlock
@@ -205,12 +292,10 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             )}
             <MarkdownContent content={message.content} className="text-base text-foreground" />
             {isCurrentStreaming && !message.content && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-xs text-foreground-secondary backdrop-blur">
-                    <span className="flex items-center gap-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/70 animate-bounce" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce [animation-delay:120ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce [animation-delay:240ms]" />
-                    </span>
+                <div className="mt-2 inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/70 animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce [animation-delay:120ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce [animation-delay:240ms]" />
                 </div>
             )}
             {/* 来源面板 */}
@@ -338,6 +423,9 @@ function SourcePanelSection({
     expandedSources,
     setExpandedSources,
 }: SourcePanelSectionProps) {
+    // 延迟到回复结束后再展示“参考了 n 个来源”，避免一开始就出现
+    if (isCurrentStreaming) return null;
+
     const meta = message.metadata as AIMessageMetadata | undefined;
     const sources = (meta?.sources || []) as InjectedSource[];
     if (!sources.length && !meta?.kbSearchEnabled) return null;

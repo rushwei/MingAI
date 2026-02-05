@@ -115,7 +115,7 @@ export default function ResultPage() {
         if (!result || !traditionalData) return '';
 
         const { hexagram, changedHexagram, changedLines, question } = result;
-        const { ganZhiTime, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, hexagramText } = traditionalData;
+        const { ganZhiTime, kongWang, kongWangByPillar, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, hexagramText } = traditionalData;
         const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
         // 获取卦码和世应宫位
@@ -149,7 +149,14 @@ export default function ResultPage() {
         lines.push('');
         lines.push('【起卦时间】');
         lines.push(`${ganZhiTime.year.gan}${ganZhiTime.year.zhi}年 ${ganZhiTime.month.gan}${ganZhiTime.month.zhi}月 ${ganZhiTime.day.gan}${ganZhiTime.day.zhi}日 ${ganZhiTime.hour.gan}${ganZhiTime.hour.zhi}时`);
-        lines.push(`旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}`);
+        if (kongWangByPillar) {
+            lines.push(`年旬空：${kongWangByPillar.year.xun}，空亡地支：${kongWangByPillar.year.kongDizhi.join('、')}`);
+            lines.push(`月旬空：${kongWangByPillar.month.xun}，空亡地支：${kongWangByPillar.month.kongDizhi.join('、')}`);
+            lines.push(`日旬空：${kongWangByPillar.day.xun}，空亡地支：${kongWangByPillar.day.kongDizhi.join('、')}`);
+            lines.push(`时旬空：${kongWangByPillar.hour.xun}，空亡地支：${kongWangByPillar.hour.kongDizhi.join('、')}`);
+        } else {
+            lines.push(`日旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}`);
+        }
         lines.push(`世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻`);
 
         // 六爻排盘
@@ -549,6 +556,7 @@ export default function ResultPage() {
                             changedLines={result.changedLines}
                             ganZhiTime={traditionalData.ganZhiTime}
                             kongWang={traditionalData.kongWang}
+                            kongWangByPillar={traditionalData.kongWangByPillar}
                             fuShen={traditionalData.fuShen}
                             shenSystem={traditionalData.shenSystem}
                             summary={traditionalData.summary}

@@ -823,6 +823,14 @@ export interface KongWang {
     kongDizhi: [DiZhi, DiZhi];
 }
 
+/** 四柱旬空信息 */
+export interface KongWangByPillar {
+    year: KongWang;
+    month: KongWang;
+    day: KongWang;
+    hour: KongWang;
+}
+
 /** 爻的空亡状态 */
 export type YaoKongWangState =
     | 'not_kong'        // 不空亡
@@ -954,6 +962,7 @@ export interface LiuChongGuaInfo {
 export interface LiuYaoFullAnalysis {
     ganZhiTime: GanZhiTime;
     kongWang: KongWang;
+    kongWangByPillar: KongWangByPillar;
     fullYaos: FullYaoInfoExtended[];
     changedYaos?: FullYaoInfoExtended[];
     yongShen: YongShen;
@@ -1217,11 +1226,11 @@ export const CHANG_SHENG_STRENGTH: Record<ShiErChangSheng, 'strong' | 'medium' |
 // ============= P0: 干支时间计算函数 =============
 
 /**
- * 根据日干支计算所属旬
+ * 根据干支计算所属旬（通用）
  */
-export function getXunFromDayGanZhi(dayGan: TianGan, dayZhi: DiZhi): string {
-    const ganIndex = TIANGAN_INDEX[dayGan];
-    const zhiIndex = DIZHI_INDEX[dayZhi];
+export function getXunFromGanZhi(gan: TianGan, zhi: DiZhi): string {
+    const ganIndex = TIANGAN_INDEX[gan];
+    const zhiIndex = DIZHI_INDEX[zhi];
     // 计算旬首的地支索引：日支索引 - 日干索引（取模12）
     const xunStartZhiIndex = (zhiIndex - ganIndex + 12) % 12;
     const xunNames: Record<number, string> = {
@@ -1229,6 +1238,13 @@ export function getXunFromDayGanZhi(dayGan: TianGan, dayZhi: DiZhi): string {
         6: '甲午旬', 8: '甲申旬', 10: '甲戌旬',
     };
     return xunNames[xunStartZhiIndex] || '甲子旬';
+}
+
+/**
+ * 根据日干支计算所属旬（兼容旧接口）
+ */
+export function getXunFromDayGanZhi(dayGan: TianGan, dayZhi: DiZhi): string {
+    return getXunFromGanZhi(dayGan, dayZhi);
 }
 
 /**
@@ -1285,6 +1301,19 @@ export function getKongWang(dayGan: TianGan, dayZhi: DiZhi): KongWang {
     return {
         xun,
         kongDizhi: XUN_KONG_TABLE[xun],
+    };
+}
+
+/**
+ * 计算四柱旬空（年/月/日/时）
+ * 注：六爻断卦判空亡仍以“日旬空”为主，其他柱旬空供参考
+ */
+export function calculateKongWangByPillar(ganZhiTime: GanZhiTime): KongWangByPillar {
+    return {
+        year: getKongWang(ganZhiTime.year.gan, ganZhiTime.year.zhi),
+        month: getKongWang(ganZhiTime.month.gan, ganZhiTime.month.zhi),
+        day: getKongWang(ganZhiTime.day.gan, ganZhiTime.day.zhi),
+        hour: getKongWang(ganZhiTime.hour.gan, ganZhiTime.hour.zhi),
     };
 }
 
@@ -2017,8 +2046,9 @@ export function performFullAnalysis(
     const monthZhi = ganZhiTime.month.zhi;
     const dayZhi = ganZhiTime.day.zhi;
 
-    // 2. 计算旬空
-    const kongWang = getKongWang(ganZhiTime.day.gan, ganZhiTime.day.zhi);
+    // 2. 计算旬空（四柱）
+    const kongWangByPillar = calculateKongWangByPillar(ganZhiTime);
+    const kongWang = kongWangByPillar.day; // 六爻断卦判空亡以日旬空为主
 
     // 3. 获取宫位信息
     const palace = findPalace(hexagramCode);
@@ -2169,6 +2199,7 @@ export function performFullAnalysis(
     return {
         ganZhiTime,
         kongWang,
+        kongWangByPillar,
         fullYaos,
         changedYaos,
         yongShen,

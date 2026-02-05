@@ -35,6 +35,7 @@ import {
 } from '@/lib/conversation';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { buildDraftTitle } from '@/lib/draft-title';
 
 
 // AI 生成对话标题（使用专用 API，不消耗积分）
@@ -86,6 +87,7 @@ export default function ChatPage() {
     const [isLoading, setIsLoading] = useState(false); // AI思考中
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
 
     // 命盘选择器状态
     const [chartSelectorOpen, setChartSelectorOpen] = useState(false);
@@ -337,6 +339,13 @@ export default function ChatPage() {
 
     // 选择对话
     const handleSelectConversation = useCallback(async (id: string) => {
+        // 切换会话时，停止当前流式回复，避免“思考中”状态串到新会话
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+
         const conv = await loadConversation(id);
         if (conv) {
             setActiveConversationId(id);
@@ -371,6 +380,13 @@ export default function ChatPage() {
 
     // 新建对话
     const handleNewChat = useCallback(async () => {
+        // 新建会话时停止当前流式回复，避免状态残留
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+
         setActiveConversationId(null);
         setMessages([]);
         setSelectedCharts({}); // 清空命盘显示
@@ -398,6 +414,7 @@ export default function ChatPage() {
 
     // 重命名对话（乐观更新）
     const handleRenameConversation = useCallback(async (id: string, title: string) => {
+        manualRenamedConversationIdsRef.current.add(id);
         // 乐观更新：先更新 UI
         const previousConversations = conversations;
         setConversations(prev => prev.map(c =>
@@ -413,49 +430,72 @@ export default function ChatPage() {
     }, [conversations]);
 
     // 保存消息到对话
-    const saveMessages = useCallback(async (newMessages: ChatMessage[], isNewConversation: boolean) => {
+    const saveMessages = useCallback(async (conversationId: string, newMessages: ChatMessage[], title?: string) => {
         if (!userId) return;
+        await saveConversation(conversationId, newMessages, title);
+    }, [userId]);
 
-        if (activeConversationId && !isNewConversation) {
-            // 更新现有对话
-            await saveConversation(activeConversationId, newMessages);
-        } else {
-            // 创建新对话，使用AI生成标题
-            const title = await generateAITitle(newMessages);
+    // 发送消息
+    const handleSend = async () => {
+        const trimmedInput = inputValue.trim();
+        if (!trimmedInput || isLoading) return;
+        if (dreamMode && dreamContextLoading) return;
+
+        const messageMentions = mentions;
+        const isNewConversation = !activeConversationId;
+        const draftTitle = isNewConversation ? buildDraftTitle(trimmedInput) : null;
+        let conversationId = activeConversationId;
+
+        // 新对话：先创建对话并用用户消息作为临时标题（不等待 AI 标题）
+        if (isNewConversation && userId) {
             const newId = await createConversation({
                 userId,
                 personality: 'general',
-                title,
+                title: draftTitle || '新对话',
                 baziChartId: selectedCharts.bazi?.id,
                 ziweiChartId: selectedCharts.ziwei?.id,
             });
             if (newId) {
-                await saveConversation(newId, newMessages, title);
+                conversationId = newId;
                 setActiveConversationId(newId);
-                // 刷新列表
-                const list = await loadConversations(userId);
-                setConversations(list);
+                const nowIso = new Date().toISOString();
+                setConversations(prev => {
+                    const nextConversation: Conversation = {
+                        id: newId,
+                        userId,
+                        baziChartId: selectedCharts.bazi?.id,
+                        ziweiChartId: selectedCharts.ziwei?.id,
+                        personality: 'general',
+                        title: draftTitle || '新对话',
+                        messages: [],
+                        createdAt: nowIso,
+                        updatedAt: nowIso,
+                        sourceType: 'chat',
+                        sourceData: {},
+                        isArchived: false,
+                        archivedKbIds: [],
+                    };
+                    const withoutDup = prev.filter(c => c.id !== newId);
+                    return [nextConversation, ...withoutDup];
+                });
+                setHasLoadedConversations(true);
+                void refreshConversationList(userId);
             }
         }
-    }, [userId, activeConversationId, selectedCharts.bazi?.id, selectedCharts.ziwei?.id]);
-
-    // 发送消息
-    const handleSend = async () => {
-        if (!inputValue.trim() || isLoading) return;
-        if (dreamMode && dreamContextLoading) return;
 
         // 解梦模式下构建 dreamInfo
         const dreamInfo: DreamInterpretationInfo | undefined = dreamMode ? {
             userName: user?.user_metadata?.nickname || ANONYMOUS_DISPLAY_NAME,
             dreamDate: new Date().toISOString(),
-            dreamContent: inputValue.trim().slice(0, 50),
+            dreamContent: trimmedInput.slice(0, 50),
         } : undefined;
 
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
-            content: inputValue.trim(),
+            content: trimmedInput,
             createdAt: new Date().toISOString(),
+            mentions: messageMentions.length ? [...messageMentions] : undefined,
             // 记录发送时使用的附件/搜索状态
             attachments: (attachmentState.file || attachmentState.webSearchEnabled) ? {
                 fileName: attachmentState.file?.name || '',
@@ -465,12 +505,31 @@ export default function ChatPage() {
             dreamInfo,
         };
 
-        const isNewConversation = !activeConversationId;
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         setInputValue('');
         setMentions([]);
         setIsLoading(true);
+
+        // 新对话：先保存用户首条消息，再异步生成 AI 标题覆盖
+        if (isNewConversation && userId && conversationId && draftTitle) {
+            void saveMessages(conversationId, [userMessage], draftTitle);
+            void (async () => {
+                try {
+                    const nextTitle = (await generateAITitle([userMessage])).trim();
+                    if (!nextTitle || nextTitle === draftTitle) return;
+                    if (manualRenamedConversationIdsRef.current.has(conversationId)) return;
+                    setConversations(prev => prev.map(conv => (
+                        conv.id === conversationId && conv.title === draftTitle
+                            ? { ...conv, title: nextTitle }
+                            : conv
+                    )));
+                    await renameConversation(conversationId, nextTitle);
+                } catch {
+                    // ignore title generation failures
+                }
+            })();
+        }
 
         // 创建一个空的 AI 消息用于流式更新
         const assistantMessageId = (Date.now() + 1).toString();
@@ -522,7 +581,7 @@ export default function ChatPage() {
 
                 const formData = new FormData();
                 formData.append('mode', mode);
-                formData.append('query', inputValue.trim());
+                formData.append('query', trimmedInput);
                 if (attachmentState.file) {
                     formData.append('file', attachmentState.file);
                 }
@@ -572,7 +631,7 @@ export default function ChatPage() {
                     },
                     reasoning: reasoningEnabled,
                     difyContext,
-                    mentions,
+                    mentions: messageMentions,
                     dreamMode, // 解梦模式标记（服务端会获取最新上下文）
                 }),
                 signal: abortControllerRef.current.signal,
@@ -715,8 +774,8 @@ export default function ChatPage() {
             abortControllerRef.current = null;
 
             // 保存到数据库
-            if (userId) {
-                await saveMessages(finalMessages, isNewConversation);
+            if (userId && conversationId) {
+                await saveMessages(conversationId, finalMessages);
             }
         } catch (error) {
             // 检查是否是用户主动停止
@@ -736,7 +795,7 @@ export default function ChatPage() {
                 ));
 
                 // 直接使用 accumulatedContent 构建最终消息并保存
-                if (userId) {
+                if (userId && conversationId) {
                     const stoppedMessages = newMessages.concat({
                         ...initialAssistantMessage,
                         content: accumulatedContent || '',
@@ -744,7 +803,7 @@ export default function ChatPage() {
                     });
                     // 只有当AI有回复内容时才保存
                     if (accumulatedContent.trim()) {
-                        await saveMessages(stoppedMessages, isNewConversation);
+                        await saveMessages(conversationId, stoppedMessages);
                     }
                 }
                 return;
@@ -772,7 +831,7 @@ export default function ChatPage() {
     }, []);
 
     // 编辑用户消息并重新发送
-    const handleEditMessage = async (messageId: string, newContent: string) => {
+    const handleEditMessage = async (messageId: string, newContent: string, nextMentions?: Mention[]) => {
         // 找到要编辑的消息索引
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1) return;
@@ -794,6 +853,7 @@ export default function ChatPage() {
         if (existingVersions.length === 0 && originalMessage.content) {
             existingVersions.push({
                 userContent: originalMessage.content,
+                mentions: originalMessage.mentions ? [...originalMessage.mentions] : undefined,
                 aiContent: originalAiContent,
                 createdAt: originalMessage.createdAt,
                 // 保存后续消息到版本历史，以便切换版本时恢复
@@ -811,9 +871,13 @@ export default function ChatPage() {
         }
 
         // 更新用户消息（带版本信息，新版本稍后添加）
+        const messageMentions = Array.isArray(nextMentions)
+            ? nextMentions
+            : (originalMessage.mentions ?? []);
         const updatedUserMessage: ChatMessage = {
             ...originalMessage,
             content: newContent,
+            mentions: messageMentions.length ? [...messageMentions] : undefined,
             versions: existingVersions,
             currentVersionIndex: existingVersions.length, // 指向即将添加的新版本
         };
@@ -862,6 +926,7 @@ export default function ChatPage() {
                         baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
+                    mentions: messageMentions,
                     dreamMode,
                 }),
             });
@@ -875,6 +940,7 @@ export default function ChatPage() {
             const decoder = new TextDecoder();
             let accumulatedContent = '';
             let accumulatedReasoning = '';
+            let accumulatedMetadata: AIMessageMetadata | null = null;
             let reasoningStartTime: number | undefined = undefined;
             let buffer = '';
 
@@ -894,6 +960,18 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
+                                if (parsed?.type === 'meta' && parsed?.metadata) {
+                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
+                                    if (parsed.metadata.dreamContext) {
+                                        setDreamContext(parsed.metadata.dreamContext);
+                                    }
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
+                                            : msg
+                                    ));
+                                    continue;
+                                }
                                 const delta = parsed.choices?.[0]?.delta;
                                 const reasoningContent = delta?.reasoning_content;
                                 if (reasoningContent) {
@@ -927,6 +1005,7 @@ export default function ChatPage() {
             // 添加新版本到版本历史
             const newVersion = {
                 userContent: newContent,
+                mentions: messageMentions.length ? [...messageMentions] : undefined,
                 aiContent: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 createdAt: new Date().toISOString(),
             };
@@ -945,12 +1024,13 @@ export default function ChatPage() {
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
                 reasoningDuration,
+                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
             }];
             setMessages(finalMessages);
             setIsLoading(false);
 
             if (userId && activeConversationId) {
-                await saveMessages(finalMessages, false);
+                await saveMessages(activeConversationId, finalMessages);
             }
         } catch (error) {
             console.error('编辑发送失败:', error);
@@ -976,6 +1056,9 @@ export default function ChatPage() {
         const previousMessages = messages.slice(0, messageIndex);
         setMessages(previousMessages);
         setIsLoading(true);
+
+        const lastUserMessage = [...previousMessages].reverse().find((msg) => msg.role === 'user');
+        const messageMentions = lastUserMessage?.mentions ?? [];
 
         // 创建新的 AI 消息
         const assistantMessageId = (Date.now() + 1).toString();
@@ -1011,6 +1094,7 @@ export default function ChatPage() {
                         baziAnalysisMode: selectedCharts.bazi?.analysisMode,
                     },
                     reasoning: reasoningEnabled,
+                    mentions: messageMentions,
                     dreamMode,
                 }),
             });
@@ -1023,6 +1107,7 @@ export default function ChatPage() {
             const decoder = new TextDecoder();
             let accumulatedContent = '';
             let accumulatedReasoning = '';
+            let accumulatedMetadata: AIMessageMetadata | null = null;
             let reasoningStartTime: number | undefined = undefined;
             let buffer = '';
 
@@ -1042,6 +1127,18 @@ export default function ChatPage() {
 
                             try {
                                 const parsed = JSON.parse(data);
+                                if (parsed?.type === 'meta' && parsed?.metadata) {
+                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
+                                    if (parsed.metadata.dreamContext) {
+                                        setDreamContext(parsed.metadata.dreamContext);
+                                    }
+                                    setMessages(prev => prev.map(msg =>
+                                        msg.id === assistantMessageId
+                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
+                                            : msg
+                                    ));
+                                    continue;
+                                }
                                 const delta = parsed.choices?.[0]?.delta;
                                 const reasoningContent = delta?.reasoning_content;
                                 if (reasoningContent) {
@@ -1078,12 +1175,13 @@ export default function ChatPage() {
                 content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
                 reasoning: accumulatedReasoning || undefined,
                 reasoningDuration,
+                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
             });
             setMessages(finalMessages);
             setIsLoading(false);
 
             if (userId && activeConversationId) {
-                await saveMessages(finalMessages, false);
+                await saveMessages(activeConversationId, finalMessages);
             }
         } catch (error) {
             console.error('重新生成失败:', error);
@@ -1116,9 +1214,11 @@ export default function ChatPage() {
             const previousMessages = prev.slice(0, messageIndex);
 
             // 更新用户消息
+            const versionMentions = version.mentions ?? message.mentions;
             const updatedUserMessage: ChatMessage = {
                 ...message,
                 content: version.userContent,
+                mentions: versionMentions ? [...versionMentions] : undefined,
                 currentVersionIndex: versionIndex,
             };
 
@@ -1140,7 +1240,7 @@ export default function ChatPage() {
 
             // 保存到数据库
             if (userId && activeConversationId) {
-                saveMessages(newMessages, false);
+                void saveMessages(activeConversationId, newMessages);
             }
 
             return newMessages;

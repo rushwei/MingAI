@@ -9,14 +9,13 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { RefreshCw } from 'lucide-react';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, Mention } from '@/types';
 import { ChatMessageItem } from './ChatMessageItem';
 
 interface VirtualizedChatMessageListProps {
     messages: ChatMessage[];
     isLoading: boolean;
-    onEditMessage?: (messageId: string, newContent: string) => void;
+    onEditMessage?: (messageId: string, newContent: string, mentions?: Mention[]) => void;
     onRegenerateResponse?: (messageId: string) => void;
     onSwitchVersion?: (messageId: string, versionIndex: number) => void;
     onArchiveMessage?: (message: ChatMessage) => void;
@@ -187,14 +186,6 @@ export function VirtualizedChatMessageList({
                     })}
                 </div>
             </div>
-
-            {/* 初始加载状态 */}
-            {isLoading && !isStreamingAI && (
-                <div className="flex items-center gap-2 max-w-3xl mx-auto px-4 py-2">
-                    <RefreshCw className="w-4 h-4 animate-spin text-accent" />
-                    <span className="text-sm text-foreground-secondary">正在思考...</span>
-                </div>
-            )}
         </div>
     );
 }

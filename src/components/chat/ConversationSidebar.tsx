@@ -260,7 +260,7 @@ export function ConversationSidebar({
             <div
                 key={conv.id}
                 className={`
-                    group flex items-start gap-3 px-4 py-2 rounded-lg cursor-pointer
+                    group flex ${subTitle ? 'items-start' : 'items-center'} gap-3 px-4 py-2 rounded-lg cursor-pointer
                     transition-colors text-sm
                     ${(activeId === conv.id || isActionActive) ? 'bg-background-secondary' : 'hover:bg-background-secondary'}
                 `}
@@ -284,7 +284,7 @@ export function ConversationSidebar({
                 </div>
                 {conv.isArchived && (
                     <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border bg-background-tertiary text-[10px] text-foreground-secondary flex-shrink-0 mt-0.5"
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border bg-background-tertiary text-[10px] text-foreground-secondary flex-shrink-0 ${subTitle ? 'mt-0.5' : ''}`}
                         title={
                             Array.isArray(conv.archivedKbIds) && conv.archivedKbIds.length
                                 ? `已归档到 ${conv.archivedKbIds.length} 个知识库`
@@ -295,7 +295,7 @@ export function ConversationSidebar({
                         {!isCollapsed && <span>归档</span>}
                     </span>
                 )}
-                <div className={`flex items-center flex-shrink-0 transition-opacity mt-0.5 ${isActionActive ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100'}`}>
+                <div className={`flex items-center flex-shrink-0 transition-opacity ${subTitle ? 'mt-0.5' : ''} ${isActionActive ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100'}`}>
                     <button
                         type="button"
                         onClick={(e) => {

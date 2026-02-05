@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
                         analysisDate
                     );
 
-                    const { ganZhiTime, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, summary, liuChongGuaInfo, sanHeAnalysis } = analysis;
+                    const { ganZhiTime, kongWangByPillar, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, summary, liuChongGuaInfo, sanHeAnalysis } = analysis;
                     const shiYing = getShiYingPosition(hexagramCode);
                     const palace = findPalace(hexagramCode);
                     const hexText = getHexagramText(hexagram.name);
@@ -229,7 +229,11 @@ ${changedHexagramInfo}
 
 【起卦时间】
 ${ganZhiTime.year.gan}${ganZhiTime.year.zhi}年 ${ganZhiTime.month.gan}${ganZhiTime.month.zhi}月 ${ganZhiTime.day.gan}${ganZhiTime.day.zhi}日 ${ganZhiTime.hour.gan}${ganZhiTime.hour.zhi}时
-旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}
+年旬空：${kongWangByPillar?.year.xun || kongWang.xun}，空亡地支：${(kongWangByPillar?.year.kongDizhi || kongWang.kongDizhi).join('、')}
+月旬空：${kongWangByPillar?.month.xun || kongWang.xun}，空亡地支：${(kongWangByPillar?.month.kongDizhi || kongWang.kongDizhi).join('、')}
+日旬空：${kongWangByPillar?.day.xun || kongWang.xun}，空亡地支：${(kongWangByPillar?.day.kongDizhi || kongWang.kongDizhi).join('、')}
+时旬空：${kongWangByPillar?.hour.xun || kongWang.xun}，空亡地支：${(kongWangByPillar?.hour.kongDizhi || kongWang.kongDizhi).join('、')}
+注：六爻断卦判空亡以“日旬空”为主，年/月/时旬空供参考。
 世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻
 ${liuChongGuaInfo.isLiuChongGua ? '六冲卦：是（主事散、应期急）' : liuChongGuaInfo.description ? liuChongGuaInfo.description : ''}
 ${sanHeAnalysis.hasFullSanHe && sanHeAnalysis.fullSanHe ? `三合局：${sanHeAnalysis.fullSanHe.name}（合力强大，可解冲解空）` : sanHeAnalysis.hasBanHe && sanHeAnalysis.banHe && sanHeAnalysis.banHe.length > 0 ? `半合：${sanHeAnalysis.banHe.map(b => `${b.branches.join('')}${b.type === 'sheng' ? '生方' : '墓方'}半合${b.result}`).join('、')}` : ''}

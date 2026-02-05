@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Coins, RotateCw, Smartphone } from 'lucide-react';
 import { tossThreeCoins, type CoinTossResult, type Yao } from '@/lib/liuyao';
 
@@ -21,6 +21,7 @@ const SHAKE_TIMEOUT = 1500; // 两次摇动之间的最小间隔（ms），防�
 const ANIMATION_DURATION = 600; // 摇卦动画时长（ms）
 
 const YAO_LABELS = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+const YAO_POSITIONS_DESC = [6, 5, 4, 3, 2, 1] as const;
 
 export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     const [currentLine, setCurrentLine] = useState(0);  // 0-5, 当前第几爻
@@ -243,27 +244,16 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
     // 显示最近一次摇卦结果
     const lastResult = results.length > 0 ? results[results.length - 1] : null;
     const showCoinResult = !isAnimating && lastResult && results.length > currentLine;
+    const yaoByPosition = useMemo(() => {
+        const map = new Map<number, Yao>();
+        for (const yao of yaos) {
+            map.set(yao.position, yao);
+        }
+        return map;
+    }, [yaos]);
 
     return (
         <div className="flex flex-col items-center gap-4 md:gap-6">
-            {/* 进度指示 */}
-            <div className="flex items-center gap-1.5 md:gap-2">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <div
-                        key={i}
-                        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all
-                            ${i < currentLine
-                                ? 'bg-accent text-white'
-                                : i === currentLine
-                                    ? 'bg-accent/20 text-accent border-2 border-accent'
-                                    : 'bg-background-secondary text-foreground-secondary'
-                            }`}
-                    >
-                        {i + 1}
-                    </div>
-                ))}
-            </div>
-
             {/* 当前爻标签
             {!isComplete && (
                 <p className="text-lg font-medium text-foreground">
@@ -276,7 +266,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 {[0, 1, 2].map((coinIndex) => (
                     <div
                         key={coinIndex}
-                        className={`w-12 h-12 md:w-16 md:h-16 rounded-full border-4 flex items-center justify-center
+                        className={`w-14 h-14 md:w-16 md:h-16 rounded-full border-4 flex items-center justify-center
                             transition-all duration-500
                             ${isAnimating
                                 ? 'animate-spin border-accent bg-accent/20'
@@ -296,42 +286,53 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 ))}
             </div>
 
-            {/* 最近结果 */}
-            {results.length > 0 && !isAnimating && (
-                <div className="text-center">
-                    <p className="text-sm text-foreground-secondary">
-                        {results[results.length - 1].heads}正{3 - results[results.length - 1].heads}反 →
-                        <span className={results[results.length - 1].isChanging ? 'text-red-500 font-medium' : ''}>
-                            {results[results.length - 1].yaoType === 1 ? '阳爻' : '阴爻'}
-                            {results[results.length - 1].isChanging && '（变）'}
+            {/* 最近结果（预留高度，避免抖动） */}
+            <div className="text-center min-h-[20px]">
+                {lastResult ? (
+                    <p className={`text-sm text-foreground-secondary ${isAnimating ? 'invisible' : ''}`}>
+                        {lastResult.heads}正{3 - lastResult.heads}反 →
+                        <span className={lastResult.isChanging ? 'text-red-500 font-medium' : ''}>
+                            {lastResult.yaoType === 1 ? '阳爻' : '阴爻'}
+                            {lastResult.isChanging && '（变）'}
                         </span>
                     </p>
-                </div>
-            )}
+                ) : (
+                    <p className="text-sm text-foreground-secondary invisible">占位</p>
+                )}
+            </div>
 
-            {/* 已完成的爻 */}
-            {yaos.length > 0 && (
-                <div className="flex flex-col gap-1 mt-4">
-                    {[...yaos].reverse().map((yao) => (
-                        <div key={yao.position} className="flex items-center gap-2">
-                            <span className={`text-xs w-10 ${yao.change === 'changing' ? 'text-red-500' : 'text-foreground-secondary'}`}>
-                                {YAO_LABELS[yao.position - 1]}
+            {/* 六爻（预留 6 行，避免布局抖动） */}
+            <div className="flex flex-col gap-1 mt-4">
+                {YAO_POSITIONS_DESC.map((position) => {
+                    const yao = yaoByPosition.get(position);
+                    const isPlaceholder = !yao;
+                    return (
+                        <div key={position} className="flex items-center gap-2 h-5">
+                            <span className={`text-xs w-10 ${yao?.change === 'changing'
+                                ? 'text-red-500'
+                                : isPlaceholder
+                                    ? 'text-foreground-tertiary'
+                                    : 'text-foreground-secondary'
+                                }`}>
+                                {YAO_LABELS[position - 1]}
                             </span>
-                            <div className={`flex items-center ${yao.change === 'changing' ? 'text-red-500' : ''}`}>
-                                {yao.type === 1 ? (
-                                    <div className={`w-[62px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                            <div className={`flex items-center ${yao?.change === 'changing' ? 'text-red-500' : ''}`}>
+                                {!yao ? (
+                                    <div className="w-[88px] h-2 rounded-sm bg-foreground/10" />
+                                ) : yao.type === 1 ? (
+                                    <div className={`w-[88px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                 ) : (
                                     <>
-                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className={`w-[40px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                         <div className="w-2" />
-                                        <div className={`w-[27px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
+                                        <div className={`w-[40px] h-2 rounded-sm ${yao.change === 'changing' ? 'bg-red-500' : 'bg-foreground'}`} />
                                     </>
                                 )}
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
+                    );
+                })}
+            </div>
 
             {/* 操作按钮 */}
             <div className="flex gap-3 mt-2 md:mt-4">
@@ -389,7 +390,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                     ) : (
                         <button
                             onClick={enableShakeDetection}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10
+                            className="flex items-center gap-[6px] px-3 py-1.5 bg-white/5 hover:bg-white/10
                                 rounded text-foreground-secondary hover:text-foreground transition-all text-xs"
                         >
                             <Smartphone className="w-3 h-3" />

@@ -11,7 +11,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { ChevronDown, ChevronUp, Star, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
     type FullYaoInfo,
@@ -20,6 +20,7 @@ import {
     type TimeRecommendation,
     type GanZhiTime,
     type KongWang,
+    type KongWangByPillar,
     type FuShen,
     type ShenSystem,
 } from '@/lib/liuyao';
@@ -34,6 +35,7 @@ interface TraditionalAnalysisProps {
     changedLines?: number[];
     ganZhiTime?: GanZhiTime;
     kongWang?: KongWang;
+    kongWangByPillar?: KongWangByPillar;
     fuShen?: FuShen[];
     shenSystem?: ShenSystem;
     summary?: {
@@ -103,25 +105,37 @@ const diZhiWuXing: Record<string, string> = {
     '亥': '水', '子': '水',
 };
 
-// 五行颜色
-const wuXingColors: Record<string, string> = {
-    '木': 'text-green-500',
-    '火': 'text-red-500',
-    '土': 'text-yellow-500',
-    '金': 'text-amber-200',
-    '水': 'text-blue-500',
+// 五行颜色（对齐 bazi.getElementColor）
+const wuXingColorValues: Record<string, string> = {
+    '金': '#FFD700', // 金色
+    '木': '#228B22', // 森林绿
+    '水': '#1E90FF', // 道奇蓝
+    '火': '#FF4500', // 橙红
+    '土': '#8B4513', // 马鞍棕
 };
 
+const KONG_WANG_PILLAR_ITEMS: Array<{ key: keyof KongWangByPillar; label: string; suffix: string }> = [
+    { key: 'year', label: '年空', suffix: '年' },
+    { key: 'month', label: '月空', suffix: '月' },
+    { key: 'day', label: '日空', suffix: '日' },
+    { key: 'hour', label: '时空', suffix: '时' },
+];
+
+function getWuXingStyle(wuXing: string | undefined): CSSProperties | undefined {
+    const color = wuXing ? wuXingColorValues[wuXing] : undefined;
+    return color ? { color } : undefined;
+}
+
 // 获取天干的五行颜色
-function getGanColor(gan: string): string {
+function getGanStyle(gan: string): CSSProperties | undefined {
     const wuXing = tianGanWuXing[gan] || '';
-    return wuXingColors[wuXing] || 'text-foreground';
+    return getWuXingStyle(wuXing);
 }
 
 // 获取地支的五行颜色
-function getZhiColor(zhi: string): string {
+function getZhiStyle(zhi: string): CSSProperties | undefined {
     const wuXing = diZhiWuXing[zhi] || '';
-    return wuXingColors[wuXing] || 'text-foreground';
+    return getWuXingStyle(wuXing);
 }
 
 export function TraditionalAnalysis({
@@ -132,6 +146,7 @@ export function TraditionalAnalysis({
     changedLines = [],
     ganZhiTime,
     kongWang,
+    kongWangByPillar,
     fuShen,
     shenSystem,
     summary,
@@ -147,35 +162,70 @@ export function TraditionalAnalysis({
 
     return (
         <div className="space-y-3">
-            {/* 信息条：时间 + 空亡 + 趋势 */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-                {/* 起卦时间 */}
-                {ganZhiTime && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded border border-white/10">
-                        <span className="text-foreground-secondary">时间</span>
-                        <span className="font-medium">
-                            <span className={getGanColor(ganZhiTime.year.gan)}>{ganZhiTime.year.gan}</span>
-                            <span className={getZhiColor(ganZhiTime.year.zhi)}>{ganZhiTime.year.zhi}</span>年
-                            <span className={getGanColor(ganZhiTime.month.gan)}> {ganZhiTime.month.gan}</span>
-                            <span className={getZhiColor(ganZhiTime.month.zhi)}>{ganZhiTime.month.zhi}</span>月 
-                            <span className={getGanColor(ganZhiTime.day.gan)}> {ganZhiTime.day.gan}</span>
-                            <span className={getZhiColor(ganZhiTime.day.zhi)}>{ganZhiTime.day.zhi}</span>日 
-                            <span className={getGanColor(ganZhiTime.hour.gan)}> {ganZhiTime.hour.gan}</span>
-                            <span className={getZhiColor(ganZhiTime.hour.zhi)}>{ganZhiTime.hour.zhi}</span>时
-                        </span>
+            {/* 干支 + 空亡（表格更清晰） */}
+            {ganZhiTime && (
+                <div className="space-y-1.5">
+                    <div className="overflow-x-auto">
+                        <div className="min-w-max overflow-hidden rounded-xl border border-border/70 bg-white/[0.02]">
+                            <table className="w-full text-xs text-center">
+                                <tbody className="divide-y divide-border/70">
+                                    <tr className="divide-x divide-border/70">
+                                        <td className="px-3 py-2 bg-white/5 text-accent font-semibold whitespace-nowrap">
+                                            干支
+                                        </td>
+                                        {KONG_WANG_PILLAR_ITEMS.map(({ key, suffix }) => {
+                                            const pillar = ganZhiTime[key];
+                                            return (
+                                                <td
+                                                    key={key}
+                                                    className="px-3 py-2 whitespace-nowrap"
+                                                >
+                                                    <span className="font-medium">
+                                                        <span style={getGanStyle(pillar.gan)}>{pillar.gan}</span>
+                                                        <span style={getZhiStyle(pillar.zhi)}>{pillar.zhi}</span>
+                                                        <span className="text-foreground-secondary">{suffix}</span>
+                                                    </span>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    <tr className="divide-x divide-border/70">
+                                        <td className="px-3 py-2 bg-white/5 text-accent font-semibold whitespace-nowrap">
+                                            空亡
+                                        </td>
+                                        {KONG_WANG_PILLAR_ITEMS.map(({ key, suffix }) => {
+                                            const value = kongWangByPillar?.[key] ?? (key === 'day' ? kongWang : undefined);
+                                            return (
+                                                <td
+                                                    key={key}
+                                                    title={value ? `${suffix}旬空：${value.xun}（${value.kongDizhi.join(' ')}）` : undefined}
+                                                    className="px-3 py-2 whitespace-nowrap"
+                                                >
+                                                    {value ? (
+                                                        <span className="tracking-wide">
+                                                            <span style={getZhiStyle(value.kongDizhi[0])}>{value.kongDizhi[0]}</span>
+                                                            <span style={getZhiStyle(value.kongDizhi[1])}>{value.kongDizhi[1]}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-foreground-tertiary">-</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                )}
-
-                {/* 空亡 */}
-                {kongWang && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-red-500/10 rounded border border-red-500/20">
-                        <span className="text-foreground-secondary">空</span>
-                        <span className="text-red-400 font-medium">{kongWang.kongDizhi.join(' ')}</span>
+                    <div className="text-[10px] text-foreground-tertiary">
+                        注：六爻断卦判空亡以“日旬空”为主，年/月/时旬空供参考。
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* 整体趋势 */}
-                {summary && (
+            {/* 整体趋势 */}
+            {summary && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                     <div className={`flex items-center gap-1 px-2 py-1 rounded border ${trendConfig[summary.overallTrend].color} bg-current/10 border-current/20`}>
                         <span className={trendConfig[summary.overallTrend].color}>
                             {trendConfig[summary.overallTrend].icon}
@@ -184,8 +234,8 @@ export function TraditionalAnalysis({
                             {trendConfig[summary.overallTrend].label}
                         </span>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* 关键因素标签 */}
             {summary && summary.keyFactors.length > 0 && (

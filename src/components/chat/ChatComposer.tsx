@@ -17,9 +17,11 @@ import type { MembershipType } from '@/lib/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from './MentionPopover';
+import { buildMentionHighlightedParts } from './mentionHighlight';
+import { mentionStyleMap, mentionTypeLabels } from './mentionStyles';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { buildMentionToken, extractMentionTokens, mapMentionsToTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
+import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 
 type DataSourceSummary = {
     id: string;
@@ -35,39 +37,6 @@ type KnowledgeBaseSummary = {
     id: string;
     name: string;
     description: string | null;
-};
-
-const mentionStyleMap: Record<MentionType | 'default', { className: string }> = {
-    knowledge_base: { className: 'text-emerald-500' },
-    bazi_chart: { className: 'text-orange-500' },
-    ziwei_chart: { className: 'text-purple-500' },
-    tarot_reading: { className: 'text-fuchsia-500' },
-    liuyao_divination: { className: 'text-amber-500' },
-    mbti_reading: { className: 'text-blue-500' },
-    hepan_chart: { className: 'text-rose-500' },
-    face_reading: { className: 'text-orange-500' },
-    palm_reading: { className: 'text-yellow-600' },
-    ming_record: { className: 'text-slate-500' },
-    daily_fortune: { className: 'text-lime-600' },
-    monthly_fortune: { className: 'text-lime-600' },
-    default: { className: 'text-foreground' }
-};
-
-// 提及类型标签映射（提取到组件外部，避免每次渲染重新创建）
-const mentionTypeLabels: Record<MentionType | 'default', string> = {
-    knowledge_base: '知识库',
-    bazi_chart: '八字命盘',
-    ziwei_chart: '紫微命盘',
-    tarot_reading: '塔罗占卜',
-    liuyao_divination: '六爻占卜',
-    mbti_reading: 'MBTI测评',
-    hepan_chart: '合盘',
-    face_reading: '面相分析',
-    palm_reading: '手相分析',
-    ming_record: '命理记录',
-    daily_fortune: '每日运势',
-    monthly_fortune: '每月运势',
-    default: '数据'
 };
 
 const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number => {
@@ -575,33 +544,7 @@ export function ChatComposer({
     };
 
     const highlightedInput = useMemo(() => {
-        const escape = (value: string) =>
-            value
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        if (!inputValue) return '';
-        const tokens = extractMentionTokens(inputValue, mentions);
-        if (tokens.length === 0) return escape(inputValue);
-        const tokenMatches = mapMentionsToTokens(tokens, mentions);
-        let result = '';
-        let cursor = 0;
-        for (const match of tokenMatches) {
-            const token = match.token;
-            if (token.start > cursor) {
-                result += escape(inputValue.slice(cursor, token.start));
-            }
-            const styleType = (match.mention?.type || 'default') as MentionType | 'default';
-            const style = mentionStyleMap[styleType] || mentionStyleMap.default;
-            result += `<span class="${style.className}">@${escape(token.name)}</span>`;
-            cursor = token.end;
-        }
-        if (cursor < inputValue.length) {
-            result += escape(inputValue.slice(cursor));
-        }
-        return result;
+        return buildMentionHighlightedParts(inputValue, mentions);
     }, [inputValue, mentions]);
 
     const handleButtonClick = () => {
@@ -800,7 +743,17 @@ export function ChatComposer({
                         <div className="relative">
                             <div ref={overlayRef} className="pointer-events-none absolute inset-0 text-base py-2 px-2 whitespace-pre-wrap break-words text-foreground overflow-y-auto">
                                 {inputValue ? (
-                                    <span dangerouslySetInnerHTML={{ __html: highlightedInput }} />
+                                    <span>
+                                        {highlightedInput.map((part) => (
+                                            part.kind === 'mention'
+                                                ? (
+                                                    <span key={`${part.start}-${part.end}`} className={part.className}>
+                                                        {part.value}
+                                                    </span>
+                                                )
+                                                : part.value
+                                        ))}
+                                    </span>
                                 ) : (
                                     <span className="text-foreground-secondary/80">
                                         {disabled ? "请充值后继续使用" : dreamMode ? "🌙 做了什么梦" : "尽管问"}

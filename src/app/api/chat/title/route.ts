@@ -7,7 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { callAI } from '@/lib/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
+import { sanitizePlainTitle } from '@/lib/title-utils';
 import type { ChatMessage } from '@/types';
 
 // 速率限制配置：每分钟每 IP 最多 10 次
@@ -15,6 +17,15 @@ const RATE_LIMIT_CONFIG = {
     maxRequests: 10,
     windowMs: 60 * 1000, // 1 分钟
 };
+
+const TITLE_SYSTEM_PROMPT = `你是一个对话标题生成器。
+
+要求：
+- 只输出标题本身，不要解释、不要换行
+- 禁止输出 Markdown（不要 #、**、列表、代码块等）
+- 不要加任何引号/书名号
+- 6个字以内，尽量精确
+- 无法概括则输出：新对话`;
 
 export async function POST(request: NextRequest) {
     try {
@@ -53,19 +64,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ title: '新对话' });
         }
 
-        // 构造完整的 ChatMessage 对象
         const titleMessage: ChatMessage = {
             id: 'title-gen',
             role: 'user',
-            content: `请用6个字以内总结这句话的主题：${firstUserMessage.content}`,
+            content: firstUserMessage.content,
             createdAt: new Date().toISOString(),
         };
 
         // 调用 AI 生成标题（不检查积分）
-        const content = await callAI([titleMessage], 'general');
+        const content = await callAI([titleMessage], 'general', DEFAULT_MODEL_ID, '', {
+            systemPromptOverride: TITLE_SYSTEM_PROMPT,
+            temperature: 0.2,
+            maxTokens: 64,
+        });
 
-        const title = content?.replace(/["""]/g, '').trim().slice(0, 20) ||
-            firstUserMessage.content.slice(0, 15);
+        const sanitized = sanitizePlainTitle(content || '');
+        const title = sanitized.slice(0, 20) || firstUserMessage.content.slice(0, 15);
 
         return NextResponse.json(
             { title },
