@@ -9,7 +9,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon } from 'lucide-react';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon, Loader2 } from 'lucide-react';
 import type { SelectedCharts } from './BaziChartSelector';
 import type { AttachmentState, Mention, MentionType, PromptLayerDiagnostic } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
@@ -21,6 +21,7 @@ import { buildMentionHighlightedParts } from './mentionHighlight';
 import { mentionStyleMap, mentionTypeLabels } from './mentionStyles';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import { shouldRequestChatPreview } from '@/lib/chat-preview';
 import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 
 type DataSourceSummary = {
@@ -51,6 +52,7 @@ const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number 
 interface ChatComposerProps {
     inputValue: string;
     isLoading: boolean;
+    isSendingToList?: boolean;
     onInputChange: (value: string) => void;
     onSend: () => void;
     onStop?: () => void;
@@ -83,6 +85,7 @@ interface ChatComposerProps {
 export function ChatComposer({
     inputValue,
     isLoading,
+    isSendingToList = false,
     onInputChange,
     onSend,
     onStop,
@@ -113,6 +116,7 @@ export function ChatComposer({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
+    const previewRequestIdRef = useRef(0);
     const [menuOpen, setMenuOpen] = useState(false);
     const { showToast } = useToast();
     const [mentionOpen, setMentionOpen] = useState(false);
@@ -160,6 +164,11 @@ export function ChatComposer({
         () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),
         [canUseKnowledgeBase, mentions]
     );
+    const canRequestPreview = shouldRequestChatPreview({
+        userId,
+        isLoading,
+        isSendingToList,
+    });
     const promptKbIdSet = useMemo(() => new Set(promptKnowledgeBases.map(kb => kb.id)), [promptKnowledgeBases]);
     const mentionMap = useMemo(() => new Map(mentions.map(mention => [mention.id, mention])), [mentions]);
     const kbNameMap = useMemo(() => new Map(promptKnowledgeBases.map(kb => [kb.id, kb.name])), [promptKnowledgeBases]);
@@ -198,9 +207,21 @@ export function ChatComposer({
             setPromptPreviewTokens(0);
             setPromptPreviewBudget(0);
             setPromptPreviewLayers([]);
+            setPromptPreviewUserTokens(0);
+            setPromptHistoryTokens(0);
+            setPromptContextTotal(0);
+            setPromptPreviewLoading(false);
             return;
         }
-        let cancelled = false;
+        if (!canRequestPreview) {
+            setPromptPreviewLoading(false);
+            return;
+        }
+
+        const requestId = previewRequestIdRef.current + 1;
+        previewRequestIdRef.current = requestId;
+        const abortController = new AbortController();
+
         const loadPreview = async () => {
             setPromptPreviewLoading(true);
             try {
@@ -221,24 +242,35 @@ export function ChatComposer({
                         messages: contextMessages,
                         chartIds,
                         dreamMode
-                    })
+                    }),
+                    signal: abortController.signal
                 });
-                if (!resp.ok) return;
+                if (!resp.ok || previewRequestIdRef.current !== requestId) return;
                 const data = await resp.json();
-                if (cancelled) return;
+                if (previewRequestIdRef.current !== requestId) return;
                 setPromptPreviewTokens(data.totalTokens || 0);
                 setPromptPreviewBudget(data.budgetTotal || 0);
                 setPromptPreviewLayers(data.diagnostics || []);
                 setPromptPreviewUserTokens(data.userMessageTokens || 0);
                 setPromptHistoryTokens(data.historyTokens || 0);
                 setPromptContextTotal(data.contextTotal || 0);
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    return;
+                }
+                console.warn('加载提示词预览失败:', error);
             } finally {
-                if (!cancelled) setPromptPreviewLoading(false);
+                if (previewRequestIdRef.current === requestId) {
+                    setPromptPreviewLoading(false);
+                }
             }
         };
-        loadPreview();
-        return () => { cancelled = true; };
-    }, [selectedModel, reasoningEnabled, userId, previewMentions, contextMessages, hasBazi, hasZiwei, dreamMode]);
+        void loadPreview();
+
+        return () => {
+            abortController.abort();
+        };
+    }, [canRequestPreview, selectedModel, reasoningEnabled, userId, previewMentions, contextMessages, hasBazi, hasZiwei, dreamMode]);
 
     useEffect(() => {
         if (!hasPromptDiagnostics) {
@@ -474,7 +506,7 @@ export function ChatComposer({
                 }
             }
         }
-        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !dreamContextLoading && inputValue.trim()) {
+        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !isSendingToList && !dreamContextLoading && inputValue.trim()) {
             e.preventDefault();
             onSend();
         }
@@ -548,6 +580,7 @@ export function ChatComposer({
     }, [inputValue, mentions]);
 
     const handleButtonClick = () => {
+        if (isSendingToList) return;
         if (isLoading && onStop) {
             onStop();
         } else if (inputValue.trim()) {
@@ -1100,10 +1133,12 @@ export function ChatComposer({
                         {/* 发送/停止按钮 */}
                         <button
                             onClick={handleButtonClick}
-                            disabled={disabled || (!isLoading && (!inputValue.trim() || dreamContextLoading))}
+                            disabled={disabled || isSendingToList || (!isLoading && (!inputValue.trim() || dreamContextLoading))}
                             className={`
                                 px-2 py-2 rounded-full transition-all duration-200 flex items-center gap-2 flex-shrink-0
-                                ${isLoading
+                                ${isSendingToList
+                                    ? 'bg-background-tertiary text-foreground-secondary cursor-wait'
+                                    : isLoading
                                     ? 'bg-red-500 text-white hover:bg-red-600'
                                     : inputValue.trim() && !disabled && !dreamContextLoading
                                         ? 'bg-foreground text-background hover:bg-foreground/90'
@@ -1111,7 +1146,9 @@ export function ChatComposer({
                                 }
                             `}
                         >
-                            {isLoading ? (
+                            {isSendingToList ? (
+                                <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                            ) : isLoading ? (
                                 <>
                                     <Square className="w-4.5 h-4.5" strokeWidth={2.5} />
                                     {/* <span className="text-sm">停止</span> */}

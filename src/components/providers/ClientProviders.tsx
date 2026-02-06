@@ -8,6 +8,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
 import { supabase } from '@/lib/supabase';
 
 interface ClientProvidersProps {
@@ -62,6 +63,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
     return (
         <ToastProvider>
+            <ChatTaskToastBridge />
             <SessionContext.Provider value={state}>
                 {children}
             </SessionContext.Provider>

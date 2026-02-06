@@ -24,7 +24,8 @@ import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/usePaymentPause';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
 import {
     loadConversations,
     loadConversation,
@@ -36,6 +37,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { buildDraftTitle } from '@/lib/draft-title';
+import { isNearBottom } from '@/lib/chat-scroll';
+import { chatStreamManager } from '@/lib/chat-stream-manager';
 
 
 // AI 生成对话标题（使用专用 API，不消耗积分）
@@ -65,12 +68,16 @@ async function generateAITitle(messages: ChatMessage[]): Promise<string> {
 export default function ChatPage() {
     // 路由和菜单
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { showToast } = useToast();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
 
     // 对话管理状态
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
     const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+    const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
+    const [titleGeneratingConversationIds, setTitleGeneratingConversationIds] = useState<Set<string>>(new Set());
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -84,10 +91,17 @@ export default function ChatPage() {
     // 消息状态
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
-    const [isLoading, setIsLoading] = useState(false); // AI思考中
+    const [isSendingToList, setIsSendingToList] = useState(false); // 点击发送后，消息写入列表前的短暂阶段
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+    const messageScrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const shouldAutoScrollRef = useRef(true);
     const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
+    const activeConversationIdRef = useRef<string | null>(null);
+    const hasLoadedConversationsRef = useRef(false);
+    const conversationSelectRequestRef = useRef(0);
+    const conversationsRef = useRef(conversations);
+    conversationsRef.current = conversations;
+    const conversationValidatedRef = useRef(false); // 会话是否已通过 loadConversation 验证
 
     // 命盘选择器状态
     const [chartSelectorOpen, setChartSelectorOpen] = useState(false);
@@ -112,6 +126,20 @@ export default function ChatPage() {
     const [dreamMode, setDreamMode] = useState(false);
     const [dreamContext, setDreamContext] = useState<{ baziChartName?: string; dailyFortune?: string } | undefined>(undefined);
     const [dreamContextLoading, setDreamContextLoading] = useState(false);
+
+    // 通过 state 跟踪正在流式生成的会话，确保 streaming 状态变化能触发重渲染
+    const [streamingConversationIds, setStreamingConversationIds] = useState<Set<string>>(new Set());
+    const isLoading = activeConversationId
+        ? streamingConversationIds.has(activeConversationId)
+        : false;
+
+    useEffect(() => {
+        activeConversationIdRef.current = activeConversationId;
+    }, [activeConversationId]);
+
+    useEffect(() => {
+        hasLoadedConversationsRef.current = hasLoadedConversations;
+    }, [hasLoadedConversations]);
 
     // 注册移动端顶部菜单项（个性化和知识库）
     useEffect(() => {
@@ -187,14 +215,25 @@ export default function ChatPage() {
         };
     }, [dreamMode, userId]);
 
-    // 滚动到最新消息
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    // 仅当用户仍贴近底部时自动跟随，避免用户上滑查看历史时被强制拉回
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    }, []);
+
+    const handleMessageListScroll = useCallback(() => {
+        const container = messageScrollContainerRef.current;
+        if (!container) return;
+        shouldAutoScrollRef.current = isNearBottom({
+            scrollHeight: container.scrollHeight,
+            scrollTop: container.scrollTop,
+            clientHeight: container.clientHeight,
+        });
+    }, []);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (!messages.length || !shouldAutoScrollRef.current) return;
+        scrollToBottom(isLoading ? 'auto' : 'smooth');
+    }, [isLoading, messages, scrollToBottom]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -223,6 +262,15 @@ export default function ChatPage() {
             setCredits(memberInfo.aiChatCount);
         }
     }, [userId]);
+
+    const markCreditsExhausted = useCallback((message?: string) => {
+        setCredits(0);
+        setMembership(prev => prev ? { ...prev, aiChatCount: 0 } : prev);
+        setShowCreditsModal(true);
+        if (message) {
+            showToast('info', message);
+        }
+    }, [showToast]);
 
     const refreshPromptKnowledgeBases = useCallback(async (targetUserId?: string | null) => {
         const id = targetUserId ?? userId;
@@ -256,11 +304,13 @@ export default function ChatPage() {
         const list = await loadConversations(id);
         setConversations(list);
         setHasLoadedConversations(true);
-        if (activeConversationId && !list.find(c => c.id === activeConversationId)) {
+        const currentActiveConversationId = activeConversationIdRef.current;
+        if (currentActiveConversationId && !list.find(c => c.id === currentActiveConversationId)) {
+            activeConversationIdRef.current = null;
             setActiveConversationId(null);
             setMessages([]);
         }
-    }, [activeConversationId, userId]);
+    }, [userId]);
 
     const triggerConversationListLoad = useCallback((source: 'idle' | 'interaction') => {
         if (hasLoadedConversations || !userId) return;
@@ -283,6 +333,8 @@ export default function ChatPage() {
                 setUserId(null);
                 setConversations([]);
                 setMessages([]);
+                activeConversationIdRef.current = null;
+                conversationSelectRequestRef.current += 1;
                 setActiveConversationId(null);
                 setConversationsLoading(false);
                 setHasLoadedConversations(false);
@@ -337,69 +389,181 @@ export default function ChatPage() {
         };
     }, [refreshConversationList, refreshPromptKnowledgeBases]);
 
+    useEffect(() => {
+        const unsubscribe = chatStreamManager.subscribe((event) => {
+            const convId = event.task.conversationId;
+            const currentActiveConversationId = activeConversationIdRef.current;
+            const isActiveConversationEvent = convId === currentActiveConversationId;
+            const taskDreamContext = (event.task.metadata as AIMessageMetadata | undefined)?.dreamContext;
+            const isAuthRequired = event.errorCode === 'AUTH_REQUIRED'
+                || event.errorMessage?.includes('请先登录') === true;
+
+            // 更新 streaming 状态 set，驱动 isLoading 重渲染
+            if (event.type === 'task_started') {
+                setStreamingConversationIds(prev => {
+                    const next = new Set(prev);
+                    next.add(convId);
+                    return next;
+                });
+            } else if (event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed') {
+                setStreamingConversationIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(convId);
+                    return next;
+                });
+            }
+
+            if (isActiveConversationEvent) {
+                if (
+                    event.type === 'task_failed' &&
+                    !isAuthRequired &&
+                    event.errorCode !== 'INSUFFICIENT_CREDITS' &&
+                    event.task.content.trim().length === 0
+                ) {
+                    const errorMessage: ChatMessage = {
+                        id: `chat-error-${Date.now()}`,
+                        role: 'assistant',
+                        content: event.errorMessage || '抱歉，服务暂时不可用。请稍后再试。',
+                        createdAt: new Date().toISOString(),
+                    };
+                    setMessages([...event.task.messages, errorMessage]);
+                } else {
+                    setMessages(event.task.messages);
+                }
+
+                if (taskDreamContext) {
+                    setDreamContext(taskDreamContext);
+                }
+            }
+
+            if (
+                event.type === 'task_billed' ||
+                event.type === 'task_completed' ||
+                event.type === 'task_stopped' ||
+                event.type === 'task_failed'
+            ) {
+                void refreshMembership();
+            }
+
+            if (
+                hasLoadedConversationsRef.current &&
+                (event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed')
+            ) {
+                void refreshConversationList();
+            }
+
+            if (event.type === 'task_failed' && event.errorCode === 'INSUFFICIENT_CREDITS' && isActiveConversationEvent) {
+                markCreditsExhausted(event.errorMessage);
+            }
+
+            if (event.type === 'task_failed' && isAuthRequired) {
+                showToast('info', event.errorMessage || '请先登录后再使用 AI 对话');
+            }
+        });
+
+        return unsubscribe;
+    }, [markCreditsExhausted, refreshConversationList, refreshMembership, showToast]);
+
     // 选择对话
-    const handleSelectConversation = useCallback(async (id: string) => {
-        // 切换会话时，停止当前流式回复，避免“思考中”状态串到新会话
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
+    const handleSelectConversation = useCallback(async (
+        id: string,
+        options?: { updateUrl?: boolean }
+    ) => {
+        shouldAutoScrollRef.current = true;
+        const requestId = conversationSelectRequestRef.current + 1;
+        conversationSelectRequestRef.current = requestId;
+
+        activeConversationIdRef.current = id;
+        setActiveConversationId(id);
+        setSidebarOpen(false);
+        conversationValidatedRef.current = false; // 加载验证前标记为未验证
+
+        const runningMessages = chatStreamManager.getTaskMessages(id);
+        if (runningMessages) {
+            setMessages(runningMessages);
+        } else {
+            const cachedConversation = conversationsRef.current.find(conv => conv.id === id);
+            setMessages(cachedConversation?.messages || []);
         }
-        setIsLoading(false);
+
+        if (options?.updateUrl !== false && searchParams.get('id') !== id) {
+            router.replace(`/chat?id=${id}`);
+        }
 
         const conv = await loadConversation(id);
-        if (conv) {
-            setActiveConversationId(id);
-            setMessages(conv.messages);
-            setSidebarOpen(false);
-
-            // 从最后一条 AI 消息恢复命盘显示
-            const lastAIMessage = [...conv.messages].reverse().find(m => m.role === 'assistant' && m.chartInfo);
-            const chartInfo = lastAIMessage?.chartInfo;
-
-            const newChartSelection: SelectedCharts = {};
-
-            if (chartInfo?.baziName) {
-                newChartSelection.bazi = {
-                    id: '', // 历史记录只有名字，没有ID
-                    name: chartInfo.baziName,
-                    info: '(历史)'
-                };
-            }
-
-            if (chartInfo?.ziweiName) {
-                newChartSelection.ziwei = {
-                    id: '',
-                    name: chartInfo.ziweiName,
-                    info: '(历史)'
-                };
-            }
-
-            setSelectedCharts(newChartSelection);
+        if (requestId !== conversationSelectRequestRef.current) {
+            return;
         }
-    }, []);
+        if (!conv) {
+            // 会话不存在或已删除，重置到空状态
+            activeConversationIdRef.current = null;
+            setActiveConversationId(null);
+            setMessages([]);
+            conversationValidatedRef.current = false;
+            router.replace('/chat');
+            return;
+        }
+
+        conversationValidatedRef.current = true;
+
+        const taskMessages = chatStreamManager.getTaskMessages(id);
+        const sourceMessages = taskMessages || conv.messages;
+        setMessages(sourceMessages);
+
+        // 从最后一条 AI 消息恢复命盘显示
+        const lastAIMessage = [...sourceMessages].reverse().find(m => m.role === 'assistant' && m.chartInfo);
+        const chartInfo = lastAIMessage?.chartInfo;
+
+        const newChartSelection: SelectedCharts = {};
+
+        if (chartInfo?.baziName) {
+            newChartSelection.bazi = {
+                id: '', // 历史记录只有名字，没有ID
+                name: chartInfo.baziName,
+                info: '(历史)'
+            };
+        }
+
+        if (chartInfo?.ziweiName) {
+            newChartSelection.ziwei = {
+                id: '',
+                name: chartInfo.ziweiName,
+                info: '(历史)'
+            };
+        }
+
+        setSelectedCharts(newChartSelection);
+    }, [router, searchParams]);
 
     // 新建对话
     const handleNewChat = useCallback(async () => {
-        // 新建会话时停止当前流式回复，避免状态残留
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
-        setIsLoading(false);
-
+        shouldAutoScrollRef.current = true;
+        conversationSelectRequestRef.current += 1;
+        activeConversationIdRef.current = null;
         setActiveConversationId(null);
         setMessages([]);
         setSelectedCharts({}); // 清空命盘显示
         // 保持当前选择的人格，不重置
         setSidebarOpen(false);
-    }, []);
+        if (searchParams.get('id')) {
+            router.replace('/chat');
+        }
+    }, [router, searchParams]);
+
+    useEffect(() => {
+        if (!userId) return;
+        const targetConversationId = searchParams.get('id');
+        if (!targetConversationId || targetConversationId === activeConversationIdRef.current) return;
+        void handleSelectConversation(targetConversationId, { updateUrl: false });
+    }, [handleSelectConversation, searchParams, userId]);
 
     // 删除对话（乐观更新）
     const handleDeleteConversation = useCallback(async (id: string) => {
         // 乐观更新：先从 UI 移除
         const previousConversations = conversations;
         setConversations(prev => prev.filter(c => c.id !== id));
-        if (activeConversationId === id) {
+        if (activeConversationIdRef.current === id) {
+            activeConversationIdRef.current = null;
             setActiveConversationId(null);
             setMessages([]);
         }
@@ -410,7 +574,7 @@ export default function ChatPage() {
             // 失败时回滚
             setConversations(previousConversations);
         }
-    }, [activeConversationId, conversations]);
+    }, [conversations]);
 
     // 重命名对话（乐观更新）
     const handleRenameConversation = useCallback(async (id: string, title: string) => {
@@ -431,134 +595,158 @@ export default function ChatPage() {
 
     // 保存消息到对话
     const saveMessages = useCallback(async (conversationId: string, newMessages: ChatMessage[], title?: string) => {
-        if (!userId) return;
-        await saveConversation(conversationId, newMessages, title);
+        if (!userId) return false;
+        return saveConversation(conversationId, newMessages, title);
     }, [userId]);
 
     // 发送消息
     const handleSend = async () => {
         const trimmedInput = inputValue.trim();
-        if (!trimmedInput || isLoading) return;
+        if (!trimmedInput || isLoading || isSendingToList) return;
         if (dreamMode && dreamContextLoading) return;
+        setIsSendingToList(true);
 
         const messageMentions = mentions;
         const isNewConversation = !activeConversationId;
         const draftTitle = isNewConversation ? buildDraftTitle(trimmedInput) : null;
         let conversationId = activeConversationId;
-
-        // 新对话：先创建对话并用用户消息作为临时标题（不等待 AI 标题）
-        if (isNewConversation && userId) {
-            const newId = await createConversation({
-                userId,
-                personality: 'general',
-                title: draftTitle || '新对话',
-                baziChartId: selectedCharts.bazi?.id,
-                ziweiChartId: selectedCharts.ziwei?.id,
-            });
-            if (newId) {
-                conversationId = newId;
-                setActiveConversationId(newId);
-                const nowIso = new Date().toISOString();
-                setConversations(prev => {
-                    const nextConversation: Conversation = {
-                        id: newId,
-                        userId,
-                        baziChartId: selectedCharts.bazi?.id,
-                        ziweiChartId: selectedCharts.ziwei?.id,
-                        personality: 'general',
-                        title: draftTitle || '新对话',
-                        messages: [],
-                        createdAt: nowIso,
-                        updatedAt: nowIso,
-                        sourceType: 'chat',
-                        sourceData: {},
-                        isArchived: false,
-                        archivedKbIds: [],
-                    };
-                    const withoutDup = prev.filter(c => c.id !== newId);
-                    return [nextConversation, ...withoutDup];
-                });
-                setHasLoadedConversations(true);
-                void refreshConversationList(userId);
-            }
-        }
-
-        // 解梦模式下构建 dreamInfo
-        const dreamInfo: DreamInterpretationInfo | undefined = dreamMode ? {
-            userName: user?.user_metadata?.nickname || ANONYMOUS_DISPLAY_NAME,
-            dreamDate: new Date().toISOString(),
-            dreamContent: trimmedInput.slice(0, 50),
-        } : undefined;
-
-        const userMessage: ChatMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: trimmedInput,
-            createdAt: new Date().toISOString(),
-            mentions: messageMentions.length ? [...messageMentions] : undefined,
-            // 记录发送时使用的附件/搜索状态
-            attachments: (attachmentState.file || attachmentState.webSearchEnabled) ? {
-                fileName: attachmentState.file?.name || '',
-                webSearchEnabled: attachmentState.webSearchEnabled,
-            } : undefined,
-            // 解梦模式下添加 dreamInfo
-            dreamInfo,
-        };
-
-        const newMessages = [...messages, userMessage];
-        setMessages(newMessages);
-        setInputValue('');
-        setMentions([]);
-        setIsLoading(true);
-
-        // 新对话：先保存用户首条消息，再异步生成 AI 标题覆盖
-        if (isNewConversation && userId && conversationId && draftTitle) {
-            void saveMessages(conversationId, [userMessage], draftTitle);
-            void (async () => {
-                try {
-                    const nextTitle = (await generateAITitle([userMessage])).trim();
-                    if (!nextTitle || nextTitle === draftTitle) return;
-                    if (manualRenamedConversationIdsRef.current.has(conversationId)) return;
-                    setConversations(prev => prev.map(conv => (
-                        conv.id === conversationId && conv.title === draftTitle
-                            ? { ...conv, title: nextTitle }
-                            : conv
-                    )));
-                    await renameConversation(conversationId, nextTitle);
-                } catch {
-                    // ignore title generation failures
-                }
-            })();
-        }
-
-        // 创建一个空的 AI 消息用于流式更新
-        const assistantMessageId = (Date.now() + 1).toString();
-        const initialAssistantMessage: ChatMessage = {
-            id: assistantMessageId,
-            role: 'assistant',
-            content: '',
-            createdAt: new Date().toISOString(),
-            model: selectedModel,
-            // 保存当前使用的命盘信息
-            chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? {
-                baziName: selectedCharts.bazi?.name,
-                ziweiName: selectedCharts.ziwei?.name,
-            } : undefined,
-        };
-        setMessages([...newMessages, initialAssistantMessage]);
-
-        // 提升到 try 外部，以便在 catch 中访问（用于停止时保存）
-        let accumulatedContent = '';
-        let accumulatedReasoning = '';
-        let accumulatedMetadata: AIMessageMetadata | null = null;
-        let reasoningStartTime: number | undefined = undefined;  // 推理开始时间
-        const charQueue: string[] = [];
-        let queueHead = 0; // 队列头部索引，避免 shift() 的 O(n) 操作
-        let drainTimer: number | null = null;
-        let visibleContent = '';
-        let streamDone = false;
-
         try {
+            // 非新会话：检查会话是否已通过加载验证，防止向无效会话发送消息
+            if (!isNewConversation && !conversationValidatedRef.current) {
+                showToast('info', '会话加载中，请稍后再试');
+                return;
+            }
+            // 新对话：先创建对话并用用户消息作为临时标题（不等待 AI 标题）
+            if (isNewConversation && userId) {
+                setPendingSidebarTitle(draftTitle || '新对话');
+                setHasLoadedConversations(true);
+                const newId = await createConversation({
+                    userId,
+                    personality: 'general',
+                    title: draftTitle || '新对话',
+                    baziChartId: selectedCharts.bazi?.id,
+                    ziweiChartId: selectedCharts.ziwei?.id,
+                });
+                if (newId) {
+                    conversationId = newId;
+                    activeConversationIdRef.current = newId;
+                    conversationValidatedRef.current = true;
+                    setActiveConversationId(newId);
+                    if (searchParams.get('id') !== newId) {
+                        router.replace(`/chat?id=${newId}`);
+                    }
+                    setPendingSidebarTitle(null);
+                    setTitleGeneratingConversationIds(prev => {
+                        const next = new Set(prev);
+                        next.add(newId);
+                        return next;
+                    });
+                    const nowIso = new Date().toISOString();
+                    setConversations(prev => {
+                        const nextConversation: Conversation = {
+                            id: newId,
+                            userId,
+                            baziChartId: selectedCharts.bazi?.id,
+                            ziweiChartId: selectedCharts.ziwei?.id,
+                            personality: 'general',
+                            title: draftTitle || '新对话',
+                            messages: [],
+                            createdAt: nowIso,
+                            updatedAt: nowIso,
+                            sourceType: 'chat',
+                            sourceData: {},
+                            isArchived: false,
+                            archivedKbIds: [],
+                        };
+                        const withoutDup = prev.filter(c => c.id !== newId);
+                        return [nextConversation, ...withoutDup];
+                    });
+                    setHasLoadedConversations(true);
+                    void refreshConversationList(userId);
+                } else {
+                    setPendingSidebarTitle(null);
+                }
+            }
+
+            if (!conversationId) {
+                showToast('error', '创建对话失败，请重试');
+                return;
+            }
+
+            if (chatStreamManager.isConversationRunning(conversationId)) {
+                showToast('info', '当前会话正在生成中，请稍后再试');
+                return;
+            }
+
+            // 解梦模式下构建 dreamInfo
+            const dreamInfo: DreamInterpretationInfo | undefined = dreamMode ? {
+                userName: user?.user_metadata?.nickname || ANONYMOUS_DISPLAY_NAME,
+                dreamDate: new Date().toISOString(),
+                dreamContent: trimmedInput.slice(0, 50),
+            } : undefined;
+
+            const userMessage: ChatMessage = {
+                id: Date.now().toString(),
+                role: 'user',
+                content: trimmedInput,
+                createdAt: new Date().toISOString(),
+                mentions: messageMentions.length ? [...messageMentions] : undefined,
+                attachments: (attachmentState.file || attachmentState.webSearchEnabled) ? {
+                    fileName: attachmentState.file?.name || '',
+                    webSearchEnabled: attachmentState.webSearchEnabled,
+                } : undefined,
+                dreamInfo,
+            };
+
+            const newMessages = [...messages, userMessage];
+            setMessages(newMessages);
+            setInputValue('');
+            setMentions([]);
+
+            await saveMessages(conversationId, newMessages, isNewConversation ? (draftTitle || undefined) : undefined);
+
+            // 新对话：先保存用户首条消息，再异步生成 AI 标题覆盖
+            if (isNewConversation && draftTitle) {
+                const createdConversationId = conversationId;
+                void (async () => {
+                    try {
+                        const nextTitle = (await generateAITitle([userMessage])).trim();
+                        if (!nextTitle || nextTitle === draftTitle) return;
+                        if (manualRenamedConversationIdsRef.current.has(createdConversationId)) return;
+                        setConversations(prev => prev.map(conv => (
+                            conv.id === createdConversationId && conv.title === draftTitle
+                                ? { ...conv, title: nextTitle }
+                                : conv
+                        )));
+                        await renameConversation(createdConversationId, nextTitle);
+                    } catch {
+                        // ignore title generation failures
+                    } finally {
+                        setTitleGeneratingConversationIds(prev => {
+                            const next = new Set(prev);
+                            next.delete(createdConversationId);
+                            return next;
+                        });
+                    }
+                })();
+            }
+
+            const assistantMessageId = (Date.now() + 1).toString();
+            const initialAssistantMessage: ChatMessage = {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: '',
+                createdAt: new Date().toISOString(),
+                model: selectedModel,
+                chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? {
+                    baziName: selectedCharts.bazi?.name,
+                    ziweiName: selectedCharts.ziwei?.name,
+                } : undefined,
+            };
+            if (conversationId === activeConversationIdRef.current) {
+                setMessages([...newMessages, initialAssistantMessage]);
+            }
+
             const { data: { session } } = await supabase.auth.getSession();
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
@@ -566,9 +754,6 @@ export default function ChatPage() {
             if (session?.access_token) {
                 headers.Authorization = `Bearer ${session.access_token}`;
             }
-
-            // 创建 AbortController 以支持停止回复
-            abortControllerRef.current = new AbortController();
 
             // 如果有附件或搜索，先调用 Dify API
             let difyContext: DifyContext | undefined;
@@ -592,7 +777,6 @@ export default function ChatPage() {
                         'Authorization': headers.Authorization || '',
                     },
                     body: formData,
-                    signal: abortControllerRef.current.signal,
                 });
 
                 if (difyResponse.ok) {
@@ -602,24 +786,20 @@ export default function ChatPage() {
                             webContent: difyResult.data.web_content,
                             fileContent: difyResult.data.file_content,
                         };
-                        // 只清空文件，保留搜索状态（由用户自行取消）
                         setAttachmentState(prev => ({ ...prev, file: undefined }));
                     }
                 } else {
                     const errorData = await difyResponse.json();
-                    // 如果是会员权限问题，显示错误但继续发送（不清空附件）
                     if (errorData.code === 'MEMBERSHIP_REQUIRED') {
                         console.warn('Dify权限不足:', errorData.error);
                     }
-                    // Dify失败时保留附件状态，让用户可以重试
                 }
             }
 
-            // 统一使用 /api/chat 接口（流式），解梦模式通过 dreamMode 参数处理
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            const startResult = await chatStreamManager.startTask({
+                conversationId,
+                requestHeaders: headers,
+                requestBody: {
                     messages: newMessages,
                     personality: 'general',
                     stream: true,
@@ -632,206 +812,58 @@ export default function ChatPage() {
                     reasoning: reasoningEnabled,
                     difyContext,
                     mentions: messageMentions,
-                    dreamMode, // 解梦模式标记（服务端会获取最新上下文）
-                }),
-                signal: abortControllerRef.current.signal,
+                    dreamMode,
+                },
+                baseMessages: newMessages,
+                assistantMessage: initialAssistantMessage,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                // 检测积分不足错误
-                if (errorData.error?.includes('积分不足') || errorData.error?.includes('充值')) {
-                    // 移除空的 assistant 消息
-                    setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
-                    setShowCreditsModal(true);
-                    setIsLoading(false);
-                    return;
+            if (!startResult.ok) {
+                if (conversationId === activeConversationIdRef.current) {
+                    setMessages(newMessages);
                 }
-                throw new Error(errorData.error || '请求失败');
-            }
-
-            // 处理流式响应
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            const startDrain = () => {
-                if (drainTimer) return;
-                drainTimer = window.setInterval(() => {
-                    const remaining = charQueue.length - queueHead;
-                    if (remaining > 0) {
-                        // 使用索引访问，O(1) 操作
-                        const ch = charQueue[queueHead];
-                        queueHead++;
-                        visibleContent += ch;
-                        setMessages(prev => prev.map(msg =>
-                            msg.id === assistantMessageId
-                                ? { ...msg, content: visibleContent, reasoning: accumulatedReasoning || undefined }
-                                : msg
-                        ));
-                        // 定期压缩队列，避免内存泄漏
-                        if (queueHead > 500) {
-                            charQueue.splice(0, queueHead);
-                            queueHead = 0;
-                        }
-                    } else if (streamDone) {
-                        if (drainTimer) {
-                            clearInterval(drainTimer);
-                            drainTimer = null;
-                        }
-                    }
-                }, 25);
-            };
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() ?? '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed?.type === 'meta' && parsed?.metadata) {
-                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
-                                    // 提取解梦上下文
-                                    if (parsed.metadata.dreamContext) {
-                                        setDreamContext(parsed.metadata.dreamContext);
-                                    }
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
-                                            : msg
-                                    ));
-                                    continue;
-                                }
-                                const delta = parsed.choices?.[0]?.delta;
-                                // 处理推理内容
-                                const reasoningContent = delta?.reasoning_content;
-                                if (reasoningContent) {
-                                    // 第一次收到推理内容，记录开始时间
-                                    if (!accumulatedReasoning && !reasoningStartTime) {
-                                        reasoningStartTime = Date.now();
-                                    }
-                                    accumulatedReasoning += reasoningContent;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
-                                            : msg
-                                    ));
-                                }
-                                // 处理正常内容
-                                const content = delta?.content;
-                                if (typeof content === 'string' && content) {
-                                    accumulatedContent += content;
-                                    for (const ch of content) {
-                                        charQueue.push(ch);
-                                    }
-                                    startDrain();
-                                }
-                            } catch {
-                                // 跳过解析错误
-                            }
-                        }
-                    }
+                if (startResult.code === 'INSUFFICIENT_CREDITS') {
+                    markCreditsExhausted(startResult.message);
+                } else {
+                    showToast(startResult.code === 'CONVERSATION_BUSY' ? 'info' : 'error', startResult.message);
                 }
-            }
-            streamDone = true;
-            await new Promise<void>((resolve) => {
-                const check = () => {
-                    if (charQueue.length - queueHead === 0) {
-                        if (drainTimer) {
-                            clearInterval(drainTimer);
-                            drainTimer = null;
-                        }
-                        resolve();
-                    } else {
-                        setTimeout(check, 60);
-                    }
-                };
-                check();
-            });
-
-            // 完成后更新最终消息并保存
-            // 计算推理用时（秒）
-            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
-            const finalMessages = newMessages.concat({
-                ...initialAssistantMessage,
-                content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
-                reasoning: accumulatedReasoning || undefined,
-                reasoningDuration,
-                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
-            });
-            setMessages(finalMessages);
-            setIsLoading(false);
-            abortControllerRef.current = null;
-
-            // 保存到数据库
-            if (userId && conversationId) {
-                await saveMessages(conversationId, finalMessages);
             }
         } catch (error) {
-            // 检查是否是用户主动停止
-            if (error instanceof Error && error.name === 'AbortError') {
-                // 用户停止了回复，保留当前内容并保存
-                setIsLoading(false);
-                abortControllerRef.current = null;
-                if (drainTimer) {
-                    clearInterval(drainTimer);
-                    drainTimer = null;
-                }
-                visibleContent = accumulatedContent;
-                setMessages(prev => prev.map(msg =>
-                    msg.id === assistantMessageId
-                        ? { ...msg, content: visibleContent, reasoning: accumulatedReasoning || undefined }
-                        : msg
-                ));
-
-                // 直接使用 accumulatedContent 构建最终消息并保存
-                if (userId && conversationId) {
-                    const stoppedMessages = newMessages.concat({
-                        ...initialAssistantMessage,
-                        content: accumulatedContent || '',
-                        metadata: accumulatedMetadata as unknown as Record<string, unknown>,
-                    });
-                    // 只有当AI有回复内容时才保存
-                    if (accumulatedContent.trim()) {
-                        await saveMessages(conversationId, stoppedMessages);
-                    }
-                }
-                return;
-            }
             console.error('发送失败:', error);
-            const errorMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: '抱歉，服务暂时不可用。请稍后再试。',
-                createdAt: new Date().toISOString(),
-            };
-            setMessages(prev => [...prev.slice(0, -1), errorMessage]);
-            setIsLoading(false);
-            abortControllerRef.current = null;
+            if (conversationId === activeConversationIdRef.current) {
+                const errorMessage: ChatMessage = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: '抱歉，服务暂时不可用。请稍后再试。',
+                    createdAt: new Date().toISOString(),
+                };
+                setMessages(prev => {
+                    const lastMessage = prev[prev.length - 1];
+                    if (lastMessage?.role === 'assistant' && !lastMessage.content) {
+                        return [...prev.slice(0, -1), errorMessage];
+                    }
+                    return [...prev, errorMessage];
+                });
+            }
         } finally {
-            await refreshMembership();
+            setPendingSidebarTitle(null);
+            setIsSendingToList(false);
         }
     };
 
     // 停止AI回复
     const handleStop = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-    }, []);
+        if (!activeConversationId) return;
+        chatStreamManager.stopTask(activeConversationId);
+    }, [activeConversationId]);
 
     // 编辑用户消息并重新发送
     const handleEditMessage = async (messageId: string, newContent: string, nextMentions?: Mention[]) => {
+        const targetConversationId = activeConversationIdRef.current;
+        if (!targetConversationId) return;
+
+        const isTargetConversationActive = () => targetConversationId === activeConversationIdRef.current;
+        const originalMessagesSnapshot = messages;
         // 找到要编辑的消息索引
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1) return;
@@ -879,13 +911,14 @@ export default function ChatPage() {
             content: newContent,
             mentions: messageMentions.length ? [...messageMentions] : undefined,
             versions: existingVersions,
-            currentVersionIndex: existingVersions.length, // 指向即将添加的新版本
+            currentVersionIndex: existingVersions.length - 1, // 流式过程中暂指向最后一个已有版本，onBeforeSave 会更新为新版本索引
         };
 
         // 创建新的消息列表（原有消息 + 更新的用户消息）
         const newMessages = [...previousMessages, updatedUserMessage];
-        setMessages(newMessages);
-        setIsLoading(true);
+        if (isTargetConversationActive()) {
+            setMessages(newMessages);
+        }
 
         // 创建新的 AI 消息用于流式更新
         const assistantMessageId = (Date.now() + 1).toString();
@@ -901,7 +934,9 @@ export default function ChatPage() {
                 ziweiName: selectedCharts.ziwei?.name,
             } : undefined,
         };
-        setMessages([...newMessages, initialAssistantMessage]);
+        if (isTargetConversationActive()) {
+            setMessages([...newMessages, initialAssistantMessage]);
+        }
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -912,10 +947,30 @@ export default function ChatPage() {
                 headers.Authorization = `Bearer ${session.access_token}`;
             }
 
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            // 版本历史后处理钩子：在 manager 保存前插入版本信息
+            const onBeforeSave = (finalMessages: ChatMessage[], assistantContent: string): ChatMessage[] => {
+                const newVersion = {
+                    userContent: newContent,
+                    mentions: messageMentions.length ? [...messageMentions] : undefined,
+                    aiContent: assistantContent || '抱歉，我暂时无法回答这个问题。',
+                    createdAt: new Date().toISOString(),
+                };
+                const updatedVersions = [...existingVersions, newVersion];
+                const finalUserMessage: ChatMessage = {
+                    ...updatedUserMessage,
+                    versions: updatedVersions,
+                    currentVersionIndex: updatedVersions.length - 1,
+                };
+                // 替换 baseMessages 中的 updatedUserMessage 为带完整版本的 finalUserMessage
+                return finalMessages.map(msg =>
+                    msg.id === updatedUserMessage.id ? finalUserMessage : msg
+                );
+            };
+
+            const startResult = await chatStreamManager.startTask({
+                conversationId: targetConversationId,
+                requestHeaders: headers,
+                requestBody: {
                     messages: newMessages,
                     personality: 'general',
                     stream: true,
@@ -928,137 +983,94 @@ export default function ChatPage() {
                     reasoning: reasoningEnabled,
                     mentions: messageMentions,
                     dreamMode,
-                }),
+                },
+                baseMessages: newMessages,
+                assistantMessage: initialAssistantMessage,
+                onBeforeSave,
             });
 
-            if (!response.ok) {
-                throw new Error('请求失败');
-            }
-
-            // 处理流式响应
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedContent = '';
-            let accumulatedReasoning = '';
-            let accumulatedMetadata: AIMessageMetadata | null = null;
-            let reasoningStartTime: number | undefined = undefined;
-            let buffer = '';
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() ?? '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed?.type === 'meta' && parsed?.metadata) {
-                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
-                                    if (parsed.metadata.dreamContext) {
-                                        setDreamContext(parsed.metadata.dreamContext);
-                                    }
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
-                                            : msg
-                                    ));
-                                    continue;
-                                }
-                                const delta = parsed.choices?.[0]?.delta;
-                                const reasoningContent = delta?.reasoning_content;
-                                if (reasoningContent) {
-                                    if (!accumulatedReasoning && !reasoningStartTime) {
-                                        reasoningStartTime = Date.now();
-                                    }
-                                    accumulatedReasoning += reasoningContent;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
-                                            : msg
-                                    ));
-                                }
-                                const content = delta?.content;
-                                if (content) {
-                                    accumulatedContent += content;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
-                                            : msg
-                                    ));
-                                }
-                            } catch {
-                                // skip
-                            }
-                        }
-                    }
+            if (!startResult.ok) {
+                if (isTargetConversationActive()) {
+                    setMessages(originalMessagesSnapshot);
                 }
-            }
-
-            // 添加新版本到版本历史
-            const newVersion = {
-                userContent: newContent,
-                mentions: messageMentions.length ? [...messageMentions] : undefined,
-                aiContent: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
-                createdAt: new Date().toISOString(),
-            };
-            const updatedVersions = [...existingVersions, newVersion];
-
-            // 更新用户消息的版本信息
-            const finalUserMessage: ChatMessage = {
-                ...updatedUserMessage,
-                versions: updatedVersions,
-                currentVersionIndex: updatedVersions.length - 1,
-            };
-
-            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
-            const finalMessages = [...previousMessages, finalUserMessage, {
-                ...initialAssistantMessage,
-                content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
-                reasoning: accumulatedReasoning || undefined,
-                reasoningDuration,
-                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
-            }];
-            setMessages(finalMessages);
-            setIsLoading(false);
-
-            if (userId && activeConversationId) {
-                await saveMessages(activeConversationId, finalMessages);
+                if (startResult.code === 'INSUFFICIENT_CREDITS') {
+                    markCreditsExhausted(startResult.message);
+                } else {
+                    showToast(startResult.code === 'CONVERSATION_BUSY' ? 'info' : 'error', startResult.message);
+                }
             }
         } catch (error) {
             console.error('编辑发送失败:', error);
-            setMessages(prev => [...prev.slice(0, -1), {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: '抱歉，服务暂时不可用。',
-                createdAt: new Date().toISOString(),
-            }]);
-            setIsLoading(false);
-        } finally {
-            await refreshMembership();
+            if (isTargetConversationActive()) {
+                setMessages(prev => [...prev.slice(0, -1), {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: '抱歉，服务暂时不可用。',
+                    createdAt: new Date().toISOString(),
+                }]);
+            }
         }
     };
 
-    // 重新生成 AI 回复
+    // 重新生成 AI 回复（带版本历史）
     const handleRegenerateResponse = async (messageId: string) => {
+        const targetConversationId = activeConversationIdRef.current;
+        if (!targetConversationId) return;
+
+        const isTargetConversationActive = () => targetConversationId === activeConversationIdRef.current;
+        const originalMessagesSnapshot = messages;
         // 找到该 AI 消息的索引
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1 || messageIndex === 0) return;
 
+        const oldAiMessage = messages[messageIndex];
+        const oldAiContent = oldAiMessage.role === 'assistant' ? oldAiMessage.content : '';
+
         // 获取该 AI 消息之前的所有消息（包括触发它的用户消息）
         const previousMessages = messages.slice(0, messageIndex);
-        setMessages(previousMessages);
-        setIsLoading(true);
+        // 获取该 AI 消息之后的后续消息
+        const subsequentMessages = messages.slice(messageIndex + 1);
 
-        const lastUserMessage = [...previousMessages].reverse().find((msg) => msg.role === 'user');
+        // 找到触发该 AI 回复的用户消息
+        const userMessageIndex = [...previousMessages].reverse().findIndex((msg) => msg.role === 'user');
+        const lastUserMessage = userMessageIndex >= 0
+            ? previousMessages[previousMessages.length - 1 - userMessageIndex]
+            : undefined;
         const messageMentions = lastUserMessage?.mentions ?? [];
+
+        // 构建版本历史（记录在用户消息上）
+        let updatedPreviousMessages = previousMessages;
+        let existingVersions: NonNullable<ChatMessage['versions']> = [];
+        if (lastUserMessage) {
+            existingVersions = [...(lastUserMessage.versions || [])];
+            // 如果没有版本历史，先把当前内容作为第一个版本
+            if (existingVersions.length === 0 && oldAiContent) {
+                existingVersions.push({
+                    userContent: lastUserMessage.content,
+                    mentions: lastUserMessage.mentions ? [...lastUserMessage.mentions] : undefined,
+                    aiContent: oldAiContent,
+                    createdAt: oldAiMessage.createdAt || new Date().toISOString(),
+                    subsequentMessages: subsequentMessages.length > 0 ? subsequentMessages : undefined,
+                });
+            } else if (existingVersions.length > 0 && subsequentMessages.length > 0) {
+                const currentVersionIdx = lastUserMessage.currentVersionIndex ?? existingVersions.length - 1;
+                if (existingVersions[currentVersionIdx] && !existingVersions[currentVersionIdx].subsequentMessages) {
+                    existingVersions[currentVersionIdx] = {
+                        ...existingVersions[currentVersionIdx],
+                        subsequentMessages,
+                    };
+                }
+            }
+
+            const updatedUserMessage: ChatMessage = {
+                ...lastUserMessage,
+                versions: existingVersions,
+                currentVersionIndex: existingVersions.length - 1,
+            };
+            updatedPreviousMessages = previousMessages.map(m =>
+                m.id === lastUserMessage.id ? updatedUserMessage : m
+            );
+        }
 
         // 创建新的 AI 消息
         const assistantMessageId = (Date.now() + 1).toString();
@@ -1069,7 +1081,9 @@ export default function ChatPage() {
             createdAt: new Date().toISOString(),
             model: selectedModel,
         };
-        setMessages([...previousMessages, initialAssistantMessage]);
+        if (isTargetConversationActive()) {
+            setMessages([...updatedPreviousMessages, initialAssistantMessage]);
+        }
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -1080,10 +1094,31 @@ export default function ChatPage() {
                 headers.Authorization = `Bearer ${session.access_token}`;
             }
 
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            // 版本历史后处理钩子：在 manager 保存前插入新版本
+            const onBeforeSave = lastUserMessage
+                ? (finalMessages: ChatMessage[], assistantContent: string): ChatMessage[] => {
+                    const newVersion = {
+                        userContent: lastUserMessage.content,
+                        mentions: lastUserMessage.mentions ? [...lastUserMessage.mentions] : undefined,
+                        aiContent: assistantContent || '抱歉，我暂时无法回答这个问题。',
+                        createdAt: new Date().toISOString(),
+                    };
+                    const updatedVersions = [...existingVersions, newVersion];
+                    const finalUserMessage: ChatMessage = {
+                        ...lastUserMessage,
+                        versions: updatedVersions,
+                        currentVersionIndex: updatedVersions.length - 1,
+                    };
+                    return finalMessages.map(msg =>
+                        msg.id === lastUserMessage.id ? finalUserMessage : msg
+                    );
+                }
+                : undefined;
+
+            const startResult = await chatStreamManager.startTask({
+                conversationId: targetConversationId,
+                requestHeaders: headers,
+                requestBody: {
                     messages: previousMessages,
                     personality: 'general',
                     stream: true,
@@ -1096,104 +1131,32 @@ export default function ChatPage() {
                     reasoning: reasoningEnabled,
                     mentions: messageMentions,
                     dreamMode,
-                }),
+                },
+                baseMessages: updatedPreviousMessages,
+                assistantMessage: initialAssistantMessage,
+                onBeforeSave,
             });
 
-            if (!response.ok) {
-                throw new Error('请求失败');
-            }
-
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedContent = '';
-            let accumulatedReasoning = '';
-            let accumulatedMetadata: AIMessageMetadata | null = null;
-            let reasoningStartTime: number | undefined = undefined;
-            let buffer = '';
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() ?? '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed?.type === 'meta' && parsed?.metadata) {
-                                    accumulatedMetadata = parsed.metadata as AIMessageMetadata;
-                                    if (parsed.metadata.dreamContext) {
-                                        setDreamContext(parsed.metadata.dreamContext);
-                                    }
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, metadata: accumulatedMetadata as unknown as Record<string, unknown> }
-                                            : msg
-                                    ));
-                                    continue;
-                                }
-                                const delta = parsed.choices?.[0]?.delta;
-                                const reasoningContent = delta?.reasoning_content;
-                                if (reasoningContent) {
-                                    if (!accumulatedReasoning && !reasoningStartTime) {
-                                        reasoningStartTime = Date.now();
-                                    }
-                                    accumulatedReasoning += reasoningContent;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, reasoning: accumulatedReasoning, reasoningStartTime }
-                                            : msg
-                                    ));
-                                }
-                                const content = delta?.content;
-                                if (content) {
-                                    accumulatedContent += content;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, content: accumulatedContent, reasoning: accumulatedReasoning || undefined }
-                                            : msg
-                                    ));
-                                }
-                            } catch {
-                                // skip
-                            }
-                        }
-                    }
+            if (!startResult.ok) {
+                if (isTargetConversationActive()) {
+                    setMessages(originalMessagesSnapshot);
                 }
-            }
-
-            const reasoningDuration = reasoningStartTime ? Math.floor((Date.now() - reasoningStartTime) / 1000) : undefined;
-            const finalMessages = previousMessages.concat({
-                ...initialAssistantMessage,
-                content: accumulatedContent || '抱歉，我暂时无法回答这个问题。',
-                reasoning: accumulatedReasoning || undefined,
-                reasoningDuration,
-                metadata: accumulatedMetadata as unknown as Record<string, unknown>,
-            });
-            setMessages(finalMessages);
-            setIsLoading(false);
-
-            if (userId && activeConversationId) {
-                await saveMessages(activeConversationId, finalMessages);
+                if (startResult.code === 'INSUFFICIENT_CREDITS') {
+                    markCreditsExhausted(startResult.message);
+                } else {
+                    showToast(startResult.code === 'CONVERSATION_BUSY' ? 'info' : 'error', startResult.message);
+                }
             }
         } catch (error) {
             console.error('重新生成失败:', error);
-            setMessages(prev => [...prev.slice(0, -1), {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: '抱歉，服务暂时不可用。',
-                createdAt: new Date().toISOString(),
-            }]);
-            setIsLoading(false);
-        } finally {
-            await refreshMembership();
+            if (isTargetConversationActive()) {
+                setMessages(prev => [...prev.slice(0, -1), {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: '抱歉，服务暂时不可用。',
+                    createdAt: new Date().toISOString(),
+                }]);
+            }
         }
     };
 
@@ -1259,6 +1222,8 @@ export default function ChatPage() {
                 <ConversationSidebar
                     conversations={conversations}
                     activeId={activeConversationId || undefined}
+                    pendingTitle={pendingSidebarTitle}
+                    generatingTitleConversationIds={titleGeneratingConversationIds}
                     onSelect={handleSelectConversation}
                     onNew={handleNewChat}
                     onDelete={handleDeleteConversation}
@@ -1335,6 +1300,7 @@ export default function ChatPage() {
                                 <ChatComposer
                                     inputValue={inputValue}
                                     isLoading={isLoading}
+                                    isSendingToList={isSendingToList}
                                     onInputChange={setInputValue}
                                     onSend={handleSend}
                                     onStop={handleStop}
@@ -1385,7 +1351,11 @@ export default function ChatPage() {
                                     />
                                 </div>
                             ) : (
-                                <div className="flex-1 overflow-y-auto px-4 py-4 relative">
+                                <div
+                                    ref={messageScrollContainerRef}
+                                    onScroll={handleMessageListScroll}
+                                    className="flex-1 overflow-y-auto px-4 py-4 relative"
+                                >
                                     <ChatMessageList
                                         messages={messages}
                                         isLoading={isLoading}
@@ -1429,6 +1399,7 @@ export default function ChatPage() {
                             <ChatComposer
                                 inputValue={inputValue}
                                 isLoading={isLoading}
+                                isSendingToList={isSendingToList}
                                 onInputChange={setInputValue}
                                 onSend={handleSend}
                                 onStop={handleStop}

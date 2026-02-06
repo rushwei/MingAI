@@ -49,7 +49,47 @@ test('createNotification uses service client for inserts', async (t) => {
     assert.equal((inserted as { user_id?: string } | null)?.user_id, 'user-1');
 });
 
-test('processScheduledReminders skips site notifications when notify_site is false', async (t) => {
+function createScheduledReminderMock(options: {
+    reminder: Record<string, unknown>;
+    claimResult?: { data: { id: string } | null; error: null | { message: string } };
+}) {
+    const updates: Array<{ id: string; sent: boolean }> = [];
+
+    return {
+        updates,
+        table: {
+            select: () => ({
+                eq: () => ({
+                    lte: () => ({
+                        limit: async () => ({ data: [options.reminder], error: null }),
+                    }),
+                }),
+            }),
+            update: (payload: { sent?: boolean }) => ({
+                eq: (_column: string, id: string) => ({
+                    eq: () => {
+                        if (typeof payload.sent === 'boolean') {
+                            updates.push({ id, sent: payload.sent });
+                        }
+
+                        if (payload.sent === true) {
+                            return {
+                                select: () => ({
+                                    maybeSingle: async () =>
+                                        options.claimResult ?? { data: { id }, error: null },
+                                }),
+                            };
+                        }
+
+                        return Promise.resolve({ error: null });
+                    },
+                }),
+            }),
+        },
+    };
+}
+
+test('processScheduledReminders claims reminder before skip when notify_site is false', async (t) => {
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
@@ -57,13 +97,13 @@ test('processScheduledReminders skips site notifications when notify_site is fal
     const originalCreateNotification = notificationModule.createNotification;
 
     let notified = false;
-    const updates: string[] = [];
     const reminder = {
         id: 'rem-1',
         user_id: 'user-1',
         reminder_type: 'solar_term',
         content: { term_name: 'Term', meaning: 'Meaning', tips: 'Tips' },
     };
+    const scheduledMock = createScheduledReminderMock({ reminder });
 
     notificationModule.createNotification = async () => {
         notified = true;
@@ -73,21 +113,7 @@ test('processScheduledReminders skips site notifications when notify_site is fal
     supabaseServerModule.getServiceClient = () => ({
         from: (table: string) => {
             if (table === 'scheduled_reminders') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            lte: () => ({
-                                limit: async () => ({ data: [reminder], error: null }),
-                            }),
-                        }),
-                    }),
-                    update: () => ({
-                        eq: async (_column: string, id: string) => {
-                            updates.push(id);
-                            return { error: null };
-                        },
-                    }),
-                };
+                return scheduledMock.table;
             }
             if (table === 'reminder_subscriptions') {
                 return {
@@ -117,44 +143,30 @@ test('processScheduledReminders skips site notifications when notify_site is fal
 
     assert.equal(processed, 0);
     assert.equal(notified, false);
-    assert.deepEqual(updates, ['rem-1']);
+    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-1', sent: true }]);
 });
 
-test('processScheduledReminders does not mark sent when notification fails', async (t) => {
+test('processScheduledReminders releases claimed reminder when notification fails', async (t) => {
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
     const originalCreateNotification = notificationModule.createNotification;
 
-    const updates: string[] = [];
     const reminder = {
         id: 'rem-2',
         user_id: 'user-1',
         reminder_type: 'fortune',
         content: { summary: 'Summary' },
     };
+    const scheduledMock = createScheduledReminderMock({ reminder });
 
     notificationModule.createNotification = async () => false;
 
     supabaseServerModule.getServiceClient = () => ({
         from: (table: string) => {
             if (table === 'scheduled_reminders') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            lte: () => ({
-                                limit: async () => ({ data: [reminder], error: null }),
-                            }),
-                        }),
-                    }),
-                    update: () => ({
-                        eq: async (_column: string, id: string) => {
-                            updates.push(id);
-                            return { error: null };
-                        },
-                    }),
-                };
+                return scheduledMock.table;
             }
             if (table === 'reminder_subscriptions') {
                 return {
@@ -195,5 +207,80 @@ test('processScheduledReminders does not mark sent when notification fails', asy
     const processed = await processScheduledReminders();
 
     assert.equal(processed, 0);
-    assert.deepEqual(updates, []);
+    assert.deepEqual(scheduledMock.updates, [
+        { id: 'rem-2', sent: true },
+        { id: 'rem-2', sent: false },
+    ]);
+});
+
+test('processScheduledReminders skips sending when reminder claim was already taken', async (t) => {
+    const notificationModule = require('../lib/notification-server') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+
+    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalCreateNotification = notificationModule.createNotification;
+
+    let notified = false;
+    const reminder = {
+        id: 'rem-3',
+        user_id: 'user-1',
+        reminder_type: 'fortune',
+        content: { summary: 'Summary' },
+    };
+    const scheduledMock = createScheduledReminderMock({
+        reminder,
+        claimResult: { data: null, error: null },
+    });
+
+    notificationModule.createNotification = async () => {
+        notified = true;
+        return true;
+    };
+
+    supabaseServerModule.getServiceClient = () => ({
+        from: (table: string) => {
+            if (table === 'scheduled_reminders') {
+                return scheduledMock.table;
+            }
+            if (table === 'reminder_subscriptions') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => ({
+                                maybeSingle: async () => ({
+                                    data: { enabled: true, notify_site: true },
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'user_settings') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({
+                                data: { notifications_enabled: true, notify_site: true },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            return {};
+        },
+    });
+
+    t.after(() => {
+        notificationModule.createNotification = originalCreateNotification;
+        supabaseServerModule.getServiceClient = originalGetServiceClient;
+    });
+
+    const { processScheduledReminders } = await import('../lib/reminders');
+    const processed = await processScheduledReminders();
+
+    assert.equal(processed, 0);
+    assert.equal(notified, false);
+    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-3', sent: true }]);
 });

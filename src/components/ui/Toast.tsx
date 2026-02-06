@@ -6,31 +6,49 @@
 'use client';
 
 import { useState, createContext, useContext, useCallback, ReactNode } from 'react';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, X, BotMessageSquare } from 'lucide-react';
 
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+type ToastType = 'success' | 'error' | 'info' | 'warning' | 'chat';
+
+interface ToastAction {
+    label: string;
+    onClick: () => void;
+}
+
+interface ToastOptions {
+    duration?: number;
+    action?: ToastAction;
+}
 
 interface Toast {
     id: string;
     type: ToastType;
     message: string;
     duration?: number;
+    action?: ToastAction;
 }
 
 interface ToastContextType {
-    showToast: (type: ToastType, message: string, duration?: number) => void;
+    showToast: (type: ToastType, message: string, durationOrOptions?: number | ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
+
+export function normalizeToastOptions(durationOrOptions?: number | ToastOptions): ToastOptions {
+    if (typeof durationOrOptions === 'number') {
+        return { duration: durationOrOptions };
+    }
+    return durationOrOptions || {};
+}
 
 export function useToast() {
     const context = useContext(ToastContext);
     if (!context) {
         // 返回一个默认实现，在未包裹 Provider 时使用 alert
         return {
-            showToast: (_type: ToastType, message: string) => {
+            showToast: ((_type: ToastType, message: string) => {
                 alert(message);
-            }
+            }) as ToastContextType['showToast']
         };
     }
     return context;
@@ -39,9 +57,11 @@ export function useToast() {
 export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = useCallback((type: ToastType, message: string, duration = 3000) => {
+    const showToast = useCallback((type: ToastType, message: string, durationOrOptions?: number | ToastOptions) => {
+        const normalized = normalizeToastOptions(durationOrOptions);
+        const duration = normalized.duration ?? 3000;
         const id = `${Date.now()}-${Math.random()}`;
-        setToasts(prev => [...prev, { id, type, message, duration }]);
+        setToasts(prev => [...prev, { id, type, message, duration, action: normalized.action }]);
 
         if (duration > 0) {
             setTimeout(() => {
@@ -74,6 +94,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         error: <AlertCircle className="w-5 h-5 text-red-500" />,
         warning: <AlertCircle className="w-5 h-5 text-yellow-500" />,
         info: <Info className="w-5 h-5 text-blue-500" />,
+        chat: <BotMessageSquare className="w-5 h-5 text-cyan-500" />,
     };
 
     const bgColors = {
@@ -81,6 +102,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
         warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
         info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+        chat: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800',
     };
 
     return (
@@ -90,6 +112,17 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         >
             {icons[toast.type]}
             <span className="text-sm text-foreground">{toast.message}</span>
+            {toast.action && (
+                <button
+                    onClick={() => {
+                        toast.action?.onClick();
+                        onRemove(toast.id);
+                    }}
+                    className="px-2 py-1 rounded-md text-xs font-medium bg-white/70 dark:bg-black/20 hover:bg-white dark:hover:bg-black/30 transition-colors"
+                >
+                    {toast.action.label}
+                </button>
+            )}
             <button
                 onClick={() => onRemove(toast.id)}
                 className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
