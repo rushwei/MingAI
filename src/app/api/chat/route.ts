@@ -45,11 +45,6 @@ export async function POST(request: NextRequest) {
     let creditDeducted = false;
     let userId: string | null = null;
     let canSkipCredit = false;
-    const refundCreditIfNeeded = async () => {
-        if (!creditDeducted || !userId || canSkipCredit) return;
-        await addCredits(userId, 1);
-        creditDeducted = false;
-    };
     try {
         const body = await request.json();
         const { messages, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext, mentions: requestMentions } = body as {
@@ -140,17 +135,20 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            const remaining = await useCredit(userId);
-            if (remaining === null) {
-                return NextResponse.json(
-                    {
-                        error: '积分扣减失败，请重试',
-                        code: 'CREDIT_DEDUCTION_FAILED'
-                    },
-                    { status: 500 }
-                );
+            // 流式请求改为“首字后扣费”；非流式保持原有扣费时机
+            if (!stream) {
+                const remaining = await useCredit(userId);
+                if (remaining === null) {
+                    return NextResponse.json(
+                        {
+                            error: '积分扣减失败，请重试',
+                            code: 'CREDIT_DEDUCTION_FAILED'
+                        },
+                        { status: 500 }
+                    );
+                }
+                creditDeducted = true;
             }
-            creditDeducted = true;
         }
 
         // 加载命盘上下文（可信数据，放入系统提示）
@@ -314,18 +312,67 @@ export async function POST(request: NextRequest) {
                 async start(controller) {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'meta', metadata })}\n\n`));
                     const reader = streamBody.getReader();
+                    const decoder = new TextDecoder();
+                    let sseBuffer = '';
+                    let streamCreditDeducted = false;
+
+                    const tryDeductCreditOnFirstToken = async (chunk: Uint8Array) => {
+                        if (!userId || canSkipCredit || streamCreditDeducted) return;
+                        sseBuffer += decoder.decode(chunk, { stream: true });
+                        const lines = sseBuffer.split('\n');
+                        sseBuffer = lines.pop() ?? '';
+
+                        for (const rawLine of lines) {
+                            const line = rawLine.trim();
+                            if (!line.startsWith('data:')) continue;
+                            const payload = line.replace(/^data:\s*/, '');
+                            if (!payload || payload === '[DONE]') continue;
+
+                            let parsed: unknown;
+                            try {
+                                parsed = JSON.parse(payload);
+                            } catch {
+                                continue;
+                            }
+
+                            const content = (parsed as { choices?: Array<{ delta?: { content?: unknown } }> })?.choices?.[0]?.delta?.content;
+                            if (typeof content === 'string' && content.length > 0) {
+                                const remaining = await useCredit(userId);
+                                if (remaining === null) {
+                                    throw new Error('CREDIT_DEDUCTION_FAILED');
+                                }
+                                streamCreditDeducted = true;
+                                return;
+                            }
+                        }
+                    };
+
                     try {
                         while (true) {
                             const { done, value } = await reader.read();
                             if (done) break;
+                            await tryDeductCreditOnFirstToken(value);
                             controller.enqueue(value);
                         }
                         controller.close();
                     } catch (streamError) {
-                        console.error('[chat] 流式读取失败，退还积分:', streamError);
-                        await refundCreditIfNeeded();
-                        controller.error(streamError);
+                        console.error('[chat] 流式读取失败:', streamError);
+                        // 扣费失败时发送结构化错误事件后正常关闭流，
+                        // 不能用 controller.error()，否则 enqueue 的数据可能丢失
+                        if (streamError instanceof Error && streamError.message === 'CREDIT_DEDUCTION_FAILED') {
+                            try {
+                                controller.enqueue(encoder.encode(
+                                    `data: ${JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', error: '积分不足，请充值后继续使用' })}\n\n`
+                                ));
+                                controller.close();
+                            } catch {
+                                // controller 可能已关闭
+                            }
+                        } else {
+                            controller.error(streamError);
+                        }
                     } finally {
+                        decoder.decode();
                         reader.releaseLock();
                     }
                 }
@@ -350,7 +397,10 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json({ content, metadata });
     } catch (error) {
-        await refundCreditIfNeeded();
+        if (creditDeducted && userId && !canSkipCredit) {
+            await addCredits(userId, 1);
+            creditDeducted = false;
+        }
         console.error('AI API 错误:', error);
         return NextResponse.json(
             { error: '服务暂时不可用' },

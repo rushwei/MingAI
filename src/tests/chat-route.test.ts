@@ -9,7 +9,27 @@ process.env.INTERNAL_API_SECRET = 'internal-secret';
 
 const waitForMicrotask = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test('chat route refunds credit when streaming reader throws after response starts', async (t) => {
+interface MockState {
+    useCreditCalls: number;
+    addCreditCalls: number;
+}
+
+function createSseStream(events: string[]): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder();
+    return new ReadableStream<Uint8Array>({
+        start(controller) {
+            for (const event of events) {
+                controller.enqueue(encoder.encode(event));
+            }
+            controller.close();
+        },
+    });
+}
+
+function setupRouteMocks(
+    t: { after: (fn: () => void) => void },
+    streamBody: ReadableStream<Uint8Array>
+): MockState {
     const aiModule = require('../lib/ai') as any;
     const creditsModule = require('../lib/credits') as any;
     const aiConfigModule = require('../lib/ai-config') as any;
@@ -31,23 +51,19 @@ test('chat route refunds credit when streaming reader throws after response star
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
 
-    let refundCount = 0;
+    const state: MockState = {
+        useCreditCalls: 0,
+        addCreditCalls: 0,
+    };
 
-    const encoder = new TextEncoder();
-    const failingStream = new ReadableStream<Uint8Array>({
-        start(controller) {
-            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\\n\\n'));
-        },
-        pull() {
-            throw new Error('stream read failed');
-        },
-    });
-
-    aiModule.callAIStream = async () => failingStream;
+    aiModule.callAIStream = async () => streamBody;
     creditsModule.hasCredits = async () => true;
-    creditsModule.useCredit = async () => 0;
+    creditsModule.useCredit = async () => {
+        state.useCreditCalls += 1;
+        return 0;
+    };
     creditsModule.addCredits = async () => {
-        refundCount += 1;
+        state.addCreditCalls += 1;
         return 1;
     };
 
@@ -123,9 +139,11 @@ test('chat route refunds credit when streaming reader throws after response star
         supabaseServerModule.getServiceClient = originalGetServiceClient;
     });
 
-    const { POST } = await import('../app/api/chat/route');
+    return state;
+}
 
-    const request = new NextRequest('http://localhost/api/chat', {
+function createChatRequest() {
+    return new NextRequest('http://localhost/api/chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -143,10 +161,60 @@ test('chat route refunds credit when streaming reader throws after response star
             ],
         }),
     });
+}
 
-    const response = await POST(request);
+test('chat route does not charge when stream ends before visible content', async (t) => {
+    const streamBody = createSseStream([
+        'data: {"choices":[{"delta":{"reasoning_content":"thinking"}}]}\n\n',
+        'data: [DONE]\n\n',
+    ]);
+    const state = setupRouteMocks(t, streamBody);
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createChatRequest());
+    await response.text();
+    await waitForMicrotask();
+
+    assert.equal(state.useCreditCalls, 0);
+    assert.equal(state.addCreditCalls, 0);
+});
+
+test('chat route charges exactly once after first visible content appears', async (t) => {
+    const streamBody = createSseStream([
+        'data: {"choices":[{"delta":{"reasoning_content":"thinking"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"你"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"好"}}]}\n\n',
+        'data: [DONE]\n\n',
+    ]);
+    const state = setupRouteMocks(t, streamBody);
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createChatRequest());
+    await response.text();
+    await waitForMicrotask();
+
+    assert.equal(state.useCreditCalls, 1);
+    assert.equal(state.addCreditCalls, 0);
+});
+
+test('chat route keeps charge and does not refund when stream fails after visible content', async (t) => {
+    const encoder = new TextEncoder();
+    const failingStream = new ReadableStream<Uint8Array>({
+        start(controller) {
+            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'));
+        },
+        pull() {
+            throw new Error('stream read failed');
+        },
+    });
+
+    const state = setupRouteMocks(t, failingStream);
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createChatRequest());
     await response.text().catch(() => undefined);
     await waitForMicrotask();
 
-    assert.equal(refundCount, 1);
+    assert.equal(state.useCreditCalls, 1);
+    assert.equal(state.addCreditCalls, 0);
 });
