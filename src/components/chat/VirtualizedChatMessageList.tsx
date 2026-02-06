@@ -11,6 +11,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ChatMessage, Mention } from '@/types';
 import { ChatMessageItem } from './ChatMessageItem';
+import { isNearBottom } from '@/lib/chat-scroll';
 
 interface VirtualizedChatMessageListProps {
     messages: ChatMessage[];
@@ -55,6 +56,7 @@ export function VirtualizedChatMessageList({
     const lastMessageCountRef = useRef(0);
     const hasInitialScrollRef = useRef(false);
     const conversationIdRef = useRef<string | null>(null); // 通过首条消息 ID 追踪当前对话
+    const shouldAutoFollowRef = useRef(true);
 
     // 找到最后一条正在流式输出的AI消息
     const lastMessage = messages[messages.length - 1];
@@ -79,6 +81,16 @@ export function VirtualizedChatMessageList({
         }
     }, [messages.length, virtualizer]);
 
+    const handleScroll = useCallback(() => {
+        const container = parentRef.current;
+        if (!container) return;
+        shouldAutoFollowRef.current = isNearBottom({
+            scrollHeight: container.scrollHeight,
+            scrollTop: container.scrollTop,
+            clientHeight: container.clientHeight,
+        });
+    }, []);
+
     // 新消息时自动滚动到底部
     useEffect(() => {
         // 通过首条消息 ID 检测对话切换
@@ -90,6 +102,7 @@ export function VirtualizedChatMessageList({
             conversationIdRef.current = currentConversationId;
             hasInitialScrollRef.current = false;
             lastMessageCountRef.current = 0;
+            shouldAutoFollowRef.current = true;
         }
 
         // 首次渲染或切换对话时，立即滚动到底部
@@ -100,7 +113,7 @@ export function VirtualizedChatMessageList({
             return;
         }
 
-        if (messages.length > lastMessageCountRef.current) {
+        if (messages.length > lastMessageCountRef.current && shouldAutoFollowRef.current) {
             // 新消息添加，滚动到底部
             scrollToBottom('smooth');
         }
@@ -113,7 +126,7 @@ export function VirtualizedChatMessageList({
     const lastMessageTotalLengthRef = useRef(0);
 
     useEffect(() => {
-        if (isStreamingAI) {
+        if (isStreamingAI && shouldAutoFollowRef.current) {
             // 计算 content + reasoning 的总长度
             const totalLength = (lastMessageContent?.length || 0) + (lastMessageReasoning?.length || 0);
             // 只在内容实际增加时滚动
@@ -145,6 +158,7 @@ export function VirtualizedChatMessageList({
     return (
         <div
             ref={parentRef}
+            onScroll={handleScroll}
             className="h-full overflow-auto"
             style={{ contain: 'strict' }}
         >

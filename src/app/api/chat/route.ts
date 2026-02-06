@@ -45,6 +45,11 @@ export async function POST(request: NextRequest) {
     let creditDeducted = false;
     let userId: string | null = null;
     let canSkipCredit = false;
+    const refundCreditIfNeeded = async () => {
+        if (!creditDeducted || !userId || canSkipCredit) return;
+        await addCredits(userId, 1);
+        creditDeducted = false;
+    };
     try {
         const body = await request.json();
         const { messages, skipCreditCheck, internalSecret, stream, chartIds, model, reasoning, difyContext, mentions: requestMentions } = body as {
@@ -309,12 +314,20 @@ export async function POST(request: NextRequest) {
                 async start(controller) {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'meta', metadata })}\n\n`));
                     const reader = streamBody.getReader();
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        controller.enqueue(value);
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            controller.enqueue(value);
+                        }
+                        controller.close();
+                    } catch (streamError) {
+                        console.error('[chat] 流式读取失败，退还积分:', streamError);
+                        await refundCreditIfNeeded();
+                        controller.error(streamError);
+                    } finally {
+                        reader.releaseLock();
                     }
-                    controller.close();
                 }
             });
 
@@ -337,9 +350,7 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json({ content, metadata });
     } catch (error) {
-        if (creditDeducted && userId && !canSkipCredit) {
-            await addCredits(userId, 1);
-        }
+        await refundCreditIfNeeded();
         console.error('AI API 错误:', error);
         return NextResponse.json(
             { error: '服务暂时不可用' },

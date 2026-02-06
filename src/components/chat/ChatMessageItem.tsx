@@ -147,7 +147,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
         return (
             <div className="group flex justify-end">
                 {editingId === message.id ? (
-                    <div className="max-w-[75%] space-y-2">
+                    <div className="w-full max-w-[75%] space-y-2">
                         <div className="relative w-full rounded-2xl bg-background-secondary border border-border focus-within:ring-2 focus-within:ring-accent/30">
                             <div
                                 ref={editOverlayRef}
@@ -196,7 +196,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-end max-w-[75%]">
+                    <div className="flex flex-col items-end w-full max-w-[75%]">
                         {/* 附件信息显示 */}
                         {message.attachments && (message.attachments.fileName || message.attachments.webSearchEnabled) && (
                             <div className="flex items-center gap-2 mb-2">

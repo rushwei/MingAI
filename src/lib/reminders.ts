@@ -219,23 +219,29 @@ export async function processScheduledReminders(): Promise<number> {
     let processed = 0;
 
     for (const reminder of pendingReminders) {
+        const claimed = await claimReminder(reminder.id);
+        if (!claimed) {
+            continue;
+        }
+
         try {
             // 检查用户是否仍然订阅
             const subscribed = await isSubscribed(reminder.user_id, reminder.reminder_type);
             if (!subscribed) {
-                // 标记为已处理（跳过）
-                await markReminderSent(reminder.id);
+                // 已占用后发现用户取消订阅，直接保持已发送状态避免重复处理
                 continue;
             }
 
             // 发送提醒
             const sent = await sendReminder(reminder);
             if (sent) {
-                await markReminderSent(reminder.id);
                 processed++;
+            } else {
+                await releaseReminderClaim(reminder.id);
             }
         } catch (err) {
             console.error(`[reminders] 处理提醒 ${reminder.id} 失败:`, err);
+            await releaseReminderClaim(reminder.id);
         }
     }
 
@@ -288,16 +294,45 @@ async function sendReminder(reminder: {
 /**
  * 标记提醒已发送
  */
-async function markReminderSent(reminderId: string): Promise<void> {
+async function claimReminder(reminderId: string): Promise<boolean> {
     // 使用 service client 绕过 RLS
     const serviceClient = getServiceRoleClient();
-    await serviceClient
+    const { data, error } = await serviceClient
         .from('scheduled_reminders')
         .update({
             sent: true,
             sent_at: new Date().toISOString(),
         })
-        .eq('id', reminderId);
+        .eq('id', reminderId)
+        .eq('sent', false)
+        .select('id')
+        .maybeSingle();
+
+    if (error) {
+        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, error);
+        return false;
+    }
+
+    return !!data;
+}
+
+/**
+ * 释放提醒占用（发送失败时回滚）
+ */
+async function releaseReminderClaim(reminderId: string): Promise<void> {
+    const serviceClient = getServiceRoleClient();
+    const { error } = await serviceClient
+        .from('scheduled_reminders')
+        .update({
+            sent: false,
+            sent_at: null,
+        })
+        .eq('id', reminderId)
+        .eq('sent', true);
+
+    if (error) {
+        console.error(`[reminders] 回滚提醒 ${reminderId} 失败:`, error);
+    }
 }
 
 // ===== 自动调度 =====

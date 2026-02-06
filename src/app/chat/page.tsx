@@ -36,6 +36,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
 import { buildDraftTitle } from '@/lib/draft-title';
+import { isNearBottom } from '@/lib/chat-scroll';
 
 
 // AI 生成对话标题（使用专用 API，不消耗积分）
@@ -71,6 +72,8 @@ export default function ChatPage() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
     const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+    const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
+    const [titleGeneratingConversationIds, setTitleGeneratingConversationIds] = useState<Set<string>>(new Set());
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -85,7 +88,10 @@ export default function ChatPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false); // AI思考中
+    const [isSendingToList, setIsSendingToList] = useState(false); // 点击发送后，消息写入列表前的短暂阶段
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const messageScrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const shouldAutoScrollRef = useRef(true);
     const abortControllerRef = useRef<AbortController | null>(null);
     const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
 
@@ -187,14 +193,25 @@ export default function ChatPage() {
         };
     }, [dreamMode, userId]);
 
-    // 滚动到最新消息
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    // 仅当用户仍贴近底部时自动跟随，避免用户上滑查看历史时被强制拉回
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    }, []);
+
+    const handleMessageListScroll = useCallback(() => {
+        const container = messageScrollContainerRef.current;
+        if (!container) return;
+        shouldAutoScrollRef.current = isNearBottom({
+            scrollHeight: container.scrollHeight,
+            scrollTop: container.scrollTop,
+            clientHeight: container.clientHeight,
+        });
+    }, []);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (!messages.length || !shouldAutoScrollRef.current) return;
+        scrollToBottom(isLoading ? 'auto' : 'smooth');
+    }, [isLoading, messages, scrollToBottom]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -339,6 +356,7 @@ export default function ChatPage() {
 
     // 选择对话
     const handleSelectConversation = useCallback(async (id: string) => {
+        shouldAutoScrollRef.current = true;
         // 切换会话时，停止当前流式回复，避免“思考中”状态串到新会话
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -380,6 +398,7 @@ export default function ChatPage() {
 
     // 新建对话
     const handleNewChat = useCallback(async () => {
+        shouldAutoScrollRef.current = true;
         // 新建会话时停止当前流式回复，避免状态残留
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -438,8 +457,9 @@ export default function ChatPage() {
     // 发送消息
     const handleSend = async () => {
         const trimmedInput = inputValue.trim();
-        if (!trimmedInput || isLoading) return;
+        if (!trimmedInput || isLoading || isSendingToList) return;
         if (dreamMode && dreamContextLoading) return;
+        setIsSendingToList(true);
 
         const messageMentions = mentions;
         const isNewConversation = !activeConversationId;
@@ -448,6 +468,8 @@ export default function ChatPage() {
 
         // 新对话：先创建对话并用用户消息作为临时标题（不等待 AI 标题）
         if (isNewConversation && userId) {
+            setPendingSidebarTitle(draftTitle || '新对话');
+            setHasLoadedConversations(true);
             const newId = await createConversation({
                 userId,
                 personality: 'general',
@@ -458,6 +480,12 @@ export default function ChatPage() {
             if (newId) {
                 conversationId = newId;
                 setActiveConversationId(newId);
+                setPendingSidebarTitle(null);
+                setTitleGeneratingConversationIds(prev => {
+                    const next = new Set(prev);
+                    next.add(newId);
+                    return next;
+                });
                 const nowIso = new Date().toISOString();
                 setConversations(prev => {
                     const nextConversation: Conversation = {
@@ -480,6 +508,8 @@ export default function ChatPage() {
                 });
                 setHasLoadedConversations(true);
                 void refreshConversationList(userId);
+            } else {
+                setPendingSidebarTitle(null);
             }
         }
 
@@ -510,23 +540,31 @@ export default function ChatPage() {
         setInputValue('');
         setMentions([]);
         setIsLoading(true);
+        setIsSendingToList(false);
 
         // 新对话：先保存用户首条消息，再异步生成 AI 标题覆盖
         if (isNewConversation && userId && conversationId && draftTitle) {
-            void saveMessages(conversationId, [userMessage], draftTitle);
+            const createdConversationId = conversationId;
+            void saveMessages(createdConversationId, [userMessage], draftTitle);
             void (async () => {
                 try {
                     const nextTitle = (await generateAITitle([userMessage])).trim();
                     if (!nextTitle || nextTitle === draftTitle) return;
-                    if (manualRenamedConversationIdsRef.current.has(conversationId)) return;
+                    if (manualRenamedConversationIdsRef.current.has(createdConversationId)) return;
                     setConversations(prev => prev.map(conv => (
-                        conv.id === conversationId && conv.title === draftTitle
+                        conv.id === createdConversationId && conv.title === draftTitle
                             ? { ...conv, title: nextTitle }
                             : conv
                     )));
-                    await renameConversation(conversationId, nextTitle);
+                    await renameConversation(createdConversationId, nextTitle);
                 } catch {
                     // ignore title generation failures
+                } finally {
+                    setTitleGeneratingConversationIds(prev => {
+                        const next = new Set(prev);
+                        next.delete(createdConversationId);
+                        return next;
+                    });
                 }
             })();
         }
@@ -645,6 +683,7 @@ export default function ChatPage() {
                     setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
                     setShowCreditsModal(true);
                     setIsLoading(false);
+                    setIsSendingToList(false);
                     return;
                 }
                 throw new Error(errorData.error || '请求失败');
@@ -818,8 +857,11 @@ export default function ChatPage() {
             setMessages(prev => [...prev.slice(0, -1), errorMessage]);
             setIsLoading(false);
             abortControllerRef.current = null;
+            setIsSendingToList(false);
         } finally {
             await refreshMembership();
+            setPendingSidebarTitle(null);
+            setIsSendingToList(false);
         }
     };
 
@@ -1259,6 +1301,8 @@ export default function ChatPage() {
                 <ConversationSidebar
                     conversations={conversations}
                     activeId={activeConversationId || undefined}
+                    pendingTitle={pendingSidebarTitle}
+                    generatingTitleConversationIds={titleGeneratingConversationIds}
                     onSelect={handleSelectConversation}
                     onNew={handleNewChat}
                     onDelete={handleDeleteConversation}
@@ -1335,6 +1379,7 @@ export default function ChatPage() {
                                 <ChatComposer
                                     inputValue={inputValue}
                                     isLoading={isLoading}
+                                    isSendingToList={isSendingToList}
                                     onInputChange={setInputValue}
                                     onSend={handleSend}
                                     onStop={handleStop}
@@ -1385,7 +1430,11 @@ export default function ChatPage() {
                                     />
                                 </div>
                             ) : (
-                                <div className="flex-1 overflow-y-auto px-4 py-4 relative">
+                                <div
+                                    ref={messageScrollContainerRef}
+                                    onScroll={handleMessageListScroll}
+                                    className="flex-1 overflow-y-auto px-4 py-4 relative"
+                                >
                                     <ChatMessageList
                                         messages={messages}
                                         isLoading={isLoading}
@@ -1429,6 +1478,7 @@ export default function ChatPage() {
                             <ChatComposer
                                 inputValue={inputValue}
                                 isLoading={isLoading}
+                                isSendingToList={isSendingToList}
                                 onInputChange={setInputValue}
                                 onSend={handleSend}
                                 onStop={handleStop}

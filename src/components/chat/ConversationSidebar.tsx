@@ -16,6 +16,8 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 interface ConversationSidebarProps {
     conversations: Conversation[];
     activeId?: string;
+    pendingTitle?: string | null;
+    generatingTitleConversationIds?: ReadonlySet<string>;
     onSelect: (id: string) => void;
     onNew: () => void;
     onDelete: (id: string) => void;
@@ -51,10 +53,13 @@ const SOURCE_TYPE_CONFIG: Record<ConversationSourceType, {
 const SOURCE_TYPE_ORDER: ConversationSourceType[] = [
     'chat', 'dream', 'bazi_wuxing', 'tarot', 'liuyao', 'mbti', 'hepan', 'palm', 'face'
 ];
+const EMPTY_GENERATING_TITLE_IDS: ReadonlySet<string> = new Set<string>();
 
 export function ConversationSidebar({
     conversations,
     activeId,
+    pendingTitle = null,
+    generatingTitleConversationIds = EMPTY_GENERATING_TITLE_IDS,
     onSelect,
     onNew,
     onDelete,
@@ -215,6 +220,7 @@ export function ConversationSidebar({
     // 渲染单个对话项
     const renderConversationItem = useCallback((conv: Conversation) => {
         const isActionActive = actionConv?.id === conv.id;
+        const isGeneratingTitle = generatingTitleConversationIds.has(conv.id);
 
         // 从 sourceData 中提取信息
         const question = typeof conv.sourceData?.question === 'string' ? conv.sourceData.question : null;
@@ -266,6 +272,9 @@ export function ConversationSidebar({
                 `}
                 onClick={() => onSelect(conv.id)}
             >
+                <div className={`w-4 h-4 flex items-center justify-center flex-shrink-0 ${subTitle ? 'mt-0.5' : ''}`}>
+                    {isGeneratingTitle && <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-secondary" />}
+                </div>
                 <div className="flex-1 min-w-0">
                     <span className="text-sm truncate flex items-center gap-1">
                         <span className="truncate">{mainTitle}</span>
@@ -310,7 +319,7 @@ export function ConversationSidebar({
                 </div>
             </div>
         );
-    }, [actionConv?.id, activeId, isCollapsed, onSelect, openActionSheet]);
+    }, [actionConv?.id, activeId, generatingTitleConversationIds, isCollapsed, onSelect, openActionSheet]);
 
     return (
         <>
@@ -411,6 +420,14 @@ export function ConversationSidebar({
                     {/* 分组对话列表 - 仅在展开状态显示 */}
                     {!isCollapsed && (
                         <div className="flex-1 overflow-y-auto px-2 pb-2">
+                            {pendingTitle && (
+                                <div className="mb-2 px-3 py-2 rounded-lg bg-background-secondary/70 border border-border/60">
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-secondary flex-shrink-0" />
+                                        <span className="text-sm truncate">{pendingTitle}</span>
+                                    </div>
+                                </div>
+                            )}
                             {!hasLoaded || isLoading ? (
                                 <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
                                     {hasLoaded ? (
@@ -429,7 +446,8 @@ export function ConversationSidebar({
                                         </div>
                                     )}
                                 </div>
-                            ) : conversations.length === 0 ? (
+                            ) : null}
+                            {(!hasLoaded || isLoading) ? null : conversations.length === 0 && !pendingTitle ? (
                                 <div className="text-center text-foreground-secondary text-sm py-8">
                                     暂无对话记录
                                 </div>
