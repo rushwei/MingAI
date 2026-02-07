@@ -4,7 +4,7 @@
 
 为 MingAI 项目实现 MCP (Model Context Protocol) Server，支持：
 1. **本地模式 (stdio)** - 用户在本地运行，配置到 Claude Desktop
-2. **线上模式 (SSE/HTTP)** - 部署到 Zeabur，支持远程调用
+2. **线上模式 (Streamable HTTP)** - 部署到 Zeabur，支持远程调用
 
 ---
 
@@ -42,7 +42,7 @@ MingAI/
 │   │   └── src/
 │   │       └── index.ts         # stdio 入口
 │   │
-│   └── mcp-server/              # 线上 MCP Server (SSE)
+│   └── mcp-server/              # 线上 MCP Server (Streamable HTTP)
 │       ├── package.json
 │       ├── tsconfig.json
 │       ├── Dockerfile
@@ -588,16 +588,16 @@ export async function handleDailyFortune(input: FortuneInput) {
 
 ```typescript
 #!/usr/bin/env node
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { tools, handleToolCall } from '@mingai/mcp-core';
 
-const server = new Server(
+const server = new McpServer(
   { name: 'mingai-mcp', version: '1.0.0' },
   { capabilities: { tools:  } }
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: tools.map(t => ({
     name: t.name,
     description: t.description,
@@ -605,7 +605,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   })),
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const result = await handleToolCall(request.params.name, request.params.arguments);
   return {
     content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -616,14 +616,14 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-### 3.3 线上 MCP Server (SSE)
+### 3.3 线上 MCP Server (Streamable HTTP)
 
 **文件**: `packages/mcp-server/src/index.ts`
 
 ```typescript
 import express from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { tools, handleToolCall } from '@mingai/mcp-core';
 import { authMiddleware, rateLimitMiddleware } from './middleware';
 
@@ -631,18 +631,23 @@ const app = express();
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.get('/sse', authMiddleware, rateLimitMiddleware, async (req, res) => {
-  const transport = new SSEServerTransport('/message', res);
-  const server = new Server(
+app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  const transport = new StreamableHTTPServerTransport();
+  const server = new McpServer(
     { name: 'mingai-mcp-online', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
   // ... 同本地版本的 handler 设置
   await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 
-app.post('/message', authMiddleware, (req, res) => {
-  // SSEServerTransport 内部处理
+app.get('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  // 处理 SSE stream 建连/重连
+});
+
+app.delete('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  // 处理会话关闭
 });
 
 app.listen(process.env.PORT || 3001);
@@ -697,7 +702,7 @@ export function rateLimitMiddleware(req, res, next) {
 }
 ```
 
-### 4.2 Claude Desktop 配置 (SSE 模式)
+### 4.2 Claude Desktop 配置 (Streamable HTTP 模式)
 
 **环境变量配置**: 项目根目录 `.env`
 
@@ -719,7 +724,8 @@ pnpm dev
 {
   "mcpServers": {
     "mingai-sse": {
-      "url": "http://localhost:3001/sse",
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp",
       "headers": {
         "x-api-key": "your-secret-key"
       }
@@ -728,7 +734,7 @@ pnpm dev
 }
 ```
 
-**注意**: SSE 模式需要先手动启动服务，Claude Desktop 不会自动启动。
+**注意**: Streamable HTTP 模式需要先手动启动服务，Claude Desktop 不会自动启动。
 
 ### 4.3 Zeabur 部署 (线上)
 
@@ -797,7 +803,7 @@ packages:
 ### 第四阶段：线上 Server
 
 1. 创建 `mcp-server` 包
-2. 实现 SSE/HTTP 入口
+2. 实现 Streamable HTTP 入口
 3. 添加认证和限流中间件
 4. 配置 Dockerfile 和 zeabur.json
 5. 部署到 Zeabur
@@ -858,8 +864,8 @@ cd packages/mcp-server && pnpm dev
 # 2. 测试健康检查
 curl http://localhost:3001/health
 
-# 3. 测试 SSE 连接
-curl -H "x-api-key: your-key" http://localhost:3001/sse
+# 3. 测试 Streamable HTTP 连接（401 说明鉴权失败，400/404 表示已到达服务）
+curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d "{}" http://localhost:3001/mcp
 
 # 4. 部署到 Zeabur 后测试
 ```

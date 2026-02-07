@@ -1,5 +1,5 @@
 /**
- * MingAI MCP Server - Online (SSE/HTTP)
+ * MingAI MCP Server - Online (Streamable HTTP)
  */
 
 import { config } from 'dotenv';
@@ -13,11 +13,12 @@ config({ path: resolve(repoRoot, '.env'), override: false });
 
 import crypto from 'crypto';
 import express from 'express';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  isInitializeRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {
@@ -61,23 +62,34 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 存储活跃的 transport
-const transports = new Map<string, SSEServerTransport>();
+type SessionContext = {
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+};
 
-// SSE 端点
-app.get('/sse', authMiddleware, rateLimitMiddleware, async (_req, res) => {
-  const sessionId = crypto.randomUUID();
+// 存储活跃会话
+const sessions = new Map<string, SessionContext>();
 
-  const transport = new SSEServerTransport(`/message/${sessionId}`, res);
-  transports.set(sessionId, transport);
+function getSessionIdHeader(req: express.Request): string | undefined {
+  const sessionId = req.headers['mcp-session-id'];
+  return typeof sessionId === 'string' ? sessionId : undefined;
+}
 
-  const server = new Server(
+function cleanupSession(sessionId: string) {
+  const session = sessions.get(sessionId);
+  if (!session) return;
+  sessions.delete(sessionId);
+  session.server.close().catch(() => {});
+}
+
+function createMcpServer() {
+  const server = new McpServer(
     { name: 'mingai-mcp-online', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
 
   // 列出工具
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: tools.map((t) => ({
       name: t.name,
       description: t.description,
@@ -87,7 +99,7 @@ app.get('/sse', authMiddleware, rateLimitMiddleware, async (_req, res) => {
   }));
 
   // 调用工具
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     try {
       const result = await handleToolCall(name, args || {});
@@ -110,35 +122,112 @@ app.get('/sse', authMiddleware, rateLimitMiddleware, async (_req, res) => {
     }
   });
 
-  // 连接服务器 (connect 会自动调用 transport.start())
-  await server.connect(transport);
+  return server;
+}
 
-  // 清理函数
-  const cleanup = () => {
-    transports.delete(sessionId);
-    server.close().catch(() => {});
+// Streamable HTTP - POST: 初始化或会话消息
+app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  const sessionId = getSessionIdHeader(req);
+
+  // 已有会话：复用 transport
+  if (sessionId) {
+    const existing = sessions.get(sessionId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    await existing.transport.handleRequest(req, res, req.body);
+    return;
+  }
+
+  // 新建会话必须是 initialize 请求
+  if (!isInitializeRequest(req.body)) {
+    return res.status(400).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Bad Request: No valid session ID provided',
+      },
+      id: null,
+    });
+  }
+
+  const server = createMcpServer();
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+    onsessioninitialized: (initializedSessionId) => {
+      sessions.set(initializedSessionId, { server, transport });
+    },
+    onsessionclosed: (closedSessionId) => {
+      cleanupSession(closedSessionId);
+    },
+  });
+
+  transport.onclose = () => {
+    if (transport.sessionId) {
+      cleanupSession(transport.sessionId);
+    }
   };
 
-  // 连接关闭时清理
-  res.on('close', cleanup);
-  res.on('error', cleanup);
+  transport.onerror = () => {
+    if (transport.sessionId) {
+      cleanupSession(transport.sessionId);
+    }
+  };
+
+  try {
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (error) {
+    if (transport.sessionId) {
+      sessions.delete(transport.sessionId);
+    }
+    await server.close().catch(() => {});
+    if (!res.headersSent) {
+      return res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: 'Internal server error',
+        },
+        id: null,
+      });
+    }
+    throw error;
+  }
 });
 
-// 消息端点
-app.post('/message/:sessionId', authMiddleware, async (req, res) => {
-  const sessionId = req.params.sessionId as string;
-  const transport = transports.get(sessionId);
+// Streamable HTTP - GET: 建立/恢复 SSE 流
+app.get('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  const sessionId = getSessionIdHeader(req);
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Missing mcp-session-id header' });
+  }
 
-  if (!transport) {
+  const session = sessions.get(sessionId);
+  if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  // 传递已解析的 body，避免 express.json() 导致的 "stream is not readable" 错误
-  await transport.handlePostMessage(req, res, req.body);
+  await session.transport.handleRequest(req, res);
+});
+
+// Streamable HTTP - DELETE: 关闭会话
+app.delete('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+  const sessionId = getSessionIdHeader(req);
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Missing mcp-session-id header' });
+  }
+
+  const session = sessions.get(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  await session.transport.handleRequest(req, res, req.body);
 });
 
 // 启动服务器
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`MingAI MCP Server running on port ${PORT}`);
+  console.log(`MingAI MCP Server (Streamable HTTP) running on port ${PORT} at /mcp`);
 });

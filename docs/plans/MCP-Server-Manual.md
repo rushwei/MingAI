@@ -31,7 +31,7 @@ MingAI MCP Server 是基于 [Model Context Protocol (MCP)](https://modelcontextp
 ### 运行模式
 
 - **本地模式 (stdio)**: 通过标准输入输出通信，适合配置到支持 MCP 的客户端
-- **线上模式 (SSE/HTTP)**: 通过 HTTP 服务提供 SSE 连接，适合远程部署
+- **线上模式 (Streamable HTTP)**: 通过 MCP Streamable HTTP 端点提供连接，适合远程部署
 
 ---
 
@@ -59,7 +59,7 @@ packages/
 │   ├── src/index.ts          # stdio 入口
 │   └── dist/index.js         # 可执行文件
 │
-└── mcp-server/               # 线上 MCP Server (SSE)
+└── mcp-server/               # 线上 MCP Server (Streamable HTTP)
     ├── src/
     │   ├── index.ts          # HTTP 入口
     │   └── middleware.ts     # 认证/限流中间件
@@ -131,13 +131,13 @@ cd ../mcp-server && pnpm build
 }
 ```
 
-#### 方式二：线上模式 (SSE)
+#### 方式二：线上模式 (Streamable HTTP)
 
-适用于远程部署，通过 HTTP SSE 连接。
+适用于远程部署，通过 MCP Streamable HTTP 连接。
 
 **本地测试：**
 
-先启动 SSE 服务器：
+先启动线上 MCP 服务器：
 ```bash
 cd packages/mcp-server && pnpm start
 ```
@@ -147,8 +147,8 @@ cd packages/mcp-server && pnpm start
 {
   "mcpServers": {
     "mingai": {
-      "type": "sse",
-      "url": "http://localhost:3001/sse"
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp"
     }
   }
 }
@@ -160,8 +160,8 @@ cd packages/mcp-server && pnpm start
 {
   "mcpServers": {
     "mingai": {
-      "type": "sse",
-      "url": "https://your-domain.zeabur.app/sse",
+      "type": "streamable-http",
+      "url": "https://your-domain.zeabur.app/mcp",
       "headers": {
         "x-api-key": "your-api-key"
       }
@@ -805,9 +805,9 @@ docker compose up -d --build
 ### Q3: 线上服务器返回 401 错误？
 
 **解决方案：**
-确认请求头包含正确的 API Key：
+确认请求头包含正确的 API Key（返回 400/404 也说明鉴权已通过，关键是不要返回 401）：
 ```bash
-curl -H "x-api-key: your-key" http://localhost:3001/sse
+curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d "{}" http://localhost:3001/mcp
 ```
 
 ### Q4: 如何在 AI 对话中使用？

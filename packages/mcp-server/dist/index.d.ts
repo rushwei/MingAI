@@ -1,4 +1,4 @@
 /**
- * MingAI MCP Server - Online (SSE/HTTP)
+ * MingAI MCP Server - Online (Streamable HTTP)
  */
 export {};

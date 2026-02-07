@@ -20,7 +20,7 @@ MingAI 是一个 AI 驱动的中国传统命理平台，提供八字、紫微斗
 ### 1.2 项目目标
 
 1. **标准化接口**: 通过 MCP 协议提供标准化的命理工具接口
-2. **双模式支持**: 同时支持本地 (stdio) 和线上 (SSE/HTTP) 两种运行模式
+2. **双模式支持**: 同时支持本地 (stdio) 和线上 (Streamable HTTP) 两种运行模式
 3. **完整功能覆盖**: 实现八字、紫微、六爻、塔罗、运势、流年分析六大核心功能
 4. **独立部署**: 作为独立服务可单独部署，不依赖主应用
 
@@ -49,7 +49,7 @@ MingAI/
 ├── packages/
 │   ├── mcp-core/          # 核心共享逻辑（工具定义、处理器）
 │   ├── mcp-local/         # 本地 MCP Server (stdio 模式)
-│   └── mcp-server/        # 线上 MCP Server (SSE/HTTP 模式)
+│   └── mcp-server/        # 线上 MCP Server (Streamable HTTP 模式)
 └── pnpm-workspace.yaml    # Workspace 配置
 ```
 
@@ -68,7 +68,7 @@ MingAI/
                          ▲
 ┌─────────────────┐      │
 │   mcp-server    │──────┘
-│   (SSE/HTTP)    │
+│   (Streamable HTTP) │
 └─────────────────┘
 ```
 
@@ -397,7 +397,7 @@ pnpm --filter "@anthropic/mcp-*" build
 npx @anthropic/mcp-local
 ```
 
-### 5.2 线上模式 (SSE/HTTP)
+### 5.2 线上模式 (Streamable HTTP)
 
 #### 5.2.1 环境变量配置
 
@@ -417,13 +417,14 @@ pnpm dev
 # 服务运行在 http://localhost:3001
 ```
 
-#### 5.2.3 配置 Claude Desktop (SSE 模式)
+#### 5.2.3 配置 Claude Desktop (Streamable HTTP 模式)
 
 ```json
 {
   "mcpServers": {
-    "mingai-sse": {
-      "url": "http://localhost:3001/sse",
+    "mingai-streamable-http": {
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp",
       "headers": {
         "x-api-key": "your-secret-key"
       }
@@ -432,7 +433,7 @@ pnpm dev
 }
 ```
 
-**注意**: SSE 模式需要先手动启动服务，Claude Desktop 不会自动启动。
+**注意**: Streamable HTTP 模式需要先手动启动服务，Claude Desktop 不会自动启动。
 
 #### 5.2.4 Docker 部署
 
@@ -457,8 +458,9 @@ docker run -d -p 3001:3001 \
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/health` | GET | 健康检查 |
-| `/sse` | GET | SSE 连接端点 |
-| `/messages` | POST | 消息处理端点 |
+| `/mcp` | POST | 初始化与请求处理 |
+| `/mcp` | GET | SSE stream 建连/重连 |
+| `/mcp` | DELETE | 会话关闭 |
 
 #### 5.3.1 认证方式
 
@@ -471,7 +473,7 @@ x-api-key: your-secret-key
 或通过 URL 参数：
 
 ```
-/sse?api_key=your-secret-key
+/mcp?api_key=your-secret-key
 ```
 
 **注意**: 如果服务端未设置 `MCP_API_KEY` 环境变量，则跳过认证。
@@ -554,7 +556,7 @@ x-api-key: your-secret-key
 #### 6.2.2 线上模式测试
 
 - HTTP 端点可用性：✅ 通过
-- SSE 连接稳定性：✅ 通过
+- Streamable HTTP 连接稳定性：✅ 通过
 - 认证机制验证：✅ 通过
 - 限流功能验证：✅ 通过
 
@@ -605,7 +607,7 @@ x-api-key: your-secret-key
 MingAI MCP Server 项目已成功实现以下目标：
 
 1. **完整的工具集**: 实现了八字、紫微、六爻、塔罗、运势、流年六大核心命理工具
-2. **双模式支持**: 同时支持本地 stdio 和线上 SSE/HTTP 两种运行模式
+2. **双模式支持**: 同时支持本地 stdio 和线上 Streamable HTTP 两种运行模式
 3. **标准化接口**: 完全遵循 MCP 协议规范，可与任何 MCP 客户端集成
 4. **独立部署**: 作为独立服务可单独部署，不依赖主应用
 

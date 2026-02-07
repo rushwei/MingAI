@@ -3,7 +3,7 @@
  * MingAI MCP Server - Local (stdio)
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -42,13 +42,13 @@ async function handleToolCall(name: string, args: any): Promise<unknown> {
 }
 
 // 创建服务器
-const server = new Server(
+const server = new McpServer(
   { name: 'mingai-mcp', version: '1.0.0' },
   { capabilities: { tools: {} } }
 );
 
 // 列出工具
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: tools.map((t) => ({
     name: t.name,
     description: t.description,
@@ -58,7 +58,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // 调用工具
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
     const result = await handleToolCall(name, args || {});
