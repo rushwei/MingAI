@@ -393,7 +393,7 @@ useStreamingText({
 
 ## Environment Variables
 
-Required in `.env.local` (see `.env.example` for full list):
+Required in `.env` (see `.env.example` for full list):
 ```
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=...

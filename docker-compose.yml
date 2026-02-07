@@ -1,0 +1,31 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required for web image build}"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY:?NEXT_PUBLIC_SUPABASE_ANON_KEY is required for web image build}"
+        SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required for web image build}"
+    image: mingai-web:latest
+    container_name: mingai-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+  mcp:
+    build:
+      context: .
+      dockerfile: packages/mcp-server/Dockerfile
+    image: mingai-mcp:latest
+    container_name: mingai-mcp
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3001"
+      MCP_API_KEY: "${MCP_API_KEY:-}"
+    ports:
+      - "${MCP_PORT:-3001}:3001"

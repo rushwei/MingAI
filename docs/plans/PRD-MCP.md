@@ -699,7 +699,7 @@ export function rateLimitMiddleware(req, res, next) {
 
 ### 4.2 Claude Desktop 配置 (SSE 模式)
 
-**环境变量配置**: `packages/mcp-server/.env.local`
+**环境变量配置**: 项目根目录 `.env`
 
 ```bash
 MCP_API_KEY=your-secret-key

@@ -401,10 +401,10 @@ npx @anthropic/mcp-local
 
 #### 5.2.1 环境变量配置
 
-在 `packages/mcp-server/` 目录创建 `.env.local` 文件：
+在项目根目录创建 `.env` 文件：
 
 ```bash
-# packages/mcp-server/.env.local
+# .env
 MCP_API_KEY=your-secret-key
 PORT=3001  # 可选，默认 3001
 ```
@@ -658,4 +658,3 @@ MingAI MCP Server 项目已成功实现以下目标：
 
 *文档版本: 1.0.0*
 *最后更新: 2026-02-03*
-

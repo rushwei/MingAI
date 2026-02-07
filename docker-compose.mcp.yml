@@ -1,0 +1,15 @@
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: packages/mcp-server/Dockerfile
+    image: mingai-mcp:latest
+    container_name: mingai-mcp
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3001"
+      MCP_API_KEY: "${MCP_API_KEY:-}"
+    ports:
+      - "${MCP_PORT:-3001}:3001"

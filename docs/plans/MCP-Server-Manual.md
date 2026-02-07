@@ -719,7 +719,7 @@ echo '{
 
 本地模式无需额外部署，直接配置 MCP 客户端即可使用。
 
-### 线上部署 (Zeabur)
+### 线上部署 (Zeabur / Docker)
 
 **1. 环境变量配置：**
 
@@ -741,12 +741,28 @@ pnpm start
 curl http://localhost:3001/health
 ```
 
-**4. Docker 部署：**
+**4. Docker 部署（仅 MCP）：**
 
 ```bash
-cd packages/mcp-server
-docker build -t mingai-mcp-server .
+cd /Users/hhs/Develop/Project/MingAI
+docker build -f packages/mcp-server/Dockerfile -t mingai-mcp-server .
 docker run -p 3001:3001 -e MCP_API_KEY=your-key mingai-mcp-server
+```
+
+**5. Docker Compose（支持一键和分开部署）：**
+
+```bash
+cd /Users/hhs/Develop/Project/MingAI
+cp .env.example .env
+
+# 一键部署：Web + MCP
+docker compose up -d --build
+
+# 仅部署 Web
+docker compose -f docker-compose.web.yml up -d --build
+
+# 仅部署 MCP
+docker compose -f docker-compose.mcp.yml up -d --build
 ```
 
 ---
@@ -772,6 +788,18 @@ rm -rf packages/*/dist
 cd packages/mcp-core && pnpm build
 cd ../mcp-local && pnpm build
 cd ../mcp-server && pnpm build
+```
+
+### Q5: `docker compose up -d --build` 报 `Missing Supabase environment variables`？
+
+**原因：**
+Web 镜像在 `next build` 阶段就需要读取 Supabase 变量。
+
+**解决方案：**
+```bash
+cp .env.example .env
+# 填写 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
+docker compose up -d --build
 ```
 
 ### Q3: 线上服务器返回 401 错误？
@@ -806,4 +834,3 @@ curl -H "x-api-key: your-key" http://localhost:3001/sse
 - [MCP 官方文档](https://modelcontextprotocol.io/)
 - [lunar-javascript](https://github.com/6tail/lunar-javascript)
 - [iztro](https://github.com/SylarLong/iztro)
-

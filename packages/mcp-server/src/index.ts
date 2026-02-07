@@ -3,11 +3,13 @@
  */
 
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
-// 加载 .env.local 文件（优先）和 .env 文件（备用）
-config({ path: resolve(process.cwd(), '.env.local') });
-config({ path: resolve(process.cwd(), '.env') });
+// 仅加载仓库根目录 .env，统一配置来源。
+const currentFileDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(currentFileDir, '../../..');
+config({ path: resolve(repoRoot, '.env'), override: false });
 
 import crypto from 'crypto';
 import express from 'express';

@@ -2,10 +2,12 @@
  * MingAI MCP Server - Online (SSE/HTTP)
  */
 import { config } from 'dotenv';
-import { resolve } from 'path';
-// 加载 .env.local 文件（优先）和 .env 文件（备用）
-config({ path: resolve(process.cwd(), '.env.local') });
-config({ path: resolve(process.cwd(), '.env') });
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+// 仅加载仓库根目录 .env，统一配置来源。
+const currentFileDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(currentFileDir, '../../..');
+config({ path: resolve(repoRoot, '.env'), override: false });
 import crypto from 'crypto';
 import express from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -42,7 +44,7 @@ app.get('/health', (_req, res) => {
 // 存储活跃的 transport
 const transports = new Map();
 // SSE 端点
-app.get('/sse', authMiddleware, rateLimitMiddleware, async (req, res) => {
+app.get('/sse', authMiddleware, rateLimitMiddleware, async (_req, res) => {
     const sessionId = crypto.randomUUID();
     const transport = new SSEServerTransport(`/message/${sessionId}`, res);
     transports.set(sessionId, transport);
@@ -80,8 +82,7 @@ app.get('/sse', authMiddleware, rateLimitMiddleware, async (req, res) => {
             };
         }
     });
-    // 连接服务器
-    await transport.start();
+    // 连接服务器 (connect 会自动调用 transport.start())
     await server.connect(transport);
     // 清理函数
     const cleanup = () => {
@@ -99,7 +100,8 @@ app.post('/message/:sessionId', authMiddleware, async (req, res) => {
     if (!transport) {
         return res.status(404).json({ error: 'Session not found' });
     }
-    await transport.handlePostMessage(req, res);
+    // 传递已解析的 body，避免 express.json() 导致的 "stream is not readable" 错误
+    await transport.handlePostMessage(req, res, req.body);
 });
 // 启动服务器
 const PORT = process.env.PORT || 3001;
