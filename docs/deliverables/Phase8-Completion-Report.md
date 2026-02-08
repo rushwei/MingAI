@@ -141,7 +141,7 @@ P2: chart_context / @mentions / knowledge_hits / dream_context
 | [prompt-builder.ts](/src/lib/prompt-builder.ts) | 提示词统一管理 |
 | [ai-settings/page.tsx](/src/app/user/ai-settings/page.tsx) | AI 个性化配置 |
 | [api/chat/preview](/src/app/api/chat/preview/route.ts) | 提示词预览与预算统计 |
-| [imperative-dazzling-grove.md](/docs/deliverables/details/imperative-dazzling-grove.md) | 提示词统一方案 |
+| [prompt-manager-refactor-plan.md](/docs/deliverables/details/prompt-manager-refactor-plan.md) | 提示词统一方案 |
 | [personality-refactor.md](/docs/deliverables/details/personality-refactor.md) | 人格系统重构 |
 
 ---

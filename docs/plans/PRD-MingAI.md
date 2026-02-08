@@ -781,7 +781,7 @@
     - 知识库来源(如果引用了知识库)
     - 数据(八字/紫薇命盘, 塔罗、六爻、面相、手相、MBTI、合盘历史，某日/月运势，某次命理记录)来源(如果引用了数据)
   - [x] 优化AI架构
-    - [提示词统一管理](/docs/deliverables/details/imperative-dazzling-grove.md), 支持在对话框实时查看使用量
+    - [提示词统一管理](/docs/deliverables/details/prompt-manager-refactor-plan.md), 支持在对话框实时查看使用量
     - [七种分析模式](/docs/deliverables/details/personality-refactor.md)(八字/紫薇/塔罗/六爻/MBTI/合盘/周公解梦)
   - [x] 新增周公解梦模式(自动获取默认命主命盘、今日黄历信息分析)
 
