@@ -62,15 +62,23 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
     const result = await handleToolCall(name, args || {});
+    const humanReadableText =
+      typeof result === 'string'
+        ? result
+        : JSON.stringify(result, null, 2) ?? String(result);
+    const humanReadableContent = [{ type: 'text', text: humanReadableText }];
     // 检查工具是否定义了 outputSchema
     const tool = tools.find((t) => t.name === name);
     if (tool?.outputSchema) {
-      // 有 outputSchema 时返回 structuredContent
-      return { structuredContent: result };
+      // 有 outputSchema 时同时返回 structuredContent + 可读 content
+      return {
+        structuredContent: result,
+        content: humanReadableContent,
+      };
     }
     // 无 outputSchema 时返回 text content
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      content: humanReadableContent,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
