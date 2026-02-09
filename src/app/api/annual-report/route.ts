@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) {
-            return jsonError(auth.error.message, auth.error.status);
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
         const { user } = auth;
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
             case 'summary': {
                 const summary = await getReportSummary(user.id, year);
                 if (!summary) {
-                    return jsonError('获取概要失败', 500);
+                    return jsonError('获取概要失败', 500, { success: false });
                 }
                 return jsonOk({ success: true, data: { summary } });
             }
@@ -56,17 +56,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
                 }
 
                 if (!report) {
-                    return jsonError('生成报告失败', 500);
+                    return jsonError('生成报告失败', 500, { success: false });
                 }
 
                 return jsonOk({ success: true, data: { report } });
             }
 
             default:
-                return jsonError('未知操作', 400);
+                return jsonError('未知操作', 400, { success: false });
         }
     } catch (error) {
         console.error('[annual-report API] 错误:', error);
-        return jsonError('服务器错误', 500);
+        return jsonError('服务器错误', 500, { success: false });
     }
 }

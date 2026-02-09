@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
             };
 
             const result = await createActivationKeys(auth.user.id, params);
-            return jsonOk(result as Record<string, unknown>);
+            return jsonOk(result);
         } else if (body.action === "activate") {
             const auth = await requireBearerUser(request);
             if ("error" in auth) {
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
             }
 
             const result = await activateKey(auth.user.id, keyCode);
-            return jsonOk(result as Record<string, unknown>);
+            return jsonOk(result);
         } else {
             return jsonError("无效的操作", 400);
         }

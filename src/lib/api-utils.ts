@@ -162,10 +162,17 @@ export async function getAccessToken(request: NextRequest): Promise<string | nul
     return session?.access_token || null;
 }
 
-export function jsonError(message: string, status = 400, extra?: Record<string, unknown>) {
-    return NextResponse.json({ error: message, ...(extra || {}) }, { status });
+export function jsonError<TExtra extends Record<string, unknown> = Record<string, never>>(
+    message: string,
+    status = 400,
+    extra?: TExtra
+) {
+    const body = extra
+        ? ({ error: message, ...extra } as { error: string } & TExtra)
+        : ({ error: message } as { error: string } & TExtra);
+    return NextResponse.json(body, { status });
 }
 
-export function jsonOk(payload: Record<string, unknown>, status = 200) {
+export function jsonOk<TPayload>(payload: TPayload, status = 200) {
     return NextResponse.json(payload, { status });
 }
