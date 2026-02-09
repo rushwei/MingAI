@@ -5,13 +5,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
-import { tools, handleBaziCalculate, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleLiunianAnalyze, } from '@mingai/mcp-core';
+import { tools, handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleLiunianAnalyze, } from '@mingai/mcp-core';
 // 工具调用处理
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleToolCall(name, args) {
     switch (name) {
         case 'bazi_calculate':
             return handleBaziCalculate(args);
+        case 'bazi_pillars_resolve':
+            return handleBaziPillarsResolve(args);
         case 'ziwei_calculate':
             return handleZiweiCalculate(args);
         case 'liuyao_analyze':

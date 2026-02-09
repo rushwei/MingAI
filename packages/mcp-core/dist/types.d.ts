@@ -14,10 +14,30 @@ export interface BaziInput {
     isLeapMonth?: boolean;
     birthPlace?: string;
 }
+export interface HiddenStemInfo {
+    stem: string;
+    qiType: '本气' | '中气' | '余气';
+    tenGod: string;
+}
+export interface GlobalKongWangInfo {
+    xun: string;
+    kongZhi: [string, string];
+}
+export interface PillarKongWangInfo {
+    isKong: boolean;
+}
+export type PillarPosition = '年支' | '月支' | '日支' | '时支';
+export interface PillarRelation {
+    type: '合' | '冲' | '刑' | '害';
+    pillars: PillarPosition[];
+    description: string;
+    isAuspicious: boolean;
+}
 export interface BaziOutput {
     gender: Gender;
     birthPlace?: string;
     dayMaster: string;
+    kongWang: GlobalKongWangInfo;
     fourPillars: {
         year: PillarInfo;
         month: PillarInfo;
@@ -29,32 +49,61 @@ export interface BaziOutput {
         list: Array<{
             startYear: number;
             ganZhi: string;
+            tenGod: string;
+            branchTenGod: string;
         }>;
     };
-    shenSha?: ShenShaInfo;
-}
-export interface ShenShaInfo {
-    tianYiGuiRen?: string[];
-    wenChangGuiRen?: string[];
-    yiMa?: string[];
-    taoHua?: string[];
-    huaGai?: string[];
-    jiangXing?: string[];
-    yangRen?: string[];
-    luShen?: string[];
-    tianDeGuiRen?: string;
-    yueDeGuiRen?: string;
-    kuiGang?: boolean;
-    jinYu?: boolean;
-    tianLuodiWang?: string[];
+    relations: PillarRelation[];
 }
 export interface PillarInfo {
     stem: string;
     branch: string;
     tenGod?: string;
-    hiddenStems: string[];
+    hiddenStems: HiddenStemInfo[];
     naYin?: string;
     diShi?: string;
+    shenSha: string[];
+    kongWang: PillarKongWangInfo;
+}
+export interface BaziPillarsResolveInput {
+    yearPillar: string;
+    monthPillar: string;
+    dayPillar: string;
+    hourPillar: string;
+}
+export interface BaziPillarsResolveCandidate {
+    candidateId: string;
+    isLeapMonth: boolean;
+    birthYear: number;
+    birthMonth: number;
+    birthDay: number;
+    birthHour: number;
+    birthMinute: number;
+    solarText: string;
+    lunarText: string;
+    nextCall: {
+        tool: 'bazi_calculate';
+        arguments: {
+            birthYear: number;
+            birthMonth: number;
+            birthDay: number;
+            birthHour: number;
+            birthMinute: number;
+            calendarType: 'lunar';
+            isLeapMonth: boolean;
+        };
+        missing: ['gender'];
+    };
+}
+export interface BaziPillarsResolveOutput {
+    pillars: {
+        yearPillar: string;
+        monthPillar: string;
+        dayPillar: string;
+        hourPillar: string;
+    };
+    count: number;
+    candidates: BaziPillarsResolveCandidate[];
 }
 export interface ZiweiInput {
     gender: Gender;

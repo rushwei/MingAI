@@ -19,10 +19,35 @@ export interface BaziInput {
   birthPlace?: string;
 }
 
+export interface HiddenStemInfo {
+  stem: string;
+  qiType: '本气' | '中气' | '余气';
+  tenGod: string;
+}
+
+export interface GlobalKongWangInfo {
+  xun: string;
+  kongZhi: [string, string];
+}
+
+export interface PillarKongWangInfo {
+  isKong: boolean;
+}
+
+export type PillarPosition = '年支' | '月支' | '日支' | '时支';
+
+export interface PillarRelation {
+  type: '合' | '冲' | '刑' | '害';
+  pillars: PillarPosition[];
+  description: string;
+  isAuspicious: boolean;
+}
+
 export interface BaziOutput {
   gender: Gender;
   birthPlace?: string;
   dayMaster: string;
+  kongWang: GlobalKongWangInfo;
   fourPillars: {
     year: PillarInfo;
     month: PillarInfo;
@@ -34,34 +59,65 @@ export interface BaziOutput {
     list: Array<{
       startYear: number;
       ganZhi: string;
+      tenGod: string;
+      branchTenGod: string;
     }>;
   };
-  shenSha?: ShenShaInfo;
-}
-
-export interface ShenShaInfo {
-  tianYiGuiRen?: string[];    // 天乙贵人
-  wenChangGuiRen?: string[];  // 文昌贵人
-  yiMa?: string[];            // 驿马
-  taoHua?: string[];          // 桃花
-  huaGai?: string[];          // 华盖
-  jiangXing?: string[];       // 将星
-  yangRen?: string[];         // 羊刃
-  luShen?: string[];          // 禄神
-  tianDeGuiRen?: string;      // 天德贵人
-  yueDeGuiRen?: string;       // 月德贵人
-  kuiGang?: boolean;          // 魁罡
-  jinYu?: boolean;            // 金舆
-  tianLuodiWang?: string[];   // 天罗地网
+  relations: PillarRelation[];
 }
 
 export interface PillarInfo {
   stem: string;
   branch: string;
   tenGod?: string;
-  hiddenStems: string[];
+  hiddenStems: HiddenStemInfo[];
   naYin?: string;
   diShi?: string;
+  shenSha: string[];
+  kongWang: PillarKongWangInfo;
+}
+
+export interface BaziPillarsResolveInput {
+  yearPillar: string;
+  monthPillar: string;
+  dayPillar: string;
+  hourPillar: string;
+}
+
+export interface BaziPillarsResolveCandidate {
+  candidateId: string;
+  isLeapMonth: boolean;
+  birthYear: number;
+  birthMonth: number;
+  birthDay: number;
+  birthHour: number;
+  birthMinute: number;
+  solarText: string;
+  lunarText: string;
+  nextCall: {
+    tool: 'bazi_calculate';
+    arguments: {
+      birthYear: number;
+      birthMonth: number;
+      birthDay: number;
+      birthHour: number;
+      birthMinute: number;
+      calendarType: 'lunar';
+      isLeapMonth: boolean;
+    };
+    missing: ['gender'];
+  };
+}
+
+export interface BaziPillarsResolveOutput {
+  pillars: {
+    yearPillar: string;
+    monthPillar: string;
+    dayPillar: string;
+    hourPillar: string;
+  };
+  count: number;
+  candidates: BaziPillarsResolveCandidate[];
 }
 
 // ===== 紫微相关类型 =====
