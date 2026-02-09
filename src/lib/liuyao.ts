@@ -26,8 +26,8 @@ import {
     type DiZhi,
     type Palace,
     DIZHI_WUXING,
-} from './eight-palaces';
-import { getHexagramText } from './hexagram-texts';
+} from '@/lib/eight-palaces';
+import { getHexagramText } from '@/lib/hexagram-texts';
 
 // 爻的类型
 export type YaoType = 0 | 1;  // 0 = 阴爻, 1 = 阳爻

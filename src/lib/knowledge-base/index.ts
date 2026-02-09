@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import type { ArchivedSource, ArchivedSourceType, KnowledgeBase, KnowledgeBaseInput } from './types';
+import type { ArchivedSource, ArchivedSourceType, KnowledgeBase, KnowledgeBaseInput } from '@/lib/knowledge-base/types';
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();

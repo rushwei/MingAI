@@ -4,9 +4,9 @@
  * 提供统一的流式响应处理模式，减少 API 路由中的重复代码
  */
 
-import { callAIStream, readAIStream } from './ai';
+import { callAIStream, readAIStream } from '@/lib/ai';
 import type { AIPersonality } from '@/types';
-import type { AIRequestMessage } from './ai-providers/base';
+import type { AIRequestMessage } from '@/lib/ai-providers/base';
 
 export interface StreamingOptions {
     /** AI 人格 */

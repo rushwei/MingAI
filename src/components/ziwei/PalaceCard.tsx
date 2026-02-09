@@ -1,5 +1,5 @@
 import type { PalaceInfo } from '@/lib/ziwei';
-import { StarBadge } from './StarBadge';
+import { StarBadge } from '@/components/ziwei/StarBadge';
 
 interface FlowInfo {
     decadal?: { stem: string; ages: string };

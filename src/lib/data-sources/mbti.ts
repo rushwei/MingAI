@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { PERSONALITY_BASICS } from '@/lib/mbti';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type MbtiRow = {
     id: string;

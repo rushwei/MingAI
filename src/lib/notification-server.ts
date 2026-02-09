@@ -1,5 +1,5 @@
-import { getServiceRoleClient } from './api-utils';
-import type { Notification } from './notification';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import type { Notification } from '@/lib/notification';
 
 export async function createNotification(
     userId: string,

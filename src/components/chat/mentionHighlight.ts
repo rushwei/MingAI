@@ -1,6 +1,6 @@
 import type { Mention, MentionType } from '@/types';
 import { extractMentionTokens, mapMentionsToTokens } from '@/lib/mention-tokens';
-import { mentionStyleMap } from './mentionStyles';
+import { mentionStyleMap } from '@/components/chat/mentionStyles';
 
 export type MentionHighlightedPart =
     | { kind: 'text'; value: string }

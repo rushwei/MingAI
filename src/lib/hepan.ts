@@ -4,7 +4,7 @@
  * 包含八字合盘算法、五行生克分析、兼容性评估
  */
 
-import { getConflictTriggers } from './communication-templates';
+import { getConflictTriggers } from '@/lib/communication-templates';
 
 // 合盘类型
 export type HepanType = 'love' | 'business' | 'family';

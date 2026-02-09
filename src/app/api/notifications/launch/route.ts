@@ -4,61 +4,32 @@
  * 管理员触发功能上线，批量发送邮件和站内通知
  *
  * POST /api/notifications/launch
- * Body: { featureKey: string, featureUrl: string, adminSecret: string }
+ * Body: { featureKey: string, featureUrl: string }
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { sendFeatureLaunchEmail } from '@/lib/email';
 import { FEATURE_NAMES } from '@/lib/notification';
-import { getServiceRoleClient, getAccessToken, createAuthedClient } from '@/lib/api-utils';
+import { getServiceRoleClient, jsonError, jsonOk, requireAdminContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAdminContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
+        }
+
         // 延迟初始化 service client，避免构建期缺失环境变量导致失败
         const supabaseAdmin = getServiceRoleClient();
 
-        const body = await request.json();
-        const { featureKey, featureUrl, adminSecret } = body;
-
-        const hasAdminSecret = !!adminSecret && adminSecret === process.env.ADMIN_SECRET;
-        let isAdminUser = false;
-
-        if (!hasAdminSecret) {
-            const token = await getAccessToken(request);
-            if (token) {
-                const authClient = createAuthedClient(token);
-                const { data: { user }, error: authError } = await authClient.auth.getUser(token);
-                if (authError) {
-                    console.error('管理员验证失败:', authError);
-                } else if (user?.id) {
-                    const { data: profile, error: profileError } = await supabaseAdmin
-                        .from('users')
-                        .select('is_admin')
-                        .eq('id', user.id)
-                        .maybeSingle();
-
-                    if (profileError) {
-                        console.error('管理员标记读取失败:', profileError);
-                    }
-
-                    isAdminUser = !!profile?.is_admin;
-                }
-            }
-        }
-
-        // 验证管理员密钥或管理员账号
-        if (!hasAdminSecret && !isAdminUser) {
-            return NextResponse.json(
-                { error: '未授权' },
-                { status: 401 }
-            );
-        }
+        const body = await request.json() as {
+            featureKey?: string;
+            featureUrl?: string;
+        };
+        const { featureKey, featureUrl } = body;
 
         if (!featureKey || !featureUrl) {
-            return NextResponse.json(
-                { error: '缺少必要参数' },
-                { status: 400 }
-            );
+            return jsonError('缺少必要参数', 400);
         }
 
         const featureName = FEATURE_NAMES[featureKey] || featureKey;
@@ -87,14 +58,11 @@ export async function POST(request: NextRequest) {
 
         if (subError) {
             console.error('获取订阅者失败:', subError);
-            return NextResponse.json(
-                { error: '获取订阅者失败' },
-                { status: 500 }
-            );
+            return jsonError('获取订阅者失败', 500);
         }
 
         if (!subscribers || subscribers.length === 0) {
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 message: '没有订阅者',
                 stats: { total: 0, emails: 0, notifications: 0 }
@@ -213,7 +181,7 @@ export async function POST(request: NextRequest) {
         //     .delete()
         //     .eq('feature_key', featureKey);
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             message: `功能上线通知发送完成`,
             stats: {
@@ -231,9 +199,6 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('发送功能上线通知失败:', error);
-        return NextResponse.json(
-            { error: '服务器错误' },
-            { status: 500 }
-        );
+        return jsonError('服务器错误', 500);
     }
 }

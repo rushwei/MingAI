@@ -7,7 +7,7 @@
 'use client';
 
 import { Moon, Sun } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
+import { useTheme } from '@/components/ui/ThemeProvider';
 
 /**
  * ThemeToggle 组件

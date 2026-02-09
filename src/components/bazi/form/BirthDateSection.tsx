@@ -1,7 +1,7 @@
 import { Calendar, RefreshCw } from 'lucide-react';
 import { LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BaziFormData, CalendarType } from '@/types';
-import { LUNAR_MONTH_NAMES, LUNAR_DAY_NAMES } from './options';
+import { LUNAR_MONTH_NAMES, LUNAR_DAY_NAMES } from '@/components/bazi/form/options';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 

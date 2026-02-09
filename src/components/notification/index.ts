@@ -1,2 +1,2 @@
-export { NotificationBell } from './NotificationBell';
-export { NotificationDropdown } from './NotificationDropdown';
+export { NotificationBell } from '@/components/notification/NotificationBell';
+export { NotificationDropdown } from '@/components/notification/NotificationDropdown';

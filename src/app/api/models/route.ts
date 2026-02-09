@@ -5,12 +5,12 @@
  * 优先从数据库获取配置，环境变量作为回退
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getModelsAsync } from '@/lib/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { getModelAccessForMembershipAsync } from '@/lib/ai-access';
-import { getAuthContext } from '@/lib/api-utils';
+import { getAuthContext, jsonOk } from '@/lib/api-utils';
 
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {
     const { user } = await getAuthContext(request);
@@ -40,9 +40,5 @@ export async function GET(request: NextRequest) {
         };
     }));
 
-    return NextResponse.json({ models: safeModels }, {
-        headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-    });
+    return jsonOk({ models: safeModels });
 }

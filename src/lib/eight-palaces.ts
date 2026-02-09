@@ -4,7 +4,7 @@
  * 六爻占卜的核心数据结构，用于计算六亲、世应等
  */
 
-import type { YaoType } from './liuyao';
+import type { YaoType } from '@/lib/liuyao';
 
 // 五行类型
 export type WuXing = '金' | '木' | '水' | '火' | '土';

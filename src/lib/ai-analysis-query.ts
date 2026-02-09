@@ -4,7 +4,7 @@
  * 从 conversations 表查询 AI 分析内容
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 import type { ChatMessage } from '@/types';
 
 export function extractAnalysisFromConversation(

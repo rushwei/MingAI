@@ -1,7 +1,7 @@
 /**
  * 提醒订阅 API
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import {
     getReminderSubscriptions,
     updateReminderSubscription,
@@ -10,30 +10,17 @@ import {
     scheduleKeyDateReminders,
     type ReminderType
 } from '@/lib/reminders';
-import { getAuthContext, getServiceRoleClient } from '@/lib/api-utils';
+import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import type { BaziChart } from '@/types';
 
-interface RemindersResponse {
-    success: boolean;
-    data?: {
-        subscriptions?: Array<{
-            reminderType: string;
-            enabled: boolean;
-            notifyEmail: boolean;
-            notifySite: boolean;
-        }>;
-        scheduled?: number;
-    };
-    error?: string;
-}
-
 // GET - 获取提醒订阅设置
-export async function GET(request: NextRequest): Promise<NextResponse<RemindersResponse>> {
+export async function GET(request: NextRequest) {
     try {
-        const { user } = await getAuthContext(request);
-        if (!user) {
-            return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
+        const user = auth.user;
 
         const subscriptions = await getReminderSubscriptions(user.id);
 
@@ -49,29 +36,30 @@ export async function GET(request: NextRequest): Promise<NextResponse<RemindersR
             };
         });
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             data: { subscriptions: result },
         });
     } catch (error) {
         console.error('[reminders API] 错误:', error);
-        return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }
 
 // POST - 更新提醒订阅设置
-export async function POST(request: NextRequest): Promise<NextResponse<RemindersResponse>> {
+export async function POST(request: NextRequest) {
     try {
-        const { user } = await getAuthContext(request);
-        if (!user) {
-            return NextResponse.json({ success: false, error: '认证失败' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
+        const user = auth.user;
 
         const body = await request.json();
         const { reminderType, enabled, notifyEmail, notifySite } = body;
 
         if (!reminderType || !['solar_term', 'fortune', 'key_date'].includes(reminderType)) {
-            return NextResponse.json({ success: false, error: '无效的提醒类型' }, { status: 400 });
+            return jsonError('无效的提醒类型', 400, { success: false });
         }
 
         const success = await updateReminderSubscription(
@@ -81,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Reminders
         );
 
         if (!success) {
-            return NextResponse.json({ success: false, error: '更新失败' }, { status: 500 });
+            return jsonError('更新失败', 500, { success: false });
         }
 
         // 如果启用了提醒，安排对应类型的提醒
@@ -111,12 +99,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<Reminders
             }
         }
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             data: { scheduled },
         });
     } catch (error) {
         console.error('[reminders API] 更新错误:', error);
-        return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }

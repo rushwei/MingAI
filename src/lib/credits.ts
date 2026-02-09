@@ -10,9 +10,9 @@
  * - Pro: 每小时+1次，上限200次
  */
 
-import { type MembershipType, getPlanConfig } from './membership';
-import { getServiceRoleClient } from './api-utils';
-import { getUserLevel } from './gamification';
+import { type MembershipType, getPlanConfig } from '@/lib/membership';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { getUserLevel } from '@/lib/gamification';
 
 
 /**

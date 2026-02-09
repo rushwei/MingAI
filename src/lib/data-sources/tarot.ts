@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { TAROT_SPREADS } from '@/lib/tarot';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type TarotRow = {
     id: string;

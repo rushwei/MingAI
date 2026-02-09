@@ -5,14 +5,14 @@
  * DELETE: 删除小记
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
+import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     try {
         const { supabase, user } = await getAuthContext(request);
         if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+            return jsonError('请先登录', 401);
         }
 
         const { searchParams } = new URL(request.url);
@@ -32,13 +32,13 @@ export async function GET(request: NextRequest) {
 
         if (error) {
             console.error('获取小记失败:', error);
-            return NextResponse.json({ error: '获取小记失败' }, { status: 500 });
+            return jsonError('获取小记失败', 500);
         }
 
-        return NextResponse.json({ notes: data });
+        return jsonOk({ notes: data });
     } catch (error) {
         console.error('获取小记失败:', error);
-        return NextResponse.json({ error: '获取小记失败' }, { status: 500 });
+        return jsonError('获取小记失败', 500);
     }
 }
 
@@ -46,13 +46,13 @@ export async function POST(request: NextRequest) {
     try {
         const { supabase, user } = await getAuthContext(request);
         if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+            return jsonError('请先登录', 401);
         }
 
         const body = await request.json();
 
         if (!body.content) {
-            return NextResponse.json({ error: '内容不能为空' }, { status: 400 });
+            return jsonError('内容不能为空', 400);
         }
 
         const { data, error } = await supabase
@@ -68,13 +68,13 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error('创建小记失败:', error);
-            return NextResponse.json({ error: '创建小记失败' }, { status: 500 });
+            return jsonError('创建小记失败', 500);
         }
 
-        return NextResponse.json(data);
+        return jsonOk(data as Record<string, unknown>);
     } catch (error) {
         console.error('创建小记失败:', error);
-        return NextResponse.json({ error: '创建小记失败' }, { status: 500 });
+        return jsonError('创建小记失败', 500);
     }
 }
 
@@ -82,14 +82,14 @@ export async function DELETE(request: NextRequest) {
     try {
         const { supabase, user } = await getAuthContext(request);
         if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+            return jsonError('请先登录', 401);
         }
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
         if (!id) {
-            return NextResponse.json({ error: '缺少 id 参数' }, { status: 400 });
+            return jsonError('缺少 id 参数', 400);
         }
 
         const { error } = await supabase
@@ -100,12 +100,12 @@ export async function DELETE(request: NextRequest) {
 
         if (error) {
             console.error('删除小记失败:', error);
-            return NextResponse.json({ error: '删除小记失败' }, { status: 500 });
+            return jsonError('删除小记失败', 500);
         }
 
-        return NextResponse.json({ success: true });
+        return jsonOk({ success: true });
     } catch (error) {
         console.error('删除小记失败:', error);
-        return NextResponse.json({ error: '删除小记失败' }, { status: 500 });
+        return jsonError('删除小记失败', 500);
     }
 }

@@ -4,7 +4,7 @@
  * 提供命理记录和小记的 CRUD 操作、搜索和导入导出功能
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 
 // =====================================================
 // 类型定义

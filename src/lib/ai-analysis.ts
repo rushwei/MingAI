@@ -5,7 +5,7 @@
  * 统一存入 conversations 表，通过 source_type 区分来源
  */
 
-import { getServiceRoleClient } from './api-utils';
+import { getServiceRoleClient } from '@/lib/api-utils';
 import type { AIPersonality } from '@/types';
 
 // AI 分析来源类型

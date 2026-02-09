@@ -11,8 +11,8 @@ import { useState } from 'react';
 import type { ZiweiChart } from '@/lib/ziwei';
 import { getBranchIndex, generateZiweiChartText } from '@/lib/ziwei';
 import { getBranchElement, getElementColor } from '@/lib/bazi';
-import { PalaceCard } from './PalaceCard';
-import type { HoroscopeInfo, HoroscopeHighlight } from './ZiweiHoroscopePanel';
+import { PalaceCard } from '@/components/ziwei/PalaceCard';
+import type { HoroscopeInfo, HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface ZiweiChartProps {

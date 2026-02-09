@@ -4,7 +4,7 @@
  * 生成用户年度命理使用报告
  */
 
-import { getServiceRoleClient } from './api-utils';
+import { getServiceRoleClient } from '@/lib/api-utils';
 
 // ===== 报告数据类型 =====
 

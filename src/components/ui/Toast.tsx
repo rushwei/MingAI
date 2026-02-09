@@ -44,10 +44,12 @@ export function normalizeToastOptions(durationOrOptions?: number | ToastOptions)
 export function useToast() {
     const context = useContext(ToastContext);
     if (!context) {
-        // 返回一个默认实现，在未包裹 Provider 时使用 alert
+        // 默认 no-op，避免退化为原生 alert 破坏统一交互
         return {
             showToast: ((_type: ToastType, message: string) => {
-                alert(message);
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn('[Toast] ToastProvider is missing, dropped message:', message);
+                }
             }) as ToastContextType['showToast']
         };
     }

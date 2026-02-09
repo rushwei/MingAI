@@ -5,11 +5,11 @@
  */
 
 import type { AIModelConfig, AIVendor } from '@/types';
-import type { AIProvider } from './base';
-import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider, moonshotProvider } from './openai-compatible';
-import { geminiNativeProvider } from './gemini-native';
-import { OpenAICompatibleProvider } from './openai-compatible';
-import { qwenVlProvider, geminiVlProvider } from './vision-provider';
+import type { AIProvider } from '@/lib/ai-providers/base';
+import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider, moonshotProvider } from '@/lib/ai-providers/openai-compatible';
+import { geminiNativeProvider } from '@/lib/ai-providers/gemini-native';
+import { OpenAICompatibleProvider } from '@/lib/ai-providers/openai-compatible';
+import { qwenVlProvider, geminiVlProvider } from '@/lib/ai-providers/vision-provider';
 
 // Provider 注册表（按供应商）
 const providers: Record<AIVendor, AIProvider> = {
@@ -54,7 +54,7 @@ export function getProviderByVendor(vendor: AIVendor): AIProvider {
 }
 
 // 导出类型和工具函数
-export type { AIProvider, AIProviderOptions, AIStreamChunk } from './base';
-export { createMockStream, getApiKey } from './base';
-export type { VisionProviderOptions } from './vision-provider';
+export type { AIProvider, AIProviderOptions, AIStreamChunk } from '@/lib/ai-providers/base';
+export { createMockStream, getApiKey } from '@/lib/ai-providers/base';
+export type { VisionProviderOptions } from '@/lib/ai-providers/vision-provider';
 

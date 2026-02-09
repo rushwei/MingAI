@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
-import { getAuthContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { DEFAULT_MODEL_ID, getModelConfigAsync } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
@@ -27,16 +27,17 @@ interface PreviewRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-    const { supabase, user } = await getAuthContext(request);
-    if (!user) {
-        return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status);
     }
+    const { supabase, user } = auth;
 
     let body: PreviewRequestBody;
     try {
         body = (await request.json()) as PreviewRequestBody;
     } catch {
-        return NextResponse.json({ error: '请求体不是有效的 JSON' }, { status: 400 });
+        return jsonError('请求体不是有效的 JSON', 400);
     }
 
     try {
@@ -45,12 +46,12 @@ export async function POST(request: NextRequest) {
             : DEFAULT_MODEL_ID;
         const modelConfig = await getModelConfigAsync(requestedModelId);
         if (!modelConfig) {
-            return NextResponse.json({ error: '无效的模型' }, { status: 400 });
+            return jsonError('无效的模型', 400);
         }
 
         const membershipType = await getEffectiveMembershipType(user.id);
         if (!isModelAllowedForMembership(modelConfig, membershipType)) {
-            return NextResponse.json({ error: '当前会员等级无法使用该模型' }, { status: 403 });
+            return jsonError('当前会员等级无法使用该模型', 403);
         }
 
         const reasoningEnabled = isReasoningAllowedForMembership(modelConfig, membershipType)
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
         const contextTotal = contextConfig.maxContext;
         const remainingContext = Math.max(0, contextTotal - historyTokens);
         const previewText = promptBuild.systemPrompt.slice(0, 500);
-        return NextResponse.json({
+        return jsonOk({
             diagnostics: promptBuild.diagnostics,
             totalTokens: promptBuild.totalTokens,
             budgetTotal: promptBuild.budgetTotal,
@@ -215,6 +216,6 @@ export async function POST(request: NextRequest) {
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown error';
-        return NextResponse.json({ error: '生成预览失败', message }, { status: 500 });
+        return jsonError('生成预览失败', 500, { message });
     }
 }

@@ -4,7 +4,7 @@
  * 管理用户等级、经验值、称号等
  */
 
-import { getServiceRoleClient } from './api-utils';
+import { getServiceRoleClient } from '@/lib/api-utils';
 
 // ===== 等级配置 =====
 

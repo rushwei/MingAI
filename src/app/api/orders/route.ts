@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
+import { requireBearerUser, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 type OrderRecord = {
     id: string;
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     try {
         const auth = await requireBearerUser(request);
         if ('error' in auth) {
-            return NextResponse.json({ error: auth.error.message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status);
         }
         const userId = auth.user.id;
         const supabase = getServiceRoleClient();
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false });
 
         if (ordersError) {
-            return NextResponse.json({ error: '获取订单失败' }, { status: 500 });
+            return jsonError('获取订单失败', 500);
         }
 
         const { data: activationKeys, error: activationError } = await supabase
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
             .order('used_at', { ascending: false });
 
         if (activationError) {
-            return NextResponse.json({ error: '获取激活记录失败' }, { status: 500 });
+            return jsonError('获取激活记录失败', 500);
         }
 
         const activationOrders: OrderRecord[] = (activationKeys as ActivationKeyRecord[] | null || [])
@@ -74,9 +74,9 @@ export async function GET(request: NextRequest) {
             ...activationOrders,
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        return NextResponse.json({ data: allOrders });
+        return jsonOk({ data: allOrders });
     } catch (error) {
         console.error('[api/orders] Error:', error);
-        return NextResponse.json({ error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500);
     }
 }

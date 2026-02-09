@@ -14,9 +14,9 @@ import { getModelName } from '@/lib/ai-config';
 import { formatMentionsForDisplay } from '@/lib/format-mentions';
 import { extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens } from '@/lib/mention-tokens';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { ThinkingBlock } from './ThinkingBlock';
-import { SourcePanel } from './SourcePanel';
-import { buildMentionHighlightedParts } from './mentionHighlight';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
+import { SourcePanel } from '@/components/chat/SourcePanel';
+import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
 
 export interface ChatMessageItemProps {
     message: ChatMessage;

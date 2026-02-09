@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, Mail, RefreshCw } from 'lucide-react';
 import { sendOTP, verifyOTP } from '@/lib/auth';
-import { VerificationCodeInput } from '../auth/VerificationCodeInput';
+import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 
 type EmailChangeStep = 'idle' | 'input-email' | 'verify';
 

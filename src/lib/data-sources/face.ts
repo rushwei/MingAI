@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { FACE_ANALYSIS_TYPES } from '@/lib/face';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type FaceRow = {
     id: string;

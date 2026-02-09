@@ -1,6 +1,6 @@
 import { MapPinned } from 'lucide-react';
 import type { BaziFormData } from '@/types';
-import { LocationAutocomplete } from './LocationAutocomplete';
+import { LocationAutocomplete } from '@/components/bazi/form/LocationAutocomplete';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 

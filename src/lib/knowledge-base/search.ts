@@ -1,9 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { callReranker } from './reranker';
-import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from './embedding-config';
-import type { RankedResult, SearchCandidate, SearchOptions } from './types';
+import { callReranker } from '@/lib/knowledge-base/reranker';
+import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from '@/lib/knowledge-base/embedding-config';
+import type { RankedResult, SearchCandidate, SearchOptions } from '@/lib/knowledge-base/types';
 import { createClient } from '@supabase/supabase-js';
 
 interface SearchConfigInternal {

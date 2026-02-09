@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, Loader2, Copy, Check } from 'lucide-react';
-import { AIAnalysisLock } from './AIAnalysisLock';
+import { AIAnalysisLock } from '@/components/bazi/result/AIAnalysisLock';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';

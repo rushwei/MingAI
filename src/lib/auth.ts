@@ -5,7 +5,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type AuthError = {

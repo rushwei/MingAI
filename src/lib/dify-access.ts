@@ -7,7 +7,7 @@
  * - pro: 可以同时使用 file 和 web
  */
 
-import type { MembershipType } from './membership';
+import type { MembershipType } from '@/lib/membership';
 import type { DifyMode } from '@/types';
 
 export interface DifyAccessResult {

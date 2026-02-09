@@ -4,8 +4,8 @@
  * 将紫微命盘转换为可读的文字格式，用于AI分析
  */
 
-import type { ZiweiChart, PalaceInfo, StarInfo, DecadalInfo } from './ziwei';
-import { getDecadalList, getHoroscope } from './ziwei';
+import type { ZiweiChart, PalaceInfo, StarInfo, DecadalInfo } from '@/lib/ziwei';
+import { getDecadalList, getHoroscope } from '@/lib/ziwei';
 
 /**
  * 将星曜信息转为文字

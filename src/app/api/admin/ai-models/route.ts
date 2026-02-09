@@ -4,7 +4,7 @@
  * GET: 获取所有模型配置（含来源）
  * POST: 创建新模型
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
 
 // 检查环境变量是否存在
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
             return jsonError('创建模型失败', 500);
         }
 
-        return NextResponse.json({ success: true, model }, { status: 201 });
+        return jsonOk({ success: true, model }, 201);
     } catch (e) {
         console.error('[ai-models] Invalid request body:', e);
         return jsonError('请求格式错误', 400);

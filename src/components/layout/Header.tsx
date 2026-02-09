@@ -19,11 +19,11 @@ import {
     Moon,
     Sun,
 } from 'lucide-react';
-import { ThemeToggle } from '../ui/ThemeToggle';
-import { useTheme } from '../ui/ThemeProvider';
-import { AuthModal } from '../auth/AuthModal';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useTheme } from '@/components/ui/ThemeProvider';
+import { AuthModal } from '@/components/auth/AuthModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
-import { useHeaderMenuSafe } from './HeaderMenuContext';
+import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
 
 // 路由到标题的映射
 const ROUTE_LABELS: Record<string, string> = {

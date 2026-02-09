@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Coins, Plus, Minus } from 'lucide-react';
-import { PaymentModal } from './PaymentModal';
+import { PaymentModal } from '@/components/membership/PaymentModal';
 import type { PricingPlan } from '@/lib/membership';
 
 interface PayPerUseProps {

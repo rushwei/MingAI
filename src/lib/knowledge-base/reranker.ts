@@ -1,4 +1,4 @@
-import type { RankedResult, SearchCandidate } from './types';
+import type { RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 
 export interface RerankerConfig {
     provider: 'qwen' | 'local';

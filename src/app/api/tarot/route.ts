@@ -5,13 +5,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
-import { getAuthContext, requireBearerUser } from '@/lib/api-utils';
 
 // 请求类型
 interface TarotRequest {
@@ -52,14 +51,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
         switch (action) {
             // 获取所有牌阵列表
             case 'list-spreads':
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { spreads: TAROT_SPREADS }
                 });
 
             // 获取所有塔罗牌列表
             case 'list-cards':
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { allCards: TAROT_CARDS }
                 });
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             // 随机抽牌
             case 'draw':
                 const drawnCards = drawCards(Math.min(count, 10), allowReversed);
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { cards: drawnCards }
                 });
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             // 每日一牌
             case 'daily':
                 const dailyCard = getDailyCard();
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { dailyCard }
                 });
@@ -83,17 +82,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             // 按牌阵抽牌
             case 'spread': {
                 if (!spreadId) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请指定牌阵ID'
-                    }, { status: 400 });
+                    return jsonError('请指定牌阵ID', 400, { success: false });
                 }
                 const spreadResult = drawForSpread(spreadId, allowReversed);
                 if (!spreadResult) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '未找到指定牌阵'
-                    }, { status: 404 });
+                    return jsonError('未找到指定牌阵', 404, { success: false });
                 }
 
                 // 如果用户已登录，保存抽牌记录
@@ -122,7 +115,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }
                 }
 
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: {
                         spread: spreadResult.spread,
@@ -134,19 +127,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 
             case 'draw-only': {
                 if (!spreadId) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请指定牌阵ID'
-                    }, { status: 400 });
+                    return jsonError('请指定牌阵ID', 400, { success: false });
                 }
                 const spreadResult = drawForSpread(spreadId, allowReversed);
                 if (!spreadResult) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '未找到指定牌阵'
-                    }, { status: 404 });
+                    return jsonError('未找到指定牌阵', 404, { success: false });
                 }
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: {
                         spread: spreadResult.spread,
@@ -157,18 +144,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 
             case 'save': {
                 if (!spreadId || !cards || cards.length === 0) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请提供牌阵与抽牌结果'
-                    }, { status: 400 });
+                    return jsonError('请提供牌阵与抽牌结果', 400, { success: false });
                 }
 
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {
-                    return NextResponse.json({
-                        success: false,
-                        error: authResult.error.message
-                    }, { status: authResult.error.status });
+                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
                 const { user: saveUser } = authResult;
 
@@ -186,13 +167,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
 
                 if (insertError) {
                     console.error('[tarot] 保存抽牌记录失败:', insertError.message);
-                    return NextResponse.json({
-                        success: false,
-                        error: '保存记录失败'
-                    }, { status: 500 });
+                    return jsonError('保存记录失败', 500, { success: false });
                 }
 
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { readingId: insertedReading?.id || null }
                 });
@@ -201,38 +179,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             // AI 解读塔罗牌
             case 'interpret':
                 if (!cards || cards.length === 0) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请提供要解读的塔罗牌'
-                    }, { status: 400 });
+                    return jsonError('请提供要解读的塔罗牌', 400, { success: false });
                 }
 
                 // 检查用户认证
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {
-                    return NextResponse.json({
-                        success: false,
-                        error: authResult.error.message
-                    }, { status: authResult.error.status });
+                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
                 const { user } = authResult;
 
                 // 检查用户积分（使用服务端客户端绕过 RLS）
                 const hasEnoughCredits = await hasCredits(user.id);
                 if (!hasEnoughCredits) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '积分不足，请充值后使用'
-                    }, { status: 403 });
+                    return jsonError('积分不足，请充值后使用', 403, { success: false });
                 }
 
                 const membershipType = await getEffectiveMembershipType(user.id);
                 const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
                 if ('error' in access) {
-                    return NextResponse.json({
-                        success: false,
-                        error: access.error
-                    }, { status: access.status });
+                    return jsonError(access.error, access.status, { success: false });
                 }
                 const { modelId: requestedModelId, reasoningEnabled } = access;
 
@@ -263,10 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 const remainingCredits = await useCredit(user.id);
                 if (remainingCredits === null) {
                     console.error('[tarot] 扣除积分失败');
-                    return NextResponse.json({
-                        success: false,
-                        error: '积分扣减失败，请稍后重试'
-                    }, { status: 500 });
+                    return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
                 }
 
                 try {
@@ -412,7 +375,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         }
                     }
 
-                    return NextResponse.json({
+                    return jsonOk({
                         success: true,
                         data: { interpretation, reasoning: reasoningText, cards, conversationId }
                     });
@@ -420,24 +383,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 } catch (aiError) {
                     await addCredits(user.id, 1);
                     console.error('AI 解读失败:', aiError);
-                    return NextResponse.json({
-                        success: false,
-                        error: 'AI 解读失败，请稍后重试'
-                    }, { status: 500 });
+                    return jsonError('AI 解读失败，请稍后重试', 500, { success: false });
                 }
 
             default:
-                return NextResponse.json({
-                    success: false,
-                    error: '未知的操作类型'
-                }, { status: 400 });
+                return jsonError('未知的操作类型', 400, { success: false });
         }
     } catch (error) {
         console.error('塔罗牌 API 错误:', error);
-        return NextResponse.json({
-            success: false,
-            error: '服务器错误'
-        }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }
 
@@ -449,27 +403,24 @@ export async function GET(request: NextRequest): Promise<NextResponse<TarotRespo
     switch (action) {
         case 'daily':
             const dailyCard = getDailyCard();
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 data: { dailyCard }
             });
 
         case 'spreads':
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 data: { spreads: TAROT_SPREADS }
             });
 
         case 'cards':
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 data: { allCards: TAROT_CARDS }
             });
 
         default:
-            return NextResponse.json({
-                success: false,
-                error: '使用 POST 方法进行抽牌和解读操作'
-            }, { status: 400 });
+            return jsonError('使用 POST 方法进行抽牌和解读操作', 400, { success: false });
     }
 }

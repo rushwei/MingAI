@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type ZiweiRow = {
     id: string;

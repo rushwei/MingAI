@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { useStreamingText, type StreamingTextOptions } from './useStreamingText';
+import { useStreamingText, type StreamingTextOptions } from '@/lib/useStreamingText';
 
 export interface StreamingState {
     content: string;

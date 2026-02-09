@@ -5,29 +5,23 @@
  * POST /api/dify/enhance
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { callDifyWorkflow, isDifyAvailable } from '@/lib/dify';
 import { checkDifyAccess } from '@/lib/dify-access';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import type { DifyMode } from '@/types';
-import { requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
         // 检查 Dify API 是否可用
         if (!isDifyAvailable()) {
-            return NextResponse.json(
-                { success: false, error: 'Dify 服务未配置' },
-                { status: 503 }
-            );
+            return jsonError('Dify 服务未配置', 503, { success: false });
         }
 
         const auth = await requireUserContext(request);
         if ('error' in auth) {
-            return NextResponse.json(
-                { success: false, error: auth.error.message },
-                { status: auth.error.status }
-            );
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
         const userId = auth.user.id;
 
@@ -39,10 +33,7 @@ export async function POST(request: NextRequest) {
 
         // 验证 mode 参数
         if (!mode || !['file', 'web', 'all'].includes(mode)) {
-            return NextResponse.json(
-                { success: false, error: '无效的 mode 参数' },
-                { status: 400 }
-            );
+            return jsonError('无效的 mode 参数', 400, { success: false });
         }
 
         // 获取用户会员等级
@@ -51,10 +42,7 @@ export async function POST(request: NextRequest) {
         // 权限校验
         const accessResult = checkDifyAccess(membershipType, mode);
         if (!accessResult.allowed) {
-            return NextResponse.json(
-                { success: false, error: accessResult.reason, code: 'MEMBERSHIP_REQUIRED' },
-                { status: 403 }
-            );
+            return jsonError(accessResult.reason ?? '无权限使用该功能', 403, { success: false, code: 'MEMBERSHIP_REQUIRED' });
         }
 
         // 调用 Dify 工作流
@@ -66,21 +54,15 @@ export async function POST(request: NextRequest) {
         });
 
         if (!result.success) {
-            return NextResponse.json(
-                { success: false, error: result.error },
-                { status: 500 }
-            );
+            return jsonError(result.error ?? 'Dify 工作流调用失败', 500, { success: false });
         }
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             data: result.data,
         });
     } catch (error) {
         console.error('[dify/enhance] Error:', error);
-        return NextResponse.json(
-            { success: false, error: '服务暂时不可用' },
-            { status: 500 }
-        );
+        return jsonError('服务暂时不可用', 500, { success: false });
     }
 }

@@ -4,7 +4,7 @@
  * 提供帖子、评论、投票、举报的 CRUD 操作和管理员功能
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 
 // =====================================================
 // 类型定义

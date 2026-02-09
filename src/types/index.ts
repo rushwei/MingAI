@@ -5,7 +5,7 @@
  * 便于类型复用和统一管理
  */
 
-import type { Mention } from './mentions';
+import type { Mention } from '@/types/mentions';
 
 // ===== 基础类型 =====
 
@@ -255,7 +255,7 @@ export interface AIMessageMetadata {
     promptDiagnostics?: PromptDiagnostics;
 }
 
-export type { MentionType, Mention, MentionTarget } from './mentions';
+export type { MentionType, Mention, MentionTarget } from '@/types/mentions';
 
 /** AI 分析来源类型 */
 export type ConversationSourceType =

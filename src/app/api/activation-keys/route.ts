@@ -7,8 +7,8 @@
  * - DELETE: 删除Key (管理员)
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { requireAdminUser, requireBearerUser } from "@/lib/api-utils";
+import { NextRequest } from "next/server";
+import { jsonError, jsonOk, requireAdminUser, requireBearerUser } from "@/lib/api-utils";
 import {
     createActivationKeys,
     getAllActivationKeys,
@@ -25,8 +25,7 @@ export async function GET(request: NextRequest) {
     try {
         const auth = await requireAdminUser(request);
         if ("error" in auth) {
-            const message = auth.error.status === 401 ? "未登录" : "无权限";
-            return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status);
         }
 
         const { searchParams } = new URL(request.url);
@@ -42,10 +41,10 @@ export async function GET(request: NextRequest) {
         }
 
         const keys = await getAllActivationKeys(filters);
-        return NextResponse.json({ success: true, data: keys });
+        return jsonOk({ success: true, data: keys });
     } catch (error) {
         console.error("[api/activation-keys] GET error:", error);
-        return NextResponse.json({ success: false, error: "服务器错误" }, { status: 500 });
+        return jsonError("服务器错误", 500);
     }
 }
 
@@ -61,8 +60,7 @@ export async function POST(request: NextRequest) {
         if (body.action === "create") {
             const auth = await requireAdminUser(request);
             if ("error" in auth) {
-                const message = auth.error.status === 401 ? "未登录" : "无权限";
-                return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
+                return jsonError(auth.error.message, auth.error.status);
             }
 
             const params: CreateKeyParams = {
@@ -73,26 +71,26 @@ export async function POST(request: NextRequest) {
             };
 
             const result = await createActivationKeys(auth.user.id, params);
-            return NextResponse.json(result);
+            return jsonOk(result as Record<string, unknown>);
         } else if (body.action === "activate") {
             const auth = await requireBearerUser(request);
             if ("error" in auth) {
-                return NextResponse.json({ success: false, error: "未登录" }, { status: auth.error.status });
+                return jsonError(auth.error.message, auth.error.status);
             }
             // 激活Key - 普通用户可用
             const keyCode = body.keyCode?.trim();
             if (!keyCode) {
-                return NextResponse.json({ success: false, error: "请输入激活码" }, { status: 400 });
+                return jsonError("请输入激活码", 400);
             }
 
             const result = await activateKey(auth.user.id, keyCode);
-            return NextResponse.json(result);
+            return jsonOk(result as Record<string, unknown>);
         } else {
-            return NextResponse.json({ success: false, error: "无效的操作" }, { status: 400 });
+            return jsonError("无效的操作", 400);
         }
     } catch (error) {
         console.error("[api/activation-keys] POST error:", error);
-        return NextResponse.json({ success: false, error: "服务器错误" }, { status: 500 });
+        return jsonError("服务器错误", 500);
     }
 }
 
@@ -104,21 +102,20 @@ export async function DELETE(request: NextRequest) {
     try {
         const auth = await requireAdminUser(request);
         if ("error" in auth) {
-            const message = auth.error.status === 401 ? "未登录" : "无权限";
-            return NextResponse.json({ success: false, error: message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status);
         }
 
         const { searchParams } = new URL(request.url);
         const keyId = searchParams.get("id");
 
         if (!keyId) {
-            return NextResponse.json({ success: false, error: "缺少Key ID" }, { status: 400 });
+            return jsonError("缺少Key ID", 400);
         }
 
         const success = await deleteActivationKey(keyId);
-        return NextResponse.json({ success });
+        return jsonOk({ success });
     } catch (error) {
         console.error("[api/activation-keys] DELETE error:", error);
-        return NextResponse.json({ success: false, error: "服务器错误" }, { status: 500 });
+        return jsonError("服务器错误", 500);
     }
 }

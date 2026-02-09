@@ -1,12 +1,12 @@
 import { Calendar, TrendingUp } from 'lucide-react';
 import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/bazi';
 import type { Gender } from '@/types';
-import { DaYunTable } from './DaYunTable';
-import { LiuNianTable } from './LiuNianTable';
-import { LiuYueTable } from './LiuYueTable';
-import { LiuRiTable } from './LiuRiTable';
-import { ProfessionalTable } from './ProfessionalTable';
-import { DiZhiRelations } from './DiZhiRelations';
+import { DaYunTable } from '@/components/bazi/result/DaYunTable';
+import { LiuNianTable } from '@/components/bazi/result/LiuNianTable';
+import { LiuYueTable } from '@/components/bazi/result/LiuYueTable';
+import { LiuRiTable } from '@/components/bazi/result/LiuRiTable';
+import { ProfessionalTable } from '@/components/bazi/result/ProfessionalTable';
+import { DiZhiRelations } from '@/components/bazi/result/DiZhiRelations';
 
 export function ProfessionalSection({
     baziResult,

@@ -2,7 +2,7 @@ import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFo
 import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
 import type { BaziChart } from '@/types';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type FortuneData = { id: string; name: string; content: string; createdAt: string };
 

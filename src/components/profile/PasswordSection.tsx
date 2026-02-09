@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react';
 import { sendOTP, verifyOTP } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { PasswordStrengthIndicator, validatePasswordStrength } from '../auth/PasswordStrengthIndicator';
-import { VerificationCodeInput } from '../auth/VerificationCodeInput';
+import { PasswordStrengthIndicator, validatePasswordStrength } from '@/components/auth/PasswordStrengthIndicator';
+import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 
 type PasswordChangeStep = 'idle' | 'send-code' | 'verify' | 'set-password';
 

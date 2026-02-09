@@ -16,8 +16,8 @@ import {
     resetPasswordWithOTP,
 } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { PasswordStrengthIndicator, validatePasswordStrength } from './PasswordStrengthIndicator';
-import { VerificationCodeInput } from './VerificationCodeInput';
+import { PasswordStrengthIndicator, validatePasswordStrength } from '@/components/auth/PasswordStrengthIndicator';
+import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify-register' | 'verify-login' | 'set-password' | 'verify-reset' | 'reset-password';
 type LoginMethod = 'password' | 'otp';

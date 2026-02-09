@@ -10,7 +10,7 @@
 import { memo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { InjectedSource } from '@/types';
-import { SourceBadge } from './SourceBadge';
+import { SourceBadge } from '@/components/chat/SourceBadge';
 
 interface SourcePanelProps {
     sources: InjectedSource[];

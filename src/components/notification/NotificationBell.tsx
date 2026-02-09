@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
-import { NotificationDropdown } from './NotificationDropdown';
+import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 
 interface NotificationBellProps {
     userId: string | null;

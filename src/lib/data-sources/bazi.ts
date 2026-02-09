@@ -1,7 +1,7 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { generateBaziChartText } from '@/lib/bazi';
 import type { BaziChart } from '@/types';
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type BaziRow = {
     id: string;

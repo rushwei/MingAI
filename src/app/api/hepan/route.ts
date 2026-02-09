@@ -1,15 +1,14 @@
 /**
  * 关系合盘 API 路由
  */
-import { NextRequest, NextResponse } from 'next/server';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
+import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
-import { requireBearerUser } from '@/lib/api-utils';
 
 interface HepanRequest {
     action: 'analyze' | 'save' | 'list';
@@ -28,18 +27,12 @@ export async function POST(request: NextRequest) {
         if (action === 'save') {
             // 保存合盘记录（不含 AI 分析）
             if (!result) {
-                return NextResponse.json({
-                    success: false,
-                    error: '请提供合盘结果'
-                }, { status: 400 });
+                return jsonError('请提供合盘结果', 400, { success: false });
             }
 
             const authResult = await requireBearerUser(request);
             if ('error' in authResult) {
-                return NextResponse.json({
-                    success: false,
-                    error: authResult.error.message
-                }, { status: authResult.error.status });
+                return jsonError(authResult.error.message, authResult.error.status, { success: false });
             }
             const { user } = authResult;
 
@@ -71,13 +64,10 @@ export async function POST(request: NextRequest) {
 
             if (insertError) {
                 console.error('[hepan] 保存合盘记录失败:', insertError.message);
-                return NextResponse.json({
-                    success: false,
-                    error: '保存记录失败'
-                }, { status: 500 });
+                return jsonError('保存记录失败', 500, { success: false });
             }
 
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 data: { chartId: insertedChart?.id }
             });
@@ -85,38 +75,26 @@ export async function POST(request: NextRequest) {
 
         if (action === 'analyze') {
             if (!result) {
-                return NextResponse.json({
-                    success: false,
-                    error: '请提供合盘结果'
-                }, { status: 400 });
+                return jsonError('请提供合盘结果', 400, { success: false });
             }
 
             // 验证用户身份
             const authResult = await requireBearerUser(request);
             if ('error' in authResult) {
-                return NextResponse.json({
-                    success: false,
-                    error: authResult.error.message
-                }, { status: authResult.error.status });
+                return jsonError(authResult.error.message, authResult.error.status, { success: false });
             }
             const { user } = authResult;
 
             // 检查积分
             const hasEnoughCredits = await hasCredits(user.id);
             if (!hasEnoughCredits) {
-                return NextResponse.json({
-                    success: false,
-                    error: '积分不足，请充值后使用'
-                }, { status: 403 });
+                return jsonError('积分不足，请充值后使用', 403, { success: false });
             }
 
             const membershipType = await getEffectiveMembershipType(user.id);
             const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
             if ('error' in access) {
-                return NextResponse.json({
-                    success: false,
-                    error: access.error
-                }, { status: access.status });
+                return jsonError(access.error, access.status, { success: false });
             }
             const { modelId: requestedModelId, reasoningEnabled } = access;
 
@@ -162,10 +140,7 @@ ${conflictsSummary}
             const remainingCredits = await useCredit(user.id);
             if (remainingCredits === null) {
                 console.error('[hepan] 扣除积分失败');
-                return NextResponse.json({
-                    success: false,
-                    error: '积分扣减失败，请稍后重试'
-                }, { status: 500 });
+                return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
             }
 
             try {
@@ -349,7 +324,7 @@ ${conflictsSummary}
                     }
                 }
 
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { analysis, reasoning: reasoningText, conversationId }
                 });
@@ -357,20 +332,14 @@ ${conflictsSummary}
             } catch (aiError) {
                 await addCredits(user.id, 1);
                 console.error('[hepan] AI 分析失败:', aiError);
-                return NextResponse.json({
-                    success: false,
-                    error: 'AI 分析失败，请稍后重试'
-                }, { status: 500 });
+                return jsonError('AI 分析失败，请稍后重试', 500, { success: false });
             }
         }
 
         if (action === 'list') {
             const authResult = await requireBearerUser(request);
             if ('error' in authResult) {
-                return NextResponse.json({
-                    success: false,
-                    error: authResult.error.message
-                }, { status: authResult.error.status });
+                return jsonError(authResult.error.message, authResult.error.status, { success: false });
             }
             const { user } = authResult;
 
@@ -383,28 +352,19 @@ ${conflictsSummary}
                 .limit(20);
 
             if (listError) {
-                return NextResponse.json({
-                    success: false,
-                    error: '获取历史记录失败'
-                }, { status: 500 });
+                return jsonError('获取历史记录失败', 500, { success: false });
             }
 
-            return NextResponse.json({
+            return jsonOk({
                 success: true,
                 data: { charts }
             });
         }
 
-        return NextResponse.json({
-            success: false,
-            error: '未知操作'
-        }, { status: 400 });
+        return jsonError('未知操作', 400, { success: false });
 
     } catch (error) {
         console.error('[hepan] API 错误:', error);
-        return NextResponse.json({
-            success: false,
-            error: '服务器错误'
-        }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }

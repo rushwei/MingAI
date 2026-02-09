@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from "./api-utils";
+import { getServiceRoleClient } from "@/lib/api-utils";
 
 const PAYMENTS_PAUSED_KEY = "payments_paused";
 

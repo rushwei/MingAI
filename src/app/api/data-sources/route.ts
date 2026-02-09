@@ -1,16 +1,19 @@
 import '@/lib/data-sources/init';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
-import { getAuthContext, jsonError, getAccessToken, createAuthedClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
 import { createMemoryCache } from '@/lib/cache';
 
 const CACHE_TTL_MS = 15_000;
 const cache = createMemoryCache<{ status: number; payload: unknown }>(CACHE_TTL_MS);
 
 export async function GET(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status);
+    }
+    const user = auth.user;
 
     try {
         const url = new URL(request.url);
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest) {
         const cacheKey = `${user.id}:${limit}`;
         const cached = cache.get(cacheKey);
         if (!fresh && cached) {
-            return NextResponse.json(cached.payload, { status: cached.status });
+            return jsonOk(cached.payload as Record<string, unknown>, cached.status);
         }
 
         const accessToken = await getAccessToken(request);
@@ -34,9 +37,9 @@ export async function GET(request: NextRequest) {
         const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit });
         const status = result.errors.length ? 206 : 200;
         cache.set(cacheKey, { status, payload: result });
-        return NextResponse.json(result, { status });
+        return jsonOk(result as unknown as Record<string, unknown>, status);
     } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown error';
-        return NextResponse.json({ error: '加载数据源失败', message }, { status: 500 });
+        return jsonError('加载数据源失败', 500, { message });
     }
 }

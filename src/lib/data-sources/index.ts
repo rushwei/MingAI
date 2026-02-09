@@ -1,4 +1,4 @@
-import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary, DataSourceType } from './types';
+import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary, DataSourceType } from '@/lib/data-sources/types';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { ziweiProvider } from '@/lib/data-sources/ziwei';
 import { tarotProvider } from '@/lib/data-sources/tarot';

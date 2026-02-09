@@ -5,9 +5,9 @@
  * MVP阶段使用模拟支付
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getPaymentsPaused } from '@/lib/app-settings';
-import { getServiceRoleClient, requireUserContext } from '@/lib/api-utils';
+import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { addCredits } from '@/lib/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
@@ -24,20 +24,14 @@ export async function POST(request: NextRequest) {
     try {
         const paymentsPaused = await getPaymentsPaused();
         if (paymentsPaused) {
-            return NextResponse.json(
-                { error: '支付已暂停' },
-                { status: 403 }
-            );
+            return jsonError('支付已暂停', 403);
         }
 
         const { count, amount } = await request.json();
 
         // 验证购买参数
         if (!count || count <= 0 || !amount || amount <= 0) {
-            return NextResponse.json(
-                { error: '无效的购买参数' },
-                { status: 400 }
-            );
+            return jsonError('无效的购买参数', 400);
         }
 
         // 验证套餐是否存在，或者是自定义数量（按 9.9元/次 计算）
@@ -49,18 +43,12 @@ export async function POST(request: NextRequest) {
         );
 
         if (!pkg && !isValidCustom) {
-            return NextResponse.json(
-                { error: '无效的套餐' },
-                { status: 400 }
-            );
+            return jsonError('无效的套餐', 400);
         }
 
         const auth = await requireUserContext(request);
         if ('error' in auth) {
-            return NextResponse.json(
-                { error: auth.error.message },
-                { status: auth.error.status }
-            );
+            return jsonError(auth.error.message, auth.error.status);
         }
         const { user } = auth;
         const userId = user.id;
@@ -84,10 +72,7 @@ export async function POST(request: NextRequest) {
 
         if (orderError) {
             console.error('Error creating pay_per_use order:', orderError);
-            return NextResponse.json(
-                { error: '创建订单失败' },
-                { status: 500 }
-            );
+            return jsonError('创建订单失败', 500);
         }
 
         // 使用原子增量避免并发覆盖
@@ -100,22 +85,16 @@ export async function POST(request: NextRequest) {
                     .eq('id', orderRow.id)
                     .eq('user_id', userId);
             }
-            return NextResponse.json(
-                { error: '更新积分失败' },
-                { status: 500 }
-            );
+            return jsonError('更新积分失败', 500);
         }
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             credits: newCredits,
             purchased: count,
         });
     } catch (error) {
         console.error('[membership/purchase-credits] Error:', error);
-        return NextResponse.json(
-            { error: '服务器错误' },
-            { status: 500 }
-        );
+        return jsonError('服务器错误', 500);
     }
 }

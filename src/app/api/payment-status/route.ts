@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getPaymentsPaused, setPaymentsPaused } from "@/lib/app-settings";
-import { requireAdminUser } from "@/lib/api-utils";
+import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
 import { createMemoryCache } from "@/lib/cache";
 
 const CACHE_TTL_MS = 30_000;
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
             const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
             console.info(`[perf:payment-status:get] ${duration}ms`, { cached: true });
         }
-        return NextResponse.json({ paused: cached });
+        return jsonOk({ paused: cached });
     }
     const paused = await getPaymentsPaused();
     pausedCache.set('status', paused);
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
         console.info(`[perf:payment-status:get] ${duration}ms`);
     }
-    return NextResponse.json({ paused });
+    return jsonOk({ paused });
 }
 
 export async function POST(request: NextRequest) {
@@ -32,26 +32,17 @@ export async function POST(request: NextRequest) {
         const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const auth = await requireAdminUser(request);
         if ("error" in auth) {
-            return NextResponse.json(
-                { error: auth.error.message },
-                { status: auth.error.status }
-            );
+            return jsonError(auth.error.message, auth.error.status);
         }
 
         const { paused } = await request.json();
         if (typeof paused !== "boolean") {
-            return NextResponse.json(
-                { error: "无效的参数" },
-                { status: 400 }
-            );
+            return jsonError("无效的参数", 400);
         }
 
         const success = await setPaymentsPaused(paused);
         if (!success) {
-            return NextResponse.json(
-                { error: "更新失败" },
-                { status: 500 }
-            );
+            return jsonError("更新失败", 500);
         }
 
         pausedCache.set('status', paused);
@@ -59,12 +50,9 @@ export async function POST(request: NextRequest) {
             const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
             console.info(`[perf:payment-status:post] ${duration}ms`);
         }
-        return NextResponse.json({ success: true, paused });
+        return jsonOk({ success: true, paused });
     } catch (error) {
         console.error("[payment-status] Error:", error);
-        return NextResponse.json(
-            { error: "服务器错误" },
-            { status: 500 }
-        );
+        return jsonError("服务器错误", 500);
     }
 }

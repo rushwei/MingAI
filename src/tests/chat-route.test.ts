@@ -37,6 +37,7 @@ function setupRouteMocks(
     const membershipServerModule = require('../lib/membership-server') as any;
     const promptBuilderModule = require('../lib/prompt-builder') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
+    const apiUtilsModule = require('../lib/api-utils') as any;
 
     const originalCallAIStream = aiModule.callAIStream;
     const originalHasCredits = creditsModule.hasCredits;
@@ -50,6 +51,7 @@ function setupRouteMocks(
     const originalGetPromptBudget = promptBuilderModule.getPromptBudget;
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
 
     const state: MockState = {
         useCreditCalls: 0,
@@ -89,6 +91,14 @@ function setupRouteMocks(
         budgetTotal: 0,
         userMessageTokens: 0,
         systemPrompt: '',
+    });
+    apiUtilsModule.requireUserContext = async () => ({
+        user: { id: 'user-1' },
+        supabase: {
+            auth: {
+                getSession: async () => ({ data: { session: null } }),
+            },
+        },
     });
 
     supabaseServerModule.getServiceClient = () => ({
@@ -137,6 +147,7 @@ function setupRouteMocks(
         promptBuilderModule.getPromptBudget = originalGetPromptBudget;
         promptBuilderModule.resolvePersonalities = originalResolvePersonalities;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
     });
 
     return state;

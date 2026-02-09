@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Clock, Info } from 'lucide-react';
 import type { BaziFormData } from '@/types';
-import type { HourOption } from './options';
+import type { HourOption } from '@/components/bazi/form/options';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 

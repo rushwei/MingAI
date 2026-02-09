@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
-import { CalendarModal } from './CalendarModal';
+import { CalendarModal } from '@/components/checkin/CalendarModal';
 
 interface CheckinStatus {
     canCheckin: boolean;

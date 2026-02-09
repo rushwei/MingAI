@@ -4,8 +4,8 @@
  * 提供激活Key的创建、验证、激活等功能
  */
 
-import { getServiceRoleClient } from "./api-utils";
-import type { MembershipType } from "./membership";
+import { getServiceRoleClient } from "@/lib/api-utils";
+import type { MembershipType } from "@/lib/membership";
 
 // Key类型
 export type KeyType = 'membership' | 'credits';

@@ -4,9 +4,9 @@
  * 使用 Supabase 存储对话历史，支持跨设备同步
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 import type { ChatMessage, AIPersonality, Conversation } from '@/types';
-import { hydrateConversationMessages } from './ai-analysis-query';
+import { hydrateConversationMessages } from '@/lib/ai-analysis-query';
 
 // ===== 类型定义 =====
 

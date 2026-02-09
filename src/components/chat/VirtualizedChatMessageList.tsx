@@ -10,7 +10,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ChatMessage, Mention } from '@/types';
-import { ChatMessageItem } from './ChatMessageItem';
+import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { isNearBottom } from '@/lib/chat-scroll';
 
 interface VirtualizedChatMessageListProps {

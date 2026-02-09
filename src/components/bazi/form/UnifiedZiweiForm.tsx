@@ -10,9 +10,9 @@
 import { useState } from 'react';
 import { Clock, MapPin, ChevronRight, Loader2 } from 'lucide-react';
 import type { BaziFormData, CalendarType } from '@/types';
-import { TimeInputModal } from './TimeInputModal';
-import { PlaceInputModal } from './PlaceInputModal';
-import { YEAR_OPTIONS, MONTH_OPTIONS, LUNAR_MONTH_NAMES } from './options';
+import { TimeInputModal } from '@/components/bazi/form/TimeInputModal';
+import { PlaceInputModal } from '@/components/bazi/form/PlaceInputModal';
+import { YEAR_OPTIONS, MONTH_OPTIONS, LUNAR_MONTH_NAMES } from '@/components/bazi/form/options';
 import { LunarMonth, LunarYear } from 'lunar-javascript';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;

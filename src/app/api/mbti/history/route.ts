@@ -3,15 +3,15 @@
  *
  * 提供历史记录列表与删除操作
  */
-import { NextRequest, NextResponse } from 'next/server';
-import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
+import { requireBearerUser, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 const MAX_HISTORY = 50;
 
 export async function GET(request: NextRequest) {
     const auth = await requireBearerUser(request);
     if ('error' in auth) {
-        return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
+        return jsonError(auth.error.message, auth.error.status, { success: false });
     }
     const { user } = auth;
 
@@ -24,23 +24,23 @@ export async function GET(request: NextRequest) {
         .limit(MAX_HISTORY);
 
     if (fetchError) {
-        return NextResponse.json({ success: false, error: '加载历史记录失败' }, { status: 500 });
+        return jsonError('加载历史记录失败', 500, { success: false });
     }
 
-    return NextResponse.json({ success: true, data: data || [] });
+    return jsonOk({ success: true, data: data || [] });
 }
 
 export async function DELETE(request: NextRequest) {
     const auth = await requireBearerUser(request);
     if ('error' in auth) {
-        return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
+        return jsonError(auth.error.message, auth.error.status, { success: false });
     }
     const { user } = auth;
 
     const body = await request.json().catch(() => ({}));
     const id = body?.id as string | undefined;
     if (!id) {
-        return NextResponse.json({ success: false, error: '缺少记录ID' }, { status: 400 });
+        return jsonError('缺少记录ID', 400, { success: false });
     }
 
     const serviceClient = getServiceRoleClient();
@@ -52,7 +52,7 @@ export async function DELETE(request: NextRequest) {
         .single();
 
     if (fetchError || !row) {
-        return NextResponse.json({ success: false, error: '记录不存在' }, { status: 404 });
+        return jsonError('记录不存在', 404, { success: false });
     }
 
     const { error: deleteError } = await serviceClient
@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest) {
         .eq('user_id', user.id);
 
     if (deleteError) {
-        return NextResponse.json({ success: false, error: '删除失败' }, { status: 500 });
+        return jsonError('删除失败', 500, { success: false });
     }
 
     if (row.conversation_id) {
@@ -73,5 +73,5 @@ export async function DELETE(request: NextRequest) {
             .eq('user_id', user.id);
     }
 
-    return NextResponse.json({ success: true });
+    return jsonOk({ success: true });
 }

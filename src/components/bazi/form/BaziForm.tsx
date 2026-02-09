@@ -1,10 +1,10 @@
 import type { BaziFormData } from '@/types';
-import { BasicInfoSection } from './BasicInfoSection';
-import { BirthDateSection } from './BirthDateSection';
-import { BirthTimeSection } from './BirthTimeSection';
-import { BirthPlaceSection } from './BirthPlaceSection';
-import { SubmitSection } from './SubmitSection';
-import { HOUR_OPTIONS, MONTH_OPTIONS, YEAR_OPTIONS } from './options';
+import { BasicInfoSection } from '@/components/bazi/form/BasicInfoSection';
+import { BirthDateSection } from '@/components/bazi/form/BirthDateSection';
+import { BirthTimeSection } from '@/components/bazi/form/BirthTimeSection';
+import { BirthPlaceSection } from '@/components/bazi/form/BirthPlaceSection';
+import { SubmitSection } from '@/components/bazi/form/SubmitSection';
+import { HOUR_OPTIONS, MONTH_OPTIONS, YEAR_OPTIONS } from '@/components/bazi/form/options';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 

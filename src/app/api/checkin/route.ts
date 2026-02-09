@@ -1,7 +1,7 @@
 /**
  * 签到 API
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import {
     getCheckinStatus,
     performCheckin,
@@ -9,7 +9,7 @@ import {
     getCheckinStats
 } from '@/lib/checkin';
 import { getUserLevel } from '@/lib/gamification';
-import { requireBearerUser } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createMemoryCache, createSingleFlight } from '@/lib/cache';
 
 const STATUS_CACHE_TTL_MS = 60_000;
@@ -49,14 +49,14 @@ interface CheckinResponse {
 }
 
 // GET - 获取签到状态
-export async function GET(request: NextRequest): Promise<NextResponse<CheckinResponse>> {
+export async function GET(request: NextRequest) {
     try {
         const requestUrl = new URL(request.url);
         const perfEnabled = requestUrl.searchParams.get('perf') === '1';
         const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const auth = await requireBearerUser(request);
         if ('error' in auth) {
-            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
         const { user } = auth;
 
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
                         const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                         console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id, cached: true });
                     }
-                    return NextResponse.json({
+                    return jsonOk({
                         success: true,
                         data: cached,
                     });
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:status] ${duration}ms`, { userId: user.id });
                 }
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data,
                 });
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:calendar] ${duration}ms`, { userId: user.id, year, month });
                 }
-                return NextResponse.json({ success: true, data: { calendar } });
+                return jsonOk({ success: true, data: { calendar } });
             }
 
             case 'stats': {
@@ -120,34 +120,33 @@ export async function GET(request: NextRequest): Promise<NextResponse<CheckinRes
                     const duration = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - perfStart);
                     console.info(`[perf:checkin:stats] ${duration}ms`, { userId: user.id });
                 }
-                return NextResponse.json({ success: true, data: { stats } });
+                return jsonOk({ success: true, data: { stats } });
             }
 
             default:
-                return NextResponse.json({ success: false, error: '未知操作' }, { status: 400 });
+                return jsonError('未知操作', 400, { success: false });
         }
     } catch (error) {
         console.error('[checkin API] 错误:', error);
-        return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }
 
 // POST - 执行签到
-export async function POST(request: NextRequest): Promise<NextResponse<CheckinResponse>> {
+export async function POST(request: NextRequest) {
     try {
         const auth = await requireBearerUser(request);
         if ('error' in auth) {
-            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status, { success: false });
         }
         const { user } = auth;
 
         const result = await performCheckin(user.id);
 
         if (!result.success) {
-            return NextResponse.json({
+            return jsonError(result.error || '签到失败', 400, {
                 success: false,
-                error: result.error || '签到失败',
-            }, { status: 400 });
+            });
         }
 
         statusCache.remove(user.id);
@@ -156,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CheckinRe
         // 获取更新后的等级信息
         const level = await getUserLevel(user.id);
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             data: {
                 result: {
@@ -175,6 +174,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CheckinRe
         });
     } catch (error) {
         console.error('[checkin API] 签到错误:', error);
-        return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }

@@ -4,10 +4,10 @@
  * 管理节气提醒、运势提醒、关键日提醒等
  */
 
-import { getServiceRoleClient } from './api-utils';
-import { createNotification } from './notification-server';
-import { getNextSolarTerm, getSolarTermMeaning } from './solar-terms';
-import { calculateDailyFortune, generateEnhancedKeyDates } from './fortune';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { createNotification } from '@/lib/notification-server';
+import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/solar-terms';
+import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/fortune';
 import type { BaziChart } from '@/types';
 
 // ===== 提醒类型 =====

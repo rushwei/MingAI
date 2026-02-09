@@ -1,5 +1,5 @@
-import { getServiceRoleClient } from "./api-utils";
-import type { MembershipType } from "./membership";
+import { getServiceRoleClient } from "@/lib/api-utils";
+import type { MembershipType } from "@/lib/membership";
 
 export async function getEffectiveMembershipType(userId: string): Promise<MembershipType> {
     try {

@@ -7,10 +7,10 @@
  */
 
 import type { AIPersonality, AIPersonalityConfig } from '@/types';
-import { getProvider, createMockStream } from './ai-providers';
-import type { AIRequestMessage } from './ai-providers/base';
-import { getModelConfigAsync, DEFAULT_MODEL_ID } from './ai-config';
-import { recordAIStatsAsync } from './ai-stats';
+import { getProvider, createMockStream } from '@/lib/ai-providers';
+import type { AIRequestMessage } from '@/lib/ai-providers/base';
+import { getModelConfigAsync, DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { recordAIStatsAsync } from '@/lib/ai-stats';
 
 // ===== 时间辅助函数 =====
 

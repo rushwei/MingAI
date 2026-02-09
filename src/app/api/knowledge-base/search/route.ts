@@ -1,11 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import type { RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
-import { getAuthContext, jsonError, getAccessToken } from '@/lib/api-utils';
+import { jsonError, getAccessToken, jsonOk, requireUserContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status);
+    }
 
     const token = await getAccessToken(request);
 
@@ -20,8 +22,8 @@ export async function POST(request: NextRequest) {
     const first = (results as Array<SearchCandidate | RankedResult>)[0];
 
     if (first && 'rank' in first) {
-        return NextResponse.json({ candidates: [], ranked: results });
+        return jsonOk({ candidates: [], ranked: results });
     }
 
-    return NextResponse.json({ candidates: results, ranked: null });
+    return jsonOk({ candidates: results, ranked: null });
 }

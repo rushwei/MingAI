@@ -4,8 +4,8 @@ import type { ChatMessage } from '@/types';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { generateEmbeddings } from './embedding-config';
-import type { IngestResult } from './types';
+import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
+import type { IngestResult } from '@/lib/knowledge-base/types';
 
 interface ChunkConfig {
     maxChunkSize: number;

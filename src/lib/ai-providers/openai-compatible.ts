@@ -5,8 +5,8 @@
  */
 
 import type { AIModelConfig, AIVendor } from '@/types';
-import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
-import { toOpenAIMessages, createMockStream, getApiKey } from './base';
+import type { AIProvider, AIProviderOptions, AIRequestMessage } from '@/lib/ai-providers/base';
+import { toOpenAIMessages, createMockStream, getApiKey } from '@/lib/ai-providers/base';
 
 /**
  * 检查是否是 NVIDIA API

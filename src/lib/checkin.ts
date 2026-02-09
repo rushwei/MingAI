@@ -4,8 +4,8 @@
  * 管理每日签到、连续签到奖励等
  */
 
-import { getServiceRoleClient } from './api-utils';
-import { addExperience } from './gamification';
+import { getServiceRoleClient } from '@/lib/api-utils';
+import { addExperience } from '@/lib/gamification';
 
 // ===== 签到奖励配置 =====
 
@@ -191,7 +191,7 @@ export async function performCheckin(userId: string): Promise<{
             });
 
         // 增加用户积分
-        const { addCredits } = await import('./credits');
+        const { addCredits } = await import('@/lib/credits');
         await addCredits(userId, rewardCredits);
     }
 

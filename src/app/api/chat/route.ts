@@ -9,7 +9,7 @@
  * - 支持命盘上下文 (chartIds)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { callAI, callAIStream } from '@/lib/ai';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
 import type { ChatMessage, DifyContext } from '@/types';
@@ -22,7 +22,7 @@ import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 import type { Mention } from '@/types/mentions';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat-context';
 
 // 服务端 Supabase 客户端
@@ -39,6 +39,36 @@ function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatM
         }
         return msg;
     });
+}
+
+async function resolveUserIdFromRequest(request: NextRequest): Promise<string | null> {
+    try {
+        const authClient = getSupabase();
+        const authHeader = request.headers.get('authorization');
+        if (authHeader) {
+            const token = authHeader.replace(/Bearer\s+/i, '');
+            try {
+                const { data: { user } } = await authClient.auth.getUser(token);
+                if (user?.id) return user.id;
+            } catch {
+                // 在受限环境或测试环境中，auth.getUser 可能不可用，降级尝试其他来源
+            }
+        }
+
+        const accessToken = request.cookies.get('sb-access-token')?.value;
+        if (accessToken) {
+            try {
+                const { data: { user } } = await authClient.auth.getUser(accessToken);
+                if (user?.id) return user.id;
+            } catch {
+                // ignore
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -61,50 +91,64 @@ export async function POST(request: NextRequest) {
         };
 
         if (!messages || !Array.isArray(messages)) {
-            return NextResponse.json(
-                { error: '无效的消息格式' },
-                { status: 400 }
-            );
+            return jsonError('无效的消息格式', 400);
         }
 
         // 安全检查：必须设置 INTERNAL_API_SECRET 环境变量才能跳过积分检查
         // 如果未设置环境变量，禁止任何跳过请求
         canSkipCredit = !!(INTERNAL_SECRET && skipCreditCheck && internalSecret === INTERNAL_SECRET);
 
-        // 获取用户信息
-        const authClient = getSupabase();
         let accessTokenForKB: string | null = null;
         const authHeader = request.headers.get('authorization');
         if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            accessTokenForKB = token;
-            const { data: { user } } = await authClient.auth.getUser(token);
-            userId = user?.id || null;
+            accessTokenForKB = authHeader.replace(/Bearer\s+/i, '');
         }
 
-        if (!userId) {
+        if (!accessTokenForKB) {
             const accessToken = request.cookies.get('sb-access-token')?.value;
             if (accessToken) {
                 accessTokenForKB = accessToken;
-                const { data: { user } } = await authClient.auth.getUser(accessToken);
-                userId = user?.id || null;
             }
         }
 
-        if (!userId && !canSkipCredit) {
-            return NextResponse.json(
-                { error: '请先登录后再使用 AI 对话' },
-                { status: 401 }
-            );
+        if (canSkipCredit) {
+            try {
+                const { user } = await getAuthContext(request);
+                userId = user?.id || null;
+            } catch {
+                userId = await resolveUserIdFromRequest(request);
+            }
+        } else {
+            try {
+                const auth = await requireUserContext(request);
+                if ('error' in auth) {
+                    userId = await resolveUserIdFromRequest(request);
+                    if (!userId) {
+                        return jsonError(auth.error.message, auth.error.status);
+                    }
+                } else {
+                    userId = auth.user.id;
+                    if (!accessTokenForKB) {
+                        try {
+                            const { data: { session } } = await auth.supabase.auth.getSession();
+                            accessTokenForKB = session?.access_token || null;
+                        } catch {
+                            // ignore
+                        }
+                    }
+                }
+            } catch {
+                userId = await resolveUserIdFromRequest(request);
+                if (!userId) {
+                    return jsonError('请先登录', 401);
+                }
+            }
         }
 
         const requestedModelId = model || DEFAULT_MODEL_ID;
         const modelConfig = await getModelConfigAsync(requestedModelId);
         if (!modelConfig) {
-            return NextResponse.json(
-                { error: '无效的模型' },
-                { status: 400 }
-            );
+            return jsonError('无效的模型', 400);
         }
 
         const membershipType = userId
@@ -112,10 +156,7 @@ export async function POST(request: NextRequest) {
             : 'free';
 
         if (!isModelAllowedForMembership(modelConfig, membershipType)) {
-            return NextResponse.json(
-                { error: '当前会员等级无法使用该模型' },
-                { status: 403 }
-            );
+            return jsonError('当前会员等级无法使用该模型', 403);
         }
 
         const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membershipType);
@@ -125,27 +166,19 @@ export async function POST(request: NextRequest) {
         if (userId && !canSkipCredit) {
             const hasEnough = await hasCredits(userId);
             if (!hasEnough) {
-                return NextResponse.json(
-                    {
-                        error: '积分不足，请充值后继续使用',
-                        code: 'INSUFFICIENT_CREDITS',
-                        needRecharge: true
-                    },
-                    { status: 402 }
-                );
+                return jsonError('积分不足，请充值后继续使用', 402, {
+                    code: 'INSUFFICIENT_CREDITS',
+                    needRecharge: true
+                });
             }
 
             // 流式请求改为“首字后扣费”；非流式保持原有扣费时机
             if (!stream) {
                 const remaining = await useCredit(userId);
                 if (remaining === null) {
-                    return NextResponse.json(
-                        {
-                            error: '积分扣减失败，请重试',
-                            code: 'CREDIT_DEDUCTION_FAILED'
-                        },
-                        { status: 500 }
-                    );
+                    return jsonError('积分扣减失败，请重试', 500, {
+                        code: 'CREDIT_DEDUCTION_FAILED'
+                    });
                 }
                 creditDeducted = true;
             }
@@ -395,16 +428,13 @@ export async function POST(request: NextRequest) {
             '',
             { reasoning: reasoningEnabled, systemPromptOverride: promptBuild.systemPrompt }
         );
-        return NextResponse.json({ content, metadata });
+        return jsonOk({ content, metadata });
     } catch (error) {
         if (creditDeducted && userId && !canSkipCredit) {
             await addCredits(userId, 1);
             creditDeducted = false;
         }
         console.error('AI API 错误:', error);
-        return NextResponse.json(
-            { error: '服务暂时不可用' },
-            { status: 500 }
-        );
+        return jsonError('服务暂时不可用', 500);
     }
 }

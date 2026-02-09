@@ -4,7 +4,7 @@
  * 支持多实例部署，数据持久化
  */
 
-import { getServiceRoleClient } from './api-utils';
+import { getServiceRoleClient } from '@/lib/api-utils';
 
 // 尝试获取服务端客户端，失败返回null
 const getServiceClientSafe = () => {

@@ -3,7 +3,7 @@
  * 
  * 提供手相图片分析、历史记录等功能
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { useCredit, hasCredits, addCredits } from '@/lib/credits';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
@@ -18,7 +18,7 @@ import {
     generatePalmTitle,
     type HandType
 } from '@/lib/palm';
-import { requireBearerUser } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 
 // 请求类型
 interface PalmRequest {
@@ -32,20 +32,7 @@ interface PalmRequest {
     reasoning?: boolean;
 }
 
-// 响应类型
-interface PalmResponse {
-    success: boolean;
-    data?: {
-        types?: typeof PALM_ANALYSIS_TYPES;
-        analysis?: string;
-        reasoning?: string;
-        readingId?: string | null;
-        conversationId?: string | null;
-    };
-    error?: string;
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse<PalmResponse>> {
+export async function POST(request: NextRequest): Promise<Response> {
     try {
         const body: PalmRequest = await request.json();
         const {
@@ -62,7 +49,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
         switch (action) {
             // 获取分析类型列表
             case 'list-types':
-                return NextResponse.json({
+                return jsonOk({
                     success: true,
                     data: { types: PALM_ANALYSIS_TYPES }
                 });
@@ -70,29 +57,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
             // AI 分析手相
             case 'analyze': {
                 if (!imageBase64) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '请上传手相图片'
-                    }, { status: 400 });
+                    return jsonError('请上传手相图片', 400, { success: false });
                 }
 
                 // 检查用户认证
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {
-                    return NextResponse.json({
-                        success: false,
-                        error: authResult.error.message
-                    }, { status: authResult.error.status });
+                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
                 const { user } = authResult;
 
                 // 检查用户积分
                 const hasEnoughCredits = await hasCredits(user.id);
                 if (!hasEnoughCredits) {
-                    return NextResponse.json({
-                        success: false,
-                        error: '积分不足，请充值后使用'
-                    }, { status: 403 });
+                    return jsonError('积分不足，请充值后使用', 403, { success: false });
                 }
 
                 // 检查模型权限
@@ -102,10 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                     membershipDeniedMessage: '手相分析需要 Plus 会员或以上'
                 });
                 if ('error' in access) {
-                    return NextResponse.json({
-                        success: false,
-                        error: access.error
-                    }, { status: access.status });
+                    return jsonError(access.error, access.status, { success: false });
                 }
                 const { modelId: requestedModelId, modelConfig, reasoningEnabled } = access;
 
@@ -116,10 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                 const remainingCredits = await useCredit(user.id);
                 if (remainingCredits === null) {
                     console.error('[palm] 扣除积分失败');
-                    return NextResponse.json({
-                        success: false,
-                        error: '积分扣减失败，请稍后重试'
-                    }, { status: 500 });
+                    return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
                 }
 
                 try {
@@ -183,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                         }
                     }
 
-                    return NextResponse.json({
+                    return jsonOk({
                         success: true,
                         data: {
                             analysis: analysisResult,
@@ -195,31 +167,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<PalmRespo
                 } catch (aiError) {
                     await addCredits(user.id, 1);
                     console.error('AI 分析失败:', aiError);
-                    return NextResponse.json({
-                        success: false,
-                        error: 'AI 分析失败，请稍后重试'
-                    }, { status: 500 });
+                    return jsonError('AI 分析失败，请稍后重试', 500, { success: false });
                 }
             }
 
             default:
-                return NextResponse.json({
-                    success: false,
-                    error: '未知的操作类型'
-                }, { status: 400 });
+                return jsonError('未知的操作类型', 400, { success: false });
         }
     } catch (error) {
         console.error('手相分析 API 错误:', error);
-        return NextResponse.json({
-            success: false,
-            error: '服务器错误'
-        }, { status: 500 });
+        return jsonError('服务器错误', 500, { success: false });
     }
 }
 
 // GET 方法 - 获取分析类型列表
-export async function GET(): Promise<NextResponse<PalmResponse>> {
-    return NextResponse.json({
+export async function GET(): Promise<Response> {
+    return jsonOk({
         success: true,
         data: { types: PALM_ANALYSIS_TYPES }
     });

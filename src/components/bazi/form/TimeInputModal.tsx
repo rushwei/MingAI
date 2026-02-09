@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { Clock, X } from 'lucide-react';
 import type { BaziFormData } from '@/types';
-import { HOUR_OPTIONS } from './options';
+import { HOUR_OPTIONS } from '@/components/bazi/form/options';
 
 interface TimeInputModalProps {
     isOpen: boolean;

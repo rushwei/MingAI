@@ -6,8 +6,8 @@
  */
 
 import type { AIModelConfig, AIVendor } from '@/types';
-import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
-import { createMockStream, getApiKey } from './base';
+import type { AIProvider, AIProviderOptions, AIRequestMessage } from '@/lib/ai-providers/base';
+import { createMockStream, getApiKey } from '@/lib/ai-providers/base';
 
 /** 图像内容格式 */
 interface ImageContent {

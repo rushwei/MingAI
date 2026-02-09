@@ -19,7 +19,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { useSidebarSafe } from './SidebarContext';
+import { useSidebarSafe } from '@/components/layout/SidebarContext';
 
 interface BottomBarProps {
     show: boolean;

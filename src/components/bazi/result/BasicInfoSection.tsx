@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { MessageCircle, User, Save, Sparkles } from 'lucide-react';
 import { calculateBazi, getElementColor } from '@/lib/bazi';
-import { FiveElementsChart } from './FiveElementsChart';
-import { TenGodKnowledge } from '../TenGodKnowledge';
-import { AIWuxingAnalysis } from './AIWuxingAnalysis';
-import { AIPersonalityAnalysis } from './AIPersonalityAnalysis';
+import { FiveElementsChart } from '@/components/bazi/result/FiveElementsChart';
+import { TenGodKnowledge } from '@/components/bazi/TenGodKnowledge';
+import { AIWuxingAnalysis } from '@/components/bazi/result/AIWuxingAnalysis';
+import { AIPersonalityAnalysis } from '@/components/bazi/result/AIPersonalityAnalysis';
 import type { TenGod } from '@/types';
 
 interface BasicInfoSectionProps {

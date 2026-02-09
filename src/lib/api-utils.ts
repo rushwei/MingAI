@@ -6,14 +6,21 @@ import type { User } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase-server';
 
 export async function createRequestSupabaseClient() {
-    const cookieStore = await cookies();
+    let cookieValues: Array<{ name: string; value: string }> = [];
+    try {
+        const cookieStore = await cookies();
+        cookieValues = cookieStore.getAll();
+    } catch {
+        // 在测试环境中可能没有 Next.js request scope，此时降级为无 cookie 客户端
+        cookieValues = [];
+    }
     return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
                 getAll() {
-                    return cookieStore.getAll();
+                    return cookieValues;
                 },
             },
         }
@@ -155,8 +162,8 @@ export async function getAccessToken(request: NextRequest): Promise<string | nul
     return session?.access_token || null;
 }
 
-export function jsonError(message: string, status = 400) {
-    return NextResponse.json({ error: message }, { status });
+export function jsonError(message: string, status = 400, extra?: Record<string, unknown>) {
+    return NextResponse.json({ error: message, ...(extra || {}) }, { status });
 }
 
 export function jsonOk(payload: Record<string, unknown>, status = 200) {

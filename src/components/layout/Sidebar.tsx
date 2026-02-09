@@ -32,10 +32,10 @@ import {
     Tags,
 } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
-import { AuthModal } from '../auth/AuthModal';
-import { SidebarUserCard } from './UserMenu';
-import { useSidebarSafe } from './SidebarContext';
-import { useSidebarConfigSafe } from './SidebarConfigContext';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { SidebarUserCard } from '@/components/layout/UserMenu';
+import { useSidebarSafe } from '@/components/layout/SidebarContext';
+import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 // 导航项配置

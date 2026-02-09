@@ -17,7 +17,7 @@ import {
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
 } from '@/lib/liuyao';
-import { YaoLine } from './YaoLine';
+import { YaoLine } from '@/components/liuyao/YaoLine';
 
 // 静态常量提取到组件外部，避免每次渲染重新创建
 const YAO_LABELS = ['初', '二', '三', '四', '五', '上'];

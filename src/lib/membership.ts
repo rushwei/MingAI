@@ -7,7 +7,7 @@
  * - Pro: 立即+200次，每小时+1次，上限200次
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 
 export type MembershipType = 'free' | 'plus' | 'pro';
 

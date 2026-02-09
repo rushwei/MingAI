@@ -5,13 +5,12 @@
  * 支持流式输出 + 结果保存
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai-access';
-import { getAuthContext } from '@/lib/api-utils';
+import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { hasCredits, useCredit, addCredits } from '@/lib/credits';
 
 // AI系统提示词
@@ -63,23 +62,18 @@ export async function POST(request: NextRequest) {
         const { chartId, type, chartSummary, modelId, reasoning, stream } = await request.json();
 
         if (!chartId || !type || !chartSummary) {
-            return NextResponse.json(
-                { error: '缺少必要参数' },
-                { status: 400 }
-            );
+            return jsonError('缺少必要参数', 400);
         }
 
         if (!['wuxing', 'personality'].includes(type)) {
-            return NextResponse.json(
-                { error: '无效的分析类型' },
-                { status: 400 }
-            );
+            return jsonError('无效的分析类型', 400);
         }
 
-        const { user } = await getAuthContext(request);
-        if (!user) {
-            return NextResponse.json({ error: '请先登录' }, { status: 401 });
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { user } = auth;
         userId = user.id;
 
         // 根据分析类型选择系统提示词，确保模型走对应的分析维度
@@ -96,36 +90,24 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (chartError || !chart?.user_id) {
-            return NextResponse.json(
-                { error: '未找到命盘信息' },
-                { status: 404 }
-            );
+            return jsonError('未找到命盘信息', 404);
         }
 
         const membershipType = await getEffectiveMembershipType(user.id);
         const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
         if ('error' in access) {
-            return NextResponse.json(
-                { error: access.error },
-                { status: access.status }
-            );
+            return jsonError(access.error, access.status);
         }
         const { modelId: requestedModelId, reasoningEnabled } = access;
 
         const hasEnough = await hasCredits(user.id);
         if (!hasEnough) {
-            return NextResponse.json(
-                { error: '积分不足，请充值后继续使用' },
-                { status: 402 }
-            );
+            return jsonError('积分不足，请充值后继续使用', 402);
         }
 
         const remaining = await useCredit(user.id);
         if (remaining === null) {
-            return NextResponse.json(
-                { error: '积分扣减失败，请重试' },
-                { status: 500 }
-            );
+            return jsonError('积分扣减失败，请重试', 500);
         }
         creditDeducted = true;
 
@@ -208,10 +190,7 @@ export async function POST(request: NextRequest) {
                 await addCredits(userId, 1);
                 creditDeducted = false;
             }
-            return NextResponse.json(
-                { error: '分析结果为空' },
-                { status: 500 }
-            );
+            return jsonError('分析结果为空', 500);
         }
 
         // 获取命盘信息并保存到 conversations
@@ -243,7 +222,7 @@ export async function POST(request: NextRequest) {
             console.error('[analysis] Save exception:', saveError);
         }
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             content,
             reasoning: reasoningText,
@@ -254,9 +233,6 @@ export async function POST(request: NextRequest) {
             await addCredits(userId, 1);
         }
         console.error('Analysis API error:', error);
-        return NextResponse.json(
-            { error: '服务器错误' },
-            { status: 500 }
-        );
+        return jsonError('服务器错误', 500);
     }
 }

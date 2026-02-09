@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import type { BaziFormData } from '@/types';
-import { RegionPicker } from './RegionPicker';
+import { RegionPicker } from '@/components/bazi/form/RegionPicker';
 
 interface PlaceInputModalProps {
     isOpen: boolean;

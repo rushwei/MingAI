@@ -4,8 +4,8 @@
  * 提供解梦模式所需的八字命盘和今日运势上下文数据
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { NextRequest } from 'next/server';
+import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 import { countTokens } from '@/lib/token-utils';
@@ -85,30 +85,12 @@ async function buildDreamContextPayload(userId: string): Promise<{ payload: Drea
 }
 
 export async function GET(request: NextRequest) {
-    const authClient = getSupabase();
-    let userId: string | null = null;
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await authClient.auth.getUser(token);
-        userId = user?.id || null;
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status);
     }
 
-    if (!userId) {
-        const accessToken = request.cookies.get('sb-access-token')?.value;
-        if (accessToken) {
-            const { data: { user } } = await authClient.auth.getUser(accessToken);
-            userId = user?.id || null;
-        }
-    }
-
-    if (!userId) {
-        return NextResponse.json(
-            { error: '请先登录后再使用 AI 对话' },
-            { status: 401 }
-        );
-    }
-
+    const userId = auth.user.id;
     const { payload, context } = await buildDreamContextPayload(userId);
-    return NextResponse.json({ dreamContext: context, payload });
+    return jsonOk({ dreamContext: context, payload });
 }

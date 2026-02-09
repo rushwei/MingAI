@@ -2,7 +2,7 @@
  * 年度报告 API
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUserContext } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import {
     generateAnnualReport,
     getCachedAnnualReport,
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
     try {
         const auth = await requireUserContext(request);
         if ('error' in auth) {
-            return NextResponse.json({ success: false, error: auth.error.message }, { status: auth.error.status });
+            return jsonError(auth.error.message, auth.error.status);
         }
         const { user } = auth;
 
@@ -40,9 +40,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
             case 'summary': {
                 const summary = await getReportSummary(user.id, year);
                 if (!summary) {
-                    return NextResponse.json({ success: false, error: '获取概要失败' }, { status: 500 });
+                    return jsonError('获取概要失败', 500);
                 }
-                return NextResponse.json({ success: true, data: { summary } });
+                return jsonOk({ success: true, data: { summary } });
             }
 
             case 'report': {
@@ -56,17 +56,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<AnnualRepo
                 }
 
                 if (!report) {
-                    return NextResponse.json({ success: false, error: '生成报告失败' }, { status: 500 });
+                    return jsonError('生成报告失败', 500);
                 }
 
-                return NextResponse.json({ success: true, data: { report } });
+                return jsonOk({ success: true, data: { report } });
             }
 
             default:
-                return NextResponse.json({ success: false, error: '未知操作' }, { status: 400 });
+                return jsonError('未知操作', 400);
         }
     } catch (error) {
         console.error('[annual-report API] 错误:', error);
-        return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+        return jsonError('服务器错误', 500);
     }
 }
