@@ -21,7 +21,8 @@ MingAI MCP Server 是基于 [Model Context Protocol (MCP)](https://modelcontextp
 
 | 功能 | 描述 |
 |------|------|
-| 八字计算 | 根据出生时间计算四柱八字、十神、藏干、大运 |
+| 八字计算 | 根据出生时间计算四柱八字、十神、藏干、大运、分柱神煞与空亡 |
+| 四柱反推 | 根据输入四柱（年/月/日/时）返回候选出生时间（1900-2100） |
 | 紫微斗数 | 计算紫微命盘、十二宫位、星曜分布、大限 |
 | 六爻占卜 | 自动起卦或选卦，分析用神、变卦、干支时间 |
 | 塔罗抽牌 | 支持单牌、三牌阵、爱情牌阵、凯尔特十字 |
@@ -48,6 +49,7 @@ packages/
 │   │   ├── types.ts          # TypeScript 类型
 │   │   └── handlers/         # 工具处理器
 │   │       ├── bazi.ts       # 八字计算
+│   │       ├── bazi-pillars-resolve.ts # 四柱反推候选时间
 │   │       ├── ziwei.ts      # 紫微斗数
 │   │       ├── liuyao.ts     # 六爻分析
 │   │       ├── tarot.ts      # 塔罗抽牌
@@ -178,20 +180,20 @@ cd packages/mcp-server && pnpm start
 
 ### 1. bazi_calculate - 八字计算
 
-根据出生时间计算八字命盘，包含四柱、十神、藏干、大运等信息。
+根据出生时间计算八字命盘，包含四柱、十神、藏干气性/十神、分柱神煞、分柱空亡、地支刑害合冲关系与大运等信息。
 
 **输入参数：**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:----:|------|
 | gender | string | ✅ | 性别：`male` 或 `female` |
-| birthYear | number | ✅ | 出生年 (1900-2100) |
-| birthMonth | number | ✅ | 出生月 (1-12) |
-| birthDay | number | ✅ | 出生日 (1-31) |
+| birthYear | number | ✅ | 出生年 (1900-2100)，`calendarType=lunar` 时表示农历年 |
+| birthMonth | number | ✅ | 出生月 (1-12)，`calendarType=lunar` 时表示农历月 |
+| birthDay | number | ✅ | 出生日，`calendarType=lunar` 时按农历月天数校验 |
 | birthHour | number | ✅ | 出生时 (0-23) |
 | birthMinute | number | | 出生分 (0-59)，默认 0 |
 | calendarType | string | | 历法：`solar`(阳历) 或 `lunar`(农历)，默认 solar |
-| isLeapMonth | boolean | | 是否闰月（仅农历有效），默认 false |
+| isLeapMonth | boolean | | 是否闰月（仅 `calendarType=lunar` 有效，且会校验该年该月是否真实闰月），默认 false |
 | birthPlace | string | | 出生地点（可选） |
 
 **输出字段：**
@@ -201,6 +203,10 @@ cd packages/mcp-server && pnpm start
   gender: 'male' | 'female',
   birthPlace?: string,
   dayMaster: string,           // 日主天干
+  kongWang: {                  // 全局空亡（按日柱查空亡）
+    xun: string,
+    kongZhi: [string, string]
+  },
   fourPillars: {
     year: PillarInfo,          // 年柱
     month: PillarInfo,         // 月柱
@@ -210,11 +216,13 @@ cd packages/mcp-server && pnpm start
   daYun: {
     startAgeDetail: string,    // 起运详情
     list: Array<{
-      startAge: number,
-      ganZhi: string
+      startYear: number,
+      ganZhi: string,
+      tenGod: string,          // 大运天干十神
+      branchTenGod: string     // 大运地支主气十神
     }>
   },
-  shenSha?: ShenShaInfo        // 神煞信息
+  relations: RelationInfo[]    // 地支刑害合冲关系列表
 }
 
 // PillarInfo 结构
@@ -222,30 +230,80 @@ cd packages/mcp-server && pnpm start
   stem: string,                // 天干
   branch: string,              // 地支
   tenGod?: string,             // 十神
-  hiddenStems: string[],       // 藏干
+  hiddenStems: Array<{         // 藏干明细
+    stem: string,              // 藏干天干
+    qiType: '本气' | '中气' | '余气',
+    tenGod: string
+  }>,
   naYin?: string,              // 纳音（如"海中金"）
-  diShi?: string               // 地势/十二长生（如"长生"、"帝旺"）
+  diShi?: string,              // 地势/十二长生（如"长生"、"帝旺"）
+  shenSha: string[],           // 本柱神煞
+  kongWang: {
+    isKong: boolean            // 本柱地支是否入空亡
+  }
 }
 
-// ShenShaInfo 结构（神煞信息）
+// RelationInfo 结构
 {
-  tianYiGuiRen?: string[],     // 天乙贵人
-  wenChangGuiRen?: string[],   // 文昌贵人
-  yiMa?: string[],             // 驿马
-  taoHua?: string[],           // 桃花
-  huaGai?: string[],           // 华盖
-  jiangXing?: string[],        // 将星
-  yangRen?: string[],          // 羊刃
-  luShen?: string[],           // 禄神
-  tianDeGuiRen?: string,       // 天德贵人
-  yueDeGuiRen?: string,        // 月德贵人
-  kuiGang?: boolean,           // 魁罡
-  jinYu?: boolean,             // 金舆
-  tianLuodiWang?: string[]     // 天罗地网
+  type: '合' | '冲' | '刑' | '害',
+  pillars: Array<'年支' | '月支' | '日支' | '时支'>,
+  description: string,
+  isAuspicious: boolean
 }
 ```
 
-### 2. ziwei_calculate - 紫微斗数
+### 2. bazi_pillars_resolve - 四柱反推候选时间
+
+输入四柱（年/月/日/时）后，返回 1900-2100 年范围内的全部候选时间。候选主字段使用农历语义，可直接用于下一步农历排盘（`bazi_calculate`）。
+
+**输入参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| yearPillar | string | ✅ | 年柱，2字干支（如 `甲子`） |
+| monthPillar | string | ✅ | 月柱，2字干支（如 `乙丑`） |
+| dayPillar | string | ✅ | 日柱，2字干支（如 `丙寅`） |
+| hourPillar | string | ✅ | 时柱，2字干支（如 `丁卯`） |
+
+**输出字段：**
+
+```typescript
+{
+  pillars: {
+    yearPillar: string,
+    monthPillar: string,
+    dayPillar: string,
+    hourPillar: string
+  },
+  count: number,
+  candidates: Array<{
+    candidateId: string,
+    birthYear: number,         // 农历年
+    birthMonth: number,        // 农历月
+    birthDay: number,          // 农历日
+    birthHour: number,
+    birthMinute: number,
+    isLeapMonth: boolean,      // 是否闰月
+    solarText: string,         // 公历可读文本
+    lunarText: string,         // 农历可读文本
+    nextCall: {
+      tool: 'bazi_calculate',
+      arguments: {
+        birthYear: number,      // 农历年
+        birthMonth: number,     // 农历月
+        birthDay: number,       // 农历日
+        birthHour: number,
+        birthMinute: number,
+        calendarType: 'lunar',
+        isLeapMonth: boolean
+      },
+      missing: ['gender']      // 仍需用户补充 gender
+    }
+  }>
+}
+```
+
+### 3. ziwei_calculate - 紫微斗数
 
 根据出生时间计算紫微命盘，包含十二宫位、星曜、四化、大限等信息。
 
@@ -279,7 +337,7 @@ cd packages/mcp-server && pnpm start
 }
 ```
 
-### 3. liuyao_analyze - 六爻分析
+### 4. liuyao_analyze - 六爻分析
 
 六爻卦象占卜分析，支持自动起卦或选卦。包含完整的64卦数据、六亲、六神、纳甲、旬空、月令旺衰、三合局、六冲卦、神系（原神/忌神/仇神）、时间建议等专业分析。
 
@@ -430,7 +488,7 @@ cd packages/mcp-server && pnpm start
 }
 ```
 
-### 4. tarot_draw - 塔罗抽牌
+### 5. tarot_draw - 塔罗抽牌
 
 塔罗牌抽牌占卜，支持多种牌阵。使用完整的78张韦特塔罗牌（22张大阿卡纳 + 56张小阿卡纳）。
 
@@ -471,7 +529,7 @@ cd packages/mcp-server && pnpm start
 }
 ```
 
-### 5. daily_fortune - 每日运势
+### 6. daily_fortune - 每日运势
 
 计算个性化每日运势，包含事业、感情、财运、健康等维度。
 
@@ -524,7 +582,7 @@ cd packages/mcp-server && pnpm start
 }
 ```
 
-### 6. liunian_analyze - 流年流月分析
+### 7. liunian_analyze - 流年流月分析
 
 根据出生时间分析当前大运、流年、流月对命主的影响。
 
@@ -639,26 +697,62 @@ echo '{
 }' | node packages/mcp-local/dist/index.js
 ```
 
+**四柱反推候选示例：**
+
+```bash
+echo '{
+  "jsonrpc":"2.0",
+  "id":21,
+  "method":"tools/call",
+  "params":{
+    "name":"bazi_pillars_resolve",
+    "arguments":{
+      "yearPillar":"壬申",
+      "monthPillar":"戊申",
+      "dayPillar":"丙午",
+      "hourPillar":"癸巳"
+    }
+  }
+}' | node packages/mcp-local/dist/index.js
+```
+
 **返回结果：**
 
 ```json
 {
-  "gender": "male",
-  "dayMaster": "庚",
-  "fourPillars": {
-    "year": { "stem": "庚", "branch": "午", "tenGod": "比肩", "hiddenStems": ["丁", "己"] },
-    "month": { "stem": "辛", "branch": "巳", "tenGod": "劫财", "hiddenStems": ["丙", "庚", "戊"] },
-    "day": { "stem": "庚", "branch": "辰", "hiddenStems": ["戊", "乙", "癸"] },
-    "hour": { "stem": "癸", "branch": "未", "tenGod": "伤官", "hiddenStems": ["己", "丁", "乙"] }
+  "pillars": {
+    "yearPillar": "壬申",
+    "monthPillar": "戊申",
+    "dayPillar": "丙午",
+    "hourPillar": "癸巳"
   },
-  "daYun": {
-    "startAgeDetail": "7年2月23天起运",
-    "list": [
-      { "startAge": 8, "ganZhi": "壬午" },
-      { "startAge": 18, "ganZhi": "癸未" },
-      { "startAge": 28, "ganZhi": "甲申" }
-    ]
-  }
+  "count": 2,
+  "candidates": [
+    {
+      "candidateId": "cand_1",
+      "birthYear": 1932,
+      "birthMonth": 7,
+      "birthDay": 12,
+      "birthHour": 9,
+      "birthMinute": 0,
+      "isLeapMonth": false,
+      "solarText": "1932-08-13 09:00",
+      "lunarText": "农历一九三二年七月十二 巳时",
+      "nextCall": {
+        "tool": "bazi_calculate",
+        "arguments": {
+          "birthYear": 1932,
+          "birthMonth": 7,
+          "birthDay": 12,
+          "birthHour": 9,
+          "birthMinute": 0,
+          "calendarType": "lunar",
+          "isLeapMonth": false
+        },
+        "missing": ["gender"]
+      }
+    }
+  ]
 }
 ```
 
@@ -825,6 +919,7 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| 1.1.0 | 2026-02-09 | 新增 `bazi_pillars_resolve`；`bazi_calculate` 升级为分柱神煞/分柱空亡/藏干气性十神/关系输出（破坏式变更） |
 | 1.0.0 | 2026-02-03 | 初始版本，支持八字、紫微、六爻、塔罗、运势 |
 
 ---

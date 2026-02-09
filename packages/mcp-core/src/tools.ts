@@ -4,6 +4,7 @@
 
 import type {
   BaziInput,
+  BaziPillarsResolveInput,
   ZiweiInput,
   LiuyaoInput,
   TarotInput,
@@ -29,7 +30,7 @@ export interface ToolDefinition {
 export const tools: ToolDefinition[] = [
   {
     name: 'bazi_calculate',
-    description: '八字计算 - 根据出生时间计算八字命盘，包含四柱、十神、藏干、纳音、地势（十二长生）、大运等信息',
+    description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞、分柱空亡、地支刑害合冲关系与大运信息',
     inputSchema: {
       type: 'object',
       properties: {
@@ -40,15 +41,15 @@ export const tools: ToolDefinition[] = [
         },
         birthYear: {
           type: 'number',
-          description: '出生年 (1900-2100)',
+          description: '出生年 (1900-2100)。calendarType=lunar 时表示农历年',
         },
         birthMonth: {
           type: 'number',
-          description: '出生月 (1-12)',
+          description: '出生月 (1-12)。calendarType=lunar 时表示农历月',
         },
         birthDay: {
           type: 'number',
-          description: '出生日 (1-31)',
+          description: '出生日。calendarType=lunar 时会按农历月天数校验',
         },
         birthHour: {
           type: 'number',
@@ -61,11 +62,11 @@ export const tools: ToolDefinition[] = [
         calendarType: {
           type: 'string',
           enum: ['solar', 'lunar'],
-          description: '历法类型，默认 solar (阳历)',
+          description: '历法类型，默认 solar。lunar 表示按农历输入 birthYear/month/day',
         },
         isLeapMonth: {
           type: 'boolean',
-          description: '是否闰月（仅农历有效），默认 false',
+          description: '是否闰月（仅 calendarType=lunar 有效，且会校验该年该月是否真为闰月）',
         },
         birthPlace: {
           type: 'string',
@@ -89,6 +90,14 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '日主天干（甲乙丙丁戊己庚辛壬癸）',
         },
+        kongWang: {
+          type: 'object',
+          description: '全局空亡（按日柱查空亡，四柱共用）',
+          properties: {
+            xun: { type: 'string', description: '旬名' },
+            kongZhi: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 2, description: '空亡地支' },
+          },
+        },
         fourPillars: {
           type: 'object',
           description: '四柱信息',
@@ -100,9 +109,28 @@ export const tools: ToolDefinition[] = [
                 stem: { type: 'string', description: '天干' },
                 branch: { type: 'string', description: '地支' },
                 tenGod: { type: 'string', description: '十神' },
-                hiddenStems: { type: 'array', items: { type: 'string' }, description: '藏干' },
+                hiddenStems: {
+                  type: 'array',
+                  description: '藏干明细',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      stem: { type: 'string', description: '藏干天干' },
+                      qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                      tenGod: { type: 'string', description: '相对日主十神' },
+                    },
+                  },
+                },
                 naYin: { type: 'string', description: '纳音' },
                 diShi: { type: 'string', description: '地势（十二长生）' },
+                shenSha: { type: 'array', items: { type: 'string' }, description: '本柱神煞' },
+                kongWang: {
+                  type: 'object',
+                  description: '本柱空亡',
+                  properties: {
+                    isKong: { type: 'boolean', description: '本柱地支是否入空亡' },
+                  },
+                },
               },
             },
             month: {
@@ -112,9 +140,28 @@ export const tools: ToolDefinition[] = [
                 stem: { type: 'string', description: '天干' },
                 branch: { type: 'string', description: '地支' },
                 tenGod: { type: 'string', description: '十神' },
-                hiddenStems: { type: 'array', items: { type: 'string' }, description: '藏干' },
+                hiddenStems: {
+                  type: 'array',
+                  description: '藏干明细',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      stem: { type: 'string', description: '藏干天干' },
+                      qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                      tenGod: { type: 'string', description: '相对日主十神' },
+                    },
+                  },
+                },
                 naYin: { type: 'string', description: '纳音' },
                 diShi: { type: 'string', description: '地势（十二长生）' },
+                shenSha: { type: 'array', items: { type: 'string' }, description: '本柱神煞' },
+                kongWang: {
+                  type: 'object',
+                  description: '本柱空亡',
+                  properties: {
+                    isKong: { type: 'boolean', description: '本柱地支是否入空亡' },
+                  },
+                },
               },
             },
             day: {
@@ -123,9 +170,28 @@ export const tools: ToolDefinition[] = [
               properties: {
                 stem: { type: 'string', description: '天干' },
                 branch: { type: 'string', description: '地支' },
-                hiddenStems: { type: 'array', items: { type: 'string' }, description: '藏干' },
+                hiddenStems: {
+                  type: 'array',
+                  description: '藏干明细',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      stem: { type: 'string', description: '藏干天干' },
+                      qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                      tenGod: { type: 'string', description: '相对日主十神' },
+                    },
+                  },
+                },
                 naYin: { type: 'string', description: '纳音' },
                 diShi: { type: 'string', description: '地势（十二长生）' },
+                shenSha: { type: 'array', items: { type: 'string' }, description: '本柱神煞' },
+                kongWang: {
+                  type: 'object',
+                  description: '本柱空亡',
+                  properties: {
+                    isKong: { type: 'boolean', description: '本柱地支是否入空亡' },
+                  },
+                },
               },
             },
             hour: {
@@ -135,9 +201,28 @@ export const tools: ToolDefinition[] = [
                 stem: { type: 'string', description: '天干' },
                 branch: { type: 'string', description: '地支' },
                 tenGod: { type: 'string', description: '十神' },
-                hiddenStems: { type: 'array', items: { type: 'string' }, description: '藏干' },
+                hiddenStems: {
+                  type: 'array',
+                  description: '藏干明细',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      stem: { type: 'string', description: '藏干天干' },
+                      qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                      tenGod: { type: 'string', description: '相对日主十神' },
+                    },
+                  },
+                },
                 naYin: { type: 'string', description: '纳音' },
                 diShi: { type: 'string', description: '地势（十二长生）' },
+                shenSha: { type: 'array', items: { type: 'string' }, description: '本柱神煞' },
+                kongWang: {
+                  type: 'object',
+                  description: '本柱空亡',
+                  properties: {
+                    isKong: { type: 'boolean', description: '本柱地支是否入空亡' },
+                  },
+                },
               },
             },
           },
@@ -155,28 +240,96 @@ export const tools: ToolDefinition[] = [
                 properties: {
                   startYear: { type: 'number', description: '起始年份' },
                   ganZhi: { type: 'string', description: '干支' },
+                  tenGod: { type: 'string', description: '大运天干十神（如：正官）' },
+                  branchTenGod: { type: 'string', description: '大运地支主气十神' },
                 },
               },
             },
           },
         },
-        shenSha: {
+        relations: {
+          type: 'array',
+          description: '地支刑害合冲关系',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['合', '冲', '刑', '害'], description: '关系类型' },
+              pillars: {
+                type: 'array',
+                items: { type: 'string', enum: ['年支', '月支', '日支', '时支'] },
+                description: '涉及柱位',
+              },
+              description: { type: 'string', description: '关系描述' },
+              isAuspicious: { type: 'boolean', description: '是否偏吉' },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'bazi_pillars_resolve',
+    description: '四柱反推候选时间 - 输入年/月/日/时四柱，返回1900-2100范围内全部候选时间（候选主字段为农历，可直接用于农历排盘）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        yearPillar: { type: 'string', description: '年柱，2字干支（如“甲子”）' },
+        monthPillar: { type: 'string', description: '月柱，2字干支（如“乙丑”）' },
+        dayPillar: { type: 'string', description: '日柱，2字干支（如“丙寅”）' },
+        hourPillar: { type: 'string', description: '时柱，2字干支（如“丁卯”）' },
+      },
+      required: ['yearPillar', 'monthPillar', 'dayPillar', 'hourPillar'],
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        pillars: {
           type: 'object',
-          description: '神煞信息',
+          description: '原始四柱输入',
           properties: {
-            tianYiGuiRen: { type: 'array', items: { type: 'string' }, description: '天乙贵人' },
-            wenChangGuiRen: { type: 'array', items: { type: 'string' }, description: '文昌贵人' },
-            yiMa: { type: 'array', items: { type: 'string' }, description: '驿马' },
-            taoHua: { type: 'array', items: { type: 'string' }, description: '桃花' },
-            huaGai: { type: 'array', items: { type: 'string' }, description: '华盖' },
-            jiangXing: { type: 'array', items: { type: 'string' }, description: '将星' },
-            yangRen: { type: 'array', items: { type: 'string' }, description: '羊刃' },
-            luShen: { type: 'array', items: { type: 'string' }, description: '禄神' },
-            tianDeGuiRen: { type: 'string', description: '天德贵人' },
-            yueDeGuiRen: { type: 'string', description: '月德贵人' },
-            kuiGang: { type: 'boolean', description: '魁罡' },
-            jinYu: { type: 'boolean', description: '金舆' },
-            tianLuodiWang: { type: 'array', items: { type: 'string' }, description: '天罗地网' },
+            yearPillar: { type: 'string' },
+            monthPillar: { type: 'string' },
+            dayPillar: { type: 'string' },
+            hourPillar: { type: 'string' },
+          },
+        },
+        count: { type: 'number', description: '候选总数' },
+        candidates: {
+          type: 'array',
+          description: '候选出生时间',
+          items: {
+            type: 'object',
+            properties: {
+              candidateId: { type: 'string', description: '候选ID' },
+              birthYear: { type: 'number', description: '农历出生年' },
+              birthMonth: { type: 'number', description: '农历出生月' },
+              birthDay: { type: 'number', description: '农历出生日' },
+              birthHour: { type: 'number', description: '出生时' },
+              birthMinute: { type: 'number', description: '出生分' },
+              isLeapMonth: { type: 'boolean', description: '是否农历闰月' },
+              solarText: { type: 'string', description: '公历可读文本' },
+              lunarText: { type: 'string', description: '农历可读文本' },
+              nextCall: {
+                type: 'object',
+                description: '下一步调用 bazi_calculate 的农历建议参数（需补 gender）',
+                properties: {
+                  tool: { type: 'string', description: '工具名' },
+                  arguments: {
+                    type: 'object',
+                    properties: {
+                      birthYear: { type: 'number', description: '农历出生年' },
+                      birthMonth: { type: 'number', description: '农历出生月' },
+                      birthDay: { type: 'number', description: '农历出生日' },
+                      birthHour: { type: 'number' },
+                      birthMinute: { type: 'number' },
+                      calendarType: { type: 'string', enum: ['lunar'] },
+                      isLeapMonth: { type: 'boolean', description: '是否农历闰月' },
+                    },
+                  },
+                  missing: { type: 'array', items: { type: 'string' } },
+                },
+              },
+            },
           },
         },
       },
@@ -807,4 +960,4 @@ export const tools: ToolDefinition[] = [
   },
 ];
 
-export type ToolInput = BaziInput | ZiweiInput | LiuyaoInput | TarotInput | FortuneInput | LiunianInput;
+export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | LiuyaoInput | TarotInput | FortuneInput | LiunianInput;

@@ -9,6 +9,7 @@ export * from './types.js';
 
 export {
   handleBaziCalculate,
+  handleBaziPillarsResolve,
   handleZiweiCalculate,
   handleLiuyaoAnalyze,
   handleTarotDraw,
