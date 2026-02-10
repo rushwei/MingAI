@@ -39,7 +39,7 @@
   - 删除 `change/changeAnalysis`。
   - 新增 `isChanging`、`movementState`、`movementLabel`、`shenSha: string[]`、`changedYao`。
   - `changedYao` 字段：`type/liuQin/naJia/wuXing/liuShen/yaoCi/relation`，未动爻为 `null`。
-- `yongShen`：升级为分组数组 `[{ targetLiuQin, source, selected, candidates }]`。
+- `yongShen`：升级为分组数组 `[{ targetLiuQin, candidates }]`，其中 `candidates[0]` 为主用神。
 - `shenSystem`：升级为 `shenSystemByYongShen` 数组，按目标输出原神/忌神/仇神。
 - 神煞：抽出共享模块，八字调用共享函数保持行为；六爻逐爻调用 `calculateBranchShenSha`，整盘级输出 `globalShenSha`。
 - 应期：保留 `timeRecommendations` 字段名，新增 `targetLiuQin/startDate/endDate/confidence`，窗口 90 天。
@@ -147,7 +147,7 @@
   - `performFullAnalysis(..., options?: { yongShenTargets?: LiuQin[] })` 保留签名兼容，但运行时强校验必须传有效目标。
 - `packages/mcp-core/src/types.ts`
   - `LiuyaoInput.yongShenTargets` 由可选改为必填。
-  - `YongShenGroupInfo.source` 固定 `'input'`。
+  - `YongShenGroupInfo` 简化为 `targetLiuQin + candidates`（去掉 `source/selected` 冗余字段）。
 - `packages/mcp-core/src/tools.ts`
   - `liuyao_analyze.inputSchema.required` 包含 `yongShenTargets`。
   - 描述明确“调用前先判断并填写，不再自动兜底”。

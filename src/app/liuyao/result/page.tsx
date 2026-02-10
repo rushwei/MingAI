@@ -222,12 +222,15 @@ export default function ResultPage() {
         yongShen.forEach((group) => {
             lines.push(`目标：${group.targetLiuQin}（来源：手动指定）`);
             const main = group.selected;
-            lines.push(`主用神：${main.liuQin}${main.position ? `（第${main.position}爻）` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel} | rank=${main.rankScore}`);
+            lines.push(`主用神：${main.liuQin}${main.position ? `（第${main.position}爻）` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel}`);
             if (main.factors.length > 0) {
                 lines.push(`依据：${main.factors.join('、')}`);
             }
             if (group.candidates.length > 0) {
-                lines.push(`备选：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}(rank=${c.rankScore})`).join('；')}`);
+                lines.push(`候选（按参考优先级）：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}`).join('；')}`);
+                if (group.candidates.length > 1) {
+                    lines.push('说明：候选顺序越靠后，参考度越低。');
+                }
             }
             const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
             if (system?.yuanShen) {

@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
                     const yongShenInfo = yongShen.map((group) => {
                         const main = group.selected;
                         const candidates = group.candidates.length > 0
-                            ? `\n备选：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}(rank=${c.rankScore})`).join('、')}`
+                            ? `\n候选（按参考优先级）：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}`).join('、')}${group.candidates.length > 1 ? '\n说明：候选顺序越靠后，参考度越低。' : ''}`
                             : '';
                         const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
                         const systemParts: string[] = [];
@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
                         const recText = recs.length > 0
                             ? `\n应期：${recs.map(rec => `${rec.startDate}~${rec.endDate}(参考度${rec.confidence})`).join('；')}`
                             : '';
-                        return `- 目标${group.targetLiuQin}（手动指定）\n  主用神：${main.liuQin}${main.position ? ` 第${main.position}爻` : ''} ${main.element} ${main.strengthLabel} ${main.movementLabel} rank=${main.rankScore}${candidates}${systemText}${recText}`;
+                        return `- 目标${group.targetLiuQin}（手动指定）\n  主用神：${main.liuQin}${main.position ? ` 第${main.position}爻` : ''} ${main.element} ${main.strengthLabel} ${main.movementLabel}${candidates}${systemText}${recText}`;
                     }).join('\n');
 
                     let fuShenInfo = '';

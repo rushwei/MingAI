@@ -56,6 +56,9 @@ test('liuyao accepts explicit multiple targets in strict mode', async () => {
   assert.ok(result.yongShen.some((group) => group.targetLiuQin === '官鬼'));
   assert.ok(result.yongShen.some((group) => group.targetLiuQin === '父母'));
   for (const group of result.yongShen) {
-    assert.equal(group.source, 'input');
+    assert.ok(Array.isArray(group.candidates));
+    assert.ok(group.candidates.length > 0, 'every group should include primary candidate at index 0');
+    assert.equal('source' in group, false);
+    assert.equal('selected' in group, false);
   }
 });

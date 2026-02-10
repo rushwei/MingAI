@@ -22,6 +22,10 @@ test('traditional analysis uses compact grouped layout labels', () => {
     assert.equal(content.includes('yongShen.length > 0 && ('), true);
     assert.equal(content.includes('关键信号提示'), true);
     assert.equal(content.includes("items-start rounded-lg border border-white/10 bg-white/[0.02]"), false);
+    assert.equal(content.includes('rank='), false);
+    assert.equal(content.includes('rankScore'), false);
+    assert.equal(content.includes('groupIndex === 0 && ('), true);
+    assert.equal(content.includes("i === 0 ? '主·' : ''"), false);
 
     assert.equal(termsContent.includes('合同文书/证件/学业/房屋车辆/长辈'), true);
     assert.equal(termsContent.includes('功名求官/工作事业/规则/压力/风险/疾病'), true);

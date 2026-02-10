@@ -165,7 +165,6 @@ export interface LiuyaoInput {
 }
 export interface LiuyaoOutput {
     question: string;
-    rankScoreNote: string;
     hexagramName: string;
     hexagramGong: string;
     hexagramElement: string;
@@ -229,13 +228,10 @@ export interface YongShenCandidateInfo {
     isShiYao: boolean;
     isYingYao: boolean;
     kongWangState?: string;
-    rankScore: number;
     factors: string[];
 }
 export interface YongShenGroupInfo {
     targetLiuQin: LiuQinType;
-    source: 'input';
-    selected: YongShenCandidateInfo;
     candidates: YongShenCandidateInfo[];
 }
 export interface KongWangInfo {

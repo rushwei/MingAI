@@ -23,7 +23,6 @@ const MOVEMENT_LABELS = {
     hidden_moving: '暗动',
     day_break: '日破',
 };
-const RANK_SCORE_NOTE = 'rankScore 仅用于同目标用神候选排序，不代表吉凶判断；吉凶需结合旺衰、神系、动变、空亡与应期综合判断。';
 // 卦辞简介
 const HEXAGRAM_BRIEF = {
     '乾为天': '元亨利贞，君子自强不息。',
@@ -334,6 +333,11 @@ function scoreYongShenCandidate(params) {
     if (kongWangState === 'kong_ri_chong')
         score += 5;
     return Math.max(0, Math.min(100, score));
+}
+function stripCandidateScore(candidate) {
+    const { rankScore, ...rest } = candidate;
+    void rankScore;
+    return rest;
 }
 function buildFuShenFallbackCandidate(params) {
     const { target, fuShenList, fullYaos, kongWang } = params;
@@ -1084,10 +1088,9 @@ export async function handleLiuyaoAnalyze(input) {
         }
     }
     const normalizedTargets = resolveYongShenTargets(question, yongShenTargets);
-    const targetSpecs = normalizedTargets.map(target => ({ target, source: 'input' }));
-    const yongShen = targetSpecs.map((spec) => {
+    const yongShenGroups = normalizedTargets.map((target) => {
         const rankedCandidates = fullYaos
-            .filter(y => y.liuQin === spec.target)
+            .filter(y => y.liuQin === target)
             .map((y) => {
             const strength = getYaoStrength(y.wuXing, monthZhi);
             const strengthScore = strength.isStrong ? 70 : 30;
@@ -1132,13 +1135,13 @@ export async function handleLiuyaoAnalyze(input) {
         const fuShenFallback = rankedCandidates.length > 0
             ? undefined
             : buildFuShenFallbackCandidate({
-                target: spec.target,
+                target,
                 fuShenList: fuShen,
                 fullYaos,
                 kongWang,
             });
         const selected = rankedCandidates[0] ?? fuShenFallback ?? {
-            liuQin: spec.target,
+            liuQin: target,
             element: '土',
             strengthScore: 0,
             isStrong: false,
@@ -1151,14 +1154,18 @@ export async function handleLiuyaoAnalyze(input) {
             rankScore: 0,
             factors: ['目标六亲不上卦'],
         };
+        const mergedCandidates = rankedCandidates.length > 0 ? rankedCandidates : [selected];
         return {
-            targetLiuQin: spec.target,
-            source: spec.source,
+            targetLiuQin: target,
             selected,
-            candidates: rankedCandidates.slice(1),
+            rankedCandidates: mergedCandidates,
         };
     });
-    const shenSystemByYongShen = yongShen.map((group) => {
+    const yongShen = yongShenGroups.map((group) => ({
+        targetLiuQin: group.targetLiuQin,
+        candidates: group.rankedCandidates.map(stripCandidateScore),
+    }));
+    const shenSystemByYongShen = yongShenGroups.map((group) => {
         const selectedElement = (group.selected.element || '土');
         const system = group.selected.position
             ? calculateShenSystem(group.targetLiuQin, selectedElement, fullYaos, gongElement)
@@ -1174,13 +1181,13 @@ export async function handleLiuyaoAnalyze(input) {
             warnings.push(`${banHe.branches.join('')}${banHe.type}半合${banHe.result}`);
         }
     }
-    for (const group of yongShen) {
+    for (const group of yongShenGroups) {
         if (!group.selected.isStrong)
             warnings.push(`用神${group.targetLiuQin}力弱`);
         if (group.selected.kongWangState === 'kong_static')
             warnings.push(`用神${group.targetLiuQin}空亡`);
     }
-    const timeRecommendations = calculateTimeRecommendations(yongShen.map(group => ({
+    const timeRecommendations = calculateTimeRecommendations(yongShenGroups.map(group => ({
         targetLiuQin: group.targetLiuQin,
         selected: {
             position: group.selected.position,
@@ -1194,7 +1201,6 @@ export async function handleLiuyaoAnalyze(input) {
     const globalShenSha = calculateGlobalShenSha(shenShaContext);
     return {
         question,
-        rankScoreNote: RANK_SCORE_NOTE,
         hexagramName: mainHexagramName,
         hexagramGong: palace?.name || '',
         hexagramElement: mainHex?.element || '',

@@ -295,7 +295,7 @@ export function TraditionalAnalysis({
 
             {yongShen.length > 0 && (
                 <div className="grid gap-3 md:grid-cols-2">
-                    {yongShen.map((group) => {
+                    {yongShen.map((group, groupIndex) => {
                         const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
                         const recs = recommendationByTarget.get(group.targetLiuQin) ?? [];
                         const selectedLine = typeof group.selected.position === 'number'
@@ -305,15 +305,15 @@ export function TraditionalAnalysis({
 
                         return (
                             <div key={group.targetLiuQin} className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden text-xs">
-                                {/* 卡片头：目标 + 评分 */}
+                                {/* 卡片头：目标 */}
                                 <div className="flex items-center justify-start gap-2 px-3 py-2 bg-white/5">
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold text-accent text-sm" title={LIU_QIN_TIPS[group.targetLiuQin]}>{group.targetLiuQin}</span>
+                                        {groupIndex === 0 && (
+                                            <span className="px-1.5 py-0.5 rounded border border-accent/40 bg-accent/10 text-accent text-[10px] leading-none">主</span>
+                                        )}
                                         <span className="text-foreground-tertiary">{getSourceLabel(group.source)}</span>
                                     </div>
-                                    <span className="tabular-nums px-2 py-0.5 rounded-md border border-accent/20 bg-accent/5 text-accent font-medium">
-                                        {group.selected.rankScore}分
-                                    </span>
                                 </div>
 
                                 {/* 卡片体：结构化行 */}
@@ -368,8 +368,15 @@ export function TraditionalAnalysis({
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-12">{`候选（${group.candidates.length}）`}</span>
                                             <span className="text-foreground-tertiary">{group.candidates.map(c =>
-                                                `${c.liuQin}@${getPositionLabel(c.position)}(${c.rankScore}分)`
+                                                `${c.liuQin}@${getPositionLabel(c.position)}`
                                             ).join('、')}</span>
+                                        </div>
+                                    )}
+
+                                    {group.candidates.length > 1 && (
+                                        <div className="flex gap-2">
+                                            <span className="text-foreground-tertiary shrink-0 w-12">说明</span>
+                                            <span className="text-foreground-tertiary">候选按参考优先级排序，越靠后参考度越低。</span>
                                         </div>
                                     )}
 

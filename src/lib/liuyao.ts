@@ -457,9 +457,10 @@ export interface YongShenCandidate {
     isShiYao: boolean;
     isYingYao: boolean;
     kongWangState?: YaoKongWangState;
-    rankScore: number;
     factors: string[];
 }
+
+type RankedYongShenCandidate = YongShenCandidate & { rankScore: number };
 
 export interface YongShenGroup {
     targetLiuQin: LiuQin;
@@ -629,6 +630,12 @@ function scoreYongShenCandidate(params: {
     return Math.max(0, Math.min(100, score));
 }
 
+function stripCandidateScore(candidate: RankedYongShenCandidate): YongShenCandidate {
+    const { rankScore, ...rest } = candidate;
+    void rankScore;
+    return rest;
+}
+
 function buildYongShenGroups(
     fullYaos: FullYaoInfoExtended[],
     explicitTargets: LiuQin[]
@@ -636,7 +643,7 @@ function buildYongShenGroups(
     const targetSpecs = explicitTargets.map(target => ({ target, source: 'input' as const }));
 
     return targetSpecs.map((spec) => {
-        const rankedCandidates = fullYaos
+        const rankedCandidates: RankedYongShenCandidate[] = fullYaos
             .filter(y => y.liuQin === spec.target)
             .map((y) => {
                 const movementState = getYaoMovementState(y);
@@ -668,7 +675,7 @@ function buildYongShenGroups(
                     kongWangState: y.kongWangState,
                     rankScore,
                     factors,
-                } satisfies YongShenCandidate;
+                } satisfies RankedYongShenCandidate;
             })
             .sort((a, b) => b.rankScore - a.rankScore);
 
@@ -682,15 +689,16 @@ function buildYongShenGroups(
             movementLabel: MOVEMENT_LABELS.static,
             isShiYao: false,
             isYingYao: false,
+            kongWangState: 'not_kong' as YaoKongWangState,
             rankScore: 0,
             factors: ['目标六亲不上卦'],
-        };
+        } satisfies RankedYongShenCandidate;
 
         return {
             targetLiuQin: spec.target,
             source: spec.source,
-            selected,
-            candidates: rankedCandidates.slice(1),
+            selected: stripCandidateScore(selected),
+            candidates: rankedCandidates.slice(1).map(stripCandidateScore),
         };
     });
 }
@@ -700,7 +708,7 @@ function buildFuShenFallbackCandidate(params: {
     fuShenList?: FuShen[];
     fullYaos: FullYaoInfoExtended[];
     kongWang: KongWang;
-}): YongShenCandidate | undefined {
+}): RankedYongShenCandidate | undefined {
     const { target, fuShenList, fullYaos, kongWang } = params;
     if (!fuShenList || fuShenList.length === 0) {
         return undefined;
@@ -744,7 +752,7 @@ function buildFuShenFallbackCandidate(params: {
             `用神${target}不上卦，转取伏神`,
             selectedFuShen.availabilityReason,
         ],
-    };
+    } satisfies RankedYongShenCandidate;
 }
 
 function toDateString(date: Date): string {
@@ -2441,7 +2449,7 @@ export function performFullAnalysis(
         }
         return {
             ...group,
-            selected: fallback,
+            selected: stripCandidateScore(fallback),
         };
     });
 

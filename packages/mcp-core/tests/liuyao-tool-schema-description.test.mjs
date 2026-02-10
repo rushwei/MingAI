@@ -15,13 +15,13 @@ test('liuyao tool description guides target selection by question semantics', ()
   );
   assert.match(
     tool.description,
-    /rankScore|排序分/u,
-    'tool description should mention rankScore semantics',
+    /候选顺序|候选排序|越后|越靠后/u,
+    'tool description should mention candidate ordering semantics',
   );
-  assert.match(
+  assert.doesNotMatch(
     tool.description,
-    /不代表吉凶/u,
-    'tool description should state rankScore is not fortune verdict',
+    /rankScore|排序分/u,
+    'tool description should not expose score fields',
   );
 
   const yongShenTargets = tool.inputSchema?.properties?.yongShenTargets;
@@ -42,8 +42,11 @@ test('liuyao tool description guides target selection by question semantics', ()
     'yongShenTargets description should include classic scenario hints',
   );
 
-  const rankScore = tool.outputSchema?.properties?.yongShen?.items?.properties?.selected?.properties?.rankScore;
-  assert.equal(rankScore?.type, 'number');
-  assert.match(rankScore?.description ?? '', /排序|优先级/u);
-  assert.match(rankScore?.description ?? '', /不代表吉凶/u);
+  const yongShenProps = tool.outputSchema?.properties?.yongShen?.items?.properties;
+  assert.equal(yongShenProps?.selected, undefined, 'selected output should be removed');
+  assert.equal(yongShenProps?.source, undefined, 'source output should be removed');
+  const candidates = tool.outputSchema?.properties?.yongShen?.items?.properties?.candidates;
+  assert.match(candidates?.description ?? '', /顺序|排序|越后|参考|主用神/u);
+  assert.equal(candidates?.items?.properties?.rankScore, undefined, 'candidate output should hide rankScore');
+  assert.equal(tool.outputSchema?.properties?.rankScoreNote, undefined, 'rankScoreNote should be removed');
 });

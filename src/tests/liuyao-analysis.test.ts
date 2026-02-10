@@ -2,6 +2,25 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { performFullAnalysis, yaosTpCode, calculateKongWangByPillar, XUN_KONG_TABLE, type Yao, type YaoType, type YaoChange, type GanZhiTime } from '../lib/liuyao';
 
+function computeCandidatePriority(candidate: {
+    strengthScore: number;
+    movementState: 'static' | 'changing' | 'hidden_moving' | 'day_break';
+    isShiYao: boolean;
+    isYingYao: boolean;
+    kongWangState?: 'not_kong' | 'kong_static' | 'kong_changing' | 'kong_ri_chong' | 'kong_yue_jian';
+}): number {
+    let score = candidate.strengthScore;
+    if (candidate.movementState === 'changing') score += 12;
+    if (candidate.movementState === 'hidden_moving') score += 10;
+    if (candidate.movementState === 'day_break') score -= 25;
+    if (candidate.isShiYao) score += 8;
+    if (candidate.isYingYao) score += 4;
+    if (candidate.kongWangState === 'kong_static') score -= 15;
+    if (candidate.kongWangState === 'kong_changing') score -= 8;
+    if (candidate.kongWangState === 'kong_ri_chong') score += 5;
+    return Math.max(0, Math.min(100, score));
+}
+
 test('performFullAnalysis outputs refactored structured contract', () => {
     const yaos: Yao[] = [
         { type: 1 as YaoType, change: 'changing' as YaoChange, position: 1 },
@@ -136,8 +155,12 @@ test('performFullAnalysis supports explicit multi yongshen groups for exam quest
         assert.ok(group.selected);
         assert.ok(Array.isArray(group.candidates));
         const merged = [group.selected, ...group.candidates];
+        merged.forEach(candidate => {
+            assert.equal('rankScore' in candidate, false, 'candidate should not expose rankScore');
+        });
+        const priorities = merged.map(computeCandidatePriority);
         for (let i = 1; i < merged.length; i++) {
-            assert.ok(merged[i - 1].rankScore >= merged[i].rankScore);
+            assert.ok(priorities[i - 1] >= priorities[i], 'candidates should stay sorted by priority');
         }
     }
 });

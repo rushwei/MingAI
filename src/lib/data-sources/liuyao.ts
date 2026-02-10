@@ -107,7 +107,7 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
             kongWangSummary ? `- 旬空（年/月/日/时）：${kongWangSummary}` : '',
             kongWangSummary ? '- 注：六爻断卦判空亡以“日旬空”为主，年/月/时旬空供参考。' : '',
             analysis?.yongShen?.length
-                ? `- 用神：${analysis.yongShen.map(group => `${group.targetLiuQin}=>${group.selected.liuQin}${group.selected.position ? `@${group.selected.position}` : ''}(rank=${group.selected.rankScore})`).join('；')}`
+                ? `- 用神：${analysis.yongShen.map(group => `${group.targetLiuQin}=>${group.selected.liuQin}${group.selected.position ? `@${group.selected.position}` : ''}`).join('；')}`
                 : '',
             analysis?.fuShen?.length ? `- 伏神：${JSON.stringify(analysis.fuShen)}` : '',
             analysis?.shenSystemByYongShen?.length ? `- 原神/忌神/仇神：${JSON.stringify(analysis.shenSystemByYongShen)}` : '',

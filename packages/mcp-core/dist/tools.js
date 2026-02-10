@@ -444,7 +444,7 @@ export const tools = [
     },
     {
         name: 'liuyao_analyze',
-        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。特别说明：yongShen 中的 rankScore/排序分仅用于同目标候选优先级，不代表吉凶判断结果。',
+        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。候选用神已按参考优先级排序，越靠后参考度越低。',
         inputSchema: {
             type: 'object',
             properties: {
@@ -454,7 +454,7 @@ export const tools = [
                 },
                 yongShenTargets: {
                     type: 'array',
-                    description: '指定用神目标（可多选，字段必须显式传入；无问题场景可传空数组）。当 question 非空时至少传 1 项，请由调用方/AI先判断语义再传入：父母=文书合同/证件证明/学业老师/房屋车辆；官鬼=工作事业/职位规则/压力疾病/女问感情对象；兄弟=同辈亲友/合作同伴/竞争分财；妻财=钱财资源/交易货物/家用开销；子孙=子女后辈/医药解忧（求官类通常不取子孙）。不再自动推断兜底。',
+                    description: '指定用神目标（可多选，字段必须显式传入；无问题场景可传空数组）。当 question 非空时至少传 1 项，请由调用方/AI先判断语义再传入：父母=合同文书/证件/学业/房屋车辆/长辈；官鬼=功名求官/工作事业/规则/压力/风险/疾病；兄弟=同辈/合作/竞争；妻财=感情婚姻/钱财/资源；子孙=子女后辈/医药。不再自动推断兜底。',
                     items: {
                         type: 'string',
                         enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'],
@@ -583,35 +583,14 @@ export const tools = [
                 },
                 yongShen: {
                     type: 'array',
-                    description: '用神分组列表（按目标六亲）',
+                    description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选）',
                     items: {
                         type: 'object',
                         properties: {
                             targetLiuQin: { type: 'string', enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'], description: '目标六亲' },
-                            source: { type: 'string', enum: ['input'], description: '来源（输入指定）' },
-                            selected: {
-                                type: 'object',
-                                description: '主用神',
-                                properties: {
-                                    liuQin: { type: 'string', description: '六亲' },
-                                    naJia: { type: 'string', description: '纳甲地支' },
-                                    element: { type: 'string', description: '五行' },
-                                    position: { type: 'number', description: '位置' },
-                                    strengthScore: { type: 'number', description: '强度评分' },
-                                    isStrong: { type: 'boolean', description: '是否旺相' },
-                                    strengthLabel: { type: 'string', description: '强度标签' },
-                                    movementState: { type: 'string', enum: ['static', 'changing', 'hidden_moving', 'day_break'], description: '动静状态' },
-                                    movementLabel: { type: 'string', description: '动静状态中文标签' },
-                                    isShiYao: { type: 'boolean', description: '是否世爻' },
-                                    isYingYao: { type: 'boolean', description: '是否应爻' },
-                                    kongWangState: { type: 'string', description: '空亡状态' },
-                                    rankScore: { type: 'number', description: '综合排序分（仅用于同目标候选优先级，不代表吉凶）' },
-                                    factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
-                                },
-                            },
                             candidates: {
                                 type: 'array',
-                                description: '备选用神列表（按 rankScore 降序）',
+                                description: '用神候选列表（按参考优先级从高到低排序，candidates[0] 为主用神，越靠后参考度越低）',
                                 items: {
                                     type: 'object',
                                     properties: {
@@ -627,17 +606,12 @@ export const tools = [
                                         isShiYao: { type: 'boolean', description: '是否世爻' },
                                         isYingYao: { type: 'boolean', description: '是否应爻' },
                                         kongWangState: { type: 'string', description: '空亡状态' },
-                                        rankScore: { type: 'number', description: '综合排序分（仅用于同目标候选优先级，不代表吉凶）' },
                                         factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
                                     },
                                 },
                             },
                         },
                     },
-                },
-                rankScoreNote: {
-                    type: 'string',
-                    description: '排序分解释：rankScore 仅用于同目标候选优先级，不代表吉凶判断结果',
                 },
                 shenSystemByYongShen: {
                     type: 'array',

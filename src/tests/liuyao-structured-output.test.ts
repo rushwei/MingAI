@@ -2,6 +2,25 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { performFullAnalysis, type Yao } from '../lib/liuyao';
 
+function computeCandidatePriority(candidate: {
+    strengthScore: number;
+    movementState: 'static' | 'changing' | 'hidden_moving' | 'day_break';
+    isShiYao: boolean;
+    isYingYao: boolean;
+    kongWangState?: 'not_kong' | 'kong_static' | 'kong_changing' | 'kong_ri_chong' | 'kong_yue_jian';
+}): number {
+    let score = candidate.strengthScore;
+    if (candidate.movementState === 'changing') score += 12;
+    if (candidate.movementState === 'hidden_moving') score += 10;
+    if (candidate.movementState === 'day_break') score -= 25;
+    if (candidate.isShiYao) score += 8;
+    if (candidate.isYingYao) score += 4;
+    if (candidate.kongWangState === 'kong_static') score -= 15;
+    if (candidate.kongWangState === 'kong_changing') score -= 8;
+    if (candidate.kongWangState === 'kong_ri_chong') score += 5;
+    return Math.max(0, Math.min(100, score));
+}
+
 function daysBetween(startDate: string, endDate: string): number {
     const start = new Date(`${startDate}T00:00:00.000Z`);
     const end = new Date(`${endDate}T00:00:00.000Z`);
@@ -112,7 +131,8 @@ test('when target liuqin is not on hexagram, yongshen falls back to fuShen candi
     const target = analysis.yongShen.find(group => group.targetLiuQin === '官鬼');
     assert.ok(target, 'expected 官鬼 target group to exist');
     assert.equal(typeof target.selected.position, 'number');
-    assert.ok(target.selected.rankScore > 0);
+    assert.equal('rankScore' in target.selected, false);
+    assert.ok(computeCandidatePriority(target.selected) > 0);
     assert.ok(
         target.selected.factors.some(factor => factor.includes('伏神')),
         'expected fallback factors to include 伏神 hint'
