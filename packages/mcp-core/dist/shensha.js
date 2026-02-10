@@ -189,7 +189,7 @@ function matchMapValue(map, key, targetBranch, label, bag) {
     }
 }
 export function calculateBranchShenSha(context, targetBranch, options) {
-    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourStem, kongWang } = context;
+    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, kongWang } = context;
     const positionHint = options?.positionHint;
     const names = [];
     matchValue(TIAN_YI_GUI_REN[dayStem], targetBranch, '天乙贵人', names);

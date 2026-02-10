@@ -8,9 +8,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
+import { Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check, BookOpenText, X, Album } from 'lucide-react';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
 import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
+import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
@@ -18,15 +19,12 @@ import {
     type DivinationResult,
     type Hexagram,
     type Yao,
+    type LiuQin,
     type LiuYaoFullAnalysis,
-    type FullYaoInfoExtended,
     performFullAnalysis,
     yaosTpCode,
-    getLiuQinMeaning,
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
-    HUA_TYPE_LABELS,
-    SPECIAL_STATUS_LABELS,
 } from '@/lib/liuyao';
 import { getHexagramText } from '@/lib/hexagram-texts';
 import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
@@ -41,6 +39,20 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
+import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/liuyao-term-tips';
+
+const LIU_QIN_VALUES: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
+
+function normalizeYongShenTargets(value: unknown): LiuQin[] {
+    if (!Array.isArray(value)) return [];
+    const unique = new Set<LiuQin>();
+    for (const item of value) {
+        if (typeof item === 'string' && LIU_QIN_VALUES.includes(item as LiuQin)) {
+            unique.add(item as LiuQin);
+        }
+    }
+    return Array.from(unique);
+}
 
 export default function ResultPage() {
     const router = useRouter();
@@ -60,6 +72,8 @@ export default function ResultPage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    const [pendingYongShenTargets, setPendingYongShenTargets] = useState<LiuQin[]>([]);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
     const [copied, setCopied] = useState(false);
@@ -69,6 +83,13 @@ export default function ResultPage() {
             <span className="text-sm">{error}</span>
         </div>
     ) : null;
+    const effectiveYongShenTargets = useMemo(() => {
+        if (result?.yongShenTargets?.length) return result.yongShenTargets;
+        return [];
+    }, [result?.yongShenTargets]);
+    const requiresYongShenTargets = Boolean(result?.question?.trim());
+    const missingYongShenTargets = requiresYongShenTargets && !result?.yongShenTargets?.length;
+    const hasEffectiveTargets = !requiresYongShenTargets || effectiveYongShenTargets.length > 0;
 
     // 计算传统分析数据（使用起卦日期执行完整分析）
     const traditionalData = useMemo((): (LiuYaoFullAnalysis & {
@@ -76,7 +97,7 @@ export default function ResultPage() {
         changedHexagramText?: ReturnType<typeof getHexagramText>;
         dayStem: string;
     }) | null => {
-        if (!result) return null;
+        if (!result || !hasEffectiveTargets) return null;
 
         // 计算卦码
         const hexagramCode = yaosTpCode(result.yaos);
@@ -93,7 +114,8 @@ export default function ResultPage() {
             hexagramCode,
             changedCode,
             result.question,
-            result.createdAt
+            result.createdAt,
+            { yongShenTargets: effectiveYongShenTargets }
         );
 
         // 获取卦辞
@@ -108,15 +130,32 @@ export default function ResultPage() {
             changedHexagramText,
             dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示
         };
-    }, [result]);
+    }, [effectiveYongShenTargets, hasEffectiveTargets, result]);
 
     // 生成可复制的六爻分析文本（与 AI 分析格式一致）
     const generateCopyText = () => {
         if (!result || !traditionalData) return '';
 
-        const { hexagram, changedHexagram, changedLines, question } = result;
-        const { ganZhiTime, kongWang, kongWangByPillar, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, hexagramText } = traditionalData;
+        const { hexagram, changedHexagram, question } = result;
+        const {
+            ganZhiTime,
+            kongWang,
+            kongWangByPillar,
+            fullYaos,
+            yongShen,
+            fuShen,
+            shenSystemByYongShen,
+            timeRecommendations,
+            hexagramText,
+            globalShenSha,
+        } = traditionalData;
         const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+        const changedLines = fullYaos.filter(y => y.isChanging).map(y => y.position);
+        const yongShenPositions = new Set(
+            yongShen
+                .map(group => group.selected.position)
+                .filter((position): position is number => typeof position === 'number')
+        );
 
         // 获取卦码和世应宫位
         const hexagramCode = yaosTpCode(result.yaos);
@@ -163,57 +202,62 @@ export default function ResultPage() {
         lines.push('');
         lines.push('【六爻排盘】');
         fullYaos.forEach((y) => {
-            const extYao = y as FullYaoInfoExtended;
             const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
-            const yongShenMark = y.position === yongShen.position ? '【用神】' : '';
-            const changeMark = y.change === 'changing' ? '（动）' : '';
-            const wangShuaiMark = WANG_SHUAI_LABELS[extYao.strength.wangShuai];
-            const kongMark = extYao.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[extYao.kongWangState] : '';
-            const huaMark = extYao.changeAnalysis && extYao.changeAnalysis.huaType !== 'none'
-                ? HUA_TYPE_LABELS[extYao.changeAnalysis.huaType]
-                : '';
-            const specialMark = extYao.strength.specialStatus !== 'none'
-                ? SPECIAL_STATUS_LABELS[extYao.strength.specialStatus]
-                : '';
-            const changShengMark = extYao.changSheng ? `${extYao.changSheng.stage}` : '';
-            const statusParts = [wangShuaiMark, kongMark, huaMark, specialMark, changShengMark].filter(Boolean);
-            lines.push(`${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${statusParts.join('·')}] ${extYao.influence.description}`);
+            const yongShenMark = yongShenPositions.has(y.position) ? '【用神】' : '';
+            const changeMark = y.isChanging ? '（动）' : '';
+            const statusParts = [
+                WANG_SHUAI_LABELS[y.strength.wangShuai],
+                y.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[y.kongWangState] : '',
+                y.movementLabel,
+                y.changSheng?.stage,
+                y.changedYao?.relation,
+            ].filter(Boolean);
+            const shenShaMark = y.shenSha.length > 0 ? ` 神煞:${y.shenSha.join('、')}` : '';
+            lines.push(`${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${statusParts.join('·')}] ${y.influence.description}${shenShaMark}`);
         });
 
         // 用神分析
         lines.push('');
         lines.push('【用神分析】');
-        lines.push(`用神：${yongShen.type}（${getLiuQinMeaning(yongShen.type)}）`);
-        lines.push(`位置：第${yongShen.position}爻 | 五行：${yongShen.element} | 状态：${yongShen.strength === 'strong' ? '旺相' : yongShen.strength === 'moderate' ? '平和' : '衰弱'}`);
-        if (yongShen.analysis) {
-            lines.push(yongShen.analysis);
-        }
+        yongShen.forEach((group) => {
+            lines.push(`目标：${group.targetLiuQin}（来源：手动指定）`);
+            const main = group.selected;
+            lines.push(`主用神：${main.liuQin}${main.position ? `（第${main.position}爻）` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel} | rank=${main.rankScore}`);
+            if (main.factors.length > 0) {
+                lines.push(`依据：${main.factors.join('、')}`);
+            }
+            if (group.candidates.length > 0) {
+                lines.push(`备选：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}(rank=${c.rankScore})`).join('；')}`);
+            }
+            const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
+            if (system?.yuanShen) {
+                lines.push(`原神：${system.yuanShen.liuQin}（${system.yuanShen.wuXing}）`);
+            }
+            if (system?.jiShen) {
+                lines.push(`忌神：${system.jiShen.liuQin}（${system.jiShen.wuXing}）`);
+            }
+            if (system?.chouShen) {
+                lines.push(`仇神：${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
+            }
+            const targetRecs = timeRecommendations.filter(item => item.targetLiuQin === group.targetLiuQin);
+            if (targetRecs.length > 0) {
+                lines.push(`应期：${targetRecs.map(rec => `${rec.startDate}~${rec.endDate}(${rec.confidence})`).join('；')}`);
+            }
+            lines.push('');
+        });
 
         // 伏神
         if (fuShen && fuShen.length > 0) {
             lines.push('');
-            lines.push(`伏神分析（用神${yongShen.type}不上卦）：`);
+            lines.push('伏神分析：');
             fuShen.forEach(fs => {
                 lines.push(`- ${fs.liuQin}伏于${yaoNames[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin}）下，纳甲${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`);
             });
         }
 
-        // 神系
-        if (shenSystem) {
+        if (globalShenSha.length > 0) {
             lines.push('');
-            lines.push('神系分析：');
-            if (shenSystem.yuanShen) {
-                const pos = shenSystem.yuanShen.positions.length > 0 ? `在${shenSystem.yuanShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
-                lines.push(`原神（生用神）：${shenSystem.yuanShen.liuQin}（${shenSystem.yuanShen.wuXing}）${pos}`);
-            }
-            if (shenSystem.jiShen) {
-                const pos = shenSystem.jiShen.positions.length > 0 ? `在${shenSystem.jiShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
-                lines.push(`忌神（克用神）：${shenSystem.jiShen.liuQin}（${shenSystem.jiShen.wuXing}）${pos}`);
-            }
-            if (shenSystem.chouShen) {
-                const pos = shenSystem.chouShen.positions.length > 0 ? `在${shenSystem.chouShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦';
-                lines.push(`仇神（克原神）：${shenSystem.chouShen.liuQin}（${shenSystem.chouShen.wuXing}）${pos}`);
-            }
+            lines.push(`【全局神煞】${globalShenSha.join('、')}`);
         }
 
         // 卦辞
@@ -230,7 +274,7 @@ export default function ResultPage() {
             lines.push('【应期参考】');
             timeRecommendations.forEach(r => {
                 const typeLabel = r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要';
-                lines.push(`${typeLabel}（${r.timeframe}）：${r.description}`);
+                lines.push(`${typeLabel}（${r.targetLiuQin} ${r.startDate}~${r.endDate} 参考度${r.confidence}）：${r.description}`);
             });
         }
 
@@ -284,19 +328,23 @@ export default function ResultPage() {
             changedHexagram?: Hexagram;
             changedLines: number[];
             createdAt: string;
+            yongShenTargets?: LiuQin[];
             divinationId?: string | null;
             conversationId?: string | null;
         }>('liuyao_result');
         if (parsed) {
             try {
+                const normalizedTargets = normalizeYongShenTargets(parsed.yongShenTargets);
                 setResult({
                     question: parsed.question,
+                    yongShenTargets: normalizedTargets,
                     yaos: parsed.yaos as Yao[],
                     hexagram: parsed.hexagram as Hexagram,
                     changedHexagram: parsed.changedHexagram as Hexagram | undefined,
                     changedLines: parsed.changedLines as number[],
                     createdAt: new Date(parsed.createdAt),
                 });
+                setPendingYongShenTargets(normalizedTargets);
                 // 恢复 divinationId（用于 AI 解读时更新正确的记录）
                 setDivinationId(parsed.divinationId || null);
                 setConversationId(parsed.conversationId || null);
@@ -332,6 +380,12 @@ export default function ResultPage() {
             label: showTraditional ? '隐藏传统分析' : '显示传统分析',
             icon: <BookOpen className="w-4 h-4" />,
             onClick: () => setShowTraditional(!showTraditional),
+        });
+        items.push({
+            id: 'terms',
+            label: '术语参考',
+            icon: <Album className="w-4 h-4" />,
+            onClick: () => setShowTermsModal(true),
         });
         setMenuItems(items);
         return () => clearMenuItems();
@@ -394,7 +448,15 @@ export default function ResultPage() {
     }, [conversationId, divinationId, interpretation, result]);
 
     const handleGetInterpretation = async () => {
-        if (!result || !user || !traditionalData) return;
+        if (!result || !user) return;
+        if (requiresYongShenTargets && !hasEffectiveTargets) {
+            setError('必须先选择分析目标');
+            return;
+        }
+        if (!traditionalData) {
+            setError('传统分析数据准备中，请稍后重试');
+            return;
+        }
 
         setIsLoading(true);
         streaming.reset();
@@ -412,6 +474,7 @@ export default function ResultPage() {
                 body: JSON.stringify({
                     action: 'interpret',
                     question: result.question,
+                    yongShenTargets: effectiveYongShenTargets,
                     hexagram: result.hexagram,
                     changedHexagram: result.changedHexagram,
                     changedLines: result.changedLines,
@@ -451,6 +514,46 @@ export default function ResultPage() {
         }
     };
 
+    const handleApplyYongShenTargets = async () => {
+        if (!result) return;
+        const normalized = normalizeYongShenTargets(pendingYongShenTargets);
+        if (normalized.length === 0) {
+            setError('请至少选择一个分析目标');
+            return;
+        }
+
+        setError(null);
+        setResult((prev) => {
+            if (!prev) return prev;
+            return { ...prev, yongShenTargets: normalized };
+        });
+        updateSessionJSON('liuyao_result', (prev) => ({
+            ...(prev || {}),
+            yongShenTargets: normalized,
+        }));
+
+        if (!divinationId) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            await fetch('/api/liuyao', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    action: 'update',
+                    divinationId,
+                    yongShenTargets: normalized,
+                }),
+            });
+        } catch (updateError) {
+            console.error('回写分析目标失败:', updateError);
+        }
+    };
+
     if (!result) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
@@ -469,7 +572,7 @@ export default function ResultPage() {
 
     return (
         <div className="min-h-screen bg-background pb-8 relative overflow-x-hidden">
-            <div className="max-w-3xl mx-auto px-4 py-4 relative z-10 animate-fade-in">
+            <div className="max-w-5xl mx-auto px-4 py-4 relative z-10 animate-fade-in">
                 {/* Header Navigation - 仅桌面端显示 */}
                 <div className="hidden md:flex items-center justify-between mb-4">
                     <Link
@@ -507,6 +610,14 @@ export default function ResultPage() {
                             <BookOpen className="w-3.5 h-3.5" />
                             传统分析
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowTermsModal(true)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
+                        >
+                            <Album className="w-3.5 h-3.5" />
+                            术语参考
+                        </button>
                     </div>
                 </div>
 
@@ -517,6 +628,27 @@ export default function ResultPage() {
                             <Sparkles className="w-4 h-4 text-purple-400" />
                             <span className="text-xs text-foreground-secondary">所问</span>
                             <span className="text-foreground font-medium">{result.question}</span>
+                        </div>
+                    </div>
+                )}
+
+                {missingYongShenTargets && (
+                    <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                        <div className="mb-2 text-sm font-medium text-amber-500">必须先选择分析目标</div>
+                        <YongShenTargetPicker
+                            value={pendingYongShenTargets}
+                            onChange={setPendingYongShenTargets}
+                            variant="block"
+                        />
+                        <div className="mt-3 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handleApplyYongShenTargets}
+                                disabled={pendingYongShenTargets.length === 0}
+                                className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                应用目标并继续分析
+                            </button>
                         </div>
                     </div>
                 )}
@@ -540,7 +672,13 @@ export default function ResultPage() {
                         showDetails={true}
                         fullYaos={traditionalData?.fullYaos}
                         showTraditional={showTraditional}
-                        yongShenPosition={traditionalData?.yongShen.position}
+                        yongShenPositions={traditionalData?.yongShen
+                            .flatMap((group) => {
+                                if (typeof group.selected.position !== 'number') return [];
+                                const line = traditionalData.fullYaos.find(y => y.position === group.selected.position);
+                                if (!line) return [];
+                                return line.liuQin === group.selected.liuQin ? [group.selected.position] : [];
+                            })}
                     />
                 </div>
 
@@ -550,6 +688,8 @@ export default function ResultPage() {
                         <TraditionalAnalysis
                             fullYaos={traditionalData.fullYaos}
                             yongShen={traditionalData.yongShen}
+                            shenSystemByYongShen={traditionalData.shenSystemByYongShen}
+                            globalShenSha={traditionalData.globalShenSha}
                             timeRecommendations={traditionalData.timeRecommendations}
                             hexagramText={traditionalData.hexagramText}
                             changedHexagramText={traditionalData.changedHexagramText}
@@ -558,103 +698,101 @@ export default function ResultPage() {
                             kongWang={traditionalData.kongWang}
                             kongWangByPillar={traditionalData.kongWangByPillar}
                             fuShen={traditionalData.fuShen}
-                            shenSystem={traditionalData.shenSystem}
-                            summary={traditionalData.summary}
+                            warnings={traditionalData.warnings}
                         />
                     </div>
                 )}
 
                 {/* AI Interpretation */}
-                <div className="relative rounded-xl p-px">
-                    <div className="relative bg-background/80 backdrop-blur-xl rounded-xl p-2 md:p-6">
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 relative z-20">
-                            <h2 className="text-base font-bold flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-purple-400" />
-                                AI 深度解卦
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <ModelSelector
-                                    compact
-                                    selectedModel={selectedModel}
-                                    onModelChange={setSelectedModel}
-                                    reasoningEnabled={reasoningEnabled}
-                                    onReasoningChange={setReasoningEnabled}
-                                    userId={user?.id}
-                                    membershipType={membershipType}
-                                />
-                                {interpretation && (
-                                    <button
-                                        data-testid="reanalyze-button"
-                                        onClick={handleGetInterpretation}
-                                        disabled={isLoading}
-                                        className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors"
-                                        title="重新分析"
-                                    >
-                                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                                    </button>
-                                )}
-                            </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2 md:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <h2 className="text-base font-bold flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            AI 深度解卦
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <ModelSelector
+                                compact
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                reasoningEnabled={reasoningEnabled}
+                                onReasoningChange={setReasoningEnabled}
+                                userId={user?.id}
+                                membershipType={membershipType}
+                            />
+                            {(interpretation || streaming.isStreaming) && (
+                                <button
+                                    data-testid="reanalyze-button"
+                                    onClick={handleGetInterpretation}
+                                    disabled={isLoading}
+                                    className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
+                                    title="重新分析"
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                </button>
+                            )}
                         </div>
+                    </div>
 
-                        {interpretation ? (
-                            <div className="relative z-10">
-                                {errorBanner}
+                    {(interpretation || streaming.isStreaming) ? (
+                        <div>
+                            {errorBanner}
+                            {streaming.isStreaming && !streaming.content && !streaming.reasoning && !interpretation ? (
+                                <div className="flex items-center gap-2 py-6 justify-center text-foreground-secondary">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-sm">正在解读天机...</span>
+                                </div>
+                            ) : (
                                 <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300">
-                                    {interpretationReasoning && (
+                                    {(interpretationReasoning || streaming.reasoning) && (
                                         <ThinkingBlock
-                                            content={interpretationReasoning}
+                                            content={interpretationReasoning || streaming.reasoning || ''}
                                             isStreaming={streaming.isStreaming && !interpretation}
                                             startTime={streaming.reasoningStartTime}
                                             duration={streaming.reasoningDuration}
                                         />
                                     )}
-                                    <MarkdownContent content={interpretation} className="text-sm text-foreground" />
+                                    <MarkdownContent
+                                        content={interpretation || streaming.content || ''}
+                                        className="text-sm text-foreground"
+                                    />
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-4 relative z-10">
-                                {errorBanner}
+                            )}
+                        </div>
+                    ) : (
+                        <div className="text-center py-4">
+                            {errorBanner}
 
-                                {user === null ? (
-                                    <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-xl p-6 text-center max-w-sm mx-auto backdrop-blur-sm">
-                                        <div className="flex justify-center mb-3">
-                                            <div className="p-3 rounded-full bg-purple-500/10 ring-1 ring-purple-500/20">
-                                                <Sparkles className="w-6 h-6 text-purple-400" />
-                                            </div>
+                            {user === null ? (
+                                <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-xl p-6 text-center max-w-sm mx-auto">
+                                    <div className="flex justify-center mb-3">
+                                        <div className="p-3 rounded-full bg-purple-500/10 ring-1 ring-purple-500/20">
+                                            <Sparkles className="w-6 h-6 text-purple-400" />
                                         </div>
-                                        <h3 className="text-lg font-bold mb-2 text-foreground">AI 深度分析</h3>
-                                        <p className="text-foreground-secondary mb-4 text-sm">
-                                            登录后解锁完整 AI 深度解读
-                                        </p>
-                                        <button
-                                            onClick={() => setShowAuthModal(true)}
-                                            className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
-                                        >
-                                            立即登录 / 注册
-                                        </button>
                                     </div>
-                                ) : (
+                                    <h3 className="text-lg font-bold mb-2 text-foreground">AI 深度分析</h3>
+                                    <p className="text-foreground-secondary mb-4 text-sm">
+                                        登录后解锁完整 AI 深度解读
+                                    </p>
                                     <button
-                                        onClick={handleGetInterpretation}
-                                        disabled={isLoading}
-                                        className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                        onClick={() => setShowAuthModal(true)}
+                                        className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
                                     >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                正在解读天机...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-4 h-4" />
-                                                获取 AI 深度解读
-                                            </>
-                                        )}
+                                        立即登录 / 注册
                                     </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleGetInterpretation}
+                                    disabled={isLoading || (requiresYongShenTargets && !hasEffectiveTargets)}
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    {requiresYongShenTargets && !hasEffectiveTargets ? '请先选择分析目标' : '获取 AI 深度解读'}
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -672,6 +810,74 @@ export default function ResultPage() {
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
             />
+
+            {showTermsModal && (
+                <div className="fixed inset-0 z-[80]">
+                    <button
+                        type="button"
+                        aria-label="关闭术语参考弹窗"
+                        onClick={() => setShowTermsModal(false)}
+                        className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-background/95 shadow-2xl backdrop-blur">
+                            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                                <div>
+                                    <div className="text-sm font-semibold text-foreground">术语参考</div>
+                                    <div className="text-xs text-foreground-tertiary">六亲与神系速查</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTermsModal(false)}
+                                    className="rounded-md border border-white/15 p-1 text-foreground-secondary hover:text-foreground"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            <div className="max-h-[68vh] overflow-y-auto p-4 text-sm">
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="mb-2 text-foreground font-medium">六亲</div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-foreground-secondary">
+                                            {Object.entries(LIU_QIN_TIPS).map(([name, tip]) => (
+                                                <div key={name}>
+                                                    <span className="text-foreground">{name}</span>
+                                                    {'：'}
+                                                    {tip}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-white/10 pt-3">
+                                        <div className="mb-2 text-foreground font-medium">神系</div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-foreground-secondary">
+                                            {Object.entries(SHEN_XI_TIPS).map(([name, tip]) => (
+                                                <div key={name}>
+                                                    <span className="text-foreground">{name}</span>
+                                                    {'：'}
+                                                    {tip}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-white/10 pt-3">
+                                        <div className="mb-2 text-foreground font-medium">其他</div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-foreground-secondary">
+                                            {Object.entries(TERM_TIPS).map(([name, tip]) => (
+                                                <div key={name}>
+                                                    <span className="text-foreground">{name}</span>
+                                                    {'：'}
+                                                    {tip}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <CreditsModal
                 isOpen={showCreditsModal}

@@ -19,12 +19,14 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
   assert.equal(inputProps?.question?.type, 'string');
   assert.equal(inputProps?.yongShenTargets?.type, 'array');
   assert.deepEqual(inputProps?.yongShenTargets?.items?.enum, LIU_QIN);
+  assert.equal(tool.inputSchema?.required?.includes('yongShenTargets'), true);
 
   const outputProps = tool.outputSchema?.properties;
   assert.equal(outputProps?.changedLines, undefined, 'changedLines should be removed');
   assert.equal(outputProps?.changedYaoCi, undefined, 'changedYaoCi should be removed');
   assert.equal(outputProps?.changedYaos, undefined, 'changedYaos should be removed');
   assert.equal(outputProps?.summary, undefined, 'summary should be removed');
+  assert.equal(outputProps?.rankScoreNote?.type, 'string');
 
   assert.equal(outputProps?.globalShenSha?.type, 'array');
   assert.equal(outputProps?.yongShen?.type, 'array');
@@ -75,10 +77,13 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
 
   assert.ok(Array.isArray(result.yongShen), 'yongShen should be grouped array');
   assert.ok(result.yongShen.length >= 2, 'yongShen should include requested multi targets');
+  assert.equal(typeof result.rankScoreNote, 'string');
+  assert.match(result.rankScoreNote, /排序|优先级/u);
+  assert.match(result.rankScoreNote, /不代表吉凶/u);
 
   for (const group of result.yongShen) {
     assert.ok(LIU_QIN.includes(group.targetLiuQin), `invalid targetLiuQin: ${group.targetLiuQin}`);
-    assert.ok(['input', 'inferred'].includes(group.source), `invalid source: ${group.source}`);
+    assert.equal(group.source, 'input');
     assert.ok(group.selected, 'selected should exist');
     assert.ok(Array.isArray(group.candidates), 'candidates should always be array');
 
@@ -113,6 +118,7 @@ test('liuyao can identify hidden_moving and day_break in sampled cases', async (
     for (const hexagramName of hexagrams) {
       const result = await mcpCore.handleLiuyaoAnalyze({
         question: '近期计划是否顺利',
+        yongShenTargets: ['兄弟'],
         method: 'select',
         hexagramName,
         date,
@@ -141,6 +147,7 @@ test('liuyao can identify hidden_moving and day_break in sampled cases', async (
 test('liuyao relation uses 伏吟 when changed branch stays the same', async () => {
   const result = await mcpCore.handleLiuyaoAnalyze({
     question: '测试伏吟关系',
+    yongShenTargets: ['兄弟'],
     method: 'select',
     hexagramName: '乾为天',
     changedHexagramName: '水雷屯',
@@ -151,4 +158,24 @@ test('liuyao relation uses 伏吟 when changed branch stays the same', async () 
   assert.ok(target?.changedYao, 'position 2 should be changing yao');
   assert.equal(target.naJia, target.changedYao.naJia, 'fixture expects same branch');
   assert.equal(target.changedYao.relation, '伏吟');
+});
+
+test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试官鬼不上卦时伏神回退',
+    yongShenTargets: ['官鬼'],
+    method: 'select',
+    hexagramName: '火水未济',
+    date: '2026-02-10',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
+  assert.ok(group, 'missing 官鬼 yongShen group');
+  assert.equal(typeof group.selected.position, 'number', 'selected.position should come from 伏神爻位');
+  assert.ok(group.selected.rankScore > 0, '伏神回退候选应有基础评分');
+  assert.match(
+    (group.selected.factors || []).join('、'),
+    /伏神/u,
+    'fallback factors should mention 伏神'
+  );
 });

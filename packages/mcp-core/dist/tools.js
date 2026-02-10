@@ -444,7 +444,7 @@ export const tools = [
     },
     {
         name: 'liuyao_analyze',
-        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等',
+        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。特别说明：yongShen 中的 rankScore/排序分仅用于同目标候选优先级，不代表吉凶判断结果。',
         inputSchema: {
             type: 'object',
             properties: {
@@ -454,7 +454,7 @@ export const tools = [
                 },
                 yongShenTargets: {
                     type: 'array',
-                    description: '指定用神目标（可多选，优先级高于问题推断）',
+                    description: '指定用神目标（可多选，字段必须显式传入；无问题场景可传空数组）。当 question 非空时至少传 1 项，请由调用方/AI先判断语义再传入：父母=文书合同/证件证明/学业老师/房屋车辆；官鬼=工作事业/职位规则/压力疾病/女问感情对象；兄弟=同辈亲友/合作同伴/竞争分财；妻财=钱财资源/交易货物/家用开销；子孙=子女后辈/医药解忧（求官类通常不取子孙）。不再自动推断兜底。',
                     items: {
                         type: 'string',
                         enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'],
@@ -478,7 +478,7 @@ export const tools = [
                     description: '占卜日期 (ISO格式)，默认今天',
                 },
             },
-            required: ['question'],
+            required: ['question', 'yongShenTargets'],
         },
         outputSchema: {
             type: 'object',
@@ -588,7 +588,7 @@ export const tools = [
                         type: 'object',
                         properties: {
                             targetLiuQin: { type: 'string', enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'], description: '目标六亲' },
-                            source: { type: 'string', enum: ['input', 'inferred'], description: '来源（输入指定/问题推断）' },
+                            source: { type: 'string', enum: ['input'], description: '来源（输入指定）' },
                             selected: {
                                 type: 'object',
                                 description: '主用神',
@@ -605,7 +605,7 @@ export const tools = [
                                     isShiYao: { type: 'boolean', description: '是否世爻' },
                                     isYingYao: { type: 'boolean', description: '是否应爻' },
                                     kongWangState: { type: 'string', description: '空亡状态' },
-                                    rankScore: { type: 'number', description: '综合排序分' },
+                                    rankScore: { type: 'number', description: '综合排序分（仅用于同目标候选优先级，不代表吉凶）' },
                                     factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
                                 },
                             },
@@ -627,13 +627,17 @@ export const tools = [
                                         isShiYao: { type: 'boolean', description: '是否世爻' },
                                         isYingYao: { type: 'boolean', description: '是否应爻' },
                                         kongWangState: { type: 'string', description: '空亡状态' },
-                                        rankScore: { type: 'number', description: '综合排序分' },
+                                        rankScore: { type: 'number', description: '综合排序分（仅用于同目标候选优先级，不代表吉凶）' },
                                         factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
                                     },
                                 },
                             },
                         },
                     },
+                },
+                rankScoreNote: {
+                    type: 'string',
+                    description: '排序分解释：rankScore 仅用于同目标候选优先级，不代表吉凶判断结果',
                 },
                 shenSystemByYongShen: {
                     type: 'array',

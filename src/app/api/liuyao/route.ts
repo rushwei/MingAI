@@ -13,20 +13,19 @@ import { resolveModelAccessAsync } from '@/lib/ai-access';
 import {
     type Hexagram,
     type Yao,
+    type LiuQin,
     performFullAnalysis,
     yaosTpCode,
-    getLiuQinMeaning,
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
-    HUA_TYPE_LABELS,
-    SPECIAL_STATUS_LABELS,
 } from '@/lib/liuyao';
 import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
 import { getHexagramText } from '@/lib/hexagram-texts';
 
 interface LiuyaoRequest {
-    action: 'interpret' | 'save' | 'history';
+    action: 'interpret' | 'save' | 'history' | 'update';
     question?: string;
+    yongShenTargets?: LiuQin[];
     hexagram?: Hexagram;
     changedHexagram?: Hexagram;
     changedLines?: number[];
@@ -38,14 +37,70 @@ interface LiuyaoRequest {
     stream?: boolean;  // 是否使用流式输出
 }
 
+const LIU_QIN_VALUES: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
+
+function parseYongShenTargets(
+    value: unknown,
+    options: { required: boolean }
+): { targets: LiuQin[]; error?: string } {
+    if (value == null) {
+        if (options.required) {
+            return { targets: [], error: '请至少选择一个分析目标' };
+        }
+        return { targets: [] };
+    }
+    if (!Array.isArray(value)) {
+        return { targets: [], error: '分析目标格式错误' };
+    }
+    if (value.length === 0) {
+        if (options.required) {
+            return { targets: [], error: '请至少选择一个分析目标' };
+        }
+        return { targets: [] };
+    }
+    const unique = new Set<LiuQin>();
+    for (const item of value) {
+        if (typeof item !== 'string' || !LIU_QIN_VALUES.includes(item as LiuQin)) {
+            return { targets: [], error: '分析目标包含非法值' };
+        }
+        unique.add(item as LiuQin);
+    }
+    if (unique.size === 0 && options.required) {
+        return { targets: [], error: '请至少选择一个分析目标' };
+    }
+    return { targets: Array.from(unique) };
+}
+
+function toPersistedYongShenTargets(targets: LiuQin[]): LiuQin[] | null {
+    return targets.length > 0 ? targets : null;
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body: LiuyaoRequest = await request.json();
-        const { action, question, hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning, stream } = body;
+        const {
+            action,
+            question,
+            yongShenTargets,
+            hexagram,
+            changedHexagram,
+            changedLines,
+            yaos,
+            divinationId,
+            modelId,
+            reasoning,
+            stream,
+        } = body;
 
         switch (action) {
             // 保存起卦记录（不含 AI 解读）
             case 'save': {
+                const needsTargets = Boolean(question?.trim());
+                const parsedTargets = parseYongShenTargets(yongShenTargets, { required: needsTargets });
+                if (parsedTargets.error) {
+                    return jsonError(parsedTargets.error, 400, { success: false });
+                }
+
                 // 验证用户身份
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {
@@ -64,6 +119,7 @@ export async function POST(request: NextRequest) {
                     .insert({
                         user_id: saveUser.id,
                         question: question || '',
+                        yongshen_targets: parsedTargets.targets.length > 0 ? parsedTargets.targets : null,
                         hexagram_code: hexagramCode,
                         changed_hexagram_code: changedCode,
                         changed_lines: changedLines,
@@ -94,6 +150,43 @@ export async function POST(request: NextRequest) {
                 }
                 const { user } = authResult;
 
+                const serviceClient = getServiceRoleClient();
+                let analysisDate = new Date();
+                let effectiveQuestion = typeof question === 'string' ? question : '';
+                let persistedTargets: unknown = undefined;
+
+                if (divinationId) {
+                    const { data, error } = await serviceClient
+                        .from('liuyao_divinations')
+                        .select('created_at, question, yongshen_targets')
+                        .eq('id', divinationId)
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+
+                    if (error) {
+                        console.error('[liuyao] 获取起卦上下文失败:', error.message);
+                    } else if (data) {
+                        if (data.created_at) {
+                            analysisDate = new Date(data.created_at);
+                        }
+                        if (!effectiveQuestion.trim() && typeof data.question === 'string') {
+                            effectiveQuestion = data.question;
+                        }
+                        if (yongShenTargets == null) {
+                            persistedTargets = data.yongshen_targets;
+                        }
+                    }
+                }
+
+                const needsTargets = Boolean(effectiveQuestion.trim());
+                const parsedTargets = parseYongShenTargets(
+                    yongShenTargets ?? persistedTargets,
+                    { required: needsTargets }
+                );
+                if (parsedTargets.error) {
+                    return jsonError(parsedTargets.error, 400, { success: false });
+                }
+
                 // 检查积分
                 const hasEnoughCredits = await hasCredits(user.id);
                 if (!hasEnoughCredits) {
@@ -109,23 +202,6 @@ export async function POST(request: NextRequest) {
 
                 // 计算传统分析数据（使用完整分析函数）
                 let traditionalInfo = '';
-                let analysisDate = new Date();
-                const serviceClient = getServiceRoleClient();
-
-                if (divinationId) {
-                    const { data, error } = await serviceClient
-                        .from('liuyao_divinations')
-                        .select('created_at')
-                        .eq('id', divinationId)
-                        .eq('user_id', user.id)
-                        .maybeSingle();
-
-                    if (error) {
-                        console.error('[liuyao] 获取起卦时间失败:', error.message);
-                    } else if (data?.created_at) {
-                        analysisDate = new Date(data.created_at);
-                    }
-                }
                 if (yaos && yaos.length === 6) {
                     const hexagramCode = yaosTpCode(yaos);
                     const changedCode = changedHexagram ? yaosTpCode(yaos.map((y: Yao, i: number) =>
@@ -137,61 +213,73 @@ export async function POST(request: NextRequest) {
                         yaos,
                         hexagramCode,
                         changedCode,
-                        question || '',
-                        analysisDate
+                        effectiveQuestion,
+                        analysisDate,
+                        { yongShenTargets: parsedTargets.targets }
                     );
 
-                    const { ganZhiTime, kongWangByPillar, kongWang, fullYaos, yongShen, fuShen, shenSystem, timeRecommendations, summary, liuChongGuaInfo, sanHeAnalysis } = analysis;
+                    const {
+                        ganZhiTime,
+                        kongWangByPillar,
+                        kongWang,
+                        fullYaos,
+                        yongShen,
+                        fuShen,
+                        shenSystemByYongShen,
+                        globalShenSha,
+                        timeRecommendations,
+                        liuChongGuaInfo,
+                        sanHeAnalysis,
+                        warnings,
+                    } = analysis;
                     const shiYing = getShiYingPosition(hexagramCode);
                     const palace = findPalace(hexagramCode);
                     const hexText = getHexagramText(hexagram.name);
                     const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+                    const yongShenPositions = new Set(
+                        yongShen
+                            .map(group => group.selected.position)
+                            .filter((position): position is number => typeof position === 'number')
+                    );
 
-                    // 构建各爻详细信息（包含暗动/日破、十二长生）
+                    // 构建各爻详细信息
                     const yaoDetails = fullYaos.map((y) => {
                         const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
-                        const yongShenMark = y.position === yongShen.position ? '【用神】' : '';
-                        const changeMark = y.change === 'changing' ? '（动）' : '';
-                        const wangShuaiMark = WANG_SHUAI_LABELS[y.strength.wangShuai];
-                        const kongMark = y.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[y.kongWangState] : '';
-                        const huaMark = y.changeAnalysis && y.changeAnalysis.huaType !== 'none'
-                            ? HUA_TYPE_LABELS[y.changeAnalysis.huaType]
-                            : '';
-                        // 暗动/日破标记
-                        const specialMark = y.strength.specialStatus !== 'none'
-                            ? SPECIAL_STATUS_LABELS[y.strength.specialStatus]
-                            : '';
-                        // 十二长生标记
-                        const changShengMark = y.changSheng
-                            ? `${y.changSheng.stage}`
-                            : '';
-                        return `${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${wangShuaiMark}${kongMark ? '·' + kongMark : ''}${huaMark ? '·' + huaMark : ''}${specialMark ? '·' + specialMark : ''}${changShengMark ? '·' + changShengMark : ''}] ${y.influence.description}`;
+                        const yongShenMark = yongShenPositions.has(y.position) ? '【用神】' : '';
+                        const changeMark = y.isChanging ? '（动）' : '';
+                        const statusParts = [
+                            WANG_SHUAI_LABELS[y.strength.wangShuai],
+                            y.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[y.kongWangState] : '',
+                            y.movementLabel,
+                            y.changSheng?.stage,
+                            y.changedYao?.relation,
+                        ].filter(Boolean);
+                        const shenShaMark = y.shenSha.length > 0 ? ` 神煞:${y.shenSha.join('、')}` : '';
+                        return `${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${statusParts.join('·')}] ${y.influence.description}${shenShaMark}`;
                     }).join('\n');
 
-                    // 构建伏神信息
+                    const yongShenInfo = yongShen.map((group) => {
+                        const main = group.selected;
+                        const candidates = group.candidates.length > 0
+                            ? `\n备选：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}(rank=${c.rankScore})`).join('、')}`
+                            : '';
+                        const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
+                        const systemParts: string[] = [];
+                        if (system?.yuanShen) systemParts.push(`原神 ${system.yuanShen.liuQin}(${system.yuanShen.wuXing})`);
+                        if (system?.jiShen) systemParts.push(`忌神 ${system.jiShen.liuQin}(${system.jiShen.wuXing})`);
+                        if (system?.chouShen) systemParts.push(`仇神 ${system.chouShen.liuQin}(${system.chouShen.wuXing})`);
+                        const systemText = systemParts.length > 0 ? `\n神系：${systemParts.join('；')}` : '';
+                        const recs = timeRecommendations.filter(rec => rec.targetLiuQin === group.targetLiuQin);
+                        const recText = recs.length > 0
+                            ? `\n应期：${recs.map(rec => `${rec.startDate}~${rec.endDate}(参考度${rec.confidence})`).join('；')}`
+                            : '';
+                        return `- 目标${group.targetLiuQin}（手动指定）\n  主用神：${main.liuQin}${main.position ? ` 第${main.position}爻` : ''} ${main.element} ${main.strengthLabel} ${main.movementLabel} rank=${main.rankScore}${candidates}${systemText}${recText}`;
+                    }).join('\n');
+
                     let fuShenInfo = '';
                     if (fuShen && fuShen.length > 0) {
-                        fuShenInfo = `\n伏神分析（用神${yongShen.type}不上卦）：
+                        fuShenInfo = `\n伏神分析：
                         ${fuShen.map(fs => `- ${fs.liuQin}伏于${yaoNames[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin}）下，纳甲${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`).join('\n')}`;
-                    }
-
-                    // 构建神系信息
-                    let shenSystemInfo = '';
-                    if (shenSystem) {
-                        const parts = [];
-                        if (shenSystem.yuanShen) {
-                            parts.push(`原神（生用神）：${shenSystem.yuanShen.liuQin}（${shenSystem.yuanShen.wuXing}）${shenSystem.yuanShen.positions.length > 0 ? `在${shenSystem.yuanShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦'}`);
-                        }
-                        if (shenSystem.jiShen) {
-                            parts.push(`忌神（克用神）：${shenSystem.jiShen.liuQin}（${shenSystem.jiShen.wuXing}）${shenSystem.jiShen.positions.length > 0 ? `在${shenSystem.jiShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦'}`);
-                        }
-                        if (shenSystem.chouShen) {
-                            parts.push(`仇神（克原神）：${shenSystem.chouShen.liuQin}（${shenSystem.chouShen.wuXing}）${shenSystem.chouShen.positions.length > 0 ? `在${shenSystem.chouShen.positions.map(p => yaoNames[p - 1]).join('、')}` : '不上卦'}`);
-                        }
-                        if (parts.length > 0) {
-                            shenSystemInfo = `\n神系分析：
-                            ${parts.join('\n')}`;
-                        }
                     }
 
                     // 构建变卦信息
@@ -223,22 +311,18 @@ ${sanHeAnalysis.hasFullSanHe && sanHeAnalysis.fullSanHe ? `三合局：${sanHeAn
 ${yaoDetails}
 
 【用神分析】
-用神：${yongShen.type}（${getLiuQinMeaning(yongShen.type)}）
-位置：第${yongShen.position}爻 | 五行：${yongShen.element} | 状态：${yongShen.strength === 'strong' ? '旺相' : yongShen.strength === 'moderate' ? '平和' : '衰弱'}
-${yongShen.analysis}
+${yongShenInfo}
+${globalShenSha.length > 0 ? `\n全局神煞：${globalShenSha.join('、')}` : ''}
 ${fuShenInfo}
-${shenSystemInfo}
 
-【综合判断】
-趋势：${summary.overallTrend === 'favorable' ? '吉' : summary.overallTrend === 'unfavorable' ? '凶' : '平'}
-关键：${summary.keyFactors.join('、')}
+${warnings && warnings.length > 0 ? `【风险提示】\n${warnings.join('；')}\n` : ''}
 ${hexText ? `
 【卦辞象辞】
 卦辞：${hexText.gua}
 象辞：${hexText.xiang}` : ''}
 ${timeRecommendations.length > 0 ? `
 【应期参考】
-${timeRecommendations.map((r: { type: string; timeframe: string; description: string }) => `${r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要'}（${r.timeframe}）：${r.description}`).join('\n')}` : ''}`;
+${timeRecommendations.map((r: { type: string; targetLiuQin: string; startDate: string; endDate: string; confidence: number; description: string }) => `${r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要'}（${r.targetLiuQin} ${r.startDate}~${r.endDate} 参考度${r.confidence}）：${r.description}`).join('\n')}` : ''}`;
                 }
 
                 // 六爻解读系统提示词：固定的断卦规则 + 输出结构约束
@@ -264,11 +348,11 @@ ${timeRecommendations.map((r: { type: string; timeframe: string; description: st
 6. 【世应关系】世爻与应爻的关系分析
 7. 【综合判断】明确吉凶判断和应期建议
 
-要求：专业而通俗易懂，让求卦者理解断卦依据。字数800-1200字。`;
+                要求：专业而通俗易懂，让求卦者理解断卦依据。字数800-1200字。`;
 
                 // 用户提示词：携带起卦信息与用户问题，不含系统规则
-                const userPrompt = question
-                    ? `【求卦问题】${question}
+                const userPrompt = effectiveQuestion
+                    ? `【求卦问题】${effectiveQuestion}
 
 ${traditionalInfo}
 
@@ -316,12 +400,13 @@ ${traditionalInfo}
                                         changed_hexagram_code: changedCode,
                                         changed_hexagram_name: changedHexagram?.name,
                                         changed_lines: changedLines,
-                                        question: question || null,
+                                        question: effectiveQuestion || null,
+                                        yongshen_targets: parsedTargets.targets,
                                         model_id: requestedModelId,
                                         reasoning: reasoningEnabled,
                                         reasoning_text: reasoningText || null,
                                     },
-                                    title: generateLiuyaoTitle(question, hexagram.name, changedHexagram?.name),
+                                    title: generateLiuyaoTitle(effectiveQuestion, hexagram.name, changedHexagram?.name),
                                     aiResponse: interpretation,
                                 });
 
@@ -332,7 +417,10 @@ ${traditionalInfo}
                                 if (divinationId) {
                                     const { error: updateError } = await serviceClient
                                         .from('liuyao_divinations')
-                                        .update({ conversation_id: conversationId })
+                                        .update({
+                                            conversation_id: conversationId,
+                                            yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets),
+                                        })
                                         .eq('id', divinationId)
                                         .eq('user_id', user.id);
 
@@ -344,7 +432,8 @@ ${traditionalInfo}
                                         .from('liuyao_divinations')
                                         .insert({
                                             user_id: user.id,
-                                            question: question || '',
+                                            question: effectiveQuestion,
+                                            yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets),
                                             hexagram_code: hexagramCode,
                                             changed_hexagram_code: changedCode,
                                             changed_lines: changedLines,
@@ -397,12 +486,13 @@ ${traditionalInfo}
                             changed_hexagram_code: changedCode,
                             changed_hexagram_name: changedHexagram?.name,
                             changed_lines: changedLines,
-                            question: question || null,
+                            question: effectiveQuestion || null,
+                            yongshen_targets: parsedTargets.targets,
                             model_id: requestedModelId,
                             reasoning: reasoningEnabled,
                             reasoning_text: reasoningText || null,
                         },
-                        title: generateLiuyaoTitle(question, hexagram.name, changedHexagram?.name),
+                        title: generateLiuyaoTitle(effectiveQuestion, hexagram.name, changedHexagram?.name),
                         aiResponse: interpretation,
                     });
 
@@ -415,7 +505,10 @@ ${traditionalInfo}
                         // 更新已有记录
                         const { error: updateError } = await serviceClient
                             .from('liuyao_divinations')
-                            .update({ conversation_id: conversationId })
+                            .update({
+                                conversation_id: conversationId,
+                                yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets),
+                            })
                             .eq('id', divinationId)
                             .eq('user_id', user.id);
 
@@ -428,7 +521,8 @@ ${traditionalInfo}
                             .from('liuyao_divinations')
                             .insert({
                                 user_id: user.id,
-                                question: question || '',
+                                question: effectiveQuestion,
+                                yongshen_targets: toPersistedYongShenTargets(parsedTargets.targets),
                                 hexagram_code: hexagramCode,
                                 changed_hexagram_code: changedCode,
                                 changed_lines: changedLines,
@@ -474,6 +568,43 @@ ${traditionalInfo}
                 return jsonOk({
                     success: true,
                     data: { history }
+                });
+            }
+
+            case 'update': {
+                if (!divinationId) {
+                    return jsonError('缺少记录 ID', 400, { success: false });
+                }
+                const parsedTargets = parseYongShenTargets(yongShenTargets, { required: true });
+                if (parsedTargets.error) {
+                    return jsonError(parsedTargets.error, 400, { success: false });
+                }
+
+                const authResult = await requireBearerUser(request);
+                if ('error' in authResult) {
+                    return jsonError(authResult.error.message, authResult.error.status, { success: false });
+                }
+                const { user } = authResult;
+
+                const serviceClient = getServiceRoleClient();
+                const { data: updatedRows, error: updateError } = await serviceClient
+                    .from('liuyao_divinations')
+                    .update({ yongshen_targets: parsedTargets.targets })
+                    .eq('id', divinationId)
+                    .eq('user_id', user.id)
+                    .select('id');
+
+                if (updateError) {
+                    console.error('[liuyao] 更新分析目标失败:', updateError.message);
+                    return jsonError('更新分析目标失败', 500, { success: false });
+                }
+                if (!updatedRows || updatedRows.length === 0) {
+                    return jsonError('记录不存在或无权限', 404, { success: false });
+                }
+
+                return jsonOk({
+                    success: true,
+                    data: { divinationId, yongShenTargets: parsedTargets.targets }
                 });
             }
 

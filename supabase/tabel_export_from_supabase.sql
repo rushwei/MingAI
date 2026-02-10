@@ -288,6 +288,7 @@ CREATE TABLE public.liuyao_divinations (
   changed_lines jsonb,
   created_at timestamp with time zone DEFAULT now(),
   conversation_id uuid,
+  yongshen_targets ARRAY CHECK (yongshen_targets IS NULL OR COALESCE(array_length(yongshen_targets, 1), 0) >= 1 AND yongshen_targets <@ ARRAY['父母'::text, '兄弟'::text, '子孙'::text, '妻财'::text, '官鬼'::text]),
   CONSTRAINT liuyao_divinations_pkey PRIMARY KEY (id),
   CONSTRAINT liuyao_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT liuyao_divinations_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)

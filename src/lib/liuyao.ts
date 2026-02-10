@@ -28,6 +28,7 @@ import {
     DIZHI_WUXING,
 } from '@/lib/eight-palaces';
 import { getHexagramText } from '@/lib/hexagram-texts';
+import { calculateBranchShenSha, calculateGlobalShenSha } from '@/lib/liuyao-shensha';
 
 // 爻的类型
 export type YaoType = 0 | 1;  // 0 = 阴爻, 1 = 阳爻
@@ -71,6 +72,7 @@ export interface CoinTossResult {
 // 占卜结果
 export interface DivinationResult {
     question: string;
+    yongShenTargets: LiuQin[];
     yaos: Yao[];
     hexagram: Hexagram;
     changedHexagram?: Hexagram;
@@ -282,6 +284,7 @@ export function performDivination(question: string): DivinationResult {
 
     return {
         question,
+        yongShenTargets: [],
         yaos,
         hexagram,
         changedHexagram,
@@ -295,7 +298,8 @@ export function performDivination(question: string): DivinationResult {
  */
 export function reconstructDivination(
     question: string,
-    yaoData: { type: YaoType, change: YaoChange }[]
+    yaoData: { type: YaoType, change: YaoChange }[],
+    yongShenTargets: LiuQin[] = []
 ): DivinationResult {
     const yaos: Yao[] = yaoData.map((y, i) => ({
         ...y,
@@ -314,6 +318,7 @@ export function reconstructDivination(
 
     return {
         question,
+        yongShenTargets,
         yaos,
         hexagram,
         changedHexagram,
@@ -426,11 +431,55 @@ export interface YongShen {
     analysis: string;            // 分析说明
 }
 
+export type YongShenSource = 'input';
+export type YaoMovementState = 'static' | 'changing' | 'hidden_moving' | 'day_break';
+
+export interface ChangedYaoDetail {
+    type: YaoType;
+    liuQin: LiuQin;
+    naJia: DiZhi;
+    wuXing: WuXing;
+    liuShen: LiuShen;
+    yaoCi?: string;
+    relation: string;
+}
+
+export interface YongShenCandidate {
+    liuQin: LiuQin;
+    naJia?: DiZhi;
+    element: WuXing;
+    position?: number;
+    strengthScore: number;
+    isStrong: boolean;
+    strengthLabel: string;
+    movementState: YaoMovementState;
+    movementLabel: string;
+    isShiYao: boolean;
+    isYingYao: boolean;
+    kongWangState?: YaoKongWangState;
+    rankScore: number;
+    factors: string[];
+}
+
+export interface YongShenGroup {
+    targetLiuQin: LiuQin;
+    source: YongShenSource;
+    selected: YongShenCandidate;
+    candidates: YongShenCandidate[];
+}
+
+export interface ShenSystemByYongShen extends ShenSystem {
+    targetLiuQin: LiuQin;
+}
+
 // 时间建议
 export interface TimeRecommendation {
+    targetLiuQin: LiuQin;
     type: 'favorable' | 'unfavorable' | 'critical';
-    timeframe: string;           // "近期"/"月内"/"特定日"
-    earthlyBranch?: DiZhi;       // 相关地支
+    earthlyBranch?: DiZhi;
+    startDate: string;
+    endDate: string;
+    confidence: number;
     description: string;
 }
 
@@ -516,179 +565,307 @@ export function calculateLiuQin(yaoElement: WuXing, gongElement: WuXing): LiuQin
     return '兄弟'; // 默认
 }
 
-/**
- * 问事类型到用神六亲的映射
- */
-const QUESTION_YONGSHEN_MAP: Record<string, LiuQin> = {
-    // 事业财运
-    '事业': '官鬼',
-    '工作': '官鬼',
-    '升职': '官鬼',
-    '考试': '父母',
-    '学业': '父母',
-    '财运': '妻财',
-    '投资': '妻财',
-    '生意': '妻财',
+export const LIU_QIN_TARGETS: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 
-    // 感情婚姻
-    '感情': '妻财',  // 男问用妻财，女问用官鬼
-    '婚姻': '妻财',
-    '恋爱': '妻财',
-
-    // 家庭健康
-    '健康': '子孙',
-    '疾病': '官鬼',  // 官鬼为病
-    '子女': '子孙',
-    '父母': '父母',
-    '兄弟': '兄弟',
-
-    // 其他
-    '出行': '子孙',
-    '诉讼': '官鬼',
-    '失物': '妻财',
-};
-
-/**
- * 确定用神（根据问事类型）
- * 
- * @param question 问事内容
- * @param fullYaos 基础爻信息（用于找到用神所在爻）
- * @param extendedYaos 可选的扩展爻信息（包含已计算的强弱，用于获取精确强弱）
- */
-export function determineYongShen(
-    question: string,
-    fullYaos: FullYaoInfo[],
-    extendedYaos?: FullYaoInfoExtended[]
-): YongShen {
-    // 从问题中提取关键词确定用神类型
-    let yongShenType: LiuQin = '妻财'; // 默认
-
-    for (const [keyword, liuQin] of Object.entries(QUESTION_YONGSHEN_MAP)) {
-        if (question.includes(keyword)) {
-            yongShenType = liuQin;
-            break;
+export function normalizeYongShenTargets(targets?: readonly unknown[]): LiuQin[] {
+    if (!targets || targets.length === 0) return [];
+    const uniqueTargets = new Set<LiuQin>();
+    for (const target of targets) {
+        if (typeof target === 'string' && LIU_QIN_TARGETS.includes(target as LiuQin)) {
+            uniqueTargets.add(target as LiuQin);
         }
     }
+    return Array.from(uniqueTargets);
+}
 
-    // 找到用神所在的爻
-    const yongShenYao = fullYaos.find(y => y.liuQin === yongShenType);
+export function hasInvalidYongShenTargets(targets?: readonly unknown[]): boolean {
+    if (!targets || targets.length === 0) return false;
+    return targets.some((target) => typeof target !== 'string' || !LIU_QIN_TARGETS.includes(target as LiuQin));
+}
 
-    if (!yongShenYao) {
-        // 用神不上卦，需要从伏神中找（简化处理）
-        return {
-            type: yongShenType,
-            position: 0,
-            element: '土',
-            strength: 'weak',
-            analysis: `${yongShenType}不上卦，用神隐伏，事情难以把握`,
+function resolveYongShenTargets(targets: readonly unknown[] | undefined, question?: string): LiuQin[] {
+    const normalizedTargets = normalizeYongShenTargets(targets);
+    const requiresTargets = typeof question === 'string' && question.trim().length > 0;
+    if (requiresTargets && normalizedTargets.length === 0) {
+        throw new Error('请至少选择一个分析目标');
+    }
+    return normalizedTargets;
+}
+
+function getYaoMovementState(yao: FullYaoInfoExtended): YaoMovementState {
+    if (yao.change === 'changing') {
+        return 'changing';
+    }
+    if (yao.strength.specialStatus === 'anDong') {
+        return 'hidden_moving';
+    }
+    if (yao.strength.specialStatus === 'riPo') {
+        return 'day_break';
+    }
+    return 'static';
+}
+
+function scoreYongShenCandidate(params: {
+    strengthScore: number;
+    movementState: YaoMovementState;
+    isShiYao: boolean;
+    isYingYao: boolean;
+    kongWangState: YaoKongWangState;
+}): number {
+    const { strengthScore, movementState, isShiYao, isYingYao, kongWangState } = params;
+    let score = strengthScore;
+
+    if (movementState === 'changing') score += 12;
+    if (movementState === 'hidden_moving') score += 10;
+    if (movementState === 'day_break') score -= 25;
+
+    if (isShiYao) score += 8;
+    if (isYingYao) score += 4;
+
+    if (kongWangState === 'kong_static') score -= 15;
+    if (kongWangState === 'kong_changing') score -= 8;
+    if (kongWangState === 'kong_ri_chong') score += 5;
+
+    return Math.max(0, Math.min(100, score));
+}
+
+function buildYongShenGroups(
+    fullYaos: FullYaoInfoExtended[],
+    explicitTargets: LiuQin[]
+): YongShenGroup[] {
+    const targetSpecs = explicitTargets.map(target => ({ target, source: 'input' as const }));
+
+    return targetSpecs.map((spec) => {
+        const rankedCandidates = fullYaos
+            .filter(y => y.liuQin === spec.target)
+            .map((y) => {
+                const movementState = getYaoMovementState(y);
+                const rankScore = scoreYongShenCandidate({
+                    strengthScore: y.strength.score,
+                    movementState,
+                    isShiYao: y.isShiYao,
+                    isYingYao: y.isYingYao,
+                    kongWangState: y.kongWangState,
+                });
+                const factors: string[] = [];
+                if (y.strength.isStrong) factors.push('月令生扶');
+                if (movementState !== 'static') factors.push(MOVEMENT_LABELS[movementState]);
+                if (y.kongWangState !== 'not_kong') factors.push(KONG_WANG_LABELS[y.kongWangState]);
+                if (y.isShiYao) factors.push('世爻');
+                if (y.isYingYao) factors.push('应爻');
+                return {
+                    liuQin: y.liuQin,
+                    naJia: y.naJia,
+                    element: y.wuXing,
+                    position: y.position,
+                    strengthScore: y.strength.score,
+                    isStrong: y.strength.isStrong,
+                    strengthLabel: y.strength.isStrong ? '旺相' : '休囚',
+                    movementState,
+                    movementLabel: MOVEMENT_LABELS[movementState],
+                    isShiYao: y.isShiYao,
+                    isYingYao: y.isYingYao,
+                    kongWangState: y.kongWangState,
+                    rankScore,
+                    factors,
+                } satisfies YongShenCandidate;
+            })
+            .sort((a, b) => b.rankScore - a.rankScore);
+
+        const selected = rankedCandidates[0] ?? {
+            liuQin: spec.target,
+            element: '土' as WuXing,
+            strengthScore: 0,
+            isStrong: false,
+            strengthLabel: '未取到',
+            movementState: 'static' as YaoMovementState,
+            movementLabel: MOVEMENT_LABELS.static,
+            isShiYao: false,
+            isYingYao: false,
+            rankScore: 0,
+            factors: ['目标六亲不上卦'],
         };
+
+        return {
+            targetLiuQin: spec.target,
+            source: spec.source,
+            selected,
+            candidates: rankedCandidates.slice(1),
+        };
+    });
+}
+
+function buildFuShenFallbackCandidate(params: {
+    target: LiuQin;
+    fuShenList?: FuShen[];
+    fullYaos: FullYaoInfoExtended[];
+    kongWang: KongWang;
+}): YongShenCandidate | undefined {
+    const { target, fuShenList, fullYaos, kongWang } = params;
+    if (!fuShenList || fuShenList.length === 0) {
+        return undefined;
     }
 
-    // 评估用神强弱 - 优先使用已计算的强弱分数
-    let strength: 'weak' | 'moderate' | 'strong' = 'moderate';
-    let analysis = '';
-
-    // 如果有扩展信息，使用精确的强弱计算
-    const extendedYao = extendedYaos?.find(y => y.position === yongShenYao.position);
-    if (extendedYao) {
-        // 使用已计算的分数来判断强弱
-        const score = extendedYao.strength.score;
-        if (score >= 70) {
-            strength = 'strong';
-        } else if (score >= 40) {
-            strength = 'moderate';
-        } else {
-            strength = 'weak';
+    const sorted = [...fuShenList].sort((a, b) => {
+        if (a.isAvailable === b.isAvailable) {
+            return a.feiShenPosition - b.feiShenPosition;
         }
-
-        // 根据详细状态生成分析文本
-        if (extendedYao.strength.specialStatus === 'anDong') {
-            analysis = `${yongShenType}暗动有力，吉象明显`;
-        } else if (extendedYao.strength.specialStatus === 'riPo') {
-            analysis = `${yongShenType}日破无力，事难成就`;
-        } else if (yongShenYao.isShiYao) {
-            analysis = `世爻持${yongShenType}，主动权在己`;
-        } else if (yongShenYao.change === 'changing') {
-            analysis = `${yongShenType}动而有变，事情正在发展中`;
-        } else if (extendedYao.strength.isStrong) {
-            analysis = `${yongShenType}旺相有力，${extendedYao.strength.factors.join('、')}`;
-        } else {
-            analysis = `${yongShenType}力弱，${extendedYao.strength.factors.join('、')}`;
-        }
-    } else {
-        // 简化判断（向后兼容）
-        if (yongShenYao.isShiYao) {
-            strength = 'strong';
-            analysis = `世爻持${yongShenType}，主动权在己`;
-        } else if (yongShenYao.change === 'changing') {
-            strength = 'moderate';
-            analysis = `${yongShenType}动而有变，事情正在发展中`;
-        } else {
-            strength = 'moderate';
-            analysis = `${yongShenType}静而待时，需耐心等待`;
-        }
-    }
+        return a.isAvailable ? -1 : 1;
+    });
+    const selectedFuShen = sorted[0];
+    const attachedYao = fullYaos.find(yao => yao.position === selectedFuShen.feiShenPosition);
+    const kongWangState: YaoKongWangState = kongWang.kongDizhi.includes(selectedFuShen.naJia)
+        ? 'kong_static'
+        : 'not_kong';
+    const strengthScore = selectedFuShen.isAvailable ? 58 : 38;
+    const rankScore = scoreYongShenCandidate({
+        strengthScore,
+        movementState: 'static',
+        isShiYao: attachedYao?.isShiYao ?? false,
+        isYingYao: attachedYao?.isYingYao ?? false,
+        kongWangState,
+    });
 
     return {
-        type: yongShenType,
-        position: yongShenYao.position,
-        element: yongShenYao.wuXing,
-        strength,
-        analysis,
+        liuQin: target,
+        naJia: selectedFuShen.naJia,
+        element: selectedFuShen.wuXing,
+        position: selectedFuShen.feiShenPosition,
+        strengthScore,
+        isStrong: strengthScore >= 50,
+        strengthLabel: selectedFuShen.isAvailable ? '伏神可取' : '伏神待用',
+        movementState: 'static',
+        movementLabel: selectedFuShen.isAvailable ? '伏藏可用' : '伏藏受制',
+        isShiYao: attachedYao?.isShiYao ?? false,
+        isYingYao: attachedYao?.isYingYao ?? false,
+        kongWangState,
+        rankScore,
+        factors: [
+            `用神${target}不上卦，转取伏神`,
+            selectedFuShen.availabilityReason,
+        ],
     };
 }
 
-/**
- * 计算时间建议（基于用神状态）
- */
-export function calculateTimeRecommendations(
-    yongShen: YongShen,
-    fullYaos: FullYaoInfo[]
+function toDateString(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function addDaysToDateString(dateString: string, days: number): string {
+    const date = new Date(`${dateString}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    return toDateString(date);
+}
+
+function minDateString(a: string, b: string): string {
+    return a <= b ? a : b;
+}
+
+function calculateTimeWindowByBranch(
+    baseDate: Date,
+    baseDayZhi: DiZhi,
+    targetBranch?: DiZhi,
+    horizonDays = 90
+): { startDate: string; endDate: string } {
+    if (!targetBranch) {
+        const start = new Date(baseDate);
+        start.setDate(start.getDate() + 1);
+        const end = new Date(baseDate);
+        end.setDate(end.getDate() + Math.min(horizonDays, 30));
+        return { startDate: toDateString(start), endDate: toDateString(end) };
+    }
+
+    const baseIdx = DIZHI_INDEX[baseDayZhi];
+    const targetIdx = DIZHI_INDEX[targetBranch];
+    const offset = (targetIdx - baseIdx + 12) % 12;
+
+    const first = new Date(baseDate);
+    first.setDate(first.getDate() + offset);
+
+    const second = new Date(first);
+    second.setDate(second.getDate() + 12);
+    const horizonEnd = new Date(baseDate);
+    horizonEnd.setDate(horizonEnd.getDate() + horizonDays);
+
+    return {
+        startDate: toDateString(first),
+        endDate: toDateString(second <= horizonEnd ? second : first),
+    };
+}
+
+function getTimeRecommendationConfidence(params: {
+    isStrong: boolean;
+    movementState: YaoMovementState;
+    kongWangState?: YaoKongWangState;
+    type: 'favorable' | 'unfavorable' | 'critical';
+}): number {
+    const { isStrong, movementState, kongWangState, type } = params;
+    let score = 0.5;
+    if (isStrong) score += 0.2;
+    if (movementState === 'changing' || movementState === 'hidden_moving') score += 0.15;
+    if (movementState === 'day_break') score -= 0.25;
+    if (kongWangState === 'kong_static') score -= 0.15;
+    if (type === 'critical') score += 0.05;
+    if (type === 'unfavorable') score -= 0.05;
+    return Number(Math.max(0, Math.min(1, score)).toFixed(2));
+}
+
+function calculateTimeRecommendations(
+    yongShenGroups: YongShenGroup[],
+    baseDate: Date,
+    dayZhi: DiZhi
 ): TimeRecommendation[] {
     const recommendations: TimeRecommendation[] = [];
 
-    // 找到用神爻
-    const yongShenYao = fullYaos.find(y => y.position === yongShen.position);
+    for (const group of yongShenGroups) {
+        const selected = group.selected;
+        const timeWindow = calculateTimeWindowByBranch(baseDate, dayZhi, selected.naJia);
+        const criticalStart = selected.movementState === 'day_break'
+            ? timeWindow.startDate
+            : minDateString(addDaysToDateString(timeWindow.startDate, 1), timeWindow.endDate);
+        const criticalEnd = minDateString(
+            addDaysToDateString(
+                criticalStart,
+                selected.movementState === 'changing' || selected.movementState === 'hidden_moving' ? 5 : 3
+            ),
+            timeWindow.endDate
+        );
 
-    if (yongShenYao) {
-        // 用神所临地支为有利时间
         recommendations.push({
+            targetLiuQin: group.targetLiuQin,
             type: 'favorable',
-            timeframe: '特定日',
-            earthlyBranch: yongShenYao.naJia,
-            description: `逢${yongShenYao.naJia}日/月应期，事情易有进展`,
+            earthlyBranch: selected.naJia,
+            startDate: timeWindow.startDate,
+            endDate: timeWindow.endDate,
+            confidence: getTimeRecommendationConfidence({
+                isStrong: selected.isStrong,
+                movementState: selected.movementState,
+                kongWangState: selected.kongWangState,
+                type: 'favorable',
+            }),
+            description: selected.naJia
+                ? `用神${group.targetLiuQin}逢${selected.naJia}日/月较易推进，宜主动布局`
+                : `用神${group.targetLiuQin}在窗口内偏顺势，宜按节奏推进`,
         });
 
-        // 生用神的地支也有利
-        const shengElement = WUXING_BEI_SHENG[yongShenYao.wuXing];
-        if (shengElement) {
-            recommendations.push({
-                type: 'favorable',
-                timeframe: '月内',
-                description: `${shengElement}旺之时有利，可积极行动`,
-            });
-        }
-
-        // 克用神的不利
-        const keElement = WUXING_BEI_KE[yongShenYao.wuXing];
-        if (keElement) {
-            recommendations.push({
-                type: 'unfavorable',
-                timeframe: '近期',
-                description: `${keElement}旺之时不利，宜避开`,
-            });
-        }
-    }
-
-    // 变爻相关时间提示
-    const changingYaos = fullYaos.filter(y => y.change === 'changing');
-    if (changingYaos.length > 0) {
-        const firstChanging = changingYaos[0];
         recommendations.push({
+            targetLiuQin: group.targetLiuQin,
             type: 'critical',
-            timeframe: '特定日',
-            earthlyBranch: firstChanging.naJia,
-            description: `动爻临${firstChanging.naJia}，此时可能有关键变化`,
+            earthlyBranch: selected.naJia,
+            startDate: criticalStart,
+            endDate: criticalEnd,
+            confidence: getTimeRecommendationConfidence({
+                isStrong: selected.isStrong,
+                movementState: selected.movementState,
+                kongWangState: selected.kongWangState,
+                type: 'critical',
+            }),
+            description: selected.movementState === 'day_break'
+                ? `用神${group.targetLiuQin}日破，此段先看破中能否得救与转机`
+                : `用神${group.targetLiuQin}关键观察节点，重点看应验与转折`,
         });
     }
 
@@ -876,6 +1053,13 @@ export const SPECIAL_STATUS_LABELS: Record<YaoSpecialStatus, string> = {
     'riPo': '日破',
 };
 
+export const MOVEMENT_LABELS: Record<YaoMovementState, string> = {
+    static: '静',
+    changing: '明动',
+    hidden_moving: '暗动',
+    day_break: '日破',
+};
+
 /** 爻的综合强度 */
 export interface YaoStrength {
     wangShuai: WangShuai;
@@ -942,10 +1126,15 @@ export interface ShenSystem {
 
 /** 扩展爻信息 */
 export interface FullYaoInfoExtended extends FullYaoInfo {
+    isChanging: boolean;
+    movementState: YaoMovementState;
+    movementLabel: string;
     kongWangState: YaoKongWangState;
     influence: YaoInfluence;
     strength: YaoStrength;
     changeAnalysis?: YaoChangeAnalysis;
+    changedYao: ChangedYaoDetail | null;
+    shenSha: string[];
     changSheng?: {                    // 十二长生状态
         stage: ShiErChangSheng;
         strength: 'strong' | 'medium' | 'weak';
@@ -964,17 +1153,14 @@ export interface LiuYaoFullAnalysis {
     kongWang: KongWang;
     kongWangByPillar: KongWangByPillar;
     fullYaos: FullYaoInfoExtended[];
-    changedYaos?: FullYaoInfoExtended[];
-    yongShen: YongShen;
+    yongShen: YongShenGroup[];
     fuShen?: FuShen[];
-    shenSystem?: ShenSystem;
+    shenSystemByYongShen: ShenSystemByYongShen[];
+    globalShenSha: string[];
     timeRecommendations: TimeRecommendation[];
     liuChongGuaInfo: LiuChongGuaInfo;  // 六冲卦判定
     sanHeAnalysis: SanHeAnalysis;       // 三合局分析
-    summary: {
-        overallTrend: 'favorable' | 'neutral' | 'unfavorable';
-        keyFactors: string[];
-    };
+    warnings?: string[];
 }
 
 // ============= 数据表定义 =============
@@ -2039,7 +2225,8 @@ export function performFullAnalysis(
     hexagramCode: string,
     changedCode: string | undefined,
     question: string,
-    date: Date
+    date: Date,
+    options?: { yongShenTargets?: LiuQin[] }
 ): LiuYaoFullAnalysis {
     // 1. 计算干支时间
     const ganZhiTime = calculateGanZhiTime(date);
@@ -2082,15 +2269,37 @@ export function performFullAnalysis(
 
         return {
             ...yao,
+            isChanging: yao.change === 'changing',
+            movementState: 'static',
+            movementLabel: MOVEMENT_LABELS.static,
             kongWangState,
             influence,
             strength,
+            changedYao: null,
+            shenSha: [],
             changSheng: {
                 stage: changShengInfo.stage,
                 strength: changShengInfo.strength,
             },
         };
     });
+
+    const shenShaContext = {
+        yearStem: ganZhiTime.year.gan,
+        yearBranch: ganZhiTime.year.zhi,
+        monthStem: ganZhiTime.month.gan,
+        monthBranch: ganZhiTime.month.zhi,
+        dayStem: ganZhiTime.day.gan,
+        dayBranch: ganZhiTime.day.zhi,
+        hourStem: ganZhiTime.hour.gan,
+        hourBranch: ganZhiTime.hour.zhi,
+        kongWang: {
+            xun: kongWang.xun,
+            kongZhi: [kongWang.kongDizhi[0], kongWang.kongDizhi[1]] as [string, string],
+        },
+    };
+
+    const changedYaoByPosition = new Map<number, ChangedYaoDetail>();
 
     // 6. 计算变爻信息（如果有变卦）
     let changedYaos: FullYaoInfoExtended[] | undefined;
@@ -2139,14 +2348,28 @@ export function performFullAnalysis(
                     ...fullYaos[index],
                     changeAnalysis,
                 };
+                changedYaoByPosition.set(originalYao.position, {
+                    type: yao.type,
+                    liuQin: yao.liuQin,
+                    naJia: yao.naJia,
+                    wuXing: yao.wuXing,
+                    liuShen: originalYao.liuShen,
+                    yaoCi: originalYao.yaoText,
+                    relation: HUA_TYPE_LABELS[changeAnalysis.huaType] || '平',
+                });
             }
 
             return {
                 ...yao,
+                isChanging: false,
+                movementState: 'static',
+                movementLabel: MOVEMENT_LABELS.static,
                 kongWangState,
                 influence,
                 strength,
                 changeAnalysis,
+                changedYao: null,
+                shenSha: [],
             };
         });
     }
@@ -2168,192 +2391,119 @@ export function performFullAnalysis(
         });
     }
 
-    // 8. 确定用神（传入扩展爻信息以获取精确强弱）
-    const yongShen = determineYongShen(question, baseYaos, fullYaos);
+    for (const yao of fullYaos) {
+        const movementState = getYaoMovementState(yao);
+        const changedYao = yao.change === 'changing'
+            ? (changedYaoByPosition.get(yao.position) || null)
+            : null;
+        yao.isChanging = yao.change === 'changing';
+        yao.movementState = movementState;
+        yao.movementLabel = MOVEMENT_LABELS[movementState];
+        yao.changedYao = changedYao;
+        yao.shenSha = calculateBranchShenSha(shenShaContext, yao.naJia);
+    }
 
-    // 9. 计算伏神（如果用神不上卦）
-    const fuShen = calculateFuShen(
-        hexagramCode,
-        baseYaos,
-        yongShen.type,
-        gongElement,
-        monthZhi,
-        dayZhi,
-        kongWang
-    );
+    const globalShenSha = calculateGlobalShenSha(shenShaContext);
+    const selectedTargets = resolveYongShenTargets(options?.yongShenTargets, question);
+    const rawYongShen = buildYongShenGroups(fullYaos, selectedTargets);
 
-    // 10. 计算神系
-    const shenSystem = calculateShenSystem(yongShen, baseYaos, gongElement);
+    const fuShenMap = new Map<string, FuShen>();
+    const fuShenByTarget = new Map<LiuQin, FuShen[]>();
+    for (const target of rawYongShen.map(group => group.targetLiuQin)) {
+        const list = calculateFuShen(
+            hexagramCode,
+            baseYaos,
+            target,
+            gongElement,
+            monthZhi,
+            dayZhi,
+            kongWang
+        );
+        fuShenByTarget.set(target, list);
+        for (const item of list) {
+            fuShenMap.set(`${item.liuQin}-${item.feiShenPosition}-${item.naJia}`, item);
+        }
+    }
+    const fuShen = Array.from(fuShenMap.values());
 
-    // 11. 计算时间建议
-    const timeRecommendations = calculateTimeRecommendations(yongShen, baseYaos);
+    const yongShen = rawYongShen.map((group) => {
+        if (group.selected.position) {
+            return group;
+        }
+        const fallback = buildFuShenFallbackCandidate({
+            target: group.targetLiuQin,
+            fuShenList: fuShenByTarget.get(group.targetLiuQin),
+            fullYaos,
+            kongWang,
+        });
+        if (!fallback) {
+            return group;
+        }
+        return {
+            ...group,
+            selected: fallback,
+        };
+    });
+
+    const shenSystemByYongShen = yongShen.map((group) => {
+        if (!group.selected.position) {
+            return {
+                targetLiuQin: group.targetLiuQin,
+                yuanShen: undefined,
+                jiShen: undefined,
+                chouShen: undefined,
+            } satisfies ShenSystemByYongShen;
+        }
+        const legacyYongShen: YongShen = {
+            type: group.targetLiuQin,
+            position: group.selected.position,
+            element: group.selected.element,
+            strength: group.selected.strengthScore >= 70
+                ? 'strong'
+                : group.selected.strengthScore >= 40
+                    ? 'moderate'
+                    : 'weak',
+            analysis: group.selected.factors.join('、'),
+        };
+        const system = calculateShenSystem(legacyYongShen, baseYaos, gongElement);
+        return {
+            targetLiuQin: group.targetLiuQin,
+            ...system,
+        } satisfies ShenSystemByYongShen;
+    });
+
+    const timeRecommendations = calculateTimeRecommendations(yongShen, date, dayZhi);
+
+    const warnings: string[] = [];
+    if (sanHeAnalysis.hasBanHe && sanHeAnalysis.banHe) {
+        for (const banHe of sanHeAnalysis.banHe) {
+            warnings.push(`${banHe.branches.join('')}${banHe.type === 'sheng' ? '生方' : '墓方'}半合${banHe.result}`);
+        }
+    }
+    for (const group of yongShen) {
+        if (!group.selected.isStrong) {
+            warnings.push(`用神${group.targetLiuQin}力弱`);
+        }
+        if (group.selected.kongWangState === 'kong_static') {
+            warnings.push(`用神${group.targetLiuQin}空亡`);
+        }
+    }
 
     // 12. 判断六冲卦
     const liuChongGuaInfo = checkLiuChongGua(baseYaos);
-
-    // 三合局分析已在步骤7完成
-
-    // 13. 生成综合摘要
-    const summary = generateSummary(yongShen, fullYaos, fuShen, shenSystem, liuChongGuaInfo, sanHeAnalysis);
 
     return {
         ganZhiTime,
         kongWang,
         kongWangByPillar,
         fullYaos,
-        changedYaos,
         yongShen,
         fuShen: fuShen.length > 0 ? fuShen : undefined,
-        shenSystem,
+        shenSystemByYongShen,
+        globalShenSha,
         timeRecommendations,
         liuChongGuaInfo,
         sanHeAnalysis,
-        summary,
+        warnings,
     };
-}
-
-/**
- * 生成综合分析摘要
- */
-function generateSummary(
-    yongShen: YongShen,
-    fullYaos: FullYaoInfoExtended[],
-    fuShen: FuShen[],
-    shenSystem: ShenSystem,
-    liuChongGuaInfo: LiuChongGuaInfo,
-    sanHeAnalysis: SanHeAnalysis
-): { overallTrend: 'favorable' | 'neutral' | 'unfavorable'; keyFactors: string[] } {
-    const keyFactors: string[] = [];
-    let favorableCount = 0;
-    let unfavorableCount = 0;
-
-    // 0. 六冲卦判定（优先显示）
-    if (liuChongGuaInfo.isLiuChongGua) {
-        keyFactors.push('六冲卦（主事散、急）');
-        unfavorableCount++;
-    } else if (liuChongGuaInfo.description) {
-        keyFactors.push(liuChongGuaInfo.description);
-    }
-
-    // 0.5 三合局判定
-    if (sanHeAnalysis.hasFullSanHe && sanHeAnalysis.fullSanHe) {
-        keyFactors.push(`${sanHeAnalysis.fullSanHe.name}（合力强大）`);
-        favorableCount += 2;
-    } else if (sanHeAnalysis.hasBanHe && sanHeAnalysis.banHe && sanHeAnalysis.banHe.length > 0) {
-        const banHe = sanHeAnalysis.banHe[0];
-        const banHeType = banHe.type === 'sheng' ? '生方' : '墓方';
-        keyFactors.push(`${banHe.branches.join('')}${banHeType}半合${banHe.result}`);
-        favorableCount++;
-    }
-
-    // 分析用神状态
-    const yongShenYao = fullYaos.find(y => y.position === yongShen.position);
-    if (yongShenYao) {
-        // 检查用神的特殊状态（暗动/日破）
-        if (yongShenYao.strength.specialStatus === 'anDong') {
-            keyFactors.push(`用神${yongShen.type}暗动（力强）`);
-            favorableCount += 2;
-        } else if (yongShenYao.strength.specialStatus === 'riPo') {
-            keyFactors.push(`用神${yongShen.type}日破（无力）`);
-            unfavorableCount += 3;
-        } else if (yongShenYao.strength.isStrong) {
-            keyFactors.push(`用神${yongShen.type}得力`);
-            favorableCount += 2;
-        } else {
-            keyFactors.push(`用神${yongShen.type}力弱`);
-            unfavorableCount += 2;
-        }
-
-        // 检查用神的十二长生状态
-        if (yongShenYao.changSheng) {
-            const stage = yongShenYao.changSheng.stage;
-            if (stage === '长生' || stage === '帝旺' || stage === '临官') {
-                keyFactors.push(`用神${stage}有力`);
-                favorableCount++;
-            } else if (stage === '绝' || stage === '死' || stage === '墓') {
-                keyFactors.push(`用神临${stage}`);
-                unfavorableCount++;
-            }
-        }
-
-        if (yongShenYao.kongWangState === 'kong_static') {
-            keyFactors.push('用神空亡');
-            unfavorableCount += 2;
-        }
-
-        if (yongShenYao.changeAnalysis) {
-            const huaLabel = HUA_TYPE_LABELS[yongShenYao.changeAnalysis.huaType];
-            if (huaLabel) {
-                keyFactors.push(`用神${huaLabel}`);
-                if (['huiTouSheng', 'huaJin'].includes(yongShenYao.changeAnalysis.huaType)) {
-                    favorableCount++;
-                } else if (['huiTouKe', 'huaTui', 'huaKong', 'huaMu'].includes(yongShenYao.changeAnalysis.huaType)) {
-                    unfavorableCount++;
-                }
-            }
-        }
-    } else if (fuShen.length > 0) {
-        const availableFuShen = fuShen.filter(f => f.isAvailable);
-        if (availableFuShen.length > 0) {
-            keyFactors.push('用神伏藏可出');
-            unfavorableCount++;
-        } else {
-            keyFactors.push('用神伏藏难出');
-            unfavorableCount += 2;
-        }
-    }
-
-    // 分析原神状态
-    if (shenSystem.yuanShen && shenSystem.yuanShen.positions.length > 0) {
-        const yuanShenYao = fullYaos.find(y => y.position === shenSystem.yuanShen!.positions[0]);
-        if (yuanShenYao?.strength.specialStatus === 'anDong') {
-            keyFactors.push('原神暗动');
-            favorableCount += 2;
-        } else if (yuanShenYao?.strength.specialStatus === 'riPo') {
-            keyFactors.push('原神日破');
-            unfavorableCount++;
-        } else if (yuanShenYao?.strength.isStrong) {
-            keyFactors.push('原神有力');
-            favorableCount++;
-        }
-    }
-
-    // 分析忌神状态
-    if (shenSystem.jiShen && shenSystem.jiShen.positions.length > 0) {
-        const jiShenYao = fullYaos.find(y => y.position === shenSystem.jiShen!.positions[0]);
-        if (jiShenYao?.strength.specialStatus === 'riPo') {
-            keyFactors.push('忌神日破（吉）');
-            favorableCount++;
-        } else if (jiShenYao?.strength.isStrong) {
-            keyFactors.push('忌神旺相');
-            unfavorableCount++;
-        } else if (jiShenYao?.kongWangState === 'kong_static') {
-            keyFactors.push('忌神空亡');
-            favorableCount++;
-        }
-    }
-
-    // 检查世爻的特殊状态
-    const shiYao = fullYaos.find(y => y.isShiYao);
-    if (shiYao) {
-        if (shiYao.strength.specialStatus === 'anDong') {
-            keyFactors.push('世爻暗动');
-            favorableCount++;
-        } else if (shiYao.strength.specialStatus === 'riPo') {
-            keyFactors.push('世爻日破');
-            unfavorableCount++;
-        }
-    }
-
-    // 判断整体趋势
-    let overallTrend: 'favorable' | 'neutral' | 'unfavorable';
-    if (favorableCount > unfavorableCount + 1) {
-        overallTrend = 'favorable';
-    } else if (unfavorableCount > favorableCount + 1) {
-        overallTrend = 'unfavorable';
-    } else {
-        overallTrend = 'neutral';
-    }
-
-    return { overallTrend, keyFactors };
 }

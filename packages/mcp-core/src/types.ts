@@ -181,7 +181,7 @@ export interface DecadalInfo {
 
 export interface LiuyaoInput {
   question: string;
-  yongShenTargets?: LiuQinType[];
+  yongShenTargets: LiuQinType[];
   method?: 'auto' | 'select';
   hexagramName?: string;
   changedHexagramName?: string;
@@ -190,6 +190,7 @@ export interface LiuyaoInput {
 
 export interface LiuyaoOutput {
   question: string;
+  rankScoreNote: string;
   // 本卦信息
   hexagramName: string;
   hexagramGong: string;
@@ -257,7 +258,7 @@ export interface YongShenCandidateInfo {
 
 export interface YongShenGroupInfo {
   targetLiuQin: LiuQinType;
-  source: 'input' | 'inferred';
+  source: 'input';
   selected: YongShenCandidateInfo;
   candidates: YongShenCandidateInfo[];
 }

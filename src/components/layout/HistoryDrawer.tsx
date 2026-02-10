@@ -257,6 +257,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     hexagram,
                     changedHexagram,
                     changedLines,
+                    yongShenTargets: Array.isArray(data.yongshen_targets)
+                        ? (data.yongshen_targets as string[]).filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
+                            ['父母', '兄弟', '子孙', '妻财', '官鬼'].includes(item)
+                        )
+                        : [],
                     divinationId: data.id, // 包含记录 ID
                     createdAt: data.created_at,
                     conversationId: data.conversation_id || null,
