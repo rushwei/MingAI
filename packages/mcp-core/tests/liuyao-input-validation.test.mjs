@@ -16,6 +16,20 @@ test('liuyao rejects missing yongShenTargets when question is provided', async (
   );
 });
 
+test('liuyao rejects empty yongShenTargets when question is provided', async () => {
+  await assert.rejects(
+    () =>
+      mcpCore.handleLiuyaoAnalyze({
+        question: '近期事业如何',
+        yongShenTargets: [],
+        method: 'select',
+        hexagramName: '天火同人',
+        date: '2026-02-10',
+      }),
+    /yongShenTargets|分析目标|请选择|请先判断并填写/u,
+  );
+});
+
 test('liuyao allows empty question with explicit empty yongShenTargets', async () => {
   const result = await mcpCore.handleLiuyaoAnalyze({
     question: '',
@@ -39,6 +53,34 @@ test('liuyao rejects omitted yongShenTargets even when question is empty', async
         date: '2026-02-10',
       }),
     /yongShenTargets|请先判断并填写/u,
+  );
+});
+
+test('liuyao rejects non-array yongShenTargets even when question is empty', async () => {
+  await assert.rejects(
+    () =>
+      mcpCore.handleLiuyaoAnalyze({
+        question: '',
+        yongShenTargets: null,
+        method: 'select',
+        hexagramName: '天火同人',
+        date: '2026-02-10',
+      }),
+    /yongShenTargets|数组/u,
+  );
+});
+
+test('liuyao rejects non-string question to avoid contract bypass', async () => {
+  await assert.rejects(
+    () =>
+      mcpCore.handleLiuyaoAnalyze({
+        question: 123,
+        yongShenTargets: [],
+        method: 'select',
+        hexagramName: '天火同人',
+        date: '2026-02-10',
+      }),
+    /question|字符串/u,
   );
 });
 

@@ -565,13 +565,13 @@ function calculateTimeRecommendations(
     selected: {
       position?: number;
       liuQin: LiuQin;
+      naJia?: string;
       element: WuXing;
       isStrong: boolean;
       kongWangState: KongWangState;
       movementState: YaoMovementState;
     };
   }>,
-  yaos: InternalYaoInfo[],
   baseDate: Date,
   dayZhi: DiZhi
 ): Array<{
@@ -596,16 +596,14 @@ function calculateTimeRecommendations(
   const order: WuXing[] = ['木', '火', '土', '金', '水'];
 
   for (const group of yongShenGroups) {
-    const yongYao = group.selected.position
-      ? yaos.find(y => y.position === group.selected.position)
-      : undefined;
+    const targetBranch = group.selected.naJia;
 
-    if (yongYao) {
-      const window = calculateTimeWindowByBranch(baseDate, dayZhi, yongYao.naJia, 90);
+    if (targetBranch) {
+      const window = calculateTimeWindowByBranch(baseDate, dayZhi, targetBranch, 90);
       recommendations.push({
         targetLiuQin: group.targetLiuQin,
         type: 'favorable',
-        earthlyBranch: yongYao.naJia,
+        earthlyBranch: targetBranch,
         startDate: window.startDate,
         endDate: window.endDate,
         confidence: getTimeRecommendationConfidence({
@@ -614,7 +612,7 @@ function calculateTimeRecommendations(
           kongWangState: group.selected.kongWangState,
           type: 'favorable',
         }),
-        description: `逢${yongYao.naJia}日/月应期，事情易有进展`,
+        description: `逢${targetBranch}日/月应期，事情易有进展`,
       });
     }
 
@@ -652,11 +650,11 @@ function calculateTimeRecommendations(
     });
 
     if (group.selected.movementState === 'changing' || group.selected.movementState === 'hidden_moving') {
-      const criticalWindow = calculateTimeWindowByBranch(baseDate, dayZhi, yongYao?.naJia, 90);
+      const criticalWindow = calculateTimeWindowByBranch(baseDate, dayZhi, targetBranch, 90);
       recommendations.push({
         targetLiuQin: group.targetLiuQin,
         type: 'critical',
-        earthlyBranch: yongYao?.naJia,
+        earthlyBranch: targetBranch,
         startDate: criticalWindow.startDate,
         endDate: criticalWindow.endDate,
         confidence: getTimeRecommendationConfidence({
@@ -1170,10 +1168,17 @@ const LIU_QIN_ORDER: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼
 // - 妻财：钱财资源、交易货物、家用开销
 // - 子孙：子女后辈、医药解忧（求官类通常不取子孙）
 // 若映射规则调整，请同步更新 tools.ts 的 yongShenTargets 描述，确保调用提示一致。
-function normalizeYongShenTargets(targets?: string[]): LiuQin[] {
-  if (!targets || targets.length === 0) return [];
+function normalizeYongShenTargets(targets: unknown): LiuQin[] {
+  if (typeof targets === 'undefined') return [];
+  if (!Array.isArray(targets)) {
+    throw new Error('yongShenTargets 必须为数组');
+  }
+  if (targets.length === 0) return [];
   const uniqueTargets = new Set<LiuQin>();
   for (const target of targets) {
+    if (typeof target !== 'string') {
+      throw new Error(`yongShenTargets 含非法值: ${String(target)}`);
+    }
     if (!LIU_QIN_ORDER.includes(target as LiuQin)) {
       throw new Error(`yongShenTargets 含非法值: ${target}`);
     }
@@ -1182,11 +1187,16 @@ function normalizeYongShenTargets(targets?: string[]): LiuQin[] {
   return Array.from(uniqueTargets);
 }
 
-function resolveYongShenTargets(targets: string[] | undefined): LiuQin[] {
+function resolveYongShenTargets(question: string, targets: unknown): LiuQin[] {
   if (typeof targets === 'undefined') {
     throw new Error('请先判断并填写 yongShenTargets');
   }
-  return normalizeYongShenTargets(targets);
+  const normalizedTargets = normalizeYongShenTargets(targets);
+  const requiresTargets = question.trim().length > 0;
+  if (requiresTargets && normalizedTargets.length === 0) {
+    throw new Error('请先判断并填写 yongShenTargets');
+  }
+  return normalizedTargets;
 }
 
 // 查找卦宫（使用八宫归属表）
@@ -1238,15 +1248,18 @@ function calculateFullYaoInfo(
 // ============= 主处理函数 =============
 
 export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOutput> {
+  const rawQuestion = (input as { question?: unknown }).question;
+  if (typeof rawQuestion !== 'string') {
+    throw new Error('question 必须为字符串');
+  }
   const {
-    question: rawQuestion = '',
     yongShenTargets,
     method = 'auto',
     hexagramName,
     changedHexagramName,
     date,
   } = input;
-  const question = typeof rawQuestion === 'string' ? rawQuestion : '';
+  const question = rawQuestion;
 
   let divDate: Date;
   if (date) {
@@ -1372,7 +1385,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
     }
   }
 
-  const normalizedTargets = resolveYongShenTargets(yongShenTargets);
+  const normalizedTargets = resolveYongShenTargets(question, yongShenTargets);
   const yongShenGroups: InternalYongShenGroup[] = normalizedTargets.map((target) => {
     const rankedCandidates: RankedYongShenCandidate[] = fullYaos
       .filter(y => y.liuQin === target)
@@ -1477,13 +1490,13 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
       selected: {
         position: group.selected.position,
         liuQin: group.selected.liuQin as LiuQin,
+        naJia: group.selected.naJia,
         element: (group.selected.element || '土') as WuXing,
         isStrong: group.selected.isStrong,
         kongWangState: (group.selected.kongWangState || 'not_kong') as KongWangState,
         movementState: group.selected.movementState as YaoMovementState,
       },
     })),
-    fullYaos,
     divDate,
     dayZhi
   );

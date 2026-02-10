@@ -197,3 +197,24 @@ test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram'
     'fallback factors should mention 伏神'
   );
 });
+
+test('liuyao time recommendations use selected fallback branch when target is absent', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试官鬼不上卦时伏神回退',
+    yongShenTargets: ['官鬼'],
+    method: 'select',
+    hexagramName: '火水未济',
+    date: '2026-02-10',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
+  assert.ok(group, 'missing 官鬼 yongShen group');
+  const primary = group.candidates[0];
+  assert.equal(typeof primary.naJia, 'string', 'primary candidate should expose naJia');
+
+  const targetedRec = result.timeRecommendations.find(
+    (item) => item.targetLiuQin === '官鬼' && item.type === 'favorable' && typeof item.earthlyBranch === 'string'
+  );
+  assert.ok(targetedRec, 'should include a branch-targeted favorable recommendation');
+  assert.equal(targetedRec.earthlyBranch, primary.naJia);
+});
