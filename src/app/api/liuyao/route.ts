@@ -75,6 +75,16 @@ function toPersistedYongShenTargets(targets: LiuQin[]): LiuQin[] | null {
     return targets.length > 0 ? targets : null;
 }
 
+function parseQuestionInput(value: unknown): { question: string; error?: string } {
+    if (value == null) {
+        return { question: '' };
+    }
+    if (typeof value !== 'string') {
+        return { question: '', error: '问题格式错误' };
+    }
+    return { question: value };
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body: LiuyaoRequest = await request.json();
@@ -95,7 +105,12 @@ export async function POST(request: NextRequest) {
         switch (action) {
             // 保存起卦记录（不含 AI 解读）
             case 'save': {
-                const needsTargets = Boolean(question?.trim());
+                const parsedQuestion = parseQuestionInput(question);
+                if (parsedQuestion.error) {
+                    return jsonError(parsedQuestion.error, 400, { success: false });
+                }
+                const normalizedQuestion = parsedQuestion.question;
+                const needsTargets = Boolean(normalizedQuestion.trim());
                 const parsedTargets = parseYongShenTargets(yongShenTargets, { required: needsTargets });
                 if (parsedTargets.error) {
                     return jsonError(parsedTargets.error, 400, { success: false });
@@ -118,7 +133,7 @@ export async function POST(request: NextRequest) {
                     .from('liuyao_divinations')
                     .insert({
                         user_id: saveUser.id,
-                        question: question || '',
+                        question: normalizedQuestion,
                         yongshen_targets: parsedTargets.targets.length > 0 ? parsedTargets.targets : null,
                         hexagram_code: hexagramCode,
                         changed_hexagram_code: changedCode,
@@ -142,6 +157,10 @@ export async function POST(request: NextRequest) {
                 if (!hexagram) {
                     return jsonError('请提供卦象', 400, { success: false });
                 }
+                const parsedQuestion = parseQuestionInput(question);
+                if (parsedQuestion.error) {
+                    return jsonError(parsedQuestion.error, 400, { success: false });
+                }
 
                 // 验证用户身份
                 const authResult = await requireBearerUser(request);
@@ -152,7 +171,7 @@ export async function POST(request: NextRequest) {
 
                 const serviceClient = getServiceRoleClient();
                 let analysisDate = new Date();
-                let effectiveQuestion = typeof question === 'string' ? question : '';
+                let effectiveQuestion = parsedQuestion.question;
                 let persistedTargets: unknown = undefined;
 
                 if (divinationId) {

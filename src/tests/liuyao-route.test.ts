@@ -538,6 +538,37 @@ test('liuyao route save returns 400 when question is provided but yongShenTarget
     assert.equal(data.error, '请至少选择一个分析目标');
 });
 
+test('liuyao route save returns 400 when question is not string', async () => {
+    const { POST } = await import('../app/api/liuyao/route');
+    const request = new NextRequest('http://localhost/api/liuyao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'save',
+            question: 123,
+            yongShenTargets: [],
+            yaos: [
+                { type: 1, change: 'stable', position: 1 },
+                { type: 1, change: 'stable', position: 2 },
+                { type: 1, change: 'stable', position: 3 },
+                { type: 1, change: 'stable', position: 4 },
+                { type: 1, change: 'stable', position: 5 },
+                { type: 1, change: 'stable', position: 6 },
+            ],
+            changedLines: [],
+        }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(data.error, '问题格式错误');
+});
+
 test('liuyao route interpret returns 400 when question is provided but yongShenTargets is missing', async (t) => {
     const supabaseModule = require('../lib/supabase') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
