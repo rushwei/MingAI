@@ -177,6 +177,63 @@ test('bazi_calculate should reject invalid lunar leap month and out-of-range lun
     }),
     /农历日期/
   );
+
+  await assert.rejects(
+    () => mcpCore.handleBaziCalculate({
+      gender: 'female',
+      birthYear: nonLeapYear,
+      birthMonth: -1,
+      birthDay: 1,
+      birthHour: 10,
+      birthMinute: 0,
+      calendarType: 'lunar',
+      isLeapMonth: false,
+    }),
+    /农历月份/
+  );
+});
+
+test('bazi_calculate should keep bazi-specific shensha after shared refactor', async () => {
+  const samples = [
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 1, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'hour',
+      star: '天德贵人',
+    },
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 1, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'day',
+      star: '德秀贵人',
+    },
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 1, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'hour',
+      star: '月德合',
+    },
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 3, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'hour',
+      star: '金舆',
+    },
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 8, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'day',
+      star: '月德贵人',
+    },
+    {
+      input: { gender: 'male', birthYear: 1980, birthMonth: 1, birthDay: 10, birthHour: 9, birthMinute: 0, calendarType: 'solar' },
+      pillar: 'hour',
+      star: '天德合',
+    },
+  ];
+
+  for (const sample of samples) {
+    const result = await mcpCore.handleBaziCalculate(sample.input);
+    assert.ok(
+      result.fourPillars[sample.pillar].shenSha.includes(sample.star),
+      `expected ${sample.star} in ${sample.pillar} pillar`
+    );
+  }
 });
 
 test('tools should include bazi_pillars_resolve', () => {

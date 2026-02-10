@@ -583,7 +583,7 @@ export const tools = [
                 },
                 yongShen: {
                     type: 'array',
-                    description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选）',
+                    description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选用神）',
                     items: {
                         type: 'object',
                         properties: {

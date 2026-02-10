@@ -239,6 +239,130 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     assert.equal(capturedDate?.toISOString(), createdAt.toISOString());
 });
 
+test('liuyao route only marks 用神 when position and liuqin both match', async (t) => {
+    const credits = require('../lib/credits') as any;
+    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const aiModule = require('../lib/ai') as any;
+    const aiAnalysisModule = require('../lib/ai-analysis') as any;
+    const liuyaoModule = require('../lib/liuyao') as any;
+
+    const originalHasCredits = credits.hasCredits;
+    const originalUseCredit = credits.useCredit;
+    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
+    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalGenerateTitle = aiAnalysisModule.generateLiuyaoTitle;
+    const originalPerformFullAnalysis = liuyaoModule.performFullAnalysis;
+
+    let capturedPrompt = '';
+
+    credits.hasCredits = async () => true;
+    credits.useCredit = async () => 1;
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    aiModule.callAIWithReasoning = async (messages: Array<{ role: string; content: string }>) => {
+        capturedPrompt = messages[0]?.content ?? '';
+        return { content: 'analysis', reasoning: null };
+    };
+    aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
+    aiAnalysisModule.generateLiuyaoTitle = () => 'title';
+    liuyaoModule.performFullAnalysis = (...args: unknown[]) => {
+        const result = originalPerformFullAnalysis(...args);
+        const firstYaoLiuQin = result.fullYaos?.[0]?.liuQin;
+        const fallbackLiuQin = firstYaoLiuQin === '父母' ? '官鬼' : '父母';
+        if (result.yongShen?.length > 0) {
+            const firstGroup = result.yongShen[0];
+            result.yongShen = [{
+                ...firstGroup,
+                targetLiuQin: fallbackLiuQin,
+                selected: {
+                    ...firstGroup.selected,
+                    position: 1,
+                    liuQin: fallbackLiuQin,
+                },
+            }];
+        }
+        return result;
+    };
+    supabaseServerModule.getServiceClient = () => ({
+        from: (table: string) => {
+            if (table === 'users') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({
+                                data: { membership: 'pro', membership_expires_at: null },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'liuyao_divinations') {
+                return {
+                    insert: async () => ({ error: null }),
+                };
+            }
+            return {
+                insert: async () => ({ error: null }),
+            };
+        },
+    });
+
+    t.after(() => {
+        credits.hasCredits = originalHasCredits;
+        credits.useCredit = originalUseCredit;
+        supabaseModule.supabase.auth.getUser = originalGetUser;
+        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        aiModule.callAIWithReasoning = originalCallAIWithReasoning;
+        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        aiAnalysisModule.generateLiuyaoTitle = originalGenerateTitle;
+        liuyaoModule.performFullAnalysis = originalPerformFullAnalysis;
+    });
+
+    const { POST } = await import('../app/api/liuyao/route');
+    const request = new NextRequest('http://localhost/api/liuyao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'interpret',
+            question: '测试问题',
+            yongShenTargets: ['父母'],
+            hexagram: {
+                name: '乾为天',
+                code: '111111',
+                upperTrigram: '乾',
+                lowerTrigram: '乾',
+                element: '金',
+                nature: '刚健',
+            },
+            yaos: [
+                { type: 1, change: 'stable', position: 1 },
+                { type: 1, change: 'stable', position: 2 },
+                { type: 1, change: 'stable', position: 3 },
+                { type: 1, change: 'stable', position: 4 },
+                { type: 1, change: 'stable', position: 5 },
+                { type: 1, change: 'stable', position: 6 },
+            ],
+            changedLines: [],
+        }),
+    });
+
+    const response = await POST(request);
+    assert.equal(response.status, 200);
+
+    const firstLine = capturedPrompt.match(/初爻：[^\n]*/)?.[0] ?? '';
+    assert.ok(firstLine.length > 0, 'should include first yao line in prompt');
+    assert.equal(firstLine.includes('【用神】'), false, 'fallback liuqin mismatch should not mark 用神');
+});
+
 test('liuyao route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/credits') as any;
     const aiModule = require('../lib/ai') as any;

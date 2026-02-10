@@ -103,6 +103,39 @@ const XUN_KONG_TABLE = {
     '甲辰旬': ['寅', '卯'],
     '甲寅旬': ['子', '丑'],
 };
+// 八字专属神煞规则（shared shensha 未覆盖）
+const YUE_DE = {
+    '寅': '丙', '午': '丙', '戌': '丙',
+    '申': '壬', '子': '壬', '辰': '壬',
+    '亥': '甲', '卯': '甲', '未': '甲',
+    '巳': '庚', '酉': '庚', '丑': '庚',
+};
+const TIAN_DE = {
+    '寅': '丁', '卯': '申', '辰': '壬', '巳': '辛',
+    '午': '亥', '未': '甲', '申': '癸', '酉': '寅',
+    '戌': '丙', '亥': '乙', '子': '巳', '丑': '庚',
+};
+const JIN_YU = {
+    '甲': '辰', '乙': '巳', '丙': '未', '丁': '申',
+    '戊': '未', '己': '申', '庚': '戌', '辛': '亥',
+    '壬': '丑', '癸': '寅',
+};
+const DE_XIU = {
+    '寅': ['丙', '甲'], '卯': ['甲', '乙'], '辰': ['壬', '癸'], '巳': ['丙', '庚'],
+    '午': ['丁', '己'], '未': ['甲', '己'], '申': ['庚', '壬'], '酉': ['辛', '庚'],
+    '戌': ['丙', '戊'], '亥': ['壬', '甲'], '子': ['癸', '壬'], '丑': ['辛', '己'],
+};
+const TIAN_DE_HE = {
+    '寅': '壬', '卯': '癸', '辰': '丁', '巳': '丙',
+    '午': '寅', '未': '己', '申': '戊', '酉': '丁',
+    '戌': '辛', '亥': '庚', '子': '庚', '丑': '乙',
+};
+const YUE_DE_HE = {
+    '寅': '辛', '午': '辛', '戌': '辛',
+    '申': '丁', '子': '丁', '辰': '丁',
+    '亥': '己', '卯': '己', '未': '己',
+    '巳': '乙', '酉': '乙', '丑': '乙',
+};
 function getNaYin(stem, branch) {
     return NA_YIN_TABLE[`${stem}${branch}`] || '';
 }
@@ -292,7 +325,56 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
     return relations;
 }
 function calculatePillarShenSha(params) {
-    return calculateSharedPillarShenSha(params);
+    const shenSha = calculateSharedPillarShenSha(params);
+    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourStem, hourBranch, } = params;
+    const pushUnique = (position, name) => {
+        if (!shenSha[position].includes(name)) {
+            shenSha[position].push(name);
+        }
+    };
+    const jinYuBranch = JIN_YU[dayStem];
+    if (jinYuBranch === yearBranch)
+        pushUnique('year', '金舆');
+    if (jinYuBranch === monthBranch)
+        pushUnique('month', '金舆');
+    if (jinYuBranch === dayBranch)
+        pushUnique('day', '金舆');
+    if (jinYuBranch === hourBranch)
+        pushUnique('hour', '金舆');
+    const yueDeStem = YUE_DE[monthBranch];
+    if (yueDeStem === yearStem)
+        pushUnique('year', '月德贵人');
+    if (yueDeStem === dayStem)
+        pushUnique('day', '月德贵人');
+    if (yueDeStem === hourStem)
+        pushUnique('hour', '月德贵人');
+    const tianDeChar = TIAN_DE[monthBranch];
+    if (tianDeChar === yearStem || tianDeChar === yearBranch)
+        pushUnique('year', '天德贵人');
+    if (tianDeChar === dayStem || tianDeChar === dayBranch)
+        pushUnique('day', '天德贵人');
+    if (tianDeChar === hourStem || tianDeChar === hourBranch)
+        pushUnique('hour', '天德贵人');
+    const deXiuStems = DE_XIU[monthBranch] || [];
+    if (deXiuStems.includes(dayStem))
+        pushUnique('day', '德秀贵人');
+    if (deXiuStems.includes(hourStem))
+        pushUnique('hour', '德秀贵人');
+    const tianDeHeChar = TIAN_DE_HE[monthBranch];
+    if (tianDeHeChar === yearStem || tianDeHeChar === yearBranch)
+        pushUnique('year', '天德合');
+    if (tianDeHeChar === dayStem || tianDeHeChar === dayBranch)
+        pushUnique('day', '天德合');
+    if (tianDeHeChar === hourStem || tianDeHeChar === hourBranch)
+        pushUnique('hour', '天德合');
+    const yueDeHeStem = YUE_DE_HE[monthBranch];
+    if (yueDeHeStem === yearStem)
+        pushUnique('year', '月德合');
+    if (yueDeHeStem === dayStem)
+        pushUnique('day', '月德合');
+    if (yueDeHeStem === hourStem)
+        pushUnique('hour', '月德合');
+    return shenSha;
 }
 function getDaYunTenGods(ganZhi, dayStem) {
     const stem = ganZhi.slice(0, 1);
@@ -304,6 +386,9 @@ function getDaYunTenGods(ganZhi, dayStem) {
 }
 function validateLunarDateInput(params) {
     const { birthYear, birthMonth, birthDay, birthHour, birthMinute, isLeapMonth, } = params;
+    if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) {
+        throw new Error(`农历月份无效：月份需为 1-12 的正整数（收到 ${birthMonth}）`);
+    }
     const leapMonth = LunarYear.fromYear(birthYear).getLeapMonth();
     if (isLeapMonth && leapMonth !== birthMonth) {
         throw new Error(`农历闰月无效：${birthYear}年不存在闰${birthMonth}月`);

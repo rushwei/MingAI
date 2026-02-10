@@ -236,16 +236,22 @@ export async function POST(request: NextRequest) {
                     const palace = findPalace(hexagramCode);
                     const hexText = getHexagramText(hexagram.name);
                     const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
-                    const yongShenPositions = new Set(
+                    const yongShenMarkers = new Set(
                         yongShen
-                            .map(group => group.selected.position)
-                            .filter((position): position is number => typeof position === 'number')
+                            .map(group => {
+                                const { position, liuQin } = group.selected;
+                                if (typeof position !== 'number' || typeof liuQin !== 'string') {
+                                    return null;
+                                }
+                                return `${position}:${liuQin}`;
+                            })
+                            .filter((value): value is string => Boolean(value))
                     );
 
                     // 构建各爻详细信息
                     const yaoDetails = fullYaos.map((y) => {
                         const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
-                        const yongShenMark = yongShenPositions.has(y.position) ? '【用神】' : '';
+                        const yongShenMark = yongShenMarkers.has(`${y.position}:${y.liuQin}`) ? '【用神】' : '';
                         const changeMark = y.isChanging ? '（动）' : '';
                         const statusParts = [
                             WANG_SHUAI_LABELS[y.strength.wangShuai],
