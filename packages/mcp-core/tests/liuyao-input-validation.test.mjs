@@ -29,6 +29,19 @@ test('liuyao allows empty question with explicit empty yongShenTargets', async (
   assert.equal(result.yongShen.length, 0);
 });
 
+test('liuyao rejects omitted yongShenTargets even when question is empty', async () => {
+  await assert.rejects(
+    () =>
+      mcpCore.handleLiuyaoAnalyze({
+        question: '',
+        method: 'select',
+        hexagramName: '天火同人',
+        date: '2026-02-10',
+      }),
+    /yongShenTargets|请先判断并填写/u,
+  );
+});
+
 test('liuyao rejects illegal yongShenTargets values', async () => {
   await assert.rejects(
     () =>

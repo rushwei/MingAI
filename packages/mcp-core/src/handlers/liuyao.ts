@@ -1182,13 +1182,11 @@ function normalizeYongShenTargets(targets?: string[]): LiuQin[] {
   return Array.from(uniqueTargets);
 }
 
-function resolveYongShenTargets(question: string, targets?: string[]): LiuQin[] {
-  const normalizedTargets = normalizeYongShenTargets(targets);
-  const requiresTargets = question.trim().length > 0;
-  if (requiresTargets && normalizedTargets.length === 0) {
+function resolveYongShenTargets(targets: string[] | undefined): LiuQin[] {
+  if (typeof targets === 'undefined') {
     throw new Error('请先判断并填写 yongShenTargets');
   }
-  return normalizedTargets;
+  return normalizeYongShenTargets(targets);
 }
 
 // 查找卦宫（使用八宫归属表）
@@ -1374,7 +1372,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
     }
   }
 
-  const normalizedTargets = resolveYongShenTargets(question, yongShenTargets);
+  const normalizedTargets = resolveYongShenTargets(yongShenTargets);
   const yongShenGroups: InternalYongShenGroup[] = normalizedTargets.map((target) => {
     const rankedCandidates: RankedYongShenCandidate[] = fullYaos
       .filter(y => y.liuQin === target)

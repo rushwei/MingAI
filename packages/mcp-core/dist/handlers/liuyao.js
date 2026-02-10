@@ -931,13 +931,11 @@ function normalizeYongShenTargets(targets) {
     }
     return Array.from(uniqueTargets);
 }
-function resolveYongShenTargets(question, targets) {
-    const normalizedTargets = normalizeYongShenTargets(targets);
-    const requiresTargets = question.trim().length > 0;
-    if (requiresTargets && normalizedTargets.length === 0) {
+function resolveYongShenTargets(targets) {
+    if (typeof targets === 'undefined') {
         throw new Error('请先判断并填写 yongShenTargets');
     }
-    return normalizedTargets;
+    return normalizeYongShenTargets(targets);
 }
 // 查找卦宫（使用八宫归属表）
 function findPalace(code) {
@@ -1087,7 +1085,7 @@ export async function handleLiuyaoAnalyze(input) {
             }
         }
     }
-    const normalizedTargets = resolveYongShenTargets(question, yongShenTargets);
+    const normalizedTargets = resolveYongShenTargets(yongShenTargets);
     const yongShenGroups = normalizedTargets.map((target) => {
         const rankedCandidates = fullYaos
             .filter(y => y.liuQin === target)

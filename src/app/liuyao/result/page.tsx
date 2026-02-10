@@ -151,10 +151,16 @@ export default function ResultPage() {
         } = traditionalData;
         const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
         const changedLines = fullYaos.filter(y => y.isChanging).map(y => y.position);
-        const yongShenPositions = new Set(
+        const yongShenMarkers = new Set(
             yongShen
-                .map(group => group.selected.position)
-                .filter((position): position is number => typeof position === 'number')
+                .map(group => {
+                    const { position, liuQin } = group.selected;
+                    if (typeof position !== 'number' || typeof liuQin !== 'string') {
+                        return null;
+                    }
+                    return `${position}:${liuQin}`;
+                })
+                .filter((value): value is string => Boolean(value))
         );
 
         // 获取卦码和世应宫位
@@ -203,7 +209,7 @@ export default function ResultPage() {
         lines.push('【六爻排盘】');
         fullYaos.forEach((y) => {
             const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
-            const yongShenMark = yongShenPositions.has(y.position) ? '【用神】' : '';
+            const yongShenMark = yongShenMarkers.has(`${y.position}:${y.liuQin}`) ? '【用神】' : '';
             const changeMark = y.isChanging ? '（动）' : '';
             const statusParts = [
                 WANG_SHUAI_LABELS[y.strength.wangShuai],
