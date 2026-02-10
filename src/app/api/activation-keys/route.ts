@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
                 return jsonError(auth.error.message, auth.error.status);
             }
             // 激活Key - 普通用户可用
-            const keyCode = body.keyCode?.trim();
+            const keyCode = typeof body.keyCode === "string" ? body.keyCode.trim() : "";
             if (!keyCode) {
                 return jsonError("请输入激活码", 400);
             }
