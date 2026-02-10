@@ -11,10 +11,11 @@ export async function POST(request: NextRequest) {
 
     const token = await getAccessToken(request);
 
-    const body = await request.json() as { query?: string; kbIds?: string[]; topK?: number };
-    if (!body.query?.trim()) return jsonError('query 不能为空', 400);
+    const body = await request.json() as { query?: unknown; kbIds?: string[]; topK?: number };
+    const query = typeof body.query === 'string' ? body.query.trim() : '';
+    if (!query) return jsonError('query 不能为空', 400);
 
-    const results = await searchKnowledge(body.query, {
+    const results = await searchKnowledge(query, {
         kbIds: body.kbIds,
         topK: body.topK,
         accessToken: token || undefined

@@ -3,6 +3,7 @@
  */
 import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, } from '../utils.js';
+import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
 const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const HIDDEN_STEM_DETAILS = {
@@ -102,50 +103,7 @@ const XUN_KONG_TABLE = {
     '甲辰旬': ['寅', '卯'],
     '甲寅旬': ['子', '丑'],
 };
-// ===== 神煞规则（对齐前端专业排盘）=====
-const TIAN_YI_GUI_REN = {
-    '甲': ['丑', '未'], '乙': ['子', '申'], '丙': ['亥', '酉'], '丁': ['亥', '酉'],
-    '戊': ['丑', '未'], '己': ['子', '申'], '庚': ['丑', '未'], '辛': ['寅', '午'],
-    '壬': ['卯', '巳'], '癸': ['卯', '巳'],
-};
-const TAI_JI_GUI_REN = {
-    '甲': ['子', '午'], '乙': ['子', '午'], '丙': ['卯', '酉'], '丁': ['卯', '酉'],
-    '戊': ['辰', '戌', '丑', '未'], '己': ['辰', '戌', '丑', '未'],
-    '庚': ['寅', '亥'], '辛': ['寅', '亥'], '壬': ['巳', '申'], '癸': ['巳', '申'],
-};
-const YANG_REN = {
-    '甲': '卯', '乙': '辰', '丙': '午', '丁': '未',
-    '戊': '午', '己': '未', '庚': '酉', '辛': '戌',
-    '壬': '子', '癸': '丑',
-};
-const WEN_CHANG = {
-    '甲': '巳', '乙': '午', '丙': '申', '丁': '酉',
-    '戊': '申', '己': '酉', '庚': '亥', '辛': '子',
-    '壬': '寅', '癸': '卯',
-};
-const YI_MA = {
-    '寅': '申', '午': '申', '戌': '申',
-    '申': '寅', '子': '寅', '辰': '寅',
-    '巳': '亥', '酉': '亥', '丑': '亥',
-    '亥': '巳', '卯': '巳', '未': '巳',
-};
-const TAO_HUA = {
-    '寅': '卯', '午': '卯', '戌': '卯',
-    '申': '酉', '子': '酉', '辰': '酉',
-    '巳': '午', '酉': '午', '丑': '午',
-    '亥': '子', '卯': '子', '未': '子',
-};
-const HUA_GAI = {
-    '寅': '戌', '午': '戌', '戌': '戌',
-    '申': '辰', '子': '辰', '辰': '辰',
-    '巳': '丑', '酉': '丑', '丑': '丑',
-    '亥': '未', '卯': '未', '未': '未',
-};
-const LU_SHEN = {
-    '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午',
-    '戊': '巳', '己': '午', '庚': '申', '辛': '酉',
-    '壬': '亥', '癸': '子',
-};
+// 八字专属神煞规则（shared shensha 未覆盖）
 const YUE_DE = {
     '寅': '丙', '午': '丙', '戌': '丙',
     '申': '壬', '子': '壬', '辰': '壬',
@@ -162,142 +120,10 @@ const JIN_YU = {
     '戊': '未', '己': '申', '庚': '戌', '辛': '亥',
     '壬': '丑', '癸': '寅',
 };
-const JIE_SHA = {
-    '寅': '巳', '午': '巳', '戌': '巳',
-    '申': '亥', '子': '亥', '辰': '亥',
-    '亥': '申', '卯': '申', '未': '申',
-    '巳': '寅', '酉': '寅', '丑': '寅',
-};
-const WANG_SHEN = {
-    '寅': '亥', '午': '亥', '戌': '亥',
-    '申': '巳', '子': '巳', '辰': '巳',
-    '亥': '寅', '卯': '寅', '未': '寅',
-    '巳': '申', '酉': '申', '丑': '申',
-};
-const GU_CHEN = {
-    '寅': '巳', '卯': '巳', '辰': '巳',
-    '巳': '申', '午': '申', '未': '申',
-    '申': '亥', '酉': '亥', '戌': '亥',
-    '亥': '寅', '子': '寅', '丑': '寅',
-};
-const GUA_SU = {
-    '寅': '丑', '卯': '丑', '辰': '丑',
-    '巳': '辰', '午': '辰', '未': '辰',
-    '申': '未', '酉': '未', '戌': '未',
-    '亥': '戌', '子': '戌', '丑': '戌',
-};
-const JIANG_XING = {
-    '寅': '午', '午': '午', '戌': '午',
-    '申': '子', '子': '子', '辰': '子',
-    '巳': '酉', '酉': '酉', '丑': '酉',
-    '亥': '卯', '卯': '卯', '未': '卯',
-};
-const TIAN_CHU = {
-    '甲': '巳', '乙': '午', '丙': '巳', '丁': '午',
-    '戊': '巳', '己': '午', '庚': '亥', '辛': '子',
-    '壬': '亥', '癸': '子',
-};
-const GUO_YIN = {
-    '甲': '戌', '乙': '亥', '丙': '丑', '丁': '寅',
-    '戊': '丑', '己': '寅', '庚': '辰', '辛': '巳',
-    '壬': '未', '癸': '申',
-};
-const XUE_TANG = {
-    '甲': '亥', '乙': '午', '丙': '寅', '丁': '酉',
-    '戊': '寅', '己': '酉', '庚': '巳', '辛': '子',
-    '壬': '申', '癸': '卯',
-};
-const CI_GUAN = {
-    '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午',
-    '戊': '辰', '己': '未', '庚': '申', '辛': '酉',
-    '壬': '亥', '癸': '子',
-};
-const HONG_LUAN = {
-    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
-    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
-    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
-};
-const TIAN_XI = {
-    '子': '酉', '丑': '申', '寅': '未', '卯': '午',
-    '辰': '巳', '巳': '辰', '午': '卯', '未': '寅',
-    '申': '丑', '酉': '子', '戌': '亥', '亥': '戌',
-};
-const TIAN_YI = {
-    '寅': '丑', '卯': '寅', '辰': '卯', '巳': '辰',
-    '午': '巳', '未': '午', '申': '未', '酉': '申',
-    '戌': '酉', '亥': '戌', '子': '亥', '丑': '子',
-};
-const DIAO_KE = {
-    '子': '酉', '丑': '戌', '寅': '亥', '卯': '子',
-    '辰': '丑', '巳': '寅', '午': '卯', '未': '辰',
-    '申': '巳', '酉': '午', '戌': '未', '亥': '申',
-};
-const SANG_MEN = {
-    '子': '寅', '丑': '卯', '寅': '辰', '卯': '巳',
-    '辰': '午', '巳': '未', '午': '申', '未': '酉',
-    '申': '戌', '酉': '亥', '戌': '子', '亥': '丑',
-};
-const KUI_GANG = ['庚辰', '庚戌', '壬辰', '戊戌'];
-const YIN_CHA_YANG_CUO = ['丙子', '丁丑', '戊寅', '辛卯', '壬辰', '癸巳', '丙午', '丁未', '戊申', '辛酉', '壬戌', '癸亥'];
-const SHI_E_DA_BAI = ['甲辰', '乙巳', '壬申', '丙申', '丁亥', '庚辰', '戊戌', '癸亥', '辛巳', '己丑'];
-const XUE_REN = {
-    '甲': '卯', '乙': '辰', '丙': '午', '丁': '未',
-    '戊': '午', '己': '未', '庚': '酉', '辛': '戌',
-    '壬': '子', '癸': '丑',
-};
-const PI_TOU = {
-    '子': '巳', '丑': '午', '寅': '未', '卯': '申',
-    '辰': '酉', '巳': '戌', '午': '亥', '未': '子',
-    '申': '丑', '酉': '寅', '戌': '卯', '亥': '辰',
-};
-const FU_XING = {
-    '甲': '寅', '乙': '丑', '丙': '子', '丁': '亥',
-    '戊': '申', '己': '未', '庚': '午', '辛': '巳',
-    '壬': '辰', '癸': '卯',
-};
-const ZAI_SHA = {
-    '寅': '午', '午': '午', '戌': '午',
-    '申': '子', '子': '子', '辰': '子',
-    '巳': '酉', '酉': '酉', '丑': '酉',
-    '亥': '卯', '卯': '卯', '未': '卯',
-};
-const LIU_XIA = {
-    '甲': '酉', '乙': '戌', '丙': '未', '丁': '申',
-    '戊': '巳', '己': '午', '庚': '辰', '辛': '卯',
-    '壬': '亥', '癸': '寅',
-};
-const HONG_YAN = {
-    '甲': '午', '乙': '午', '丙': '寅', '丁': '未',
-    '戊': '辰', '己': '辰', '庚': '戌', '辛': '酉',
-    '壬': '子', '癸': '申',
-};
-const BA_ZHUAN = ['甲寅', '乙卯', '丙午', '丁未', '戊戌', '戊辰', '己未', '己丑', '庚申', '辛酉', '壬子', '癸丑'];
-const JIN_SHEN = ['己丑', '己巳', '癸酉'];
 const DE_XIU = {
     '寅': ['丙', '甲'], '卯': ['甲', '乙'], '辰': ['壬', '癸'], '巳': ['丙', '庚'],
     '午': ['丁', '己'], '未': ['甲', '己'], '申': ['庚', '壬'], '酉': ['辛', '庚'],
     '戌': ['丙', '戊'], '亥': ['壬', '甲'], '子': ['癸', '壬'], '丑': ['辛', '己'],
-};
-const GU_LUAN = ['乙巳', '丁巳', '辛亥', '戊申', '甲寅', '丙午', '戊午', '壬子'];
-const GOU_SHA = {
-    '子': '酉', '丑': '戌', '寅': '亥', '卯': '子',
-    '辰': '丑', '巳': '寅', '午': '卯', '未': '辰',
-    '申': '巳', '酉': '午', '戌': '未', '亥': '申',
-};
-const JIAO_SHA = {
-    '子': '卯', '丑': '寅', '寅': '丑', '卯': '子',
-    '辰': '亥', '巳': '戌', '午': '酉', '未': '申',
-    '申': '未', '酉': '午', '戌': '巳', '亥': '辰',
-};
-const BAI_HU = {
-    '寅': '午', '卯': '未', '辰': '申', '巳': '酉',
-    '午': '戌', '未': '亥', '申': '子', '酉': '丑',
-    '戌': '寅', '亥': '卯', '子': '辰', '丑': '巳',
-};
-const FEI_REN = {
-    '甲': '酉', '乙': '申', '丙': '子', '丁': '亥',
-    '戊': '子', '己': '亥', '庚': '卯', '辛': '寅',
-    '壬': '午', '癸': '巳',
 };
 const TIAN_DE_HE = {
     '寅': '壬', '卯': '癸', '辰': '丁', '巳': '丙',
@@ -499,64 +325,13 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
     return relations;
 }
 function calculatePillarShenSha(params) {
-    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourStem, hourBranch, kongWang, } = params;
-    const shenSha = {
-        year: [],
-        month: [],
-        day: [],
-        hour: [],
-    };
+    const shenSha = calculateSharedPillarShenSha(params);
+    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourStem, hourBranch, } = params;
     const pushUnique = (position, name) => {
         if (!shenSha[position].includes(name)) {
             shenSha[position].push(name);
         }
     };
-    const dayPillar = `${dayStem}${dayBranch}`;
-    const guiRenBranches = TIAN_YI_GUI_REN[dayStem] || [];
-    if (guiRenBranches.includes(yearBranch))
-        pushUnique('year', '天乙贵人');
-    if (guiRenBranches.includes(monthBranch))
-        pushUnique('month', '天乙贵人');
-    if (guiRenBranches.includes(dayBranch))
-        pushUnique('day', '天乙贵人');
-    if (guiRenBranches.includes(hourBranch))
-        pushUnique('hour', '天乙贵人');
-    const taiJiBranches = TAI_JI_GUI_REN[dayStem] || [];
-    if (taiJiBranches.includes(yearBranch))
-        pushUnique('year', '太极贵人');
-    if (taiJiBranches.includes(monthBranch))
-        pushUnique('month', '太极贵人');
-    if (taiJiBranches.includes(dayBranch))
-        pushUnique('day', '太极贵人');
-    if (taiJiBranches.includes(hourBranch))
-        pushUnique('hour', '太极贵人');
-    const luShenBranch = LU_SHEN[dayStem];
-    if (luShenBranch === yearBranch)
-        pushUnique('year', '禄神');
-    if (luShenBranch === monthBranch)
-        pushUnique('month', '禄神');
-    if (luShenBranch === dayBranch)
-        pushUnique('day', '禄神');
-    if (luShenBranch === hourBranch)
-        pushUnique('hour', '禄神');
-    const yangRenBranch = YANG_REN[dayStem];
-    if (yangRenBranch === yearBranch)
-        pushUnique('year', '羊刃');
-    if (yangRenBranch === monthBranch)
-        pushUnique('month', '羊刃');
-    if (yangRenBranch === dayBranch)
-        pushUnique('day', '羊刃');
-    if (yangRenBranch === hourBranch)
-        pushUnique('hour', '羊刃');
-    const wenChangBranch = WEN_CHANG[dayStem];
-    if (wenChangBranch === yearBranch)
-        pushUnique('year', '文昌');
-    if (wenChangBranch === monthBranch)
-        pushUnique('month', '文昌');
-    if (wenChangBranch === dayBranch)
-        pushUnique('day', '文昌');
-    if (wenChangBranch === hourBranch)
-        pushUnique('hour', '文昌');
     const jinYuBranch = JIN_YU[dayStem];
     if (jinYuBranch === yearBranch)
         pushUnique('year', '金舆');
@@ -566,43 +341,6 @@ function calculatePillarShenSha(params) {
         pushUnique('day', '金舆');
     if (jinYuBranch === hourBranch)
         pushUnique('hour', '金舆');
-    const yiMaBranch = YI_MA[dayBranch];
-    if (yiMaBranch === yearBranch)
-        pushUnique('year', '驿马');
-    if (yiMaBranch === monthBranch)
-        pushUnique('month', '驿马');
-    if (yiMaBranch === hourBranch)
-        pushUnique('hour', '驿马');
-    const taoHuaBranch = TAO_HUA[dayBranch];
-    if (taoHuaBranch === yearBranch)
-        pushUnique('year', '桃花');
-    if (taoHuaBranch === monthBranch)
-        pushUnique('month', '桃花');
-    if (taoHuaBranch === hourBranch)
-        pushUnique('hour', '桃花');
-    const huaGaiBranch = HUA_GAI[dayBranch];
-    if (huaGaiBranch === yearBranch)
-        pushUnique('year', '华盖');
-    if (huaGaiBranch === monthBranch)
-        pushUnique('month', '华盖');
-    if (huaGaiBranch === dayBranch)
-        pushUnique('day', '华盖');
-    if (huaGaiBranch === hourBranch)
-        pushUnique('hour', '华盖');
-    const jieShaBranch = JIE_SHA[dayBranch];
-    if (jieShaBranch === yearBranch)
-        pushUnique('year', '劫煞');
-    if (jieShaBranch === monthBranch)
-        pushUnique('month', '劫煞');
-    if (jieShaBranch === hourBranch)
-        pushUnique('hour', '劫煞');
-    const wangShenBranch = WANG_SHEN[dayBranch];
-    if (wangShenBranch === yearBranch)
-        pushUnique('year', '亡神');
-    if (wangShenBranch === monthBranch)
-        pushUnique('month', '亡神');
-    if (wangShenBranch === hourBranch)
-        pushUnique('hour', '亡神');
     const yueDeStem = YUE_DE[monthBranch];
     if (yueDeStem === yearStem)
         pushUnique('year', '月德贵人');
@@ -617,207 +355,11 @@ function calculatePillarShenSha(params) {
         pushUnique('day', '天德贵人');
     if (tianDeChar === hourStem || tianDeChar === hourBranch)
         pushUnique('hour', '天德贵人');
-    const guChenBranch = GU_CHEN[yearBranch];
-    if (guChenBranch === monthBranch)
-        pushUnique('month', '孤辰');
-    if (guChenBranch === dayBranch)
-        pushUnique('day', '孤辰');
-    if (guChenBranch === hourBranch)
-        pushUnique('hour', '孤辰');
-    const guaSuBranch = GUA_SU[yearBranch];
-    if (guaSuBranch === monthBranch)
-        pushUnique('month', '寡宿');
-    if (guaSuBranch === dayBranch)
-        pushUnique('day', '寡宿');
-    if (guaSuBranch === hourBranch)
-        pushUnique('hour', '寡宿');
-    const jiangXingBranch = JIANG_XING[yearBranch];
-    if (jiangXingBranch === monthBranch)
-        pushUnique('month', '将星');
-    if (jiangXingBranch === dayBranch)
-        pushUnique('day', '将星');
-    if (jiangXingBranch === hourBranch)
-        pushUnique('hour', '将星');
-    const tianChuBranch = TIAN_CHU[dayStem];
-    if (tianChuBranch === yearBranch)
-        pushUnique('year', '天厨');
-    if (tianChuBranch === monthBranch)
-        pushUnique('month', '天厨');
-    if (tianChuBranch === hourBranch)
-        pushUnique('hour', '天厨');
-    const guoYinBranch = GUO_YIN[dayStem];
-    if (guoYinBranch === yearBranch)
-        pushUnique('year', '国印贵人');
-    if (guoYinBranch === monthBranch)
-        pushUnique('month', '国印贵人');
-    if (guoYinBranch === dayBranch)
-        pushUnique('day', '国印贵人');
-    if (guoYinBranch === hourBranch)
-        pushUnique('hour', '国印贵人');
-    const xueTangBranch = XUE_TANG[yearStem];
-    if (xueTangBranch === monthBranch)
-        pushUnique('month', '学堂');
-    if (xueTangBranch === dayBranch)
-        pushUnique('day', '学堂');
-    if (xueTangBranch === hourBranch)
-        pushUnique('hour', '学堂');
-    const ciGuanBranch = CI_GUAN[dayStem];
-    if (ciGuanBranch === yearBranch)
-        pushUnique('year', '词馆');
-    if (ciGuanBranch === monthBranch)
-        pushUnique('month', '词馆');
-    if (ciGuanBranch === hourBranch)
-        pushUnique('hour', '词馆');
-    const hongLuanBranch = HONG_LUAN[yearBranch];
-    if (hongLuanBranch === monthBranch)
-        pushUnique('month', '红鸾');
-    if (hongLuanBranch === dayBranch)
-        pushUnique('day', '红鸾');
-    if (hongLuanBranch === hourBranch)
-        pushUnique('hour', '红鸾');
-    const tianXiBranch = TIAN_XI[yearBranch];
-    if (tianXiBranch === monthBranch)
-        pushUnique('month', '天喜');
-    if (tianXiBranch === dayBranch)
-        pushUnique('day', '天喜');
-    if (tianXiBranch === hourBranch)
-        pushUnique('hour', '天喜');
-    const tianYiBranch = TIAN_YI[monthBranch];
-    if (tianYiBranch === yearBranch)
-        pushUnique('year', '天医');
-    if (tianYiBranch === dayBranch)
-        pushUnique('day', '天医');
-    if (tianYiBranch === hourBranch)
-        pushUnique('hour', '天医');
-    const diaoKeBranch = DIAO_KE[yearBranch];
-    if (diaoKeBranch === monthBranch)
-        pushUnique('month', '吊客');
-    if (diaoKeBranch === dayBranch)
-        pushUnique('day', '吊客');
-    if (diaoKeBranch === hourBranch)
-        pushUnique('hour', '吊客');
-    const sangMenBranch = SANG_MEN[yearBranch];
-    if (sangMenBranch === monthBranch)
-        pushUnique('month', '丧门');
-    if (sangMenBranch === dayBranch)
-        pushUnique('day', '丧门');
-    if (sangMenBranch === hourBranch)
-        pushUnique('hour', '丧门');
-    if (kongWang.kongZhi.includes(yearBranch))
-        pushUnique('year', '空亡');
-    if (kongWang.kongZhi.includes(monthBranch))
-        pushUnique('month', '空亡');
-    if (kongWang.kongZhi.includes(hourBranch))
-        pushUnique('hour', '空亡');
-    if (KUI_GANG.includes(dayPillar))
-        pushUnique('day', '魁罡');
-    if (YIN_CHA_YANG_CUO.includes(dayPillar))
-        pushUnique('day', '阴差阳错');
-    if (SHI_E_DA_BAI.includes(dayPillar))
-        pushUnique('day', '十恶大败');
-    const xueRenBranch = XUE_REN[dayStem];
-    if (xueRenBranch === yearBranch)
-        pushUnique('year', '血刃');
-    if (xueRenBranch === monthBranch)
-        pushUnique('month', '血刃');
-    if (xueRenBranch === dayBranch)
-        pushUnique('day', '血刃');
-    if (xueRenBranch === hourBranch)
-        pushUnique('hour', '血刃');
-    const piTouBranch = PI_TOU[yearBranch];
-    if (piTouBranch === monthBranch)
-        pushUnique('month', '披头');
-    if (piTouBranch === dayBranch)
-        pushUnique('day', '披头');
-    if (piTouBranch === hourBranch)
-        pushUnique('hour', '披头');
-    const fuXingBranch = FU_XING[dayStem];
-    if (fuXingBranch === yearBranch)
-        pushUnique('year', '福星贵人');
-    if (fuXingBranch === monthBranch)
-        pushUnique('month', '福星贵人');
-    if (fuXingBranch === dayBranch)
-        pushUnique('day', '福星贵人');
-    if (fuXingBranch === hourBranch)
-        pushUnique('hour', '福星贵人');
-    if (yearBranch === '辰' && (monthBranch === '巳' || dayBranch === '巳' || hourBranch === '巳')) {
-        pushUnique('year', '天罗');
-    }
-    if (monthBranch === '辰' && (yearBranch === '巳' || dayBranch === '巳' || hourBranch === '巳')) {
-        pushUnique('month', '天罗');
-    }
-    if (yearBranch === '戌' && (monthBranch === '亥' || dayBranch === '亥' || hourBranch === '亥')) {
-        pushUnique('year', '地网');
-    }
-    if (monthBranch === '戌' && (yearBranch === '亥' || dayBranch === '亥' || hourBranch === '亥')) {
-        pushUnique('month', '地网');
-    }
-    const zaiShaBranch = ZAI_SHA[yearBranch];
-    if (zaiShaBranch === monthBranch)
-        pushUnique('month', '灾煞');
-    if (zaiShaBranch === dayBranch)
-        pushUnique('day', '灾煞');
-    if (zaiShaBranch === hourBranch)
-        pushUnique('hour', '灾煞');
-    const liuXiaBranch = LIU_XIA[dayStem];
-    if (liuXiaBranch === yearBranch)
-        pushUnique('year', '流霞');
-    if (liuXiaBranch === monthBranch)
-        pushUnique('month', '流霞');
-    if (liuXiaBranch === dayBranch)
-        pushUnique('day', '流霞');
-    if (liuXiaBranch === hourBranch)
-        pushUnique('hour', '流霞');
-    const hongYanBranch = HONG_YAN[dayStem];
-    if (hongYanBranch === yearBranch)
-        pushUnique('year', '红艳煞');
-    if (hongYanBranch === monthBranch)
-        pushUnique('month', '红艳煞');
-    if (hongYanBranch === dayBranch)
-        pushUnique('day', '红艳煞');
-    if (hongYanBranch === hourBranch)
-        pushUnique('hour', '红艳煞');
-    if (BA_ZHUAN.includes(dayPillar))
-        pushUnique('day', '八专');
-    if (JIN_SHEN.includes(dayPillar))
-        pushUnique('day', '金神');
-    if (GU_LUAN.includes(dayPillar))
-        pushUnique('day', '孤鸾煞');
     const deXiuStems = DE_XIU[monthBranch] || [];
     if (deXiuStems.includes(dayStem))
         pushUnique('day', '德秀贵人');
     if (deXiuStems.includes(hourStem))
         pushUnique('hour', '德秀贵人');
-    const gouShaBranch = GOU_SHA[yearBranch];
-    if (gouShaBranch === monthBranch)
-        pushUnique('month', '勾煞');
-    if (gouShaBranch === dayBranch)
-        pushUnique('day', '勾煞');
-    if (gouShaBranch === hourBranch)
-        pushUnique('hour', '勾煞');
-    const jiaoShaBranch = JIAO_SHA[yearBranch];
-    if (jiaoShaBranch === monthBranch)
-        pushUnique('month', '绞煞');
-    if (jiaoShaBranch === dayBranch)
-        pushUnique('day', '绞煞');
-    if (jiaoShaBranch === hourBranch)
-        pushUnique('hour', '绞煞');
-    const baiHuBranch = BAI_HU[monthBranch];
-    if (baiHuBranch === yearBranch)
-        pushUnique('year', '白虎');
-    if (baiHuBranch === dayBranch)
-        pushUnique('day', '白虎');
-    if (baiHuBranch === hourBranch)
-        pushUnique('hour', '白虎');
-    const feiRenBranch = FEI_REN[dayStem];
-    if (feiRenBranch === yearBranch)
-        pushUnique('year', '飞刃');
-    if (feiRenBranch === monthBranch)
-        pushUnique('month', '飞刃');
-    if (feiRenBranch === dayBranch)
-        pushUnique('day', '飞刃');
-    if (feiRenBranch === hourBranch)
-        pushUnique('hour', '飞刃');
     const tianDeHeChar = TIAN_DE_HE[monthBranch];
     if (tianDeHeChar === yearStem || tianDeHeChar === yearBranch)
         pushUnique('year', '天德合');
@@ -844,6 +386,9 @@ function getDaYunTenGods(ganZhi, dayStem) {
 }
 function validateLunarDateInput(params) {
     const { birthYear, birthMonth, birthDay, birthHour, birthMinute, isLeapMonth, } = params;
+    if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) {
+        throw new Error(`农历月份无效：月份需为 1-12 的正整数（收到 ${birthMonth}）`);
+    }
     const leapMonth = LunarYear.fromYear(birthYear).getLeapMonth();
     if (isLeapMonth && leapMonth !== birthMonth) {
         throw new Error(`农历闰月无效：${birthYear}年不存在闰${birthMonth}月`);
@@ -908,6 +453,7 @@ export async function handleBaziCalculate(input) {
     const pillarShenSha = calculatePillarShenSha({
         yearStem,
         yearBranch,
+        monthStem,
         monthBranch,
         dayStem,
         dayBranch,

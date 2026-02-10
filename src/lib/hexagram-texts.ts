@@ -3,6 +3,11 @@
  *
  * 包含完整的卦辞、象辞和爻辞，以及权重标记
  */
+import {
+    HEXAGRAM_GUA_CI_FALLBACK,
+    HEXAGRAM_XIANG_CI_FALLBACK,
+    HEXAGRAM_YAO_CI_FALLBACK,
+} from './hexagram-texts-fallback';
 
 // 爻辞结构
 export interface YaoText {
@@ -341,11 +346,69 @@ export const HEXAGRAM_TEXTS: Record<string, HexagramText> = {
     },
 };
 
+const parseFallbackYaoTexts = (lines: string[]): YaoText[] => {
+    return lines.map((line, index) => {
+        const position = index + 1;
+        const splitIndex = line.indexOf('：');
+
+        if (splitIndex < 0) {
+            return {
+                position,
+                name: `第${position}爻`,
+                text: line.trim(),
+                emphasis: 'medium',
+            };
+        }
+
+        return {
+            position,
+            name: line.slice(0, splitIndex).trim(),
+            text: line.slice(splitIndex + 1).trim(),
+            emphasis: 'medium',
+        };
+    });
+};
+
+const mergeYaoMeta = (base: YaoText[], override: YaoText[] = []): YaoText[] => {
+    const overrideMap = new Map(override.map(item => [item.position, item]));
+
+    return base.map(item => {
+        const enriched = overrideMap.get(item.position);
+        if (!enriched) {
+            return item;
+        }
+        return {
+            ...item,
+            emphasis: enriched.emphasis ?? item.emphasis,
+            timing: enriched.timing ?? item.timing,
+        };
+    });
+};
+
 /**
  * 获取卦辞爻辞
  */
 export function getHexagramText(name: string): HexagramText | undefined {
-    return HEXAGRAM_TEXTS[name];
+    const detailed = HEXAGRAM_TEXTS[name];
+    const gua = HEXAGRAM_GUA_CI_FALLBACK[name];
+    const xiang = HEXAGRAM_XIANG_CI_FALLBACK[name];
+    const yaoLines = HEXAGRAM_YAO_CI_FALLBACK[name];
+
+    if (gua && xiang && yaoLines) {
+        const baseYao = parseFallbackYaoTexts(yaoLines);
+        return {
+            name,
+            gua,
+            xiang,
+            yao: mergeYaoMeta(baseYao, detailed?.yao),
+        };
+    }
+
+    if (detailed) {
+        return detailed;
+    }
+
+    return undefined;
 }
 
 /**
