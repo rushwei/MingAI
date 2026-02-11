@@ -150,7 +150,10 @@ cd packages/mcp-server && pnpm start
   "mcpServers": {
     "mingai": {
       "type": "streamable-http",
-      "url": "http://localhost:3001/mcp"
+      "url": "http://localhost:3001/mcp",
+      "headers": {
+        "x-api-key": "your-api-key"
+      }
     }
   }
 }
