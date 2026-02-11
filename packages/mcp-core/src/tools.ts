@@ -470,7 +470,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'liuyao_analyze',
-    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。候选用神已按参考优先级排序，越靠后参考度越低。',
+    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -609,7 +609,7 @@ export const tools: ToolDefinition[] = [
         },
         yongShen: {
           type: 'array',
-          description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选用神）',
+          description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选用神，越后参考度越低）',
           items: {
             type: 'object',
             properties: {

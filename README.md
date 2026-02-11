@@ -145,6 +145,14 @@ pnpm dev
 
 ---
 
+## 📝 后续主要更新内容
+<input type="checkbox"> 奇门遁甲 <br/>
+<input type="checkbox"> 七政四余 <br/>
+<input type="checkbox"> 梅花易数 <br/>
+<input type="checkbox"> 姓名学 <br/>
+
+---
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
