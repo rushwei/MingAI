@@ -3,6 +3,7 @@
  * 完整实现六爻分析功能
  */
 import { Solar } from 'lunar-javascript';
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 // 旺衰标签
 const WANG_SHUAI_LABELS = {
     wang: '旺', xiang: '相', xiu: '休', qiu: '囚', si: '死',
@@ -1294,14 +1295,14 @@ function calculateChangedLines(mainCode, changedCode) {
     return lines;
 }
 // 自动起卦（模拟铜钱法）
-function divine() {
+function divine(rng) {
     const yaos = [];
     const changedLines = [];
     for (let i = 0; i < 6; i++) {
         const coins = [
-            Math.random() > 0.5 ? 3 : 2,
-            Math.random() > 0.5 ? 3 : 2,
-            Math.random() > 0.5 ? 3 : 2,
+            rng() > 0.5 ? 3 : 2,
+            rng() > 0.5 ? 3 : 2,
+            rng() > 0.5 ? 3 : 2,
         ];
         const sum = coins.reduce((a, b) => a + b, 0);
         let yaoType;
@@ -1493,6 +1494,9 @@ export async function handleLiuyaoAnalyze(input) {
     else {
         divDate = new Date();
     }
+    const dateKey = `${divDate.getFullYear()}-${String(divDate.getMonth() + 1).padStart(2, '0')}-${String(divDate.getDate()).padStart(2, '0')}`;
+    const seed = resolveSeed(input.seed, `${question}|${method}|${dateKey}|${hexagramName || ''}|${changedHexagramName || ''}`);
+    const rng = createSeededRng(seed);
     let yaos;
     let hexagramCode;
     let changedCode;
@@ -1523,7 +1527,7 @@ export async function handleLiuyaoAnalyze(input) {
         }));
     }
     else {
-        const result = divine();
+        const result = divine(rng);
         yaos = result.yaos;
         hexagramCode = result.hexagramCode;
         changedLines = result.changedLines;
@@ -1621,6 +1625,7 @@ export async function handleLiuyaoAnalyze(input) {
     }
     // 构建输出
     return {
+        seed,
         question,
         // 本卦信息
         hexagramName: mainHexagramName,

@@ -469,12 +469,17 @@ export const tools = [
                     type: 'string',
                     description: '占卜日期 (ISO格式)，默认今天',
                 },
+                seed: {
+                    type: 'string',
+                    description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+                },
             },
             required: ['question'],
         },
         outputSchema: {
             type: 'object',
             properties: {
+                seed: { type: 'string', description: '本次起卦使用的随机种子' },
                 question: { type: 'string', description: '占卜问题' },
                 hexagramName: { type: 'string', description: '本卦名' },
                 hexagramGong: { type: 'string', description: '卦宫' },
@@ -723,6 +728,10 @@ export const tools = [
                     type: 'boolean',
                     description: '是否允许逆位，默认 true',
                 },
+                seed: {
+                    type: 'string',
+                    description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+                },
             },
             required: [],
         },
@@ -732,6 +741,7 @@ export const tools = [
                 spreadId: { type: 'string', description: '牌阵ID' },
                 spreadName: { type: 'string', description: '牌阵名称' },
                 question: { type: 'string', description: '占卜问题' },
+                seed: { type: 'string', description: '本次抽牌使用的随机种子' },
                 cards: {
                     type: 'array',
                     description: '抽到的牌',
@@ -787,6 +797,10 @@ export const tools = [
                     type: 'string',
                     description: '目标日期 (YYYY-MM-DD)，默认今天',
                 },
+                seed: {
+                    type: 'string',
+                    description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+                },
             },
             required: [],
         },
@@ -794,6 +808,7 @@ export const tools = [
             type: 'object',
             properties: {
                 date: { type: 'string', description: '日期' },
+                seed: { type: 'string', description: '本次运势计算使用的随机种子' },
                 dayInfo: {
                     type: 'object',
                     description: '日干支',

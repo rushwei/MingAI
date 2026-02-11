@@ -7,6 +7,10 @@ const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, 'src');
 
 function resolveAlias(request) {
+    if (request === 'server-only') {
+        return path.join(projectRoot, 'scripts', 'server-only-stub.js');
+    }
+
     if (!request.startsWith('@/')) return null;
 
     const target = path.join(srcRoot, request.slice(2));

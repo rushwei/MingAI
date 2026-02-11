@@ -32,7 +32,7 @@ function setupRouteMocks(
 ): MockState {
     const aiModule = require('../lib/ai') as any;
     const creditsModule = require('../lib/credits') as any;
-    const aiConfigModule = require('../lib/ai-config') as any;
+    const aiConfigServerModule = require('../lib/server/ai-config') as any;
     const aiAccessModule = require('../lib/ai-access') as any;
     const membershipServerModule = require('../lib/membership-server') as any;
     const promptBuilderModule = require('../lib/prompt-builder') as any;
@@ -43,7 +43,7 @@ function setupRouteMocks(
     const originalHasCredits = creditsModule.hasCredits;
     const originalUseCredit = creditsModule.useCredit;
     const originalAddCredits = creditsModule.addCredits;
-    const originalGetModelConfigAsync = aiConfigModule.getModelConfigAsync;
+    const originalGetModelConfigAsync = aiConfigServerModule.getModelConfigAsync;
     const originalIsModelAllowedForMembership = aiAccessModule.isModelAllowedForMembership;
     const originalIsReasoningAllowedForMembership = aiAccessModule.isReasoningAllowedForMembership;
     const originalGetEffectiveMembershipType = membershipServerModule.getEffectiveMembershipType;
@@ -69,7 +69,7 @@ function setupRouteMocks(
         return 1;
     };
 
-    aiConfigModule.getModelConfigAsync = async () => ({
+    aiConfigServerModule.getModelConfigAsync = async () => ({
         id: 'deepseek-chat',
         modelKey: 'deepseek-chat',
         vendor: 'deepseek',
@@ -139,7 +139,7 @@ function setupRouteMocks(
         creditsModule.hasCredits = originalHasCredits;
         creditsModule.useCredit = originalUseCredit;
         creditsModule.addCredits = originalAddCredits;
-        aiConfigModule.getModelConfigAsync = originalGetModelConfigAsync;
+        aiConfigServerModule.getModelConfigAsync = originalGetModelConfigAsync;
         aiAccessModule.isModelAllowedForMembership = originalIsModelAllowedForMembership;
         aiAccessModule.isReasoningAllowedForMembership = originalIsReasoningAllowedForMembership;
         membershipServerModule.getEffectiveMembershipType = originalGetEffectiveMembershipType;

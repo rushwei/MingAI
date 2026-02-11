@@ -32,7 +32,28 @@ import {
   handleLiunianAnalyze,
 } from '@mingai/mcp-core';
 
-import { authMiddleware, rateLimitMiddleware } from './middleware.js';
+import {
+  authMiddleware,
+  rateLimitMiddleware,
+  originValidationMiddleware,
+  hostValidationMiddleware,
+  sseConnectionLimitMiddleware,
+  type McpAuthInfo,
+} from './middleware.js';
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+// ─── 会话管理配置 ───
+const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
+const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
+const SESSION_IDLE = readPositiveIntEnv('MCP_SESSION_IDLE_MS', 600000); // 10min
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // 工具调用处理
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,9 +79,15 @@ async function handleToolCall(name: string, args: any): Promise<unknown> {
 }
 
 const app = express();
-app.use(express.json());
 
-// 健康检查
+// trust proxy（反向代理后需要）
+if (process.env.MCP_TRUST_PROXY === 'true') {
+  app.set('trust proxy', true);
+}
+
+app.use(express.json({ limit: '1mb' }));
+
+// 健康检查（不需要认证）
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -68,6 +95,9 @@ app.get('/health', (_req, res) => {
 type SessionContext = {
   server: McpServer;
   transport: StreamableHTTPServerTransport;
+  auth: McpAuthInfo;
+  createdAt: number;
+  lastActivityAt: number;
 };
 
 // 存储活跃会话
@@ -85,6 +115,20 @@ function cleanupSession(sessionId: string) {
   session.server.close().catch(() => {});
 }
 
+function isSessionOwner(session: SessionContext, auth: McpAuthInfo): boolean {
+  return session.auth.userId === auth.userId && session.auth.keyId === auth.keyId;
+}
+
+// 定期清理过期/空闲会话
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, ctx] of sessions) {
+    if (now - ctx.createdAt > SESSION_TTL || now - ctx.lastActivityAt > SESSION_IDLE) {
+      cleanupSession(id);
+    }
+  }
+}, 60_000);
+
 function createMcpServer() {
   const server = new McpServer(
     { name: 'mingai-mcp-online', version: '1.0.0' },
@@ -101,33 +145,35 @@ function createMcpServer() {
     })),
   }));
 
-  // 调用工具
+  // 调用工具（错误脱敏）
   server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+
     try {
       const result = await handleToolCall(name, args || {});
+
       const humanReadableText =
         typeof result === 'string'
           ? result
           : JSON.stringify(result, null, 2) ?? String(result);
       const humanReadableContent = [{ type: 'text', text: humanReadableText }];
-      // 检查工具是否定义了 outputSchema
       const tool = tools.find((t) => t.name === name);
       if (tool?.outputSchema) {
-        // 有 outputSchema 时同时返回 structuredContent + 可读 content
         return {
           structuredContent: result,
           content: humanReadableContent,
         };
       }
-      // 无 outputSchema 时返回 text content
-      return {
-        content: humanReadableContent,
-      };
+      return { content: humanReadableContent };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const internalMessage = error instanceof Error ? error.message : String(error);
+
+      const userMessage = IS_PRODUCTION
+        ? 'Tool execution failed'
+        : `Error: ${internalMessage}`;
+
       return {
-        content: [{ type: 'text', text: `Error: ${message}` }],
+        content: [{ type: 'text', text: userMessage }],
         isError: true,
       };
     }
@@ -137,8 +183,9 @@ function createMcpServer() {
 }
 
 // Streamable HTTP - POST: 初始化或会话消息
-app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, authMiddleware, rateLimitMiddleware, async (req, res) => {
   const sessionId = getSessionIdHeader(req);
+  const auth = req.mcpAuth!;
 
   // 已有会话：复用 transport
   if (sessionId) {
@@ -146,6 +193,10 @@ app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'Session not found' });
     }
+    if (!isSessionOwner(existing, auth)) {
+      return res.status(403).json({ error: 'Session does not belong to current API key' });
+    }
+    existing.lastActivityAt = Date.now();
     await existing.transport.handleRequest(req, res, req.body);
     return;
   }
@@ -162,11 +213,20 @@ app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
     });
   }
 
+  // 会话上限检查
+  if (sessions.size >= MAX_TOTAL_SESSIONS) {
+    return res.status(503).json({ error: 'Server at capacity, try again later' });
+  }
+
   const server = createMcpServer();
+  const now = Date.now();
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
     onsessioninitialized: (initializedSessionId) => {
-      sessions.set(initializedSessionId, { server, transport });
+      sessions.set(initializedSessionId, {
+        server, transport, auth,
+        createdAt: now, lastActivityAt: now,
+      });
     },
     onsessionclosed: (closedSessionId) => {
       cleanupSession(closedSessionId);
@@ -208,8 +268,9 @@ app.post('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
 });
 
 // Streamable HTTP - GET: 建立/恢复 SSE 流
-app.get('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, authMiddleware, rateLimitMiddleware, sseConnectionLimitMiddleware, async (req, res) => {
   const sessionId = getSessionIdHeader(req);
+  const auth = req.mcpAuth!;
   if (!sessionId) {
     return res.status(400).json({ error: 'Missing mcp-session-id header' });
   }
@@ -218,13 +279,18 @@ app.get('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
+  if (!isSessionOwner(session, auth)) {
+    return res.status(403).json({ error: 'Session does not belong to current API key' });
+  }
+  session.lastActivityAt = Date.now();
 
   await session.transport.handleRequest(req, res);
 });
 
 // Streamable HTTP - DELETE: 关闭会话
-app.delete('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
+app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, authMiddleware, rateLimitMiddleware, async (req, res) => {
   const sessionId = getSessionIdHeader(req);
+  const auth = req.mcpAuth!;
   if (!sessionId) {
     return res.status(400).json({ error: 'Missing mcp-session-id header' });
   }
@@ -233,12 +299,17 @@ app.delete('/mcp', authMiddleware, rateLimitMiddleware, async (req, res) => {
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
+  if (!isSessionOwner(session, auth)) {
+    return res.status(403).json({ error: 'Session does not belong to current API key' });
+  }
+  session.lastActivityAt = Date.now();
 
   await session.transport.handleRequest(req, res, req.body);
 });
 
 // 启动服务器
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`MingAI MCP Server (Streamable HTTP) running on port ${PORT} at /mcp`);
+const PORT = parseInt(process.env.PORT || '3001', 10);
+const HOST = process.env.MCP_HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
+  console.log(`MingAI MCP Server (Streamable HTTP) running on ${HOST}:${PORT} at /mcp`);
 });

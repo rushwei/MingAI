@@ -1,6 +1,7 @@
 import type { AIModelConfig } from "@/types";
 import type { MembershipType } from "@/lib/membership";
-import { getModelConfig, getModelConfigAsync } from "@/lib/ai-config";
+import { getModelConfig } from "@/lib/ai-config";
+import { getModelConfigAsync } from "@/lib/server/ai-config";
 
 type ModelTier = "free" | "plus" | "pro" | "none";
 

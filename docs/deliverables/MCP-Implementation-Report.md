@@ -370,15 +370,12 @@ cd MingAI
 pnpm install
 
 # 构建所有包
-pnpm --filter "@anthropic/mcp-*" build
+pnpm --filter "@mingai/*" build
 ```
 
-#### 5.1.2 配置 Claude Desktop
+#### 5.1.2 配置 Cherry Studio
 
-在 Claude Desktop 配置文件中添加：
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+在 Cherry Studio 中进入 `设置 -> MCP 服务器 -> 从 JSON 导入`，添加：
 
 ```json
 {
@@ -394,7 +391,7 @@ pnpm --filter "@anthropic/mcp-*" build
 #### 5.1.3 使用 npx 运行
 
 ```bash
-npx @anthropic/mcp-local
+npx @mingai/mcp-local
 ```
 
 ### 5.2 线上模式 (Streamable HTTP)
@@ -405,8 +402,10 @@ npx @anthropic/mcp-local
 
 ```bash
 # .env
-MCP_API_KEY=your-secret-key
-PORT=3001  # 可选，默认 3001
+PORT=3001
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 #### 5.2.2 本地启动
@@ -417,7 +416,7 @@ pnpm dev
 # 服务运行在 http://localhost:3001
 ```
 
-#### 5.2.3 配置 Claude Desktop (Streamable HTTP 模式)
+#### 5.2.3 配置 Cherry Studio (Streamable HTTP 模式)
 
 ```json
 {
@@ -433,7 +432,7 @@ pnpm dev
 }
 ```
 
-**注意**: Streamable HTTP 模式需要先手动启动服务，Claude Desktop 不会自动启动。
+**注意**: Streamable HTTP 模式需要先手动启动服务，Cherry Studio 不会自动启动。
 
 #### 5.2.4 Docker 部署
 
@@ -443,7 +442,9 @@ docker build -t mingai-mcp-server ./packages/mcp-server
 
 # 运行容器
 docker run -d -p 3001:3001 \
-  -e MCP_API_KEY=your-api-key \
+  -e SUPABASE_URL=https://your-project.supabase.co \
+  -e SUPABASE_SERVICE_ROLE_KEY=your-service-role-key \
+  -e MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 \
   mingai-mcp-server
 ```
 
@@ -469,14 +470,7 @@ docker run -d -p 3001:3001 \
 ```
 x-api-key: your-secret-key
 ```
-
-或通过 URL 参数：
-
-```
-/mcp?api_key=your-secret-key
-```
-
-**注意**: 如果服务端未设置 `MCP_API_KEY` 环境变量，则跳过认证。
+当前服务仅支持 Header 鉴权，不支持 URL query 传参。
 
 #### 5.3.2 限流配置
 
@@ -549,7 +543,7 @@ x-api-key: your-secret-key
 
 #### 6.2.1 本地模式测试
 
-- Claude Desktop 连接测试：✅ 通过
+- Cherry Studio 连接测试：✅ 通过
 - 工具列表获取：✅ 通过
 - 工具调用响应：✅ 通过
 

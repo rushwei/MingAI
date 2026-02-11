@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@mingai/mcp-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "1.25.3",
+    "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.0"
   },

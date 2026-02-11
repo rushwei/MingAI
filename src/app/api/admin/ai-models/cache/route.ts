@@ -5,7 +5,7 @@
  */
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk } from '@/lib/api-utils';
-import { clearModelCache } from '@/lib/ai-config';
+import { clearModelCache } from '@/lib/server/ai-config';
 
 export async function POST(request: NextRequest) {
     // 验证管理员权限

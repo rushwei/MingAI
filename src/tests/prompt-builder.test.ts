@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 const buildMinimalBaziChart = () => ({
     name: '张三',
@@ -129,4 +131,18 @@ test('buildPersonalityPrompt composes single and multi roles', () => {
     assert.ok(multi.includes('【八字宗师】'));
     assert.ok(multi.includes('【紫微宗师】'));
     assert.ok(multi.includes('综合结论'));
+});
+
+test('prompt builder should truncate P0 layers instead of forcing over-budget injection', async () => {
+    const sourcePath = resolve(process.cwd(), 'src/lib/prompt-builder.ts');
+    const source = await readFile(sourcePath, 'utf-8');
+
+    assert.ok(
+        !source.includes("tokens <= remaining || priority === 'P0'"),
+        'P0 should not bypass budget checks directly'
+    );
+    assert.ok(
+        source.includes('truncateToTokens'),
+        'prompt builder should use truncateToTokens for overflow handling'
+    );
 });
