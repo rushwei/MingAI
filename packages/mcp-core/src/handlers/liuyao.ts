@@ -7,6 +7,7 @@ import { Solar } from 'lunar-javascript';
 import type { LiuyaoInput, LiuyaoOutput, GanZhiTime } from '../types.js';
 import { calculateBranchShenSha, calculateGlobalShenSha } from '../shensha.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 
 // ============= 类型定义 =============
 
@@ -1031,15 +1032,15 @@ function calculateChangedLines(mainCode: string, changedCode: string): number[] 
 }
 
 // 自动起卦（模拟铜钱法）
-function divine(): { yaos: Yao[]; hexagramCode: string; changedLines: number[] } {
+function divine(rng: () => number): { yaos: Yao[]; hexagramCode: string; changedLines: number[] } {
   const yaos: Yao[] = [];
   const changedLines: number[] = [];
 
   for (let i = 0; i < 6; i++) {
     const coins = [
-      Math.random() > 0.5 ? 3 : 2,
-      Math.random() > 0.5 ? 3 : 2,
-      Math.random() > 0.5 ? 3 : 2,
+      rng() > 0.5 ? 3 : 2,
+      rng() > 0.5 ? 3 : 2,
+      rng() > 0.5 ? 3 : 2,
     ];
     const sum = coins.reduce((a, b) => a + b, 0);
 
@@ -1272,6 +1273,9 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
   } else {
     divDate = new Date();
   }
+  const dateKey = `${divDate.getFullYear()}-${String(divDate.getMonth() + 1).padStart(2, '0')}-${String(divDate.getDate()).padStart(2, '0')}`;
+  const seed = resolveSeed(input.seed, `${question}|${method}|${dateKey}|${hexagramName || ''}|${changedHexagramName || ''}`);
+  const rng = createSeededRng(seed);
 
   let yaos: Yao[];
   let hexagramCode: string;
@@ -1303,7 +1307,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
       position: idx + 1,
     }));
   } else {
-    const result = divine();
+    const result = divine(rng);
     yaos = result.yaos;
     hexagramCode = result.hexagramCode;
     changedLines = result.changedLines;
@@ -1504,6 +1508,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
   const globalShenSha = calculateGlobalShenSha(shenShaContext);
 
   return {
+    seed,
     question,
     hexagramName: mainHexagramName,
     hexagramGong: palace?.name || '',

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getModelsAsync } from '@/lib/ai-config';
+import { getModelsAsync } from '@/lib/server/ai-config';
 import type { MembershipType } from '@/lib/membership';
 import { getEffectiveMembershipType } from '@/lib/membership-server';
 import { getModelAccessForMembershipAsync } from '@/lib/ai-access';

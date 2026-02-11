@@ -822,7 +822,9 @@ echo '{
 
 | 变量 | 说明 |
 |------|------|
-| `MCP_API_KEY` | API 认证密钥 |
+| `SUPABASE_URL` | Supabase 项目地址 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key（仅服务端） |
+| `MCP_ALLOWED_ORIGINS` | 浏览器 Origin 白名单（逗号分隔） |
 | `PORT` | 服务端口，默认 3001 |
 
 **2. 本地启动线上服务器：**
@@ -843,7 +845,11 @@ curl http://localhost:3001/health
 ```bash
 cd /Users/hhs/Develop/Project/MingAI
 docker build -f packages/mcp-server/Dockerfile -t mingai-mcp-server .
-docker run -p 3001:3001 -e MCP_API_KEY=your-key mingai-mcp-server
+docker run -p 3001:3001 \
+  -e SUPABASE_URL=https://your-project.supabase.co \
+  -e SUPABASE_SERVICE_ROLE_KEY=your-service-role-key \
+  -e MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 \
+  mingai-mcp-server
 ```
 
 **5. Docker Compose（支持一键和分开部署）：**

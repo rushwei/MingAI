@@ -7,7 +7,7 @@
  */
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
-import { clearModelCache } from '@/lib/ai-config';
+import { clearModelCache } from '@/lib/server/ai-config';
 
 type RouteContext = {
     params: Promise<{ id: string; sourceId: string }>;

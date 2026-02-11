@@ -26,6 +26,7 @@ import {
     BookOpenText,
     MessageCircleHeart,
     CalendarCheck,
+    Plug,
 } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
@@ -54,6 +55,7 @@ const menuItems = [
         items: [
             { icon: MessageCircleHeart, label: '个性化', href: '/user/settings/ai' },
             { icon: BookOpenText, label: '知识库', href: '/user/knowledge-base', requiresPlus: true },
+            { icon: Plug, label: 'MCP 服务', href: '/user/mcp' },
         ],
     },
     {
@@ -683,6 +685,7 @@ export default function UserPage() {
                             { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
                             { icon: Wallet, label: '支付服务', href: '/admin/payment' },
                             { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
+                            { icon: Plug, label: 'MCP 管理', href: '/admin/mcp' },
                         ],
                     }]
                     : [])

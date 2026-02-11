@@ -3,7 +3,7 @@
 ## 概述
 
 为 MingAI 项目实现 MCP (Model Context Protocol) Server，支持：
-1. **本地模式 (stdio)** - 用户在本地运行，配置到 Claude Desktop
+1. **本地模式 (stdio)** - 用户在本地运行，配置到 Cherry Studio
 2. **线上模式 (Streamable HTTP)** - 部署到 Zeabur，支持远程调用
 
 ---
@@ -657,8 +657,8 @@ app.listen(process.env.PORT || 3001);
 
 ```typescript
 export function authMiddleware(req, res, next) {
-  const apiKey = req.headers['x-api-key'] || req.query.api_key;
-  if (!apiKey || apiKey !== process.env.MCP_API_KEY) {
+  const apiKey = req.headers['x-api-key'] || req.headers.authorization?.replace('Bearer ', '');
+  if (!apiKey) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
@@ -675,9 +675,9 @@ export function rateLimitMiddleware(req, res, next) {
 
 ## 4. 部署配置
 
-### 4.1 Claude Desktop 配置 (本地)
+### 4.1 Cherry Studio 配置 (本地)
 
-**文件**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**位置**: Cherry Studio `设置 -> MCP 服务器 -> 从 JSON 导入`
 
 ```json
 {
@@ -702,13 +702,14 @@ export function rateLimitMiddleware(req, res, next) {
 }
 ```
 
-### 4.2 Claude Desktop 配置 (Streamable HTTP 模式)
+### 4.2 Cherry Studio 配置 (Streamable HTTP 模式)
 
 **环境变量配置**: 项目根目录 `.env`
 
 ```bash
-MCP_API_KEY=your-secret-key
 PORT=3001
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 **启动服务**:
@@ -718,7 +719,7 @@ cd packages/mcp-server
 pnpm dev
 ```
 
-**Claude Desktop 配置**:
+**Cherry Studio 配置**:
 
 ```json
 {
@@ -734,7 +735,7 @@ pnpm dev
 }
 ```
 
-**注意**: Streamable HTTP 模式需要先手动启动服务，Claude Desktop 不会自动启动。
+**注意**: Streamable HTTP 模式需要先手动启动服务，Cherry Studio 不会自动启动。
 
 ### 4.3 Zeabur 部署 (线上)
 
@@ -747,7 +748,8 @@ pnpm dev
     "type": "nodejs"
   },
   "env": {
-    "MCP_API_KEY": "@MCP_API_KEY",
+    "SUPABASE_URL": "@SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY": "@SUPABASE_SERVICE_ROLE_KEY",
     "PORT": "3001"
   }
 }
@@ -852,7 +854,7 @@ cd packages/mcp-local && pnpm build
 # 2. 测试 stdio
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node packages/mcp-local/dist/index.js
 
-# 3. 配置 Claude Desktop 并测试
+# 3. 配置 Cherry Studio 并测试
 ```
 
 ### 线上测试
@@ -872,7 +874,7 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 
 ### 功能测试
 
-在 Claude Desktop 中测试：
+在 Cherry Studio 中测试：
 - "帮我算一下 1990-05-15 14:00 出生的八字"
 - "用紫微斗数分析 1985-03-20 10:30 的命盘"
 - "帮我起一卦，问事业发展"
@@ -887,4 +889,4 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 2. **路径别名**: 需要配置 tsconfig paths 或使用相对路径
 3. **类型导出**: 确保 src/types 中的类型可被 mcp-core 使用
 4. **构建顺序**: mcp-core → mcp-local/mcp-server
-5. **环境变量**: 线上版本需要配置 MCP_API_KEY
+5. **环境变量**: 线上版本需要配置 SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY

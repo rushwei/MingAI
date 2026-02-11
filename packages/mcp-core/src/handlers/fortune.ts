@@ -5,6 +5,7 @@
 import { Solar } from 'lunar-javascript';
 import type { FortuneInput, FortuneOutput } from '../types.js';
 import { STEM_ELEMENTS, WU_XING_ORDER, calculateTenGod } from '../utils.js';
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 
 // 五行对应颜色
 const ELEMENT_COLORS: Record<string, string[]> = {
@@ -25,7 +26,7 @@ const ELEMENT_DIRECTIONS: Record<string, string> = {
 };
 
 // 根据十神计算运势分数
-function calculateScores(tenGod: string): {
+function calculateScores(tenGod: string, rng: () => number): {
   overall: number;
   career: number;
   love: number;
@@ -47,7 +48,7 @@ function calculateScores(tenGod: string): {
   };
 
   const scores = baseScores[tenGod] || [65, 65, 65, 65, 65, 65];
-  const variance = () => Math.floor(Math.random() * 10) - 5;
+  const variance = () => Math.floor(rng() * 10) - 5;
 
   return {
     overall: Math.min(100, Math.max(0, scores[0] + variance())),
@@ -60,7 +61,7 @@ function calculateScores(tenGod: string): {
 }
 
 // 获取幸运颜色（基于日主五行的相生元素）
-function getLuckyColor(dayMaster: string): string {
+function getLuckyColor(dayMaster: string, rng: () => number): string {
   const element = STEM_ELEMENTS[dayMaster];
   if (!element) return '白色';
 
@@ -68,7 +69,7 @@ function getLuckyColor(dayMaster: string): string {
   const idx = WU_XING_ORDER.indexOf(element);
   const luckyElement = WU_XING_ORDER[(idx + 4) % 5]; // 生我者
   const colors = ELEMENT_COLORS[luckyElement];
-  return colors[Math.floor(Math.random() * colors.length)];
+  return colors[Math.floor(rng() * colors.length)];
 }
 
 // 获取幸运方位（基于日主五行的相生元素）
@@ -109,6 +110,12 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
   } else {
     targetDate = new Date();
   }
+  const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+  const seed = resolveSeed(
+    input.seed,
+    `${dateKey}|${input.dayMaster || ''}|${input.birthYear || ''}-${input.birthMonth || ''}-${input.birthDay || ''}-${input.birthHour || ''}`
+  );
+  const rng = createSeededRng(seed);
   const solar = Solar.fromDate(targetDate);
   const lunar = solar.getLunar();
   const eightChar = lunar.getEightChar();
@@ -134,9 +141,9 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
 
   // 计算十神（如果有日主）
   const tenGod = dayMaster ? calculateTenGod(dayMaster, dayStem) : undefined;
-  const scores = calculateScores(tenGod || '比肩');
+  const scores = calculateScores(tenGod || '比肩', rng);
   const advice = generateAdvice(tenGod || '比肩');
-  const luckyColor = dayMaster ? getLuckyColor(dayMaster) : undefined;
+  const luckyColor = dayMaster ? getLuckyColor(dayMaster, rng) : undefined;
   const luckyDirection = dayMaster ? getLuckyDirection(dayMaster) : undefined;
 
   // 获取黄历信息
@@ -153,7 +160,8 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
   };
 
   return {
-    date: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`,
+    date: dateKey,
+    seed,
     dayInfo: {
       stem: dayStem,
       branch: dayBranch,

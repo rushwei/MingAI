@@ -162,8 +162,10 @@ export interface LiuyaoInput {
     hexagramName?: string;
     changedHexagramName?: string;
     date?: string;
+    seed?: string;
 }
 export interface LiuyaoOutput {
+    seed: string;
     question: string;
     hexagramName: string;
     hexagramGong: string;
@@ -325,11 +327,13 @@ export interface TarotInput {
     spreadType?: string;
     question?: string;
     allowReversed?: boolean;
+    seed?: string;
 }
 export interface TarotOutput {
     spreadId: string;
     spreadName: string;
     question?: string;
+    seed: string;
     cards: TarotCardResult[];
 }
 export interface TarotCardResult {
@@ -349,9 +353,11 @@ export interface FortuneInput {
     birthDay?: number;
     birthHour?: number;
     date?: string;
+    seed?: string;
 }
 export interface FortuneOutput {
     date: string;
+    seed: string;
     dayInfo: {
         stem: string;
         branch: string;

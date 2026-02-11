@@ -6,7 +6,7 @@
  */
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
-import { clearModelCache } from '@/lib/ai-config';
+import { clearModelCache } from '@/lib/server/ai-config';
 
 // 检查环境变量是否存在
 function hasEnvVar(envVarName: string): boolean {

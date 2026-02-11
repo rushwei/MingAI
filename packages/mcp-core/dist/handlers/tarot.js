@@ -1,6 +1,7 @@
 /**
  * 塔罗牌处理器
  */
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 // 大阿卡纳牌
 const MAJOR_ARCANA = [
     { name: 'The Fool', nameChinese: '愚者', keywords: ['新开始', '冒险', '天真'], suit: 'major' },
@@ -77,13 +78,13 @@ const SPREADS = {
     },
 };
 // 随机抽牌
-function drawCards(count, allowReversed) {
+function drawCards(count, allowReversed, rng) {
     const deck = [...FULL_DECK];
     const drawn = [];
     for (let i = 0; i < count && deck.length > 0; i++) {
-        const idx = Math.floor(Math.random() * deck.length);
+        const idx = Math.floor(rng() * deck.length);
         const card = deck.splice(idx, 1)[0];
-        const orientation = allowReversed && Math.random() > 0.5 ? 'reversed' : 'upright';
+        const orientation = allowReversed && rng() > 0.5 ? 'reversed' : 'upright';
         drawn.push({ card, orientation });
     }
     return drawn;
@@ -97,8 +98,11 @@ function getMeaning(orientation, keywords) {
 }
 export async function handleTarotDraw(input) {
     const { spreadType = 'single', question, allowReversed = true } = input;
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`);
+    const rng = createSeededRng(seed);
     const spread = SPREADS[spreadType] || SPREADS['single'];
-    const drawnCards = drawCards(spread.positions.length, allowReversed);
+    const drawnCards = drawCards(spread.positions.length, allowReversed, rng);
     const cards = drawnCards.map((drawn, index) => ({
         position: spread.positions[index],
         card: {
@@ -113,6 +117,7 @@ export async function handleTarotDraw(input) {
         spreadId: spreadType,
         spreadName: spread.name,
         question,
+        seed,
         cards,
     };
 }

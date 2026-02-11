@@ -3,6 +3,7 @@
  */
 
 import type { TarotInput, TarotOutput, TarotCardResult } from '../types.js';
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 
 // 牌的基本结构
 interface TarotCard {
@@ -94,7 +95,7 @@ const SPREADS: Record<string, { name: string; positions: string[] }> = {
 };
 
 // 随机抽牌
-function drawCards(count: number, allowReversed: boolean): Array<{
+function drawCards(count: number, allowReversed: boolean, rng: () => number): Array<{
   card: TarotCard;
   orientation: 'upright' | 'reversed';
 }> {
@@ -102,9 +103,9 @@ function drawCards(count: number, allowReversed: boolean): Array<{
   const drawn: Array<{ card: TarotCard; orientation: 'upright' | 'reversed' }> = [];
 
   for (let i = 0; i < count && deck.length > 0; i++) {
-    const idx = Math.floor(Math.random() * deck.length);
+    const idx = Math.floor(rng() * deck.length);
     const card = deck.splice(idx, 1)[0];
-    const orientation = allowReversed && Math.random() > 0.5 ? 'reversed' : 'upright';
+    const orientation = allowReversed && rng() > 0.5 ? 'reversed' : 'upright';
     drawn.push({ card, orientation });
   }
 
@@ -121,9 +122,12 @@ function getMeaning(orientation: 'upright' | 'reversed', keywords: string[]): st
 
 export async function handleTarotDraw(input: TarotInput): Promise<TarotOutput> {
   const { spreadType = 'single', question, allowReversed = true } = input;
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`);
+  const rng = createSeededRng(seed);
 
   const spread = SPREADS[spreadType] || SPREADS['single'];
-  const drawnCards = drawCards(spread.positions.length, allowReversed);
+  const drawnCards = drawCards(spread.positions.length, allowReversed, rng);
 
   const cards: TarotCardResult[] = drawnCards.map((drawn, index) => ({
     position: spread.positions[index],
@@ -140,6 +144,7 @@ export async function handleTarotDraw(input: TarotInput): Promise<TarotOutput> {
     spreadId: spreadType,
     spreadName: spread.name,
     question,
+    seed,
     cards,
   };
 }

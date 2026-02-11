@@ -4,8 +4,8 @@ import { AI_PERSONALITIES } from '@/lib/ai';
 import type { KnowledgeHit } from '@/lib/knowledge-base/types';
 import type { InjectedSource } from '@/lib/source-tracker';
 import { createSourceTracker } from '@/lib/source-tracker';
-import { countTokens } from '@/lib/token-utils';
-import { getModelConfigAsync } from '@/lib/ai-config';
+import { countTokens, truncateToTokens } from '@/lib/token-utils';
+import { getModelConfigAsync } from '@/lib/server/ai-config';
 import { generateBaziChartText } from '@/lib/bazi';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/ziwei';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/mangpai';
@@ -395,11 +395,22 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
 
         const tokens = options?.tokens ?? countTokens(content);
         const truncated = options?.truncated ?? false;
-        if (tokens <= remaining || priority === 'P0') {
+        if (tokens <= remaining) {
             parts.push(content);
-            remaining -= tokens;
+            remaining = Math.max(remaining - tokens, 0);
             diagnostics.push({ id, priority, included: true, tokens, truncated });
             return true;
+        }
+
+        if (priority === 'P0' && remaining > 0) {
+            const clipped = truncateToTokens(content, remaining).trim();
+            if (clipped) {
+                const clippedTokens = countTokens(clipped);
+                parts.push(clipped);
+                remaining = Math.max(remaining - clippedTokens, 0);
+                diagnostics.push({ id, priority, included: true, tokens: clippedTokens, truncated: true });
+                return true;
+            }
         }
 
         diagnostics.push({ id, priority, included: false, tokens, truncated, reason: 'budget_exceeded' });

@@ -23,6 +23,10 @@ RUN pnpm build
 WORKDIR /app/packages/mcp-server
 RUN pnpm build
 
+RUN addgroup -S mcpgroup && adduser -S mcpuser -G mcpgroup
+
 EXPOSE 3001
+
+USER mcpuser
 
 CMD ["node", "dist/index.js"]

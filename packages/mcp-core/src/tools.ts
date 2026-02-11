@@ -470,7 +470,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'liuyao_analyze',
-    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。',
+    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。候选顺序用于参考，越靠后代表优先级越低。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -503,12 +503,17 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '占卜日期 (ISO格式)，默认今天',
         },
+        seed: {
+          type: 'string',
+          description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+        },
       },
       required: ['question', 'yongShenTargets'],
     },
     outputSchema: {
       type: 'object',
       properties: {
+        seed: { type: 'string', description: '本次起卦使用的随机种子' },
         question: { type: 'string', description: '占卜问题' },
         hexagramName: { type: 'string', description: '本卦名' },
         hexagramGong: { type: 'string', description: '卦宫' },
@@ -773,6 +778,10 @@ export const tools: ToolDefinition[] = [
           type: 'boolean',
           description: '是否允许逆位，默认 true',
         },
+        seed: {
+          type: 'string',
+          description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+        },
       },
       required: [],
     },
@@ -782,6 +791,7 @@ export const tools: ToolDefinition[] = [
         spreadId: { type: 'string', description: '牌阵ID' },
         spreadName: { type: 'string', description: '牌阵名称' },
         question: { type: 'string', description: '占卜问题' },
+        seed: { type: 'string', description: '本次抽牌使用的随机种子' },
         cards: {
           type: 'array',
           description: '抽到的牌',
@@ -837,6 +847,10 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '目标日期 (YYYY-MM-DD)，默认今天',
         },
+        seed: {
+          type: 'string',
+          description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+        },
       },
       required: [],
     },
@@ -844,6 +858,7 @@ export const tools: ToolDefinition[] = [
       type: 'object',
       properties: {
         date: { type: 'string', description: '日期' },
+        seed: { type: 'string', description: '本次运势计算使用的随机种子' },
         dayInfo: {
           type: 'object',
           description: '日干支',
