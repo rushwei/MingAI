@@ -40,7 +40,7 @@ interface HexagramDisplayProps {
     size?: 'sm' | 'md' | 'lg';
     fullYaos?: FullYaoInfo[] | FullYaoInfoExtended[];
     showTraditional?: boolean;
-    yongShenPosition?: number;
+    yongShenPositions?: number[];
 }
 
 export function HexagramDisplay({
@@ -52,7 +52,7 @@ export function HexagramDisplay({
     size = 'md',
     fullYaos,
     showTraditional = false,
-    yongShenPosition,
+    yongShenPositions = [],
 }: HexagramDisplayProps) {
     // 使用 useMemo 缓存计算结果，避免每次渲染重新计算
     const displayYaos = useMemo(() => [...yaos].reverse(), [yaos]);
@@ -88,7 +88,7 @@ export function HexagramDisplay({
                                 {displayYaos.map((yao, index) => {
                                     const fullYao = displayFullYaos?.[index];
                                     const extYao = fullYao as FullYaoInfoExtended | undefined;
-                                    const isYongShen = fullYao?.position === yongShenPosition;
+                                    const isYongShen = fullYao?.position ? yongShenPositions.includes(fullYao.position) : false;
                                     const isChanging = yao.change === 'changing';
 
                                     return (

@@ -23,6 +23,7 @@ interface LiuyaoDivination {
     hexagram_code: string;
     changed_hexagram_code: string | null;
     changed_lines: number[] | null;
+    yongshen_targets: string[] | null;
     conversation_id?: string | null;
     conversation?: { source_data?: Record<string, unknown> } | null;
     created_at: string;
@@ -139,6 +140,11 @@ export default function LiuyaoHistoryPage() {
             hexagram,
             changedHexagram,
             changedLines,
+            yongShenTargets: Array.isArray(div.yongshen_targets)
+                ? div.yongshen_targets.filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
+                    ['父母', '兄弟', '子孙', '妻财', '官鬼'].includes(item)
+                )
+                : [],
             divinationId: div.id,
             createdAt: div.created_at,
             conversationId: div.conversation_id || null,

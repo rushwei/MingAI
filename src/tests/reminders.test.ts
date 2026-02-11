@@ -53,7 +53,11 @@ function createScheduledReminderMock(options: {
     reminder: Record<string, unknown>;
     claimResult?: { data: { id: string } | null; error: null | { message: string } };
 }) {
-    const updates: Array<{ id: string; sent: boolean }> = [];
+    const updates: Array<{ id: string; action: 'claim' | 'sent' | 'release' }> = [];
+    const state = {
+        sent: Boolean(options.reminder.sent),
+        sent_at: typeof options.reminder.sent_at === 'string' ? options.reminder.sent_at : null as string | null,
+    };
 
     return {
         updates,
@@ -61,27 +65,63 @@ function createScheduledReminderMock(options: {
             select: () => ({
                 eq: () => ({
                     lte: () => ({
-                        limit: async () => ({ data: [options.reminder], error: null }),
+                        or: () => ({
+                            limit: async () => ({
+                                data: [{ ...options.reminder, sent: state.sent, sent_at: state.sent_at }],
+                                error: null,
+                            }),
+                        }),
                     }),
                 }),
             }),
-            update: (payload: { sent?: boolean }) => ({
+            update: (payload: { sent?: boolean; sent_at?: string | null }) => ({
                 eq: (_column: string, id: string) => ({
                     eq: () => {
-                        if (typeof payload.sent === 'boolean') {
-                            updates.push({ id, sent: payload.sent });
-                        }
-
-                        if (payload.sent === true) {
+                        if (typeof payload.sent_at === 'string' && payload.sent === undefined) {
                             return {
-                                select: () => ({
-                                    maybeSingle: async () =>
-                                        options.claimResult ?? { data: { id }, error: null },
+                                or: () => ({
+                                    select: () => ({
+                                        maybeSingle: async () => {
+                                            updates.push({ id, action: 'claim' });
+                                            const claimResult = options.claimResult ?? { data: { id }, error: null };
+                                            if (claimResult.data) {
+                                                state.sent_at = payload.sent_at as string;
+                                            }
+                                            return claimResult;
+                                        },
+                                    }),
                                 }),
                             };
                         }
 
-                        return Promise.resolve({ error: null });
+                        return {
+                            eq: (_claimColumn: string, claimToken: unknown) => {
+                                if (payload.sent === true && typeof payload.sent_at === 'string') {
+                                    return {
+                                        select: () => ({
+                                            maybeSingle: async () => {
+                                                updates.push({ id, action: 'sent' });
+                                                if (state.sent || state.sent_at !== claimToken) {
+                                                    return { data: null, error: null };
+                                                }
+                                                state.sent = true;
+                                                state.sent_at = payload.sent_at as string;
+                                                return { data: { id }, error: null };
+                                            },
+                                        }),
+                                    };
+                                }
+
+                                if (payload.sent_at === null) {
+                                    updates.push({ id, action: 'release' });
+                                    if (!state.sent && state.sent_at === claimToken) {
+                                        state.sent_at = null;
+                                    }
+                                }
+
+                                return Promise.resolve({ error: null });
+                            },
+                        };
                     },
                 }),
             }),
@@ -89,7 +129,7 @@ function createScheduledReminderMock(options: {
     };
 }
 
-test('processScheduledReminders claims reminder before skip when notify_site is false', async (t) => {
+test('processScheduledReminders marks skipped reminder as sent only after successful claim', async (t) => {
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
@@ -143,7 +183,10 @@ test('processScheduledReminders claims reminder before skip when notify_site is 
 
     assert.equal(processed, 0);
     assert.equal(notified, false);
-    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-1', sent: true }]);
+    assert.deepEqual(scheduledMock.updates, [
+        { id: 'rem-1', action: 'claim' },
+        { id: 'rem-1', action: 'sent' },
+    ]);
 });
 
 test('processScheduledReminders releases claimed reminder when notification fails', async (t) => {
@@ -208,8 +251,8 @@ test('processScheduledReminders releases claimed reminder when notification fail
 
     assert.equal(processed, 0);
     assert.deepEqual(scheduledMock.updates, [
-        { id: 'rem-2', sent: true },
-        { id: 'rem-2', sent: false },
+        { id: 'rem-2', action: 'claim' },
+        { id: 'rem-2', action: 'release' },
     ]);
 });
 
@@ -282,5 +325,5 @@ test('processScheduledReminders skips sending when reminder claim was already ta
 
     assert.equal(processed, 0);
     assert.equal(notified, false);
-    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-3', sent: true }]);
+    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-3', action: 'claim' }]);
 });
