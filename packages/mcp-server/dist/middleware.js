@@ -63,8 +63,11 @@ function extractApiKey(req) {
         return headerKey;
     // Authorization: Bearer <key>
     const authHeader = req.headers.authorization;
-    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-        return authHeader.slice(7).trim() || undefined;
+    if (typeof authHeader === 'string') {
+        const match = authHeader.match(/^Bearer\s+(.+)$/i);
+        if (match?.[1]) {
+            return match[1].trim() || undefined;
+        }
     }
     return undefined;
 }
@@ -193,8 +196,9 @@ export function dualAuthMiddleware(verifier) {
         const authHeader = req.headers.authorization;
         const apiKeyHeader = req.headers['x-api-key'];
         // 优先：Bearer token → JWT 验证
-        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.slice(7).trim();
+        if (typeof authHeader === 'string') {
+            const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+            const token = bearerMatch?.[1]?.trim();
             if (token) {
                 try {
                     const authInfo = await verifier.verifyAccessToken(token);

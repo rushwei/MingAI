@@ -104,6 +104,36 @@ test('dualAuthMiddleware should set user auth when bearer token is valid', async
   assert.deepEqual(req.mcpAuth, { userId: 'user-1', keyId: 'oauth:client-1' });
 });
 
+test('dualAuthMiddleware should accept lowercase bearer scheme', async () => {
+  const { dualAuthMiddleware } = await importDist('middleware.js');
+
+  const middleware = dualAuthMiddleware({
+    async verifyAccessToken() {
+      return {
+        token: 'token',
+        clientId: 'client-1',
+        scopes: ['mcp:tools'],
+        extra: { userId: 'user-1' },
+      };
+    },
+  });
+
+  const req = {
+    headers: {
+      authorization: 'bearer valid-token',
+    },
+  };
+
+  const res = createResponseRecorder();
+  let nextCalled = false;
+  await middleware(req, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true);
+  assert.deepEqual(req.mcpAuth, { userId: 'user-1', keyId: 'oauth:client-1' });
+});
+
 test('sseConnectionLimitMiddleware should block the 4th concurrent GET for one user', async () => {
   const { sseConnectionLimitMiddleware } = await importDist('middleware.js');
 
