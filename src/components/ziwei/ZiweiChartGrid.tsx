@@ -8,9 +8,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { ZiweiChart } from '@/lib/ziwei';
-import { getBranchIndex, generateZiweiChartText } from '@/lib/ziwei';
-import { getBranchElement, getElementColor } from '@/lib/bazi';
+import type { ZiweiChart } from '@/lib/divination/ziwei';
+import { getBranchIndex, generateZiweiChartText } from '@/lib/divination/ziwei';
+import { getBranchElement, getElementColor } from '@/lib/divination/bazi';
 import { PalaceCard } from '@/components/ziwei/PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';

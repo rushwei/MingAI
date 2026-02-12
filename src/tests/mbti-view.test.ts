@@ -5,7 +5,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
 test('buildViewResult returns defaults for valid type', () => {
-    const mbti = require('../lib/mbti') as any;
+    const mbti = require('../lib/divination/mbti') as any;
 
     assert.equal(typeof mbti.buildViewResult, 'function');
 
@@ -16,7 +16,7 @@ test('buildViewResult returns defaults for valid type', () => {
 });
 
 test('buildViewResult rejects invalid type', () => {
-    const mbti = require('../lib/mbti') as any;
+    const mbti = require('../lib/divination/mbti') as any;
 
     assert.equal(mbti.buildViewResult('NOPE'), null);
 });

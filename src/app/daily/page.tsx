@@ -29,10 +29,10 @@ import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fort
 import { InterpretationModeToggle, type InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/fortune';
-import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
-import { getCalendarAlmanac } from '@/lib/calendar';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
+import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/divination/fortune';
+import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
+import { getCalendarAlmanac } from '@/lib/divination/calendar';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
 import type { BaziChart } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -86,7 +86,7 @@ function DailyPageContent() {
 
             if (!error && data && data.length > 0) {
                 // 从 chart_data 中提取完整的八字数据
-                const charts = data.map(row => {
+                const charts = data.map((row: Record<string, unknown>) => {
                     const chartData = row.chart_data as Record<string, unknown> || {};
                     return {
                         id: row.id,
@@ -127,7 +127,7 @@ function DailyPageContent() {
                             .from('user_settings')
                             .upsert({ user_id: uid, default_bazi_chart_id: storedDefaultId }, { onConflict: 'user_id' });
                     }
-                    const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                    const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                     setBaziChart(defaultChart || charts[0]);
                     return;
                 }
@@ -135,7 +135,7 @@ function DailyPageContent() {
                 // 回退到本地默认
                 const fallbackId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY)
                     || localStorage.getItem('defaultBaziChartId');
-                const defaultChart = fallbackId ? charts.find(c => c.id === fallbackId) : null;
+                const defaultChart = fallbackId ? charts.find((c: { id: string }) => c.id === fallbackId) : null;
                 setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {

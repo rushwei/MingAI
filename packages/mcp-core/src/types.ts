@@ -181,11 +181,13 @@ export interface DecadalInfo {
 
 export interface LiuyaoInput {
   question: string;
+  yongShenTargets: LiuQinType[];
   method?: 'auto' | 'select';
   hexagramName?: string;
   changedHexagramName?: string;
   date?: string;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface LiuyaoOutput {
@@ -202,33 +204,34 @@ export interface LiuyaoOutput {
   changedHexagramName?: string;
   changedHexagramGong?: string;
   changedHexagramElement?: string;
-  changedLines: number[];
-  changedYaoCi?: string[];
   // 时间信息
   ganZhiTime: GanZhiTime;
   kongWang?: KongWangInfo;
   // 爻信息
-  fullYaos?: FullYaoInfo[];
-  changedYaos?: ChangedYaoInfo[];
+  fullYaos: FullYaoInfo[];
   // 用神系统
-  yongShen: YongShenInfo;
+  yongShen: YongShenGroupInfo[];
   fuShen?: FuShenInfo[];
-  shenSystem?: ShenSystemInfo;
+  shenSystemByYongShen: ShenSystemByYongShenInfo[];
+  globalShenSha: string[];
   // 分析结果
   liuChongGuaInfo?: LiuChongGuaInfo;
   sanHeAnalysis?: SanHeAnalysisInfo;
   warnings?: string[];
   timeRecommendations?: TimeRecommendation[];
-  summary?: SummaryInfo;
 }
 
-// 变爻简化信息
-export interface ChangedYaoInfo {
-  position: number;
+export type LiuQinType = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
+export type YaoMovementState = 'static' | 'changing' | 'hidden_moving' | 'day_break';
+
+export interface ChangedYaoDetail {
   type: number;
   liuQin: string;
   naJia: string;
   wuXing: string;
+  liuShen: string;
+  yaoCi?: string;
+  relation: string;
 }
 
 export interface GanZhiTime {
@@ -238,16 +241,25 @@ export interface GanZhiTime {
   hour: { gan: string; zhi: string };
 }
 
-export interface YongShenInfo {
-  type: string;
+export interface YongShenCandidateInfo {
   liuQin: string;
+  naJia?: string;
   element: string;
-  position: number;
+  position?: number;
   strengthScore: number;
   isStrong: boolean;
   strengthLabel: string;
+  movementState: YaoMovementState;
+  movementLabel: string;
+  isShiYao: boolean;
+  isYingYao: boolean;
   kongWangState?: string;
-  factors?: string[];
+  factors: string[];
+}
+
+export interface YongShenGroupInfo {
+  targetLiuQin: LiuQinType;
+  candidates: YongShenCandidateInfo[];
 }
 
 export interface KongWangInfo {
@@ -258,7 +270,9 @@ export interface KongWangInfo {
 export interface FullYaoInfo {
   position: number;
   type: number;
-  change: string;
+  isChanging: boolean;
+  movementState: YaoMovementState;
+  movementLabel: string;
   liuQin: string;
   liuShen: string;
   naJia: string;
@@ -276,12 +290,8 @@ export interface FullYaoInfo {
   strengthFactors?: string[];
   // 十二长生
   changSheng?: string;
-  // 变爻分析
-  changeAnalysis?: {
-    huaType: string;
-    huaLabel: string;
-    isGood: boolean;
-  };
+  shenSha: string[];
+  changedYao: ChangedYaoDetail | null;
 }
 
 export interface FuShenInfo {
@@ -299,6 +309,10 @@ export interface ShenSystemInfo {
   chouShen?: { liuQin: string; wuXing: string; positions: number[] };
 }
 
+export interface ShenSystemByYongShenInfo extends ShenSystemInfo {
+  targetLiuQin: LiuQinType;
+}
+
 export interface LiuChongGuaInfo {
   isLiuChongGua: boolean;
   description?: string;
@@ -312,9 +326,12 @@ export interface SanHeAnalysisInfo {
 }
 
 export interface TimeRecommendation {
+  targetLiuQin: LiuQinType;
   type: 'favorable' | 'unfavorable' | 'critical';
-  timeframe: string;
   earthlyBranch?: string;
+  startDate: string;
+  endDate: string;
+  confidence: number;
   description: string;
 }
 
@@ -330,6 +347,7 @@ export interface TarotInput {
   question?: string;
   allowReversed?: boolean;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface TarotOutput {
@@ -361,6 +379,7 @@ export interface FortuneInput {
   birthHour?: number;
   date?: string;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface FortuneOutput {

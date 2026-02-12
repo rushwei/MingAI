@@ -15,10 +15,10 @@ import {
     calculateLiuRi,
     calculateShenSha,
     getDayMasterDescription,
-} from '@/lib/bazi';
+} from '@/lib/divination/bazi';
 import { supabase } from '@/lib/supabase';
 import type { BaziFormData, CalendarType, Gender, ChatMessage } from '@/types';
-import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import { ResultHeader } from '@/components/bazi/result/ResultHeader';
 import { ProfileSummaryCard } from '@/components/bazi/result/ProfileSummaryCard';
 import { ResultTabs, type ResultTab } from '@/components/bazi/result/ResultTabs';

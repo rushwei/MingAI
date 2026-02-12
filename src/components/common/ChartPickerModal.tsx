@@ -60,7 +60,7 @@ export function ChartPickerModal({
                         .select('id, name, gender, birth_date, birth_time')
                         .eq('user_id', userId)
                         .order('created_at', { ascending: false })
-                        .then(res => ({
+                        .then((res: { data: unknown; error: unknown }) => ({
                             type: 'bazi' as const,
                             data: res.data,
                             error: res.error
@@ -75,7 +75,7 @@ export function ChartPickerModal({
                         .select('id, name, gender, birth_date, birth_time')
                         .eq('user_id', userId)
                         .order('created_at', { ascending: false })
-                        .then(res => ({
+                        .then((res: { data: unknown; error: unknown }) => ({
                             type: 'ziwei' as const,
                             data: res.data,
                             error: res.error
@@ -88,7 +88,7 @@ export function ChartPickerModal({
             const allCharts: ChartItem[] = [];
             for (const result of results) {
                 if (!result.error && result.data) {
-                    allCharts.push(...result.data.map(c => {
+                    allCharts.push(...result.data.map((c: Record<string, unknown>) => {
                         // 解析 birth_date 获取年月日
                         let year = 0, month = 0, day = 0;
                         if (c.birth_date) {
@@ -99,8 +99,9 @@ export function ChartPickerModal({
                         }
                         // 解析 birth_time 获取小时 (处理 null 情况)
                         let hour: number | undefined = undefined;
-                        if (c.birth_time && c.birth_time.includes(':')) {
-                            const [h] = c.birth_time.split(':');
+                        const birthTimeStr = c.birth_time as string | null;
+                        if (birthTimeStr && birthTimeStr.includes(':')) {
+                            const [h] = birthTimeStr.split(':');
                             hour = parseInt(h);
                             if (isNaN(hour)) hour = undefined;
                         }

@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Coins, Plus, Minus } from 'lucide-react';
 import { PaymentModal } from '@/components/membership/PaymentModal';
-import type { PricingPlan } from '@/lib/membership';
+import type { PricingPlan } from '@/lib/user/membership';
 
 interface PayPerUseProps {
     currentCredits: number;

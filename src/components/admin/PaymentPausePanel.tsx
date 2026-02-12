@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { usePaymentPause } from "@/lib/usePaymentPause";
+import { usePaymentPause } from "@/lib/hooks/usePaymentPause";
 
 export function PaymentPausePanel() {
     const { isPaused, isLoading, refresh } = usePaymentPause();

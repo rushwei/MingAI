@@ -15,9 +15,14 @@ export function createSeededRng(seed) {
         return (state >>> 0) / UINT32_MAX_PLUS_ONE;
     };
 }
-export function resolveSeed(inputSeed, fallback) {
+function hashSeed(input) {
+    return crypto.createHash('sha256').update(input).digest('hex').slice(0, 24);
+}
+export function resolveSeed(inputSeed, fallback, scope) {
     const normalized = inputSeed?.trim();
-    if (normalized)
-        return normalized;
-    return crypto.createHash('sha256').update(fallback).digest('hex').slice(0, 24);
+    const base = normalized || hashSeed(fallback);
+    const scoped = scope?.trim();
+    if (!scoped)
+        return base;
+    return hashSeed(`${scoped}|${base}`);
 }

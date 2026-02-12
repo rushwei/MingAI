@@ -1,7 +1,7 @@
 import '@/lib/data-sources/init';
 
 import { NextRequest } from 'next/server';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import {

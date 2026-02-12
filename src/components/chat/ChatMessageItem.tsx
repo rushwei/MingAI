@@ -10,7 +10,7 @@
 import { memo, useState, useMemo, useCallback, useRef } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource, Mention } from '@/types';
-import { getModelName } from '@/lib/ai-config';
+import { getModelName } from '@/lib/ai/ai-config';
 import { formatMentionsForDisplay } from '@/lib/format-mentions';
 import { extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens } from '@/lib/mention-tokens';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';

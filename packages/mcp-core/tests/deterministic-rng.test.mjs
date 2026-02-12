@@ -29,7 +29,13 @@ test('daily_fortune should be deterministic with identical seed', async () => {
 
 test('liuyao_analyze(auto) should be deterministic with identical seed', async () => {
   const seed = 'seed-liuyao-1';
-  const input = { question: '这周项目顺利吗', method: 'auto', date: '2026-02-11', seed };
+  const input = {
+    question: '这周项目顺利吗',
+    yongShenTargets: ['官鬼'],
+    method: 'auto',
+    date: '2026-02-11',
+    seed,
+  };
 
   const a = await mcpCore.handleLiuyaoAnalyze(input);
   const b = await mcpCore.handleLiuyaoAnalyze(input);
@@ -38,4 +44,21 @@ test('liuyao_analyze(auto) should be deterministic with identical seed', async (
   assert.equal(b.seed, seed);
   assert.equal(a.hexagramName, b.hexagramName);
   assert.deepEqual(a.changedLines, b.changedLines);
+});
+
+test('same seed should be stable within scope and different across scopes', async () => {
+  const base = {
+    spreadType: 'single',
+    question: '同一问题',
+    allowReversed: true,
+    seed: 'seed-shared-1',
+  };
+
+  const userA1 = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-a' });
+  const userA2 = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-a' });
+  const userB = await mcpCore.handleTarotDraw({ ...base, seedScope: 'user-b' });
+
+  assert.equal(userA1.seed, userA2.seed);
+  assert.deepEqual(userA1.cards, userA2.cards);
+  assert.notEqual(userA1.seed, userB.seed);
 });

@@ -1,4 +1,4 @@
-import type { PalaceInfo } from '@/lib/ziwei';
+import type { PalaceInfo } from '@/lib/divination/ziwei';
 import { StarBadge } from '@/components/ziwei/StarBadge';
 
 interface FlowInfo {

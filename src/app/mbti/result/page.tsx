@@ -12,21 +12,21 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
-import { buildViewResult, type TestResult } from '@/lib/mbti';
+import { buildViewResult, type TestResult } from '@/lib/divination/mbti';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
-import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { readSessionJSON } from '@/lib/cache';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 
 function MBTIResultContent() {
     const router = useRouter();

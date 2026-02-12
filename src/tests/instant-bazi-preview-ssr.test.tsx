@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 
@@ -9,11 +8,11 @@ const RealDate = Date;
 const mockDate = (iso: string) => {
     const fixed = new RealDate(iso);
     class MockDate extends RealDate {
-        constructor(...args: ConstructorParameters<typeof RealDate>) {
+        constructor(...args: any[]) {
             if (args.length === 0) {
                 super(fixed.getTime());
             } else {
-                super(...args);
+                super(args[0] as number);
             }
         }
 

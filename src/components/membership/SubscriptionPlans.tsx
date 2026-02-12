@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, Crown, Sparkles, Zap } from 'lucide-react';
-import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/membership';
+import { pricingPlans, type PricingPlan, type MembershipType } from '@/lib/user/membership';
 
 interface SubscriptionPlansProps {
     currentPlan: MembershipType;

@@ -6,8 +6,8 @@
 
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
-import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/solar-terms';
-import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/fortune';
+import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
+import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/divination/fortune';
 import type { BaziChart } from '@/types';
 
 // ===== 提醒类型 =====
@@ -32,6 +32,8 @@ export interface ScheduledReminder {
     sent: boolean;
     sentAt: string | null;
 }
+
+const REMINDER_CLAIM_TTL_MS = 5 * 60 * 1000;
 
 // ===== 订阅管理 =====
 
@@ -199,7 +201,9 @@ export async function scheduleFortuneReminder(
  * 返回处理的提醒数量
  */
 export async function processScheduledReminders(): Promise<number> {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const claimStaleBefore = new Date(now.getTime() - REMINDER_CLAIM_TTL_MS).toISOString();
 
     // 获取待发送的提醒
     // 使用 service client 绕过 RLS
@@ -208,7 +212,8 @@ export async function processScheduledReminders(): Promise<number> {
         .from('scheduled_reminders')
         .select('*')
         .eq('sent', false)
-        .lte('scheduled_for', now)
+        .lte('scheduled_for', nowIso)
+        .or(`sent_at.is.null,sent_at.lte.${claimStaleBefore}`)
         .limit(100);
 
     if (error || !pendingReminders) {
@@ -219,8 +224,8 @@ export async function processScheduledReminders(): Promise<number> {
     let processed = 0;
 
     for (const reminder of pendingReminders) {
-        const claimed = await claimReminder(reminder.id);
-        if (!claimed) {
+        const claimToken = await claimReminder(reminder.id, claimStaleBefore);
+        if (!claimToken) {
             continue;
         }
 
@@ -228,20 +233,24 @@ export async function processScheduledReminders(): Promise<number> {
             // 检查用户是否仍然订阅
             const subscribed = await isSubscribed(reminder.user_id, reminder.reminder_type);
             if (!subscribed) {
-                // 已占用后发现用户取消订阅，直接保持已发送状态避免重复处理
+                // 已占用后发现用户取消订阅，标记为已发送避免重复处理
+                await markReminderSent(reminder.id, claimToken);
                 continue;
             }
 
             // 发送提醒
             const sent = await sendReminder(reminder);
             if (sent) {
-                processed++;
+                const marked = await markReminderSent(reminder.id, claimToken);
+                if (marked) {
+                    processed++;
+                }
             } else {
-                await releaseReminderClaim(reminder.id);
+                await releaseReminderClaim(reminder.id, claimToken);
             }
         } catch (err) {
             console.error(`[reminders] 处理提醒 ${reminder.id} 失败:`, err);
-            await releaseReminderClaim(reminder.id);
+            await releaseReminderClaim(reminder.id, claimToken);
         }
     }
 
@@ -292,10 +301,35 @@ async function sendReminder(reminder: {
 }
 
 /**
- * 标记提醒已发送
+ * 抢占提醒处理权（Lease）
  */
-async function claimReminder(reminderId: string): Promise<boolean> {
+async function claimReminder(reminderId: string, staleBefore: string): Promise<string | null> {
     // 使用 service client 绕过 RLS
+    const serviceClient = getServiceRoleClient();
+    const claimedAt = new Date().toISOString();
+    const { data, error } = await serviceClient
+        .from('scheduled_reminders')
+        .update({
+            sent_at: claimedAt,
+        })
+        .eq('id', reminderId)
+        .eq('sent', false)
+        .or(`sent_at.is.null,sent_at.lte.${staleBefore}`)
+        .select('id')
+        .maybeSingle();
+
+    if (error) {
+        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, error);
+        return null;
+    }
+
+    return data ? claimedAt : null;
+}
+
+/**
+ * 标记提醒已发送（仅当前 lease 持有者可提交）
+ */
+async function markReminderSent(reminderId: string, claimToken: string): Promise<boolean> {
     const serviceClient = getServiceRoleClient();
     const { data, error } = await serviceClient
         .from('scheduled_reminders')
@@ -305,11 +339,12 @@ async function claimReminder(reminderId: string): Promise<boolean> {
         })
         .eq('id', reminderId)
         .eq('sent', false)
+        .eq('sent_at', claimToken)
         .select('id')
         .maybeSingle();
 
     if (error) {
-        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, error);
+        console.error(`[reminders] 标记提醒 ${reminderId} 已发送失败:`, error);
         return false;
     }
 
@@ -319,16 +354,16 @@ async function claimReminder(reminderId: string): Promise<boolean> {
 /**
  * 释放提醒占用（发送失败时回滚）
  */
-async function releaseReminderClaim(reminderId: string): Promise<void> {
+async function releaseReminderClaim(reminderId: string, claimToken: string): Promise<void> {
     const serviceClient = getServiceRoleClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .update({
-            sent: false,
             sent_at: null,
         })
         .eq('id', reminderId)
-        .eq('sent', true);
+        .eq('sent', false)
+        .eq('sent_at', claimToken);
 
     if (error) {
         console.error(`[reminders] 回滚提醒 ${reminderId} 失败:`, error);

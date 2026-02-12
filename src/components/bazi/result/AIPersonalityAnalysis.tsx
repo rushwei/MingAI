@@ -11,11 +11,11 @@ import { User, RefreshCw, Loader2, Copy, Check } from 'lucide-react';
 import { AIAnalysisLock } from '@/components/bazi/result/AIAnalysisLock';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 
 interface AIPersonalityAnalysisProps {
     chartId: string;

@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { getModelName } from '@/lib/ai-config';
+import { getModelName } from '@/lib/ai/ai-config';
 
 // 支持的历史类型
 type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
@@ -141,7 +141,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     const hexagramCode = item.hexagram_code as string;
                     const changedHexagramCode = item.changed_hexagram_code as string | null;
 
-                    const { findHexagram } = await import('@/lib/liuyao');
+                    const { findHexagram } = await import('@/lib/divination/liuyao');
                     const hexagram = findHexagram(hexagramCode);
                     const hexagramName = hexagram?.name || '未知卦';
 
@@ -233,7 +233,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
             // 根据类型转换数据并存储
             if (type === 'liuyao') {
                 // 重建六爻结果
-                const { findHexagram } = await import('@/lib/liuyao');
+                const { findHexagram } = await import('@/lib/divination/liuyao');
 
                 // 从 hexagram_code 重建 yaos
                 const hexagramCode = data.hexagram_code as string;
@@ -257,6 +257,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     hexagram,
                     changedHexagram,
                     changedLines,
+                    yongShenTargets: Array.isArray(data.yongshen_targets)
+                        ? (data.yongshen_targets as string[]).filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
+                            ['父母', '兄弟', '子孙', '妻财', '官鬼'].includes(item)
+                        )
+                        : [],
                     divinationId: data.id, // 包含记录 ID
                     createdAt: data.created_at,
                     conversationId: data.conversation_id || null,
@@ -285,7 +290,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                 writeSessionJSON(config.sessionKey, sessionData);
             } else if (type === 'tarot') {
                 // 重建塔罗结果
-                const { TAROT_SPREADS } = await import('@/lib/tarot');
+                const { TAROT_SPREADS } = await import('@/lib/divination/tarot');
 
                 const spreadId = data.spread_id as string;
                 const spread = TAROT_SPREADS.find(s => s.id === spreadId);
@@ -314,7 +319,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     writeSessionJSON(config.sessionKey, resultWithId);
                 } else {
                     // 兼容旧数据：没有 result_data 时重新计算
-                    const { analyzeCompatibility } = await import('@/lib/hepan');
+                    const { analyzeCompatibility } = await import('@/lib/divination/hepan');
 
                     const birth1 = data.person1_birth as { year: number; month: number; day: number; hour: number };
                     const birth2 = data.person2_birth as { year: number; month: number; day: number; hour: number };

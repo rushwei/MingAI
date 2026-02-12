@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { X, Key, Loader2, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
 interface KeyActivationModalProps {
     isOpen: boolean;

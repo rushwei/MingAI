@@ -10,19 +10,41 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
-import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram } from '@/lib/liuyao';
+import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
+import { useToast } from '@/components/ui/Toast';
+import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 
+type LiuyaoQuestionSession = {
+    question: string;
+    yongShenTargets: LiuQin[];
+};
+
 export default function DivinePage() {
     const router = useRouter();
+    const { showToast } = useToast();
     const [question] = useState(() => {
         if (typeof window === 'undefined') return '';
-        return readSessionJSON<string>('liuyao_question') || '';
+        const payload = readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question');
+        if (!payload) return '';
+        if (typeof payload === 'string') return payload;
+        return payload.question || '';
+    });
+    const [yongShenTargets, setYongShenTargets] = useState<LiuQin[]>(() => {
+        if (typeof window === 'undefined') return [];
+        const payload = readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question');
+        if (!payload || typeof payload === 'string') return [];
+        return Array.isArray(payload.yongShenTargets) ? payload.yongShenTargets : [];
     });
     const [isComplete, setIsComplete] = useState(false);
+    const requiresYongShenTargets = question.trim().length > 0;
 
     const handleComplete = async (yaos: Yao[], results: CoinTossResult[]) => {
+        if (requiresYongShenTargets && yongShenTargets.length === 0) {
+            showToast('error', '请至少选择一个分析目标');
+            return;
+        }
         setIsComplete(true);
 
         // 计算卦象
@@ -45,6 +67,7 @@ export default function DivinePage() {
                     body: JSON.stringify({
                         action: 'save',
                         question,
+                        yongShenTargets,
                         yaos,
                         changedHexagram,
                         changedLines,
@@ -62,6 +85,7 @@ export default function DivinePage() {
         // 存储结果到 sessionStorage
         const result = {
             question,
+            yongShenTargets,
             yaos,
             results,
             hexagram,
@@ -113,9 +137,23 @@ export default function DivinePage() {
                     </div>
                 )}
 
+                {requiresYongShenTargets && yongShenTargets.length === 0 && (
+                    <div className="mb-4 md:mb-8">
+                        <div className="text-sm text-red-500 mb-2">必须先选择分析目标</div>
+                        <YongShenTargetPicker
+                            value={yongShenTargets}
+                            onChange={setYongShenTargets}
+                            variant="block"
+                        />
+                    </div>
+                )}
+
                 {/* 铜钱起卦 */}
                 <div className="bg-background rounded-xl p-0 md:p-8">
-                    <CoinToss onComplete={handleComplete} disabled={isComplete} />
+                    <CoinToss
+                        onComplete={handleComplete}
+                        disabled={isComplete || (requiresYongShenTargets && yongShenTargets.length === 0)}
+                    />
                 </div>
 
                 {/* 完成提示 */}

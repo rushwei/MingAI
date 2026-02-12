@@ -1,5 +1,5 @@
 import { Calendar, TrendingUp } from 'lucide-react';
-import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/bazi';
+import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/divination/bazi';
 import type { Gender } from '@/types';
 import { DaYunTable } from '@/components/bazi/result/DaYunTable';
 import { LiuNianTable } from '@/components/bazi/result/LiuNianTable';

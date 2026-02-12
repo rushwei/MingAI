@@ -5,12 +5,12 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { type MBTIType, PERSONALITY_BASICS } from '@/lib/mbti';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
+import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';
@@ -177,7 +177,7 @@ ${basic.description}
                 void (async () => {
                     try {
                         const { content: analysis, reasoning: reasoningText } = await readAIStream(tapStream);
-                        const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
+                        const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai/ai-analysis');
                         const conversationId = await createAIAnalysisConversation({
                             userId: user.id,
                             sourceType: 'mbti',
@@ -251,7 +251,7 @@ ${basic.description}
             );
 
             // 保存 AI 分析到 conversations 表
-            const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai-analysis');
+            const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai/ai-analysis');
             const conversationId = await createAIAnalysisConversation({
                 userId: user.id,
                 sourceType: 'mbti',

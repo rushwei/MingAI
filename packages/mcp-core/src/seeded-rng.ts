@@ -20,8 +20,18 @@ export function createSeededRng(seed: string): () => number {
   };
 }
 
-export function resolveSeed(inputSeed: string | undefined, fallback: string): string {
+function hashSeed(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex').slice(0, 24);
+}
+
+export function resolveSeed(
+  inputSeed: string | undefined,
+  fallback: string,
+  scope?: string
+): string {
   const normalized = inputSeed?.trim();
-  if (normalized) return normalized;
-  return crypto.createHash('sha256').update(fallback).digest('hex').slice(0, 24);
+  const base = normalized || hashSeed(fallback);
+  const scoped = scope?.trim();
+  if (!scoped) return base;
+  return hashSeed(`${scoped}|${base}`);
 }

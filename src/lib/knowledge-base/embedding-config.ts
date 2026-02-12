@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export const EMBEDDING_MODELS = {
     'text-embedding-v4': { dimension: 1024, provider: 'qwen' },
@@ -25,8 +26,8 @@ const DEFAULT_MODEL: EmbeddingModel = 'text-embedding-v4';
 async function createSupabaseClient(accessToken?: string) {
     if (accessToken) {
         return createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            getSupabaseUrl(),
+            getSupabaseAnonKey(),
             {
                 global: {
                     headers: {
@@ -38,12 +39,21 @@ async function createSupabaseClient(accessToken?: string) {
     }
     const cookieStore = await cookies();
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {
                     return cookieStore.getAll();
+                },
+                setAll(cookiesToSet) {
+                    try {
+                        for (const { name, value, options } of cookiesToSet) {
+                            cookieStore.set(name, value, options);
+                        }
+                    } catch {
+                        // 只读 cookies 上下文无法写入时忽略
+                    }
                 },
             },
         }

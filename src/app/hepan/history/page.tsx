@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Trash2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { getModelName } from '@/lib/ai-config';
+import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface HepanChart {
@@ -154,7 +154,7 @@ export default function HepanHistoryPage() {
             return;
         }
 
-        const { analyzeCompatibility } = await import('@/lib/hepan');
+        const { analyzeCompatibility } = await import('@/lib/divination/hepan');
         const birth1 = chart.person1_birth as { year: number; month: number; day: number; hour: number };
         const birth2 = chart.person2_birth as { year: number; month: number; day: number; hour: number };
         const person1 = {

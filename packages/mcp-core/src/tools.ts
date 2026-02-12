@@ -470,13 +470,21 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'liuyao_analyze',
-    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等',
+    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、时间建议、凶吉警告等。调用方/AI 需先根据问题语义选择目标六亲再调用；当 question 非空时，yongShenTargets 必填，不再自动兜底推断。',
     inputSchema: {
       type: 'object',
       properties: {
         question: {
           type: 'string',
           description: '占卜问题',
+        },
+        yongShenTargets: {
+          type: 'array',
+          description: '指定用神目标（可多选，字段必须显式传入；无问题场景可传空数组）。当 question 非空时至少传 1 项，请由调用方/AI先判断语义再传入：父母=合同文书/证件/学业/房屋车辆/长辈；官鬼=功名求官/工作事业/规则/压力/风险/疾病；兄弟=同辈/合作/竞争；妻财=感情婚姻/钱财/资源；子孙=子女后辈/医药。不再自动推断兜底。',
+          items: {
+            type: 'string',
+            enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'],
+          },
         },
         method: {
           type: 'string',
@@ -500,7 +508,7 @@ export const tools: ToolDefinition[] = [
           description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
         },
       },
-      required: ['question'],
+      required: ['question', 'yongShenTargets'],
     },
     outputSchema: {
       type: 'object',
@@ -516,8 +524,6 @@ export const tools: ToolDefinition[] = [
         changedHexagramName: { type: 'string', description: '变卦名' },
         changedHexagramGong: { type: 'string', description: '变卦宫' },
         changedHexagramElement: { type: 'string', description: '变卦五行' },
-        changedLines: { type: 'array', items: { type: 'number' }, description: '动爻位置(1-6)' },
-        changedYaoCi: { type: 'array', items: { type: 'string' }, description: '变爻爻辞' },
         ganZhiTime: {
           type: 'object',
           description: '干支时间',
@@ -568,7 +574,13 @@ export const tools: ToolDefinition[] = [
             properties: {
               position: { type: 'number', description: '爻位(1-6)' },
               type: { type: 'number', description: '爻类型(0阴/1阳)' },
-              change: { type: 'string', description: '变化状态(stable/changing)' },
+              isChanging: { type: 'boolean', description: '是否变爻' },
+              movementState: {
+                type: 'string',
+                enum: ['static', 'changing', 'hidden_moving', 'day_break'],
+                description: '动静状态（静/明动/暗动/日破）',
+              },
+              movementLabel: { type: 'string', description: '动静状态中文标签' },
               liuQin: { type: 'string', description: '六亲' },
               liuShen: { type: 'string', description: '六神' },
               naJia: { type: 'string', description: '纳甲地支' },
@@ -583,79 +595,96 @@ export const tools: ToolDefinition[] = [
               isStrong: { type: 'boolean', description: '是否旺相' },
               strengthFactors: { type: 'array', items: { type: 'string' }, description: '强度因素' },
               changSheng: { type: 'string', description: '十二长生' },
-              changeAnalysis: {
-                type: 'object',
-                description: '变爻分析',
+              shenSha: { type: 'array', items: { type: 'string' }, description: '本爻神煞' },
+              changedYao: {
+                type: ['object', 'null'],
+                description: '变出之爻（仅动爻有值）',
                 properties: {
-                  huaType: { type: 'string', description: '化类型' },
-                  huaLabel: { type: 'string', description: '化标签' },
-                  isGood: { type: 'boolean', description: '是否吉' },
+                  type: { type: 'number', description: '变爻类型(0阴/1阳)' },
+                  liuQin: { type: 'string', description: '变爻六亲' },
+                  naJia: { type: 'string', description: '变爻纳甲地支' },
+                  wuXing: { type: 'string', description: '变爻五行' },
+                  liuShen: { type: 'string', description: '变爻六神' },
+                  yaoCi: { type: 'string', description: '对应变爻爻辞' },
+                  relation: { type: 'string', description: '变爻关系（如回头克/回头生/化进/化退）' },
                 },
               },
             },
           },
         },
         yongShen: {
-          type: 'object',
-          description: '用神',
-          properties: {
-            type: { type: 'string', description: '用神类型' },
-            liuQin: { type: 'string', description: '六亲' },
-            element: { type: 'string', description: '五行' },
-            position: { type: 'number', description: '位置' },
-            strengthScore: { type: 'number', description: '强度评分' },
-            isStrong: { type: 'boolean', description: '是否旺相' },
-            strengthLabel: { type: 'string', description: '强度标签' },
-            kongWangState: { type: 'string', description: '空亡状态' },
-            factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
-          },
-        },
-        shenSystem: {
-          type: 'object',
-          description: '神系',
-          properties: {
-            yuanShen: {
-              type: 'object',
-              description: '原神',
-              properties: {
-                liuQin: { type: 'string', description: '六亲' },
-                wuXing: { type: 'string', description: '五行' },
-                positions: { type: 'array', items: { type: 'number' }, description: '位置' },
-              },
-            },
-            jiShen: {
-              type: 'object',
-              description: '忌神',
-              properties: {
-                liuQin: { type: 'string', description: '六亲' },
-                wuXing: { type: 'string', description: '五行' },
-                positions: { type: 'array', items: { type: 'number' }, description: '位置' },
-              },
-            },
-            chouShen: {
-              type: 'object',
-              description: '仇神',
-              properties: {
-                liuQin: { type: 'string', description: '六亲' },
-                wuXing: { type: 'string', description: '五行' },
-                positions: { type: 'array', items: { type: 'number' }, description: '位置' },
-              },
-            },
-          },
-        },
-        changedYaos: {
           type: 'array',
-          description: '变爻详情',
+          description: '用神分组列表（按目标六亲；candidates[0] 为主用神，后续为候选用神，越后参考度越低）',
           items: {
             type: 'object',
             properties: {
-              position: { type: 'number', description: '爻位(1-6)' },
-              type: { type: 'number', description: '爻类型(0阴/1阳)' },
-              liuQin: { type: 'string', description: '六亲' },
-              naJia: { type: 'string', description: '纳甲地支' },
-              wuXing: { type: 'string', description: '五行' },
+              targetLiuQin: { type: 'string', enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'], description: '目标六亲' },
+              candidates: {
+                type: 'array',
+                description: '用神候选列表（按参考优先级从高到低排序，candidates[0] 为主用神，越靠后参考度越低）',
+                items: {
+                  type: 'object',
+                  properties: {
+                    liuQin: { type: 'string', description: '六亲' },
+                    naJia: { type: 'string', description: '纳甲地支' },
+                    element: { type: 'string', description: '五行' },
+                    position: { type: 'number', description: '位置' },
+                    strengthScore: { type: 'number', description: '强度评分' },
+                    isStrong: { type: 'boolean', description: '是否旺相' },
+                    strengthLabel: { type: 'string', description: '强度标签' },
+                    movementState: { type: 'string', enum: ['static', 'changing', 'hidden_moving', 'day_break'], description: '动静状态' },
+                    movementLabel: { type: 'string', description: '动静状态中文标签' },
+                    isShiYao: { type: 'boolean', description: '是否世爻' },
+                    isYingYao: { type: 'boolean', description: '是否应爻' },
+                    kongWangState: { type: 'string', description: '空亡状态' },
+                    factors: { type: 'array', items: { type: 'string' }, description: '影响因素' },
+                  },
+                },
+              },
             },
           },
+        },
+        shenSystemByYongShen: {
+          type: 'array',
+          description: '按目标用神输出的神系',
+          items: {
+            type: 'object',
+            properties: {
+              targetLiuQin: { type: 'string', enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'], description: '目标六亲' },
+              yuanShen: {
+                type: 'object',
+                description: '原神',
+                properties: {
+                  liuQin: { type: 'string', description: '六亲' },
+                  wuXing: { type: 'string', description: '五行' },
+                  positions: { type: 'array', items: { type: 'number' }, description: '位置' },
+                },
+              },
+              jiShen: {
+                type: 'object',
+                description: '忌神',
+                properties: {
+                  liuQin: { type: 'string', description: '六亲' },
+                  wuXing: { type: 'string', description: '五行' },
+                  positions: { type: 'array', items: { type: 'number' }, description: '位置' },
+                },
+              },
+              chouShen: {
+                type: 'object',
+                description: '仇神',
+                properties: {
+                  liuQin: { type: 'string', description: '六亲' },
+                  wuXing: { type: 'string', description: '五行' },
+                  positions: { type: 'array', items: { type: 'number' }, description: '位置' },
+                },
+              },
+            },
+          },
+        },
+        globalShenSha: {
+          type: 'array',
+          description: '整盘级神煞',
+          items: { type: 'string' },
         },
         fuShen: {
           type: 'array',
@@ -713,23 +742,18 @@ export const tools: ToolDefinition[] = [
         warnings: { type: 'array', items: { type: 'string' }, description: '凶吉警告' },
         timeRecommendations: {
           type: 'array',
-          description: '时间建议',
+          description: '应期建议（结构化时间窗口）',
           items: {
             type: 'object',
             properties: {
+              targetLiuQin: { type: 'string', enum: ['父母', '兄弟', '子孙', '妻财', '官鬼'], description: '目标六亲' },
               type: { type: 'string', description: '类型(favorable/unfavorable/critical)' },
-              timeframe: { type: 'string', description: '时间范围' },
               earthlyBranch: { type: 'string', description: '地支' },
+              startDate: { type: 'string', description: '窗口开始日期(YYYY-MM-DD)' },
+              endDate: { type: 'string', description: '窗口结束日期(YYYY-MM-DD)' },
+              confidence: { type: 'number', description: '置信度(0-1)' },
               description: { type: 'string', description: '描述' },
             },
-          },
-        },
-        summary: {
-          type: 'object',
-          description: '总结',
-          properties: {
-            overallTrend: { type: 'string', description: '整体趋势(favorable/neutral/unfavorable)' },
-            keyFactors: { type: 'array', items: { type: 'string' }, description: '关键因素' },
           },
         },
       },

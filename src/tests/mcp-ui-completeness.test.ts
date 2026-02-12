@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { access } from 'node:fs/promises';
 
 const adminMcpPagePath = resolve(process.cwd(), 'src/app/admin/mcp/page.tsx');
+const adminMcpPanelPath = resolve(process.cwd(), 'src/components/admin/McpKeyManagementPanel.tsx');
 const accessLogPanelPath = resolve(process.cwd(), 'src/components/admin/McpAccessLogPanel.tsx');
 const mcpLogsRoutePath = resolve(process.cwd(), 'src/app/api/admin/mcp-logs/route.ts');
 const userMcpPagePath = resolve(process.cwd(), 'src/app/user/mcp/page.tsx');
@@ -89,5 +90,18 @@ test('user mcp page should always display full key without one-time visibility s
   assert.ok(
     !source.includes('maskKey('),
     'page should not mask key display by default'
+  );
+});
+
+test('admin mcp panel should provide unban action for banned keys', async () => {
+  const source = await readFile(adminMcpPanelPath, 'utf-8');
+
+  assert.ok(
+    source.includes('解除封禁'),
+    'admin panel should render unban action for banned keys'
+  );
+  assert.ok(
+    source.includes("method: 'PATCH'"),
+    'admin panel should call PATCH route when unbanning a user key'
   );
 });

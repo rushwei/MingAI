@@ -496,11 +496,13 @@ export async function createVectorIndexIfNeeded(
  * 通过 Edge Function 或管理脚本执行（避免事务限制）
  */
 async function triggerVectorIndexJob(): Promise<void> {
-    // 方案 A：调用 Edge Function（使用 service_role 直连数据库）
+    // 方案 A：调用 Edge Function（使用 INTERNAL_API_SECRET + anon key）
     const response = await fetch(`${process.env.SUPABASE_URL}/functions/v1/create-vector-index`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+            'apikey': process.env.SUPABASE_ANON_KEY!,
+            'x-internal-api-secret': process.env.INTERNAL_API_SECRET!,
             'Content-Type': 'application/json'
         }
     });
@@ -516,9 +518,9 @@ async function triggerVectorIndexJob(): Promise<void> {
 
 > [!WARNING]
 > **安全要求**：
-> 1. service_role 鉴权必须使用严格匹配，禁止 `includes()` 模糊匹配
+> 1. INTERNAL_API_SECRET 鉴权必须使用严格匹配，禁止 `includes()` 模糊匹配
 > 2. 此函数只能在服务端调用，禁止客户端直接访问
-> 3. 部署时设置 `verify_jwt: false`（因为使用自定义 service_role 鉴权）
+> 3. 部署时设置 `verify_jwt: false`（因为使用自定义 INTERNAL_API_SECRET 鉴权）
 
 ```typescript
 // supabase/functions/create-vector-index/index.ts
@@ -535,22 +537,21 @@ interface CreateIndexRequest {
 
 Deno.serve(async (req: Request) => {
     // ============================================
-    // 1. 严格的 service_role 鉴权
+    // 1. 严格的 INTERNAL_API_SECRET 鉴权
     // ============================================
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const internalHeader = req.headers.get('x-internal-api-secret');
+    const internalSecret = Deno.env.get('INTERNAL_API_SECRET');
 
-    if (!serviceRoleKey) {
-        console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+    if (!internalSecret) {
+        console.error('INTERNAL_API_SECRET not configured');
         return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
-    // 严格匹配：Bearer token 必须完全等于 service_role_key
-    const expectedAuth = `Bearer ${serviceRoleKey}`;
-    if (authHeader !== expectedAuth) {
+    // 严格匹配：header 必须完全等于 INTERNAL_API_SECRET
+    if (internalHeader !== internalSecret) {
         console.warn('Unauthorized access attempt');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
             status: 401,
@@ -746,10 +747,11 @@ export async function triggerVectorIndexCreation(dimension?: number): Promise<{
     // 注意：server-only 文件应使用 SUPABASE_URL 而非 NEXT_PUBLIC_SUPABASE_URL
     // 避免未来误引用到客户端（NEXT_PUBLIC_ 变量会暴露给浏览器）
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const internalSecret = process.env.INTERNAL_API_SECRET;
 
-    if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error('Missing Supabase configuration (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required)');
+    if (!supabaseUrl || !anonKey || !internalSecret) {
+        throw new Error('Missing Supabase configuration (SUPABASE_URL, SUPABASE_ANON_KEY and INTERNAL_API_SECRET required)');
     }
 
     const response = await fetch(
@@ -757,7 +759,9 @@ export async function triggerVectorIndexCreation(dimension?: number): Promise<{
         {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${serviceRoleKey}`,
+                'Authorization': `Bearer ${anonKey}`,
+                'apikey': anonKey,
+                'x-internal-api-secret': internalSecret,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ dimension })
@@ -4099,13 +4103,13 @@ SELECT * FROM search_knowledge_fts('test', NULL, 20, 'nonexistent_config');
 
 # 测试 1：正常索引名
 curl -X POST "$EDGE_FUNCTION_URL/create-vector-index" \
-  -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
   -d '{"indexName": "idx_ke_vector_1536", "dimension": 1536}'
 # 预期：成功创建索引
 
 # 测试 2：非法索引名（SQL 注入尝试）
 curl -X POST "$EDGE_FUNCTION_URL/create-vector-index" \
-  -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
   -d '{"indexName": "idx; DROP TABLE users; --", "dimension": 1536}'
 # 预期：400 错误，"Invalid indexName format"
 ```

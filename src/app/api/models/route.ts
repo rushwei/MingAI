@@ -7,9 +7,9 @@
 
 import { NextRequest } from 'next/server';
 import { getModelsAsync } from '@/lib/server/ai-config';
-import type { MembershipType } from '@/lib/membership';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { getModelAccessForMembershipAsync } from '@/lib/ai-access';
+import type { MembershipType } from '@/lib/user/membership';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { getModelAccessForMembershipAsync } from '@/lib/ai/ai-access';
 import { getAuthContext, jsonOk } from '@/lib/api-utils';
 
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {

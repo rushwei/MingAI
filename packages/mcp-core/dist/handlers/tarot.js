@@ -99,7 +99,7 @@ function getMeaning(orientation, keywords) {
 export async function handleTarotDraw(input) {
     const { spreadType = 'single', question, allowReversed = true } = input;
     const dateKey = new Date().toISOString().slice(0, 10);
-    const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`);
+    const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`, input.seedScope);
     const rng = createSeededRng(seed);
     const spread = SPREADS[spreadType] || SPREADS['single'];
     const drawnCards = drawCards(spread.positions.length, allowReversed, rng);

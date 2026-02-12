@@ -11,8 +11,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
 import type { BaziFormData } from '@/types';
-import { calculateBazi } from '@/lib/bazi';
-import { getEarthlyBranchByHour } from '@/lib/bazi-form-utils';
+import { calculateBazi } from '@/lib/divination/bazi';
+import { getEarthlyBranchByHour } from '@/lib/divination/bazi-form-utils';
 
 interface InstantBaziPreviewProps {
     onUseInstant: () => void;

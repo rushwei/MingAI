@@ -24,7 +24,7 @@ import {
     type LiuNianInfo,
     type LiuYueInfo,
     type LiuRiInfo,
-} from '@/lib/bazi';
+} from '@/lib/divination/bazi';
 import type { Gender, HeavenlyStem, EarthlyBranch, TenGod } from '@/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 

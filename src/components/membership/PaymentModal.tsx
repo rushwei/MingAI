@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { X, CreditCard, Loader2, CheckCircle, QrCode } from 'lucide-react';
-import { type PricingPlan } from '@/lib/membership';
+import { type PricingPlan } from '@/lib/user/membership';
 import { supabase } from '@/lib/supabase';
 
 interface PaymentModalProps {

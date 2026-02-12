@@ -7,7 +7,7 @@ import { useMemo, useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Star, Loader2, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
-import { calculateZiwei, type ZiweiFormData } from '@/lib/ziwei';
+import { calculateZiwei, type ZiweiFormData } from '@/lib/divination/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
 import { ZiweiHoroscopePanel, type HoroscopeInfo, type HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
@@ -56,13 +56,15 @@ function ZiweiResultContent() {
             .select('*')
             .eq('id', chartId)
             .single()
-            .then(({ data, error }) => {
+            .then(({ data, error }: { data: Record<string, unknown> | null; error: { message: string } | null }) => {
                 if (data && !error) {
-                    const [year, month, day] = data.birth_date.split('-').map(Number);
-                    const hasTime = Boolean(data.birth_time);
-                    const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
+                    const birthDate = data.birth_date as string;
+                    const birthTime = data.birth_time as string | null;
+                    const [year, month, day] = birthDate.split('-').map(Number);
+                    const hasTime = Boolean(birthTime);
+                    const [hour, minute] = (birthTime || '12:00').split(':').map(Number);
                     setChartFromDb({
-                        name: data.name,
+                        name: data.name as string,
                         gender: (data.gender as Gender) || 'male',
                         birthYear: year,
                         birthMonth: month,
@@ -70,8 +72,8 @@ function ZiweiResultContent() {
                         birthHour: hour || 12,
                         birthMinute: minute || 0,
                         calendarType: (data.calendar_type as CalendarType) || 'solar',
-                        isLeapMonth: data.is_leap_month ?? false, // 加载闰月设置
-                        birthPlace: data.birth_place || '',
+                        isLeapMonth: (data.is_leap_month as boolean | undefined) ?? false,
+                        birthPlace: (data.birth_place as string) || '',
                         isUnknownTime: !hasTime,
                     });
                     setSaved(true);

@@ -6,6 +6,7 @@ import { getProvider } from '@/lib/data-sources';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
 import type { IngestResult } from '@/lib/knowledge-base/types';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 interface ChunkConfig {
     maxChunkSize: number;
@@ -40,12 +41,21 @@ interface IngestResultWithVectors extends IngestResult {
 async function createSupabaseClient() {
     const cookieStore = await cookies();
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {
                     return cookieStore.getAll();
+                },
+                setAll(cookiesToSet) {
+                    try {
+                        for (const { name, value, options } of cookiesToSet) {
+                            cookieStore.set(name, value, options);
+                        }
+                    } catch {
+                        // 只读 cookies 上下文无法写入时忽略
+                    }
                 },
             },
         }

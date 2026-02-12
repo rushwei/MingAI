@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {

@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { PALM_ANALYSIS_TYPES } from '@/lib/palm';
+import { PALM_ANALYSIS_TYPES } from '@/lib/divination/palm';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type PalmRow = {

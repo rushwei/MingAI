@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 process.env.DEEPSEEK_API_KEY = 'test-key';
 process.env.DEEPSEEK_MODEL_ID = process.env.DEEPSEEK_MODEL_ID || 'deepseek-chat';
 
@@ -23,7 +22,7 @@ const captureConsoleErrors = () => {
 };
 
 test('tarot route uses schema column names when inserting history', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
@@ -130,7 +129,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
 });
 
 test('tarot route returns error when credit deduction fails', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
@@ -214,9 +213,9 @@ test('tarot route returns error when credit deduction fails', async (t) => {
 });
 
 test('tarot route persists analysis after streaming completes', async (t) => {
-    const credits = require('../lib/credits') as any;
-    const aiModule = require('../lib/ai') as any;
-    const aiAnalysisModule = require('../lib/ai-analysis') as any;
+    const credits = require('../lib/user/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 

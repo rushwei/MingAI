@@ -45,16 +45,18 @@ export async function getFeatureSubscribers(featureKey: string): Promise<{
     }
 
     const rows = data ?? [];
-    const emailResults = await Promise.all(rows.map(async (item: { user_id: string }) => {
-        const { data: userData, error: userError } = await serviceClient.auth.admin.getUserById(item.user_id);
-        if (userError) {
-            console.error('获取订阅用户邮箱失败:', userError);
-            return { userId: item.user_id, email: null };
-        }
-        return { userId: item.user_id, email: userData?.user?.email ?? null };
-    }));
+    const userIds = rows.map(item => item.user_id).filter(Boolean);
+    const { data: emailRows, error: emailError } = await serviceClient.rpc('admin_get_auth_user_emails', {
+        p_user_ids: userIds,
+    });
+    if (emailError) {
+        console.error('获取订阅用户邮箱失败:', emailError);
+    }
 
-    const emailMap = new Map(emailResults.map(result => [result.userId, result.email]));
+    const emailMap = new Map(
+        ((emailRows as Array<{ user_id: string; email: string | null }> | null) || [])
+            .map(result => [result.user_id, result.email])
+    );
 
     return rows.map(item => ({
         userId: item.user_id,

@@ -10,6 +10,10 @@ import { createMemoryCache, createSingleFlight } from '@/lib/cache';
 const UNREAD_CACHE_TTL_MS = 2_000;
 const unreadCountCache = createMemoryCache<number>(UNREAD_CACHE_TTL_MS);
 const unreadCountSingleFlight = createSingleFlight<number>();
+const invalidateUnreadCountCache = () => {
+    unreadCountCache.clear();
+    unreadCountSingleFlight.clear();
+};
 
 export type UnreadCountOptions = {
     bypassCache?: boolean;
@@ -102,6 +106,7 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
         return false;
     }
 
+    invalidateUnreadCountCache();
     return true;
 }
 
@@ -120,6 +125,7 @@ export async function markAllAsRead(userId: string): Promise<boolean> {
         return false;
     }
 
+    invalidateUnreadCountCache();
     return true;
 }
 
@@ -139,6 +145,7 @@ export async function markSelectedAsRead(notificationIds: string[]): Promise<boo
         return false;
     }
 
+    invalidateUnreadCountCache();
     return true;
 }
 
@@ -156,6 +163,7 @@ export async function deleteNotification(notificationId: string): Promise<boolea
         return false;
     }
 
+    invalidateUnreadCountCache();
     return true;
 }
 
@@ -175,6 +183,7 @@ export async function deleteNotifications(notificationIds: string[]): Promise<bo
         return false;
     }
 
+    invalidateUnreadCountCache();
     return true;
 }
 

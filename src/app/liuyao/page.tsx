@@ -9,8 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Coins, Sparkles, Loader2, Dices, Grid3X3 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { divine, yaosTpCode, findHexagram, calculateChangedHexagram } from '@/lib/liuyao';
+import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
+import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 
@@ -18,16 +19,33 @@ export default function LiuyaoPage() {
     const router = useRouter();
     const { showToast } = useToast();
     const [question, setQuestion] = useState('');
+    const [yongShenTargets, setYongShenTargets] = useState<LiuQin[]>([]);
     const [isQuickLoading, setIsQuickLoading] = useState(false);
+
+    const ensureTargetsSelected = (): boolean => {
+        const requiresTargets = question.trim().length > 0;
+        if (!requiresTargets) return true;
+        if (yongShenTargets.length > 0) return true;
+        showToast('error', '请至少选择一个分析目标');
+        return false;
+    };
 
     // 铜钱起卦 - 跳转到起卦页面
     const handleCoinDivine = () => {
-        writeSessionJSON('liuyao_question', question);
+        if (!ensureTargetsSelected()) return;
+        writeSessionJSON('liuyao_question', { question, yongShenTargets });
         router.push('/liuyao/divine');
+    };
+
+    const handleSelectDivine = () => {
+        if (!ensureTargetsSelected()) return;
+        writeSessionJSON('liuyao_question', { question, yongShenTargets });
+        router.push('/liuyao/select');
     };
 
     // 快速起卦 - 系统自动生成
     const handleQuickDivine = async () => {
+        if (!ensureTargetsSelected()) return;
         setIsQuickLoading(true);
 
         // 添加延迟让用户看到加载状态
@@ -54,6 +72,7 @@ export default function LiuyaoPage() {
                         body: JSON.stringify({
                             action: 'save',
                             question,
+                            yongShenTargets,
                             yaos,
                             changedHexagram,
                             changedLines,
@@ -70,6 +89,7 @@ export default function LiuyaoPage() {
 
             const result = {
                 question,
+                yongShenTargets,
                 yaos,
                 hexagram,
                 changedHexagram,
@@ -115,6 +135,13 @@ export default function LiuyaoPage() {
                     </label>
                     <div className="relative group">
                         <div className="absolute inset-0 bg-amber-500/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                        <div className="absolute inset-y-0 right-2 z-10 flex items-center">
+                            <YongShenTargetPicker
+                                value={yongShenTargets}
+                                onChange={setYongShenTargets}
+                                variant="inline-right"
+                            />
+                        </div>
                         <input
                             type="text"
                             value={question}
@@ -122,7 +149,7 @@ export default function LiuyaoPage() {
                             placeholder="例如：我近期的事业运势如何？这次合作能否顺利达成？"
                             className="relative w-full px-6 py-4 bg-background rounded-xl border border-border shadow-sm 
                                 focus:border-amber-500 focus:ring-0 focus:outline-none 
-                                text-center text-lg placeholder:text-foreground-tertiary/70
+                                text-center text-lg placeholder:text-foreground-tertiary/70 pr-44
                                 transition-all duration-300"
                         />
                     </div>
@@ -191,7 +218,7 @@ export default function LiuyaoPage() {
 
                     {/* 选卦起卦 */}
                     <button
-                        onClick={() => router.push('/liuyao/select')}
+                        onClick={handleSelectDivine}
                         className="group relative bg-background rounded-2xl p-5 md:p-8 text-left border border-border hover:border-teal-500/50 hover:shadow-lg hover:shadow-teal-500/5 transition-all duration-300 overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-12 bg-teal-500/5 rounded-bl-[100px] -mr-6 -mt-6 transition-transform duration-500 group-hover:scale-110" />

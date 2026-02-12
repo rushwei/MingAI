@@ -15,7 +15,7 @@ import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { UnifiedBaziForm } from '@/components/bazi/form/UnifiedBaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
-import { normalizeBirthDateForCalendarSwitch } from '@/lib/bazi-form-utils';
+import { normalizeBirthDateForCalendarSwitch } from '@/lib/divination/bazi-form-utils';
 import { useToast } from '@/components/ui/Toast';
 
 const parseNumber = (value: string | null, fallback: number) => {

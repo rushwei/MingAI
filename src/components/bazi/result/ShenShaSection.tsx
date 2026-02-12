@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Sparkles, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import type { ShenShaInfo } from '@/lib/bazi';
+import type { ShenShaInfo } from '@/lib/divination/bazi';
 
 interface ShenShaSectionProps {
     shenSha: ShenShaInfo;

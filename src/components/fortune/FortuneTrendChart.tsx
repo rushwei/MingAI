@@ -18,7 +18,7 @@ import {
     Legend,
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { FortuneScores } from '@/lib/fortune';
+import type { FortuneScores } from '@/lib/divination/fortune';
 
 // 运势维度类型
 export type FortuneDimension = 'overall' | 'career' | 'love' | 'wealth' | 'health' | 'social';

@@ -13,8 +13,8 @@ import Link from 'next/link';
 import { Calendar, Trash2, Search, Hand, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { PALM_ANALYSIS_TYPES } from '@/lib/palm';
-import { getModelName } from '@/lib/ai-config';
+import { PALM_ANALYSIS_TYPES } from '@/lib/divination/palm';
+import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface PalmReading {

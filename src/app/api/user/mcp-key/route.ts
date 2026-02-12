@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-  const key = await getMcpKey(auth.user.id);
+  const key = await getMcpKey(auth.supabase, auth.user.id);
   return jsonOk({ key });
 }
 
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-  const result = await createMcpKey(auth.user.id);
+  const result = await createMcpKey(auth.supabase, auth.user.id);
   if (!result.success) {
     return jsonError(result.error || '创建失败', result.status || 400);
   }
@@ -33,7 +33,7 @@ export async function PUT(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-  const result = await resetMcpKey(auth.user.id);
+  const result = await resetMcpKey(auth.supabase, auth.user.id);
   if (!result.success) {
     return jsonError(result.error || '重置失败', result.status || 400);
   }

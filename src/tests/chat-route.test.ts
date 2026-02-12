@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 process.env.INTERNAL_API_SECRET = 'internal-secret';
 
 const waitForMicrotask = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -30,12 +29,12 @@ function setupRouteMocks(
     t: { after: (fn: () => void) => void },
     streamBody: ReadableStream<Uint8Array>
 ): MockState {
-    const aiModule = require('../lib/ai') as any;
-    const creditsModule = require('../lib/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const creditsModule = require('../lib/user/credits') as any;
     const aiConfigServerModule = require('../lib/server/ai-config') as any;
-    const aiAccessModule = require('../lib/ai-access') as any;
-    const membershipServerModule = require('../lib/membership-server') as any;
-    const promptBuilderModule = require('../lib/prompt-builder') as any;
+    const aiAccessModule = require('../lib/ai/ai-access') as any;
+    const membershipServerModule = require('../lib/user/membership-server') as any;
+    const promptBuilderModule = require('../lib/ai/prompt-builder') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const apiUtilsModule = require('../lib/api-utils') as any;
 

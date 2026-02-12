@@ -7,8 +7,8 @@ import {
     performCheckin,
     getCheckinCalendar,
     getCheckinStats
-} from '@/lib/checkin';
-import { getUserLevel } from '@/lib/gamification';
+} from '@/lib/user/checkin';
+import { getUserLevel } from '@/lib/user/gamification';
 import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createMemoryCache, createSingleFlight } from '@/lib/cache';
 

@@ -12,37 +12,8 @@ import {
 
 import {
   tools,
-  handleBaziCalculate,
-  handleBaziPillarsResolve,
-  handleZiweiCalculate,
-  handleLiuyaoAnalyze,
-  handleTarotDraw,
-  handleDailyFortune,
-  handleLiunianAnalyze,
+  handleToolCall,
 } from '@mingai/mcp-core';
-
-// 工具调用处理
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleToolCall(name: string, args: any): Promise<unknown> {
-  switch (name) {
-    case 'bazi_calculate':
-      return handleBaziCalculate(args);
-    case 'bazi_pillars_resolve':
-      return handleBaziPillarsResolve(args);
-    case 'ziwei_calculate':
-      return handleZiweiCalculate(args);
-    case 'liuyao_analyze':
-      return handleLiuyaoAnalyze(args);
-    case 'tarot_draw':
-      return handleTarotDraw(args);
-    case 'daily_fortune':
-      return handleDailyFortune(args);
-    case 'liunian_analyze':
-      return handleLiunianAnalyze(args);
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
 
 // 创建服务器
 const server = new McpServer(

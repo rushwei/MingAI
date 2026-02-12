@@ -10,12 +10,12 @@
 import { useState, useMemo } from 'react';
 import { X, Calendar, Trash2 } from 'lucide-react';
 import type { HeavenlyStem, EarthlyBranch, PillarData } from '@/types';
-import { reversePillars } from '@/lib/pillars-reverse';
+import { reversePillars } from '@/lib/divination/pillars-reverse';
 import {
     calculateMonthPillars,
     calculateHourPillars,
     getAvailableBranches,
-} from '@/lib/pillars-calculator';
+} from '@/lib/divination/pillars-calculator';
 import { useToast } from '@/components/ui/Toast';
 
 // 天干选项

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Solar } from 'lunar-javascript';
-import { normalizeBirthDateForCalendarSwitch, getEarthlyBranchByHour } from '@/lib/bazi-form-utils';
+import { normalizeBirthDateForCalendarSwitch, getEarthlyBranchByHour } from '@/lib/divination/bazi-form-utils';
 
 test('normalizeBirthDateForCalendarSwitch uses now when switching from pillars to solar', () => {
     const now = new Date(2024, 1, 10, 9, 30); // 2024-02-10 09:30

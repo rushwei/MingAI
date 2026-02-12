@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { restoreAllCredits } from '@/lib/credits';
+import { restoreAllCredits } from '@/lib/user/credits';
 
 export async function GET(request: NextRequest) {
     // 验证 Cron 密钥（可选，增加安全性）

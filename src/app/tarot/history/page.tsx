@@ -13,8 +13,8 @@ import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { TAROT_SPREADS, type DrawnCard } from '@/lib/tarot';
-import { getModelName } from '@/lib/ai-config';
+import { TAROT_SPREADS, type DrawnCard } from '@/lib/divination/tarot';
+import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface TarotReading {

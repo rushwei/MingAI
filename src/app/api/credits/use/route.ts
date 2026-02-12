@@ -5,7 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { useCredit, hasCredits } from '@/lib/credits';
+import { useCredit, hasCredits } from '@/lib/user/credits';
 import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {

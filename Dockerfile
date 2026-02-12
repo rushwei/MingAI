@@ -12,13 +12,7 @@ COPY . .
 
 RUN pnpm install --frozen-lockfile
 
-# Next.js build-time env (required by module-level Supabase config checks)
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-RUN NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
-    NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-    pnpm build
+RUN pnpm build
 
 FROM node:20-alpine AS runner
 WORKDIR /app

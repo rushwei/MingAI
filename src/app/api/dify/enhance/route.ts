@@ -6,9 +6,9 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callDifyWorkflow, isDifyAvailable } from '@/lib/dify';
-import { checkDifyAccess } from '@/lib/dify-access';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { callDifyWorkflow, isDifyAvailable } from '@/lib/ai/dify';
+import { checkDifyAccess } from '@/lib/ai/dify-access';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import type { DifyMode } from '@/types';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 

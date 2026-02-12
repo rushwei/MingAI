@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { type MBTIQuestion, type LikertValue } from '@/lib/mbti';
+import { type MBTIQuestion, type LikertValue } from '@/lib/divination/mbti';
 
 interface QuestionCardProps {
     question: MBTIQuestion;

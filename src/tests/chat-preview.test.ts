@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldRequestChatPreview } from '../lib/chat-preview';
+import { shouldRequestChatPreview } from '../lib/chat/chat-preview';
 
 test('shouldRequestChatPreview blocks preview when user is missing', () => {
     assert.equal(

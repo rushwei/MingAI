@@ -1,11 +1,11 @@
 import 'server-only';
 
-import { createClient } from '@supabase/supabase-js';
 import type { AIModelConfig, AIVendor } from '@/types';
 import {
   buildModels,
   clearModelCache as clearSharedModelCache,
-} from '@/lib/ai-config';
+} from '@/lib/ai/ai-config';
+import { getServiceClient } from '@/lib/supabase-server';
 
 interface DBModelSourceRow {
   is_active: boolean;
@@ -33,15 +33,6 @@ interface DBModelRow {
 let dbModelsCache: AIModelConfig[] | null = null;
 let dbLastFetch = 0;
 const DB_CACHE_TTL = 5 * 60 * 1000;
-
-function getServiceRoleClient() {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 function mapDbModelRows(rows: DBModelRow[]): AIModelConfig[] {
   return rows
@@ -81,19 +72,43 @@ async function fetchModelsFromDB(): Promise<AIModelConfig[] | null> {
     return dbModelsCache;
   }
 
-  const supabase = getServiceRoleClient();
-  if (!supabase) {
+  let supabase;
+  try {
+    supabase = getServiceClient();
+  } catch (error) {
+    console.warn('[ai-config/server] Supabase client unavailable, fallback to env models:', error);
     return null;
   }
 
-  const { data, error } = await supabase
-    .from('ai_models')
-    .select(`
-      *,
-      sources:ai_model_sources(*)
-    `)
-    .eq('is_enabled', true)
-    .order('sort_order', { ascending: true });
+  const modelQuery = supabase.from('ai_models') as unknown as {
+    select?: (columns: string) => {
+      eq: (column: string, value: unknown) => {
+        order: (column: string, options: { ascending: boolean }) => Promise<{
+          data: unknown[] | null;
+          error: unknown;
+        }>;
+      };
+    };
+  };
+  if (!modelQuery?.select) {
+    return null;
+  }
+
+  let data: unknown[] | null = null;
+  let error: unknown = null;
+  try {
+    const result = await modelQuery
+      .select(`
+        *,
+        sources:ai_model_sources(*)
+      `)
+      .eq('is_enabled', true)
+      .order('sort_order', { ascending: true });
+    data = result.data;
+    error = result.error;
+  } catch {
+    return null;
+  }
 
   if (error || !data || data.length === 0) {
     if (error) {

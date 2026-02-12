@@ -297,7 +297,6 @@ deleteNotifications(notificationIds: string[]): Promise<boolean>
 | ---------------- | ------------------------------------- |
 | `RESEND_API_KEY` | Resend邮件服务API密钥                 |
 | `RESEND_FROM`    | 发件人邮箱地址                        |
-| `ADMIN_SECRET`   | 管理员API密钥（用于触发功能上线通知） |
 
 ---
 
@@ -314,4 +313,3 @@ Phase 3 成功完成了以下主要目标：
 7. **组件化增强**：可复用底部栏、侧边栏状态共享、通知批量操作
 
 所有功能均已通过构建验证，可正常部署使用。
-

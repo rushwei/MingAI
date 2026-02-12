@@ -9,7 +9,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, FolderOpen, X, AlertCircle, Sparkles, ChevronDown } from 'lucide-react';
-import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/hepan';
+import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/divination/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';

@@ -78,7 +78,7 @@ export function hostValidationMiddleware(req: Request, res: Response, next: Next
 
 // ─── Auth 中间件（per-user key 验证）───
 
-function readPositiveIntEnv(name: string, fallback: number): number {
+export function readPositiveIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
@@ -102,24 +102,18 @@ function extractApiKey(req: Request): string | undefined {
 
 async function queryActiveKey(apiKey: string): Promise<{ id: string; user_id: string } | null> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('mcp_api_keys')
-    .select('id, user_id')
-    .eq('key_code', apiKey)
-    .eq('is_active', true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('mcp_verify_api_key', { p_key_code: apiKey });
 
-  if (error || !data) return null;
-  return data;
+  if (error || !Array.isArray(data) || data.length === 0) return null;
+  const first = data[0] as { key_id: string; user_id: string };
+  if (!first?.key_id || !first?.user_id) return null;
+  return { id: first.key_id, user_id: first.user_id };
 }
 
 async function touchLastUsedAt(keyId: string): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    await supabase
-      .from('mcp_api_keys')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('id', keyId);
+    await supabase.rpc('mcp_touch_key_last_used', { p_key_id: keyId });
   } catch {
     // 审计字段更新失败不影响主流程
   }
@@ -132,20 +126,34 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: 'Missing API key' });
   }
 
-  // 查缓存（命中也要回源校验，确保重置/吊销立即生效）
+  // 查缓存：命中也要回源二次校验，确保封禁/重置立即生效
   const cached = getCachedKey(apiKey);
+
+  if (cached) {
+    try {
+      const activeKey = await queryActiveKey(apiKey);
+      if (!activeKey || activeKey.id !== cached.keyId || activeKey.user_id !== cached.userId) {
+        invalidateCachedKey(apiKey);
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      req.mcpAuth = { userId: activeKey.user_id, keyId: activeKey.id };
+      void touchLastUsedAt(activeKey.id);
+      return next();
+    } catch {
+      invalidateCachedKey(apiKey);
+      return res.status(500).json({ error: 'Authentication service error' });
+    }
+  }
 
   try {
     const activeKey = await queryActiveKey(apiKey);
 
     if (!activeKey) {
-      if (cached) invalidateCachedKey(apiKey);
       return res.status(401).json({ error: 'Invalid API key' });
     }
 
-    if (!cached || cached.userId !== activeKey.user_id || cached.keyId !== activeKey.id) {
-      setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });
-    }
+    setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });
     req.mcpAuth = { userId: activeKey.user_id, keyId: activeKey.id };
 
     // 非阻塞更新 last_used_at

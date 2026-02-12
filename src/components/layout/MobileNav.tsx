@@ -40,7 +40,7 @@ import {
     CircleStar,
     Scroll,
 } from 'lucide-react';
-import { usePaymentPause } from '@/lib/usePaymentPause';
+import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 
 // 底部导航栏的默认入口

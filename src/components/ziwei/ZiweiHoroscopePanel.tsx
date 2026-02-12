@@ -9,9 +9,9 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar } from 'lucide-react';
-import type { ZiweiChart, ZiweiHoroscope, DecadalInfo } from '@/lib/ziwei';
-import { getHoroscope, getDecadalList } from '@/lib/ziwei';
-import { getStemElement, getBranchElement, getElementColor } from '@/lib/bazi';
+import type { ZiweiChart, ZiweiHoroscope, DecadalInfo } from '@/lib/divination/ziwei';
+import { getHoroscope, getDecadalList } from '@/lib/divination/ziwei';
+import { getStemElement, getBranchElement, getElementColor } from '@/lib/divination/bazi';
 
 export interface HoroscopeInfo {
     decadal?: DecadalInfo;

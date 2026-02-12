@@ -10,21 +10,21 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callAI, callAIStream } from '@/lib/ai';
-import { hasCredits, useCredit, addCredits } from '@/lib/credits';
+import { callAI, callAIStream } from '@/lib/ai/ai';
+import { hasCredits, useCredit, addCredits } from '@/lib/user/credits';
 import type { ChatMessage, DifyContext } from '@/types';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai-access';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
 import '@/lib/data-sources/init';
-import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/prompt-builder';
+import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 import type { Mention } from '@/types/mentions';
 import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat-context';
+import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat/chat-context';
 
 // 服务端 Supabase 客户端
 const getSupabase = () => getServiceRoleClient();
@@ -218,36 +218,39 @@ export async function POST(request: NextRequest) {
         const mentionsClient = getSupabase();
 
         const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
-        const resolvedMentions = userId ? await Promise.all(mergedMentions.map(async (m) => {
-            const resolvedContent = await resolveMention(m, userId as string, {
-                client: mentionsClient,
-                maxTokens: mentionBudget
-            });
-            return { ...m, resolvedContent };
-        })) : [];
 
-        const userSettings = userId ? await (async () => {
-            const { data } = await getSupabase()
-                .from('user_settings')
-                .select('expression_style, user_profile, custom_instructions, prompt_kb_ids')
-                .eq('user_id', userId as string)
-                .maybeSingle();
-            const row = data as null | {
-                expression_style: 'direct' | 'gentle' | null;
-                user_profile: unknown;
-                custom_instructions: string | null;
-                prompt_kb_ids?: unknown;
-            };
-            const expressionStyle = (row?.expression_style ?? 'direct') as 'direct' | 'gentle';
-            return {
-                expressionStyle,
-                userProfile: row?.user_profile || {},
-                customInstructions: row?.custom_instructions || '',
-                promptKbIds: Array.isArray(row?.prompt_kb_ids)
-                    ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
-                    : []
-            };
-        })() : { expressionStyle: 'direct' as const, userProfile: {}, customInstructions: '', promptKbIds: [] as string[] };
+        // P1: 并行加载 resolvedMentions 和 userSettings（两者无依赖关系）
+        const [resolvedMentions, userSettings] = await Promise.all([
+            userId ? Promise.all(mergedMentions.map(async (m) => {
+                const resolvedContent = await resolveMention(m, userId as string, {
+                    client: mentionsClient,
+                    maxTokens: mentionBudget
+                });
+                return { ...m, resolvedContent };
+            })) : [],
+            userId ? (async () => {
+                const { data } = await getSupabase()
+                    .from('user_settings')
+                    .select('expression_style, user_profile, custom_instructions, prompt_kb_ids')
+                    .eq('user_id', userId as string)
+                    .maybeSingle();
+                const row = data as null | {
+                    expression_style: 'direct' | 'gentle' | null;
+                    user_profile: unknown;
+                    custom_instructions: string | null;
+                    prompt_kb_ids?: unknown;
+                };
+                const expressionStyle = (row?.expression_style ?? 'direct') as 'direct' | 'gentle';
+                return {
+                    expressionStyle,
+                    userProfile: row?.user_profile || {},
+                    customInstructions: row?.custom_instructions || '',
+                    promptKbIds: Array.isArray(row?.prompt_kb_ids)
+                        ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+                        : []
+                };
+            })() : { expressionStyle: 'direct' as const, userProfile: {}, customInstructions: '', promptKbIds: [] as string[] },
+        ]);
 
         const knowledgeHits = userId && membershipType !== 'free' ? await (async () => {
             const cleanedQuery = stripMentionTokens(userQuestionForSearch);

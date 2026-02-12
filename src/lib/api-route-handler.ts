@@ -7,10 +7,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
-import { hasCredits, useCredit as consumeCredit, addCredits } from '@/lib/credits';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { hasCredits, useCredit as consumeCredit, addCredits } from '@/lib/user/credits';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 
 // 标准 API 响应类型
 export interface ApiResponse<T = unknown> {

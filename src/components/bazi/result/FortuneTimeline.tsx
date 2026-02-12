@@ -6,7 +6,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { getElementColor, STEM_ELEMENTS } from '@/lib/bazi';
+import { getElementColor, STEM_ELEMENTS } from '@/lib/divination/bazi';
 import type { HeavenlyStem } from '@/types';
 
 interface FortuneTimelineProps {

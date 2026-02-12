@@ -709,7 +709,7 @@ export function rateLimitMiddleware(req, res, next) {
 ```bash
 PORT=3001
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_ANON_KEY=your-anon-key
 ```
 
 **启动服务**:
@@ -749,7 +749,7 @@ pnpm dev
   },
   "env": {
     "SUPABASE_URL": "@SUPABASE_URL",
-    "SUPABASE_SERVICE_ROLE_KEY": "@SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_ANON_KEY": "@SUPABASE_ANON_KEY",
     "PORT": "3001"
   }
 }
@@ -889,4 +889,4 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 2. **路径别名**: 需要配置 tsconfig paths 或使用相对路径
 3. **类型导出**: 确保 src/types 中的类型可被 mcp-core 使用
 4. **构建顺序**: mcp-core → mcp-local/mcp-server
-5. **环境变量**: 线上版本需要配置 SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY
+5. **环境变量**: 线上版本需要配置 SUPABASE_URL/SUPABASE_ANON_KEY

@@ -5,19 +5,19 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
-import { getProvider } from '@/lib/ai-providers';
-import type { VisionProviderOptions } from '@/lib/ai-providers';
+import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
+import { getProvider } from '@/lib/ai/providers';
+import type { VisionProviderOptions } from '@/lib/ai/providers';
 import {
     PALM_ANALYSIS_TYPES,
     buildPalmSystemPrompt,
     buildPalmUserPrompt,
     generatePalmTitle,
     type HandType
-} from '@/lib/palm';
+} from '@/lib/divination/palm';
 import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 
 // 请求类型
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                     // 保存 AI 分析到 conversations 表
                     let conversationId: string | null = null;
                     try {
-                        const { createAIAnalysisConversation } = await import('@/lib/ai-analysis');
+                        const { createAIAnalysisConversation } = await import('@/lib/ai/ai-analysis');
                         conversationId = await createAIAnalysisConversation({
                             userId: user.id,
                             sourceType: 'palm',

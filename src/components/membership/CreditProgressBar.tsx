@@ -7,8 +7,8 @@
 
 import { useMemo } from 'react';
 import { Clock, RefreshCw, BotMessageSquare } from 'lucide-react';
-import type { MembershipType } from '@/lib/membership';
-import { getPlanConfig } from '@/lib/membership';
+import type { MembershipType } from '@/lib/user/membership';
+import { getPlanConfig } from '@/lib/user/membership';
 
 interface CreditProgressBarProps {
     /** 当前积分 */

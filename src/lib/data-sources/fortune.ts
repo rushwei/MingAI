@@ -1,5 +1,5 @@
-import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune } from '@/lib/fortune';
-import { generateFortuneInterpretation } from '@/lib/fortune-interpretations';
+import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune } from '@/lib/divination/fortune';
+import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import type { BaziChart } from '@/types';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';

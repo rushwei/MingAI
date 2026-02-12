@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { PERSONALITY_BASICS, type MBTIType } from '@/lib/mbti';
+import { PERSONALITY_BASICS, type MBTIType } from '@/lib/divination/mbti';
 
 interface PersonalityData {
     sections: Record<string, string>;

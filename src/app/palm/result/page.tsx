@@ -12,7 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON } from '@/lib/cache';
-import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/palm';
+import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 

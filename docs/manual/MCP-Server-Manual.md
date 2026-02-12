@@ -85,10 +85,11 @@ packages/
 
 | 库 | 版本 | 用途 |
 |---|---|---|
-| `@modelcontextprotocol/sdk` | ^1.0.0 | MCP 协议实现 |
+| `@modelcontextprotocol/sdk` | 1.25.3 | MCP 协议实现 |
 | `lunar-javascript` | ^1.7.7 | 农历/八字/黄历计算 |
 | `iztro` | ^2.5.4 | 紫微斗数排盘 |
 | `express` | ^4.21.0 | HTTP 服务器 (仅线上模式) |
+| `@supabase/supabase-js` | ^2.49.4 | MCP 在线模式鉴权（基于 Supabase RPC） |
 
 ---
 
@@ -150,7 +151,10 @@ cd packages/mcp-server && pnpm start
   "mcpServers": {
     "mingai": {
       "type": "streamable-http",
-      "url": "http://localhost:3001/mcp"
+      "url": "http://localhost:3001/mcp",
+      "headers": {
+        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx"
+      }
     }
   }
 }
@@ -165,12 +169,14 @@ cd packages/mcp-server && pnpm start
       "type": "streamable-http",
       "url": "https://your-domain.zeabur.app/mcp",
       "headers": {
-        "x-api-key": "your-api-key"
+        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx"
       }
     }
   }
 }
 ```
+
+`x-api-key` 为用户级密钥，来源于 MingAI 用户页 `/user/mcp`（服务端存储在 `mcp_api_keys` 表）。
 
 配置完成后重启 MCP 客户端，即可在对话中使用命理工具。
 
@@ -819,9 +825,18 @@ echo '{
 
 | 变量 | 说明 |
 |------|------|
-| `SUPABASE_URL` | Supabase 项目地址 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key（仅服务端） |
+| `SUPABASE_URL` | Supabase 项目地址（可不填；服务会回退到 `NEXT_PUBLIC_SUPABASE_URL`） |
+| `SUPABASE_ANON_KEY` | MCP 服务端专用 anon key（可不填；回退到 `NEXT_PUBLIC_SUPABASE_ANON_KEY`） |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目地址（Docker Compose 推荐填写） |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Web 构建所需（Web）；MCP 也可直接复用 |
 | `MCP_ALLOWED_ORIGINS` | 浏览器 Origin 白名单（逗号分隔） |
+| `MCP_ALLOWED_HOSTS` | Host 白名单（可选，逗号分隔） |
+| `MCP_HOST` | MCP 监听地址，默认 `127.0.0.1`（容器建议 `0.0.0.0`） |
+| `MCP_MAX_SESSIONS` | 最大并发会话数 |
+| `MCP_SESSION_TTL_MS` | 会话生命周期（毫秒） |
+| `MCP_SESSION_IDLE_MS` | 会话空闲超时（毫秒） |
+| `MCP_MAX_SSE_PER_USER` | 每用户 SSE 并发上限 |
+| `MCP_TRUST_PROXY` | 是否信任反向代理（`true/false`） |
 | `PORT` | 服务端口，默认 3001 |
 
 **2. 本地启动线上服务器：**
@@ -844,8 +859,10 @@ cd /Users/hhs/Develop/Project/MingAI
 docker build -f packages/mcp-server/Dockerfile -t mingai-mcp-server .
 docker run -p 3001:3001 \
   -e SUPABASE_URL=https://your-project.supabase.co \
-  -e SUPABASE_SERVICE_ROLE_KEY=your-service-role-key \
+  -e SUPABASE_ANON_KEY=your-anon-key \
+  -e MCP_HOST=0.0.0.0 \
   -e MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 \
+  -e MCP_ALLOWED_HOSTS=localhost:3001,127.0.0.1:3001 \
   mingai-mcp-server
 ```
 
@@ -898,14 +915,14 @@ Web 镜像在 `next build` 阶段就需要读取 Supabase 变量。
 **解决方案：**
 ```bash
 cp .env.example .env
-# 填写 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
+# 至少填写 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
 docker compose up -d --build
 ```
 
 ### Q3: 线上服务器返回 401 错误？
 
 **解决方案：**
-确认请求头包含正确的 API Key（返回 400/404 也说明鉴权已通过，关键是不要返回 401）：
+确认请求头包含有效且未被吊销的用户级 API Key（`/user/mcp` 生成；管理员可在后台吊销）：
 ```bash
 curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d "{}" http://localhost:3001/mcp
 ```

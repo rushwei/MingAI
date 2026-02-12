@@ -4,23 +4,36 @@ import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { getServiceClient } from '@/lib/supabase-server';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export async function createRequestSupabaseClient() {
     let cookieValues: Array<{ name: string; value: string }> = [];
+    let cookieStore: Awaited<ReturnType<typeof cookies>> | null = null;
     try {
-        const cookieStore = await cookies();
+        cookieStore = await cookies();
         cookieValues = cookieStore.getAll();
     } catch {
         // 在测试环境中可能没有 Next.js request scope，此时降级为无 cookie 客户端
         cookieValues = [];
+        cookieStore = null;
     }
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {
                     return cookieValues;
+                },
+                setAll(cookiesToSet) {
+                    if (!cookieStore) return;
+                    try {
+                        for (const { name, value, options } of cookiesToSet) {
+                            cookieStore.set(name, value, options);
+                        }
+                    } catch {
+                        // 在只读 cookies 上下文（如部分 Server Component）中忽略写入
+                    }
                 },
             },
         }
@@ -32,12 +45,12 @@ export async function getAuthContext(request: NextRequest): Promise<{
     supabase: Awaited<ReturnType<typeof createRequestSupabaseClient>>;
     user: User | null;
 }> {
-    const supabase = await createRequestSupabaseClient();
     const bearer = request.headers.get('authorization');
-    const token = bearer?.replace(/Bearer\s+/i, '');
-    const { data: { user } } = token
-        ? await supabase.auth.getUser(token)
-        : await supabase.auth.getUser();
+    const bearerToken = bearer?.replace(/Bearer\s+/i, '');
+    const cookieToken = request.cookies.get('sb-access-token')?.value;
+    const token = bearerToken || cookieToken;
+    const supabase = token ? createAuthedClient(token) : await createRequestSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
     return { supabase, user: user ?? null };
 }
 
@@ -51,14 +64,13 @@ export async function requireBearerUser(
     }
 
     const token = authHeader.replace(/Bearer\s+/i, '');
-    const authClient = process.env.NODE_ENV === 'test' || !process.env.NODE_ENV
+    const useMockClient = process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
+    const authClient = useMockClient
         ? (await import('@/lib/supabase')).supabase
-        : createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { auth: { persistSession: false } }
-        );
-    const { data: { user }, error } = await authClient.auth.getUser(token);
+        : createAuthedClient(token);
+    const { data: { user }, error } = useMockClient
+        ? await authClient.auth.getUser(token)
+        : await authClient.auth.getUser();
     if (error || !user) {
         return { error: { message: '认证失败', status: 401 } };
     }
@@ -82,11 +94,10 @@ export async function requireUserContext(
 export async function requireAdminUser(
     request: NextRequest
 ): Promise<{ user: User } | { error: { message: string; status: number } }> {
-    const authResult = await requireBearerUser(request);
+    const authResult = await requireUserContext(request);
     if ('error' in authResult) return authResult;
 
-    const serviceClient = getServiceClient();
-    const { data: userData, error } = await serviceClient
+    const { data: userData, error } = await authResult.supabase
         .from('users')
         .select('is_admin')
         .eq('id', authResult.user.id)
@@ -112,8 +123,7 @@ export async function requireAdminContext(
     const authResult = await requireUserContext(request);
     if ('error' in authResult) return authResult;
 
-    const serviceClient = getServiceClient();
-    const { data: userData, error } = await serviceClient
+    const { data: userData, error } = await authResult.supabase
         .from('users')
         .select('is_admin')
         .eq('id', authResult.user.id)
@@ -134,17 +144,35 @@ export function getServiceRoleClient() {
     return getServiceClient();
 }
 
+export function createAnonClient() {
+    return createClient(
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false,
+            },
+        }
+    );
+}
+
 /**
  * 创建带有用户 access token 的 Supabase 客户端
  * 用于需要 RLS 策略识别用户身份的场景
  */
 export function createAuthedClient(accessToken: string) {
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             global: { headers: { Authorization: `Bearer ${accessToken}` } },
-            auth: { persistSession: false }
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false,
+            }
         }
     );
 }

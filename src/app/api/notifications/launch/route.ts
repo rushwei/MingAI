@@ -109,21 +109,17 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        const emailResults = await Promise.all(
-            Array.from(emailTargets).map(async (userId) => {
-                const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-                if (error) {
-                    console.error('获取用户邮箱失败:', error);
-                    return { userId, email: null };
-                }
-                return { userId, email: data?.user?.email ?? null };
-            })
-        );
+        const { data: emailRows, error: emailError } = await supabaseAdmin.rpc('admin_get_auth_user_emails', {
+            p_user_ids: Array.from(emailTargets),
+        });
+        if (emailError) {
+            console.error('获取用户邮箱失败:', emailError);
+        }
 
         const userEmailMap = new Map(
-            emailResults
-                .filter(result => !!result.email)
-                .map(result => [result.userId, result.email as string])
+            ((emailRows as Array<{ user_id: string; email: string | null }> | null) || [])
+                .filter(row => !!row.email)
+                .map(row => [row.user_id, row.email as string])
         );
         const missingEmailCount = Array.from(emailTargets)
             .filter(userId => !userEmailMap.has(userId)).length;

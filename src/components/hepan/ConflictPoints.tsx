@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { AlertTriangle, AlertCircle, Info, ChevronDown, MessageCircle, Shield, Lightbulb, CheckCircle2 } from 'lucide-react';
-import { type ConflictPoint, type HepanType } from '@/lib/hepan';
+import { type ConflictPoint, type HepanType } from '@/lib/divination/hepan';
 import { getCommunicationTemplate, getSeverityAdvice, type CommunicationTemplate } from '@/lib/communication-templates';
 
 interface ConflictPointsProps {

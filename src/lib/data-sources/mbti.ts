@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { PERSONALITY_BASICS } from '@/lib/mbti';
+import { PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type MbtiRow = {

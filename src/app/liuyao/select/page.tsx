@@ -9,21 +9,29 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, Grid3X3, Layers } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 import { HexagramSelector } from '@/components/liuyao/HexagramSelector';
 import { TrigramSelector } from '@/components/liuyao/TrigramSelector';
 import { ChangingLinesSelector } from '@/components/liuyao/ChangingLinesSelector';
+import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import {
     findHexagram,
     calculateChangedHexagram,
     type Yao,
-} from '@/lib/liuyao';
+    type LiuQin,
+} from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/supabase';
-import { writeSessionJSON } from '@/lib/cache';
+import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 
 type SelectMode = 'list' | 'trigram';
+type LiuyaoQuestionSession = {
+    question: string;
+    yongShenTargets: LiuQin[];
+};
 
 export default function SelectHexagramPage() {
     const router = useRouter();
+    const { showToast } = useToast();
 
     // 选择方式
     const [selectMode, setSelectMode] = useState<SelectMode>('list');
@@ -39,10 +47,28 @@ export default function SelectHexagramPage() {
     const [changedPositions, setChangedPositions] = useState<number[]>([]);
 
     // 问题
-    const [question, setQuestion] = useState('');
+    const [question] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        const payload = readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question');
+        if (!payload) return '';
+        if (typeof payload === 'string') return payload;
+        return payload.question || '';
+    });
+    const [yongShenTargets, setYongShenTargets] = useState<LiuQin[]>(() => {
+        if (typeof window === 'undefined') return [];
+        const payload = readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question');
+        if (!payload || typeof payload === 'string') return [];
+        return Array.isArray(payload.yongShenTargets) ? payload.yongShenTargets : [];
+    });
 
     // 加载状态
     const [isLoading, setIsLoading] = useState(false);
+    const requiresYongShenTargets = question.trim().length > 0;
+
+    const handleYongShenTargetsChange = (targets: LiuQin[]) => {
+        setYongShenTargets(targets);
+        writeSessionJSON('liuyao_question', { question, yongShenTargets: targets });
+    };
 
     // 计算当前有效的卦码
     const effectiveCode = useMemo(() => {
@@ -76,6 +102,10 @@ export default function SelectHexagramPage() {
     // 生成卦象
     const handleGenerate = async () => {
         if (!effectiveCode || !currentHexagram) return;
+        if (requiresYongShenTargets && yongShenTargets.length === 0) {
+            showToast('error', '请至少选择一个分析目标');
+            return;
+        }
 
         setIsLoading(true);
 
@@ -104,6 +134,7 @@ export default function SelectHexagramPage() {
                         body: JSON.stringify({
                             action: 'save',
                             question,
+                            yongShenTargets,
                             yaos,
                             changedHexagram,
                             changedLines,
@@ -121,6 +152,7 @@ export default function SelectHexagramPage() {
             // 构建结果
             const result = {
                 question,
+                yongShenTargets,
                 yaos,
                 hexagram: currentHexagram,
                 changedHexagram,
@@ -168,6 +200,17 @@ export default function SelectHexagramPage() {
                 </div>
 
                 <div className="sm:space-y-6 space-y-3">
+                    {requiresYongShenTargets && yongShenTargets.length === 0 && (
+                        <div className="bg-white/[0.02] border border-red-500/30 rounded-xl p-4">
+                            <div className="text-sm text-red-500 mb-2">必须先选择分析目标</div>
+                            <YongShenTargetPicker
+                                value={yongShenTargets}
+                                onChange={handleYongShenTargetsChange}
+                                variant="block"
+                            />
+                        </div>
+                    )}
+
                     {/* 选择方式切换 */}
                     <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
                         <button
@@ -193,6 +236,9 @@ export default function SelectHexagramPage() {
                             上下卦组合
                         </button>
                     </div>
+                    <p className="text-xs text-foreground-secondary px-1">
+                        64 卦列表适合直接选已知卦名；上下卦组合适合按外卦/内卦组合推得本卦。
+                    </p>
 
                     {/* 卦选择区域 */}
                     <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
@@ -235,6 +281,9 @@ export default function SelectHexagramPage() {
                             value={changedPositions}
                             onChange={setChangedPositions}
                         />
+                        <p className="mt-2 text-xs text-foreground-secondary">
+                            变爻可多选；不选表示静卦，适合仅看当前态势。
+                        </p>
 
                         {/* 变卦显示 */}
                         {changedInfo?.changedHexagram && (
@@ -246,22 +295,6 @@ export default function SelectHexagramPage() {
                                 </span>
                             </div>
                         )}
-                    </div>
-
-                    {/* 问题输入 */}
-                    <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4 max-sm:pt-0">
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                            所问之事（选填）
-                        </label>
-                        <input
-                            type="text"
-                            value={question}
-                            onChange={(e) => setQuestion(e.target.value)}
-                            placeholder="例如：这次合作能否顺利？"
-                            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm
-                                focus:border-accent focus:outline-none focus:ring-0
-                                placeholder:text-foreground-tertiary"
-                        />
                     </div>
 
                     {/* 生成按钮 */}

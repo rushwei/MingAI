@@ -1,1 +1,1 @@
-{"version":3,"file":"fortune.d.ts","sourceRoot":"","sources":["../../src/handlers/fortune.ts"],"names":[],"mappings":"AAAA;;GAEG;AAGH,OAAO,KAAK,EAAE,YAAY,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAkG/D,wBAAsB,kBAAkB,CAAC,KAAK,EAAE,YAAY,GAAG,OAAO,CAAC,aAAa,CAAC,CAqFpF"}
+{"version":3,"file":"fortune.d.ts","sourceRoot":"","sources":["../../src/handlers/fortune.ts"],"names":[],"mappings":"AAAA;;GAEG;AAGH,OAAO,KAAK,EAAE,YAAY,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAkG/D,wBAAsB,kBAAkB,CAAC,KAAK,EAAE,YAAY,GAAG,OAAO,CAAC,aAAa,CAAC,CAsFpF"}

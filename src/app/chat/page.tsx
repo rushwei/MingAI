@@ -15,14 +15,14 @@ import { ANONYMOUS_DISPLAY_NAME } from '@/types';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { VirtualizedChatMessageList } from '@/components/chat/VirtualizedChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { BaziChartSelector, type SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
-import { usePaymentPause } from '@/lib/usePaymentPause';
+import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
@@ -33,12 +33,12 @@ import {
     saveConversation,
     deleteConversation,
     renameConversation,
-} from '@/lib/conversation';
+} from '@/lib/chat/conversation';
 import { supabase } from '@/lib/supabase';
-import { getMembershipInfo, type MembershipInfo } from '@/lib/membership';
-import { buildDraftTitle } from '@/lib/draft-title';
-import { isNearBottom } from '@/lib/chat-scroll';
-import { chatStreamManager } from '@/lib/chat-stream-manager';
+import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
+import { buildDraftTitle } from '@/lib/chat/draft-title';
+import { isNearBottom } from '@/lib/chat/chat-scroll';
+import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 
 
 // AI 生成对话标题（使用专用 API，不消耗积分）
@@ -293,7 +293,7 @@ export default function ChatPage() {
             .select('id, name, description')
             .eq('user_id', id)
             .in('id', kbIds);
-        const kbMap = new Map((kbs || []).map(kb => [kb.id, kb]));
+        const kbMap = new Map((kbs || []).map((kb: { id: string; name: string; description: string | null }) => [kb.id, kb]));
         const ordered = kbIds.map(kbId => kbMap.get(kbId)).filter(Boolean) as Array<{ id: string; name: string; description: string | null }>;
         setPromptKnowledgeBases(ordered);
     }, [userId]);

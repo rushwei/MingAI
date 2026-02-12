@@ -4,7 +4,6 @@
  * 提供邮箱登录、注册、登出等功能
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -17,19 +16,6 @@ export type AuthResult = {
     success: boolean;
     error?: AuthError;
 };
-
-// 使用非持久化客户端处理重置密码，避免 recovery 验证触发全局登录状态变化。
-const resetPasswordClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-            detectSessionInUrl: false,
-        },
-    }
-);
 
 /**
  * 邮箱登录
@@ -357,38 +343,46 @@ export async function resetPasswordWithOTP(
     token: string,
     newPassword: string
 ): Promise<AuthResult> {
-    const { error: verifyError } = await resetPasswordClient.auth.verifyOtp({
-        email,
-        token,
-        type: 'recovery',
-    });
+    try {
+        const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                action: 'resetPasswordWithOtp',
+                email,
+                token,
+                newPassword,
+            }),
+        });
 
-    if (verifyError) {
+        const payload = await response.json().catch(() => null) as {
+            error?: { message?: string; code?: string } | null;
+        } | null;
+
+        if (!response.ok || payload?.error) {
+            const message = payload?.error?.message || '重置密码失败，请重试';
+            return {
+                success: false,
+                error: {
+                    message: getErrorMessage(message),
+                    code: payload?.error?.code || message,
+                },
+            };
+        }
+
+        return { success: true };
+    } catch {
         return {
             success: false,
             error: {
-                message: getErrorMessage(verifyError.message),
-                code: verifyError.message,
+                message: '重置密码失败，请重试',
+                code: 'RESET_PASSWORD_FAILED',
             },
         };
     }
-
-    const { error: updateError } = await resetPasswordClient.auth.updateUser({
-        password: newPassword,
-    });
-
-    if (updateError) {
-        return {
-            success: false,
-            error: {
-                message: getErrorMessage(updateError.message),
-                code: updateError.message,
-            },
-        };
-    }
-
-    await resetPasswordClient.auth.signOut();
-    return { success: true };
 }
 
 /**
@@ -407,7 +401,7 @@ export async function checkLoginAttempts(email: string): Promise<{ blocked: bool
         return { blocked: false, remainingAttempts: maxAttempts };
     }
 
-    const failedAttempts = data?.[0]?.failed_count || 0;
+    const failedAttempts = (data as Array<{ failed_count: number }> | null)?.[0]?.failed_count || 0;
 
     return {
         blocked: failedAttempts >= maxAttempts,
