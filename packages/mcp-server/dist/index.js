@@ -68,6 +68,24 @@ if (isOAuthDebugEnabled()) {
         }
         next();
     });
+    // ─── MCP 请求日志（调试用）───
+    app.use((req, res, next) => {
+        if (req.path !== '/' && req.path !== '/mcp') {
+            return next();
+        }
+        const accept = req.headers.accept ?? 'none';
+        const hasAuth = typeof req.headers.authorization === 'string' || typeof req.headers['x-api-key'] === 'string';
+        const sessionId = typeof req.headers['mcp-session-id'] === 'string' ? req.headers['mcp-session-id'] : '';
+        const protocolVersion = typeof req.headers['mcp-protocol-version'] === 'string'
+            ? req.headers['mcp-protocol-version']
+            : '';
+        const sessionMark = sessionId ? ` session=${sessionId.slice(0, 8)}...` : '';
+        const protocolMark = protocolVersion ? ` proto=${protocolVersion}` : '';
+        res.on('finish', () => {
+            console.log(`[MCP:req] ${req.method} ${req.path} status=${res.statusCode} accept=${accept} auth=${hasAuth ? 'yes' : 'no'}${sessionMark}${protocolMark}`);
+        });
+        next();
+    });
 }
 // ─── OAuth 路由（必须在 app root 且在 express.json 之前）───
 // mcpAuthRouter 内部自带 express.urlencoded 解析
@@ -196,8 +214,8 @@ app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, re
     }
 });
 app.use(express.json({ limit: '1mb' }));
-// 兼容某些客户端/网关刷新连接时探测根路径
-app.get('/', (_req, res) => {
+// 信息端点（便于手工检查服务可用性）
+app.get('/info', (_req, res) => {
     res.status(200).json({
         name: 'MingAI MCP Server',
         status: 'ok',
@@ -346,8 +364,7 @@ async function handleStatelessRequest(req, res, auth, parsedBody) {
         }
     }
 }
-// Streamable HTTP - POST: 初始化或会话消息
-app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, async (req, res) => {
+const handleMcpPost = async (req, res) => {
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     // 已有会话：复用 transport
@@ -417,9 +434,8 @@ app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, 
         }
         throw error;
     }
-});
-// Streamable HTTP - GET: 建立/恢复 SSE 流
-app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, async (req, res) => {
+};
+const handleMcpGet = async (req, res) => {
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     if (!sessionId) {
@@ -435,9 +451,8 @@ app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, r
     }
     session.lastActivityAt = Date.now();
     await session.transport.handleRequest(req, res);
-});
-// Streamable HTTP - DELETE: 关闭会话
-app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, async (req, res) => {
+};
+const handleMcpDelete = async (req, res) => {
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     if (!sessionId) {
@@ -453,7 +468,15 @@ app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth
     }
     session.lastActivityAt = Date.now();
     await session.transport.handleRequest(req, res, req.body);
-});
+};
+// Streamable HTTP - canonical MCP path
+app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
+app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
+app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
+// Streamable HTTP - root path compatibility alias
+app.post('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
+app.get('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
+app.delete('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
 // 启动服务器
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.MCP_HOST || '127.0.0.1';

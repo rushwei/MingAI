@@ -31,8 +31,8 @@ test('mcp server entry should provide root and metadata compatibility routes', a
   const source = await readFile(entryPath, 'utf-8');
 
   assert.ok(
-    source.includes("app.get('/',"),
-    'should provide a root route for connector refresh compatibility'
+    source.includes("app.get('/info'"),
+    'should provide an info route for manual server checks'
   );
   assert.ok(
     source.includes("app.get('/.well-known/openid-configuration'"),
@@ -45,6 +45,10 @@ test('mcp server entry should provide root and metadata compatibility routes', a
   assert.ok(
     source.includes("app.get('/.well-known/oauth-protected-resource'"),
     'should provide root protected-resource metadata compatibility'
+  );
+  assert.ok(
+    source.includes("app.get('/', originValidationMiddleware"),
+    'should mount root path as MCP compatibility alias'
   );
 });
 

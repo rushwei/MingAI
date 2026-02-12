@@ -153,6 +153,7 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
     const headers = {
       'x-api-key': 'sk-mcp-mingai-test-key',
       'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
     };
 
     const firstResponse = await fetch(requestUrl, {
