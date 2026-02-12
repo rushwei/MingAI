@@ -87,6 +87,41 @@ test('verifyAccessToken should accept token with configured audience', async () 
   );
 });
 
+test('getAllowedTokenAudiences should keep /mcp resource compatibility when env only contains issuer', async () => {
+  await withEnv(
+    {
+      MCP_ISSUER_URL: 'https://mcp.mingai.fun',
+      MCP_ALLOWED_TOKEN_AUDIENCES: 'https://mcp.mingai.fun',
+    },
+    async () => {
+      const { getAllowedTokenAudiences } = await importDist('oauth/jwt.js');
+      const { validateOAuthLoginRequest } = await importDist('oauth/login-validation.js');
+
+      const audiences = getAllowedTokenAudiences(new URL('https://mcp.mingai.fun'));
+      assert.ok(
+        audiences.includes('https://mcp.mingai.fun/mcp'),
+        'audience list should include issuer/mcp for resourceServerUrl compatibility'
+      );
+
+      const result = validateOAuthLoginRequest({
+        client: {
+          client_id: 'client-1',
+          redirect_uris: ['https://chat.openai.com/aip/mcp/callback'],
+          scope: 'mcp:tools',
+        },
+        redirectUri: 'https://chat.openai.com/aip/mcp/callback',
+        scope: 'mcp:tools',
+        resource: 'https://mcp.mingai.fun/mcp',
+        issuerUrl: new URL('https://mcp.mingai.fun'),
+        allowedAudiences: audiences,
+      });
+
+      assert.equal(result.ok, true);
+      assert.equal(result.value.resource, 'https://mcp.mingai.fun/mcp');
+    }
+  );
+});
+
 test('validateOAuthLoginRequest should reject tampered redirect_uri/scope/resource', async () => {
   const { validateOAuthLoginRequest } = await importDist('oauth/login-validation.js');
 

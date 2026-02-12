@@ -98,6 +98,19 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
       return;
     }
 
+    if (req.method === 'POST' && requestUrl.startsWith('/auth/v1/token')) {
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        access_token: 'system-admin-access-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        refresh_token: 'system-admin-refresh-token',
+        user: { id: 'system-admin-user' },
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+      }));
+      return;
+    }
+
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'not found' }));
   });
@@ -121,6 +134,8 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
       MCP_HOST: '127.0.0.1',
       SUPABASE_URL: `http://127.0.0.1:${supabasePort}`,
       SUPABASE_ANON_KEY: 'test-anon-key',
+      SUPABASE_SYSTEM_ADMIN_EMAIL: 'admin@example.com',
+      SUPABASE_SYSTEM_ADMIN_PASSWORD: 'admin-password',
       MCP_ALLOWED_HOSTS: `127.0.0.1:${mcpPort}`,
     },
     stdio: ['ignore', 'ignore', 'pipe'],

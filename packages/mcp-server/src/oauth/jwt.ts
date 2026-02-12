@@ -36,19 +36,24 @@ export function getAllowedTokenAudiences(issuerInput?: string | URL): string[] {
     ? normalizeAudience(issuerInput.toString()) ?? getIssuer()
     : getIssuer();
 
+  const defaults: string[] = [
+    issuer,
+    (() => {
+      try {
+        return new URL('/mcp', issuer).href;
+      } catch {
+        return issuer;
+      }
+    })(),
+  ];
+
   const envValue = process.env.MCP_ALLOWED_TOKEN_AUDIENCES;
   const candidates = envValue?.trim()
-    ? envValue.split(',').map((item) => item.trim()).filter(Boolean)
-    : [
-        issuer,
-        (() => {
-          try {
-            return new URL('/mcp', issuer).href;
-          } catch {
-            return issuer;
-          }
-        })(),
-      ];
+    ? [
+        ...defaults,
+        ...envValue.split(',').map((item) => item.trim()).filter(Boolean),
+      ]
+    : defaults;
 
   const set = new Set<string>();
   for (const candidate of candidates) {

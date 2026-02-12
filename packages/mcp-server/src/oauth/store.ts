@@ -8,40 +8,49 @@ import crypto from 'crypto';
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import { getSupabaseClient } from '../supabase.js';
+import { oauthDebug, oauthError, oauthWarn } from './logger.js';
 
 // ─── Client Store（SDK 接口）───
 
 export class MingAIClientsStore implements OAuthRegisteredClientsStore {
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('mcp_oauth_clients')
-      .select('*')
-      .eq('client_id', clientId)
-      .maybeSingle();
+    let data: Record<string, unknown> | null = null;
+    let error: { message?: string; code?: string } | null = null;
+
+    try {
+      const supabase = getSupabaseClient();
+      const result = await supabase
+        .from('mcp_oauth_clients')
+        .select('*')
+        .eq('client_id', clientId)
+        .maybeSingle();
+      data = result.data as Record<string, unknown> | null;
+      error = result.error;
+    } catch (cause) {
+      throw new Error(`Failed to query OAuth client store: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
 
     if (error) {
-      console.error(`[OAuth] getClient error for ${clientId}:`, error.message, error.code);
-      return undefined;
+      throw new Error(`Failed to query OAuth client store: ${error.message ?? 'unknown error'} (${error.code ?? 'n/a'})`);
     }
     if (!data) {
-      console.warn(`[OAuth] getClient: no client found for ${clientId}`);
+      oauthWarn('getClient: no client found');
       return undefined;
     }
 
     return {
-      client_id: data.client_id,
-      client_secret: data.client_secret ?? undefined,
-      client_id_issued_at: data.client_id_issued_at ?? undefined,
-      client_secret_expires_at: data.client_secret_expires_at ?? undefined,
+      client_id: data.client_id as string,
+      client_secret: (data.client_secret as string | null) ?? undefined,
+      client_id_issued_at: (data.client_id_issued_at as number | null) ?? undefined,
+      client_secret_expires_at: (data.client_secret_expires_at as number | null) ?? undefined,
       redirect_uris: data.redirect_uris as string[],
-      grant_types: data.grant_types ?? undefined,
-      response_types: data.response_types ?? undefined,
-      token_endpoint_auth_method: data.token_endpoint_auth_method ?? undefined,
-      client_name: data.client_name ?? undefined,
-      client_uri: data.client_uri ?? undefined,
-      logo_uri: data.logo_uri ?? undefined,
-      scope: data.scope ?? undefined,
+      grant_types: (data.grant_types as string[] | null) ?? undefined,
+      response_types: (data.response_types as string[] | null) ?? undefined,
+      token_endpoint_auth_method: (data.token_endpoint_auth_method as string | null) ?? undefined,
+      client_name: (data.client_name as string | null) ?? undefined,
+      client_uri: (data.client_uri as string | null) ?? undefined,
+      logo_uri: (data.logo_uri as string | null) ?? undefined,
+      scope: (data.scope as string | null) ?? undefined,
     } as OAuthClientInformationFull;
   }
 
@@ -68,15 +77,15 @@ export class MingAIClientsStore implements OAuthRegisteredClientsStore {
       scope: clientData.scope ?? null,
     };
 
-    console.log(`[OAuth] registerClient: inserting client_id=${clientId}, name=${row.client_name}`);
+    oauthDebug('registerClient called');
 
     const { error } = await supabase.from('mcp_oauth_clients').insert(row);
     if (error) {
-      console.error(`[OAuth] registerClient INSERT failed: ${error.message} (code=${error.code})`);
+      oauthError(`registerClient failed (${error.code ?? 'n/a'})`, error.message);
       throw new Error(`Failed to register client: ${error.message}`);
     }
 
-    console.log(`[OAuth] registerClient: success client_id=${clientId}`);
+    oauthDebug('registerClient succeeded');
 
     return {
       ...clientData,
@@ -121,7 +130,7 @@ export async function saveAuthorizationCode(params: {
   const code = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 分钟
 
-  console.log(`[OAuth] saveAuthorizationCode: client_id=${params.clientId}, userId=${params.userId}`);
+  oauthDebug('saveAuthorizationCode called');
 
   const { error } = await supabase.from('mcp_oauth_codes').insert({
     code,
@@ -136,10 +145,10 @@ export async function saveAuthorizationCode(params: {
   });
 
   if (error) {
-    console.error(`[OAuth] saveAuthorizationCode INSERT failed: ${error.message} (code=${error.code})`);
+    oauthError(`saveAuthorizationCode failed (${error.code ?? 'n/a'})`, error.message);
     throw new Error(`Failed to save auth code: ${error.message}`);
   }
-  console.log(`[OAuth] saveAuthorizationCode: success code=${code.slice(0, 8)}...`);
+  oauthDebug('saveAuthorizationCode succeeded');
   return code;
 }
 
@@ -171,7 +180,7 @@ export async function consumeAuthorizationCodeAtomically(
   code: string,
   supabase: SupabaseFromOnly = getSupabaseClient(),
 ): Promise<StoredAuthCode | null> {
-  console.log(`[OAuth] consumeAuthCode: code=${code.slice(0, 8)}...`);
+  oauthDebug('consumeAuthorizationCodeAtomically called');
   // 单条 UPDATE + 条件过滤，避免并发重放。
   const { data, error } = await supabase
     .from('mcp_oauth_codes')
@@ -183,14 +192,14 @@ export async function consumeAuthorizationCodeAtomically(
     .maybeSingle();
 
   if (error) {
-    console.error(`[OAuth] consumeAuthCode: query error - ${error.message} (code=${error.code})`);
+    oauthError(`consumeAuthorizationCodeAtomically query failed (${error.code ?? 'n/a'})`, error.message);
     return null;
   }
   if (!data) {
-    console.warn(`[OAuth] consumeAuthCode: no matching code (expired/used/not found)`);
+    oauthWarn('consumeAuthorizationCodeAtomically: no matching code');
     return null;
   }
-  console.log(`[OAuth] consumeAuthCode: success, client_id=${data.client_id}, user_id=${data.user_id}`);
+  oauthDebug('consumeAuthorizationCodeAtomically succeeded');
   return toStoredAuthCode(data);
 }
 

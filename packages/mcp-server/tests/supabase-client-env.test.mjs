@@ -17,3 +17,12 @@ test('mcp server supabase client should use anon key instead of service role key
     'should not depend on SUPABASE_SERVICE_ROLE_KEY'
   );
 });
+
+test('mcp server supabase client should fail fast when system admin credentials are missing', async () => {
+  const source = await readFile(supabasePath, 'utf-8');
+
+  assert.ok(
+    source.includes('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD'),
+    'missing system admin credentials should have an explicit fail-fast error message'
+  );
+});

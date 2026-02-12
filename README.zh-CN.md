@@ -89,6 +89,17 @@ docker compose -f docker-compose.mcp.yml up -d --build
 - Web: `3000` （[http://localhost:3000](http://localhost:3000)）
 - MCP: `3001`
 
+#### MCP OAuth 认证（推荐）
+
+适用于支持 MCP OAuth 的客户端（如 ChatGPT / Claude 等）：
+
+1. 在 MCP 客户端新增 Streamable HTTP 服务，地址填写 `https://mcp.mingai.fun/mcp`。
+2. 无需填写 `x-api-key`，直接点击连接/授权（Authorize）。
+3. 客户端会跳转到 MingAI 授权页，使用已创建的 MingAI 账号登录并确认授权。
+4. 授权成功后会自动回跳，后续请求使用 OAuth access token 访问。
+
+如果你的 MCP 客户端暂不支持 OAuth，可继续使用下方MCP配置在线服务。
+
 ### MCP 配置 (Streamable HTTP)
 
 ```json

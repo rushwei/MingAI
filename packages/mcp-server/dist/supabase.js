@@ -10,7 +10,6 @@ let authClient = null;
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
 let tokenPromise = null;
-let hasWarnedMissingSystemSession = false;
 function getUrl() {
     const url = process.env.SUPABASE_URL;
     if (!url)
@@ -31,17 +30,23 @@ function getSystemAuthClient() {
     });
     return authClient;
 }
-async function signInSystemAdmin() {
+function getSystemAdminCredentials() {
     const email = process.env.SUPABASE_SYSTEM_ADMIN_EMAIL;
     const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
     if (!email || !password) {
-        return null;
+        throw new Error('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
     }
+    return { email, password };
+}
+async function signInSystemAdmin() {
+    const creds = getSystemAdminCredentials();
     const client = getSystemAuthClient();
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    const { data, error } = await client.auth.signInWithPassword({
+        email: creds.email,
+        password: creds.password,
+    });
     if (error || !data.session) {
-        console.error('[supabase] Failed to sign in system admin:', error);
-        return null;
+        throw new Error(`Failed to sign in system admin: ${error?.message ?? 'unknown error'}`);
     }
     return data.session;
 }
@@ -54,8 +59,6 @@ async function getSystemAccessToken() {
         return tokenPromise;
     tokenPromise = (async () => {
         const session = await signInSystemAdmin();
-        if (!session)
-            return null;
         cachedAccessToken = session.access_token;
         cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
         return cachedAccessToken;
@@ -85,14 +88,7 @@ export function getSupabaseClient() {
         return serviceClient;
     serviceClient = createClient(getUrl(), getAnonKey(), {
         auth: { persistSession: false, autoRefreshToken: false },
-        accessToken: async () => {
-            const token = await getSystemAccessToken();
-            if (!token && !hasWarnedMissingSystemSession) {
-                hasWarnedMissingSystemSession = true;
-                console.warn('[supabase] Missing SUPABASE_SYSTEM_ADMIN_EMAIL/PASSWORD, queries may fail with RLS');
-            }
-            return token;
-        },
+        accessToken: async () => getSystemAccessToken(),
     });
     return serviceClient;
 }

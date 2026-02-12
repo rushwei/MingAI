@@ -42,7 +42,8 @@ import { saveAuthorizationCode } from './oauth/store.js';
 import { renderAuthorizePage } from './oauth/authorize-page.js';
 import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
-import { getSupabaseClient, getSupabaseAuthClient } from './supabase.js';
+import { isOAuthDebugEnabled, oauthError } from './oauth/logger.js';
+import { getSupabaseAuthClient } from './supabase.js';
 // ─── 会话管理配置 ───
 const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
 const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
@@ -59,21 +60,24 @@ if (process.env.MCP_TRUST_PROXY === 'true') {
   app.set('trust proxy', true);
 }
 
-// ─── OAuth 请求日志（调试用）───
-app.use((req, _res, next) => {
-  const oauthPaths = ['/register', '/token', '/authorize', '/revoke', '/.well-known/'];
-  const isOAuth = oauthPaths.some((p) => req.path.startsWith(p));
-  if (isOAuth) {
-    console.log(`[OAuth:req] ${req.method} ${req.path} from=${req.ip} content-type=${req.headers['content-type'] || 'none'}`);
-  }
-  next();
-});
+if (isOAuthDebugEnabled()) {
+  // ─── OAuth 请求日志（调试用）───
+  app.use((req, _res, next) => {
+    const oauthPaths = ['/register', '/token', '/authorize', '/revoke', '/.well-known/'];
+    const isOAuth = oauthPaths.some((p) => req.path.startsWith(p));
+    if (isOAuth) {
+      console.log(`[OAuth:req] ${req.method} ${req.path}`);
+    }
+    next();
+  });
+}
 
 // ─── OAuth 路由（必须在 app root 且在 express.json 之前）───
 // mcpAuthRouter 内部自带 express.urlencoded 解析
 app.use(mcpAuthRouter({
   provider: oauthProvider,
   issuerUrl,
+  resourceServerUrl: new URL('/mcp', issuerUrl),
   scopesSupported: ['mcp:tools'],
   resourceName: 'MingAI MCP Server',
   // 禁用 SDK 内置限流，使用我们自己的
@@ -106,7 +110,13 @@ app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, re
   }
 
   // 验证客户端
-  const client = await oauthProvider.clientsStore.getClient(client_id);
+  let client;
+  try {
+    client = await oauthProvider.clientsStore.getClient(client_id);
+  } catch (error) {
+    oauthError('OAuth client lookup failed', error);
+    return res.status(500).json({ error: 'OAuth service unavailable' });
+  }
   if (!client) {
     return res.status(400).json({ error: 'Invalid client_id' });
   }
