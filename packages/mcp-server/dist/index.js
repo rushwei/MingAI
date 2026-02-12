@@ -311,6 +311,41 @@ function createMcpServer(auth) {
     });
     return server;
 }
+async function handleStatelessRequest(req, res, auth, parsedBody) {
+    const server = createMcpServer(auth);
+    const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+    });
+    transport.onclose = () => {
+        void server.close().catch(() => { });
+    };
+    transport.onerror = () => {
+        void server.close().catch(() => { });
+    };
+    try {
+        await server.connect(transport);
+        await transport.handleRequest(req, res, parsedBody);
+    }
+    catch (error) {
+        await server.close().catch(() => { });
+        if (!res.headersSent) {
+            return res.status(500).json({
+                jsonrpc: '2.0',
+                error: {
+                    code: -32603,
+                    message: 'Internal server error',
+                },
+                id: null,
+            });
+        }
+        throw error;
+    }
+    finally {
+        if (req.method !== 'GET') {
+            await server.close().catch(() => { });
+        }
+    }
+}
 // Streamable HTTP - POST: 初始化或会话消息
 app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, async (req, res) => {
     const sessionId = getSessionIdHeader(req);
@@ -328,16 +363,10 @@ app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, 
         await existing.transport.handleRequest(req, res, req.body);
         return;
     }
-    // 新建会话必须是 initialize 请求
-    if (!isInitializeRequest(req.body)) {
-        return res.status(400).json({
-            jsonrpc: '2.0',
-            error: {
-                code: -32000,
-                message: 'Bad Request: No valid session ID provided',
-            },
-            id: null,
-        });
+    // 兼容无 session-id 的 stateless 客户端（例如部分 MCP 集成实现）
+    if (!sessionId && !isInitializeRequest(req.body)) {
+        await handleStatelessRequest(req, res, auth, req.body);
+        return;
     }
     // 会话上限检查
     if (sessions.size >= MAX_TOTAL_SESSIONS) {
@@ -394,7 +423,8 @@ app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, r
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     if (!sessionId) {
-        return res.status(400).json({ error: 'Missing mcp-session-id header' });
+        await handleStatelessRequest(req, res, auth);
+        return;
     }
     const session = sessions.get(sessionId);
     if (!session) {
@@ -411,7 +441,8 @@ app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     if (!sessionId) {
-        return res.status(400).json({ error: 'Missing mcp-session-id header' });
+        await handleStatelessRequest(req, res, auth, req.body);
+        return;
     }
     const session = sessions.get(sessionId);
     if (!session) {
