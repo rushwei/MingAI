@@ -98,7 +98,7 @@ docker compose -f docker-compose.mcp.yml up -d --build
       "type": "streamable-http",
       "url": "http://localhost:3001/mcp", // 支持配置在线服务 https://mcp.mingai.fun/mcp
       "headers": {
-        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx"
+        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx" // 前往 https://mingai.fun 注册获取
       }
     }
   }

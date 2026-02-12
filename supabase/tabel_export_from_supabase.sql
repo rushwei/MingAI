@@ -313,6 +313,18 @@ CREATE TABLE public.mbti_readings (
   CONSTRAINT mbti_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT mbti_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
+CREATE TABLE public.mcp_api_keys (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  key_code text NOT NULL UNIQUE,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_used_at timestamp with time zone,
+  reset_count integer NOT NULL DEFAULT 0,
+  is_banned boolean NOT NULL DEFAULT false,
+  CONSTRAINT mcp_api_keys_pkey PRIMARY KEY (id),
+  CONSTRAINT mcp_api_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.ming_notes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,

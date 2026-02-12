@@ -98,7 +98,7 @@ Default ports:
       "type": "streamable-http",
       "url": "http://localhost:3001/mcp", // You can also use https://mcp.mingai.fun/mcp
       "headers": {
-        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx"
+        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx" // Go to https://mingai.fun to register and obtain
       }
     }
   }
