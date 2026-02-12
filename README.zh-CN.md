@@ -89,28 +89,6 @@ docker compose -f docker-compose.mcp.yml up -d --build
 - Web: `3000` （[http://localhost:3000](http://localhost:3000)）
 - MCP: `3001`
 
-必填环境变量：
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SYSTEM_ADMIN_EMAIL`（完整服务端任务/管理能力必填）
-- `SUPABASE_SYSTEM_ADMIN_PASSWORD`（完整服务端任务/管理能力必填）
-
-可选环境变量：
-- `WEB_PORT`：映射到 Web 容器 3000 端口
-- `MCP_PORT`：映射到 MCP 容器 3001 端口
-- `MCP_ALLOWED_ORIGINS`：MCP 浏览器 Origin 白名单（逗号分隔，调试时可用 `*`）
-- `MCP_ALLOWED_HOSTS`：MCP Host 白名单（可选，逗号分隔）
-- `MCP_MAX_SESSIONS`、`MCP_SESSION_TTL_MS`、`MCP_SESSION_IDLE_MS`、`MCP_MAX_SSE_PER_USER`、`MCP_TRUST_PROXY`
-
-MCP 鉴权说明：
-- MCP 不再使用单一 `MCP_API_KEY` 环境变量。
-- 访问密钥改为用户级 `mcp_api_keys`（可在 MingAI 用户页 `/user/mcp` 生成）。
-
-本地启动说明：
-- 仅跑 Web UI/前端联调（不启 MCP、不走服务端管理/后台接口）：只填 `SUPABASE_URL` + `SUPABASE_ANON_KEY` 即可。
-- MCP 全链路（用户 Key 管理 + MCP Server 鉴权）已不依赖 service role 密钥。
-- 完整服务端管理/系统任务能力改为使用系统管理员会话（`SUPABASE_SYSTEM_ADMIN_EMAIL` + `SUPABASE_SYSTEM_ADMIN_PASSWORD`）。
-
 ### MCP 配置 (Streamable HTTP)
 
 ```json

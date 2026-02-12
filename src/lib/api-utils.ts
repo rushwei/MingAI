@@ -8,12 +8,14 @@ import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export async function createRequestSupabaseClient() {
     let cookieValues: Array<{ name: string; value: string }> = [];
+    let cookieStore: Awaited<ReturnType<typeof cookies>> | null = null;
     try {
-        const cookieStore = await cookies();
+        cookieStore = await cookies();
         cookieValues = cookieStore.getAll();
     } catch {
         // 在测试环境中可能没有 Next.js request scope，此时降级为无 cookie 客户端
         cookieValues = [];
+        cookieStore = null;
     }
     return createServerClient(
         getSupabaseUrl(),
@@ -22,6 +24,16 @@ export async function createRequestSupabaseClient() {
             cookies: {
                 getAll() {
                     return cookieValues;
+                },
+                setAll(cookiesToSet) {
+                    if (!cookieStore) return;
+                    try {
+                        for (const { name, value, options } of cookiesToSet) {
+                            cookieStore.set(name, value, options);
+                        }
+                    } catch {
+                        // 在只读 cookies 上下文（如部分 Server Component）中忽略写入
+                    }
                 },
             },
         }

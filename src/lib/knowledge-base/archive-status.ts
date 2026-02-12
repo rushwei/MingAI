@@ -15,6 +15,15 @@ async function createSupabaseClient() {
                 getAll() {
                     return cookieStore.getAll();
                 },
+                setAll(cookiesToSet) {
+                    try {
+                        for (const { name, value, options } of cookiesToSet) {
+                            cookieStore.set(name, value, options);
+                        }
+                    } catch {
+                        // 只读 cookies 上下文无法写入时忽略
+                    }
+                },
             },
         }
     );

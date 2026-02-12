@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const FILES = [
+  'src/lib/api-utils.ts',
   'src/lib/knowledge-base/archive-status.ts',
   'src/lib/knowledge-base/embedding-config.ts',
   'src/lib/knowledge-base/index.ts',
@@ -23,6 +24,22 @@ test('server knowledge-base modules should not hardcode NEXT_PUBLIC supabase env
     assert.ok(
       !source.includes('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
       `${filePath} should use server supabase env helper instead of NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    );
+  }
+});
+
+test('server-side createServerClient calls should define cookies.setAll for session refresh', async () => {
+  for (const filePath of FILES) {
+    const absolutePath = resolve(process.cwd(), filePath);
+    const source = await readFile(absolutePath, 'utf-8');
+
+    if (!source.includes('createServerClient(')) {
+      continue;
+    }
+
+    assert.ok(
+      source.includes('setAll('),
+      `${filePath} should provide cookies.setAll when creating @supabase/ssr server client`
     );
   }
 });
