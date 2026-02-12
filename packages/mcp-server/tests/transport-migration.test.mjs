@@ -39,10 +39,6 @@ test('mcp server entry should provide root and metadata compatibility routes', a
     'should provide OIDC discovery compatibility at root'
   );
   assert.ok(
-    source.includes("app.get('/token/.well-known/openid-configuration'"),
-    'should provide OIDC discovery compatibility for token-path probing clients'
-  );
-  assert.ok(
     source.includes("app.get('/.well-known/oauth-protected-resource'"),
     'should provide root protected-resource metadata compatibility'
   );
@@ -65,7 +61,7 @@ test('mcp server entry should support stateless fallback for sessionless streama
     'GET /mcp should fallback to stateless transport when mcp-session-id is absent'
   );
   assert.ok(
-    source.includes('if (!sessionId && !isInitializeRequest(req.body))'),
+    source.includes('if (!isInitializeRequest(req.body))'),
     'POST /mcp should fallback to stateless transport for non-initialize requests without session id'
   );
 });

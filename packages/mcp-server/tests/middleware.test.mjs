@@ -179,8 +179,8 @@ test('rateLimitMiddleware should use composite key', async () => {
     'should use composite key for rate limiting'
   );
   assert.ok(
-    source.includes('req.path'),
-    'should include path dimension in rate limit key'
+    source.includes('req.method'),
+    'should include method dimension in rate limit key'
   );
 });
 

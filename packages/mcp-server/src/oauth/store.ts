@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import { getSupabaseClient } from '../supabase.js';
+import { getRefreshTokenTTL } from './jwt.js';
 import { oauthDebug, oauthError, oauthWarn } from './logger.js';
 
 // ─── Client Store（SDK 接口）───
@@ -207,6 +208,14 @@ export async function getAndConsumeAuthorizationCode(code: string): Promise<Stor
   return consumeAuthorizationCodeAtomically(code);
 }
 
+/**
+ * 查询授权码对应的 code_challenge（不消费 code）。
+ *
+ * SDK 流程：先调 challengeForAuthorizationCode 做 PKCE 校验，
+ * 再调 exchangeAuthorizationCode 原子消费 code。
+ * 此处只读不写是安全的——consumeAuthorizationCodeAtomically 的
+ * UPDATE ... WHERE used=false 保证了并发下只有一个请求能成功换码。
+ */
 export async function getCodeChallenge(code: string): Promise<string | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -230,7 +239,7 @@ export async function saveRefreshToken(params: {
   scope?: string;
   resource?: string;
 }, supabase: SupabaseFromOnly = getSupabaseClient()): Promise<void> {
-  const ttlMs = (Number.parseInt(process.env.MCP_REFRESH_TOKEN_TTL || '2592000', 10)) * 1000;
+  const ttlMs = getRefreshTokenTTL() * 1000;
   const expiresAt = new Date(Date.now() + ttlMs);
 
   const { error } = await supabase.from('mcp_oauth_tokens').insert({

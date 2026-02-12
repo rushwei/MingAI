@@ -27,4 +27,5 @@ export declare function readPositiveIntEnv(name: string, fallback: number): numb
 export declare function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void | Response<any, Record<string, any>>>;
 export declare function rateLimitMiddleware(req: Request, res: Response, next: NextFunction): void | Response<any, Record<string, any>>;
 export declare function sseConnectionLimitMiddleware(req: Request, res: Response, next: NextFunction): void | Response<any, Record<string, any>>;
+export declare function oauthRateLimitMiddleware(req: Request, res: Response, next: NextFunction): void | Response<any, Record<string, any>>;
 export declare function dualAuthMiddleware(verifier: OAuthTokenVerifier): (req: Request, res: Response, next: NextFunction) => Promise<void | Response<any, Record<string, any>>>;

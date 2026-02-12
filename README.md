@@ -89,24 +89,27 @@ Default ports:
 - Web: `3000` ([http://localhost:3000](http://localhost:3000))
 - MCP: `3001`
 
-#### MCP OAuth Authentication (Recommended)
+### MCP OAuth Authentication (Recommended)
 
 For MCP clients that support OAuth (for example, ChatGPT / Claude ):
 
-1. Add a Streamable HTTP MCP server and set URL to `https://mcp.mingai.fun/mcp`.
-2. Do not set `x-api-key`; click Connect/Authorize directly.
+You can try our online services:
+1. Add a Streamable HTTP MCP server and set URL to `https://mcp.mingai.fun`.
+2. Do not set config; click Connect/Authorize directly.
 3. You will be redirected to MingAI's OAuth login page. Sign in and approve access.
-4. After approval, the client returns automatically and uses OAuth access tokens for subsequent calls.
 
 If your MCP client does not yet support OAuth, continue using the MCP configuration online service below.
+
 ### MCP Config (Streamable HTTP)
+
+It also supports online services.
 
 ```json
 {
   "mcpServers": {
     "mingai": {
       "type": "streamable-http",
-      "url": "http://localhost:3001/mcp", // You can also use https://mcp.mingai.fun/mcp
+      "url": "http://localhost:3001/mcp", // You can use for online services: https://mcp.mingai.fun/mcp
       "headers": {
         "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx" // Go to https://mingai.fun to register and obtain
       }

@@ -193,8 +193,8 @@ export function rateLimitMiddleware(req: Request, res: Response, next: NextFunct
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const userId = req.mcpAuth?.userId || 'anon';
   const method = req.method;
-  const path = req.path || req.originalUrl || 'unknown';
-  const compositeKey = `${userId}:${ip}:${method}:${path}`;
+  // 不含 path：/ 和 /mcp 是同一服务的别名，共享配额
+  const compositeKey = `${userId}:${ip}:${method}`;
   const now = Date.now();
 
   const record = rateLimitMap.get(compositeKey);
@@ -242,6 +242,43 @@ export function sseConnectionLimitMiddleware(req: Request, res: Response, next: 
 
   next();
 }
+
+// ─── OAuth 端点限流（IP 维度，防暴力破解与注册滥用）───
+
+const oauthRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const OAUTH_RATE_LIMIT = 10; // 10 次/分钟（per IP per path）
+const OAUTH_RATE_WINDOW = 60 * 1000;
+
+export function oauthRateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const key = `oauth:${ip}:${req.path}`;
+  const now = Date.now();
+
+  const record = oauthRateLimitMap.get(key);
+
+  if (!record || now > record.resetTime) {
+    oauthRateLimitMap.set(key, { count: 1, resetTime: now + OAUTH_RATE_WINDOW });
+    return next();
+  }
+
+  if (record.count >= OAUTH_RATE_LIMIT) {
+    return res.status(429).json({ error: 'Too many requests, try again later' });
+  }
+
+  record.count++;
+  next();
+}
+
+// 复用主限流的清理周期，顺带清理 OAuth 限流记录
+const oauthCleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of oauthRateLimitMap) {
+    if (now > record.resetTime) {
+      oauthRateLimitMap.delete(key);
+    }
+  }
+}, CLEANUP_INTERVAL);
+oauthCleanupTimer.unref?.();
 
 // ─── 双模式认证中间件（OAuth JWT 优先，API Key fallback）───
 

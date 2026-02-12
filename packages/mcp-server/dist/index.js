@@ -15,7 +15,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest, } from '@modelcontextprotocol/sdk/types.js';
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { tools, handleToolCall, } from '@mingai/mcp-core';
-import { dualAuthMiddleware, rateLimitMiddleware, originValidationMiddleware, hostValidationMiddleware, sseConnectionLimitMiddleware, readPositiveIntEnv, } from './middleware.js';
+import { dualAuthMiddleware, rateLimitMiddleware, oauthRateLimitMiddleware, originValidationMiddleware, hostValidationMiddleware, sseConnectionLimitMiddleware, readPositiveIntEnv, } from './middleware.js';
 import { MingAIOAuthProvider } from './oauth/provider.js';
 import { saveAuthorizationCode } from './oauth/store.js';
 import { renderAuthorizePage } from './oauth/authorize-page.js';
@@ -34,6 +34,12 @@ const issuerUrl = new URL(process.env.MCP_ISSUER_URL || 'https://mcp.mingai.fun'
 const scopesSupported = ['mcp:tools'];
 const resourceName = 'MingAI MCP Server';
 const resourceServerUrl = new URL('/mcp', issuerUrl);
+/**
+ * OAuth AS 元数据兼容对象。
+ *
+ * 端点路径与 MCP SDK mcpAuthRouter (v1.25.x) 内部注册的路由一致。
+ * 若 SDK 升级后路径变更，需同步更新此处。
+ */
 const oauthMetadataCompatibility = {
     issuer: issuerUrl.href,
     authorization_endpoint: new URL('/authorize', issuerUrl).href,
@@ -87,6 +93,8 @@ if (isOAuthDebugEnabled()) {
         next();
     });
 }
+// ─── OAuth 端点限流（在 mcpAuthRouter 之前，覆盖 /register /token /revoke）───
+app.use(['/register', '/token', '/revoke'], oauthRateLimitMiddleware);
 // ─── OAuth 路由（必须在 app root 且在 express.json 之前）───
 // mcpAuthRouter 内部自带 express.urlencoded 解析
 app.use(mcpAuthRouter({
@@ -102,7 +110,7 @@ app.use(mcpAuthRouter({
     revocationOptions: { rateLimit: false },
 }));
 // ─── OAuth 登录表单处理（授权页 POST 目标）───
-app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, res) => {
+app.post('/oauth/login', oauthRateLimitMiddleware, express.urlencoded({ extended: false }), async (req, res) => {
     const { email, password, client_id, redirect_uri, code_challenge, code_challenge_method, state, scope, resource, } = req.body;
     // 参数校验
     if (!email || !password || !client_id || !redirect_uri || !code_challenge) {
@@ -165,9 +173,8 @@ app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, re
         password,
     });
     if (authError || !authData.user) {
-        const clientInfo = await oauthProvider.clientsStore.getClient(client_id);
         const html = renderAuthorizePage({
-            clientName: clientInfo?.client_name,
+            clientName: client.client_name,
             clientId: client_id,
             redirectUri: validated.redirectUri,
             codeChallenge: code_challenge,
@@ -229,15 +236,6 @@ app.get('/info', (_req, res) => {
 app.get('/.well-known/openid-configuration', (_req, res) => {
     res.status(200).json(oauthMetadataCompatibility);
 });
-app.get('/token/.well-known/openid-configuration', (_req, res) => {
-    res.status(200).json(oauthMetadataCompatibility);
-});
-app.get('/.well-known/oauth-authorization-server/token', (_req, res) => {
-    res.status(200).json(oauthMetadataCompatibility);
-});
-app.get('/.well-known/openid-configuration/token', (_req, res) => {
-    res.status(200).json(oauthMetadataCompatibility);
-});
 // 兼容客户端对 root protected-resource metadata 的探测
 app.get('/.well-known/oauth-protected-resource', (_req, res) => {
     res.status(200).json(protectedResourceMetadataCompatibility);
@@ -246,9 +244,28 @@ app.get('/.well-known/oauth-protected-resource', (_req, res) => {
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+// 开发环境：授权页预览（无需走完整 OAuth 流程即可调试样式）
+if (!IS_PRODUCTION) {
+    app.get('/dev/authorize-preview', (_req, res) => {
+        const html = renderAuthorizePage({
+            clientName: 'ChatGPT',
+            scopes: ['mcp:tools'],
+            clientId: 'preview-client-id',
+            redirectUri: 'https://example.com/callback',
+            codeChallenge: 'preview-challenge',
+            codeChallengeMethod: 'S256',
+            state: 'preview-state',
+            scope: 'mcp:tools',
+            error: _req.query.error === '1' ? '邮箱或密码错误' : undefined,
+        });
+        res.send(html);
+    });
+}
 // ─── 双模式认证中间件实例 ───
 const mcpAuth = dualAuthMiddleware(oauthProvider);
 const SEED_SCOPED_TOOLS = new Set(['liuyao_analyze', 'tarot_draw', 'daily_fortune']);
+// 预构建工具名 → 工具的索引，避免每次 tool call 线性扫描
+const toolsByName = new Map(tools.map((t) => [t.name, t]));
 function withSeedScope(name, args, auth) {
     if (!SEED_SCOPED_TOOLS.has(name)) {
         return args || {};
@@ -278,7 +295,7 @@ function isSessionOwner(session, auth) {
     return session.auth.userId === auth.userId;
 }
 // 定期清理过期/空闲会话
-setInterval(() => {
+const sessionCleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [id, ctx] of sessions) {
         if (now - ctx.createdAt > SESSION_TTL || now - ctx.lastActivityAt > SESSION_IDLE) {
@@ -286,6 +303,7 @@ setInterval(() => {
         }
     }
 }, 60_000);
+sessionCleanupTimer.unref?.();
 function createMcpServer(auth) {
     const server = new McpServer({ name: 'mingai-mcp-online', version: '1.0.0' }, { capabilities: { tools: {} } });
     // 列出工具
@@ -307,7 +325,7 @@ function createMcpServer(auth) {
                 ? result
                 : JSON.stringify(result, null, 2) ?? String(result);
             const humanReadableContent = [{ type: 'text', text: humanReadableText }];
-            const tool = tools.find((t) => t.name === name);
+            const tool = toolsByName.get(name);
             if (tool?.outputSchema) {
                 return {
                     structuredContent: result,
@@ -340,11 +358,13 @@ async function handleStatelessRequest(req, res, auth, parsedBody) {
     transport.onerror = () => {
         void server.close().catch(() => { });
     };
+    let closed = false;
     try {
         await server.connect(transport);
         await transport.handleRequest(req, res, parsedBody);
     }
     catch (error) {
+        closed = true;
         await server.close().catch(() => { });
         if (!res.headersSent) {
             return res.status(500).json({
@@ -359,8 +379,14 @@ async function handleStatelessRequest(req, res, auth, parsedBody) {
         throw error;
     }
     finally {
-        if (req.method !== 'GET') {
-            await server.close().catch(() => { });
+        if (!closed) {
+            if (req.method === 'GET') {
+                // SSE 长连接：连接关闭时再清理，避免提前断开流
+                res.on('close', () => { void server.close().catch(() => { }); });
+            }
+            else {
+                await server.close().catch(() => { });
+            }
         }
     }
 }
@@ -381,7 +407,7 @@ const handleMcpPost = async (req, res) => {
         return;
     }
     // 兼容无 session-id 的 stateless 客户端（例如部分 MCP 集成实现）
-    if (!sessionId && !isInitializeRequest(req.body)) {
+    if (!isInitializeRequest(req.body)) {
         await handleStatelessRequest(req, res, auth, req.body);
         return;
     }
@@ -456,8 +482,7 @@ const handleMcpDelete = async (req, res) => {
     const sessionId = getSessionIdHeader(req);
     const auth = req.mcpAuth;
     if (!sessionId) {
-        await handleStatelessRequest(req, res, auth, req.body);
-        return;
+        return res.status(400).json({ error: 'Missing mcp-session-id header' });
     }
     const session = sessions.get(sessionId);
     if (!session) {
@@ -491,10 +516,11 @@ function gracefulShutdown(signal) {
         console.log('HTTP server closed');
     });
     // 清理所有活跃会话
+    const sessionCount = sessions.size;
     for (const [id] of sessions) {
         cleanupSession(id);
     }
-    console.log(`Cleaned up ${sessions.size === 0 ? 'all' : sessions.size} sessions`);
+    console.log(`Cleaned up ${sessionCount} sessions`);
     // 给进行中的请求一点时间完成
     setTimeout(() => {
         process.exit(0);

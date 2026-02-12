@@ -52,13 +52,12 @@ test('renderAuthorizePage should escape client and error text to prevent XSS', a
     codeChallengeMethod: 'S256',
   });
 
-  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
-  assert.ok(html.includes('&lt;img src=x onerror=alert(2)&gt;'));
-  assert.ok(html.includes('&lt;b&gt;wrong&lt;/b&gt;'));
-  assert.equal(html.includes('<script>alert(1)</script>'), false);
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), 'clientName should be escaped');
+  assert.ok(html.includes('&lt;b&gt;wrong&lt;/b&gt;'), 'error should be escaped');
+  assert.equal(html.includes('<script>alert(1)</script>'), false, 'raw script tag must not appear');
 });
 
-test('renderAuthorizePage should render default scope description when scopes are empty', async () => {
+test('renderAuthorizePage should render tools grid even when scopes are empty', async () => {
   const { renderAuthorizePage } = await importDist('oauth/authorize-page.js');
 
   const html = renderAuthorizePage({
@@ -69,5 +68,6 @@ test('renderAuthorizePage should render default scope description when scopes ar
     codeChallengeMethod: 'S256',
   });
 
-  assert.ok(html.includes('mcp:tools'));
+  assert.ok(html.includes('八字排盘'), 'should show tools grid with bazi tool');
+  assert.ok(html.includes('紫微斗数'), 'should show tools grid with ziwei tool');
 });

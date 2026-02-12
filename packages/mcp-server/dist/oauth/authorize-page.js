@@ -3,96 +3,297 @@
  */
 export function renderAuthorizePage(params) {
     const displayName = params.clientName || params.clientId;
-    const scopeDesc = params.scopes.length > 0
-        ? params.scopes.map((s) => `<li>${escapeHtml(s)}</li>`).join('')
-        : '<li>mcp:tools（命理工具访问）</li>';
     const errorBlock = params.error
-        ? `<div class="error">${escapeHtml(params.error)}</div>`
+        ? `<div class="error"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dc2626" stroke-width="1.5"/><path d="M8 4.5v4M8 10.5v.5" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg><span>${escapeHtml(params.error)}</span></div>`
         : '';
+    const siteUrl = process.env.MINGAI_SITE_URL || 'https://mingai.fun';
+    const logoUrl = `${siteUrl}/Logo.png`;
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>授权 - MingAI MCP</title>
+  <title>授权登录 - Ming AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0a0a0a; color: #e5e5e5;
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      padding: 1rem;
+    *{margin:0;padding:0;box-sizing:border-box}
+
+    body{
+      font-family:"Noto Sans SC","PingFang SC","Helvetica Neue",sans-serif;
+      background:#f8f6f1;
+      color:#1a1a1a;
+      min-height:100vh;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:2rem 1rem;
+      position:relative;overflow:hidden;
     }
-    .card {
-      background: #171717; border: 1px solid #262626; border-radius: 1rem;
-      padding: 2rem; width: 100%; max-width: 400px;
+
+    /* ── 背景装饰 ── */
+    body::before{
+      content:"";position:fixed;inset:0;pointer-events:none;
+      background:
+        radial-gradient(ellipse 80% 60% at 30% -10%,rgba(212,175,55,.07),transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 110%,rgba(212,175,55,.05),transparent 50%);
     }
-    .brand { text-align: center; margin-bottom: 1.5rem; }
-    .brand h1 { font-size: 1.25rem; font-weight: 600; }
-    .brand p { color: #a3a3a3; font-size: 0.875rem; margin-top: 0.5rem; }
-    .client-info {
-      background: #1a1a2e; border: 1px solid #262650; border-radius: 0.75rem;
-      padding: 1rem; margin-bottom: 1.5rem; text-align: center;
+    .bg-ornament{
+      position:fixed;pointer-events:none;opacity:.04;
+      font-size:18rem;color:#D4AF37;
+      font-family:"Noto Serif SC",serif;font-weight:700;
+      line-height:1;user-select:none;
     }
-    .client-info .name { font-weight: 600; color: #c4b5fd; }
-    .scopes { font-size: 0.8rem; color: #a3a3a3; margin-top: 0.5rem; }
-    .scopes ul { list-style: none; padding: 0; }
-    .scopes li::before { content: "✓ "; color: #4ade80; }
-    .error {
-      background: #2d1b1b; border: 1px solid #7f1d1d; border-radius: 0.5rem;
-      padding: 0.75rem; margin-bottom: 1rem; color: #fca5a5; font-size: 0.875rem;
+    .bg-ornament.tl{top:-2rem;left:-2rem}
+    .bg-ornament.br{bottom:-3rem;right:-1rem}
+
+    /* ── 页面容器 ── */
+    .page{
+      width:100%;max-width:400px;
+      position:relative;z-index:1;
     }
-    label { display: block; font-size: 0.875rem; color: #a3a3a3; margin-bottom: 0.25rem; }
-    input[type="email"], input[type="password"] {
-      width: 100%; padding: 0.625rem 0.75rem; border-radius: 0.5rem;
-      border: 1px solid #333; background: #0a0a0a; color: #e5e5e5;
-      font-size: 0.9rem; margin-bottom: 1rem; outline: none;
+
+    /* ── Logo + 品牌 ── */
+    .brand{text-align:center;margin-bottom:1.75rem}
+    .brand-logo{
+      width:52px;height:52px;border-radius:14px;
+      object-fit:contain;
+      filter:drop-shadow(0 2px 8px rgba(212,175,55,.15));
     }
-    input:focus { border-color: #7c3aed; }
-    .actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
-    .btn {
-      flex: 1; padding: 0.625rem; border-radius: 0.5rem; border: none;
-      font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+    .brand-name{
+      font-family:"Noto Serif SC",serif;
+      font-size:1.2rem;font-weight:700;
+      color:#2a2a2a;margin-top:.625rem;
+      letter-spacing:.05em;
     }
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #7c3aed; color: white; }
-    .btn-secondary { background: #262626; color: #a3a3a3; border: 1px solid #333; }
+    .brand-name span{color:#D4AF37}
+
+    /* ── 客户端请求条 ── */
+    .client-bar{
+      display:flex;align-items:center;gap:.5rem;
+      background:rgba(212,175,55,.06);
+      border:1px solid rgba(212,175,55,.15);
+      border-radius:.625rem;
+      padding:.5rem .75rem;margin-bottom:.875rem;
+    }
+    .client-icon{
+      width:24px;height:24px;border-radius:6px;flex-shrink:0;
+      background:linear-gradient(135deg,#D4AF37 0%,#c9a22e 100%);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .client-icon svg{width:14px;height:14px}
+    .client-text{font-size:.78rem;color:#666;line-height:1.35}
+    .client-name{color:#1a1a1a;font-weight:500}
+
+    /* ── 登录卡片 ── */
+    .card{
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:1rem;
+      padding:1.75rem;
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.04),
+        0 4px 16px rgba(0,0,0,.04),
+        0 12px 40px rgba(212,175,55,.04);
+      position:relative;
+    }
+    .card::before{
+      content:"";position:absolute;top:-1px;left:2rem;right:2rem;height:2px;
+      background:linear-gradient(90deg,transparent,#D4AF37,transparent);
+      border-radius:1px;
+    }
+
+    .card-title{
+      font-size:.95rem;font-weight:500;color:#1a1a1a;
+      text-align:center;margin-bottom:1.25rem;
+    }
+
+    /* ── Error ── */
+    .error{
+      display:flex;align-items:center;gap:.5rem;
+      background:#fef2f2;border:1px solid #fecaca;
+      border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1rem;
+      color:#b91c1c;font-size:.8rem;
+    }
+    .error svg{flex-shrink:0}
+
+    /* ── Form ── */
+    .field{margin-bottom:.875rem}
+    .field-label{
+      display:block;font-size:.75rem;font-weight:400;
+      color:#888;margin-bottom:.3rem;
+    }
+    .field-input{
+      width:100%;padding:.625rem .75rem;
+      border:1px solid #e5e5e5;border-radius:.5rem;
+      background:#fafaf9;color:#1a1a1a;
+      font-size:.85rem;font-family:inherit;outline:none;
+      transition:border-color .2s,box-shadow .2s;
+    }
+    .field-input:focus{
+      border-color:#D4AF37;
+      box-shadow:0 0 0 3px rgba(212,175,55,.1);
+      background:#fff;
+    }
+    .field-input::placeholder{color:#bbb}
+
+    .actions{display:flex;gap:.625rem;margin-top:1.25rem}
+    .btn{
+      flex:1;padding:.65rem;border-radius:.5rem;border:none;
+      font-size:.85rem;font-weight:500;font-family:inherit;
+      cursor:pointer;transition:all .2s;
+    }
+    .btn-primary{
+      background:linear-gradient(135deg,#D4AF37 0%,#c19b2a 100%);
+      color:#fff;
+      box-shadow:0 2px 8px rgba(212,175,55,.25);
+    }
+    .btn-primary:hover{
+      box-shadow:0 4px 14px rgba(212,175,55,.35);
+      transform:translateY(-1px);
+    }
+    .btn-secondary{
+      background:#f5f5f4;color:#888;border:1px solid #e5e5e5;
+    }
+    .btn-secondary:hover{background:#ececea;color:#666}
+
+    /* ── 分隔线 ── */
+    .divider{
+      display:flex;align-items:center;gap:.75rem;
+      margin:1.5rem 0 1.125rem;color:#ccc;font-size:.7rem;
+    }
+    .divider::before,.divider::after{
+      content:"";flex:1;height:1px;background:#e8e8e5;
+    }
+
+    /* ── 工具展示 ── */
+    .tools{
+      margin-top:1.5rem;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.05);
+      border-radius:.875rem;
+      padding:1rem 1.125rem;
+      box-shadow:0 1px 4px rgba(0,0,0,.02);
+    }
+    .tools-header{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:.75rem;
+    }
+    .tools-title{font-size:.75rem;font-weight:500;color:#999;letter-spacing:.04em}
+    .tools-badge{
+      font-size:.6rem;color:#D4AF37;
+      background:rgba(212,175,55,.08);
+      padding:.15rem .45rem;border-radius:3px;
+      font-weight:500;
+    }
+    .tools-list{display:flex;flex-wrap:wrap;gap:.375rem}
+    .tool-chip{
+      display:inline-flex;align-items:center;gap:.3rem;
+      padding:.3rem .6rem;border-radius:2rem;
+      background:#fafaf9;border:1px solid #eee;
+      font-size:.7rem;color:#555;
+      transition:all .2s;
+    }
+    .tool-chip:hover{
+      border-color:rgba(212,175,55,.3);
+      background:rgba(212,175,55,.04);
+      color:#8b7320;
+    }
+    .tool-dot{
+      width:5px;height:5px;border-radius:50%;
+      background:#D4AF37;opacity:.6;
+    }
+
+    /* ── Footer ── */
+    .footer{
+      text-align:center;margin-top:1.25rem;
+      font-size:.75rem;color:#aaa;line-height:1.8;
+    }
+    .footer a{
+      color:#b8962e;text-decoration:none;
+      border-bottom:1px solid transparent;
+      transition:border-color .2s;
+    }
+    .footer a:hover{border-bottom-color:#b8962e}
+    .sep{margin:0 .35rem;opacity:.35}
+
+    /* ── Responsive ── */
+    @media(max-width:420px){
+      .card{padding:1.25rem}
+      .tools{padding:.75rem}
+      .tools-list{gap:.25rem}
+    }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="bg-ornament tl">命</div>
+  <div class="bg-ornament br">理</div>
+
+  <div class="page">
     <div class="brand">
-      <h1>MingAI MCP</h1>
-      <p>授权第三方应用访问命理工具</p>
+      <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
+      <div class="brand-name"><span>Ming</span> AI</div>
     </div>
 
-    <div class="client-info">
-      <span class="name">${escapeHtml(displayName)}</span> 请求访问你的 MingAI 账户
-      <div class="scopes"><ul>${scopeDesc}</ul></div>
-    </div>
-
-    ${errorBlock}
-
-    <form method="POST" action="/oauth/login">
-      <input type="hidden" name="client_id" value="${escapeAttr(params.clientId)}" />
-      <input type="hidden" name="redirect_uri" value="${escapeAttr(params.redirectUri)}" />
-      <input type="hidden" name="code_challenge" value="${escapeAttr(params.codeChallenge)}" />
-      <input type="hidden" name="code_challenge_method" value="${escapeAttr(params.codeChallengeMethod)}" />
-      ${params.state ? `<input type="hidden" name="state" value="${escapeAttr(params.state)}" />` : ''}
-      ${params.scope ? `<input type="hidden" name="scope" value="${escapeAttr(params.scope)}" />` : ''}
-      ${params.resource ? `<input type="hidden" name="resource" value="${escapeAttr(params.resource)}" />` : ''}
-
-      <label for="email">邮箱</label>
-      <input type="email" id="email" name="email" required autocomplete="email" placeholder="your@email.com" />
-
-      <label for="password">密码</label>
-      <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
-
-      <div class="actions">
-        <button type="button" class="btn btn-secondary" onclick="window.close()">拒绝</button>
-        <button type="submit" class="btn btn-primary">授权</button>
+    <div class="client-bar">
+      <div class="client-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       </div>
-    </form>
+      <div class="client-text">
+        <span class="client-name">${escapeHtml(displayName)}</span> 请求访问你的 Ming AI 账户
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">登录以授权访问</div>
+
+      ${errorBlock}
+
+      <form method="POST" action="/oauth/login">
+        <input type="hidden" name="client_id" value="${escapeAttr(params.clientId)}" />
+        <input type="hidden" name="redirect_uri" value="${escapeAttr(params.redirectUri)}" />
+        <input type="hidden" name="code_challenge" value="${escapeAttr(params.codeChallenge)}" />
+        <input type="hidden" name="code_challenge_method" value="${escapeAttr(params.codeChallengeMethod)}" />
+        ${params.state ? `<input type="hidden" name="state" value="${escapeAttr(params.state)}" />` : ''}
+        ${params.scope ? `<input type="hidden" name="scope" value="${escapeAttr(params.scope)}" />` : ''}
+        ${params.resource ? `<input type="hidden" name="resource" value="${escapeAttr(params.resource)}" />` : ''}
+
+        <div class="field">
+          <label class="field-label" for="email">邮箱地址</label>
+          <input class="field-input" type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="password">密码</label>
+          <input class="field-input" type="password" id="password" name="password" required autocomplete="current-password" placeholder="输入密码" />
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" onclick="window.close()">取消</button>
+          <button type="submit" class="btn btn-primary">授权登录</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="tools">
+      <div class="tools-header">
+        <span class="tools-title">授权后可使用的命理工具</span>
+        <span class="tools-badge">7 项</span>
+      </div>
+      <div class="tools-list">
+        <span class="tool-chip"><span class="tool-dot"></span>八字排盘</span>
+        <span class="tool-chip"><span class="tool-dot"></span>四柱反查</span>
+        <span class="tool-chip"><span class="tool-dot"></span>紫微斗数</span>
+        <span class="tool-chip"><span class="tool-dot"></span>六爻分析</span>
+        <span class="tool-chip"><span class="tool-dot"></span>塔罗牌</span>
+        <span class="tool-chip"><span class="tool-dot"></span>每日运势</span>
+        <span class="tool-chip"><span class="tool-dot"></span>流年分析</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      还没有账号？<a href="${escapeAttr(siteUrl)}" target="_blank" rel="noopener">注册 Ming AI</a>
+      <span class="sep">·</span>
+      <a href="${escapeAttr(siteUrl)}" target="_blank" rel="noopener">了解更多</a>
+    </div>
   </div>
 </body>
 </html>`;
@@ -105,5 +306,10 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 function escapeAttr(str) {
-    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }

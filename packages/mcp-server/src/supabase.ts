@@ -69,10 +69,17 @@ async function getSystemAccessToken(): Promise<string> {
   if (tokenPromise) return tokenPromise;
 
   tokenPromise = (async () => {
-    const session = await signInSystemAdmin();
-    cachedAccessToken = session.access_token;
-    cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
-    return cachedAccessToken;
+    try {
+      const session = await signInSystemAdmin();
+      const token = session.access_token;
+      cachedAccessToken = token;
+      cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
+      return token;
+    } catch (err) {
+      cachedAccessToken = null;
+      cachedAccessTokenExpiresAt = 0;
+      throw err;
+    }
   })();
 
   try {
