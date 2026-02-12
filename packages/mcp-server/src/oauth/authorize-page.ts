@@ -245,7 +245,7 @@ export function renderAuthorizePage(params: {
 
   <div class="page">
     <div class="brand">
-      // <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
+      <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
       <div class="brand-name"><span>Ming</span> AI MCP</div>
     </div>
 
