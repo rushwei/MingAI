@@ -21,7 +21,7 @@ import { saveAuthorizationCode } from './oauth/store.js';
 import { renderAuthorizePage } from './oauth/authorize-page.js';
 import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
-import { getSupabaseClient } from './supabase.js';
+import { getSupabaseAuthClient } from './supabase.js';
 // ─── 会话管理配置 ───
 const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
 const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
@@ -107,8 +107,8 @@ app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, re
         return res.status(400).send(html);
     }
     const validated = validation.value;
-    // 用 Supabase Auth 验证用户凭据
-    const supabase = getSupabaseClient();
+    // 用 Supabase Auth 验证用户凭据（需要纯 anon 客户端，不能用 accessToken 模式）
+    const supabase = getSupabaseAuthClient();
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
