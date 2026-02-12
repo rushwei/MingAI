@@ -325,6 +325,52 @@ CREATE TABLE public.mcp_api_keys (
   CONSTRAINT mcp_api_keys_pkey PRIMARY KEY (id),
   CONSTRAINT mcp_api_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.mcp_oauth_clients (
+  client_id text NOT NULL,
+  client_secret text,
+  client_secret_expires_at bigint,
+  client_id_issued_at bigint NOT NULL DEFAULT EXTRACT(epoch FROM now()),
+  redirect_uris ARRAY NOT NULL,
+  grant_types ARRAY DEFAULT '{authorization_code,refresh_token}'::text[],
+  response_types ARRAY DEFAULT '{code}'::text[],
+  token_endpoint_auth_method text DEFAULT 'none'::text,
+  client_name text,
+  client_uri text,
+  logo_uri text,
+  scope text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT mcp_oauth_clients_pkey PRIMARY KEY (client_id)
+);
+CREATE TABLE public.mcp_oauth_codes (
+  code text NOT NULL,
+  client_id text NOT NULL,
+  user_id uuid NOT NULL,
+  redirect_uri text NOT NULL,
+  code_challenge text NOT NULL,
+  code_challenge_method text NOT NULL DEFAULT 'S256'::text,
+  scope text,
+  resource text,
+  expires_at timestamp with time zone NOT NULL,
+  used boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT mcp_oauth_codes_pkey PRIMARY KEY (code),
+  CONSTRAINT mcp_oauth_codes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.mcp_oauth_clients(client_id),
+  CONSTRAINT mcp_oauth_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.mcp_oauth_tokens (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  refresh_token text NOT NULL UNIQUE,
+  client_id text NOT NULL,
+  user_id uuid NOT NULL,
+  scope text,
+  expires_at timestamp with time zone NOT NULL,
+  revoked boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  resource text,
+  CONSTRAINT mcp_oauth_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT mcp_oauth_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.mcp_oauth_clients(client_id),
+  CONSTRAINT mcp_oauth_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.ming_notes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,

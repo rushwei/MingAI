@@ -22,7 +22,7 @@ export function invalidateCachedKey(keyCode) {
     cache.delete(keyCode);
 }
 // 定期清理过期缓存
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of cache) {
         if (now - entry.cachedAt > KEY_CACHE_TTL) {
@@ -30,3 +30,4 @@ setInterval(() => {
         }
     }
 }, 60 * 1000);
+cleanupTimer.unref?.();

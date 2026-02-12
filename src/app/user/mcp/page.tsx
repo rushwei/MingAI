@@ -29,6 +29,17 @@ interface McpKeyData {
   last_used_at: string | null;
 }
 
+const chatgptConfig = `{
+  "model": "gpt-4.1",
+  "tools": [{
+    "type": "mcp",
+    "server_label": "mingai",
+    "server_url": "https://mcp.mingai.fun/mcp",
+    "require_approval": "never"
+  }],
+  "input": "帮我算一下八字"
+}`;
+
 function buildCherryConfig(apiKey: string): string {
   return `{
   "mcpServers": {
@@ -295,6 +306,29 @@ export default function McpPage() {
 
         {showTutorial && (
           <div className="px-5 pb-5 space-y-5">
+            {/* ChatGPT（OAuth 自动认证） */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium">ChatGPT</h3>
+                <button
+                  onClick={() => handleCopySnippet('chatgpt', chatgptConfig)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border text-xs hover:bg-background-secondary transition-colors"
+                >
+                  {snippetCopied === 'chatgpt' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  复制配置
+                </button>
+              </div>
+              <p className="text-sm text-foreground-secondary mb-2">
+                ChatGPT 通过 OAuth 2.1 自动完成认证，无需手动传 Key。在 API 请求中使用：
+              </p>
+              <pre className="p-3 bg-background-secondary rounded-xl text-xs overflow-x-auto">
+{chatgptConfig}
+              </pre>
+              <p className="text-xs text-foreground-secondary mt-2">
+                首次连接时会弹出 MingAI 登录页面，使用你的账号密码授权即可。
+              </p>
+            </div>
+
             {/* Cherry Studio */}
             <div>
               <div className="flex items-center justify-between mb-2">

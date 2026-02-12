@@ -4,11 +4,12 @@
  * 挂载顺序：
  * express.json({ limit: '1mb' })
  *   → originValidationMiddleware
- *   → authMiddleware（per-user key 验证）
+ *   → dualAuthMiddleware（OAuth JWT 优先，API Key fallback）
  *   → rateLimitMiddleware（userId 复合键）
  *   → sseConnectionLimitMiddleware（仅 GET）
  */
 import type { Request, Response, NextFunction } from 'express';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 export interface McpAuthInfo {
     userId: string;
     keyId: string;
@@ -26,3 +27,4 @@ export declare function readPositiveIntEnv(name: string, fallback: number): numb
 export declare function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void | Response<any, Record<string, any>>>;
 export declare function rateLimitMiddleware(req: Request, res: Response, next: NextFunction): void | Response<any, Record<string, any>>;
 export declare function sseConnectionLimitMiddleware(req: Request, res: Response, next: NextFunction): void | Response<any, Record<string, any>>;
+export declare function dualAuthMiddleware(verifier: OAuthTokenVerifier): (req: Request, res: Response, next: NextFunction) => Promise<void | Response<any, Record<string, any>>>;
