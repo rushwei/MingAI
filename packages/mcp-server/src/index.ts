@@ -53,6 +53,31 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 // ─── OAuth Provider ───
 const oauthProvider = new MingAIOAuthProvider();
 const issuerUrl = new URL(process.env.MCP_ISSUER_URL || 'https://mcp.mingai.fun');
+const scopesSupported = ['mcp:tools'] as const;
+const resourceName = 'MingAI MCP Server';
+const resourceServerUrl = new URL('/mcp', issuerUrl);
+
+const oauthMetadataCompatibility = {
+  issuer: issuerUrl.href,
+  authorization_endpoint: new URL('/authorize', issuerUrl).href,
+  response_types_supported: ['code'],
+  code_challenge_methods_supported: ['S256'],
+  token_endpoint: new URL('/token', issuerUrl).href,
+  token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+  grant_types_supported: ['authorization_code', 'refresh_token'],
+  scopes_supported: [...scopesSupported],
+  revocation_endpoint: new URL('/revoke', issuerUrl).href,
+  revocation_endpoint_auth_methods_supported: ['client_secret_post'],
+  registration_endpoint: new URL('/register', issuerUrl).href,
+};
+
+const protectedResourceMetadataCompatibility = {
+  resource: resourceServerUrl.href,
+  authorization_servers: [issuerUrl.href],
+  scopes_supported: [...scopesSupported],
+  resource_name: resourceName,
+};
+
 const app = express();
 
 // trust proxy（反向代理后需要）
@@ -77,9 +102,9 @@ if (isOAuthDebugEnabled()) {
 app.use(mcpAuthRouter({
   provider: oauthProvider,
   issuerUrl,
-  resourceServerUrl: new URL('/mcp', issuerUrl),
-  scopesSupported: ['mcp:tools'],
-  resourceName: 'MingAI MCP Server',
+  resourceServerUrl,
+  scopesSupported: [...scopesSupported],
+  resourceName,
   // 禁用 SDK 内置限流，使用我们自己的
   authorizationOptions: { rateLimit: false },
   tokenOptions: { rateLimit: false },
@@ -211,6 +236,37 @@ app.post('/oauth/login', express.urlencoded({ extended: false }), async (req, re
 });
 
 app.use(express.json({ limit: '1mb' }));
+
+// 兼容某些客户端/网关刷新连接时探测根路径
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    name: 'MingAI MCP Server',
+    status: 'ok',
+    transport: 'streamable-http',
+    mcp_endpoint: resourceServerUrl.pathname,
+    oauth_authorization_server_metadata: '/.well-known/oauth-authorization-server',
+    oauth_protected_resource_metadata: `/.well-known/oauth-protected-resource${resourceServerUrl.pathname}`,
+  });
+});
+
+// 兼容 OIDC 发现探测（部分客户端会尝试 openid-configuration）
+app.get('/.well-known/openid-configuration', (_req, res) => {
+  res.status(200).json(oauthMetadataCompatibility);
+});
+app.get('/token/.well-known/openid-configuration', (_req, res) => {
+  res.status(200).json(oauthMetadataCompatibility);
+});
+app.get('/.well-known/oauth-authorization-server/token', (_req, res) => {
+  res.status(200).json(oauthMetadataCompatibility);
+});
+app.get('/.well-known/openid-configuration/token', (_req, res) => {
+  res.status(200).json(oauthMetadataCompatibility);
+});
+
+// 兼容客户端对 root protected-resource metadata 的探测
+app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+  res.status(200).json(protectedResourceMetadataCompatibility);
+});
 
 // 健康检查（不需要认证）
 app.get('/health', (_req, res) => {

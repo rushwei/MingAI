@@ -25,3 +25,25 @@ test('mcp server entry should not use deprecated Server/SSE imports', async () =
     'should not import deprecated SSEServerTransport'
   );
 });
+
+test('mcp server entry should provide root and metadata compatibility routes', async () => {
+  const entryPath = resolve(process.cwd(), 'packages/mcp-server/src/index.ts');
+  const source = await readFile(entryPath, 'utf-8');
+
+  assert.ok(
+    source.includes("app.get('/',"),
+    'should provide a root route for connector refresh compatibility'
+  );
+  assert.ok(
+    source.includes("app.get('/.well-known/openid-configuration'"),
+    'should provide OIDC discovery compatibility at root'
+  );
+  assert.ok(
+    source.includes("app.get('/token/.well-known/openid-configuration'"),
+    'should provide OIDC discovery compatibility for token-path probing clients'
+  );
+  assert.ok(
+    source.includes("app.get('/.well-known/oauth-protected-resource'"),
+    'should provide root protected-resource metadata compatibility'
+  );
+});
