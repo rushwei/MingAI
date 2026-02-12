@@ -8,7 +8,7 @@ import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/serv
 import { getSupabaseClient } from '../supabase.js';
 export declare class MingAIClientsStore implements OAuthRegisteredClientsStore {
     getClient(clientId: string): Promise<OAuthClientInformationFull | undefined>;
-    registerClient(clientData: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>): Promise<OAuthClientInformationFull>;
+    registerClient(clientData: OAuthClientInformationFull): Promise<OAuthClientInformationFull>;
 }
 export interface StoredAuthCode {
     code: string;

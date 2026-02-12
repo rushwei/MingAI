@@ -89,18 +89,25 @@ export class MingAIOAuthProvider {
      * 返回授权码对应的 code_challenge
      */
     async challengeForAuthorizationCode(_client, authorizationCode) {
+        console.log(`[OAuth] challengeForAuthorizationCode: code=${authorizationCode.slice(0, 8)}...`);
         const challenge = await this.deps.getCodeChallenge(authorizationCode);
-        if (!challenge)
+        if (!challenge) {
+            console.error(`[OAuth] challengeForAuthorizationCode: code not found or expired`);
             throw new Error('Authorization code not found or expired');
+        }
         return challenge;
     }
     /**
      * 用授权码换取 access_token + refresh_token
      */
     async exchangeAuthorizationCode(client, authorizationCode, _codeVerifier, redirectUri, resource) {
+        console.log(`[OAuth] exchangeAuthorizationCode: client_id=${client.client_id}, code=${authorizationCode.slice(0, 8)}..., redirect_uri=${redirectUri}`);
         const stored = await this.deps.getAndConsumeAuthorizationCode(authorizationCode);
-        if (!stored)
+        if (!stored) {
+            console.error(`[OAuth] exchangeAuthorizationCode: code not found/expired/used`);
             throw new Error('Invalid or expired authorization code');
+        }
+        console.log(`[OAuth] exchangeAuthorizationCode: code valid, userId=${stored.userId}, storedClient=${stored.clientId}`);
         if (stored.clientId !== client.client_id) {
             throw new Error('Authorization code was issued to a different client');
         }
@@ -118,6 +125,7 @@ export class MingAIOAuthProvider {
             scope,
             resource: boundResource,
         });
+        console.log(`[OAuth] exchangeAuthorizationCode: success, issued tokens for userId=${stored.userId}`);
         return {
             access_token: accessToken,
             token_type: 'bearer',
@@ -161,7 +169,15 @@ export class MingAIOAuthProvider {
      * 验证 JWT access_token
      */
     async verifyAccessToken(token) {
-        return this.deps.verifyAccessToken(token);
+        try {
+            const result = await this.deps.verifyAccessToken(token);
+            console.log(`[OAuth] verifyAccessToken: ok, userId=${result.extra?.userId}, clientId=${result.clientId}`);
+            return result;
+        }
+        catch (err) {
+            console.error(`[OAuth] verifyAccessToken: failed -`, err instanceof Error ? err.message : String(err));
+            throw err;
+        }
     }
     /**
      * 吊销 token
