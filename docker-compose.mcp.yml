@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       PORT: "3001"
-      MCP_API_KEY: "${MCP_API_KEY:-}"
+      MCP_JWT_SECRET: "${MCP_JWT_SECRET:-}"
+      MCP_ISSUER_URL: "${MCP_ISSUER_URL:-https://mcp.mingai.fun}"
+      MCP_ALLOWED_TOKEN_AUDIENCES: "${MCP_ALLOWED_TOKEN_AUDIENCES:-}"
     ports:
       - "${MCP_PORT:-3001}:3001"

@@ -4,7 +4,7 @@
  * 挂载顺序：
  * express.json({ limit: '1mb' })
  *   → originValidationMiddleware
- *   → authMiddleware（per-user key 验证）
+ *   → dualAuthMiddleware（OAuth JWT 优先，API Key fallback）
  *   → rateLimitMiddleware（userId 复合键）
  *   → sseConnectionLimitMiddleware（仅 GET）
  */
@@ -179,4 +179,36 @@ export function sseConnectionLimitMiddleware(req, res, next) {
         }
     });
     next();
+}
+// ─── 双模式认证中间件（OAuth JWT 优先，API Key fallback）───
+export function dualAuthMiddleware(verifier) {
+    return async (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        const apiKeyHeader = req.headers['x-api-key'];
+        // 优先：Bearer token → JWT 验证
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.slice(7).trim();
+            if (token) {
+                try {
+                    const authInfo = await verifier.verifyAccessToken(token);
+                    const userId = authInfo.extra?.userId;
+                    if (!userId) {
+                        return res.status(401).json({ error: 'Invalid token: missing user' });
+                    }
+                    req.mcpAuth = { userId, keyId: `oauth:${authInfo.clientId}` };
+                    return next();
+                }
+                catch {
+                    // Bearer token 存在但无效 → 不 fallback，直接拒绝
+                    return res.status(401).json({ error: 'Invalid or expired access token' });
+                }
+            }
+        }
+        // Fallback：x-api-key header → 旧 API Key 验证
+        if (typeof apiKeyHeader === 'string' && apiKeyHeader) {
+            return authMiddleware(req, res, next);
+        }
+        // 无认证信息
+        return res.status(401).json({ error: 'Missing authentication' });
+    };
 }

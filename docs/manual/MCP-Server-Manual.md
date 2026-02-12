@@ -921,10 +921,69 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 
 ---
 
+## OAuth 2.1 认证
+
+MCP Server 支持 OAuth 2.1 + PKCE 认证，兼容 ChatGPT MCP 连接器等标准 OAuth 客户端。
+
+### 认证流程
+
+```
+MCP Client → GET /.well-known/oauth-protected-resource/mcp  → 发现 OAuth 配置
+           → GET /.well-known/oauth-authorization-server     → 获取 AS 元数据
+           → POST /register                                  → 动态客户端注册
+           → GET  /authorize                                 → 用户登录+授权页
+           → POST /token                                     → 换取 JWT access_token
+           → POST /mcp (Authorization: Bearer <JWT>)         → 调用 MCP 工具
+```
+
+### 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `MCP_JWT_SECRET` | JWT 签名密钥（至少 32 字符） | 必填 |
+| `MCP_ISSUER_URL` | OAuth issuer URL | `https://mcp.mingai.fun` |
+| `MCP_ALLOWED_TOKEN_AUDIENCES` | Access Token aud 白名单（逗号分隔） | `issuer, issuer/mcp` |
+| `MCP_ACCESS_TOKEN_TTL` | Access token 有效期（秒） | 3600 |
+| `MCP_REFRESH_TOKEN_TTL` | Refresh token 有效期（秒） | 2592000 |
+
+### 过渡期兼容
+
+当前同时支持两种认证方式：
+- `Authorization: Bearer <JWT>` — OAuth JWT 认证（推荐）
+- `x-api-key: <key>` — API Key 认证（即将废弃）
+
+Bearer token 优先级高于 API Key。如果 Bearer token 存在但无效，不会 fallback 到 API Key。
+
+---
+
+## ChatGPT 接入
+
+ChatGPT 通过 OAuth 2.1 自动完成认证，无需手动传 Key。
+
+### API 调用示例
+
+```json
+{
+  "model": "gpt-4.1",
+  "tools": [{
+    "type": "mcp",
+    "server_label": "mingai",
+    "server_url": "https://mcp.mingai.fun/mcp",
+    "require_approval": "never"
+  }],
+  "input": "帮我算一下八字"
+}
+```
+
+首次连接时 ChatGPT 会自动触发 OAuth 流程，弹出 MingAI 登录页面，使用账号密码授权即可。后续请求自动使用 access_token，过期后自动刷新。
+
+---
+
 ## 更新日志
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| 1.2.0 | 2026-02-12 | 新增 OAuth 2.1 认证（PKCE + 动态客户端注册），支持 ChatGPT MCP 连接器；过渡期双模式认证 |
 | 1.1.0 | 2026-02-09 | 新增 `bazi_pillars_resolve`；`bazi_calculate` 升级为分柱神煞/分柱空亡/藏干气性十神/关系输出（破坏式变更） |
 | 1.0.0 | 2026-02-03 | 初始版本，支持八字、紫微、六爻、塔罗、运势 |
 

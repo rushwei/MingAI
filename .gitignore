@@ -54,7 +54,7 @@ next-env.d.ts
 .pnpm-store
 
 # migration files
-supabase/migrations
+# supabase/migrations
 
 # docs
 docs/review/log
