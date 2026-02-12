@@ -131,16 +131,15 @@ export default function ProfilePage() {
             const fileName = `${user.id}-${Date.now()}.${fileExt}`;
             const filePath = `${fileName}`;
 
-            const { error: uploadError } = await supabase.storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('avatars')
                 .upload(filePath, file, { upsert: true });
 
             if (uploadError) throw uploadError;
-
-            // 获取公开 URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
+            const publicUrl = uploadData?.publicUrl as string | undefined;
+            if (!publicUrl) {
+                throw new Error('头像 URL 生成失败');
+            }
 
             // 更新用户资料
             const { error: updateError } = await supabase

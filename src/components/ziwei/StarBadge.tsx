@@ -1,5 +1,5 @@
-import type { StarInfo } from '@/lib/ziwei';
-import { getBrightnessColor, getMutagenColor } from '@/lib/ziwei';
+import type { StarInfo } from '@/lib/divination/ziwei';
+import { getBrightnessColor, getMutagenColor } from '@/lib/divination/ziwei';
 
 interface StarBadgeProps {
     star: StarInfo;

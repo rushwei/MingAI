@@ -1,5 +1,5 @@
-import type { LiuRiInfo } from '@/lib/bazi';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
+import type { LiuRiInfo } from '@/lib/divination/bazi';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
 export function LiuRiTable({
     liuRi,

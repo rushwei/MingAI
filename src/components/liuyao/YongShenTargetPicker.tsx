@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import type { LiuQin } from '@/lib/liuyao';
+import type { LiuQin } from '@/lib/divination/liuyao';
 
 export const YONG_SHEN_TARGET_OPTIONS: Array<{
     label: string;

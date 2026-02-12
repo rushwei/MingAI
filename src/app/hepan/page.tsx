@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import { Heart, Briefcase, Users, ArrowRight, HeartHandshake } from 'lucide-react';
-import { type HepanType, getHepanTypeName } from '@/lib/hepan';
+import { type HepanType, getHepanTypeName } from '@/lib/divination/hepan';
 
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 

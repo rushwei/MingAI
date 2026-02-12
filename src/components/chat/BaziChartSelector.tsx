@@ -85,10 +85,10 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
             const allCharts: ChartItem[] = [];
 
             if (!baziResult.error && baziResult.data) {
-                allCharts.push(...baziResult.data.map(c => ({ ...c, type: 'bazi' as const })));
+                allCharts.push(...baziResult.data.map((c: Record<string, unknown>) => ({ ...c, type: 'bazi' as const })));
             }
             if (!ziweiResult.error && ziweiResult.data) {
-                allCharts.push(...ziweiResult.data.map(c => ({ ...c, type: 'ziwei' as const })));
+                allCharts.push(...ziweiResult.data.map((c: Record<string, unknown>) => ({ ...c, type: 'ziwei' as const })));
             }
 
             setCharts(allCharts);

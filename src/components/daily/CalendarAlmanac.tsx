@@ -20,8 +20,8 @@ import {
     Scroll,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/calendar';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
+import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/divination/calendar';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
 interface CalendarAlmanacProps {
     date: Date;

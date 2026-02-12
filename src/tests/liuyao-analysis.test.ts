@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { performFullAnalysis, yaosTpCode, calculateKongWangByPillar, XUN_KONG_TABLE, type Yao, type YaoType, type YaoChange, type GanZhiTime } from '../lib/liuyao';
+import { performFullAnalysis, yaosTpCode, calculateKongWangByPillar, XUN_KONG_TABLE, type Yao, type YaoType, type YaoChange, type GanZhiTime } from '../lib/divination/liuyao';
 
 function computeCandidatePriority(candidate: {
     strengthScore: number;

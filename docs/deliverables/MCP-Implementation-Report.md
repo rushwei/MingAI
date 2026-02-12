@@ -404,7 +404,7 @@ npx @mingai/mcp-local
 # .env
 PORT=3001
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_ANON_KEY=your-anon-key
 MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
@@ -443,7 +443,7 @@ docker build -t mingai-mcp-server ./packages/mcp-server
 # 运行容器
 docker run -d -p 3001:3001 \
   -e SUPABASE_URL=https://your-project.supabase.co \
-  -e SUPABASE_SERVICE_ROLE_KEY=your-service-role-key \
+  -e SUPABASE_ANON_KEY=your-anon-key \
   -e MCP_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000 \
   mingai-mcp-server
 ```

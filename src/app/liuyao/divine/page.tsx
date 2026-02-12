@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { useToast } from '@/components/ui/Toast';
-import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/liuyao';
+import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 

@@ -5,11 +5,11 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
+import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import {
     type Hexagram,
     type Yao,
@@ -18,9 +18,9 @@ import {
     yaosTpCode,
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
-} from '@/lib/liuyao';
-import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
-import { getHexagramText } from '@/lib/hexagram-texts';
+} from '@/lib/divination/liuyao';
+import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
+import { getHexagramText } from '@/lib/divination/hexagram-texts';
 
 interface LiuyaoRequest {
     action: 'interpret' | 'save' | 'history' | 'update';
@@ -411,7 +411,7 @@ ${traditionalInfo}
                         void (async () => {
                             try {
                                 const { content: interpretation, reasoning: reasoningText } = await readAIStream(tapStream);
-                                const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
+                                const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai/ai-analysis');
                                 const hexagramCode = yaos?.map(y => y.type).join('') || '';
                                 const changedCode = changedHexagram ? yaos?.map((y, i) =>
                                     changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type
@@ -497,7 +497,7 @@ ${traditionalInfo}
                     );
 
                     // 保存 AI 分析到 conversations 表
-                    const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai-analysis');
+                    const { createAIAnalysisConversation, generateLiuyaoTitle } = await import('@/lib/ai/ai-analysis');
                     const hexagramCode = yaos?.map(y => y.type).join('') || '';
                     const changedCode = changedHexagram ? yaos?.map((y, i) =>
                         changedLines?.includes(i + 1) ? (y.type === 1 ? 0 : 1) : y.type

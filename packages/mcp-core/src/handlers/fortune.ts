@@ -113,7 +113,8 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
   const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
   const seed = resolveSeed(
     input.seed,
-    `${dateKey}|${input.dayMaster || ''}|${input.birthYear || ''}-${input.birthMonth || ''}-${input.birthDay || ''}-${input.birthHour || ''}`
+    `${dateKey}|${input.dayMaster || ''}|${input.birthYear || ''}-${input.birthMonth || ''}-${input.birthDay || ''}-${input.birthHour || ''}`,
+    input.seedScope
   );
   const rng = createSeededRng(seed);
   const solar = Solar.fromDate(targetDate);

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { pricingPlans } from '@/lib/membership';
+import { pricingPlans } from '@/lib/user/membership';
 import { getPaymentsPaused } from '@/lib/app-settings';
 import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 

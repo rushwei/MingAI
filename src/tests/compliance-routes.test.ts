@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 
 test('notifications launch returns admin-context auth error', async (t) => {
     const apiUtils = require('../lib/api-utils') as any;

@@ -6,7 +6,7 @@ import path from 'node:path';
 test('traditional analysis uses compact grouped layout labels', () => {
     const filePath = path.join(process.cwd(), 'src/components/liuyao/TraditionalAnalysis.tsx');
     const content = fs.readFileSync(filePath, 'utf8');
-    const termsPath = path.join(process.cwd(), 'src/lib/liuyao-term-tips.ts');
+    const termsPath = path.join(process.cwd(), 'src/lib/divination/liuyao-term-tips.ts');
     const termsContent = fs.readFileSync(termsPath, 'utf8');
 
     assert.equal(content.includes('关键信号'), true);

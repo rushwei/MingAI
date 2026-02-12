@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 process.env.DEEPSEEK_API_KEY = 'test-key';
 process.env.DEEPSEEK_MODEL_ID = process.env.DEEPSEEK_MODEL_ID || 'deepseek-chat';
 
@@ -23,7 +22,7 @@ const captureConsoleErrors = () => {
 };
 
 test('liuyao route returns error when credit deduction fails', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
@@ -114,11 +113,11 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
 });
 
 test('liuyao route uses divination created_at for analysis date', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
-    const aiModule = require('../lib/ai') as any;
-    const liuyaoModule = require('../lib/liuyao') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const liuyaoModule = require('../lib/divination/liuyao') as any;
 
     const originalHasCredits = credits.hasCredits;
     const originalUseCredit = credits.useCredit;
@@ -240,12 +239,12 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
 });
 
 test('liuyao route only marks 用神 when position and liuqin both match', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
-    const aiModule = require('../lib/ai') as any;
-    const aiAnalysisModule = require('../lib/ai-analysis') as any;
-    const liuyaoModule = require('../lib/liuyao') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const liuyaoModule = require('../lib/divination/liuyao') as any;
 
     const originalHasCredits = credits.hasCredits;
     const originalUseCredit = credits.useCredit;
@@ -364,9 +363,9 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
 });
 
 test('liuyao route persists analysis after streaming completes', async (t) => {
-    const credits = require('../lib/credits') as any;
-    const aiModule = require('../lib/ai') as any;
-    const aiAnalysisModule = require('../lib/ai-analysis') as any;
+    const credits = require('../lib/user/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
@@ -620,7 +619,7 @@ test('liuyao route interpret returns 400 when question is provided but yongShenT
 });
 
 test('liuyao route interpret enforces targets when persisted question exists but request question is empty', async (t) => {
-    const credits = require('../lib/credits') as any;
+    const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalHasCredits = credits.hasCredits;
@@ -764,9 +763,9 @@ test('liuyao route save allows missing yongShenTargets when question is empty', 
 });
 
 test('liuyao route interpret writes null yongshen_targets when question is empty', async (t) => {
-    const credits = require('../lib/credits') as any;
-    const aiModule = require('../lib/ai') as any;
-    const aiAnalysisModule = require('../lib/ai-analysis') as any;
+    const credits = require('../lib/user/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 

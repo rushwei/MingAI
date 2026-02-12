@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { ingestFileAsService, backfillVectorsAsService } from '@/lib/knowledge-base/ingest';
 import { triggerVectorIndexCreation } from '@/lib/knowledge-base/vector-index';
 import { getAuthContext, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';

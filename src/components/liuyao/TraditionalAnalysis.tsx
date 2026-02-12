@@ -16,9 +16,9 @@ import {
     type FuShen,
     type ShenSystemByYongShen,
     KONG_WANG_LABELS,
-} from '@/lib/liuyao';
-import { type HexagramText } from '@/lib/hexagram-texts';
-import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/liuyao-term-tips';
+} from '@/lib/divination/liuyao';
+import { type HexagramText } from '@/lib/divination/hexagram-texts';
+import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
 
 interface TraditionalAnalysisProps {
     fullYaos: FullYaoInfo[] | FullYaoInfoExtended[];

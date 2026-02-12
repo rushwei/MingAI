@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { type CompatibilityDimension, getCompatibilityLevel } from '@/lib/hepan';
+import { type CompatibilityDimension, getCompatibilityLevel } from '@/lib/divination/hepan';
 
 interface CompatibilityChartProps {
     dimensions: CompatibilityDimension[];

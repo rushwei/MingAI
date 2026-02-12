@@ -15,7 +15,7 @@ import {
     Gem,
 } from 'lucide-react';
 import { downloadShareCard, shareCard } from '@/lib/share-card';
-import type { DrawnCard, TarotSpread } from '@/lib/tarot';
+import type { DrawnCard, TarotSpread } from '@/lib/divination/tarot';
 
 interface TarotShareCardProps {
     /** 抽到的牌 */

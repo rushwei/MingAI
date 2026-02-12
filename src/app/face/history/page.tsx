@@ -13,8 +13,8 @@ import Link from 'next/link';
 import { Calendar, Trash2, Search, ScanFace, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { FACE_ANALYSIS_TYPES } from '@/lib/face';
-import { getModelName } from '@/lib/ai-config';
+import { FACE_ANALYSIS_TYPES } from '@/lib/divination/face';
+import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 
 interface FaceReading {

@@ -121,8 +121,16 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
             void syncConfig(user ?? null);
         }
 
+        const handleUserDataInvalidate = () => {
+            if (!sessionLoading) {
+                void syncConfig(user ?? null);
+            }
+        };
+        window.addEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
+
         return () => {
             isActive = false;
+            window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
         };
     }, [sessionLoading, user]);
 

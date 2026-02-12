@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 import { Calendar, Layers, ChevronRight, Gem } from 'lucide-react';
 import Image from 'next/image';
 
-import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/tarot';
+import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 
 const HistoryDrawer = dynamic(
     () => import('@/components/layout/HistoryDrawer').then(mod => mod.HistoryDrawer),

@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 
 test('community posts rejects when user context missing', async (t) => {
     const apiUtils = require('../lib/api-utils') as any;

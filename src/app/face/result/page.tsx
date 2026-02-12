@@ -12,7 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON } from '@/lib/cache';
-import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
+import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 

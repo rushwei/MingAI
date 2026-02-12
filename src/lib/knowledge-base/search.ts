@@ -1,10 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { callReranker } from '@/lib/knowledge-base/reranker';
 import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from '@/lib/knowledge-base/embedding-config';
 import type { RankedResult, SearchCandidate, SearchOptions } from '@/lib/knowledge-base/types';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 interface SearchConfigInternal {
     ftsConfig: 'simple' | 'english';
@@ -22,8 +23,8 @@ const DEFAULT_SEARCH_CONFIG: SearchConfigInternal = {
 async function createSupabaseClient(accessToken?: string) {
     if (accessToken) {
         return createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            getSupabaseUrl(),
+            getSupabaseAnonKey(),
             {
                 global: {
                     headers: {
@@ -35,8 +36,8 @@ async function createSupabaseClient(accessToken?: string) {
     }
     const cookieStore = await cookies();
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {

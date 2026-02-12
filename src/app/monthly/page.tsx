@@ -20,8 +20,8 @@ import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, type MonthlyFortune } from '@/lib/fortune';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/bazi';
+import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, type MonthlyFortune } from '@/lib/divination/fortune';
+import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 import type { BaziChart } from '@/types';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
@@ -47,7 +47,7 @@ function MonthlyPageContent() {
 
             if (!error && data && data.length > 0) {
                 // 从 chart_data 中提取完整的八字数据
-                const charts = data.map(row => {
+                const charts = data.map((row: Record<string, unknown>) => {
                     const chartData = row.chart_data as Record<string, unknown> || {};
                     return {
                         id: row.id,
@@ -88,7 +88,7 @@ function MonthlyPageContent() {
                             .from('user_settings')
                             .upsert({ user_id: uid, default_bazi_chart_id: storedDefaultId }, { onConflict: 'user_id' });
                     }
-                    const defaultChart = defaultId ? charts.find(c => c.id === defaultId) : null;
+                    const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                     setBaziChart(defaultChart || charts[0]);
                     return;
                 }
@@ -96,7 +96,7 @@ function MonthlyPageContent() {
                 // 回退到本地默认
                 const fallbackId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY)
                     || localStorage.getItem('defaultBaziChartId');
-                const defaultChart = fallbackId ? charts.find(c => c.id === fallbackId) : null;
+                const defaultChart = fallbackId ? charts.find((c: { id: string }) => c.id === fallbackId) : null;
                 setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {

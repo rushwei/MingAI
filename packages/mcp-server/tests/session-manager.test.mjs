@@ -82,12 +82,16 @@ test('session should update lastActivityAt on requests', async () => {
   );
 });
 
-test('createMcpServer should not depend on auth/request metadata', async () => {
+test('createMcpServer should bind auth for per-user seed scope', async () => {
   const source = await readFile(indexPath, 'utf-8');
 
   assert.ok(
-    source.includes('function createMcpServer()'),
-    'createMcpServer should not require auth/request metadata'
+    source.includes('function createMcpServer(auth: McpAuthInfo)'),
+    'createMcpServer should accept auth for user seed scope'
+  );
+  assert.ok(
+    source.includes('seedScope: auth.userId'),
+    'seeded tools should inject auth.userId as seedScope'
   );
 });
 

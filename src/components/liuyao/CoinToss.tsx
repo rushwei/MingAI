@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Coins, RotateCw, Smartphone } from 'lucide-react';
-import { tossThreeCoins, type CoinTossResult, type Yao } from '@/lib/liuyao';
+import { tossThreeCoins, type CoinTossResult, type Yao } from '@/lib/divination/liuyao';
 
 interface CoinTossProps {
     onComplete: (yaos: Yao[], results: CoinTossResult[]) => void;

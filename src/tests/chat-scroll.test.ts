@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isNearBottom } from '../lib/chat-scroll';
+import { isNearBottom } from '../lib/chat/chat-scroll';
 
 test('isNearBottom returns true when viewport is already at bottom', () => {
     assert.equal(

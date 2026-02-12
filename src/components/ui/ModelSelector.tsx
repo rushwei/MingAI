@@ -12,9 +12,9 @@ import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { ChevronDown, Lightbulb, Loader2 } from 'lucide-react';
 import { Zhipu, DeepSeek, Gemini, Qwen, Claude, Kimi } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
-import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai-config';
+import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
 import { supabase } from '@/lib/supabase';
-import type { MembershipType } from '@/lib/membership';
+import type { MembershipType } from '@/lib/user/membership';
 
 interface ClientModelConfig {
     id: string;
@@ -63,6 +63,17 @@ export function ModelSelector({
     const [models, setModels] = useState<ClientModelConfig[]>([]);
     const [modelsLoading, setModelsLoading] = useState(true);
     const [modelsError, setModelsError] = useState<string | null>(null);
+    const [refreshNonce, setRefreshNonce] = useState(0);
+
+    useEffect(() => {
+        const handleInvalidate = () => {
+            setRefreshNonce((value) => value + 1);
+        };
+        window.addEventListener('mingai:models:invalidate', handleInvalidate);
+        return () => {
+            window.removeEventListener('mingai:models:invalidate', handleInvalidate);
+        };
+    }, []);
 
     useEffect(() => {
         if (!onModelChange) return;
@@ -87,7 +98,9 @@ export function ModelSelector({
                     ? `mingai.models.${resolvedUserId}.${membershipType}`
                     : 'mingai.models.guest';
 
-                const cached = readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000);
+                const cached = refreshNonce === 0
+                    ? readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000)
+                    : null;
                 if (cached && cached.length > 0) {
                     setModels(cached);
                     setModelsLoading(false);
@@ -118,7 +131,7 @@ export function ModelSelector({
         return () => {
             isMounted = false;
         };
-    }, [membershipType, onModelChange, userId]);
+    }, [membershipType, onModelChange, refreshNonce, userId]);
 
     useEffect(() => {
         if (!models.length || !onModelChange) return;

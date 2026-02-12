@@ -2,7 +2,7 @@
  * MCP Server 专用 Supabase 客户端
  *
  * MCP Server 是独立 Express 进程，不能 import src/lib/
- * 使用 SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ * 使用 SUPABASE_URL + SUPABASE_ANON_KEY 调用受限 RPC
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -12,12 +12,12 @@ let client: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient {
   if (client) return client;
 
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
 
   if (!url || !key) {
     throw new Error(
-      'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables'
+      'Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables'
     );
   }
 

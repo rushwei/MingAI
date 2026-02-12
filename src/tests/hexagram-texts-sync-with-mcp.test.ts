@@ -4,7 +4,7 @@ import {
     HEXAGRAM_GUA_CI_FALLBACK,
     HEXAGRAM_XIANG_CI_FALLBACK,
     HEXAGRAM_YAO_CI_FALLBACK,
-} from '../lib/hexagram-texts-fallback';
+} from '../lib/divination/hexagram-texts-fallback';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../../packages/mcp-core/src/hexagram-texts';
 
 test('web hexagram fallback stays in sync with mcp constants', () => {

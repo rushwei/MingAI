@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 test('calculateResult chooses dominant dimensions from answers', () => {
-    const mbti = require('../lib/mbti') as any;
+    const mbti = require('../lib/divination/mbti') as any;
 
     const questions = [
         { question: 'Q1', choice_a: { value: 'E', text: 'A' }, choice_b: { value: 'I', text: 'B' } },

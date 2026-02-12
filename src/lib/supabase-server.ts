@@ -1,32 +1,95 @@
 /**
- * Supabase 服务端客户端
- * 
- * 使用 Service Role Key 绕过 RLS
- * 仅用于服务端 API 路由
+ * Supabase 服务端特权客户端
+ *
+ * 不再依赖 service role key：
+ * 使用 anon key + 系统管理员会话 access token（RLS + admin policy）。
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 let serviceClient: SupabaseClient | null = null;
+let authClient: SupabaseClient | null = null;
+
+let cachedAccessToken: string | null = null;
+let cachedAccessTokenExpiresAt = 0;
+let tokenPromise: Promise<string | null> | null = null;
+let hasWarnedMissingSystemSession = false;
+
+function getSystemAuthClient(): SupabaseClient {
+    if (authClient) return authClient;
+
+    authClient = createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+        auth: { persistSession: false, autoRefreshToken: false },
+    });
+    return authClient;
+}
+
+async function signInSystemAdmin(): Promise<Session | null> {
+    const email = process.env.SUPABASE_SYSTEM_ADMIN_EMAIL;
+    const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
+
+    if (!email || !password) {
+        return null;
+    }
+
+    const client = getSystemAuthClient();
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+    if (error || !data.session) {
+        console.error('[supabase-server] Failed to sign in system admin:', error);
+        return null;
+    }
+
+    return data.session;
+}
+
+async function getSystemAccessToken(): Promise<string | null> {
+    const now = Date.now();
+    if (cachedAccessToken && cachedAccessTokenExpiresAt - now > 60_000) {
+        return cachedAccessToken;
+    }
+
+    if (tokenPromise) return tokenPromise;
+
+    tokenPromise = (async () => {
+        const session = await signInSystemAdmin();
+        if (!session) return null;
+
+        cachedAccessToken = session.access_token;
+        cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
+        return cachedAccessToken;
+    })();
+
+    try {
+        return await tokenPromise;
+    } finally {
+        tokenPromise = null;
+    }
+}
 
 /**
- * 获取服务端 Supabase 客户端（绕过 RLS）
- * 使用单例模式避免重复创建
- * 注意：此客户端使用 Service Role Key，仅用于服务端
+ * 获取服务端 Supabase 客户端（系统管理员会话）
+ * 使用单例避免重复构建；token 由 accessToken 回调按需获取。
  */
 export function getServiceClient(): SupabaseClient {
     if (serviceClient) return serviceClient;
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const url = getSupabaseUrl();
+    const anonKey = getSupabaseAnonKey();
 
-    if (!url || !serviceKey) {
-        console.error('[supabase-server] Missing Supabase service configuration');
-        throw new Error('Missing Supabase service configuration');
-    }
-
-    serviceClient = createClient(url, serviceKey, {
-        auth: { persistSession: false }
+    serviceClient = createClient(url, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        accessToken: async () => {
+            const token = await getSystemAccessToken();
+            if (!token && !hasWarnedMissingSystemSession) {
+                hasWarnedMissingSystemSession = true;
+                console.warn(
+                    '[supabase-server] Missing system admin session config, privileged queries may fail with RLS'
+                );
+            }
+            return token;
+        },
     });
 
     return serviceClient;

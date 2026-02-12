@@ -95,6 +95,63 @@ export function writeLocalCache<T>(key: string, value: T) {
     window.localStorage.setItem(key, JSON.stringify(payload));
 }
 
+export function removeLocalCache(key: string) {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
+}
+
+export function removeLocalCacheByPrefix(prefix: string) {
+    if (typeof window === 'undefined') return;
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+            keys.push(key);
+        }
+    }
+    for (const key of keys) {
+        window.localStorage.removeItem(key);
+    }
+}
+
+export type LocalCacheScope =
+    | 'profile'
+    | 'membership'
+    | 'level'
+    | 'models'
+    | 'data_sources'
+    | 'knowledge_bases'
+    | 'sidebar_config'
+    | 'default_bazi_chart';
+
+const CACHE_SCOPE_PREFIXES: Record<Exclude<LocalCacheScope, 'default_bazi_chart'>, string> = {
+    profile: 'mingai.profile.',
+    membership: 'mingai.membership.',
+    level: 'mingai.level.',
+    models: 'mingai.models.',
+    data_sources: 'mingai.data_sources.',
+    knowledge_bases: 'mingai.knowledge_bases.',
+    sidebar_config: 'mingai.sidebar_config.',
+};
+
+const CACHE_SCOPE_KEYS: Record<'default_bazi_chart', string[]> = {
+    default_bazi_chart: ['mingai.pref.defaultBaziChartId', 'defaultBaziChartId'],
+};
+
+export function invalidateLocalCaches(scopes: LocalCacheScope[]) {
+    if (typeof window === 'undefined' || scopes.length === 0) return;
+    const uniqueScopes = Array.from(new Set(scopes));
+    for (const scope of uniqueScopes) {
+        if (scope === 'default_bazi_chart') {
+            for (const key of CACHE_SCOPE_KEYS.default_bazi_chart) {
+                removeLocalCache(key);
+            }
+            continue;
+        }
+        removeLocalCacheByPrefix(CACHE_SCOPE_PREFIXES[scope]);
+    }
+}
+
 export function readSessionJSON<T>(key: string): T | null {
     if (typeof window === 'undefined') return null;
     const raw = window.sessionStorage.getItem(key);

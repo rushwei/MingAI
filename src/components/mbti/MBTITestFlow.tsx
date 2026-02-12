@@ -18,7 +18,7 @@ import {
     type MBTIQuestion,
     type TestAnswer,
     type LikertValue,
-} from '@/lib/mbti';
+} from '@/lib/divination/mbti';
 import { supabase } from '@/lib/supabase';
 
 const QUESTIONS_PER_PAGE = 10;

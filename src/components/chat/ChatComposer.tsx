@@ -12,8 +12,8 @@ import Link from 'next/link';
 import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon, Loader2 } from 'lucide-react';
 import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import type { AttachmentState, Mention, MentionType, PromptLayerDiagnostic } from '@/types';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import type { MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import type { MembershipType } from '@/lib/user/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from '@/components/chat/MentionPopover';
@@ -21,7 +21,7 @@ import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight
 import { mentionStyleMap, mentionTypeLabels } from '@/components/chat/mentionStyles';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { shouldRequestChatPreview } from '@/lib/chat-preview';
+import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 
 type DataSourceSummary = {
@@ -1175,4 +1175,4 @@ export function ChatComposer({
 
 // 导出类型和配置以保持向后兼容
 export type AIModel = string;
-export { getModelName } from '@/lib/ai-config';
+export { getModelName } from '@/lib/ai/ai-config';

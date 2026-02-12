@@ -7,8 +7,8 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Send, Calendar, RefreshCw, Info, Loader2 } from 'lucide-react';
-import { getCalendarAlmanac } from '@/lib/calendar';
-import { getMembershipInfo } from '@/lib/membership';
+import { getCalendarAlmanac } from '@/lib/divination/calendar';
+import { getMembershipInfo } from '@/lib/user/membership';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 

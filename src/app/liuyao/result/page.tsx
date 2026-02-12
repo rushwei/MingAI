@@ -25,21 +25,21 @@ import {
     yaosTpCode,
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
-} from '@/lib/liuyao';
-import { getHexagramText } from '@/lib/hexagram-texts';
-import { getShiYingPosition, findPalace } from '@/lib/eight-palaces';
+} from '@/lib/divination/liuyao';
+import { getHexagramText } from '@/lib/divination/hexagram-texts';
+import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
-import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
-import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/liuyao-term-tips';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
+import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
 
 const LIU_QIN_VALUES: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 

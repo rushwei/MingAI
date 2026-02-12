@@ -21,7 +21,7 @@ import {
     Users,
 } from 'lucide-react';
 import { downloadShareCard, shareCard } from '@/lib/share-card';
-import type { DailyFortune, FortuneScores } from '@/lib/fortune';
+import type { DailyFortune, FortuneScores } from '@/lib/divination/fortune';
 
 interface ShareCardProps {
     /** 运势数据 */

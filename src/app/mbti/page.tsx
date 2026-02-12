@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain, Play, Loader2, Eye } from 'lucide-react';
 
-import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/mbti';
+import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/divination/mbti';
 
 function MBTIPageContent() {
     const router = useRouter();

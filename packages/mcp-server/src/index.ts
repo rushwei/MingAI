@@ -23,13 +23,7 @@ import {
 
 import {
   tools,
-  handleBaziCalculate,
-  handleBaziPillarsResolve,
-  handleZiweiCalculate,
-  handleLiuyaoAnalyze,
-  handleTarotDraw,
-  handleDailyFortune,
-  handleLiunianAnalyze,
+  handleToolCall,
 } from '@mingai/mcp-core';
 
 import {
@@ -38,45 +32,15 @@ import {
   originValidationMiddleware,
   hostValidationMiddleware,
   sseConnectionLimitMiddleware,
+  readPositiveIntEnv,
   type McpAuthInfo,
 } from './middleware.js';
-
-function readPositiveIntEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
 
 // ─── 会话管理配置 ───
 const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
 const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
 const SESSION_IDLE = readPositiveIntEnv('MCP_SESSION_IDLE_MS', 600000); // 10min
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
-// 工具调用处理
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleToolCall(name: string, args: any): Promise<unknown> {
-  switch (name) {
-    case 'bazi_calculate':
-      return handleBaziCalculate(args);
-    case 'bazi_pillars_resolve':
-      return handleBaziPillarsResolve(args);
-    case 'ziwei_calculate':
-      return handleZiweiCalculate(args);
-    case 'liuyao_analyze':
-      return handleLiuyaoAnalyze(args);
-    case 'tarot_draw':
-      return handleTarotDraw(args);
-    case 'daily_fortune':
-      return handleDailyFortune(args);
-    case 'liunian_analyze':
-      return handleLiunianAnalyze(args);
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
 
 const app = express();
 
@@ -99,6 +63,21 @@ type SessionContext = {
   createdAt: number;
   lastActivityAt: number;
 };
+
+const SEED_SCOPED_TOOLS = new Set(['liuyao_analyze', 'tarot_draw', 'daily_fortune']);
+
+function withSeedScope(name: string, args: unknown, auth: McpAuthInfo): unknown {
+  if (!SEED_SCOPED_TOOLS.has(name)) {
+    return args || {};
+  }
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    return { seedScope: auth.userId };
+  }
+  return {
+    ...(args as Record<string, unknown>),
+    seedScope: auth.userId,
+  };
+}
 
 // 存储活跃会话
 const sessions = new Map<string, SessionContext>();
@@ -129,7 +108,7 @@ setInterval(() => {
   }
 }, 60_000);
 
-function createMcpServer() {
+function createMcpServer(auth: McpAuthInfo) {
   const server = new McpServer(
     { name: 'mingai-mcp-online', version: '1.0.0' },
     { capabilities: { tools: {} } }
@@ -148,9 +127,10 @@ function createMcpServer() {
   // 调用工具（错误脱敏）
   server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+    const toolArgs = withSeedScope(name, args, auth);
 
     try {
-      const result = await handleToolCall(name, args || {});
+      const result = await handleToolCall(name, toolArgs);
 
       const humanReadableText =
         typeof result === 'string'
@@ -218,7 +198,7 @@ app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, authMiddl
     return res.status(503).json({ error: 'Server at capacity, try again later' });
   }
 
-  const server = createMcpServer();
+  const server = createMcpServer(auth);
   const now = Date.now();
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
@@ -310,6 +290,30 @@ app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, authMid
 // 启动服务器
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.MCP_HOST || '127.0.0.1';
-app.listen(PORT, HOST, () => {
+const httpServer = app.listen(PORT, HOST, () => {
   console.log(`MingAI MCP Server (Streamable HTTP) running on ${HOST}:${PORT} at /mcp`);
 });
+
+// ─── 优雅关闭 ───
+function gracefulShutdown(signal: string) {
+  console.log(`\n[${signal}] Shutting down MCP server...`);
+
+  // 停止接受新连接
+  httpServer.close(() => {
+    console.log('HTTP server closed');
+  });
+
+  // 清理所有活跃会话
+  for (const [id] of sessions) {
+    cleanupSession(id);
+  }
+  console.log(`Cleaned up ${sessions.size === 0 ? 'all' : sessions.size} sessions`);
+
+  // 给进行中的请求一点时间完成
+  setTimeout(() => {
+    process.exit(0);
+  }, 3000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

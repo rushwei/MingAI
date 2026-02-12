@@ -12,6 +12,7 @@ interface McpKeyRow {
     user_id: string;
     key_preview: string;
     is_active: boolean;
+    is_banned: boolean;
     created_at: string;
     last_used_at: string | null;
     user_email: string | null;
@@ -27,6 +28,7 @@ export function McpKeyManagementPanel() {
     const [keys, setKeys] = useState<McpKeyRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [revoking, setRevoking] = useState<string | null>(null);
+    const [unbanning, setUnbanning] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const getToken = useCallback(async () => {
@@ -66,12 +68,34 @@ export function McpKeyManagementPanel() {
                 body: JSON.stringify({ userId }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || '吊销失败');
+            if (!res.ok) throw new Error(data.error || '封禁失败');
             await fetchKeys();
         } catch (err) {
-            setError(err instanceof Error ? err.message : '吊销失败');
+            setError(err instanceof Error ? err.message : '封禁失败');
         } finally {
             setRevoking(null);
+        }
+    };
+
+    const handleUnban = async (userId: string) => {
+        setUnbanning(userId);
+        try {
+            const token = await getToken();
+            const res = await fetch('/api/admin/mcp-keys', {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || '解除封禁失败');
+            await fetchKeys();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '解除封禁失败');
+        } finally {
+            setUnbanning(null);
         }
     };
 
@@ -146,11 +170,13 @@ export function McpKeyManagementPanel() {
                                         <code className="text-xs">{k.key_preview}</code>
                                     </td>
                                     <td className="py-2.5">
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${k.is_active
-                                            ? 'bg-green-500/10 text-green-500'
-                                            : 'bg-red-500/10 text-red-500'
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${k.is_banned
+                                            ? 'bg-red-500/10 text-red-500'
+                                            : k.is_active
+                                                ? 'bg-green-500/10 text-green-500'
+                                                : 'bg-orange-500/10 text-orange-500'
                                             }`}>
-                                            {k.is_active ? '活跃' : '已吊销'}
+                                            {k.is_banned ? '已封禁' : '活跃'}
                                         </span>
                                     </td>
                                     <td className="py-2.5 text-xs text-foreground-secondary">
@@ -160,17 +186,30 @@ export function McpKeyManagementPanel() {
                                         {formatTime(k.last_used_at)}
                                     </td>
                                     <td className="py-2.5">
-                                        {k.is_active && (
+                                        {!k.is_banned && (
                                             <button
                                                 onClick={() => handleRevoke(k.user_id)}
-                                                disabled={revoking === k.user_id}
+                                                disabled={revoking === k.user_id || unbanning === k.user_id}
                                                 className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 disabled:opacity-50"
                                             >
                                                 {revoking === k.user_id
                                                     ? <Loader2 className="w-3 h-3 animate-spin" />
                                                     : <Ban className="w-3 h-3" />
                                                 }
-                                                吊销
+                                                封禁
+                                            </button>
+                                        )}
+                                        {k.is_banned && (
+                                            <button
+                                                onClick={() => handleUnban(k.user_id)}
+                                                disabled={unbanning === k.user_id || revoking === k.user_id}
+                                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 disabled:opacity-50"
+                                            >
+                                                {unbanning === k.user_id
+                                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                    : <Key className="w-3 h-3" />
+                                                }
+                                                解除封禁
                                             </button>
                                         )}
                                     </td>

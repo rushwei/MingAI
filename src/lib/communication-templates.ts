@@ -4,7 +4,7 @@
  * 根据冲突类型和关系类型提供针对性的沟通建议
  */
 
-import type { HepanType } from '@/lib/hepan';
+import type { HepanType } from '@/lib/divination/hepan';
 
 // 冲突触发因素
 export interface TriggerFactor {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HEXAGRAMS } from '../lib/liuyao';
-import { getHexagramText } from '../lib/hexagram-texts';
+import { HEXAGRAMS } from '../lib/divination/liuyao';
+import { getHexagramText } from '../lib/divination/hexagram-texts';
 
 test('hexagram texts provide gua/xiang/6-yao for all 64 hexagrams', () => {
     assert.equal(HEXAGRAMS.length, 64);

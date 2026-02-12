@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { generateBaziChartText } from '@/lib/bazi';
+import { generateBaziChartText } from '@/lib/divination/bazi';
 import type { BaziChart } from '@/types';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 

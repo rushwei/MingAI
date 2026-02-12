@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const sharedConfigPath = resolve(process.cwd(), 'src/lib/ai-config.ts');
+const sharedConfigPath = resolve(process.cwd(), 'src/lib/ai/ai-config.ts');
 const serverConfigPath = resolve(process.cwd(), 'src/lib/server/ai-config.ts');
 const modelsRoutePath = resolve(process.cwd(), 'src/app/api/models/route.ts');
 
@@ -15,8 +15,12 @@ test('server ai-config module should be marked as server-only', async () => {
     'server ai-config module must include server-only guard'
   );
   assert.ok(
-    source.includes('SUPABASE_SERVICE_ROLE_KEY'),
-    'server ai-config module should own service-role access'
+    source.includes('getServiceClient'),
+    'server ai-config module should use shared server supabase client'
+  );
+  assert.ok(
+    !source.includes('SUPABASE_SERVICE_ROLE_KEY'),
+    'server ai-config module should no longer reference service role key'
   );
 });
 

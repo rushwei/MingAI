@@ -8,7 +8,7 @@
  */
 'use client';
 
-import { type Yao } from '@/lib/liuyao';
+import { type Yao } from '@/lib/divination/liuyao';
 
 interface YaoLineProps {
     yao: Yao;

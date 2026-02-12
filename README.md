@@ -89,10 +89,27 @@ Default ports:
 - Web: `3000` ([http://localhost:3000](http://localhost:3000))
 - MCP: `3001`
 
+Required environment variables:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SYSTEM_ADMIN_EMAIL` (required for privileged server tasks/routes)
+- `SUPABASE_SYSTEM_ADMIN_PASSWORD` (required for privileged server tasks/routes)
+
 Optional environment variables:
 - `WEB_PORT`: maps to Web container port 3000
 - `MCP_PORT`: maps to MCP container port 3001
-- `MCP_API_KEY`: auth key for MCP service (passed via `x-api-key` by clients)
+- `MCP_ALLOWED_ORIGINS`: browser origin allowlist for MCP (comma-separated; use `*` for local testing if needed)
+- `MCP_ALLOWED_HOSTS`: optional host allowlist for MCP (comma-separated)
+- `MCP_MAX_SESSIONS`, `MCP_SESSION_TTL_MS`, `MCP_SESSION_IDLE_MS`, `MCP_MAX_SSE_PER_USER`, `MCP_TRUST_PROXY`
+
+MCP auth note:
+- MCP no longer uses a single `MCP_API_KEY` env var.
+- Access keys are user-level keys in `mcp_api_keys` (generate from the MingAI user page `/user/mcp`).
+
+Local startup note:
+- Web-only UI/dev (no MCP, no server-side admin/service features): `SUPABASE_URL` + `SUPABASE_ANON_KEY` is enough.
+- MCP full chain (user key management + MCP server auth): no longer depends on a service-role secret.
+- Full server/admin/task capability now uses system admin session (`SUPABASE_SYSTEM_ADMIN_EMAIL` + `SUPABASE_SYSTEM_ADMIN_PASSWORD`) instead of service role key.
 
 ### MCP Config (Streamable HTTP)
 
@@ -103,7 +120,7 @@ Optional environment variables:
       "type": "streamable-http",
       "url": "http://localhost:3001/mcp", // You can also use https://mcp.mingai.fun/mcp
       "headers": {
-        "x-api-key": "your-api-key" // Remove headers when API key is disabled (hosted service has no API key)
+        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx"
       }
     }
   }

@@ -15,7 +15,7 @@ import {
     deleteActivationKey,
     activateKey,
     type CreateKeyParams,
-} from "@/lib/activation-keys";
+} from "@/lib/user/activation-keys";
 
 /**
  * GET /api/activation-keys

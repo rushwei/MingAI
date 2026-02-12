@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Search } from 'lucide-react';
-import { HEXAGRAMS } from '@/lib/liuyao';
+import { HEXAGRAMS } from '@/lib/divination/liuyao';
 
 interface HexagramSelectorProps {
     value?: string;

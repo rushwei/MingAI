@@ -3,12 +3,12 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { type HepanResult, getHepanTypeName } from '@/lib/hepan';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
+import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 
 interface HepanRequest {
     action: 'analyze' | 'save' | 'list';
@@ -162,7 +162,7 @@ ${conflictsSummary}
                     void (async () => {
                         try {
                             const { content: analysis, reasoning: reasoningText } = await readAIStream(tapStream);
-                            const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai-analysis');
+                            const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai/ai-analysis');
                             const conversationId = await createAIAnalysisConversation({
                                 userId: user.id,
                                 sourceType: 'hepan',
@@ -255,7 +255,7 @@ ${conflictsSummary}
                 );
 
                 // 保存 AI 分析到 conversations 表
-                const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai-analysis');
+                const { createAIAnalysisConversation, generateHepanTitle } = await import('@/lib/ai/ai-analysis');
                 const conversationId = await createAIAnalysisConversation({
                     userId: user.id,
                     sourceType: 'hepan',

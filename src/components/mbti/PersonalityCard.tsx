@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type Dimension, type TestResult, type PersonalityData, PERSONALITY_BASICS, loadPersonalityData, getDimensionDescription } from '@/lib/mbti';
+import { type Dimension, type TestResult, type PersonalityData, PERSONALITY_BASICS, loadPersonalityData, getDimensionDescription } from '@/lib/divination/mbti';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PersonalityCardProps {

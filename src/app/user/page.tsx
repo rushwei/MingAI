@@ -34,8 +34,8 @@ import { CalendarModal } from '@/components/checkin/CalendarModal';
 import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
-import { usePaymentPause } from '@/lib/usePaymentPause';
-import { buildMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
@@ -398,9 +398,17 @@ export default function UserPage() {
             }
         );
 
+        const handleUserDataInvalidate = () => {
+            void resolveSession().then((session) => {
+                handleSession(session, true);
+            });
+        };
+        window.addEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
+
         return () => {
             isMounted = false;
             subscription.unsubscribe();
+            window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
         };
     }, []);
 
@@ -421,25 +429,22 @@ export default function UserPage() {
 
         fetchCount();
 
-        const channel = supabase
-            .channel(`user-center-notifications:${user.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'notifications',
-                    filter: `user_id=eq.${user.id}`,
-                },
-                () => {
-                    fetchCount({ bypassCache: true });
-                }
-            )
-            .subscribe();
+        const timer = window.setInterval(() => {
+            void fetchCount({ bypassCache: true });
+        }, 30_000);
+
+        const handleDbWrite = (event: Event) => {
+            const detail = (event as CustomEvent<{ table?: string }>).detail;
+            if (detail?.table === 'notifications') {
+                void fetchCount({ bypassCache: true });
+            }
+        };
+        window.addEventListener('mingai:supabase-write', handleDbWrite);
 
         return () => {
             isActive = false;
-            supabase.removeChannel(channel);
+            window.clearInterval(timer);
+            window.removeEventListener('mingai:supabase-write', handleDbWrite);
         };
     }, [user]);
 

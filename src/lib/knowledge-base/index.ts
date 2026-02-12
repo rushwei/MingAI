@@ -1,12 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { ArchivedSource, ArchivedSourceType, KnowledgeBase, KnowledgeBaseInput } from '@/lib/knowledge-base/types';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {

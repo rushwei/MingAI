@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { getHepanTypeName, type HepanType } from '@/lib/hepan';
+import { getHepanTypeName, type HepanType } from '@/lib/divination/hepan';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type HepanRow = {

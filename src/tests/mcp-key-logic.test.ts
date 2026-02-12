@@ -3,7 +3,21 @@ import assert from 'node:assert/strict';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
+
+type FakeFromQuery = {
+  select: () => {
+    eq: (column: string, value: string) => {
+      maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
+    };
+  };
+  update: (payload: Record<string, unknown>) => {
+    eq: (column: string, value: string) => {
+      select: () => {
+        single: () => Promise<{ data: unknown; error: unknown }>;
+      };
+    };
+  };
+};
 
 test('generateMcpKeyCode uses sk-mcp-mingai- prefix', async () => {
   const { generateMcpKeyCode } = await import('../lib/mcp-keys');
@@ -13,24 +27,23 @@ test('generateMcpKeyCode uses sk-mcp-mingai- prefix', async () => {
   assert.equal(key.length, 'sk-mcp-mingai-'.length + 24);
 });
 
-test('resetMcpKey should not update reset_count field', async (t) => {
-  const apiUtils = require('../lib/api-utils') as any;
-  const originalGetServiceRoleClient = apiUtils.getServiceRoleClient;
-
-  let updatePayload: Record<string, unknown> | null = null;
+test('resetMcpKey should call mcp_reset_key RPC and return updated key', async () => {
+  let rpcName = '';
+  let rpcArgs: Record<string, unknown> | undefined;
 
   const keyRow = {
     id: 'key-1',
     user_id: 'user-1',
     key_code: 'old-key',
     is_active: true,
+    is_banned: false,
     created_at: new Date().toISOString(),
     last_used_at: null,
     reset_count: 5,
   };
 
-  const serviceClient = {
-    from: (table: string) => {
+  const authedClient = {
+    from: (table: string): FakeFromQuery => {
       if (table !== 'mcp_api_keys') {
         throw new Error(`Unexpected table: ${table}`);
       }
@@ -41,38 +54,31 @@ test('resetMcpKey should not update reset_count field', async (t) => {
             maybeSingle: async () => ({ data: keyRow, error: null }),
           }),
         }),
-        update: (payload: Record<string, unknown>) => {
-          updatePayload = payload;
-          return {
-            eq: () => ({
-              select: () => ({
-                single: async () => ({ data: { ...keyRow, ...payload }, error: null }),
-              }),
-            }),
-          };
+        update: () => {
+          throw new Error('Should not call update directly');
         },
+      };
+    },
+    rpc: async (name: string, args?: Record<string, unknown>) => {
+      rpcName = name;
+      rpcArgs = args;
+      return {
+        data: [{ ...keyRow, key_code: args?.p_new_key_code, reset_count: 6, last_used_at: null }],
+        error: null,
       };
     },
   };
 
-  apiUtils.getServiceRoleClient = () => serviceClient;
-
-  t.after(() => {
-    apiUtils.getServiceRoleClient = originalGetServiceRoleClient;
-  });
-
   const { resetMcpKey } = await import('../lib/mcp-keys');
-  const result = await resetMcpKey('user-1');
+  const result = await resetMcpKey(authedClient as never, 'user-1');
 
   assert.equal(result.success, true);
-  assert.ok(updatePayload, 'resetMcpKey should execute update');
-  assert.equal(Object.prototype.hasOwnProperty.call(updatePayload!, 'reset_count'), false);
+  assert.equal(rpcName, 'mcp_reset_key');
+  assert.equal(rpcArgs?.p_user_id, 'user-1');
+  assert.ok(typeof rpcArgs?.p_new_key_code === 'string', 'should pass new key code');
 });
 
-test('resetMcpKey should reject permanently revoked keys', async (t) => {
-  const apiUtils = require('../lib/api-utils') as any;
-  const originalGetServiceRoleClient = apiUtils.getServiceRoleClient;
-
+test('resetMcpKey should reject permanently banned keys', async () => {
   let updateCalled = false;
 
   const keyRow = {
@@ -80,12 +86,13 @@ test('resetMcpKey should reject permanently revoked keys', async (t) => {
     user_id: 'user-1',
     key_code: 'old-key',
     is_active: false,
+    is_banned: true,
     created_at: new Date().toISOString(),
     last_used_at: null,
   };
 
-  const serviceClient = {
-    from: (table: string) => {
+  const authedClient = {
+    from: (table: string): FakeFromQuery => {
       if (table !== 'mcp_api_keys') {
         throw new Error(`Unexpected table: ${table}`);
       }
@@ -110,86 +117,122 @@ test('resetMcpKey should reject permanently revoked keys', async (t) => {
     },
   };
 
-  apiUtils.getServiceRoleClient = () => serviceClient;
-
-  t.after(() => {
-    apiUtils.getServiceRoleClient = originalGetServiceRoleClient;
-  });
-
   const { resetMcpKey } = await import('../lib/mcp-keys');
-  const result = await resetMcpKey('user-1');
+  const result = await resetMcpKey(authedClient as never, 'user-1');
 
   assert.equal(result.success, false);
   assert.match(result.error || '', /封禁/);
-  assert.equal(updateCalled, false, 'revoked key must not be reset back to active');
+  assert.equal(updateCalled, false, 'banned key must not be reset');
 });
 
-test('getAllMcpKeys should read nickname from users and email from auth admin API', async (t) => {
-  const apiUtils = require('../lib/api-utils') as any;
-  const originalGetServiceRoleClient = apiUtils.getServiceRoleClient;
+test('resetMcpKey should allow inactive but unbanned key to regenerate', async () => {
+  let rpcName = '';
 
-  let usersSelectColumns = '';
+  const keyRow = {
+    id: 'key-2',
+    user_id: 'user-2',
+    key_code: 'old-key-2',
+    is_active: false,
+    is_banned: false,
+    created_at: new Date().toISOString(),
+    last_used_at: null,
+    reset_count: 1,
+  };
 
-  const serviceClient = {
-    from: (table: string) => {
-      if (table === 'mcp_api_keys') {
-        return {
-          select: () => ({
-            order: () => Promise.resolve({
-              data: [{
-                id: 'key-1',
-                user_id: 'user-1',
-                key_code: 'sk-mcp-mingai-abcdef1234567890abcdef12',
-                is_active: true,
-                created_at: '2026-02-11T00:00:00.000Z',
-                last_used_at: null,
-              }],
-              error: null,
-            }),
+  const authedClient = {
+    from: (table: string): FakeFromQuery => {
+      if (table !== 'mcp_api_keys') {
+        throw new Error(`Unexpected table: ${table}`);
+      }
+
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: keyRow, error: null }),
           }),
-        };
-      }
-
-      if (table === 'users') {
-        return {
-          select: (columns: string) => {
-            usersSelectColumns = columns;
-            return {
-              in: () => Promise.resolve({
-                data: [{ id: 'user-1', nickname: '测试用户' }],
-                error: null,
-              }),
-            };
-          },
-        };
-      }
-
-      throw new Error(`Unexpected table: ${table}`);
-    },
-    auth: {
-      admin: {
-        getUserById: async (userId: string) => {
-          assert.equal(userId, 'user-1');
-          return {
-            data: { user: { id: 'user-1', email: 'user1@example.com' } },
-            error: null,
-          };
+        }),
+        update: () => {
+          throw new Error('Should not call update directly');
         },
-      },
+      };
+    },
+    rpc: async (name: string, args?: Record<string, unknown>) => {
+      rpcName = name;
+      return {
+        data: [{
+          ...keyRow,
+          key_code: args?.p_new_key_code,
+          is_active: true,
+          reset_count: 2,
+          last_used_at: null,
+        }],
+        error: null,
+      };
     },
   };
 
-  apiUtils.getServiceRoleClient = () => serviceClient;
+  const { resetMcpKey } = await import('../lib/mcp-keys');
+  const result = await resetMcpKey(authedClient as never, 'user-2');
 
-  t.after(() => {
-    apiUtils.getServiceRoleClient = originalGetServiceRoleClient;
-  });
+  assert.equal(result.success, true);
+  assert.equal(rpcName, 'mcp_reset_key');
+  assert.equal(result.key?.is_active, true);
+});
+
+test('getAllMcpKeys should use admin_list_mcp_keys rpc', async () => {
+  let rpcName = '';
+  let rpcArgs: Record<string, unknown> | undefined;
+
+  const adminClient = {
+    rpc: async (name: string, args?: Record<string, unknown>) => {
+      rpcName = name;
+      rpcArgs = args;
+      return {
+        data: [
+          {
+            id: 'key-1',
+            user_id: 'user-1',
+            key_code: 'sk-mcp-mingai-abcdef1234567890abcdef12',
+            is_active: true,
+            is_banned: false,
+            created_at: '2026-02-11T00:00:00.000Z',
+            last_used_at: null,
+            user_email: 'user1@example.com',
+            user_nickname: '测试用户',
+          },
+        ],
+        error: null,
+      };
+    },
+  };
 
   const { getAllMcpKeys } = await import('../lib/mcp-keys');
-  const result = await getAllMcpKeys();
+  const result = await getAllMcpKeys(adminClient as never, { isActive: true });
 
-  assert.equal(usersSelectColumns, 'id, nickname');
+  assert.equal(rpcName, 'admin_list_mcp_keys');
+  assert.deepEqual(rpcArgs, { p_is_active: true });
   assert.equal(result.length, 1);
   assert.equal(result[0].user_nickname, '测试用户');
   assert.equal(result[0].user_email, 'user1@example.com');
+  assert.equal(result[0].key_preview, 'sk-m••••ef12');
+});
+
+test('unbanMcpKey should call admin_unban_mcp_key rpc', async () => {
+  let rpcName = '';
+  let rpcArgs: Record<string, unknown> | undefined;
+
+  const adminClient = {
+    rpc: async (name: string, args?: Record<string, unknown>) => {
+      rpcName = name;
+      rpcArgs = args;
+      return { data: true, error: null };
+    },
+  };
+
+  const { unbanMcpKey } = await import('../lib/mcp-keys');
+  const result = await unbanMcpKey(adminClient as never, 'user-9');
+
+  assert.equal(result.success, true);
+  assert.equal(rpcName, 'admin_unban_mcp_key');
+  assert.deepEqual(rpcArgs, { p_user_id: 'user-9' });
 });

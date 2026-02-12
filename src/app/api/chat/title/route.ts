@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { callAI } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
+import { callAI } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizePlainTitle } from '@/lib/title-utils';
 import type { ChatMessage } from '@/types';

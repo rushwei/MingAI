@@ -63,6 +63,19 @@ test('authMiddleware should support x-api-key and Bearer token', async () => {
   );
 });
 
+test('authMiddleware should validate key via RPC functions', async () => {
+  const source = await readFile(middlewarePath, 'utf-8');
+
+  assert.ok(
+    source.includes('mcp_verify_api_key'),
+    'should call mcp_verify_api_key RPC instead of direct table query'
+  );
+  assert.ok(
+    source.includes('mcp_touch_key_last_used'),
+    'should call mcp_touch_key_last_used RPC for last_used_at update'
+  );
+});
+
 test('authMiddleware should use key cache', async () => {
   const source = await readFile(middlewarePath, 'utf-8');
 
@@ -73,6 +86,14 @@ test('authMiddleware should use key cache', async () => {
   assert.ok(
     source.includes('setCachedKey'),
     'should cache validated keys'
+  );
+  assert.ok(
+    source.includes('invalidateCachedKey'),
+    'should invalidate cache entry when cached key revalidation fails'
+  );
+  assert.ok(
+    source.includes('activeKey = await queryActiveKey(apiKey)'),
+    'should revalidate cached key against DB to enforce revoke/reset immediately'
   );
 });
 

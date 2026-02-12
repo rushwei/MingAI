@@ -5,29 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
-import { tools, handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleLiunianAnalyze, } from '@mingai/mcp-core';
-// 工具调用处理
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleToolCall(name, args) {
-    switch (name) {
-        case 'bazi_calculate':
-            return handleBaziCalculate(args);
-        case 'bazi_pillars_resolve':
-            return handleBaziPillarsResolve(args);
-        case 'ziwei_calculate':
-            return handleZiweiCalculate(args);
-        case 'liuyao_analyze':
-            return handleLiuyaoAnalyze(args);
-        case 'tarot_draw':
-            return handleTarotDraw(args);
-        case 'daily_fortune':
-            return handleDailyFortune(args);
-        case 'liunian_analyze':
-            return handleLiunianAnalyze(args);
-        default:
-            throw new Error(`Unknown tool: ${name}`);
-    }
-}
+import { tools, handleToolCall, } from '@mingai/mcp-core';
 // 创建服务器
 const server = new McpServer({ name: 'mingai-mcp', version: '1.0.0' }, { capabilities: { tools: {} } });
 // 列出工具

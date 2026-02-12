@@ -1,14 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { DataSourceType } from '@/lib/data-sources/types';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 type ArchiveStatusSourceType = 'conversation' | 'record' | 'chat_message' | DataSourceType;
 
 async function createSupabaseClient() {
     const cookieStore = await cookies();
     return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        getSupabaseUrl(),
+        getSupabaseAnonKey(),
         {
             cookies: {
                 getAll() {

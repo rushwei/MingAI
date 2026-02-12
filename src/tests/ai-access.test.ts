@@ -5,8 +5,8 @@ process.env.DEEPSEEK_MODEL_ID = 'deepseek-chat';
 process.env.DEEPSEEK_API_KEY = 'test-key';
 
 test('resolveModelAccess returns default model and disables reasoning', async () => {
-    const { resolveModelAccess } = await import('../lib/ai-access');
-    const { DEFAULT_MODEL_ID } = await import('../lib/ai-config');
+    const { resolveModelAccess } = await import('../lib/ai/ai-access');
+    const { DEFAULT_MODEL_ID } = await import('../lib/ai/ai-config');
 
     const result = resolveModelAccess(undefined, DEFAULT_MODEL_ID, 'free', true);
 
@@ -17,8 +17,8 @@ test('resolveModelAccess returns default model and disables reasoning', async ()
 });
 
 test('resolveModelAccess rejects non-vision model when vision required', async () => {
-    const { resolveModelAccess } = await import('../lib/ai-access');
-    const { DEFAULT_MODEL_ID } = await import('../lib/ai-config');
+    const { resolveModelAccess } = await import('../lib/ai/ai-access');
+    const { DEFAULT_MODEL_ID } = await import('../lib/ai/ai-config');
 
     const result = resolveModelAccess(undefined, DEFAULT_MODEL_ID, 'plus', false, { requireVision: true });
 
@@ -28,8 +28,8 @@ test('resolveModelAccess rejects non-vision model when vision required', async (
 });
 
 test('resolveModelAccess returns model unavailable for invalid id', async () => {
-    const { resolveModelAccess } = await import('../lib/ai-access');
-    const { DEFAULT_MODEL_ID } = await import('../lib/ai-config');
+    const { resolveModelAccess } = await import('../lib/ai/ai-access');
+    const { DEFAULT_MODEL_ID } = await import('../lib/ai/ai-config');
 
     const result = resolveModelAccess('invalid-model', DEFAULT_MODEL_ID, 'plus');
 

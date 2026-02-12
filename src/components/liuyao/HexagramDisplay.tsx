@@ -16,7 +16,7 @@ import {
     getHexagramBrief,
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
-} from '@/lib/liuyao';
+} from '@/lib/divination/liuyao';
 import { YaoLine } from '@/components/liuyao/YaoLine';
 
 // 静态常量提取到组件外部，避免每次渲染重新创建

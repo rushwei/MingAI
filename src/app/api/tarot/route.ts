@@ -4,13 +4,13 @@
  * 提供抽牌、每日一牌、牌阵解读等功能
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
+import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/credits';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
+import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 
 // 请求类型
 interface TarotRequest {
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         void (async () => {
                             try {
                                 const { content: interpretation, reasoning: reasoningText } = await readAIStream(tapStream);
-                                const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
+                                const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai/ai-analysis');
                                 const conversationId = await createAIAnalysisConversation({
                                     userId: user.id,
                                     sourceType: 'tarot',
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     );
 
                     // 保存 AI 分析到 conversations 表
-                    const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai-analysis');
+                    const { createAIAnalysisConversation, generateTarotTitle } = await import('@/lib/ai/ai-analysis');
                     const conversationId = await createAIAnalysisConversation({
                         userId: user.id,
                         sourceType: 'tarot',

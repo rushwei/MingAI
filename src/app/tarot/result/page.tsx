@@ -16,22 +16,22 @@ import {
     BookOpenText,
 } from 'lucide-react';
 import Image from 'next/image';
-import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/tarot';
+import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
-import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 
 function TarotResultContent() {
     const router = useRouter();

@@ -21,10 +21,9 @@ import {
     Scroll,
 } from 'lucide-react';
 import { signOut, getUserProfile } from '@/lib/auth';
-import { buildMembershipInfo, type MembershipInfo } from '@/lib/membership';
+import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { getUnreadCount } from '@/lib/notification';
-import { supabase } from '@/lib/supabase';
-import { usePaymentPause } from '@/lib/usePaymentPause';
+import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
 interface SidebarUserCardProps {
@@ -101,8 +100,15 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
             setMembership(buildMembershipInfo(null));
         };
         load();
+
+        const handleUserDataInvalidate = () => {
+            void load();
+        };
+        window.addEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
+
         return () => {
             isActive = false;
+            window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
         };
     }, [user.id]);
 
@@ -118,25 +124,27 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
 
         fetchCount();
 
-        const channel = supabase
-            .channel(`user-menu-notifications:${user.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'notifications',
-                    filter: `user_id=eq.${user.id}`,
-                },
-                () => {
-                    fetchCount({ bypassCache: true });
-                }
-            )
-            .subscribe();
+        const timer = window.setInterval(() => {
+            void fetchCount({ bypassCache: true });
+        }, 30_000);
+
+        const handleDbWrite = (event: Event) => {
+            const detail = (event as CustomEvent<{ table?: string }>).detail;
+            if (detail?.table === 'notifications') {
+                void fetchCount({ bypassCache: true });
+            }
+        };
+        const handleNotificationsInvalidate = () => {
+            void fetchCount({ bypassCache: true });
+        };
+        window.addEventListener('mingai:supabase-write', handleDbWrite);
+        window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
 
         return () => {
             isActive = false;
-            supabase.removeChannel(channel);
+            window.clearInterval(timer);
+            window.removeEventListener('mingai:supabase-write', handleDbWrite);
+            window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
         };
     }, [user.id]);
 

@@ -8,7 +8,7 @@
 import { NextRequest } from 'next/server';
 import { getPaymentsPaused } from '@/lib/app-settings';
 import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { addCredits } from '@/lib/credits';
+import { addCredits } from '@/lib/user/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
 // 按量付费套餐配置（与 PayPerUse.tsx 保持一致）

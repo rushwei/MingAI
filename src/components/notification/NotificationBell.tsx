@@ -7,7 +7,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 
@@ -33,25 +32,26 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 
         fetchCount();
 
-        // 订阅实时更新
-        const channel = supabase
-            .channel(`notifications:${userId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'notifications',
-                    filter: `user_id=eq.${userId}`,
-                },
-                () => {
-                    fetchCount({ bypassCache: true });
-                }
-            )
-            .subscribe();
+        const timer = window.setInterval(() => {
+            void fetchCount({ bypassCache: true });
+        }, 30_000);
+
+        const handleDbWrite = (event: Event) => {
+            const detail = (event as CustomEvent<{ table?: string }>).detail;
+            if (detail?.table === 'notifications') {
+                void fetchCount({ bypassCache: true });
+            }
+        };
+        const handleNotificationsInvalidate = () => {
+            void fetchCount({ bypassCache: true });
+        };
+        window.addEventListener('mingai:supabase-write', handleDbWrite);
+        window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
 
         return () => {
-            supabase.removeChannel(channel);
+            window.clearInterval(timer);
+            window.removeEventListener('mingai:supabase-write', handleDbWrite);
+            window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
         };
     }, [userId]);
 
@@ -90,7 +90,15 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                 <NotificationDropdown
                     userId={userId}
                     onClose={() => setIsOpen(false)}
-                    onReadCountChange={(change: number) => setUnreadCount(prev => Math.max(0, prev + change))}
+                    onReadCountChange={(change: number) => {
+                        setUnreadCount(prev => {
+                            const next = Math.max(0, prev + change);
+                            window.dispatchEvent(
+                                new CustomEvent('mingai:notifications-unread', { detail: { count: next } })
+                            );
+                            return next;
+                        });
+                    }}
                 />
             )}
         </div>

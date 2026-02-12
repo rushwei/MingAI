@@ -14,7 +14,7 @@ import {
     FileText, Database, Sparkles, AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
 
 type KnowledgeBase = {

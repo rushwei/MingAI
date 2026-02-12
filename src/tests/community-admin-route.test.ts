@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service';
 
 test('community reports returns auth error when admin check fails', async (t) => {
     const apiUtils = require('../lib/api-utils') as any;

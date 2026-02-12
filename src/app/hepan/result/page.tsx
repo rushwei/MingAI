@@ -13,23 +13,23 @@ import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/compone
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
-import { extractAnalysisFromConversation } from '@/lib/ai-analysis-query';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import {
     type HepanResult,
     getHepanTypeName,
     calculateCompatibilityTrend,
     getRelationshipAdvice,
-} from '@/lib/hepan';
+} from '@/lib/divination/hepan';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON } from '@/lib/cache';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { useStreamingResponse, isCreditsError } from '@/lib/useStreamingResponse';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 
 export default function HepanResultPage() {
     const router = useRouter();

@@ -22,7 +22,7 @@ const buildMinimalBaziChart = () => ({
 });
 
 test('buildPromptWithSources includes base rules and dify prefix', async () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',
         userMessage: '测试问题',
@@ -40,7 +40,7 @@ test('buildPromptWithSources includes base rules and dify prefix', async () => {
 });
 
 test('buildPromptWithSources injects dream and mangpai layers', async () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',
         userMessage: '测试问题',
@@ -61,7 +61,7 @@ test('buildPromptWithSources injects dream and mangpai layers', async () => {
 });
 
 test('buildPromptWithSources skips P2 layers when budget exceeded', async () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const hugeContent = 'a'.repeat(20000);
     const res = await pb.buildPromptWithSources({
         modelId: 'deepseek-chat',
@@ -78,7 +78,7 @@ test('buildPromptWithSources skips P2 layers when budget exceeded', async () => 
 });
 
 test('resolvePersonalities selects dream and mangpai correctly', () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const dreamOnly = pb.resolvePersonalities({ dreamMode: { enabled: true } });
     assert.deepEqual(dreamOnly, { personalities: ['dream'], isMultiple: false });
 
@@ -89,7 +89,7 @@ test('resolvePersonalities selects dream and mangpai correctly', () => {
 });
 
 test('resolvePersonalities selects bazi/ziwei/general correctly', () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const baziZiwei = pb.resolvePersonalities({
         chartContext: { baziChart: buildMinimalBaziChart(), ziweiChart: { palaces: {} } }
     });
@@ -105,7 +105,7 @@ test('resolvePersonalities selects bazi/ziwei/general correctly', () => {
 });
 
 test('resolvePersonalities considers mentions for bazi/ziwei', () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const baziMention = pb.resolvePersonalities({
         mentions: [{ type: 'bazi_chart', id: 'b1', name: '八字', preview: 'p' }]
     });
@@ -121,7 +121,7 @@ test('resolvePersonalities considers mentions for bazi/ziwei', () => {
 });
 
 test('buildPersonalityPrompt composes single and multi roles', () => {
-    const pb = require('../lib/prompt-builder') as any;
+    const pb = require('../lib/ai/prompt-builder') as any;
     const single = pb.buildPersonalityPrompt(['dream']);
     assert.ok(single.includes('解梦'));
     assert.ok(!single.includes('你同时具备以下专业能力'));
@@ -134,7 +134,7 @@ test('buildPersonalityPrompt composes single and multi roles', () => {
 });
 
 test('prompt builder should truncate P0 layers instead of forcing over-budget injection', async () => {
-    const sourcePath = resolve(process.cwd(), 'src/lib/prompt-builder.ts');
+    const sourcePath = resolve(process.cwd(), 'src/lib/ai/prompt-builder.ts');
     const source = await readFile(sourcePath, 'utf-8');
 
     assert.ok(

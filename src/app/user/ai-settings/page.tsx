@@ -15,8 +15,8 @@ import {
     MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/membership';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 
 type ExpressionStyle = 'direct' | 'gentle';
 

@@ -187,6 +187,7 @@ export interface LiuyaoInput {
   changedHexagramName?: string;
   date?: string;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface LiuyaoOutput {
@@ -346,6 +347,7 @@ export interface TarotInput {
   question?: string;
   allowReversed?: boolean;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface TarotOutput {
@@ -377,6 +379,7 @@ export interface FortuneInput {
   birthHour?: number;
   date?: string;
   seed?: string;
+  seedScope?: string;
 }
 
 export interface FortuneOutput {

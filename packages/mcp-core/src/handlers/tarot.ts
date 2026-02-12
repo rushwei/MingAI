@@ -123,7 +123,7 @@ function getMeaning(orientation: 'upright' | 'reversed', keywords: string[]): st
 export async function handleTarotDraw(input: TarotInput): Promise<TarotOutput> {
   const { spreadType = 'single', question, allowReversed = true } = input;
   const dateKey = new Date().toISOString().slice(0, 10);
-  const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`);
+  const seed = resolveSeed(input.seed, `${spreadType}|${question || ''}|${dateKey}`, input.seedScope);
   const rng = createSeededRng(seed);
 
   const spread = SPREADS[spreadType] || SPREADS['single'];

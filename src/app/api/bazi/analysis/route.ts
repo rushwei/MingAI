@@ -6,12 +6,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai-config';
-import { getEffectiveMembershipType } from '@/lib/membership-server';
-import { resolveModelAccessAsync } from '@/lib/ai-access';
+import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { hasCredits, useCredit, addCredits } from '@/lib/credits';
+import { hasCredits, useCredit, addCredits } from '@/lib/user/credits';
 
 // AI系统提示词
 const WUXING_PROMPT = `你是一位专业的命理分析师，擅长八字五行分析。请根据用户提供的八字信息，进行专业的五行分析。
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
                         return;
                     }
 
-                    const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai-analysis');
+                    const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai/ai-analysis');
                     await createAIAnalysisConversation({
                         userId: chart.user_id,
                         sourceType: type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality',
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         // 获取命盘信息并保存到 conversations
         let conversationId: string | null = null;
         try {
-            const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai-analysis');
+            const { createAIAnalysisConversation, generateBaziAnalysisTitle } = await import('@/lib/ai/ai-analysis');
             conversationId = await createAIAnalysisConversation({
                 userId: chart.user_id,
                 sourceType: type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality',

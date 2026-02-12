@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDraftTitle } from '../lib/draft-title';
+import { buildDraftTitle } from '../lib/chat/draft-title';
 
 test('buildDraftTitle collapses whitespace and truncates to 15 chars', () => {
     assert.equal(buildDraftTitle('  你好   世界\n\n今天怎么样  '), '你好 世界 今天怎么样');

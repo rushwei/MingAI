@@ -6,8 +6,8 @@
 
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
-import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/solar-terms';
-import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/fortune';
+import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
+import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/divination/fortune';
 import type { BaziChart } from '@/types';
 
 // ===== 提醒类型 =====

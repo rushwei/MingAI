@@ -1007,7 +1007,7 @@ export async function handleLiuyaoAnalyze(input) {
         divDate = new Date();
     }
     const dateKey = `${divDate.getFullYear()}-${String(divDate.getMonth() + 1).padStart(2, '0')}-${String(divDate.getDate()).padStart(2, '0')}`;
-    const seed = resolveSeed(input.seed, `${question}|${method}|${dateKey}|${hexagramName || ''}|${changedHexagramName || ''}`);
+    const seed = resolveSeed(input.seed, `${question}|${method}|${dateKey}|${hexagramName || ''}|${changedHexagramName || ''}`, input.seedScope);
     const rng = createSeededRng(seed);
     let yaos;
     let hexagramCode;

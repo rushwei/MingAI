@@ -35,6 +35,16 @@ test('admin MCP key DELETE route should guard invalid JSON body', async () => {
   );
 });
 
+test('admin MCP key PATCH route should guard invalid JSON body', async () => {
+  const source = await readFile(adminKeyRoutePath, 'utf-8');
+
+  assert.match(
+    source,
+    /export\s+async\s+function\s+PATCH[\s\S]*try\s*\{[\s\S]*await request\.json\(\)/,
+    'PATCH unban route should wrap request.json() in try/catch'
+  );
+});
+
 test('gitignore should exclude nested package node_modules directories', async () => {
   const source = await readFile(gitignorePath, 'utf-8');
 

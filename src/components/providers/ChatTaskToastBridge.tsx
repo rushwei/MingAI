@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
-import { chatStreamManager, type ChatStreamEvent } from '@/lib/chat-stream-manager';
+import { chatStreamManager, type ChatStreamEvent } from '@/lib/chat/chat-stream-manager';
 
 export function ChatTaskToastBridge() {
     const router = useRouter();

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { performFullAnalysis, type Yao } from '../lib/liuyao';
+import { performFullAnalysis, type Yao } from '../lib/divination/liuyao';
 
 function computeCandidatePriority(candidate: {
     strengthScore: number;

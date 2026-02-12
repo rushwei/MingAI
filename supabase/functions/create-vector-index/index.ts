@@ -7,18 +7,17 @@ interface CreateIndexRequest {
 }
 
 Deno.serve(async (req: Request) => {
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const internalHeader = req.headers.get('x-internal-api-secret');
+    const internalSecret = Deno.env.get('INTERNAL_API_SECRET');
 
-    if (!serviceRoleKey) {
+    if (!internalSecret) {
         return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
-    const expectedAuth = `Bearer ${serviceRoleKey}`;
-    if (authHeader !== expectedAuth) {
+    if (internalHeader !== internalSecret) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
             status: 401,
             headers: { 'Content-Type': 'application/json' }

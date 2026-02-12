@@ -5,7 +5,7 @@ import type { ChatMessage } from '../types';
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
-const loadModule = () => require('../lib/ai-analysis-query') as typeof import('../lib/ai-analysis-query');
+const loadModule = () => require('../lib/ai/ai-analysis-query') as typeof import('../lib/ai/ai-analysis-query');
 
 test('extractAnalysisFromConversation prefers message metadata then source_data', () => {
     const { extractAnalysisFromConversation } = loadModule();
@@ -60,7 +60,7 @@ test('hydrateConversationMessages backfills model/reasoning when missing', () =>
 
 test('createAIAnalysisConversation stores model/reasoning in assistant message', async (t) => {
     const supabaseServerPath = require.resolve('../lib/supabase-server');
-    const aiAnalysisPath = require.resolve('../lib/ai-analysis');
+    const aiAnalysisPath = require.resolve('../lib/ai/ai-analysis');
     const supabaseServerModule = require('../lib/supabase-server');
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
     let capturedPayload: Record<string, unknown> | null = null;
@@ -85,7 +85,7 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     });
 
     delete require.cache[aiAnalysisPath];
-    const { createAIAnalysisConversation } = require('../lib/ai-analysis') as typeof import('../lib/ai-analysis');
+    const { createAIAnalysisConversation } = require('../lib/ai/ai-analysis') as typeof import('../lib/ai/ai-analysis');
 
     await createAIAnalysisConversation({
         userId: 'user-1',
@@ -98,7 +98,7 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
         aiResponse: 'analysis',
     });
 
-    const messages = (capturedPayload?.messages as ChatMessage[]) || [];
+    const messages = ((capturedPayload as Record<string, unknown> | null)?.messages as ChatMessage[]) || [];
     assert.equal(messages[0]?.model, 'glm-4');
     assert.equal(messages[0]?.reasoning, 'fallback');
 });

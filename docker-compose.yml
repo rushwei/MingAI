@@ -3,9 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required for web image build}"
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY:?NEXT_PUBLIC_SUPABASE_ANON_KEY is required for web image build}"
     image: mingai-web:latest
     container_name: mingai-web
     restart: unless-stopped
@@ -25,8 +22,8 @@ services:
       - .env
     environment:
       PORT: "3001"
-      SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL}"
-      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+      SUPABASE_URL: "${SUPABASE_URL}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
       MCP_HOST: "0.0.0.0"
       MCP_ALLOWED_ORIGINS: "${MCP_ALLOWED_ORIGINS:-}"
       MCP_MAX_SESSIONS: "${MCP_MAX_SESSIONS:-1000}"

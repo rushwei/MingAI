@@ -24,6 +24,7 @@ interface McpKeyData {
   id: string;
   key_code: string;
   is_active: boolean;
+  is_banned: boolean;
   created_at: string;
   last_used_at: string | null;
 }
@@ -211,8 +212,8 @@ export default function McpPage() {
                       状态
                     </th>
                     <td className="px-3 py-2.5">
-                      <span className={keyData.is_active ? 'text-green-500' : 'text-red-500'}>
-                        {keyData.is_active ? '活跃' : '已吊销'}
+                      <span className={keyData.is_banned ? 'text-red-500' : 'text-green-500'}>
+                        {keyData.is_banned ? '已封禁' : '活跃'}
                       </span>
                     </td>
                   </tr>
@@ -241,7 +242,7 @@ export default function McpPage() {
                 {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 复制
               </button>
-              {keyData.is_active && (
+              {!keyData.is_banned && (
                 <button
                   onClick={() => setShowResetConfirm((prev) => !prev)}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border text-sm hover:border-red-500 hover:text-red-500 transition-colors"
@@ -251,7 +252,7 @@ export default function McpPage() {
                 </button>
               )}
             </div>
-            {showResetConfirm && keyData.is_active && (
+            {showResetConfirm && !keyData.is_banned && (
               <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                 <p className="text-sm text-red-500 mb-3">
                   确定要重新生成 Key 吗？旧 Key 将立即失效，所有使用旧 Key 的客户端需要更新。
@@ -273,7 +274,7 @@ export default function McpPage() {
                 </div>
               </div>
             )}
-            {!keyData.is_active && (
+            {keyData.is_banned && (
               <div className="mt-3 p-3 rounded-xl bg-red-500/10 text-red-500 text-sm">
                 当前 Key 已被管理员封禁，无法重新生成。请联系管理员处理。
               </div>

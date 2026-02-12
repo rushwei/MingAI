@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import type { FiveElement } from '@/types';
-import { getElementColor } from '@/lib/bazi';
+import { getElementColor } from '@/lib/divination/bazi';
 
 const ELEMENT_ICONS: Record<FiveElement, string> = {
     '木': '🌳',

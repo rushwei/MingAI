@@ -19,7 +19,7 @@ import {
     calculateChangedHexagram,
     type Yao,
     type LiuQin,
-} from '@/lib/liuyao';
+} from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/supabase';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 

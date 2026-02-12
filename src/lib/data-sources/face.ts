@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { FACE_ANALYSIS_TYPES } from '@/lib/face';
+import { FACE_ANALYSIS_TYPES } from '@/lib/divination/face';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type FaceRow = {

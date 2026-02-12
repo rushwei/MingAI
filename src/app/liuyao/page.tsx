@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Coins, Sparkles, Loader2, Dices, Grid3X3 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/liuyao';
+import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { supabase } from '@/lib/supabase';

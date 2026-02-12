@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { findHexagram, performFullAnalysis, type Yao } from '@/lib/liuyao';
+import { findHexagram, performFullAnalysis, type Yao } from '@/lib/divination/liuyao';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type LiuyaoRow = {

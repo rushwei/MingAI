@@ -9,12 +9,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Upload, AlertTriangle, Loader2, X, ScanFace } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
-import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/face';
+import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai-config';
+import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';
 
