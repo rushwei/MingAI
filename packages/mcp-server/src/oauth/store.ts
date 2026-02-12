@@ -20,7 +20,14 @@ export class MingAIClientsStore implements OAuthRegisteredClientsStore {
       .eq('client_id', clientId)
       .maybeSingle();
 
-    if (error || !data) return undefined;
+    if (error) {
+      console.error(`[OAuth] getClient error for ${clientId}:`, error.message, error.code);
+      return undefined;
+    }
+    if (!data) {
+      console.warn(`[OAuth] getClient: no client found for ${clientId}`);
+      return undefined;
+    }
 
     return {
       client_id: data.client_id,
@@ -39,11 +46,12 @@ export class MingAIClientsStore implements OAuthRegisteredClientsStore {
   }
 
   async registerClient(
-    clientData: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>,
+    clientData: OAuthClientInformationFull,
   ): Promise<OAuthClientInformationFull> {
     const supabase = getSupabaseClient();
-    const clientId = crypto.randomUUID();
-    const issuedAt = Math.floor(Date.now() / 1000);
+    // SDK 会预先生成 client_id，优先使用；仅在缺失时自行生成
+    const clientId = clientData.client_id || crypto.randomUUID();
+    const issuedAt = clientData.client_id_issued_at || Math.floor(Date.now() / 1000);
 
     const row = {
       client_id: clientId,
@@ -60,8 +68,15 @@ export class MingAIClientsStore implements OAuthRegisteredClientsStore {
       scope: clientData.scope ?? null,
     };
 
+    console.log(`[OAuth] registerClient: inserting client_id=${clientId}, name=${row.client_name}`);
+
     const { error } = await supabase.from('mcp_oauth_clients').insert(row);
-    if (error) throw new Error(`Failed to register client: ${error.message}`);
+    if (error) {
+      console.error(`[OAuth] registerClient INSERT failed: ${error.message} (code=${error.code})`);
+      throw new Error(`Failed to register client: ${error.message}`);
+    }
+
+    console.log(`[OAuth] registerClient: success client_id=${clientId}`);
 
     return {
       ...clientData,
@@ -106,6 +121,8 @@ export async function saveAuthorizationCode(params: {
   const code = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 分钟
 
+  console.log(`[OAuth] saveAuthorizationCode: client_id=${params.clientId}, userId=${params.userId}`);
+
   const { error } = await supabase.from('mcp_oauth_codes').insert({
     code,
     client_id: params.clientId,
@@ -118,7 +135,11 @@ export async function saveAuthorizationCode(params: {
     expires_at: expiresAt.toISOString(),
   });
 
-  if (error) throw new Error(`Failed to save auth code: ${error.message}`);
+  if (error) {
+    console.error(`[OAuth] saveAuthorizationCode INSERT failed: ${error.message} (code=${error.code})`);
+    throw new Error(`Failed to save auth code: ${error.message}`);
+  }
+  console.log(`[OAuth] saveAuthorizationCode: success code=${code.slice(0, 8)}...`);
   return code;
 }
 
@@ -150,6 +171,7 @@ export async function consumeAuthorizationCodeAtomically(
   code: string,
   supabase: SupabaseFromOnly = getSupabaseClient(),
 ): Promise<StoredAuthCode | null> {
+  console.log(`[OAuth] consumeAuthCode: code=${code.slice(0, 8)}...`);
   // 单条 UPDATE + 条件过滤，避免并发重放。
   const { data, error } = await supabase
     .from('mcp_oauth_codes')
@@ -160,7 +182,15 @@ export async function consumeAuthorizationCodeAtomically(
     .select('*')
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    console.error(`[OAuth] consumeAuthCode: query error - ${error.message} (code=${error.code})`);
+    return null;
+  }
+  if (!data) {
+    console.warn(`[OAuth] consumeAuthCode: no matching code (expired/used/not found)`);
+    return null;
+  }
+  console.log(`[OAuth] consumeAuthCode: success, client_id=${data.client_id}, user_id=${data.user_id}`);
   return toStoredAuthCode(data);
 }
 

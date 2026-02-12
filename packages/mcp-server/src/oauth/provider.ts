@@ -151,8 +151,12 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     _client: OAuthClientInformationFull,
     authorizationCode: string,
   ): Promise<string> {
+    console.log(`[OAuth] challengeForAuthorizationCode: code=${authorizationCode.slice(0, 8)}...`);
     const challenge = await this.deps.getCodeChallenge(authorizationCode);
-    if (!challenge) throw new Error('Authorization code not found or expired');
+    if (!challenge) {
+      console.error(`[OAuth] challengeForAuthorizationCode: code not found or expired`);
+      throw new Error('Authorization code not found or expired');
+    }
     return challenge;
   }
 
@@ -166,8 +170,13 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
     redirectUri?: string,
     resource?: URL,
   ): Promise<OAuthTokens> {
+    console.log(`[OAuth] exchangeAuthorizationCode: client_id=${client.client_id}, code=${authorizationCode.slice(0, 8)}..., redirect_uri=${redirectUri}`);
     const stored = await this.deps.getAndConsumeAuthorizationCode(authorizationCode);
-    if (!stored) throw new Error('Invalid or expired authorization code');
+    if (!stored) {
+      console.error(`[OAuth] exchangeAuthorizationCode: code not found/expired/used`);
+      throw new Error('Invalid or expired authorization code');
+    }
+    console.log(`[OAuth] exchangeAuthorizationCode: code valid, userId=${stored.userId}, storedClient=${stored.clientId}`);
 
     if (stored.clientId !== client.client_id) {
       throw new Error('Authorization code was issued to a different client');
@@ -195,6 +204,7 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
       resource: boundResource,
     });
 
+    console.log(`[OAuth] exchangeAuthorizationCode: success, issued tokens for userId=${stored.userId}`);
     return {
       access_token: accessToken,
       token_type: 'bearer',
@@ -255,7 +265,14 @@ export class MingAIOAuthProvider implements OAuthServerProvider {
    * 验证 JWT access_token
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    return this.deps.verifyAccessToken(token);
+    try {
+      const result = await this.deps.verifyAccessToken(token);
+      console.log(`[OAuth] verifyAccessToken: ok, userId=${result.extra?.userId}, clientId=${result.clientId}`);
+      return result;
+    } catch (err) {
+      console.error(`[OAuth] verifyAccessToken: failed -`, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
   }
 
   /**

@@ -59,6 +59,16 @@ if (process.env.MCP_TRUST_PROXY === 'true') {
   app.set('trust proxy', true);
 }
 
+// ─── OAuth 请求日志（调试用）───
+app.use((req, _res, next) => {
+  const oauthPaths = ['/register', '/token', '/authorize', '/revoke', '/.well-known/'];
+  const isOAuth = oauthPaths.some((p) => req.path.startsWith(p));
+  if (isOAuth) {
+    console.log(`[OAuth:req] ${req.method} ${req.path} from=${req.ip} content-type=${req.headers['content-type'] || 'none'}`);
+  }
+  next();
+});
+
 // ─── OAuth 路由（必须在 app root 且在 express.json 之前）───
 // mcpAuthRouter 内部自带 express.urlencoded 解析
 app.use(mcpAuthRouter({
