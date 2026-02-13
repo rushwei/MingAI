@@ -2,140 +2,10 @@
  * 八字计算处理器
  */
 import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
-import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, } from '../utils.js';
+import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, getKongWang, } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
-const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-const HIDDEN_STEM_DETAILS = {
-    '子': [{ stem: '癸', qiType: '本气' }],
-    '丑': [{ stem: '己', qiType: '本气' }, { stem: '癸', qiType: '中气' }, { stem: '辛', qiType: '余气' }],
-    '寅': [{ stem: '甲', qiType: '本气' }, { stem: '丙', qiType: '中气' }, { stem: '戊', qiType: '余气' }],
-    '卯': [{ stem: '乙', qiType: '本气' }],
-    '辰': [{ stem: '戊', qiType: '本气' }, { stem: '乙', qiType: '中气' }, { stem: '癸', qiType: '余气' }],
-    '巳': [{ stem: '丙', qiType: '本气' }, { stem: '庚', qiType: '中气' }, { stem: '戊', qiType: '余气' }],
-    '午': [{ stem: '丁', qiType: '本气' }, { stem: '己', qiType: '中气' }],
-    '未': [{ stem: '己', qiType: '本气' }, { stem: '丁', qiType: '中气' }, { stem: '乙', qiType: '余气' }],
-    '申': [{ stem: '庚', qiType: '本气' }, { stem: '壬', qiType: '中气' }, { stem: '戊', qiType: '余气' }],
-    '酉': [{ stem: '辛', qiType: '本气' }],
-    '戌': [{ stem: '戊', qiType: '本气' }, { stem: '辛', qiType: '中气' }, { stem: '丁', qiType: '余气' }],
-    '亥': [{ stem: '壬', qiType: '本气' }, { stem: '甲', qiType: '中气' }],
-};
-const NA_YIN_TABLE = {
-    '甲子': '海中金', '乙丑': '海中金',
-    '丙寅': '炉中火', '丁卯': '炉中火',
-    '戊辰': '大林木', '己巳': '大林木',
-    '庚午': '路旁土', '辛未': '路旁土',
-    '壬申': '剑锋金', '癸酉': '剑锋金',
-    '甲戌': '山头火', '乙亥': '山头火',
-    '丙子': '涧下水', '丁丑': '涧下水',
-    '戊寅': '城头土', '己卯': '城头土',
-    '庚辰': '白蜡金', '辛巳': '白蜡金',
-    '壬午': '杨柳木', '癸未': '杨柳木',
-    '甲申': '泉中水', '乙酉': '泉中水',
-    '丙戌': '屋上土', '丁亥': '屋上土',
-    '戊子': '霹雳火', '己丑': '霹雳火',
-    '庚寅': '松柏木', '辛卯': '松柏木',
-    '壬辰': '长流水', '癸巳': '长流水',
-    '甲午': '砂中金', '乙未': '砂中金',
-    '丙申': '山下火', '丁酉': '山下火',
-    '戊戌': '平地木', '己亥': '平地木',
-    '庚子': '壁上土', '辛丑': '壁上土',
-    '壬寅': '金箔金', '癸卯': '金箔金',
-    '甲辰': '覆灯火', '乙巳': '覆灯火',
-    '丙午': '天河水', '丁未': '天河水',
-    '戊申': '大驿土', '己酉': '大驿土',
-    '庚戌': '钗钏金', '辛亥': '钗钏金',
-    '壬子': '桑柘木', '癸丑': '桑柘木',
-    '甲寅': '大溪水', '乙卯': '大溪水',
-    '丙辰': '沙中土', '丁巳': '沙中土',
-    '戊午': '天上火', '己未': '天上火',
-    '庚申': '石榴木', '辛酉': '石榴木',
-    '壬戌': '大海水', '癸亥': '大海水',
-};
-const DI_SHI_ORDER = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养'];
-const CHANG_SHENG_START = {
-    '木': '亥', '火': '寅', '土': '寅', '金': '巳', '水': '申',
-};
-const LIU_HE = {
-    '子': '丑', '丑': '子',
-    '寅': '亥', '亥': '寅',
-    '卯': '戌', '戌': '卯',
-    '辰': '酉', '酉': '辰',
-    '巳': '申', '申': '巳',
-    '午': '未', '未': '午',
-};
-const SAN_HE = [
-    { branches: ['申', '子', '辰'], element: '水局' },
-    { branches: ['巳', '酉', '丑'], element: '金局' },
-    { branches: ['寅', '午', '戌'], element: '火局' },
-    { branches: ['亥', '卯', '未'], element: '木局' },
-];
-const LIU_CHONG = {
-    '子': '午', '午': '子',
-    '丑': '未', '未': '丑',
-    '寅': '申', '申': '寅',
-    '卯': '酉', '酉': '卯',
-    '辰': '戌', '戌': '辰',
-    '巳': '亥', '亥': '巳',
-};
-const XIANG_HAI = {
-    '子': '未', '未': '子',
-    '丑': '午', '午': '丑',
-    '寅': '巳', '巳': '寅',
-    '卯': '辰', '辰': '卯',
-    '申': '亥', '亥': '申',
-    '酉': '戌', '戌': '酉',
-};
-const XIANG_XING = [
-    { combination: ['寅', '巳', '申'], name: '无恩之刑' },
-    { combination: ['丑', '戌', '未'], name: '恃势之刑' },
-    { combination: ['子', '卯'], name: '无礼之刑' },
-    { combination: ['辰'], name: '辰自刑' },
-    { combination: ['午'], name: '午自刑' },
-    { combination: ['酉'], name: '酉自刑' },
-    { combination: ['亥'], name: '亥自刑' },
-];
-const XUN_KONG_TABLE = {
-    '甲子旬': ['戌', '亥'],
-    '甲戌旬': ['申', '酉'],
-    '甲申旬': ['午', '未'],
-    '甲午旬': ['辰', '巳'],
-    '甲辰旬': ['寅', '卯'],
-    '甲寅旬': ['子', '丑'],
-};
-// 八字专属神煞规则（shared shensha 未覆盖）
-const YUE_DE = {
-    '寅': '丙', '午': '丙', '戌': '丙',
-    '申': '壬', '子': '壬', '辰': '壬',
-    '亥': '甲', '卯': '甲', '未': '甲',
-    '巳': '庚', '酉': '庚', '丑': '庚',
-};
-const TIAN_DE = {
-    '寅': '丁', '卯': '申', '辰': '壬', '巳': '辛',
-    '午': '亥', '未': '甲', '申': '癸', '酉': '寅',
-    '戌': '丙', '亥': '乙', '子': '巳', '丑': '庚',
-};
-const JIN_YU = {
-    '甲': '辰', '乙': '巳', '丙': '未', '丁': '申',
-    '戊': '未', '己': '申', '庚': '戌', '辛': '亥',
-    '壬': '丑', '癸': '寅',
-};
-const DE_XIU = {
-    '寅': ['丙', '甲'], '卯': ['甲', '乙'], '辰': ['壬', '癸'], '巳': ['丙', '庚'],
-    '午': ['丁', '己'], '未': ['甲', '己'], '申': ['庚', '壬'], '酉': ['辛', '庚'],
-    '戌': ['丙', '戊'], '亥': ['壬', '甲'], '子': ['癸', '壬'], '丑': ['辛', '己'],
-};
-const TIAN_DE_HE = {
-    '寅': '壬', '卯': '癸', '辰': '丁', '巳': '丙',
-    '午': '寅', '未': '己', '申': '戊', '酉': '丁',
-    '戌': '辛', '亥': '庚', '子': '庚', '丑': '乙',
-};
-const YUE_DE_HE = {
-    '寅': '辛', '午': '辛', '戌': '辛',
-    '申': '丁', '子': '丁', '辰': '丁',
-    '亥': '己', '卯': '己', '未': '己',
-    '巳': '乙', '酉': '乙', '丑': '乙',
-};
+// 从数据模块导入静态数据
+import { DI_ZHI, HIDDEN_STEM_DETAILS, NA_YIN_TABLE, DI_SHI_ORDER, CHANG_SHENG_START, LIU_HE, SAN_HE, LIU_CHONG, XIANG_HAI, XIANG_XING, YUE_DE, TIAN_DE, JIN_YU, DE_XIU, TIAN_DE_HE, YUE_DE_HE, } from '../data/shensha-data.js';
 export function getNaYin(stem, branch) {
     return NA_YIN_TABLE[`${stem}${branch}`] || '';
 }
@@ -153,23 +23,6 @@ export function getDiShi(dayStem, branch) {
         ? (branchIdx - startIdx + 12) % 12
         : (startIdx - branchIdx + 12) % 12;
     return DI_SHI_ORDER[offset];
-}
-function getKongWang(dayGan, dayZhi) {
-    const ganIdx = TIAN_GAN.indexOf(dayGan);
-    const zhiIdx = DI_ZHI.indexOf(dayZhi);
-    if (ganIdx < 0 || zhiIdx < 0) {
-        return { xun: '甲子旬', kongZhi: XUN_KONG_TABLE['甲子旬'] };
-    }
-    const xunStart = (zhiIdx - ganIdx + 12) % 12;
-    const xunNames = ['甲子旬', '甲戌旬', '甲申旬', '甲午旬', '甲辰旬', '甲寅旬'];
-    const xunStartZhi = ['子', '戌', '申', '午', '辰', '寅'];
-    const startZhi = DI_ZHI[xunStart];
-    const xunIdx = xunStartZhi.indexOf(startZhi);
-    const xun = xunNames[xunIdx] || '甲子旬';
-    return {
-        xun,
-        kongZhi: XUN_KONG_TABLE[xun],
-    };
 }
 export function buildHiddenStems(branch, dayStem) {
     const stems = HIDDEN_STEM_DETAILS[branch] || [];
@@ -372,11 +225,11 @@ function calculatePillarShenSha(params) {
 function validateLunarDateInput(params) {
     const { birthYear, birthMonth, birthDay, birthHour, birthMinute, isLeapMonth, } = params;
     if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) {
-        throw new Error(`农历月份无效：月份需为 1-12 的正整数（收到 ${birthMonth}）`);
+        throw new Error(`农历月份无效：${birthMonth}月不存在。请输入 1-12 之间的整数。`);
     }
     const leapMonth = LunarYear.fromYear(birthYear).getLeapMonth();
     if (isLeapMonth && leapMonth !== birthMonth) {
-        throw new Error(`农历闰月无效：${birthYear}年不存在闰${birthMonth}月`);
+        throw new Error(`农历闰月无效：${birthYear}年没有闰${birthMonth}月，请检查该年是否有闰月。`);
     }
     const lunarMonth = isLeapMonth ? -Math.abs(birthMonth) : birthMonth;
     let lunarMonthInfo;
@@ -384,21 +237,21 @@ function validateLunarDateInput(params) {
         lunarMonthInfo = LunarMonth.fromYm(birthYear, lunarMonth);
     }
     catch {
-        throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月`);
+        throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
     }
     if (!lunarMonthInfo) {
-        throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月`);
+        throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
     }
     const dayCount = lunarMonthInfo.getDayCount();
     if (birthDay < 1 || birthDay > dayCount) {
-        throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月只有${dayCount}天`);
+        throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月只有${dayCount}天，请输入 1-${dayCount} 之间的日期。`);
     }
     let lunar;
     try {
         lunar = Lunar.fromYmdHms(birthYear, lunarMonth, birthDay, birthHour, birthMinute, 0);
     }
     catch {
-        throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月${birthDay}日`);
+        throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月${birthDay}日不存在，请检查日期是否正确。`);
     }
     return {
         solar: lunar.getSolar(),

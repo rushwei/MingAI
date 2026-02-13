@@ -6,6 +6,24 @@ import { Solar } from 'lunar-javascript';
 import type { FortuneInput, FortuneOutput } from '../types.js';
 import { calculateTenGod } from '../utils.js';
 
+// ===== 缓存配置 =====
+const FORTUNE_CACHE_TTL = 60 * 60 * 1000; // 1小时
+const fortuneCache = new Map<string, { data: FortuneOutput; expire: number }>();
+
+function getCachedFortune(date: string, dayMaster?: string): FortuneOutput | undefined {
+  const key = `${date}:${dayMaster || 'none'}`;
+  const cached = fortuneCache.get(key);
+  if (cached && cached.expire > Date.now()) {
+    return cached.data;
+  }
+  return undefined;
+}
+
+function setCachedFortune(date: string, dayMaster: string | undefined, data: FortuneOutput): void {
+  const key = `${date}:${dayMaster || 'none'}`;
+  fortuneCache.set(key, { data, expire: Date.now() + FORTUNE_CACHE_TTL });
+}
+
 export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOutput> {
   // 解析日期为本地时间，避免 UTC 偏移
   let targetDate: Date;
@@ -16,9 +34,6 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
     targetDate = new Date();
   }
   const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
-  const solar = Solar.fromDate(targetDate);
-  const lunar = solar.getLunar();
-  const eightChar = lunar.getEightChar();
 
   // 获取日主
   let dayMaster = input.dayMaster;
@@ -34,6 +49,24 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
     const birthLunar = birthSolar.getLunar();
     dayMaster = birthLunar.getEightChar().getDayGan();
   }
+
+  // 检查缓存（只有当 dayMaster 相同时才能复用缓存）
+  const cached = getCachedFortune(dateKey, dayMaster);
+  if (cached) {
+    return cached;
+  }
+
+  // 如果没有日主，尝试从缓存中获取无日主的结果
+  if (!dayMaster) {
+    const cachedNoDayMaster = getCachedFortune(dateKey, undefined);
+    if (cachedNoDayMaster) {
+      return cachedNoDayMaster;
+    }
+  }
+
+  const solar = Solar.fromDate(targetDate);
+  const lunar = solar.getLunar();
+  const eightChar = lunar.getEightChar();
 
   // 流日干支
   const dayStem = eightChar.getDayGan();
@@ -55,7 +88,7 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
     try { return fn() || ''; } catch { return ''; }
   };
 
-  return {
+  const result: FortuneOutput = {
     date: dateKey,
     dayInfo: {
       stem: dayStem,
@@ -77,4 +110,14 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
       xiongsha: safeGetArray(() => lunar.getDayXiongSha()),
     },
   };
+
+  // 缓存结果
+  setCachedFortune(dateKey, dayMaster, result);
+
+  // 如果没有日主，同时缓存无日主版本
+  if (!dayMaster) {
+    setCachedFortune(dateKey, undefined, result);
+  }
+
+  return result;
 }

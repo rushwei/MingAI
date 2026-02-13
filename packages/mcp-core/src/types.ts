@@ -7,8 +7,8 @@
 export type Gender = 'male' | 'female';
 export type CalendarType = 'solar' | 'lunar';
 
-export interface BaziInput {
-  gender: Gender;
+// ===== 公共出生时间类型 =====
+export interface BirthTimeInput {
   birthYear: number;
   birthMonth: number;
   birthDay: number;
@@ -16,6 +16,12 @@ export interface BaziInput {
   birthMinute?: number;
   calendarType?: CalendarType;
   isLeapMonth?: boolean;
+}
+
+// ===== 八字相关类型 =====
+
+export interface BaziInput extends BirthTimeInput {
+  gender: Gender;
   birthPlace?: string;
 }
 
@@ -112,15 +118,8 @@ export interface BaziPillarsResolveOutput {
 
 // ===== 紫微相关类型 =====
 
-export interface ZiweiInput {
+export interface ZiweiInput extends BirthTimeInput {
   gender: Gender;
-  birthYear: number;
-  birthMonth: number;
-  birthDay: number;
-  birthHour: number;
-  birthMinute?: number;
-  calendarType?: CalendarType;
-  isLeapMonth?: boolean;
 }
 
 export interface ZiweiOutput {
@@ -212,6 +211,8 @@ export interface LiuyaoOutput {
 }
 
 export type LiuQinType = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
+export type WuXing = '木' | '火' | '土' | '金' | '水';
+export type DiZhi = '子' | '丑' | '寅' | '卯' | '辰' | '巳' | '午' | '未' | '申' | '酉' | '戌' | '亥';
 export type YaoMovementState = 'static' | 'changing' | 'hidden_moving' | 'day_break';
 
 export interface ChangedYaoDetail {
@@ -397,15 +398,8 @@ export interface AlmanacInfo {
 
 // ===== 大运相关类型 =====
 
-export interface DayunInput {
+export interface DayunInput extends BirthTimeInput {
   gender: Gender;
-  birthYear: number;
-  birthMonth: number;
-  birthDay: number;
-  birthHour: number;
-  birthMinute?: number;
-  calendarType?: CalendarType;
-  isLeapMonth?: boolean;
 }
 
 export interface DayunOutput {

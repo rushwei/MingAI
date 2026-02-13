@@ -4,19 +4,18 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import type { LiuyaoInput, LiuyaoOutput, GanZhiTime } from '../types.js';
+import type { LiuyaoInput, LiuyaoOutput, GanZhiTime, LiuQinType, WuXing, DiZhi } from '../types.js';
 import { calculateBranchShenSha, calculateGlobalShenSha } from '../shensha.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
 import { createSeededRng, resolveSeed } from '../seeded-rng.js';
+import { getKongWang, getElementRelation, DI_ZHI, TIAN_GAN } from '../utils.js';
+import { HEXAGRAMS, Hexagram } from '../data/hexagram-data.js';
 
 // ============= 类型定义 =============
 
 type YaoType = 0 | 1;
 type YaoChange = 'stable' | 'changing';
-type WuXing = '木' | '火' | '土' | '金' | '水';
-type TianGan = '甲' | '乙' | '丙' | '丁' | '戊' | '己' | '庚' | '辛' | '壬' | '癸';
-type DiZhi = '子' | '丑' | '寅' | '卯' | '辰' | '巳' | '午' | '未' | '申' | '酉' | '戌' | '亥';
-type LiuQin = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
+// 使用 types.ts 中统一的类型: LiuQinType, WuXing
 type LiuShen = '青龙' | '朱雀' | '勾陈' | '螣蛇' | '白虎' | '玄武';
 type WangShuai = 'wang' | 'xiang' | 'xiu' | 'qiu' | 'si';
 type KongWangState = 'not_kong' | 'kong_static' | 'kong_changing' | 'kong_ri_chong' | 'kong_yue_jian';
@@ -330,7 +329,7 @@ function checkLiuChongGua(yaos: InternalYaoInfo[]): { isLiuChongGua: boolean; de
 
 // 计算神系（原神、忌神、仇神）
 function calculateShenSystem(
-  _yongShenLiuQin: LiuQin,
+  _yongShenLiuQin: LiuQinType,
   yongShenElement: WuXing,
   yaos: InternalYaoInfo[],
   gongElement: WuXing
@@ -433,7 +432,7 @@ type RankedYongShenCandidate = {
 };
 
 type InternalYongShenGroup = {
-  targetLiuQin: LiuQin;
+  targetLiuQin: LiuQinType;
   selected: RankedYongShenCandidate;
   rankedCandidates: RankedYongShenCandidate[];
 };
@@ -445,7 +444,7 @@ function stripCandidateScore(candidate: RankedYongShenCandidate) {
 }
 
 function buildFuShenFallbackCandidate(params: {
-  target: LiuQin;
+  target: LiuQinType;
   fuShenList: Array<{
     liuQin: string;
     wuXing: string;
@@ -562,10 +561,10 @@ function getTimeRecommendationConfidence(params: {
 
 function calculateTimeRecommendations(
   yongShenGroups: Array<{
-    targetLiuQin: LiuQin;
+    targetLiuQin: LiuQinType;
     selected: {
       position?: number;
-      liuQin: LiuQin;
+      liuQin: LiuQinType;
       naJia?: string;
       element: WuXing;
       isStrong: boolean;
@@ -576,7 +575,7 @@ function calculateTimeRecommendations(
   baseDate: Date,
   dayZhi: DiZhi
 ): Array<{
-  targetLiuQin: LiuQin;
+  targetLiuQin: LiuQinType;
   type: 'favorable' | 'unfavorable' | 'critical';
   earthlyBranch?: string;
   startDate: string;
@@ -585,7 +584,7 @@ function calculateTimeRecommendations(
   description: string;
 }> {
   const recommendations: Array<{
-    targetLiuQin: LiuQin;
+    targetLiuQin: LiuQinType;
     type: 'favorable' | 'unfavorable' | 'critical';
     earthlyBranch?: string;
     startDate: string;
@@ -685,7 +684,7 @@ function calculateFuShen(
   isAvailable: boolean;
   availabilityReason: string;
 }> {
-  const allLiuQin: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
+  const allLiuQin: LiuQinType[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
   const presentLiuQin = new Set(fullYaos.map(y => y.liuQin));
   const missingLiuQin = allLiuQin.filter(lq => !presentLiuQin.has(lq));
 
@@ -745,21 +744,14 @@ interface Yao {
   position: number;
 }
 
-interface Hexagram {
-  name: string;
-  code: string;
-  upperTrigram: string;
-  lowerTrigram: string;
-  element: string;
-  nature: string;
-}
+// 使用 data/hexagram-data.ts 中导入的 Hexagram 接口
 
 // 内部使用的爻信息接口（与 types.ts 中的 FullYaoInfo 输出类型区分）
 interface InternalYaoInfo {
   type: YaoType;
   change: YaoChange;
   position: number;
-  liuQin: LiuQin;
+  liuQin: LiuQinType;
   liuShen: LiuShen;
   naJia: DiZhi;
   wuXing: WuXing;
@@ -864,75 +856,10 @@ const BA_GONG_BEN_GUA: Record<string, string> = {
   '巽': '011011', '离': '101101', '坤': '000000', '兑': '110110',
 };
 
-const HEXAGRAMS: Hexagram[] = [
-  { name: '乾为天', code: '111111', upperTrigram: '乾', lowerTrigram: '乾', element: '金', nature: '刚健' },
-  { name: '坤为地', code: '000000', upperTrigram: '坤', lowerTrigram: '坤', element: '土', nature: '柔顺' },
-  { name: '水雷屯', code: '100010', upperTrigram: '坎', lowerTrigram: '震', element: '水', nature: '初生' },
-  { name: '山水蒙', code: '010001', upperTrigram: '艮', lowerTrigram: '坎', element: '土', nature: '启蒙' },
-  { name: '水天需', code: '111010', upperTrigram: '坎', lowerTrigram: '乾', element: '水', nature: '等待' },
-  { name: '天水讼', code: '010111', upperTrigram: '乾', lowerTrigram: '坎', element: '金', nature: '争讼' },
-  { name: '地水师', code: '010000', upperTrigram: '坤', lowerTrigram: '坎', element: '土', nature: '统帅' },
-  { name: '水地比', code: '000010', upperTrigram: '坎', lowerTrigram: '坤', element: '水', nature: '亲比' },
-  { name: '风天小畜', code: '111011', upperTrigram: '巽', lowerTrigram: '乾', element: '木', nature: '蓄养' },
-  { name: '天泽履', code: '110111', upperTrigram: '乾', lowerTrigram: '兑', element: '金', nature: '践行' },
-  { name: '地天泰', code: '111000', upperTrigram: '坤', lowerTrigram: '乾', element: '土', nature: '通泰' },
-  { name: '天地否', code: '000111', upperTrigram: '乾', lowerTrigram: '坤', element: '金', nature: '闭塞' },
-  { name: '天火同人', code: '101111', upperTrigram: '乾', lowerTrigram: '离', element: '金', nature: '和同' },
-  { name: '火天大有', code: '111101', upperTrigram: '离', lowerTrigram: '乾', element: '火', nature: '大有' },
-  { name: '地山谦', code: '001000', upperTrigram: '坤', lowerTrigram: '艮', element: '土', nature: '谦逊' },
-  { name: '雷地豫', code: '000100', upperTrigram: '震', lowerTrigram: '坤', element: '木', nature: '愉悦' },
-  { name: '泽雷随', code: '100110', upperTrigram: '兑', lowerTrigram: '震', element: '金', nature: '随从' },
-  { name: '山风蛊', code: '011001', upperTrigram: '艮', lowerTrigram: '巽', element: '土', nature: '整治' },
-  { name: '地泽临', code: '110000', upperTrigram: '坤', lowerTrigram: '兑', element: '土', nature: '临近' },
-  { name: '风地观', code: '000011', upperTrigram: '巽', lowerTrigram: '坤', element: '木', nature: '观察' },
-  { name: '火雷噬嗑', code: '100101', upperTrigram: '离', lowerTrigram: '震', element: '火', nature: '决断' },
-  { name: '山火贲', code: '101001', upperTrigram: '艮', lowerTrigram: '离', element: '土', nature: '文饰' },
-  { name: '山地剥', code: '000001', upperTrigram: '艮', lowerTrigram: '坤', element: '土', nature: '剥落' },
-  { name: '地雷复', code: '100000', upperTrigram: '坤', lowerTrigram: '震', element: '土', nature: '复归' },
-  { name: '天雷无妄', code: '100111', upperTrigram: '乾', lowerTrigram: '震', element: '金', nature: '无妄' },
-  { name: '山天大畜', code: '111001', upperTrigram: '艮', lowerTrigram: '乾', element: '土', nature: '大畜' },
-  { name: '山雷颐', code: '100001', upperTrigram: '艮', lowerTrigram: '震', element: '土', nature: '颐养' },
-  { name: '泽风大过', code: '011110', upperTrigram: '兑', lowerTrigram: '巽', element: '金', nature: '大过' },
-  { name: '坎为水', code: '010010', upperTrigram: '坎', lowerTrigram: '坎', element: '水', nature: '险陷' },
-  { name: '离为火', code: '101101', upperTrigram: '离', lowerTrigram: '离', element: '火', nature: '附丽' },
-  { name: '泽山咸', code: '001110', upperTrigram: '兑', lowerTrigram: '艮', element: '金', nature: '感应' },
-  { name: '雷风恒', code: '011100', upperTrigram: '震', lowerTrigram: '巽', element: '木', nature: '恒久' },
-  { name: '天山遯', code: '001111', upperTrigram: '乾', lowerTrigram: '艮', element: '金', nature: '退避' },
-  { name: '雷天大壮', code: '111100', upperTrigram: '震', lowerTrigram: '乾', element: '木', nature: '壮大' },
-  { name: '火地晋', code: '000101', upperTrigram: '离', lowerTrigram: '坤', element: '火', nature: '晋升' },
-  { name: '地火明夷', code: '101000', upperTrigram: '坤', lowerTrigram: '离', element: '土', nature: '晦暗' },
-  { name: '风火家人', code: '101011', upperTrigram: '巽', lowerTrigram: '离', element: '木', nature: '家人' },
-  { name: '火泽睽', code: '110101', upperTrigram: '离', lowerTrigram: '兑', element: '火', nature: '乖离' },
-  { name: '水山蹇', code: '001010', upperTrigram: '坎', lowerTrigram: '艮', element: '水', nature: '蹇难' },
-  { name: '雷水解', code: '010100', upperTrigram: '震', lowerTrigram: '坎', element: '木', nature: '解除' },
-  { name: '山泽损', code: '110001', upperTrigram: '艮', lowerTrigram: '兑', element: '土', nature: '减损' },
-  { name: '风雷益', code: '100011', upperTrigram: '巽', lowerTrigram: '震', element: '木', nature: '增益' },
-  { name: '泽天夬', code: '111110', upperTrigram: '兑', lowerTrigram: '乾', element: '金', nature: '决断' },
-  { name: '天风姤', code: '011111', upperTrigram: '乾', lowerTrigram: '巽', element: '金', nature: '遇合' },
-  { name: '泽地萃', code: '000110', upperTrigram: '兑', lowerTrigram: '坤', element: '金', nature: '聚集' },
-  { name: '地风升', code: '011000', upperTrigram: '坤', lowerTrigram: '巽', element: '土', nature: '上升' },
-  { name: '泽水困', code: '010110', upperTrigram: '兑', lowerTrigram: '坎', element: '金', nature: '困顿' },
-  { name: '水风井', code: '011010', upperTrigram: '坎', lowerTrigram: '巽', element: '水', nature: '井养' },
-  { name: '泽火革', code: '101110', upperTrigram: '兑', lowerTrigram: '离', element: '金', nature: '变革' },
-  { name: '火风鼎', code: '011101', upperTrigram: '离', lowerTrigram: '巽', element: '火', nature: '鼎新' },
-  { name: '震为雷', code: '100100', upperTrigram: '震', lowerTrigram: '震', element: '木', nature: '震动' },
-  { name: '艮为山', code: '001001', upperTrigram: '艮', lowerTrigram: '艮', element: '土', nature: '止静' },
-  { name: '风山渐', code: '001011', upperTrigram: '巽', lowerTrigram: '艮', element: '木', nature: '渐进' },
-  { name: '雷泽归妹', code: '110100', upperTrigram: '震', lowerTrigram: '兑', element: '木', nature: '归妹' },
-  { name: '雷火丰', code: '101100', upperTrigram: '震', lowerTrigram: '离', element: '木', nature: '丰盛' },
-  { name: '火山旅', code: '001101', upperTrigram: '离', lowerTrigram: '艮', element: '火', nature: '旅行' },
-  { name: '巽为风', code: '011011', upperTrigram: '巽', lowerTrigram: '巽', element: '木', nature: '顺入' },
-  { name: '兑为泽', code: '110110', upperTrigram: '兑', lowerTrigram: '兑', element: '金', nature: '喜悦' },
-  { name: '风水涣', code: '010011', upperTrigram: '巽', lowerTrigram: '坎', element: '木', nature: '涣散' },
-  { name: '水泽节', code: '110010', upperTrigram: '坎', lowerTrigram: '兑', element: '水', nature: '节制' },
-  { name: '风泽中孚', code: '110011', upperTrigram: '巽', lowerTrigram: '兑', element: '木', nature: '诚信' },
-  { name: '雷山小过', code: '001100', upperTrigram: '震', lowerTrigram: '艮', element: '木', nature: '小过' },
-  { name: '水火既济', code: '101010', upperTrigram: '坎', lowerTrigram: '离', element: '水', nature: '完成' },
-  { name: '火水未济', code: '010101', upperTrigram: '离', lowerTrigram: '坎', element: '火', nature: '未完' },
-];
-
-const DIZHI_LIST: DiZhi[] = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-const TIANGAN_LIST: TianGan[] = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+// 从 data/hexagram-data.ts 导入 HEXAGRAMS
+// DIZHI_LIST 和 TIANGAN_LIST 从 utils.ts 导入
+const DIZHI_LIST = DI_ZHI;
+const TIANGAN_LIST = TIAN_GAN;
 
 const DIZHI_WUXING: Record<DiZhi, WuXing> = {
   '子': '水', '丑': '土', '寅': '木', '卯': '木',
@@ -1102,21 +1029,7 @@ function getGanZhiTime(date: Date): GanZhiTime {
 }
 
 // 计算旬空
-function getKongWang(dayGan: string, dayZhi: string): KongWang {
-  const ganIdx = TIANGAN_LIST.indexOf(dayGan as TianGan);
-  const zhiIdx = DIZHI_LIST.indexOf(dayZhi as DiZhi);
-  const xunStart = (zhiIdx - ganIdx + 12) % 12;
 
-  const xunNames = ['甲子旬', '甲戌旬', '甲申旬', '甲午旬', '甲辰旬', '甲寅旬'];
-  const xunStartZhi = ['子', '戌', '申', '午', '辰', '寅'];
-  const xunIdx = xunStartZhi.indexOf(DIZHI_LIST[xunStart]);
-  const xun = xunNames[xunIdx] || '甲子旬';
-
-  return {
-    xun,
-    kongZhi: XUN_KONG_TABLE[xun],
-  };
-}
 
 // 获取六神
 function getLiuShen(dayGan: string): LiuShen[] {
@@ -1129,21 +1042,12 @@ function getLiuShen(dayGan: string): LiuShen[] {
 }
 
 // 五行相生相克关系
-function getWuXingRelation(from: WuXing, to: WuXing): string {
-  const order: WuXing[] = ['木', '火', '土', '金', '水'];
-  const fromIdx = order.indexOf(from);
-  const toIdx = order.indexOf(to);
-  if (from === to) return 'same';
-  if ((fromIdx + 1) % 5 === toIdx) return 'produce';
-  if ((toIdx + 1) % 5 === fromIdx) return 'produced';
-  if ((fromIdx + 2) % 5 === toIdx) return 'control';
-  return 'controlled';
-}
+
 
 // 计算六亲
-function getLiuQin(gongElement: WuXing, yaoElement: WuXing): LiuQin {
-  const relation = getWuXingRelation(gongElement, yaoElement);
-  const map: Record<string, LiuQin> = {
+function getLiuQin(gongElement: WuXing, yaoElement: WuXing): LiuQinType {
+  const relation = getElementRelation(gongElement, yaoElement);
+  const map: Record<string, LiuQinType> = {
     'same': '兄弟',
     'produce': '子孙',
     'produced': '父母',
@@ -1160,7 +1064,7 @@ function getYaoStrength(yaoElement: WuXing, monthZhi: DiZhi): { wangShuai: WangS
   return { wangShuai, isStrong };
 }
 
-const LIU_QIN_ORDER: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
+const LIU_QIN_ORDER: LiuQinType[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 
 // 维护约定（供调用方/AI 选择 yongShenTargets 参考）：
 // - 父母：文书合同、证件证明、学业老师、房屋车辆
@@ -1169,26 +1073,26 @@ const LIU_QIN_ORDER: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼
 // - 妻财：钱财资源、交易货物、家用开销
 // - 子孙：子女后辈、医药解忧（求官类通常不取子孙）
 // 若映射规则调整，请同步更新 tools.ts 的 yongShenTargets 描述，确保调用提示一致。
-function normalizeYongShenTargets(targets: unknown): LiuQin[] {
+function normalizeYongShenTargets(targets: unknown): LiuQinType[] {
   if (typeof targets === 'undefined') return [];
   if (!Array.isArray(targets)) {
     throw new Error('yongShenTargets 必须为数组');
   }
   if (targets.length === 0) return [];
-  const uniqueTargets = new Set<LiuQin>();
+  const uniqueTargets = new Set<LiuQinType>();
   for (const target of targets) {
     if (typeof target !== 'string') {
       throw new Error(`yongShenTargets 含非法值: ${String(target)}`);
     }
-    if (!LIU_QIN_ORDER.includes(target as LiuQin)) {
+    if (!LIU_QIN_ORDER.includes(target as LiuQinType)) {
       throw new Error(`yongShenTargets 含非法值: ${target}`);
     }
-    uniqueTargets.add(target as LiuQin);
+    uniqueTargets.add(target as LiuQinType);
   }
   return Array.from(uniqueTargets);
 }
 
-function resolveYongShenTargets(question: string, targets: unknown): LiuQin[] {
+function resolveYongShenTargets(question: string, targets: unknown): LiuQinType[] {
   if (typeof targets === 'undefined') {
     throw new Error('请先判断并填写 yongShenTargets');
   }
@@ -1329,7 +1233,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
   const dayGan = ganZhiTime.day.gan;
   const monthZhi = ganZhiTime.month.zhi as DiZhi;
   const dayZhi = ganZhiTime.day.zhi as DiZhi;
-  const kongWang = getKongWang(dayGan, ganZhiTime.day.zhi);
+  const kongWang = getKongWang(dayGan, ganZhiTime.day.zhi) as KongWang;
 
   const palace = findPalace(hexagramCode);
   const gongElement = (palace?.element || '土') as WuXing;
@@ -1497,7 +1401,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
       targetLiuQin: group.targetLiuQin,
       selected: {
         position: group.selected.position,
-        liuQin: group.selected.liuQin as LiuQin,
+        liuQin: group.selected.liuQin as LiuQinType,
         naJia: group.selected.naJia,
         element: (group.selected.element || '土') as WuXing,
         isStrong: group.selected.isStrong,
