@@ -4,7 +4,7 @@
 export const tools = [
     {
         name: 'bazi_calculate',
-        description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞、分柱空亡、地支刑害合冲关系与大运信息',
+        description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞、分柱空亡、地支刑害合冲关系',
         inputSchema: {
             type: 'object',
             properties: {
@@ -201,26 +201,6 @@ export const tools = [
                         },
                     },
                 },
-                daYun: {
-                    type: 'object',
-                    description: '大运信息',
-                    properties: {
-                        startAgeDetail: { type: 'string', description: '起运详情（如"3年2月15天起运"）' },
-                        list: {
-                            type: 'array',
-                            description: '大运列表',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    startYear: { type: 'number', description: '起始年份' },
-                                    ganZhi: { type: 'string', description: '干支' },
-                                    tenGod: { type: 'string', description: '大运天干十神（如：正官）' },
-                                    branchTenGod: { type: 'string', description: '大运地支主气十神' },
-                                },
-                            },
-                        },
-                    },
-                },
                 relations: {
                     type: 'array',
                     description: '地支刑害合冲关系',
@@ -234,7 +214,6 @@ export const tools = [
                                 description: '涉及柱位',
                             },
                             description: { type: 'string', description: '关系描述' },
-                            isAuspicious: { type: 'boolean', description: '是否偏吉' },
                         },
                     },
                 },
@@ -792,7 +771,7 @@ export const tools = [
     },
     {
         name: 'daily_fortune',
-        description: '每日运势 - 计算个性化每日运势，包含事业、感情、财运、健康等维度',
+        description: '每日运势 - 计算个性化每日运势，输出流日信息与黄历基础数据',
         inputSchema: {
             type: 'object',
             properties: {
@@ -821,10 +800,6 @@ export const tools = [
                     type: 'string',
                     description: '目标日期 (YYYY-MM-DD)，默认今天',
                 },
-                seed: {
-                    type: 'string',
-                    description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
-                },
             },
             required: [],
         },
@@ -832,7 +807,6 @@ export const tools = [
             type: 'object',
             properties: {
                 date: { type: 'string', description: '日期' },
-                seed: { type: 'string', description: '本次运势计算使用的随机种子' },
                 dayInfo: {
                     type: 'object',
                     description: '日干支',
@@ -843,21 +817,6 @@ export const tools = [
                     },
                 },
                 tenGod: { type: 'string', description: '流日十神' },
-                scores: {
-                    type: 'object',
-                    description: '各维度评分（0-100）',
-                    properties: {
-                        overall: { type: 'number', description: '综合评分' },
-                        career: { type: 'number', description: '事业评分' },
-                        love: { type: 'number', description: '感情评分' },
-                        wealth: { type: 'number', description: '财运评分' },
-                        health: { type: 'number', description: '健康评分' },
-                        social: { type: 'number', description: '社交评分' },
-                    },
-                },
-                advice: { type: 'array', items: { type: 'string' }, description: '建议' },
-                luckyColor: { type: 'string', description: '幸运颜色' },
-                luckyDirection: { type: 'string', description: '幸运方位' },
                 almanac: {
                     type: 'object',
                     description: '黄历',
@@ -879,8 +838,8 @@ export const tools = [
         },
     },
     {
-        name: 'liunian_analyze',
-        description: '流年流月分析 - 根据出生时间分析当前大运、流年、流月对命主的影响，包含十神分析和吉凶趋势',
+        name: 'dayun_calculate',
+        description: '大运计算 - 根据出生时间计算完整大运列表，输出起运详情与各步大运干支、十神',
         inputSchema: {
             type: 'object',
             properties: {
@@ -918,54 +877,40 @@ export const tools = [
                     type: 'boolean',
                     description: '是否闰月（仅农历有效），默认 false',
                 },
-                targetYear: {
-                    type: 'number',
-                    description: '目标年份，默认当前年',
-                },
-                targetMonth: {
-                    type: 'number',
-                    description: '目标月份 (1-12)，可选，提供后计算流月',
-                },
             },
             required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
         },
         outputSchema: {
             type: 'object',
             properties: {
-                currentDaYun: {
-                    type: 'object',
-                    description: '当前大运',
-                    properties: {
-                        startYear: { type: 'number', description: '起始年份' },
-                        endYear: { type: 'number', description: '结束年份' },
-                        ganZhi: { type: 'string', description: '干支' },
-                        tenGod: { type: 'string', description: '十神' },
-                    },
-                },
-                liunian: {
-                    type: 'object',
-                    description: '流年',
-                    properties: {
-                        year: { type: 'number', description: '年份' },
-                        ganZhi: { type: 'string', description: '干支' },
-                        tenGod: { type: 'string', description: '十神' },
-                    },
-                },
-                liuyue: {
-                    type: 'object',
-                    description: '流月（如提供targetMonth）',
-                    properties: {
-                        month: { type: 'number', description: '月份' },
-                        ganZhi: { type: 'string', description: '干支' },
-                        tenGod: { type: 'string', description: '十神' },
-                    },
-                },
-                analysis: {
-                    type: 'object',
-                    description: '综合分析',
-                    properties: {
-                        trend: { type: 'string', description: '趋势(favorable/neutral/unfavorable)' },
-                        keyFactors: { type: 'array', items: { type: 'string' }, description: '关键因素分析' },
+                list: {
+                    type: 'array',
+                    description: '大运列表',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            startYear: { type: 'number', description: '起始年份' },
+                            ganZhi: { type: 'string', description: '干支' },
+                            stem: { type: 'string', description: '天干' },
+                            branch: { type: 'string', description: '地支' },
+                            tenGod: { type: 'string', description: '大运天干十神' },
+                            branchTenGod: { type: 'string', description: '大运地支主气十神' },
+                            hiddenStems: {
+                                type: 'array',
+                                description: '藏干明细',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        stem: { type: 'string', description: '藏干天干' },
+                                        qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                                        tenGod: { type: 'string', description: '相对日主十神' },
+                                    },
+                                },
+                            },
+                            naYin: { type: 'string', description: '纳音' },
+                            diShi: { type: 'string', description: '地势（十二长生）' },
+                            shenSha: { type: 'array', items: { type: 'string' }, description: '神煞' },
+                        },
                     },
                 },
             },

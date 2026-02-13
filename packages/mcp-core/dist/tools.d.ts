@@ -1,7 +1,7 @@
 /**
  * MCP 工具定义
  */
-import type { BaziInput, BaziPillarsResolveInput, ZiweiInput, LiuyaoInput, TarotInput, FortuneInput, LiunianInput } from './types.js';
+import type { BaziInput, BaziPillarsResolveInput, ZiweiInput, LiuyaoInput, TarotInput, FortuneInput, DayunInput } from './types.js';
 export interface ToolDefinition {
     name: string;
     description: string;
@@ -17,5 +17,5 @@ export interface ToolDefinition {
     };
 }
 export declare const tools: ToolDefinition[];
-export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | LiuyaoInput | TarotInput | FortuneInput | LiunianInput;
+export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput;
 //# sourceMappingURL=tools.d.ts.map

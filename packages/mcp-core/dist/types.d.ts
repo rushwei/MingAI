@@ -31,7 +31,6 @@ export interface PillarRelation {
     type: '合' | '冲' | '刑' | '害';
     pillars: PillarPosition[];
     description: string;
-    isAuspicious: boolean;
 }
 export interface BaziOutput {
     gender: Gender;
@@ -43,15 +42,6 @@ export interface BaziOutput {
         month: PillarInfo;
         day: PillarInfo;
         hour: PillarInfo;
-    };
-    daYun: {
-        startAgeDetail: string;
-        list: Array<{
-            startYear: number;
-            ganZhi: string;
-            tenGod: string;
-            branchTenGod: string;
-        }>;
     };
     relations: PillarRelation[];
 }
@@ -355,29 +345,15 @@ export interface FortuneInput {
     birthDay?: number;
     birthHour?: number;
     date?: string;
-    seed?: string;
-    seedScope?: string;
 }
 export interface FortuneOutput {
     date: string;
-    seed: string;
     dayInfo: {
         stem: string;
         branch: string;
         ganZhi: string;
     };
     tenGod?: string;
-    scores: {
-        overall: number;
-        career: number;
-        love: number;
-        wealth: number;
-        health: number;
-        social: number;
-    };
-    advice: string[];
-    luckyColor?: string;
-    luckyDirection?: string;
     almanac: AlmanacInfo;
 }
 export interface AlmanacInfo {
@@ -393,7 +369,7 @@ export interface AlmanacInfo {
     jishen: string[];
     xiongsha: string[];
 }
-export interface LiunianInput {
+export interface DayunInput {
     gender: Gender;
     birthYear: number;
     birthMonth: number;
@@ -402,29 +378,19 @@ export interface LiunianInput {
     birthMinute?: number;
     calendarType?: CalendarType;
     isLeapMonth?: boolean;
-    targetYear?: number;
-    targetMonth?: number;
 }
-export interface LiunianOutput {
-    currentDaYun: {
+export interface DayunOutput {
+    list: Array<{
         startYear: number;
-        endYear: number;
         ganZhi: string;
+        stem: string;
+        branch: string;
         tenGod: string;
-    };
-    liunian: {
-        year: number;
-        ganZhi: string;
-        tenGod: string;
-    };
-    liuyue?: {
-        month: number;
-        ganZhi: string;
-        tenGod: string;
-    };
-    analysis: {
-        trend: 'favorable' | 'neutral' | 'unfavorable';
-        keyFactors: string[];
-    };
+        branchTenGod: string;
+        hiddenStems: HiddenStemInfo[];
+        naYin: string;
+        diShi: string;
+        shenSha: string[];
+    }>;
 }
 //# sourceMappingURL=types.d.ts.map

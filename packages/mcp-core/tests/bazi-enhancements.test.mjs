@@ -45,10 +45,7 @@ test('bazi_calculate should expose enhanced pillar fields', async () => {
     assert.ok(!('kongZhi' in pillar.kongWang), `${pillarKey}.kongWang.kongZhi should not exist`);
   }
 
-  assert.ok(Array.isArray(result.daYun?.list), 'daYun.list should be array');
-  assert.ok(result.daYun.list.length > 0, 'daYun.list should not be empty');
-  assert.equal(typeof result.daYun.list[0].tenGod, 'string', 'daYun.list[].tenGod missing');
-  assert.equal(typeof result.daYun.list[0].branchTenGod, 'string', 'daYun.list[].branchTenGod missing');
+  assert.equal(result.daYun, undefined, 'daYun should not exist in bazi output');
 
   assert.ok(Array.isArray(result.relations), 'relations should be array');
   assert.ok(!('shenSha' in result), 'legacy shenSha should be removed');
@@ -86,9 +83,6 @@ test('bazi_calculate should output relation list with type/description/auspiciou
       assert.ok(['年支', '月支', '日支', '时支'].includes(p), `invalid relation pillar label: ${p}`);
     }
   }
-
-  assert.equal(he.isAuspicious, true, '合 should be auspicious');
-  assert.equal(chong.isAuspicious, false, '冲 should be inauspicious');
 });
 
 test('bazi_calculate should set consistent pillar kongWang objects', async () => {

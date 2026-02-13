@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mingli MCP Assistant"
+  short_description: "Run structured Bazi/Liuyao/Ziwei/Tarot reading workflows"
+  default_prompt: "Use MCP tools to deliver structured fortune-telling analysis with mandatory domain workflow steps."

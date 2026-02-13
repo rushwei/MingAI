@@ -301,7 +301,7 @@ export function renderAuthorizePage(params: {
         <span class="tool-chip"><span class="tool-dot"></span>六爻分析</span>
         <span class="tool-chip"><span class="tool-dot"></span>塔罗占卜</span>
         <span class="tool-chip"><span class="tool-dot"></span>每日运势</span>
-        <span class="tool-chip"><span class="tool-dot"></span>流年分析</span>
+        <span class="tool-chip"><span class="tool-dot"></span>大运计算</span>
       </div>
     </div>
 

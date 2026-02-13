@@ -324,7 +324,7 @@ type SessionContext = {
   lastActivityAt: number;
 };
 
-const SEED_SCOPED_TOOLS = new Set(['liuyao_analyze', 'tarot_draw', 'daily_fortune']);
+const SEED_SCOPED_TOOLS = new Set(['liuyao_analyze', 'tarot_draw']);
 
 // 预构建工具名 → 工具的索引，避免每次 tool call 线性扫描
 const toolsByName = new Map(tools.map((t) => [t.name, t]));

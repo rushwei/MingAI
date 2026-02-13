@@ -3,8 +3,8 @@
  */
 export { tools } from './tools.js';
 export * from './types.js';
-export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleLiunianAnalyze, } from './handlers/index.js';
-import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleLiunianAnalyze, } from './handlers/index.js';
+export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, } from './handlers/index.js';
+import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, } from './handlers/index.js';
 /**
  * 统一工具调用分发（消除 mcp-server / mcp-local 重复 switch）
  */
@@ -23,8 +23,8 @@ export async function handleToolCall(name, args) {
             return handleTarotDraw(args);
         case 'daily_fortune':
             return handleDailyFortune(args);
-        case 'liunian_analyze':
-            return handleLiunianAnalyze(args);
+        case 'dayun_calculate':
+            return handleDayunCalculate(args);
         default:
             throw new Error(`Unknown tool: ${name}`);
     }

@@ -40,7 +40,6 @@ export interface PillarRelation {
   type: '合' | '冲' | '刑' | '害';
   pillars: PillarPosition[];
   description: string;
-  isAuspicious: boolean;
 }
 
 export interface BaziOutput {
@@ -53,15 +52,6 @@ export interface BaziOutput {
     month: PillarInfo;
     day: PillarInfo;
     hour: PillarInfo;
-  };
-  daYun: {
-    startAgeDetail: string;
-    list: Array<{
-      startYear: number;
-      ganZhi: string;
-      tenGod: string;
-      branchTenGod: string;
-    }>;
   };
   relations: PillarRelation[];
 }
@@ -378,30 +368,16 @@ export interface FortuneInput {
   birthDay?: number;
   birthHour?: number;
   date?: string;
-  seed?: string;
-  seedScope?: string;
 }
 
 export interface FortuneOutput {
   date: string;
-  seed: string;
   dayInfo: {
     stem: string;
     branch: string;
     ganZhi: string;
   };
   tenGod?: string;
-  scores: {
-    overall: number;
-    career: number;
-    love: number;
-    wealth: number;
-    health: number;
-    social: number;
-  };
-  advice: string[];
-  luckyColor?: string;
-  luckyDirection?: string;
   almanac: AlmanacInfo;
 }
 
@@ -419,9 +395,9 @@ export interface AlmanacInfo {
   xiongsha: string[];
 }
 
-// ===== 流年流月流日相关类型 =====
+// ===== 大运相关类型 =====
 
-export interface LiunianInput {
+export interface DayunInput {
   gender: Gender;
   birthYear: number;
   birthMonth: number;
@@ -430,33 +406,19 @@ export interface LiunianInput {
   birthMinute?: number;
   calendarType?: CalendarType;
   isLeapMonth?: boolean;
-  targetYear?: number;
-  targetMonth?: number;
 }
 
-export interface LiunianOutput {
-  // 大运信息
-  currentDaYun: {
+export interface DayunOutput {
+  list: Array<{
     startYear: number;
-    endYear: number;
     ganZhi: string;
+    stem: string;
+    branch: string;
     tenGod: string;
-  };
-  // 流年信息
-  liunian: {
-    year: number;
-    ganZhi: string;
-    tenGod: string;
-  };
-  // 流月信息（如果提供了targetMonth）
-  liuyue?: {
-    month: number;
-    ganZhi: string;
-    tenGod: string;
-  };
-  // 综合分析
-  analysis: {
-    trend: 'favorable' | 'neutral' | 'unfavorable';
-    keyFactors: string[];
-  };
+    branchTenGod: string;
+    hiddenStems: HiddenStemInfo[];
+    naYin: string;
+    diShi: string;
+    shenSha: string[];
+  }>;
 }

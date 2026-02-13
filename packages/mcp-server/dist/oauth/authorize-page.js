@@ -229,8 +229,8 @@ export function renderAuthorizePage(params) {
 
   <div class="page">
     <div class="brand">
-      <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
-      <div class="brand-name"><span>Ming</span> AI</div>
+      // <img class="brand-logo" src="${escapeAttr(logoUrl)}" alt="Ming AI" onerror="this.style.display='none'" />
+      <div class="brand-name"><span>Ming</span> AI MCP</div>
     </div>
 
     <div class="client-bar">
@@ -280,17 +280,17 @@ export function renderAuthorizePage(params) {
       </div>
       <div class="tools-list">
         <span class="tool-chip"><span class="tool-dot"></span>八字排盘</span>
-        <span class="tool-chip"><span class="tool-dot"></span>四柱反查</span>
+        <span class="tool-chip"><span class="tool-dot"></span>四柱排盘</span>
         <span class="tool-chip"><span class="tool-dot"></span>紫微斗数</span>
         <span class="tool-chip"><span class="tool-dot"></span>六爻分析</span>
-        <span class="tool-chip"><span class="tool-dot"></span>塔罗牌</span>
+        <span class="tool-chip"><span class="tool-dot"></span>塔罗占卜</span>
         <span class="tool-chip"><span class="tool-dot"></span>每日运势</span>
-        <span class="tool-chip"><span class="tool-dot"></span>流年分析</span>
+        <span class="tool-chip"><span class="tool-dot"></span>大运计算</span>
       </div>
     </div>
 
     <div class="footer">
-      还没有账号？<a href="${escapeAttr(siteUrl)}" target="_blank" rel="noopener">注册 Ming AI</a>
+      还没有账号？<a href="${escapeAttr(siteUrl)}" target="_blank" rel="noopener">前往注册</a>
       <span class="sep">·</span>
       <a href="${escapeAttr(siteUrl)}" target="_blank" rel="noopener">了解更多</a>
     </div>

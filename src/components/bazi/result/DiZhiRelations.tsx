@@ -69,7 +69,6 @@ interface Relationship {
     type: '合' | '冲' | '刑' | '害';
     pillars: string[];  // 涉及的柱位
     description: string;
-    isAuspicious: boolean;
 }
 
 export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch, isUnknownTime }: DiZhiRelationsProps) {
@@ -92,7 +91,6 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                     type: '合',
                     pillars: [pillarNames[i], pillarNames[j]],
                     description: `${branches[i]}${branches[j]}六合`,
-                    isAuspicious: true,
                 });
             }
         }
@@ -112,14 +110,12 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                     type: '合',
                     pillars: matchingPillars,
                     description: `${uniqueBranches.join('')}三合${sanHe.element}`,
-                    isAuspicious: true,
                 });
             } else {
                 relationships.push({
                     type: '合',
                     pillars: matchingPillars,
                     description: `${uniqueBranches.join('')}半合${sanHe.element}`,
-                    isAuspicious: true,
                 });
             }
         }
@@ -133,7 +129,6 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                     type: '冲',
                     pillars: [pillarNames[i], pillarNames[j]],
                     description: `${branches[i]}${branches[j]}相冲`,
-                    isAuspicious: false,
                 });
             }
         }
@@ -147,7 +142,6 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                     type: '害',
                     pillars: [pillarNames[i], pillarNames[j]],
                     description: `${branches[i]}${branches[j]}相害`,
-                    isAuspicious: false,
                 });
             }
         }
@@ -167,7 +161,6 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                     type: '刑',
                     pillars: matchingPillars,
                     description: xing.name,
-                    isAuspicious: false,
                 });
             }
         } else if (matchingBranches.length >= 2) {
@@ -178,7 +171,6 @@ export function DiZhiRelations({ yearBranch, monthBranch, dayBranch, hourBranch,
                 type: '刑',
                 pillars: matchingPillars,
                 description: xing.name,
-                isAuspicious: false,
             });
         }
     }

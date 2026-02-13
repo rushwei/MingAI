@@ -14,7 +14,7 @@ export {
   handleLiuyaoAnalyze,
   handleTarotDraw,
   handleDailyFortune,
-  handleLiunianAnalyze,
+  handleDayunCalculate,
 } from './handlers/index.js';
 
 import {
@@ -24,7 +24,7 @@ import {
   handleLiuyaoAnalyze,
   handleTarotDraw,
   handleDailyFortune,
-  handleLiunianAnalyze,
+  handleDayunCalculate,
 } from './handlers/index.js';
 
 /**
@@ -45,8 +45,8 @@ export async function handleToolCall(name: string, args: any): Promise<unknown> 
       return handleTarotDraw(args);
     case 'daily_fortune':
       return handleDailyFortune(args);
-    case 'liunian_analyze':
-      return handleLiunianAnalyze(args);
+    case 'dayun_calculate':
+      return handleDayunCalculate(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

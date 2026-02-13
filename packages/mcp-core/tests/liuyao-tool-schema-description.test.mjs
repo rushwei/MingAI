@@ -13,11 +13,6 @@ test('liuyao tool description guides target selection by question semantics', ()
     /先根据问题语义(选择|判断)目标.*再调用|先判断后调用/u,
     'tool description should mention semantic target selection before invocation',
   );
-  assert.match(
-    tool.description,
-    /候选顺序|候选排序|越后|越靠后/u,
-    'tool description should mention candidate ordering semantics',
-  );
   assert.doesNotMatch(
     tool.description,
     /rankScore|排序分/u,

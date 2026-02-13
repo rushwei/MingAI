@@ -136,10 +136,10 @@ const YUE_DE_HE = {
     '亥': '己', '卯': '己', '未': '己',
     '巳': '乙', '酉': '乙', '丑': '乙',
 };
-function getNaYin(stem, branch) {
+export function getNaYin(stem, branch) {
     return NA_YIN_TABLE[`${stem}${branch}`] || '';
 }
-function getDiShi(dayStem, branch) {
+export function getDiShi(dayStem, branch) {
     const element = STEM_ELEMENTS[dayStem];
     if (!element)
         return '';
@@ -171,7 +171,7 @@ function getKongWang(dayGan, dayZhi) {
         kongZhi: XUN_KONG_TABLE[xun],
     };
 }
-function buildHiddenStems(branch, dayStem) {
+export function buildHiddenStems(branch, dayStem) {
     const stems = HIDDEN_STEM_DETAILS[branch] || [];
     return stems.map((item) => ({
         stem: item.stem,
@@ -240,7 +240,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '合',
                     pillars: [normalizePillarPosition(pillarNames[i]), normalizePillarPosition(pillarNames[j])],
                     description: `${branches[i]}${branches[j]}六合`,
-                    isAuspicious: true,
                 });
             }
         }
@@ -257,7 +256,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '合',
                     pillars: matchingPillars,
                     description: `${uniqueBranches.join('')}三合${sanHe.element}`,
-                    isAuspicious: true,
                 });
             }
             else {
@@ -265,7 +263,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '合',
                     pillars: matchingPillars,
                     description: `${uniqueBranches.join('')}半合${sanHe.element}`,
-                    isAuspicious: true,
                 });
             }
         }
@@ -277,7 +274,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '冲',
                     pillars: [normalizePillarPosition(pillarNames[i]), normalizePillarPosition(pillarNames[j])],
                     description: `${branches[i]}${branches[j]}相冲`,
-                    isAuspicious: false,
                 });
             }
         }
@@ -289,7 +285,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '害',
                     pillars: [normalizePillarPosition(pillarNames[i]), normalizePillarPosition(pillarNames[j])],
                     description: `${branches[i]}${branches[j]}相害`,
-                    isAuspicious: false,
                 });
             }
         }
@@ -306,7 +301,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                     type: '刑',
                     pillars: matchingPillars,
                     description: xing.name,
-                    isAuspicious: false,
                 });
             }
         }
@@ -318,7 +312,6 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
                 type: '刑',
                 pillars: matchingPillars,
                 description: xing.name,
-                isAuspicious: false,
             });
         }
     }
@@ -375,14 +368,6 @@ function calculatePillarShenSha(params) {
     if (yueDeHeStem === hourStem)
         pushUnique('hour', '月德合');
     return shenSha;
-}
-function getDaYunTenGods(ganZhi, dayStem) {
-    const stem = ganZhi.slice(0, 1);
-    const branch = ganZhi.slice(1, 2);
-    const tenGod = stem ? calculateTenGod(dayStem, stem) : '';
-    const branchMainStem = HIDDEN_STEM_DETAILS[branch]?.[0]?.stem;
-    const branchTenGod = branchMainStem ? calculateTenGod(dayStem, branchMainStem) : '';
-    return { tenGod, branchTenGod };
 }
 function validateLunarDateInput(params) {
     const { birthYear, birthMonth, birthDay, birthHour, birthMinute, isLeapMonth, } = params;
@@ -484,39 +469,6 @@ export async function handleBaziCalculate(input) {
         },
     };
     fourPillars.day.tenGod = undefined;
-    const genderNum = gender === 'male' ? 1 : 0;
-    const yun = eightChar.getYun(genderNum);
-    const daYunList = yun.getDaYun();
-    let startAgeDetail = `${yun.getStartYear()}岁起运`;
-    try {
-        const startSolar = yun.getStartSolar();
-        if (startSolar) {
-            const birthDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute());
-            const qiyunDate = new Date(startSolar.getYear(), startSolar.getMonth() - 1, startSolar.getDay(), startSolar.getHour(), startSolar.getMinute());
-            const diffDays = Math.floor((qiyunDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-            const years = Math.floor(diffDays / 365);
-            const remainingDays = diffDays % 365;
-            const months = Math.floor(remainingDays / 30);
-            const days = remainingDays % 30;
-            startAgeDetail = `${years}年${months}月${days}天起运`;
-        }
-    }
-    catch {
-        // 保持默认值
-    }
-    const daYun = daYunList
-        .filter((dy) => dy.getGanZhi())
-        .slice(0, 10)
-        .map((dy) => {
-        const ganZhi = dy.getGanZhi();
-        const { tenGod, branchTenGod } = getDaYunTenGods(ganZhi, dayStem);
-        return {
-            startYear: dy.getStartYear(),
-            ganZhi,
-            tenGod,
-            branchTenGod,
-        };
-    });
     const relations = analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch);
     return {
         gender,
@@ -524,10 +476,6 @@ export async function handleBaziCalculate(input) {
         dayMaster: dayStem,
         kongWang,
         fourPillars,
-        daYun: {
-            startAgeDetail,
-            list: daYun,
-        },
         relations,
     };
 }
