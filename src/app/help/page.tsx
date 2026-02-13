@@ -228,6 +228,25 @@ export default function HelpPage() {
                         </div>
                     </div>
                 </section>
+
+                {/* 法律声明 */}
+                <section className="pt-4">
+                    <div className="flex flex-wrap justify-center gap-4 text-sm">
+                        <Link
+                            href="/privacy"
+                            className="text-foreground-secondary hover:text-foreground hover:underline transition-colors"
+                        >
+                            隐私政策
+                        </Link>
+                        <span className="text-border">|</span>
+                        <Link
+                            href="/terms"
+                            className="text-foreground-secondary hover:text-foreground hover:underline transition-colors"
+                        >
+                            服务条款
+                        </Link>
+                    </div>
+                </section>
             </div>
         </div>
     );

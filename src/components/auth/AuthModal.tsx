@@ -7,6 +7,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { X, Mail, Lock, User, Loader2, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import {
     signInWithEmailProtected,
@@ -825,6 +826,28 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                             )}
                         </div>
                     )}
+
+                    {/* 法律声明 */}
+                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-foreground-secondary pt-2">
+                        <span>登录即表示同意</span>
+                        <Link
+                            href="/terms"
+                            target="_blank"
+                            className="text-accent hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            《服务条款》
+                        </Link>
+                        <span>和</span>
+                        <Link
+                            href="/privacy"
+                            target="_blank"
+                            className="text-accent hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            《隐私政策》
+                        </Link>
+                    </div>
                 </form>
             </div>
         </div>
