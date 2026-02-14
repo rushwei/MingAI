@@ -13,6 +13,7 @@ import {
 import {
   tools,
   handleToolCall,
+  formatAsMarkdown,
 } from '@mingai/mcp-core';
 
 // 创建服务器
@@ -28,6 +29,7 @@ server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
     description: t.description,
     inputSchema: t.inputSchema,
     outputSchema: t.outputSchema,
+    annotations: t.annotations,
   })),
 }));
 
@@ -36,10 +38,11 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
     const result = await handleToolCall(name, args || {});
+    // 使用 Markdown 格式化人类可读文本
     const humanReadableText =
       typeof result === 'string'
         ? result
-        : JSON.stringify(result, null, 2) ?? String(result);
+        : formatAsMarkdown(name, result);
     const humanReadableContent = [{ type: 'text', text: humanReadableText }];
     // 检查工具是否定义了 outputSchema
     const tool = tools.find((t) => t.name === name);

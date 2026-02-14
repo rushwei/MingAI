@@ -14,7 +14,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, isInitializeRequest, } from '@modelcontextprotocol/sdk/types.js';
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
-import { tools, handleToolCall, } from '@mingai/mcp-core';
+import { tools, handleToolCall, formatAsMarkdown, } from '@mingai/mcp-core';
 import { dualAuthMiddleware, rateLimitMiddleware, oauthRateLimitMiddleware, originValidationMiddleware, hostValidationMiddleware, sseConnectionLimitMiddleware, readPositiveIntEnv, } from './middleware.js';
 import { MingAIOAuthProvider } from './oauth/provider.js';
 import { saveAuthorizationCode } from './oauth/store.js';
@@ -313,6 +313,7 @@ function createMcpServer(auth) {
             description: t.description,
             inputSchema: t.inputSchema,
             outputSchema: t.outputSchema,
+            annotations: t.annotations,
         })),
     }));
     // 调用工具（错误脱敏）
@@ -321,9 +322,10 @@ function createMcpServer(auth) {
         const toolArgs = withSeedScope(name, args, auth);
         try {
             const result = await handleToolCall(name, toolArgs);
+            // 使用 Markdown 格式化人类可读文本
             const humanReadableText = typeof result === 'string'
                 ? result
-                : JSON.stringify(result, null, 2) ?? String(result);
+                : formatAsMarkdown(name, result);
             const humanReadableContent = [{ type: 'text', text: humanReadableText }];
             const tool = toolsByName.get(name);
             if (tool?.outputSchema) {

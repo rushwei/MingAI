@@ -6,7 +6,7 @@ import { Solar } from 'lunar-javascript';
 import { calculateBranchShenSha, calculateGlobalShenSha } from '../shensha.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
 import { createSeededRng, resolveSeed } from '../seeded-rng.js';
-import { getKongWang, getElementRelation, DI_ZHI, TIAN_GAN } from '../utils.js';
+import { getKongWang, getElementRelation, DI_ZHI } from '../utils.js';
 import { HEXAGRAMS } from '../data/hexagram-data.js';
 // 旺衰标签
 const WANG_SHUAI_LABELS = {
@@ -635,9 +635,8 @@ const BA_GONG_BEN_GUA = {
     '巽': '011011', '离': '101101', '坤': '000000', '兑': '110110',
 };
 // 从 data/hexagram-data.ts 导入 HEXAGRAMS
-// DIZHI_LIST 和 TIANGAN_LIST 从 utils.ts 导入
+// DIZHI_LIST 从 utils.ts 导入
 const DIZHI_LIST = DI_ZHI;
-const TIANGAN_LIST = TIAN_GAN;
 const DIZHI_WUXING = {
     '子': '水', '丑': '土', '寅': '木', '卯': '木',
     '辰': '土', '巳': '火', '午': '火', '未': '土',
@@ -651,15 +650,6 @@ const LIU_SHEN_CONFIG = {
     '己': ['螣蛇', '白虎', '玄武', '青龙', '朱雀', '勾陈'],
     '庚辛': ['白虎', '玄武', '青龙', '朱雀', '勾陈', '螣蛇'],
     '壬癸': ['玄武', '青龙', '朱雀', '勾陈', '螣蛇', '白虎'],
-};
-// 旬空表
-const XUN_KONG_TABLE = {
-    '甲子旬': ['戌', '亥'],
-    '甲戌旬': ['申', '酉'],
-    '甲申旬': ['午', '未'],
-    '甲午旬': ['辰', '巳'],
-    '甲辰旬': ['寅', '卯'],
-    '甲寅旬': ['子', '丑'],
 };
 // 月令旺衰表
 const WANG_SHUAI_TABLE = {

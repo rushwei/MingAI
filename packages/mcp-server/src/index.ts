@@ -25,6 +25,7 @@ import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import {
   tools,
   handleToolCall,
+  formatAsMarkdown,
 } from '@mingai/mcp-core';
 
 import {
@@ -385,6 +386,7 @@ function createMcpServer(auth: McpAuthInfo) {
       description: t.description,
       inputSchema: t.inputSchema,
       outputSchema: t.outputSchema,
+      annotations: t.annotations,
     })),
   }));
 
@@ -396,10 +398,11 @@ function createMcpServer(auth: McpAuthInfo) {
     try {
       const result = await handleToolCall(name, toolArgs);
 
+      // 使用 Markdown 格式化人类可读文本
       const humanReadableText =
         typeof result === 'string'
           ? result
-          : JSON.stringify(result, null, 2) ?? String(result);
+          : formatAsMarkdown(name, result);
       const humanReadableContent = [{ type: 'text', text: humanReadableText }];
       const tool = toolsByName.get(name);
       if (tool?.outputSchema) {

@@ -81,12 +81,14 @@ When users ask cross-domain questions, use this order:
    - Stable long-cycle indicators over single-draw/event signals.
    - Multi-source consensus over single-source extremes.
 
-## References
+## Quick Ref
 
-- MCP tool matrix: `references/mcp-tool-matrix.md`
-- Bazi workflow: `references/bazi-workflow.md`
-- Liuyao workflow: `references/liuyao-workflow.md`
-- Ziwei workflow: `references/ziwei-workflow.md`
-- Tarot workflow: `references/tarot-workflow.md`
-- DaYun workflow: `references/dayun-workflow.md`
-- Time trend workflow: `references/time-trend-workflow.md`
+| 文件 | 用途 |
+|------|------|
+| [mcp-tool-matrix.md](references/mcp-tool-matrix.md) | 工具参数速查 |
+| [bazi-workflow.md](references/bazi-workflow.md) | 八字解读流程 |
+| [liuyao-workflow.md](references/liuyao-workflow.md) | 六爻解读流程 |
+| [ziwei-workflow.md](references/ziwei-workflow.md) | 紫微斗数流程 |
+| [tarot-workflow.md](references/tarot-workflow.md) | 塔罗解读流程 |
+| [dayun-workflow.md](references/dayun-workflow.md) | 大运流年流程 |
+| [time-trend-workflow.md](references/time-trend-workflow.md) | 运势时间线流程 |

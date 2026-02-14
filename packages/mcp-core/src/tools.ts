@@ -12,6 +12,13 @@ import type {
   DayunInput,
 } from './types.js';
 
+export interface ToolAnnotation {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -19,12 +26,14 @@ export interface ToolDefinition {
     type: 'object';
     properties: Record<string, unknown>;
     required: string[];
+    examples?: unknown[];
   };
   outputDescription?: string;
   outputSchema?: {
     type: 'object';
     properties: Record<string, unknown>;
   };
+  annotations?: ToolAnnotation;
 }
 
 export const tools: ToolDefinition[] = [
@@ -72,8 +81,18 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '出生地点（可选）',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+      examples: [
+        { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9 },
+        { gender: 'female', birthYear: 1995, birthMonth: 6, birthDay: 20, birthHour: 23, calendarType: 'lunar' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -245,6 +264,12 @@ export const tools: ToolDefinition[] = [
         },
       },
     },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     name: 'bazi_pillars_resolve',
@@ -256,8 +281,18 @@ export const tools: ToolDefinition[] = [
         monthPillar: { type: 'string', description: '月柱，2字干支（如“乙丑”）' },
         dayPillar: { type: 'string', description: '日柱，2字干支（如“丙寅”）' },
         hourPillar: { type: 'string', description: '时柱，2字干支（如“丁卯”）' },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: ['yearPillar', 'monthPillar', 'dayPillar', 'hourPillar'],
+      examples: [
+        { yearPillar: '甲子', monthPillar: '乙丑', dayPillar: '丙寅', hourPillar: '丁卯' },
+        { yearPillar: '戊子', monthPillar: '庚丑', dayPillar: '辛卯', hourPillar: '癸巳' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -313,6 +348,12 @@ export const tools: ToolDefinition[] = [
         },
       },
     },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     name: 'ziwei_calculate',
@@ -354,8 +395,18 @@ export const tools: ToolDefinition[] = [
           type: 'boolean',
           description: '是否闰月（仅农历有效），默认 false',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+      examples: [
+        { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9 },
+        { gender: 'female', birthYear: 1995, birthMonth: 6, birthDay: 20, birthHour: 23, calendarType: 'lunar' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -446,6 +497,12 @@ export const tools: ToolDefinition[] = [
         },
       },
     },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     name: 'liuyao_analyze',
@@ -486,8 +543,18 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: ['question', 'yongShenTargets'],
+      examples: [
+        { question: '本月事业运势如何？', yongShenTargets: ['官鬼'], method: 'auto' },
+        { question: '财运怎么样？', yongShenTargets: ['妻财'], hexagramName: '天火同人' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -737,6 +804,12 @@ export const tools: ToolDefinition[] = [
         },
       },
     },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   },
   {
     name: 'tarot_draw',
@@ -761,8 +834,18 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: [],
+      examples: [
+        { spreadType: 'three-card', question: '本月运势如何？' },
+        { spreadType: 'love', question: '我和他的未来发展？', allowReversed: true },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -793,6 +876,12 @@ export const tools: ToolDefinition[] = [
           },
         },
       },
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
     },
   },
   {
@@ -826,8 +915,18 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '目标日期 (YYYY-MM-DD)，默认今天',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: [],
+      examples: [
+        { birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9, date: '2026-02-14' },
+        { dayMaster: '丙', date: '2026-02-14' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -861,6 +960,12 @@ export const tools: ToolDefinition[] = [
           },
         },
       },
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
   },
   {
@@ -903,8 +1008,18 @@ export const tools: ToolDefinition[] = [
           type: 'boolean',
           description: '是否闰月（仅农历有效），默认 false',
         },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+      examples: [
+        { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9 },
+        { gender: 'female', birthYear: 1995, birthMonth: 6, birthDay: 20, birthHour: 23, calendarType: 'lunar' },
+      ],
     },
     outputSchema: {
       type: 'object',
@@ -940,6 +1055,12 @@ export const tools: ToolDefinition[] = [
           },
         },
       },
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
   },
 ];

@@ -2,10 +2,11 @@
  * MCP Core 类型定义
  */
 
-// ===== 八字相关类型 =====
+// ===== 公共类型 =====
 
 export type Gender = 'male' | 'female';
 export type CalendarType = 'solar' | 'lunar';
+export type ResponseFormat = 'json' | 'markdown';
 
 // ===== 公共出生时间类型 =====
 export interface BirthTimeInput {

@@ -3,6 +3,7 @@
  */
 export type Gender = 'male' | 'female';
 export type CalendarType = 'solar' | 'lunar';
+export type ResponseFormat = 'json' | 'markdown';
 export interface BirthTimeInput {
     birthYear: number;
     birthMonth: number;
