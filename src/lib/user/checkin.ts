@@ -173,7 +173,6 @@ export async function performCheckin(userId: string): Promise<{
     // 如果升级，额外奖励1积分
     if (xpResult.leveledUp) {
         rewardCredits += 1;
-        console.log(`[checkin] 用户 ${userId} 升级到 Lv.${xpResult.newLevel}，额外奖励1积分`);
     }
 
     // 记录积分交易（如果有积分奖励）
@@ -194,8 +193,6 @@ export async function performCheckin(userId: string): Promise<{
         const { addCredits } = await import('@/lib/user/credits');
         await addCredits(userId, rewardCredits);
     }
-
-    console.log(`[checkin] 用户 ${userId} 签到成功, 连续${newStreakDays}天, 奖励${rewardCredits}积分, ${rewardXp}经验`);
 
     return {
         success: true,

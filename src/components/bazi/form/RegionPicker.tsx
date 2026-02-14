@@ -7,16 +7,37 @@
  */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { CHINA_REGIONS } from '@/lib/china-regions';
+
+interface Region {
+    name: string;
+    children?: Region[];
+}
 
 interface RegionPickerProps {
     value: string;
     onChange: (value: string) => void;
 }
 
+// 从 JSON 加载地区数据
+let regionsCache: Region[] | null = null;
+
+async function loadRegions(): Promise<Region[]> {
+    if (regionsCache) return regionsCache;
+    const res = await fetch('/data/china-regions.json');
+    const data = await res.json();
+    regionsCache = data;
+    return regionsCache!;
+}
+
 export function RegionPicker({ value, onChange }: RegionPickerProps) {
+    const [regions, setRegions] = useState<Region[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadRegions().then(setRegions).finally(() => setLoading(false));
+    }, []);
     // 解析当前值为省/市/区
     const parseValue = (val: string): [string, string, string] => {
         if (!val) return ['', '', ''];
@@ -42,9 +63,9 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
     // 获取当前省份的城市列表
     const cities = useMemo(() => {
         if (!selectedProvince) return [];
-        const prov = CHINA_REGIONS.find(r => r.name === selectedProvince);
+        const prov = regions.find(r => r.name === selectedProvince);
         return prov?.children || [];
-    }, [selectedProvince]);
+    }, [selectedProvince, regions]);
 
     // 获取当前城市的区县列表
     const districts = useMemo(() => {
@@ -94,7 +115,7 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
                             appearance-none cursor-pointer"
                     >
                         <option value="">省份</option>
-                        {CHINA_REGIONS.map((region) => (
+                        {!loading && regions.map((region) => (
                             <option key={region.name} value={region.name}>
                                 {region.name}
                             </option>

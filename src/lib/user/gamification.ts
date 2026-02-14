@@ -131,6 +131,7 @@ export async function addExperience(
     amount: number,
     source: XpSource
 ): Promise<{ leveledUp: boolean; newLevel?: number; newTitle?: string }> {
+    void source; // 保留参数以备将来使用
     // 获取当前等级
     const currentLevel = await getUserLevel(userId);
     if (!currentLevel) {
@@ -159,8 +160,6 @@ export async function addExperience(
         console.error('[gamification] 更新经验值失败:', error);
         return { leveledUp: false };
     }
-
-    console.log(`[gamification] 用户 ${userId} 获得 ${amount} 经验 (来源: ${source}), 总经验: ${newTotalXp}`);
 
     return {
         leveledUp,

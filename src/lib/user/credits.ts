@@ -76,7 +76,6 @@ export async function useCredit(userId: string): Promise<number | null> {
         return null;
     }
 
-    console.log('[credits] RPC succeeded, remaining:', data);
     return data;
 }
 
@@ -158,7 +157,6 @@ export async function restoreUserCredits(userId: string): Promise<number> {
     }
 
     const restored = Math.max(0, data - info.credits);
-    console.log(`[credits] Restored ${restored} credits for user ${userId}`);
     return restored;
 }
 
@@ -202,6 +200,5 @@ export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
         totalRestored += restored;
     }
 
-    console.log(`[credits] Batch restore complete: ${users.length} users, ${totalRestored} credits`);
     return { processed: users.length, restored: totalRestored };
 }

@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
 import { Loader2 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
-import { UnifiedBaziForm } from '@/components/bazi/form/UnifiedBaziForm';
+import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { normalizeBirthDateForCalendarSwitch } from '@/lib/divination/bazi-form-utils';
@@ -322,7 +322,7 @@ function BaziPageContent() {
 
 
             <div className="space-y-6">
-                <UnifiedBaziForm
+                <BaziForm
                     formData={formData}
                     onUpdate={updateField}
                     unknownTime={unknownTime}

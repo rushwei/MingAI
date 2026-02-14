@@ -40,20 +40,24 @@ test('admin mcp logs API and panel files should be removed', async () => {
   );
 });
 
-test('user mcp tutorial includes copy buttons for Cherry and Cursor snippets', async () => {
+test('user mcp page includes copy buttons for Cherry and IDE snippets', async () => {
   const source = await readFile(userMcpPagePath, 'utf-8');
 
   assert.ok(
-    source.includes('复制配置'),
-    'tutorial should provide copy config buttons'
+    source.includes("handleCopySnippet('cherry', cherryConfig)"),
+    'page should provide cherry snippet copy action'
+  );
+  assert.ok(
+    source.includes("handleCopySnippet('ide', ideConfig)"),
+    'page should provide ide snippet copy action'
   );
   assert.ok(
     source.includes('handleCopySnippet'),
-    'tutorial should include reusable snippet copy handler'
+    'page should include reusable snippet copy handler'
   );
   assert.ok(
     source.includes("keyData?.key_code || '你的 MCP Key'"),
-    'tutorial should use generated key in snippets when available'
+    'snippets should use generated key when available'
   );
 });
 
@@ -70,26 +74,30 @@ test('user mcp page should render key data in a table-like layout', async () => 
   );
 });
 
-test('user mcp page should keep copy and regenerate actions side by side', async () => {
+test('user mcp page should keep copy and reset actions side by side in action column', async () => {
   const source = await readFile(userMcpPagePath, 'utf-8');
 
   assert.match(
     source,
-    /<div className="flex flex-wrap items-center gap-2">[\s\S]*复制[\s\S]*重新生成 Key[\s\S]*<\/div>/,
-    'copy and regenerate actions should appear in the same action area'
+    /<div className="flex gap-1">[\s\S]*title="复制"[\s\S]*title="重置"[\s\S]*<\/div>/,
+    'copy and reset actions should appear in the same action area'
   );
 });
 
-test('user mcp page should always display full key without one-time visibility state', async () => {
+test('user mcp page should mask key by default and support visibility toggle', async () => {
   const source = await readFile(userMcpPagePath, 'utf-8');
 
   assert.ok(
-    !source.includes('showFullKey'),
-    'page should not rely on showFullKey toggle anymore'
+    source.includes('maskKey('),
+    'page should provide key masking helper'
   );
   assert.ok(
-    !source.includes('maskKey('),
-    'page should not mask key display by default'
+    source.includes('showKey ? keyData.key_code : maskKey(keyData.key_code)'),
+    'page should support toggling between masked and full key'
+  );
+  assert.ok(
+    source.includes("{showKey ? '隐藏' : '显示'}"),
+    'page should render visibility toggle labels'
   );
 });
 

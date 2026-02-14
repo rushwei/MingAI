@@ -75,6 +75,52 @@ export interface ExportData {
 }
 
 // =====================================================
+// 类型守卫
+// =====================================================
+
+/**
+ * 验证是否为有效的 MingRecord 对象
+ */
+function isValidMingRecord(data: unknown): data is MingRecord {
+    if (!data || typeof data !== 'object') return false;
+    const obj = data as Record<string, unknown>;
+    return (
+        typeof obj.id === 'string' &&
+        typeof obj.user_id === 'string' &&
+        typeof obj.title === 'string' &&
+        typeof obj.created_at === 'string'
+    );
+}
+
+/**
+ * 验证是否为有效的 MingNote 对象
+ */
+function isValidMingNote(data: unknown): data is MingNote {
+    if (!data || typeof data !== 'object') return false;
+    const obj = data as Record<string, unknown>;
+    return (
+        typeof obj.id === 'string' &&
+        typeof obj.user_id === 'string' &&
+        typeof obj.content === 'string' &&
+        typeof obj.created_at === 'string'
+    );
+}
+
+/**
+ * 安全地将数据转换为 MingRecord
+ */
+function toMingRecord(data: unknown): MingRecord | null {
+    return isValidMingRecord(data) ? data : null;
+}
+
+/**
+ * 安全地将数据转换为 MingNote
+ */
+function toMingNote(data: unknown): MingNote | null {
+    return isValidMingNote(data) ? data : null;
+}
+
+// =====================================================
 // 记录分类配置
 // =====================================================
 
@@ -145,8 +191,9 @@ export async function getRecords(
         throw new Error('获取记录失败');
     }
 
+    const validRecords = (data ?? []).filter(isValidMingRecord);
     return {
-        records: data as MingRecord[],
+        records: validRecords,
         total: count || 0,
     };
 }
@@ -167,7 +214,9 @@ export async function getRecord(recordId: string): Promise<MingRecord | null> {
         throw new Error('获取记录失败');
     }
 
-    return data as MingRecord;
+    const record = toMingRecord(data);
+    if (!record) throw new Error('Invalid record data');
+    return record;
 }
 
 /**
@@ -195,7 +244,9 @@ export async function createRecord(userId: string, input: RecordInput): Promise<
         throw new Error('创建记录失败');
     }
 
-    return data as MingRecord;
+    const record = toMingRecord(data);
+    if (!record) throw new Error('Invalid record data');
+    return record;
 }
 
 /**
@@ -217,7 +268,9 @@ export async function updateRecord(recordId: string, input: Partial<RecordInput>
         throw new Error('更新记录失败');
     }
 
-    return data as MingRecord;
+    const record = toMingRecord(data);
+    if (!record) throw new Error('Invalid record data');
+    return record;
 }
 
 /**
@@ -286,8 +339,9 @@ export async function getNotes(
         throw new Error('获取小记失败');
     }
 
+    const validNotes = (data ?? []).filter(isValidMingNote);
     return {
-        notes: data as MingNote[],
+        notes: validNotes,
         total: count || 0,
     };
 }
@@ -308,7 +362,7 @@ export async function getNotesByDate(userId: string, date: string): Promise<Ming
         throw new Error('获取小记失败');
     }
 
-    return data as MingNote[];
+    return (data ?? []).filter(isValidMingNote);
 }
 
 /**
@@ -331,7 +385,9 @@ export async function createNote(userId: string, input: NoteInput): Promise<Ming
         throw new Error('创建小记失败');
     }
 
-    return data as MingNote;
+    const note = toMingNote(data);
+    if (!note) throw new Error('Invalid note data');
+    return note;
 }
 
 /**
@@ -353,7 +409,9 @@ export async function updateNote(noteId: string, input: Partial<NoteInput>): Pro
         throw new Error('更新小记失败');
     }
 
-    return data as MingNote;
+    const note = toMingNote(data);
+    if (!note) throw new Error('Invalid note data');
+    return note;
 }
 
 /**
@@ -391,8 +449,8 @@ export async function exportData(userId: string): Promise<ExportData> {
     return {
         version: '1.0',
         exportedAt: new Date().toISOString(),
-        records: recordsResult.data as MingRecord[],
-        notes: notesResult.data as MingNote[],
+        records: (recordsResult.data ?? []).filter(isValidMingRecord),
+        notes: (notesResult.data ?? []).filter(isValidMingNote),
     };
 }
 

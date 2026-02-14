@@ -254,7 +254,6 @@ export async function processScheduledReminders(): Promise<number> {
         }
     }
 
-    console.log(`[reminders] 处理了 ${processed} 条提醒`);
     return processed;
 }
 

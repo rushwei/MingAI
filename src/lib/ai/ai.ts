@@ -282,7 +282,6 @@ export async function callAI(
         const provider = getProvider(config);
 
         if (!provider.isAvailable(config)) {
-            console.log(`${config.name} 未配置，使用模拟响应`);
             return generateMockResponse(personality);
         }
 
@@ -343,7 +342,6 @@ export async function callAIStream(
         const provider = getProvider(config);
 
         if (!provider.isAvailable(config)) {
-            console.log(`${config.name} 未配置，使用模拟响应`);
             return createMockStream(generateMockResponse(personality));
         }
 

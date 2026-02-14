@@ -22,8 +22,8 @@ test('requireAdminUser should check admin via authResult.supabase instead of ser
     'requireAdminUser should be based on requireUserContext'
   );
   assert.ok(
-    source.includes('await authResult.supabase') && source.includes(".from('users')"),
-    'requireAdminUser should query users table through authed client'
+    source.includes('checkIsAdmin') && source.includes(".from('users')"),
+    'requireAdminUser should use shared checkIsAdmin function'
   );
   assert.ok(
     !source.includes('const serviceClient = getServiceClient();'),

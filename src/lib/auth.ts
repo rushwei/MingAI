@@ -295,7 +295,8 @@ export async function sendOTP(
         }
 
         return { success: true };
-    } catch {
+    } catch (err) {
+        console.error('sendOTP failed:', err);
         return {
             success: false,
             error: {
@@ -374,7 +375,8 @@ export async function resetPasswordWithOTP(
         }
 
         return { success: true };
-    } catch {
+    } catch (err) {
+        console.error('resetPassword failed:', err);
         return {
             success: false,
             error: {
