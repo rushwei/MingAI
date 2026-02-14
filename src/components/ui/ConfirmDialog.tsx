@@ -1,11 +1,12 @@
 /**
  * 通用确认弹窗组件
- * 
+ *
  * 用于危险操作（删除/重置等）的确认提示
  */
 'use client';
 
 import { useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -31,6 +32,9 @@ export function ConfirmDialog({
     variant = 'danger',
     loading = false,
 }: ConfirmDialogProps) {
+    // 检查是否在客户端环境
+    const isMounted = typeof window !== 'undefined';
+
     // ESC 键关闭
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -66,8 +70,8 @@ export function ConfirmDialog({
 
     const styles = variantStyles[variant];
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    const dialog = (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             {/* 背景遮罩 */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -114,4 +118,11 @@ export function ConfirmDialog({
             </div>
         </div>
     );
+
+    // 使用 Portal 渲染到 body 下，确保遮罩覆盖全屏
+    if (isMounted) {
+        return createPortal(dialog, document.body);
+    }
+
+    return null;
 }

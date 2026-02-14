@@ -91,10 +91,10 @@ Default ports:
 
 ### MCP OAuth Authentication (Recommended)
 
-For MCP clients that support OAuth (for example, ChatGPT / Claude ):
+For MCP clients that support OAuth (for example, Cherry Studio / IDE / CLI ):
 
 You can try our online services:
-1. Add a Streamable HTTP MCP server and set URL to `https://mcp.mingai.fun`.
+1. Add a Streamable HTTP MCP server and set URL to `https://mcp.mingai.fun` or `https://mcp.mingai.fun/mcp`.
 2. Do not set config; click Connect/Authorize directly.
 3. You will be redirected to MingAI's OAuth login page. Sign in and approve access.
 

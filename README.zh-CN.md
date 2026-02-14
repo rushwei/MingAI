@@ -91,10 +91,10 @@ docker compose -f docker-compose.mcp.yml up -d --build
 
 ### MCP OAuth 认证（推荐）
 
-适用于支持 MCP OAuth 的客户端（如 ChatGPT / Claude 等）：
+适用于支持 MCP OAuth 的客户端（如 Cherry Studio / IDE / CLI 等）：
 
 可以尝试我们提供的在线服务：
-1. 在 MCP 客户端新增 Streamable HTTP 服务，地址填写 `https://mcp.mingai.fun`。
+1. 在 MCP 客户端填写 URL： `https://mcp.mingai.fun` 或 `https://mcp.mingai.fun/mcp`，选择StreamableHTTP类型。
 2. 无需填写配置，直接点击连接/授权（Authorize）。
 3. 客户端会跳转到 MingAI 授权页，使用已创建的 MingAI 账号登录并确认授权。
 
