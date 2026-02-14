@@ -21,7 +21,6 @@ import {
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
 // 从数据模块导入静态数据
 import {
-  TIAN_GAN,
   DI_ZHI,
   HIDDEN_STEM_DETAILS,
   NA_YIN_TABLE,
@@ -32,7 +31,6 @@ import {
   LIU_CHONG,
   XIANG_HAI,
   XIANG_XING,
-  XUN_KONG_TABLE,
   YUE_DE,
   TIAN_DE,
   JIN_YU,

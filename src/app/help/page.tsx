@@ -11,13 +11,8 @@ import {
     ArrowLeft,
     ChevronDown,
     HelpCircle,
-    BookOpen,
     MessageCircle,
     Mail,
-    FileText,
-    Sparkles,
-    Star,
-    MessageSquare,
 } from 'lucide-react';
 
 interface FAQItem {
@@ -72,40 +67,6 @@ const faqList: FAQItem[] = [
     },
 ];
 
-interface GuideItem {
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    href: string;
-}
-
-const guideList: GuideItem[] = [
-    {
-        icon: <Sparkles className="w-5 h-5" />,
-        title: '八字命理',
-        description: '输入出生信息，获取专业八字排盘和五行分析',
-        href: '/bazi',
-    },
-    {
-        icon: <Star className="w-5 h-5" />,
-        title: '紫微斗数',
-        description: '探索紫微命盘，了解十二宫位和星曜信息',
-        href: '/ziwei',
-    },
-    {
-        icon: <MessageSquare className="w-5 h-5" />,
-        title: 'AI智聊',
-        description: '与AI命理师对话，获取个性化的命理分析',
-        href: '/chat',
-    },
-    {
-        icon: <FileText className="w-5 h-5" />,
-        title: '每日运势',
-        description: '查看基于您命盘的每日运势和宜忌建议',
-        href: '/daily',
-    },
-];
-
 export default function HelpPage() {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
@@ -126,41 +87,10 @@ export default function HelpPage() {
                     </div>
                 </div>
 
-                {/* 功能指南 */}
-                <section className="mb-10">
-                    <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
-                        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
-                            <BookOpen className="w-5 h-5" />
-                        </div>
-                        功能指南
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {guideList.map((guide) => (
-                            <Link
-                                key={guide.title}
-                                href={guide.href}
-                                className="group flex items-start gap-4 p-5 rounded-2xl bg-background border border-border/50 shadow-sm hover:shadow-md hover:border-accent/30 transition-all duration-300"
-                            >
-                                <div className="p-3 rounded-xl bg-accent/5 text-accent group-hover:bg-accent/10 group-hover:scale-110 transition-all duration-300">
-                                    {guide.icon}
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-foreground group-hover:text-accent transition-colors">{guide.title}</h3>
-                                    <p className="text-sm text-foreground-secondary mt-1 leading-relaxed">
-                                        {guide.description}
-                                    </p>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-
                 {/* 常见问题 */}
                 <section className="mb-10">
                     <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
-                        <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500">
-                            <HelpCircle className="w-5 h-5" />
-                        </div>
+                        <HelpCircle className="w-5 h-5" />
                         常见问题
                     </h2>
                     <div className="space-y-3">
@@ -177,7 +107,7 @@ export default function HelpPage() {
                             >
                                 <button
                                     onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                                    className="flex items-center justify-between w-full p-5 text-left"
+                                    className="flex items-center justify-between w-full p-1 px-5 text-left"
                                 >
                                     <span className={`font-medium pr-8 transition-colors ${expandedFAQ === index ? 'text-accent' : 'text-foreground'}`}>
                                         {faq.question}
@@ -195,8 +125,8 @@ export default function HelpPage() {
                                         ${expandedFAQ === index ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}
                                     `}
                                 >
-                                    <div className="px-5 pb-5 pt-0 text-sm text-foreground-secondary leading-relaxed border-t border-dashed border-border/50 mt-2 mx-5">
-                                        <div className="pt-4">
+                                    <div className="pb-2 pt-0 text-sm text-foreground-secondary leading-relaxed border-t border-dashed border-border/50 mx-5">
+                                        <div className="pt-2">
                                             {faq.answer}
                                         </div>
                                     </div>
@@ -209,12 +139,10 @@ export default function HelpPage() {
                 {/* 联系我们 */}
                 <section>
                     <h2 className="flex items-center gap-2 text-lg font-bold mb-5 ml-1">
-                        <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
-                            <MessageCircle className="w-5 h-5" />
-                        </div>
+                        <MessageCircle className="w-5 h-5" />
                         联系我们
                     </h2>
-                    <div className="bg-gradient-to-br from-background to-background-secondary/50 rounded-2xl border border-border/50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
+                    <div className="bg-gradient-to-br from-background to-background-secondary/50 rounded-2xl border border-border/50 p-3 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
                         <div className="flex-1">
                             <h3 className="font-semibold text-foreground mb-2">需要更多帮助？</h3>
                             <p className="text-sm text-foreground-secondary leading-relaxed">
