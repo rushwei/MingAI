@@ -356,18 +356,24 @@ function createMcpServer(auth) {
         const toolArgs = withSeedScope(name, args, auth);
         try {
             const result = await handleToolCall(name, toolArgs);
-            // 使用 Markdown 格式化人类可读文本
-            const humanReadableText = typeof result === 'string'
-                ? result
-                : formatAsMarkdown(name, result);
-            const humanReadableContent = [{ type: 'text', text: humanReadableText }];
             const tool = toolsByName.get(name);
-            // 如果结果是字符串（markdown 格式），不返回 structuredContent
-            if (typeof result === 'string') {
-                return { content: humanReadableContent };
+            // 始终返回 structuredContent（JSON 对象），除非结果是错误
+            const hasStructuredContent = typeof result === 'object' && result !== null;
+            // content 格式：根据 responseFormat 决定
+            let humanReadableText;
+            if (hasStructuredContent && args?.responseFormat === 'markdown') {
+                // 要求 markdown 格式
+                humanReadableText = formatAsMarkdown(name, result);
             }
-            // 只有 JSON 对象才返回 structuredContent
-            if (tool?.outputSchema) {
+            else {
+                // 默认 JSON 格式
+                humanReadableText = hasStructuredContent
+                    ? JSON.stringify(result, null, 2)
+                    : String(result);
+            }
+            const humanReadableContent = [{ type: 'text', text: humanReadableText }];
+            // 始终返回 structuredContent（给 AI 用）+ content（给人看）
+            if (tool?.outputSchema && hasStructuredContent) {
                 return {
                     structuredContent: result,
                     content: humanReadableContent,

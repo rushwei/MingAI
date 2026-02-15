@@ -38,31 +38,34 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
     const result = await handleToolCall(name, args || {});
-    // 使用 Markdown 格式化人类可读文本
-    const humanReadableText =
-      typeof result === 'string'
-        ? result
-        : formatAsMarkdown(name, result);
-    const humanReadableContent = [{ type: 'text', text: humanReadableText }];
 
-    // 如果结果是字符串（markdown 格式），不返回 structuredContent
-    if (typeof result === 'string') {
-      return { content: humanReadableContent };
+    const tool = tools.find((t) => t.name === name);
+
+    // 始终返回 structuredContent（JSON 对象），除非结果是错误
+    const hasStructuredContent = typeof result === 'object' && result !== null;
+
+    // content 格式：根据 responseFormat 决定
+    let humanReadableText: string;
+    if (hasStructuredContent && args?.responseFormat === 'markdown') {
+      // 要求 markdown 格式
+      humanReadableText = formatAsMarkdown(name, result);
+    } else {
+      // 默认 JSON 格式
+      humanReadableText = hasStructuredContent
+        ? JSON.stringify(result, null, 2)
+        : String(result);
     }
 
-    // 检查工具是否定义了 outputSchema
-    const tool = tools.find((t) => t.name === name);
-    if (tool?.outputSchema) {
-      // 有 outputSchema 时同时返回 structuredContent + 可读 content
+    const humanReadableContent = [{ type: 'text', text: humanReadableText }];
+
+    // 始终返回 structuredContent（给 AI 用）+ content（给人看）
+    if (tool?.outputSchema && hasStructuredContent) {
       return {
         structuredContent: result,
         content: humanReadableContent,
       };
     }
-    // 无 outputSchema 时返回 text content
-    return {
-      content: humanReadableContent,
-    };
+    return { content: humanReadableContent };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
