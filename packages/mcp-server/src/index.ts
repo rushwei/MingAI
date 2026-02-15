@@ -45,7 +45,7 @@ import { renderAuthorizePage } from './oauth/authorize-page.js';
 import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
 import { isOAuthDebugEnabled, oauthError } from './oauth/logger.js';
-import { getSupabaseAuthClient } from './supabase.js';
+import { getSupabaseAuthClient, getSupabaseClient } from './supabase.js';
 // ─── 会话管理配置 ───
 const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
 const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
@@ -373,6 +373,42 @@ const sessionCleanupTimer = setInterval(() => {
 }, 60_000);
 sessionCleanupTimer.unref?.();
 
+// 定期清理 OAuth 过期数据（每6小时）
+const oauthCleanupTimer = setInterval(async () => {
+  try {
+    const supabase = getSupabaseClient();
+    const now = new Date().toISOString();
+
+    // 删除已使用或已过期的授权码
+    await supabase.from('mcp_oauth_codes')
+      .delete()
+      .or(`used.eq.true,expires_at.lt.${now}`);
+
+    // 删除已撤销或已过期的 refresh token
+    await supabase.from('mcp_oauth_tokens')
+      .delete()
+      .or(`revoked.eq.true,expires_at.lt.${now}`);
+
+    // 删除没有活跃 token 的孤儿客户端
+    const { data: activeClientIds } = await supabase
+      .from('mcp_oauth_tokens')
+      .select('client_id');
+    if (activeClientIds) {
+      const ids = [...new Set(activeClientIds.map((r: { client_id: string }) => r.client_id))];
+      if (ids.length > 0) {
+        await supabase.from('mcp_oauth_clients')
+          .delete()
+          .not('client_id', 'in', `(${ids.join(',')})`);
+      } else {
+        await supabase.from('mcp_oauth_clients').delete().gte('client_id', '');
+      }
+    }
+  } catch (err) {
+    console.error('[OAuth cleanup] failed:', err instanceof Error ? err.message : err);
+  }
+}, 6 * 60 * 60 * 1000);
+oauthCleanupTimer.unref?.();
+
 function createMcpServer(auth: McpAuthInfo) {
   const server = new McpServer(
     { name: 'mingai-mcp-online', version: '1.0.0' },
@@ -405,6 +441,13 @@ function createMcpServer(auth: McpAuthInfo) {
           : formatAsMarkdown(name, result);
       const humanReadableContent = [{ type: 'text', text: humanReadableText }];
       const tool = toolsByName.get(name);
+
+      // 如果结果是字符串（markdown 格式），不返回 structuredContent
+      if (typeof result === 'string') {
+        return { content: humanReadableContent };
+      }
+
+      // 只有 JSON 对象才返回 structuredContent
       if (tool?.outputSchema) {
         return {
           structuredContent: result,

@@ -28,6 +28,10 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ? result
             : formatAsMarkdown(name, result);
         const humanReadableContent = [{ type: 'text', text: humanReadableText }];
+        // 如果结果是字符串（markdown 格式），不返回 structuredContent
+        if (typeof result === 'string') {
+            return { content: humanReadableContent };
+        }
         // 检查工具是否定义了 outputSchema
         const tool = tools.find((t) => t.name === name);
         if (tool?.outputSchema) {
