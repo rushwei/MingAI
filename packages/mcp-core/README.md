@@ -15,13 +15,25 @@ npm install @mingai/mcp-core
 ```typescript
 import { handleToolCall } from '@mingai/mcp-core';
 
-// 八字排盘
+// 八字排盘（支持真太阳时）
 const bazi = await handleToolCall('bazi_calculate', {
   gender: 'male',
   birthYear: 1990,
   birthMonth: 1,
   birthDay: 15,
   birthHour: 9,
+  longitude: 116.4, // 可选：出生地经度，启用真太阳时校正
+});
+
+// 紫微斗数排盘（含宫干自化、流年虚岁、斗君等）
+const ziwei = await handleToolCall('ziwei_calculate', {
+  gender: 'male',
+  birthYear: 2003,
+  birthMonth: 9,
+  birthDay: 2,
+  birthHour: 10,
+  birthMinute: 30,
+  longitude: 116.4, // 可选：出生地经度，启用真太阳时校正
 });
 
 // 六爻排卦
@@ -72,6 +84,19 @@ import { tools, handleToolCall, formatAsMarkdown } from '@mingai/mcp-core';
 
 ## 更新日志
 
+### 1.1.2 (2026-03-13)
+
+**紫微斗数增强：**
+- ✨ 新增真太阳时支持：`ziwei_calculate` 和 `bazi_calculate` 支持可选 `longitude` 参数，自动计算真太阳时校正（使用 Spencer 1971 时差方程）
+- ✨ 新增宫干自化标注：`ziwei_calculate` 输出星曜的离心自化（↓）和向心自化（↑）
+- ✨ 新增流年虚岁：每宫输出 `liuNianAges` 数组，显示流年落宫的虚岁列表
+- ✨ 新增斗君：输出 `douJun` 字段（子年斗君地支）
+- ✨ 新增大限范围：每宫输出 `decadalRange` 数组 `[起始虚岁, 结束虚岁]`
+
+**八字增强：**
+- ✨ 新增真太阳时支持：`bazi_calculate` 支持可选 `longitude` 参数（仅公历有效）
+
 ### 1.1.0 (2026-03-13)
 
 新增 `ziwei_horoscope`（运限）、`ziwei_flying_star`（飞星）；`ziwei_calculate` 补充来因宫、长生/博士12神、四化分布等字段。工具重命名：`dayun_calculate` → `bazi_dayun`、`liuyao_analyze` → `liuyao`、`tarot_draw` → `tarot`、`daily_fortune` → `almanac`。
+
