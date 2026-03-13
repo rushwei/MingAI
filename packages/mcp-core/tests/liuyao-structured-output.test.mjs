@@ -6,24 +6,6 @@ import * as mcpCore from '../dist/index.js';
 const LIU_QIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 const MOVEMENT_STATES = ['static', 'changing', 'hidden_moving', 'day_break'];
 
-function assertIsoDate(value, field) {
-  assert.equal(typeof value, 'string', `${field} should be string`);
-  assert.match(value, /^\d{4}-\d{2}-\d{2}$/, `${field} should be YYYY-MM-DD`);
-}
-
-function computeCandidatePriority(candidate) {
-  let score = candidate.strengthScore;
-  if (candidate.movementState === 'changing') score += 12;
-  if (candidate.movementState === 'hidden_moving') score += 10;
-  if (candidate.movementState === 'day_break') score -= 25;
-  if (candidate.isShiYao) score += 8;
-  if (candidate.isYingYao) score += 4;
-  if (candidate.kongWangState === 'kong_static') score -= 15;
-  if (candidate.kongWangState === 'kong_changing') score -= 8;
-  if (candidate.kongWangState === 'kong_ri_chong') score += 5;
-  return Math.max(0, Math.min(100, score));
-}
-
 test('liuyao schema removes deprecated top-level fields and exposes refactored structures', () => {
   const tool = mcpCore.tools.find((t) => t.name === 'liuyao_analyze');
   assert.ok(tool, 'liuyao_analyze tool missing');
@@ -44,6 +26,9 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
   assert.equal(outputProps?.globalShenSha?.type, 'array');
   assert.equal(outputProps?.yongShen?.type, 'array');
   assert.equal(outputProps?.shenSystemByYongShen?.type, 'array');
+  const yongShenSelected = outputProps?.yongShen?.items?.properties?.selected?.properties;
+  assert.equal(yongShenSelected?.changedNaJia?.type, 'string');
+  assert.equal(yongShenSelected?.huaType?.type, 'string');
 
   const fullYao = outputProps?.fullYaos?.items?.properties;
   assert.equal(fullYao?.isChanging?.type, 'boolean');
@@ -94,17 +79,17 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
 
   for (const group of result.yongShen) {
     assert.ok(LIU_QIN.includes(group.targetLiuQin), `invalid targetLiuQin: ${group.targetLiuQin}`);
-    assert.equal('source' in group, false, 'group should not expose source');
-    assert.equal('selected' in group, false, 'group should not expose selected');
+    assert.ok(group.selected, 'group should expose selected');
     assert.ok(Array.isArray(group.candidates), 'candidates should always be array');
-    assert.ok(group.candidates.length > 0, 'candidates should include primary candidate at index 0');
-
+    assert.ok(['resolved', 'ambiguous', 'from_changed', 'from_temporal', 'from_fushen', 'missing'].includes(group.selectionStatus));
+    assert.equal(typeof group.selectionNote, 'string');
+    assert.ok(Array.isArray(group.selected.evidence), 'selected should expose evidence');
+    assert.equal('strengthScore' in group.selected, false, 'selected should not expose strengthScore');
+    assert.equal('rankScore' in group.selected, false, 'selected should not expose rankScore');
+    assert.equal('source' in group, false, 'group should not expose legacy source');
     for (const candidate of group.candidates) {
+      assert.equal('strengthScore' in candidate, false, 'candidate should not expose strengthScore');
       assert.equal('rankScore' in candidate, false, 'candidate should not expose rankScore');
-    }
-    const priorities = group.candidates.map(computeCandidatePriority);
-    for (let i = 1; i < group.candidates.length; i++) {
-      assert.ok(priorities[i - 1] >= priorities[i], 'candidates should be sorted by priority desc');
     }
   }
 
@@ -113,11 +98,12 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
   for (const item of result.timeRecommendations) {
     assert.ok(LIU_QIN.includes(item.targetLiuQin), `invalid targetLiuQin in time recommendation: ${item.targetLiuQin}`);
     assert.ok(['favorable', 'unfavorable', 'critical'].includes(item.type));
-    assertIsoDate(item.startDate, 'startDate');
-    assertIsoDate(item.endDate, 'endDate');
-    assert.equal(typeof item.confidence, 'number');
-    assert.ok(item.confidence >= 0 && item.confidence <= 1, 'confidence should be in [0, 1]');
+    assert.equal(typeof item.trigger, 'string');
+    assert.ok(Array.isArray(item.basis));
     assert.equal(typeof item.description, 'string');
+    assert.equal('confidence' in item, false, 'time recommendation should not expose confidence');
+    assert.equal('startDate' in item, false, 'time recommendation should not expose startDate');
+    assert.equal('endDate' in item, false, 'time recommendation should not expose endDate');
   }
 
   assert.ok(Array.isArray(result.globalShenSha), 'globalShenSha should be array');
@@ -186,19 +172,50 @@ test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram'
 
   const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
   assert.ok(group, 'missing 官鬼 yongShen group');
-  assert.ok(group.candidates.length > 0, '伏神回退时 candidates[0] 应为主用神');
-  const primary = group.candidates[0];
+  assert.equal(group.selectionStatus, 'from_fushen');
+  const primary = group.selected;
   assert.equal(typeof primary.position, 'number', 'primary.position should come from 伏神爻位');
   assert.equal('rankScore' in primary, false, '伏神回退结果不应暴露 rankScore');
-  assert.ok(computeCandidatePriority(primary) > 0, '伏神回退候选应有基础优先级');
+  assert.equal(primary.source, 'fushen');
   assert.match(
-    (primary.factors || []).join('、'),
+    (primary.evidence || []).join('、'),
     /伏神/u,
-    'fallback factors should mention 伏神'
+    'fallback evidence should mention 伏神'
   );
 });
 
-test('liuyao time recommendations use selected fallback branch when target is absent', async () => {
+test('liuyao exposes ambiguous selection when top candidates differ only by fallback position ordering', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试同类并见',
+    yongShenTargets: ['兄弟'],
+    method: 'select',
+    hexagramName: '水雷屯',
+    date: '2024-01-02T10:00:00+08:00',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '兄弟');
+  assert.ok(group, 'missing 兄弟 yongShen group');
+  assert.equal(group.selectionStatus, 'ambiguous');
+  assert.ok(group.candidates.length > 0, 'ambiguous group should preserve candidate list');
+});
+
+test('liuyao MCP output preserves changedNaJia and huaType for selected/candidate yongshen items', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试化变取用',
+    yongShenTargets: ['子孙'],
+    method: 'select',
+    hexagramName: '乾为天',
+    changedHexagramName: '011111',
+    date: '2024-01-02T10:00:00+08:00',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '子孙');
+  assert.ok(group, 'missing 子孙 yongShen group');
+  assert.equal(group.selected.changedNaJia, '丑');
+  assert.equal(group.selected.huaType, 'huiTouKe');
+});
+
+test('liuyao time recommendations prioritize出伏提示 over generic favorable timing when fallback is still unresolved', async () => {
   const result = await mcpCore.handleLiuyaoAnalyze({
     question: '测试官鬼不上卦时伏神回退',
     yongShenTargets: ['官鬼'],
@@ -209,12 +226,98 @@ test('liuyao time recommendations use selected fallback branch when target is ab
 
   const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
   assert.ok(group, 'missing 官鬼 yongShen group');
-  const primary = group.candidates[0];
+  const primary = group.selected;
   assert.equal(typeof primary.naJia, 'string', 'primary candidate should expose naJia');
 
   const targetedRec = result.timeRecommendations.find(
-    (item) => item.targetLiuQin === '官鬼' && item.type === 'favorable' && typeof item.earthlyBranch === 'string'
+    (item) => item.targetLiuQin === '官鬼' && item.trigger === '待出伏'
   );
-  assert.ok(targetedRec, 'should include a branch-targeted favorable recommendation');
-  assert.equal(targetedRec.earthlyBranch, primary.naJia);
+  assert.ok(targetedRec, 'should include 出伏提示');
+  assert.equal(
+    result.timeRecommendations.some((item) => item.targetLiuQin === '官鬼' && item.type === 'favorable'),
+    false,
+  );
+});
+
+test('liuyao should use temporal yongshen before fuShen when month/day can stand in', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '问财运',
+    yongShenTargets: ['妻财'],
+    method: 'select',
+    hexagramName: '天风姤',
+    date: '2024-02-10T10:00:00+08:00',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '妻财');
+  assert.ok(group, 'missing 妻财 yongShen group');
+  assert.equal(group.selectionStatus, 'from_temporal');
+  assert.equal(group.selected.source, 'temporal');
+  assert.equal(group.selected.naJia, '寅');
+});
+
+test('liuyao should use changed yongshen before fuShen when a moving line transforms into target liuqin', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '问财运',
+    yongShenTargets: ['妻财'],
+    method: 'select',
+    hexagramName: '水雷屯',
+    changedHexagramName: '雷火丰',
+    date: '2024-01-02T10:00:00+08:00',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '妻财');
+  assert.ok(group, 'missing 妻财 yongShen group');
+  assert.equal(group.selectionStatus, 'from_changed');
+  assert.equal(group.selected.source, 'changed');
+  assert.equal(group.selected.position, 4);
+  assert.equal(group.selected.naJia, '午');
+});
+
+test('liuyao should surface kong_yue_jian when a changing empty line is rescued by month-jian', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '问财运',
+    yongShenTargets: ['妻财'],
+    method: 'select',
+    hexagramName: '乾为天',
+    changedHexagramName: '天火同人',
+    date: '2024-02-10T10:00:00+08:00',
+  });
+
+  assert.equal(result.fullYaos[1]?.kongWangState, 'kong_yue_jian');
+});
+
+test('liuyao should not emit generic favorable timing for unresolved fuShen fallback', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试官鬼不上卦时伏神回退',
+    yongShenTargets: ['官鬼'],
+    method: 'select',
+    hexagramName: '火水未济',
+    date: '2026-02-10',
+  });
+
+  const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
+  assert.ok(group, 'missing 官鬼 yongShen group');
+  assert.equal(group.selectionStatus, 'from_fushen');
+  assert.equal(
+    result.timeRecommendations.some((item) => item.targetLiuQin === '官鬼' && item.type === 'favorable'),
+    false
+  );
+});
+
+test('liuyao should preserve multiple full sanhe groups when the same board contains more than one hit', async () => {
+  const result = await mcpCore.handleLiuyaoAnalyze({
+    question: '测试三合并存',
+    yongShenTargets: ['子孙'],
+    method: 'select',
+    hexagramName: '乾为天',
+    changedHexagramName: '艮为山',
+    date: '2024-01-02T10:00:00+08:00',
+  });
+
+  assert.ok(Array.isArray(result.sanHeAnalysis.fullSanHeList), 'expected fullSanHeList to exist');
+  assert.equal(result.sanHeAnalysis.fullSanHeList.length, 2);
+  assert.deepEqual(
+    result.sanHeAnalysis.fullSanHeList.map((item) => item.name).sort(),
+    ['寅午戌合火局', '申子辰合水局']
+  );
 });

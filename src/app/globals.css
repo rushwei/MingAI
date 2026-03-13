@@ -84,8 +84,8 @@
   --color-border-hover: var(--border-hover);
 
   /* 字体 */
-  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "JetBrains Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", monospace;
 }
 
 /* ===== 基础样式 ===== */

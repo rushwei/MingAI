@@ -6,34 +6,21 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
 import {
-    type FullYaoInfo,
     type FullYaoInfoExtended,
-    type YongShenGroup,
+    type LiuYaoFullAnalysis,
     type TimeRecommendation,
-    type GanZhiTime,
-    type KongWang,
     type KongWangByPillar,
-    type FuShen,
-    type ShenSystemByYongShen,
     KONG_WANG_LABELS,
 } from '@/lib/divination/liuyao';
 import { type HexagramText } from '@/lib/divination/hexagram-texts';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
+import { YONG_SHEN_STATUS_LABELS, buildShenSystemMap } from '@/lib/divination/liuyao-format-utils';
 
 interface TraditionalAnalysisProps {
-    fullYaos: FullYaoInfo[] | FullYaoInfoExtended[];
-    yongShen: YongShenGroup[];
-    shenSystemByYongShen: ShenSystemByYongShen[];
-    globalShenSha: string[];
-    timeRecommendations: TimeRecommendation[];
+    analysis: LiuYaoFullAnalysis;
     hexagramText?: HexagramText;
     changedHexagramText?: HexagramText;
     changedLines?: number[];
-    ganZhiTime?: GanZhiTime;
-    kongWang?: KongWang;
-    kongWangByPillar?: KongWangByPillar;
-    fuShen?: FuShen[];
-    warnings?: string[];
 }
 
 function CollapsibleSection({
@@ -120,14 +107,11 @@ const RECOMMENDATION_TYPE_TIPS: Record<TimeRecommendation['type'], string> = {
     critical: '关键观察节点',
 };
 
-function getSourceLabel(source: 'input'): string {
-    if (source === 'input') return '手动指定';
-    return '';
-}
-
-function formatConfidence(value: number): string {
-    const pct = Math.round(value * 100);
-    return `${pct}%`;
+function getStrengthTone(strength: 'strong' | 'moderate' | 'weak' | 'unknown'): string {
+    if (strength === 'strong') return 'text-green-500';
+    if (strength === 'moderate') return 'text-amber-500';
+    if (strength === 'weak') return 'text-red-500';
+    return 'text-foreground-tertiary';
 }
 
 function getPositionLabel(position?: number): string {
@@ -136,20 +120,24 @@ function getPositionLabel(position?: number): string {
 }
 
 export function TraditionalAnalysis({
-    fullYaos,
-    yongShen,
-    shenSystemByYongShen,
-    globalShenSha,
-    timeRecommendations,
+    analysis,
     hexagramText,
     changedHexagramText,
     changedLines = [],
-    ganZhiTime,
-    kongWang,
-    kongWangByPillar,
-    fuShen,
-    warnings,
 }: TraditionalAnalysisProps) {
+    const {
+        fullYaos,
+        yongShen,
+        shenSystemByYongShen,
+        globalShenSha,
+        timeRecommendations,
+        ganZhiTime,
+        kongWang,
+        kongWangByPillar,
+        fuShen,
+        warnings,
+    } = analysis;
+
     const movementStats = useMemo(() => {
         let changing = 0;
         let hiddenMoving = 0;
@@ -191,12 +179,13 @@ export function TraditionalAnalysis({
             grouped.set(rec.targetLiuQin, list);
         }
 
-        for (const recs of grouped.values()) {
-            recs.sort((a, b) => a.startDate.localeCompare(b.startDate));
-        }
-
         return grouped;
     }, [timeRecommendations]);
+
+    const shenSystemMap = useMemo(() =>
+        buildShenSystemMap(shenSystemByYongShen),
+        [shenSystemByYongShen]
+    );
 
     return (
         <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -296,12 +285,11 @@ export function TraditionalAnalysis({
             {yongShen.length > 0 && (
                 <div className="grid gap-3 md:grid-cols-2">
                     {yongShen.map((group, groupIndex) => {
-                        const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
+                        const system = shenSystemMap.get(group.targetLiuQin);
                         const recs = recommendationByTarget.get(group.targetLiuQin) ?? [];
-                        const selectedLine = typeof group.selected.position === 'number'
-                            ? fullYaos.find(item => item.position === group.selected.position)
-                            : undefined;
-                        const isFuShenSelected = !!selectedLine && selectedLine.liuQin !== group.selected.liuQin;
+                        const isFuShenSelected = group.selected.source === 'fushen';
+                        const isChangedSelected = group.selected.source === 'changed';
+                        const isTemporalSelected = group.selected.source === 'temporal';
 
                         return (
                             <div key={group.targetLiuQin} className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden text-xs">
@@ -312,7 +300,7 @@ export function TraditionalAnalysis({
                                         {groupIndex === 0 && (
                                             <span className="px-1.5 py-0.5 rounded border border-accent/40 bg-accent/10 text-accent text-[10px] leading-none">主</span>
                                         )}
-                                        <span className="text-foreground-tertiary">{getSourceLabel(group.source)}</span>
+                                        <span className="text-foreground-tertiary">{YONG_SHEN_STATUS_LABELS[group.selectionStatus]}</span>
                                     </div>
                                 </div>
 
@@ -320,15 +308,17 @@ export function TraditionalAnalysis({
                                 <div className="px-3 py-2 space-y-1 text-xs">
                                     <div className="flex gap-2">
                                         <span className="text-foreground-tertiary shrink-0 w-8">用神</span>
-                                        <span>
-                                            <span className="text-foreground font-medium" title={LIU_QIN_TIPS[group.selected.liuQin]}>{group.selected.liuQin}</span>
-                                            {typeof group.selected.position === 'number' && (
-                                                <span className="text-foreground-secondary">{' @'}{getPositionLabel(group.selected.position)}</span>
-                                            )}
-                                            {isFuShenSelected && <span className="text-orange-500" title={TERM_TIPS['伏神取用']}>{' · 伏神取用'}</span>}
-                                            {group.selected.isShiYao && <span className="text-accent" title={TERM_TIPS['世位']}>{' · 世位'}</span>}
-                                            {group.selected.isYingYao && <span className="text-blue-500" title={TERM_TIPS['应位']}>{' · 应位'}</span>}
-                                        </span>
+                                            <span>
+                                                <span className="text-foreground font-medium" title={LIU_QIN_TIPS[group.selected.liuQin]}>{group.selected.liuQin}</span>
+                                                {typeof group.selected.position === 'number' && (
+                                                    <span className="text-foreground-secondary">{' @'}{getPositionLabel(group.selected.position)}</span>
+                                                )}
+                                                {isFuShenSelected && <span className="text-orange-500" title={TERM_TIPS['伏神取用']}>{' · 伏神取用'}</span>}
+                                                {isChangedSelected && <span className="text-red-500">{' · 变出取用'}</span>}
+                                                {isTemporalSelected && <span className="text-blue-400">{' · 月日代用'}</span>}
+                                                {group.selected.isShiYao && <span className="text-accent" title={TERM_TIPS['世位']}>{' · 世位'}</span>}
+                                                {group.selected.isYingYao && <span className="text-blue-500" title={TERM_TIPS['应位']}>{' · 应位'}</span>}
+                                            </span>
                                     </div>
 
                                     <div className="flex gap-2">
@@ -336,7 +326,7 @@ export function TraditionalAnalysis({
                                         <span className="text-foreground-secondary">
                                             <span className={group.selected.movementState === 'changing' ? 'text-red-500' : group.selected.movementState === 'hidden_moving' ? 'text-amber-500' : group.selected.movementState === 'day_break' ? 'text-orange-500' : ''}>{group.selected.movementLabel}</span>
                                             {' · '}
-                                            <span className={group.selected.isStrong ? 'text-green-500' : 'text-red-500'}>{group.selected.strengthLabel}</span>
+                                            <span className={getStrengthTone(group.selected.strength)}>{group.selected.strengthLabel}</span>
                                             {group.selected.naJia && ` · ${group.selected.naJia}${group.selected.element}`}
                                             {group.selected.kongWangState && group.selected.kongWangState !== 'not_kong' && (
                                                 <span className="text-orange-500">{' · '}{KONG_WANG_LABELS[group.selected.kongWangState]}</span>
@@ -357,10 +347,17 @@ export function TraditionalAnalysis({
                                         </div>
                                     )}
 
-                                    {group.selected.factors.length > 0 && (
+                                    {group.selected.evidence.length > 0 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-8">判据</span>
-                                            <span className="text-foreground-secondary">{group.selected.factors.join('、')}</span>
+                                            <span className="text-foreground-secondary">{group.selected.evidence.join('、')}</span>
+                                        </div>
+                                    )}
+
+                                    {group.selectionNote && (
+                                        <div className="flex gap-2">
+                                            <span className="text-foreground-tertiary shrink-0 w-8">取用</span>
+                                            <span className="text-foreground-secondary">{group.selectionNote}</span>
                                         </div>
                                     )}
 
@@ -376,7 +373,7 @@ export function TraditionalAnalysis({
                                     {group.candidates.length > 1 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-12">说明</span>
-                                            <span className="text-foreground-tertiary">候选按参考优先级排序，越靠后参考度越低。</span>
+                                            <span className="text-foreground-tertiary">候选仅表示并看线索，不代表数值高低。</span>
                                         </div>
                                     )}
 
@@ -385,7 +382,13 @@ export function TraditionalAnalysis({
                                             <span className="text-foreground-tertiary shrink-0 w-12">近期应期</span>
                                             <span className="text-foreground-secondary space-y-1 flex flex-col">
                                                 {recs.slice(0, 2).map((rec, i) => (
-                                                    <span key={i}><span className="font-semibold">{RECOMMENDATION_TYPE_TIPS[rec.type]}</span><span className="text-foreground-tertiary">（概率{formatConfidence(rec.confidence)}）</span> {rec.startDate} ~ {rec.endDate}</span>
+                                                    <span key={i}>
+                                                        <span className="font-semibold">{RECOMMENDATION_TYPE_TIPS[rec.type]}</span>
+                                                        {'：'}
+                                                        {rec.trigger}
+                                                        {rec.basis.length > 0 && <span className="text-foreground-tertiary">{`（${rec.basis.join('、')}）`}</span>}
+                                                        {` ${rec.description}`}
+                                                    </span>
                                                 ))}
                                             </span>
                                         </div>

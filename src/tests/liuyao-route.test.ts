@@ -79,6 +79,7 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
         },
         body: JSON.stringify({
             action: 'interpret',
+            question: '测试问题',
             yongShenTargets: ['官鬼'],
             hexagram: {
                 name: '乾为天',
@@ -210,6 +211,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
         body: JSON.stringify({
             action: 'interpret',
             divinationId: 'divination-1',
+            question: '测试问题',
             yongShenTargets: ['官鬼'],
             hexagram: {
                 name: '乾为天',
@@ -357,7 +359,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
     const response = await POST(request);
     assert.equal(response.status, 200);
 
-    const firstLine = capturedPrompt.match(/初爻：[^\n]*/)?.[0] ?? '';
+    const firstLine = capturedPrompt.match(/初[九六]：[^\n]*/)?.[0] ?? '';
     assert.ok(firstLine.length > 0, 'should include first yao line in prompt');
     assert.equal(firstLine.includes('【用神】'), false, 'fallback liuqin mismatch should not mark 用神');
 });
@@ -465,6 +467,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
             action: 'interpret',
             stream: true,
             divinationId: 'divination-1',
+            question: '测试问题',
             yongShenTargets: ['官鬼'],
             hexagram: {
                 name: '乾为天',
@@ -762,7 +765,7 @@ test('liuyao route save allows missing yongShenTargets when question is empty', 
     assert.equal(data.success, true);
 });
 
-test('liuyao route interpret writes null yongshen_targets when question is empty', async (t) => {
+test('liuyao route rejects interpret when question is empty and persisted question is missing', async (t) => {
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -870,8 +873,10 @@ test('liuyao route interpret writes null yongshen_targets when question is empty
     });
 
     const response = await POST(request);
-    assert.equal(response.status, 200);
-    assert.equal((updated as Record<string, unknown> | null)?.yongshen_targets, null);
+    const data = await response.json();
+    assert.equal(response.status, 400);
+    assert.equal(data.error, '请先明确问题后再解卦');
+    assert.equal(updated, null);
 });
 
 test('liuyao route update returns 404 when no record is updated', async (t) => {

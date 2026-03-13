@@ -2,6 +2,8 @@
  * 共享工具函数和常量
  */
 
+import type { TianGan as TianGanType, DiZhi as DiZhiType } from './types.js';
+
 // 天干五行对应表
 export const STEM_ELEMENTS: Record<string, string> = {
   '甲': '木', '乙': '木',
@@ -16,11 +18,11 @@ export const WU_XING_ORDER = ['木', '火', '土', '金', '水'];
 
 // 天干列表
 export const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
-export type TianGan = typeof TIAN_GAN[number];
+export type TianGan = TianGanType;
 
 // 地支列表
 export const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
-export type DiZhi = typeof DI_ZHI[number];
+export type DiZhi = DiZhiType;
 
 // 获取天干阴阳
 export function getStemYinYang(stem: string): 'yang' | 'yin' {

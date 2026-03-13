@@ -2,15 +2,33 @@
   "name": "@mingai/mcp-core",
   "version": "1.0.0",
   "description": "MingAI MCP Core - 命理计算工具核心库",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": ["dist"],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./liuyao-core": {
+      "types": "./dist/liuyao-core.d.ts",
+      "default": "./dist/liuyao-core.js"
+    },
+    "./data/hexagram-data": {
+      "types": "./dist/data/hexagram-data.d.ts",
+      "default": "./dist/data/hexagram-data.js"
+    },
+    "./data/shensha-data": {
+      "types": "./dist/data/shensha-data.d.ts",
+      "default": "./dist/data/shensha-data.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": ["mcp", "mingai", "bazi", "ziwei", "liuyao", "tarot", "divination"],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"

@@ -5,6 +5,7 @@ const ts = require('typescript');
 
 const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, 'src');
+const _resolveCache = new Map();
 
 function resolveAlias(request) {
     if (request === 'server-only') {
@@ -12,6 +13,8 @@ function resolveAlias(request) {
     }
 
     if (!request.startsWith('@/')) return null;
+
+    if (_resolveCache.has(request)) return _resolveCache.get(request);
 
     const target = path.join(srcRoot, request.slice(2));
     const candidates = [
@@ -28,10 +31,40 @@ function resolveAlias(request) {
 
     for (const candidate of candidates) {
         if (fs.existsSync(candidate)) {
+            _resolveCache.set(request, candidate);
             return candidate;
         }
     }
 
+    _resolveCache.set(request, null);
+    return null;
+}
+
+function resolveTsSibling(request, parent) {
+    if (!parent || !request.startsWith('.') || !request.endsWith('.js')) {
+        return null;
+    }
+
+    const parentDir = path.dirname(parent.filename);
+    const cacheKey = `${parentDir}\0${request}`;
+    if (_resolveCache.has(cacheKey)) return _resolveCache.get(cacheKey);
+
+    const jsTarget = path.resolve(parentDir, request);
+    const tsCandidates = [
+        jsTarget.replace(/\.js$/, '.ts'),
+        jsTarget.replace(/\.js$/, '.tsx'),
+        path.join(jsTarget.slice(0, -3), 'index.ts'),
+        path.join(jsTarget.slice(0, -3), 'index.tsx'),
+    ];
+
+    for (const candidate of tsCandidates) {
+        if (fs.existsSync(candidate)) {
+            _resolveCache.set(cacheKey, candidate);
+            return candidate;
+        }
+    }
+
+    _resolveCache.set(cacheKey, null);
     return null;
 }
 
@@ -40,6 +73,10 @@ Module._resolveFilename = function (request, parent, isMain, options) {
     const resolved = resolveAlias(request);
     if (resolved) {
         return originalResolveFilename.call(this, resolved, parent, isMain, options);
+    }
+    const tsSibling = resolveTsSibling(request, parent);
+    if (tsSibling) {
+        return originalResolveFilename.call(this, tsSibling, parent, isMain, options);
     }
     return originalResolveFilename.call(this, request, parent, isMain, options);
 };

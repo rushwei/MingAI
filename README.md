@@ -48,8 +48,22 @@
 
 ## 🔌 MCP Server
 
-MingAI provides an MCP (Model Context Protocol) server, so you can directly call metaphysics tools from MCP-compatible clients.<br/>
-You can use the hosted endpoint `https://mcp.mingai.fun/mcp` or deploy locally. See the MCP configuration below.
+MingAI provides an MCP (Model Context Protocol) server, so you can directly call metaphysics tools from MCP-compatible clients.
+
+### Quick Setup
+
+Add to your Claude Desktop / Cursor MCP config — no manual download needed, just requires [Node.js](https://nodejs.org) 18+:
+
+```json
+{
+  "mcpServers": {
+    "mingai": {
+      "command": "npx",
+      "args": ["-y", "@mingai/mcp"]
+    }
+  }
+}
+```
 
 ### Supported Tools
 
@@ -61,7 +75,7 @@ You can use the hosted endpoint `https://mcp.mingai.fun/mcp` or deploy locally. 
 | `liuyao_analyze` | Liuyao divination (auto-casting / custom hexagram) | "I want to divine my career luck this year, please cast and analyze."<br/>"I want to divine my romance luck. My hexagram is Qian over Qian changing to Kun over Kun." |
 | `tarot_draw` | Draw Tarot cards | "Please draw a Tarot card for my recent love fortune." |
 | `daily_fortune` | Daily almanac | "How is today's almanac? Is it suitable for a proposal?" |
-| `liunian_analyze` | Compute major/yearly/monthly/daily cycles from birth info | AI automatically calls this based on your Bazi, no explicit prompt required |
+| `dayun_calculate` | Compute major/yearly/monthly/daily cycles from birth info | AI automatically calls this based on your Bazi, no explicit prompt required |
 
 ---
 
@@ -69,7 +83,7 @@ You can use the hosted endpoint `https://mcp.mingai.fun/mcp` or deploy locally. 
 
 ### Docker Deployment
 
-Three deployment options are supported:
+Two deployment options are supported:
 
 ```bash
 # Prepare environment variables (first time)
@@ -80,43 +94,11 @@ docker compose up -d --build
 
 # 2) Web only
 docker compose -f docker-compose.web.yml up -d --build
-
-# 3) MCP only
-docker compose -f docker-compose.mcp.yml up -d --build
 ```
 
 Default ports:
 - Web: `3000` ([http://localhost:3000](http://localhost:3000))
 - MCP: `3001`
-
-### MCP OAuth Authentication (Recommended)
-
-For MCP clients that support OAuth (for example, Cherry Studio / IDE / CLI ):
-
-You can try our online services:
-1. Add a Streamable HTTP MCP server and set URL to `https://mcp.mingai.fun` or `https://mcp.mingai.fun/mcp`.
-2. Do not set config; click Connect/Authorize directly.
-3. You will be redirected to MingAI's OAuth login page. Sign in and approve access.
-
-If your MCP client does not yet support OAuth, continue using the MCP configuration online service below.
-
-### MCP Config (Streamable HTTP)
-
-It also supports online services.
-
-```json
-{
-  "mcpServers": {
-    "mingai": {
-      "type": "streamable-http",
-      "url": "http://localhost:3001/mcp", // You can use for online services: https://mcp.mingai.fun/mcp
-      "headers": {
-        "x-api-key": "sk-mcp-mingai-xxxxxxxxxxxxxxxxxxxxxxxx" // Go to https://mingai.fun to register and obtain
-      }
-    }
-  }
-}
-```
 
 ### Local Development
 

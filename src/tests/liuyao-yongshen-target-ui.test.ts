@@ -19,6 +19,7 @@ test('liuyao entry pages enforce yongShenTargets only when question is provided'
     assert.equal(divineFile.includes('yongShenTargets'), true);
     assert.equal(divineFile.includes('question.trim()'), true);
     assert.equal(divineFile.includes("readSessionJSON<"), true);
+    assert.equal(divineFile.includes("writeSessionJSON('liuyao_question'"), true);
     assert.equal(divineFile.includes("action: 'save'"), true);
 });
 
@@ -28,6 +29,10 @@ test('result page blocks analysis when old record has no yongShenTargets', () =>
     assert.equal(file.includes('必须先选择分析目标'), true);
     assert.equal(file.includes('YongShenTargetPicker'), true);
     assert.equal(file.includes('pendingYongShenTargets'), true);
+    assert.equal(file.includes("readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question')"), true);
+    assert.equal(file.includes('resolveResultYongShenState('), true);
+    assert.equal(file.includes('const appliedYongShenTargets = yongShenTargetState.appliedTargets;'), true);
+    assert.equal(file.includes('missingYongShenTargets = requiresYongShenTargets && appliedYongShenTargets.length === 0'), true);
     assert.equal(file.includes('performFullAnalysis('), true);
 });
 
@@ -50,8 +55,12 @@ test('inline yongshen picker uses modal overlay to avoid click-through', () => {
     assert.equal(pickerFile.includes('合同文书/证件/学业/房屋车辆/长辈'), true);
     assert.equal(pickerFile.includes('功名求官/工作事业/规则/压力/风险/疾病'), true);
     assert.equal(pickerFile.includes('同辈/合作/竞争'), true);
-    assert.equal(pickerFile.includes('感情婚姻/钱财/资源'), true);
+    assert.equal(pickerFile.includes('婚恋多见于男问对象或以财为线索时'), true);
+    assert.equal(pickerFile.includes('婚恋多见于女问对象或以官为线索时'), true);
     assert.equal(pickerFile.includes('子女后辈/医药'), true);
+    assert.equal(pickerFile.includes('至少选择 1 项后再起卦。'), false);
+    assert.equal(pickerFile.includes('系统才会开始六爻分析'), false);
+    assert.equal(pickerFile.includes('有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'), true);
 });
 
 test('select page hides question content and no longer has editable question input', () => {

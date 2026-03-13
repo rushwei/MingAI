@@ -30,17 +30,18 @@ test('liuyao rejects empty yongShenTargets when question is provided', async () 
   );
 });
 
-test('liuyao allows empty question with explicit empty yongShenTargets', async () => {
-  const result = await mcpCore.handleLiuyaoAnalyze({
-    question: '',
-    yongShenTargets: [],
-    method: 'select',
-    hexagramName: '天火同人',
-    date: '2026-02-10',
-  });
-
-  assert.ok(Array.isArray(result.yongShen));
-  assert.equal(result.yongShen.length, 0);
+test('liuyao rejects empty question with explicit empty yongShenTargets', async () => {
+  await assert.rejects(
+    () =>
+      mcpCore.handleLiuyaoAnalyze({
+        question: '',
+        yongShenTargets: [],
+        method: 'select',
+        hexagramName: '天火同人',
+        date: '2026-02-10',
+      }),
+    /请先明确问题后再解卦/u,
+  );
 });
 
 test('liuyao rejects omitted yongShenTargets even when question is empty', async () => {
@@ -52,7 +53,7 @@ test('liuyao rejects omitted yongShenTargets even when question is empty', async
         hexagramName: '天火同人',
         date: '2026-02-10',
       }),
-    /yongShenTargets|请先判断并填写/u,
+    /请先明确问题后再解卦/u,
   );
 });
 
@@ -66,7 +67,7 @@ test('liuyao rejects non-array yongShenTargets even when question is empty', asy
         hexagramName: '天火同人',
         date: '2026-02-10',
       }),
-    /yongShenTargets|数组/u,
+    /请先明确问题后再解卦/u,
   );
 });
 
@@ -80,7 +81,7 @@ test('liuyao rejects non-string question to avoid contract bypass', async () => 
         hexagramName: '天火同人',
         date: '2026-02-10',
       }),
-    /question|字符串/u,
+    /请先明确问题后再解卦/u,
   );
 });
 
@@ -112,8 +113,8 @@ test('liuyao accepts explicit multiple targets in strict mode', async () => {
   assert.ok(result.yongShen.some((group) => group.targetLiuQin === '父母'));
   for (const group of result.yongShen) {
     assert.ok(Array.isArray(group.candidates));
-    assert.ok(group.candidates.length > 0, 'every group should include primary candidate at index 0');
+    assert.ok(group.selected, 'every group should include selected');
+    assert.equal(typeof group.selectionNote, 'string');
     assert.equal('source' in group, false);
-    assert.equal('selected' in group, false);
   }
 });

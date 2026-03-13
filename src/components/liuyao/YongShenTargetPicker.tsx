@@ -10,8 +10,8 @@ export const YONG_SHEN_TARGET_OPTIONS: Array<{
     value: LiuQin;
     description: string;
 }> = [
-    { label: '钱和资源', value: '妻财', description: '感情婚姻/钱财/资源' },
-    { label: '工作与压力', value: '官鬼', description: '功名求官/工作事业/规则/压力/风险/疾病' },
+    { label: '钱和资源', value: '妻财', description: '钱财/交易/资源/经营；婚恋多见于男问对象或以财为线索时' },
+    { label: '工作与压力', value: '官鬼', description: '功名求官/工作事业/规则/压力/风险/疾病；婚恋多见于女问对象或以官为线索时' },
     { label: '学业与文书', value: '父母', description: '合同文书/证件/学业/房屋车辆/长辈' },
     { label: '进展与结果', value: '子孙', description: '子女后辈/医药' },
     { label: '人际与竞争', value: '兄弟', description: '同辈/合作/竞争' },
@@ -95,7 +95,7 @@ export function YongShenTargetPicker({
                 <div className="mt-2 text-xs text-foreground-tertiary">
                     {selectedLabels.length > 0
                         ? `已选：${selectedLabels.join('、')}`
-                        : '至少选择 1 项，系统才会开始六爻分析。'}
+                        : '有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'}
                 </div>
             </div>
         );
@@ -174,7 +174,7 @@ export function YongShenTargetPicker({
 
                             <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-3">
                                 <div className="text-xs text-foreground-tertiary">
-                                    {selectedLabels.length > 0 ? `已选：${selectedLabels.join('、')}` : '至少选择 1 项后再起卦。'}
+                                    {selectedLabels.length > 0 ? `已选：${selectedLabels.join('、')}` : '有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button

@@ -3,7 +3,6 @@
  */
 
 import { tools } from './tools.js';
-import { formatAsMarkdown } from './formatters.js';
 import {
   handleBaziCalculate,
   handleBaziPillarsResolve,

@@ -38,10 +38,12 @@ test('liuyao tool description guides target selection by question semantics', ()
   );
 
   const yongShenProps = tool.outputSchema?.properties?.yongShen?.items?.properties;
-  assert.equal(yongShenProps?.selected, undefined, 'selected output should be removed');
+  assert.equal(yongShenProps?.selected?.type, 'object', 'selected output should be preserved');
+  assert.equal(yongShenProps?.selectionStatus?.type, 'string', 'selectionStatus should be preserved');
+  assert.equal(yongShenProps?.selectionNote?.type, 'string', 'selectionNote should be preserved');
   assert.equal(yongShenProps?.source, undefined, 'source output should be removed');
   const candidates = tool.outputSchema?.properties?.yongShen?.items?.properties?.candidates;
-  assert.match(candidates?.description ?? '', /顺序|排序|越后|参考|主用神/u);
+  assert.match(candidates?.description ?? '', /参考|并看|候选|主用神/u);
   assert.equal(candidates?.items?.properties?.rankScore, undefined, 'candidate output should hide rankScore');
   assert.equal(tool.outputSchema?.properties?.rankScoreNote, undefined, 'rankScoreNote should be removed');
 });

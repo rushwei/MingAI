@@ -30,6 +30,7 @@ test('traditional analysis uses compact grouped layout labels', () => {
     assert.equal(termsContent.includes('合同文书/证件/学业/房屋车辆/长辈'), true);
     assert.equal(termsContent.includes('功名求官/工作事业/规则/压力/风险/疾病'), true);
     assert.equal(termsContent.includes('同辈/合作/竞争'), true);
-    assert.equal(termsContent.includes('感情婚姻/钱财/资源'), true);
+    assert.equal(termsContent.includes('婚恋多见于男问对象或以财为线索时'), true);
+    assert.equal(termsContent.includes('婚恋多见于女问对象或以官为线索时'), true);
     assert.equal(termsContent.includes('子女后辈/医药'), true);
 });

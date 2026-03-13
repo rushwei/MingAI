@@ -2,7 +2,17 @@
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
 
-import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput } from './types.js';
+import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, ShenSystemInfo } from './types.js';
+import {
+  YONG_SHEN_STATUS_LABELS,
+  WANG_SHUAI_LABELS,
+  KONG_WANG_LABELS,
+  YAO_POSITION_NAMES,
+  traditionalYaoName,
+  formatGanZhiTime,
+  formatGuaLevelLines,
+  sortYaosDescending,
+} from './liuyao-core.js';
 
 /**
  * 格式化八字结果为 Markdown
@@ -146,54 +156,126 @@ export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
  * 格式化六爻结果为 Markdown
  */
 export function formatLiuyaoAsMarkdown(result: LiuyaoOutput): string {
-  const { hexagramName, hexagramGong, hexagramBrief, changedHexagramName, guaCi, yongShen, warnings, timeRecommendations } = result;
+  const lines: string[] = [];
 
-  let md = `# 六爻分析
-
-## 卦象信息
-- **本卦**: ${hexagramName} (${hexagramGong}宫)
-- **变卦**: ${changedHexagramName || '无'}
-- **卦辞**: ${hexagramBrief}
-
-## 爻象
-
-| 位置 | 六亲 | 旺衰 | 动静 |
-|------|------|------|------|
-`;
-
-  for (const yao of result.fullYaos || []) {
-    md += `| ${yao.position} | ${yao.liuQin} | ${yao.wangShuaiLabel} | ${yao.movementLabel} |\n`;
+  // ── 卦象信息（含经文） ──
+  lines.push('# 六爻分析');
+  lines.push('');
+  lines.push('## 卦象信息');
+  if (result.question) lines.push(`- 问题: ${result.question}`);
+  lines.push(`- 本卦: ${result.hexagramName}（${result.hexagramGong}宫·${result.hexagramElement}）`);
+  if (result.guaCi) lines.push(`- 卦辞: ${result.guaCi}`);
+  if (result.xiangCi) lines.push(`- 象辞: ${result.xiangCi}`);
+  if (result.changedHexagramName) {
+    lines.push(`- 变卦: ${result.changedHexagramName}（${result.changedHexagramGong || ''}宫·${result.changedHexagramElement || ''}）`);
+    if (result.changedGuaCi) lines.push(`- 变卦卦辞: ${result.changedGuaCi}`);
+    if (result.changedXiangCi) lines.push(`- 变卦象辞: ${result.changedXiangCi}`);
+    // 动爻爻辞
+    const movingYaoCi = (result.fullYaos || []).filter(y => y.isChanging && y.yaoCi);
+    for (const yao of movingYaoCi) {
+      lines.push(`- ${traditionalYaoName(yao.position, yao.type)}爻辞: ${yao.yaoCi}`);
+    }
+  } else {
+    lines.push('- 变卦: 无');
   }
+  const gz = result.ganZhiTime;
+  lines.push(`- 起卦时间: ${formatGanZhiTime(gz)}`);
+  lines.push(`- 日旬空: ${result.kongWang.xun}（${result.kongWang.kongDizhi.join(' ')}）`);
+  if (result.kongWangByPillar) {
+    lines.push(`- 年旬空: ${result.kongWangByPillar.year.xun}（${result.kongWangByPillar.year.kongDizhi.join(' ')}）`);
+    lines.push(`- 月旬空: ${result.kongWangByPillar.month.xun}（${result.kongWangByPillar.month.kongDizhi.join(' ')}）`);
+    lines.push(`- 时旬空: ${result.kongWangByPillar.hour.xun}（${result.kongWangByPillar.hour.kongDizhi.join(' ')}）`);
+    lines.push('- 注: 六爻断卦判空亡以"日旬空"为主，年/月/时旬空供参考。');
+  }
+  lines.push('');
 
-  // 用神分析
-  if (yongShen && yongShen.length > 0) {
-    md += `\n## 用神分析\n`;
-    for (const ys of yongShen) {
-      md += `### ${ys.targetLiuQin}\n`;
-      if (ys.candidates && ys.candidates.length > 0) {
-        const main = ys.candidates[0];
-        md += `- 主用神: ${main.liuQin}（${main.naJia}），强度 ${main.strengthLabel}\n`;
+  // ── 六爻排盘 ──
+  lines.push('## 六爻排盘');
+  lines.push('');
+  lines.push('| 爻位 | 六亲 | 六神 | 纳甲 | 五行 | 旺衰 | 动静 | 空亡 | 世应 |');
+  lines.push('|------|------|------|------|------|------|------|------|------|');
+  const sortedYaos = sortYaosDescending(result.fullYaos || []);
+  for (const yao of sortedYaos) {
+    const shiYing = yao.isShiYao ? '世' : yao.isYingYao ? '应' : '';
+    const kongLabel = yao.kongWangState && yao.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[yao.kongWangState] : '';
+    lines.push(`| ${traditionalYaoName(yao.position, yao.type)} | ${yao.liuQin} | ${yao.liuShen} | ${yao.naJia} | ${yao.wuXing} | ${WANG_SHUAI_LABELS[yao.strength.wangShuai]} | ${yao.movementLabel} | ${kongLabel} | ${shiYing} |`);
+    if (yao.isChanging && yao.changedYao) {
+      const cy = yao.changedYao;
+      lines.push(`| ↳ 化 | ${cy.liuQin} | ${cy.liuShen || ''} | ${cy.naJia} | ${cy.wuXing} | | | | ${cy.relation || ''} |`);
+    }
+  }
+  lines.push('');
+
+  // ── 用神分析（含神系） ──
+  if (result.yongShen && result.yongShen.length > 0) {
+    lines.push('## 用神分析');
+    lines.push('');
+    const shenSystemMap = buildShenSystemMap(result.shenSystemByYongShen || []);
+    for (const ys of result.yongShen) {
+      lines.push(`### ${ys.targetLiuQin}（${YONG_SHEN_STATUS_LABELS[ys.selectionStatus] || ys.selectionStatus}）`);
+      if (ys.selected) {
+        const main = ys.selected;
+        lines.push(`- 主用神: ${main.liuQin}${main.position ? ` @${main.position}爻` : ''}${main.naJia ? `（${main.naJia}）` : ''}，${main.strengthLabel}，${main.movementLabel}`);
+        if (ys.selectionNote) {
+          lines.push(`- 说明: ${ys.selectionNote}`);
+        }
+        if (main.evidence?.length) {
+          lines.push(`- 依据: ${main.evidence.join('、')}`);
+        }
+        if (ys.candidates?.length) {
+          lines.push(`- 并看: ${ys.candidates.map((item) => `${item.liuQin}${item.position ? `@${item.position}爻` : ''}${item.naJia ? `（${item.naJia}）` : ''}${item.evidence?.length ? `：${item.evidence.join('、')}` : ''}`).join('；')}`);
+        }
       }
+      // 神系
+      const sys = shenSystemMap.get(ys.targetLiuQin);
+      if (sys) {
+        const shenParts = formatShenSystemParts(sys);
+        if (shenParts.length > 0) lines.push(`- 神系: ${shenParts.join('，')}`);
+      }
+      lines.push('');
     }
   }
 
-  // 凶吉警告
-  if (warnings && warnings.length > 0) {
-    md += `\n## 凶吉警告\n`;
-    for (const warning of warnings) {
-      md += `- ${warning}\n`;
+  // ── 伏神 ──
+  if (result.fuShen && result.fuShen.length > 0) {
+    lines.push('## 伏神');
+    lines.push('');
+    for (const fs of result.fuShen) {
+      lines.push(`- ${fs.liuQin}（${fs.wuXing}·${fs.naJia}）伏于${YAO_POSITION_NAMES[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin || ''}）下，${fs.availabilityReason}`);
     }
+    lines.push('');
   }
 
-  // 应期建议
-  if (timeRecommendations && timeRecommendations.length > 0) {
-    md += `\n## 应期建议\n`;
-    for (const tr of timeRecommendations) {
-      md += `- ${tr.targetLiuQin}: ${tr.description}（${tr.startDate} - ${tr.endDate}）\n`;
-    }
+  // ── 卦级分析（六冲/六合/反吟伏吟/三合/神煞） ──
+  const guaLevelParts = formatGuaLevelLines(result).map(line => `- ${line}`);
+  if (guaLevelParts.length > 0) {
+    lines.push('## 卦级分析');
+    lines.push('');
+    lines.push(...guaLevelParts);
+    lines.push('');
   }
 
-  return md;
+  // ── 凶吉警告 ──
+  if (result.warnings && result.warnings.length > 0) {
+    lines.push('## 凶吉警告');
+    lines.push('');
+    for (const warning of result.warnings) {
+      lines.push(`- ${warning}`);
+    }
+    lines.push('');
+  }
+
+  // ── 应期建议 ──
+  if (result.timeRecommendations && result.timeRecommendations.length > 0) {
+    lines.push('## 应期建议');
+    lines.push('');
+    for (const tr of result.timeRecommendations) {
+      lines.push(`- ${tr.targetLiuQin}: ${tr.trigger}${tr.basis?.length ? `（${tr.basis.join('、')}）` : ''}，${tr.description}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -306,6 +388,20 @@ export function formatAsMarkdown(toolName: string, result: unknown): string {
     default:
       return JSON.stringify(result, null, 2);
   }
+}
+
+// 辅助函数：构建 targetLiuQin → ShenSystem 映射（本地版，不依赖 web 侧）
+function buildShenSystemMap<T extends { targetLiuQin: string }>(systems: T[]): Map<string, T> {
+  return new Map(systems.map(s => [s.targetLiuQin, s] as const));
+}
+
+// 辅助函数：格式化原神/忌神/仇神文本片段（本地版）
+function formatShenSystemParts(system: ShenSystemInfo | undefined): string[] {
+  const parts: string[] = [];
+  if (system?.yuanShen) parts.push(`原神=${system.yuanShen.liuQin}（${system.yuanShen.wuXing}）`);
+  if (system?.jiShen) parts.push(`忌神=${system.jiShen.liuQin}（${system.jiShen.wuXing}）`);
+  if (system?.chouShen) parts.push(`仇神=${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
+  return parts;
 }
 
 // 辅助函数：根据天干获取五行

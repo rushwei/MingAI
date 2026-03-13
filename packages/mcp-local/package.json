@@ -1,12 +1,18 @@
 {
-  "name": "@mingai/mcp-local",
+  "name": "@mingai/mcp",
   "version": "1.0.0",
-  "description": "MingAI MCP Server - Local (stdio)",
+  "description": "MingAI MCP Server - 命理计算工具 (stdio)",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "mingai-mcp": "dist/index.js"
   },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": ["mcp", "mingai", "mcp-server", "bazi", "ziwei", "liuyao", "tarot", "divination", "stdio"],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"

@@ -1,5 +1,20 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { findHexagram, performFullAnalysis, type Yao } from '@/lib/divination/liuyao';
+import {
+    calculateGanZhiTime,
+    calculateKongWangByPillar,
+    findHexagram,
+    performFullAnalysis,
+    type Yao,
+} from '@/lib/divination/liuyao';
+import { getHexagramText } from '@/lib/divination/hexagram-texts';
+import {
+    YONG_SHEN_STATUS_LABELS,
+    formatGanZhiTime,
+    formatGuaLevelLines,
+    sortYaosDescending,
+    formatYaoDetailLine,
+    formatShenSystemParts,
+} from '@/lib/divination/liuyao-format-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type LiuyaoRow = {
@@ -76,7 +91,9 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
             : [];
         const question = r.question || '';
         const hasQuestion = question.trim().length > 0;
-        const shouldAnalyze = Boolean(r.hexagram_code) && (yongShenTargets.length > 0 || !hasQuestion);
+        const shouldAnalyze = Boolean(r.hexagram_code) && hasQuestion && yongShenTargets.length > 0;
+        let effectiveGanZhiTime;
+        let effectiveKongWangByPillar;
         const analysis = shouldAnalyze
             ? performFullAnalysis(
                 buildYaosFromCode(r.hexagram_code, changedLines),
@@ -87,36 +104,59 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
                 { yongShenTargets }
             )
             : null;
-        const ganZhiTime = analysis
-            ? `${analysis.ganZhiTime.year.gan}${analysis.ganZhiTime.year.zhi}年 ${analysis.ganZhiTime.month.gan}${analysis.ganZhiTime.month.zhi}月 ${analysis.ganZhiTime.day.gan}${analysis.ganZhiTime.day.zhi}日 ${analysis.ganZhiTime.hour.gan}${analysis.ganZhiTime.hour.zhi}时`
-            : '';
-        const kongWangSummary = analysis?.kongWangByPillar
-            ? `年${analysis.kongWangByPillar.year.xun}（${analysis.kongWangByPillar.year.kongDizhi.join(' ')}）；月${analysis.kongWangByPillar.month.xun}（${analysis.kongWangByPillar.month.kongDizhi.join(' ')}）；日${analysis.kongWangByPillar.day.xun}（${analysis.kongWangByPillar.day.kongDizhi.join(' ')}）；时${analysis.kongWangByPillar.hour.xun}（${analysis.kongWangByPillar.hour.kongDizhi.join(' ')}）`
-            : analysis
-                ? `日${analysis.kongWang.xun}（${analysis.kongWang.kongDizhi.join(' ')}）`
-                : '';
+        if (analysis) {
+            effectiveGanZhiTime = analysis.ganZhiTime;
+            effectiveKongWangByPillar = analysis.kongWangByPillar;
+        } else {
+            effectiveGanZhiTime = calculateGanZhiTime(new Date(r.created_at));
+            effectiveKongWangByPillar = calculateKongWangByPillar(effectiveGanZhiTime);
+        }
+        const ganZhiTime = formatGanZhiTime(effectiveGanZhiTime);
+        const kongWangSummary = `年${effectiveKongWangByPillar.year.xun}（${effectiveKongWangByPillar.year.kongDizhi.join(' ')}）；月${effectiveKongWangByPillar.month.xun}（${effectiveKongWangByPillar.month.kongDizhi.join(' ')}）；日${effectiveKongWangByPillar.day.xun}（${effectiveKongWangByPillar.day.kongDizhi.join(' ')}）；时${effectiveKongWangByPillar.hour.xun}（${effectiveKongWangByPillar.hour.kongDizhi.join(' ')}）`;
+
+        const baseHexagram = findHexagram(r.hexagram_code);
+        const changedHexagram = r.changed_hexagram_code ? findHexagram(r.changed_hexagram_code) : undefined;
+        const hexText = baseHexagram ? getHexagramText(baseHexagram.name) : undefined;
+        const changedHexText = changedHexagram ? getHexagramText(changedHexagram.name) : undefined;
 
         return [
             '## 六爻占卜',
             question ? `- 问题：${question}` : '',
-            `- 本卦：${r.hexagram_code}`,
-            r.changed_hexagram_code ? `- 变卦：${r.changed_hexagram_code}` : '',
+            `- 本卦：${r.hexagram_code}${baseHexagram ? `（${baseHexagram.name}）` : ''}`,
+            r.changed_hexagram_code ? `- 变卦：${r.changed_hexagram_code}${changedHexagram ? `（${changedHexagram.name}）` : ''}` : '',
             changedLines.length ? `- 动爻：${changedLines.join('、')}` : '',
             yongShenTargets.length ? `- 分析目标：${yongShenTargets.join('、')}` : '- 分析目标：缺失（历史旧记录）',
             ganZhiTime ? `- 起卦时间：${ganZhiTime}` : '',
             kongWangSummary ? `- 旬空（年/月/日/时）：${kongWangSummary}` : '',
-            kongWangSummary ? '- 注：六爻断卦判空亡以“日旬空”为主，年/月/时旬空供参考。' : '',
+            kongWangSummary ? '- 注：六爻断卦判空亡以”日旬空”为主，年/月/时旬空供参考。' : '',
+            hexText ? `- 本卦卦辞：${hexText.gua}` : '',
+            hexText ? `- 本卦象辞：${hexText.xiang}` : '',
+            changedHexText ? `- 变卦卦辞：${changedHexText.gua}` : '',
+            changedHexText ? `- 变卦象辞：${changedHexText.xiang}` : '',
+            ...(changedLines.length > 0 && hexText?.yao
+                ? changedLines
+                    .map(pos => hexText.yao[pos - 1])
+                    .filter((y): y is NonNullable<typeof y> => Boolean(y))
+                    .map(y => `- 动爻爻辞（${y.name}）：${y.text}`)
+                : []),
+            !hasQuestion ? '- 当前记录未提供明确问题，仅可作为原始卦象记录，不应正式断卦。' : '',
             analysis?.yongShen?.length
-                ? `- 用神：${analysis.yongShen.map(group => `${group.targetLiuQin}=>${group.selected.liuQin}${group.selected.position ? `@${group.selected.position}` : ''}`).join('；')}`
+                ? `- 用神：${analysis.yongShen.map(group => `${group.targetLiuQin}=>${group.selected.liuQin}${group.selected.position ? `@${group.selected.position}` : ''}（${YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus}${group.selectionNote ? `，${group.selectionNote}` : ''}${group.selected.evidence.length > 0 ? `；依据:${group.selected.evidence.join('、')}` : ''}）`).join('；')}`
                 : '',
-            analysis?.fuShen?.length ? `- 伏神：${JSON.stringify(analysis.fuShen)}` : '',
-            analysis?.shenSystemByYongShen?.length ? `- 原神/忌神/仇神：${JSON.stringify(analysis.shenSystemByYongShen)}` : '',
-            analysis?.globalShenSha?.length ? `- 全局神煞：${analysis.globalShenSha.join('、')}` : '',
-            analysis?.liuChongGuaInfo ? `- 六冲卦：${analysis.liuChongGuaInfo.isLiuChongGua ? '是' : '否'}${analysis.liuChongGuaInfo.description ? `（${analysis.liuChongGuaInfo.description}）` : ''}` : '',
-            analysis?.sanHeAnalysis ? `- 三合局：${JSON.stringify(analysis.sanHeAnalysis)}` : '',
-            analysis?.timeRecommendations?.length ? `- 时间建议：${JSON.stringify(analysis.timeRecommendations)}` : '',
+            analysis?.fuShen?.length ? `- 伏神：${analysis.fuShen.map(fs => `${fs.liuQin}（${fs.wuXing}·${fs.naJia}）伏于第${fs.feiShenPosition}爻${fs.feiShenLiuQin ? `（${fs.feiShenLiuQin}）` : ''}下，${fs.availabilityReason}`).join('；')}` : '',
+            analysis?.shenSystemByYongShen?.length ? `- 原神/忌神/仇神：${analysis.shenSystemByYongShen.map(sys => {
+                const parts: string[] = [sys.targetLiuQin, ...formatShenSystemParts(sys)];
+                return parts.join('，');
+            }).join('；')}` : '',
+            ...(analysis ? formatGuaLevelLines(analysis).map(line => `- ${line}`) : []),
+            analysis?.timeRecommendations?.length ? `- 时间建议：${analysis.timeRecommendations.map(item => `${item.targetLiuQin}:${item.trigger}${item.basis.length > 0 ? `（${item.basis.join('、')}）` : ''}-${item.description}`).join('；')}` : '',
             analysis?.warnings?.length ? `- 风险提示：${analysis.warnings.join('；')}` : '',
-            analysis ? `- 完整分析数据：${JSON.stringify(analysis)}` : ''
+            // 逐爻排盘（上爻→初爻）
+            ...(analysis?.fullYaos?.length ? (() => {
+                const sorted = sortYaosDescending(analysis.fullYaos);
+                const yaoLines = sorted.map(y => `  - ${formatYaoDetailLine(y, { dataSourceStyle: true })}`);
+                return ['- 排盘（上爻→初爻）：', ...yaoLines];
+            })() : []),
         ].filter(Boolean).join('\n');
     },
 

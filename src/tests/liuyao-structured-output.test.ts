@@ -2,31 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { performFullAnalysis, type Yao } from '../lib/divination/liuyao';
 
-function computeCandidatePriority(candidate: {
-    strengthScore: number;
-    movementState: 'static' | 'changing' | 'hidden_moving' | 'day_break';
-    isShiYao: boolean;
-    isYingYao: boolean;
-    kongWangState?: 'not_kong' | 'kong_static' | 'kong_changing' | 'kong_ri_chong' | 'kong_yue_jian';
-}): number {
-    let score = candidate.strengthScore;
-    if (candidate.movementState === 'changing') score += 12;
-    if (candidate.movementState === 'hidden_moving') score += 10;
-    if (candidate.movementState === 'day_break') score -= 25;
-    if (candidate.isShiYao) score += 8;
-    if (candidate.isYingYao) score += 4;
-    if (candidate.kongWangState === 'kong_static') score -= 15;
-    if (candidate.kongWangState === 'kong_changing') score -= 8;
-    if (candidate.kongWangState === 'kong_ri_chong') score += 5;
-    return Math.max(0, Math.min(100, score));
-}
-
-function daysBetween(startDate: string, endDate: string): number {
-    const start = new Date(`${startDate}T00:00:00.000Z`);
-    const end = new Date(`${endDate}T00:00:00.000Z`);
-    return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-}
-
 test('fullYaos uses 伏吟 relation when changed branch stays the same', () => {
     const baseCases: Array<{ code: string; changedCode: string; date: string }> = [
         { code: '111111', changedCode: '100010', date: '2026-02-10' },
@@ -38,7 +13,7 @@ test('fullYaos uses 伏吟 relation when changed branch stays the same', () => {
     let found = false;
     for (const item of baseCases) {
         const yaos: Yao[] = item.code.split('').map((char, index) => ({
-            type: (parseInt(char, 10) as 0 | 1),
+            type: parseInt(char, 10) as 0 | 1,
             change: item.code[index] === item.changedCode[index] ? 'stable' : 'changing',
             position: index + 1,
         }));
@@ -64,7 +39,7 @@ test('fullYaos uses 伏吟 relation when changed branch stays the same', () => {
     assert.ok(found, 'expected at least one same-branch changed yao case');
 });
 
-test('timeRecommendations use structured date windows and confidence', () => {
+test('timeRecommendations use qualitative triggers instead of date windows', () => {
     const yaos: Yao[] = [
         { type: 1, change: 'stable', position: 1 },
         { type: 0, change: 'changing', position: 2 },
@@ -85,27 +60,13 @@ test('timeRecommendations use structured date windows and confidence', () => {
 
     assert.ok(analysis.timeRecommendations.length > 0);
     for (const item of analysis.timeRecommendations) {
-        assert.match(item.startDate, /^\d{4}-\d{2}-\d{2}$/);
-        assert.match(item.endDate, /^\d{4}-\d{2}-\d{2}$/);
-        assert.ok(item.confidence >= 0 && item.confidence <= 1);
-        assert.ok(daysBetween(item.startDate, item.endDate) <= 90);
-    }
-
-    const grouped = new Map<string, { favorable?: { startDate: string; endDate: string }; critical?: { startDate: string; endDate: string } }>();
-    for (const item of analysis.timeRecommendations) {
-        const current = grouped.get(item.targetLiuQin) ?? {};
-        if (item.type === 'favorable') current.favorable = { startDate: item.startDate, endDate: item.endDate };
-        if (item.type === 'critical') current.critical = { startDate: item.startDate, endDate: item.endDate };
-        grouped.set(item.targetLiuQin, current);
-    }
-
-    for (const { favorable, critical } of grouped.values()) {
-        if (!favorable || !critical) continue;
-        assert.notDeepEqual(
-            favorable,
-            critical,
-            'favorable and critical windows should not be identical'
-        );
+        assert.equal(typeof item.trigger, 'string');
+        assert.ok(item.trigger.length > 0);
+        assert.ok(Array.isArray(item.basis));
+        assert.equal(typeof item.description, 'string');
+        assert.equal('startDate' in item, false);
+        assert.equal('endDate' in item, false);
+        assert.equal('confidence' in item, false);
     }
 });
 
@@ -131,10 +92,157 @@ test('when target liuqin is not on hexagram, yongshen falls back to fuShen candi
     const target = analysis.yongShen.find(group => group.targetLiuQin === '官鬼');
     assert.ok(target, 'expected 官鬼 target group to exist');
     assert.equal(typeof target.selected.position, 'number');
-    assert.equal('rankScore' in target.selected, false);
-    assert.ok(computeCandidatePriority(target.selected) > 0);
+    assert.equal(target.selectionStatus, 'from_fushen');
     assert.ok(
-        target.selected.factors.some(factor => factor.includes('伏神')),
-        'expected fallback factors to include 伏神 hint'
+        target.selected.evidence.some(factor => factor.includes('伏神') || factor.includes('不上卦')),
+        'expected fallback evidence to include 伏神 hint'
+    );
+});
+
+test('same-business-rank yongshen candidates should remain ambiguous instead of being resolved only by position', () => {
+    const yaos: Yao[] = '100010'.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: 'stable',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        '100010',
+        undefined,
+        '测试同类并见',
+        new Date('2024-01-02T10:00:00+08:00'),
+        { yongShenTargets: ['兄弟'] }
+    );
+
+    const target = analysis.yongShen.find(group => group.targetLiuQin === '兄弟');
+    assert.ok(target, 'expected 兄弟 target group to exist');
+    assert.equal(target.selectionStatus, 'ambiguous');
+    assert.ok(target.candidates.length > 0, 'ambiguous selection should preserve alternatives');
+});
+
+test('when target is absent in base hexagram but month/day can stand in, use temporal yongshen before fuShen', () => {
+    const yaos: Yao[] = '011111'.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: 'stable',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        '011111',
+        undefined,
+        '问财运',
+        new Date('2024-02-10T10:00:00+08:00'),
+        { yongShenTargets: ['妻财'] }
+    );
+
+    const target = analysis.yongShen.find(group => group.targetLiuQin === '妻财');
+    assert.ok(target, 'expected 妻财 target group to exist');
+    assert.equal(target.selectionStatus, 'from_temporal');
+    assert.equal(target.selected.source, 'temporal');
+    assert.equal(target.selected.naJia, '寅');
+    assert.ok(
+        target.selected.evidence.some(factor => factor.includes('月建') || factor.includes('日辰')),
+        'temporal yongshen should explain month/day fallback'
+    );
+});
+
+test('when target is transformed by changing lines, use changed yongshen before fuShen', () => {
+    const baseCode = '100010';
+    const changedCode = '101100';
+    const yaos: Yao[] = baseCode.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: baseCode[index] === changedCode[index] ? 'stable' : 'changing',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        baseCode,
+        changedCode,
+        '问财运',
+        new Date('2024-01-02T10:00:00+08:00'),
+        { yongShenTargets: ['妻财'] }
+    );
+
+    const target = analysis.yongShen.find(group => group.targetLiuQin === '妻财');
+    assert.ok(target, 'expected 妻财 target group to exist');
+    assert.equal(target.selectionStatus, 'from_changed');
+    assert.equal(target.selected.source, 'changed');
+    assert.equal(target.selected.position, 4);
+    assert.equal(target.selected.naJia, '午');
+});
+
+test('changing empty yao with month-jian should surface kong_yue_jian instead of plain kong_changing', () => {
+    const baseCode = '111111';
+    const changedCode = '101111';
+    const yaos: Yao[] = baseCode.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: baseCode[index] === changedCode[index] ? 'stable' : 'changing',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        baseCode,
+        changedCode,
+        '问财运',
+        new Date('2024-02-10T10:00:00+08:00'),
+        { yongShenTargets: ['妻财'] }
+    );
+
+    assert.equal(analysis.fullYaos[1]?.kongWangState, 'kong_yue_jian');
+});
+
+test('blocked fuShen fallback should not emit generic favorable branch timing', () => {
+    const yaos: Yao[] = '010101'.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: 'stable',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        '010101',
+        undefined,
+        '事业发展如何',
+        new Date('2026-02-10T00:00:00.000Z'),
+        { yongShenTargets: ['官鬼'] }
+    );
+
+    const target = analysis.yongShen.find(group => group.targetLiuQin === '官鬼');
+    assert.ok(target, 'expected 官鬼 target group to exist');
+    assert.equal(target.selectionStatus, 'from_fushen');
+    assert.equal(
+        analysis.timeRecommendations.some(item => item.targetLiuQin === '官鬼' && item.type === 'favorable'),
+        false,
+        'blocked/conditional fuShen should not receive generic favorable timing'
+    );
+});
+
+test('sanHe analysis should preserve multiple matching full-sanhe groups instead of only the first hit', () => {
+    const baseCode = '111111';
+    const changedCode = '001001';
+    const yaos: Yao[] = baseCode.split('').map((char, index) => ({
+        type: parseInt(char, 10) as 0 | 1,
+        change: baseCode[index] === changedCode[index] ? 'stable' : 'changing',
+        position: index + 1,
+    }));
+
+    const analysis = performFullAnalysis(
+        yaos,
+        baseCode,
+        changedCode,
+        '测试三合并存',
+        new Date('2024-01-02T10:00:00+08:00'),
+        { yongShenTargets: ['子孙'] }
+    );
+
+    assert.ok(Array.isArray(analysis.sanHeAnalysis.fullSanHeList), 'expected fullSanHeList to exist');
+    assert.equal(analysis.sanHeAnalysis.fullSanHeList?.length, 2);
+    assert.deepEqual(
+        analysis.sanHeAnalysis.fullSanHeList?.map(item => item.name).sort(),
+        ['寅午戌合火局', '申子辰合水局']
     );
 });

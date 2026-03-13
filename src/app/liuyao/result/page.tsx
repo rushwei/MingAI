@@ -21,11 +21,11 @@ import {
     type Yao,
     type LiuQin,
     type LiuYaoFullAnalysis,
+    normalizeYongShenTargets,
     performFullAnalysis,
     yaosTpCode,
-    WANG_SHUAI_LABELS,
-    KONG_WANG_LABELS,
 } from '@/lib/divination/liuyao';
+import { resolveResultYongShenState, resolveResultYongShenTargets } from '@/lib/divination/liuyao-result-state';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
 import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
 import { supabase } from '@/lib/supabase';
@@ -40,19 +40,24 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
+import {
+    YONG_SHEN_STATUS_LABELS,
+    YAO_POSITION_NAMES,
+    traditionalYaoName,
+    buildYongShenMarkers,
+    formatGuaLevelLines,
+    formatGanZhiTime,
+    formatKongWangLines,
+    sortYaosDescending,
+    formatYaoDetailLine,
+    buildShenSystemMap,
+    formatShenSystemParts,
+} from '@/lib/divination/liuyao-format-utils';
 
-const LIU_QIN_VALUES: LiuQin[] = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
-
-function normalizeYongShenTargets(value: unknown): LiuQin[] {
-    if (!Array.isArray(value)) return [];
-    const unique = new Set<LiuQin>();
-    for (const item of value) {
-        if (typeof item === 'string' && LIU_QIN_VALUES.includes(item as LiuQin)) {
-            unique.add(item as LiuQin);
-        }
-    }
-    return Array.from(unique);
-}
+type LiuyaoQuestionSession = {
+    question: string;
+    yongShenTargets: LiuQin[];
+};
 
 export default function ResultPage() {
     const router = useRouter();
@@ -83,13 +88,14 @@ export default function ResultPage() {
             <span className="text-sm">{error}</span>
         </div>
     ) : null;
-    const effectiveYongShenTargets = useMemo(() => {
-        if (result?.yongShenTargets?.length) return result.yongShenTargets;
-        return [];
-    }, [result?.yongShenTargets]);
+    const yongShenTargetState = useMemo(() => (
+        resolveResultYongShenState(result?.yongShenTargets, pendingYongShenTargets)
+    ), [pendingYongShenTargets, result?.yongShenTargets]);
+    const appliedYongShenTargets = yongShenTargetState.appliedTargets;
     const requiresYongShenTargets = Boolean(result?.question?.trim());
-    const missingYongShenTargets = requiresYongShenTargets && !result?.yongShenTargets?.length;
-    const hasEffectiveTargets = !requiresYongShenTargets || effectiveYongShenTargets.length > 0;
+    const missingYongShenTargets = requiresYongShenTargets && appliedYongShenTargets.length === 0;
+    const hasAppliedTargets = appliedYongShenTargets.length > 0;
+    const canAnalyze = requiresYongShenTargets && hasAppliedTargets;
 
     // 计算传统分析数据（使用起卦日期执行完整分析）
     const traditionalData = useMemo((): (LiuYaoFullAnalysis & {
@@ -97,7 +103,7 @@ export default function ResultPage() {
         changedHexagramText?: ReturnType<typeof getHexagramText>;
         dayStem: string;
     }) | null => {
-        if (!result || !hasEffectiveTargets) return null;
+        if (!result || !canAnalyze) return null;
 
         // 计算卦码
         const hexagramCode = yaosTpCode(result.yaos);
@@ -115,7 +121,7 @@ export default function ResultPage() {
             changedCode,
             result.question,
             result.createdAt,
-            { yongShenTargets: effectiveYongShenTargets }
+            { yongShenTargets: appliedYongShenTargets }
         );
 
         // 获取卦辞
@@ -130,7 +136,12 @@ export default function ResultPage() {
             changedHexagramText,
             dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示
         };
-    }, [effectiveYongShenTargets, hasEffectiveTargets, result]);
+    }, [appliedYongShenTargets, canAnalyze, result]);
+
+    const yaoByPositionMemo = useMemo(() =>
+        traditionalData ? new Map(traditionalData.fullYaos.map(y => [y.position, y] as const)) : new Map(),
+        [traditionalData]
+    );
 
     // 生成可复制的六爻分析文本（与 AI 分析格式一致）
     const generateCopyText = () => {
@@ -147,144 +158,134 @@ export default function ResultPage() {
             shenSystemByYongShen,
             timeRecommendations,
             hexagramText,
+            changedHexagramText,
             globalShenSha,
+            liuChongGuaInfo,
+            liuHeGuaInfo,
+            chongHeTransition,
+            guaFanFuYin,
+            sanHeAnalysis,
+            warnings,
         } = traditionalData;
-        const yaoNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
         const changedLines = fullYaos.filter(y => y.isChanging).map(y => y.position);
-        const yongShenMarkers = new Set(
-            yongShen
-                .map(group => {
-                    const { position, liuQin } = group.selected;
-                    if (typeof position !== 'number' || typeof liuQin !== 'string') {
-                        return null;
-                    }
-                    return `${position}:${liuQin}`;
-                })
-                .filter((value): value is string => Boolean(value))
-        );
+        const yongShenMarkers = buildYongShenMarkers(yongShen);
 
-        // 获取卦码和世应宫位
         const hexagramCode = yaosTpCode(result.yaos);
         const shiYing = getShiYingPosition(hexagramCode);
         const palace = findPalace(hexagramCode);
 
         const lines: string[] = [];
 
-        // 问题
+        // ── 求卦问题 ──
         if (question) {
             lines.push(`【求卦问题】${question}`);
             lines.push('');
         }
 
-        // 卦象信息
+        // ── 卦象信息（含经文） ──
         lines.push('【卦象信息】');
-        lines.push(`本卦：${hexagram.name}`);
-        lines.push(`上卦：${hexagram.upperTrigram}（${hexagram.nature}）`);
-        lines.push(`下卦：${hexagram.lowerTrigram}`);
-        lines.push(`五行：${hexagram.element}`);
-        lines.push(`宫位：${palace?.name || '未知'}（${palace?.element || ''}）`);
+        lines.push(`本卦：${hexagram.name}（${palace?.name || '未知'}宫·${hexagram.element}）`);
+        if (hexagramText) {
+            lines.push(`卦辞：${hexagramText.gua}`);
+            lines.push(`象辞：${hexagramText.xiang}`);
+        }
         if (changedHexagram && changedLines.length > 0) {
             lines.push(`变卦：${changedHexagram.name}（${changedHexagram.upperTrigram}/${changedHexagram.lowerTrigram}）`);
-            lines.push(`变爻：${changedLines.map(l => yaoNames[l - 1]).join('、')}`);
+            lines.push(`变爻：${changedLines.map(l => {
+                const yao = yaoByPositionMemo.get(l);
+                return yao ? traditionalYaoName(l, yao.type) : YAO_POSITION_NAMES[l - 1];
+            }).join('、')}`);
+            if (changedHexagramText) {
+                lines.push(`变卦卦辞：${changedHexagramText.gua}`);
+                lines.push(`变卦象辞：${changedHexagramText.xiang}`);
+            }
+            // 动爻爻辞
+            const movingYaoCi = changedLines
+                .map(pos => {
+                    const yao = yaoByPositionMemo.get(pos);
+                    return { pos, yao: hexagramText?.yao?.[pos - 1], type: yao?.type ?? 1 };
+                })
+                .filter((item): item is { pos: number; yao: NonNullable<typeof item.yao>; type: number } => Boolean(item.yao));
+            if (movingYaoCi.length > 0) {
+                movingYaoCi.forEach(({ pos, yao, type }) => {
+                    lines.push(`${traditionalYaoName(pos, type)}爻辞：${yao.text}`);
+                });
+            }
         } else {
             lines.push('无变爻');
         }
 
-        // 起卦时间
+        // ── 起卦时间 ──
         lines.push('');
         lines.push('【起卦时间】');
-        lines.push(`${ganZhiTime.year.gan}${ganZhiTime.year.zhi}年 ${ganZhiTime.month.gan}${ganZhiTime.month.zhi}月 ${ganZhiTime.day.gan}${ganZhiTime.day.zhi}日 ${ganZhiTime.hour.gan}${ganZhiTime.hour.zhi}时`);
-        if (kongWangByPillar) {
-            lines.push(`年旬空：${kongWangByPillar.year.xun}，空亡地支：${kongWangByPillar.year.kongDizhi.join('、')}`);
-            lines.push(`月旬空：${kongWangByPillar.month.xun}，空亡地支：${kongWangByPillar.month.kongDizhi.join('、')}`);
-            lines.push(`日旬空：${kongWangByPillar.day.xun}，空亡地支：${kongWangByPillar.day.kongDizhi.join('、')}`);
-            lines.push(`时旬空：${kongWangByPillar.hour.xun}，空亡地支：${kongWangByPillar.hour.kongDizhi.join('、')}`);
-        } else {
-            lines.push(`日旬空：${kongWang.xun}，空亡地支：${kongWang.kongDizhi.join('、')}`);
-        }
+        lines.push(formatGanZhiTime(ganZhiTime));
+        formatKongWangLines(kongWangByPillar, kongWang).forEach(l => lines.push(l));
         lines.push(`世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻`);
 
-        // 六爻排盘
+        // ── 六爻排盘 ──
         lines.push('');
         lines.push('【六爻排盘】');
-        fullYaos.forEach((y) => {
-            const shiYingMark = y.isShiYao ? '【世】' : y.isYingYao ? '【应】' : '';
-            const yongShenMark = yongShenMarkers.has(`${y.position}:${y.liuQin}`) ? '【用神】' : '';
-            const changeMark = y.isChanging ? '（动）' : '';
-            const statusParts = [
-                WANG_SHUAI_LABELS[y.strength.wangShuai],
-                y.kongWangState !== 'not_kong' ? KONG_WANG_LABELS[y.kongWangState] : '',
-                y.movementLabel,
-                y.changSheng?.stage,
-                y.changedYao?.relation,
-            ].filter(Boolean);
-            const shenShaMark = y.shenSha.length > 0 ? ` 神煞:${y.shenSha.join('、')}` : '';
-            lines.push(`${yaoNames[y.position - 1]}：${y.liuQin} ${y.liuShen} ${y.naJia}${y.wuXing} ${shiYingMark}${yongShenMark}${changeMark} [${statusParts.join('·')}] ${y.influence.description}${shenShaMark}`);
+        sortYaosDescending(fullYaos).forEach((y) => {
+            lines.push(formatYaoDetailLine(y, { yongShenMarkers }));
         });
 
-        // 用神分析
+        // ── 用神分析（含神系） ──
         lines.push('');
         lines.push('【用神分析】');
+        const shenSystemMap = buildShenSystemMap(shenSystemByYongShen);
         yongShen.forEach((group) => {
-            lines.push(`目标：${group.targetLiuQin}（来源：手动指定）`);
             const main = group.selected;
-            lines.push(`主用神：${main.liuQin}${main.position ? `（第${main.position}爻）` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel}`);
-            if (main.factors.length > 0) {
-                lines.push(`依据：${main.factors.join('、')}`);
+            lines.push(`目标：${group.targetLiuQin}（${YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus}）`);
+            lines.push(`主用神：${main.liuQin}${main.position ? `@${YAO_POSITION_NAMES[main.position - 1]}` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel}`);
+            if (main.evidence.length > 0) {
+                lines.push(`依据：${main.evidence.join('、')}`);
+            }
+            if (group.selectionNote) {
+                lines.push(`说明：${group.selectionNote}`);
             }
             if (group.candidates.length > 0) {
-                lines.push(`候选（按参考优先级）：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${yaoNames[c.position - 1]}` : ''}`).join('；')}`);
-                if (group.candidates.length > 1) {
-                    lines.push('说明：候选顺序越靠后，参考度越低。');
-                }
+                lines.push(`并看：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${YAO_POSITION_NAMES[c.position - 1]}` : ''}${c.evidence.length > 0 ? `（${c.evidence.join('、')}）` : ''}`).join('；')}`);
             }
-            const system = shenSystemByYongShen.find(item => item.targetLiuQin === group.targetLiuQin);
-            if (system?.yuanShen) {
-                lines.push(`原神：${system.yuanShen.liuQin}（${system.yuanShen.wuXing}）`);
-            }
-            if (system?.jiShen) {
-                lines.push(`忌神：${system.jiShen.liuQin}（${system.jiShen.wuXing}）`);
-            }
-            if (system?.chouShen) {
-                lines.push(`仇神：${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
-            }
-            const targetRecs = timeRecommendations.filter(item => item.targetLiuQin === group.targetLiuQin);
-            if (targetRecs.length > 0) {
-                lines.push(`应期：${targetRecs.map(rec => `${rec.startDate}~${rec.endDate}(${rec.confidence})`).join('；')}`);
+            const system = shenSystemMap.get(group.targetLiuQin);
+            const shenParts = formatShenSystemParts(system);
+            if (shenParts.length > 0) {
+                lines.push(`神系：${shenParts.join('，')}`);
             }
             lines.push('');
         });
 
-        // 伏神
+        // ── 伏神 ──
         if (fuShen && fuShen.length > 0) {
-            lines.push('');
-            lines.push('伏神分析：');
+            lines.push('【伏神】');
             fuShen.forEach(fs => {
-                lines.push(`- ${fs.liuQin}伏于${yaoNames[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin}）下，纳甲${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`);
+                lines.push(`${fs.liuQin}伏于${YAO_POSITION_NAMES[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin || ''}）下，${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`);
             });
-        }
-
-        if (globalShenSha.length > 0) {
             lines.push('');
-            lines.push(`【全局神煞】${globalShenSha.join('、')}`);
         }
 
-        // 卦辞
-        if (hexagramText) {
+        // ── 卦级分析（六冲/六合/反吟伏吟/三合/神煞） ──
+        const guaLevelLines = formatGuaLevelLines({
+            liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha,
+        });
+        if (guaLevelLines.length > 0) {
+            lines.push('【卦级分析】');
+            guaLevelLines.forEach(l => lines.push(l));
             lines.push('');
-            lines.push('【卦辞象辞】');
-            lines.push(`卦辞：${hexagramText.gua}`);
-            lines.push(`象辞：${hexagramText.xiang}`);
         }
 
-        // 时间建议
+        // ── 应期与警告 ──
         if (timeRecommendations.length > 0) {
-            lines.push('');
             lines.push('【应期参考】');
             timeRecommendations.forEach(r => {
                 const typeLabel = r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要';
-                lines.push(`${typeLabel}（${r.targetLiuQin} ${r.startDate}~${r.endDate} 参考度${r.confidence}）：${r.description}`);
+                lines.push(`${typeLabel}（${r.targetLiuQin} ${r.trigger}）：${r.description}`);
             });
+            lines.push('');
+        }
+
+        if (warnings && warnings.length > 0) {
+            lines.push('【风险提示】');
+            warnings.forEach(w => lines.push(w));
         }
 
         return lines.join('\n');
@@ -343,7 +344,11 @@ export default function ResultPage() {
         }>('liuyao_result');
         if (parsed) {
             try {
-                const normalizedTargets = normalizeYongShenTargets(parsed.yongShenTargets);
+                const questionPayload = readSessionJSON<LiuyaoQuestionSession | string>('liuyao_question');
+                const questionSessionTargets = questionPayload && typeof questionPayload !== 'string'
+                    ? questionPayload.yongShenTargets
+                    : [];
+                const normalizedTargets = resolveResultYongShenTargets(parsed.yongShenTargets, [], questionSessionTargets);
                 setResult({
                     question: parsed.question,
                     yongShenTargets: normalizedTargets,
@@ -354,6 +359,12 @@ export default function ResultPage() {
                     createdAt: new Date(parsed.createdAt),
                 });
                 setPendingYongShenTargets(normalizedTargets);
+                if (normalizedTargets.length > 0 && normalizeYongShenTargets(parsed.yongShenTargets).length === 0) {
+                    updateSessionJSON('liuyao_result', (prev) => ({
+                        ...(prev || {}),
+                        yongShenTargets: normalizedTargets,
+                    }));
+                }
                 // 恢复 divinationId（用于 AI 解读时更新正确的记录）
                 setDivinationId(parsed.divinationId || null);
                 setConversationId(parsed.conversationId || null);
@@ -458,7 +469,11 @@ export default function ResultPage() {
 
     const handleGetInterpretation = async () => {
         if (!result || !user) return;
-        if (requiresYongShenTargets && !hasEffectiveTargets) {
+        if (!requiresYongShenTargets) {
+            setError('请先明确问题后再解卦');
+            return;
+        }
+        if (requiresYongShenTargets && !hasAppliedTargets) {
             setError('必须先选择分析目标');
             return;
         }
@@ -483,12 +498,11 @@ export default function ResultPage() {
                 body: JSON.stringify({
                     action: 'interpret',
                     question: result.question,
-                    yongShenTargets: effectiveYongShenTargets,
+                    yongShenTargets: appliedYongShenTargets,
                     hexagram: result.hexagram,
                     changedHexagram: result.changedHexagram,
                     changedLines: result.changedLines,
                     yaos: result.yaos,
-                    dayStem: traditionalData.dayStem,
                     divinationId: divinationId,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
@@ -538,6 +552,10 @@ export default function ResultPage() {
         });
         updateSessionJSON('liuyao_result', (prev) => ({
             ...(prev || {}),
+            yongShenTargets: normalized,
+        }));
+        updateSessionJSON<LiuyaoQuestionSession>('liuyao_question', (prev) => ({
+            question: prev?.question ?? result.question,
             yongShenTargets: normalized,
         }));
 
@@ -641,6 +659,12 @@ export default function ResultPage() {
                     </div>
                 )}
 
+                {!requiresYongShenTargets && (
+                    <div className="mb-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4 text-sm text-sky-200">
+                        当前记录未提供明确问题，只展示原始卦象；补充问题和分析目标后，才能进行正式解卦。
+                    </div>
+                )}
+
                 {missingYongShenTargets && (
                     <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                         <div className="mb-2 text-sm font-medium text-amber-500">必须先选择分析目标</div>
@@ -684,7 +708,7 @@ export default function ResultPage() {
                         yongShenPositions={traditionalData?.yongShen
                             .flatMap((group) => {
                                 if (typeof group.selected.position !== 'number') return [];
-                                const line = traditionalData.fullYaos.find(y => y.position === group.selected.position);
+                                const line = yaoByPositionMemo.get(group.selected.position);
                                 if (!line) return [];
                                 return line.liuQin === group.selected.liuQin ? [group.selected.position] : [];
                             })}
@@ -695,19 +719,10 @@ export default function ResultPage() {
                 {showTraditional && traditionalData && (
                     <div className="mb-4 animate-fade-in-up">
                         <TraditionalAnalysis
-                            fullYaos={traditionalData.fullYaos}
-                            yongShen={traditionalData.yongShen}
-                            shenSystemByYongShen={traditionalData.shenSystemByYongShen}
-                            globalShenSha={traditionalData.globalShenSha}
-                            timeRecommendations={traditionalData.timeRecommendations}
+                            analysis={traditionalData}
                             hexagramText={traditionalData.hexagramText}
                             changedHexagramText={traditionalData.changedHexagramText}
                             changedLines={result.changedLines}
-                            ganZhiTime={traditionalData.ganZhiTime}
-                            kongWang={traditionalData.kongWang}
-                            kongWangByPillar={traditionalData.kongWangByPillar}
-                            fuShen={traditionalData.fuShen}
-                            warnings={traditionalData.warnings}
                         />
                     </div>
                 )}
@@ -793,11 +808,11 @@ export default function ResultPage() {
                             ) : (
                                 <button
                                     onClick={handleGetInterpretation}
-                                    disabled={isLoading || (requiresYongShenTargets && !hasEffectiveTargets)}
+                                    disabled={isLoading || !canAnalyze}
                                     className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                                 >
                                     <Sparkles className="w-4 h-4" />
-                                    {requiresYongShenTargets && !hasEffectiveTargets ? '请先选择分析目标' : '获取 AI 深度解读'}
+                                    {!requiresYongShenTargets ? '请先补充问题' : !hasAppliedTargets ? '请先选择分析目标' : '获取 AI 深度解读'}
                                 </button>
                             )}
                         </div>

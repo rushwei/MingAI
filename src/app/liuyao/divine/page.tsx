@@ -40,6 +40,11 @@ export default function DivinePage() {
     const [isComplete, setIsComplete] = useState(false);
     const requiresYongShenTargets = question.trim().length > 0;
 
+    const handleYongShenTargetsChange = (targets: LiuQin[]) => {
+        setYongShenTargets(targets);
+        writeSessionJSON('liuyao_question', { question, yongShenTargets: targets });
+    };
+
     const handleComplete = async (yaos: Yao[], results: CoinTossResult[]) => {
         if (requiresYongShenTargets && yongShenTargets.length === 0) {
             showToast('error', '请至少选择一个分析目标');
@@ -142,7 +147,7 @@ export default function DivinePage() {
                         <div className="text-sm text-red-500 mb-2">必须先选择分析目标</div>
                         <YongShenTargetPicker
                             value={yongShenTargets}
-                            onChange={setYongShenTargets}
+                            onChange={handleYongShenTargetsChange}
                             variant="block"
                         />
                     </div>

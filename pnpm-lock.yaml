@@ -32,6 +32,9 @@ importers:
       '@lobehub/icons':
         specifier: ^4.0.2
         version: 4.0.2(@lobehub/ui@4.12.0)(@types/react@19.2.7)(antd@6.1.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@mingai/mcp-core':
+        specifier: workspace:*
+        version: link:packages/mcp-core
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.89.0)

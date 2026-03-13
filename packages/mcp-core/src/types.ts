@@ -178,6 +178,7 @@ export interface LiuyaoInput {
   date?: string;
   seed?: string;
   seedScope?: string;
+  responseFormat?: ResponseFormat;
 }
 
 export interface LiuyaoOutput {
@@ -194,9 +195,12 @@ export interface LiuyaoOutput {
   changedHexagramName?: string;
   changedHexagramGong?: string;
   changedHexagramElement?: string;
+  changedGuaCi?: string;
+  changedXiangCi?: string;
   // 时间信息
   ganZhiTime: GanZhiTime;
-  kongWang?: KongWangInfo;
+  kongWang: KongWangInfo;
+  kongWangByPillar: KongWangByPillarInfo;
   // 爻信息
   fullYaos: FullYaoInfo[];
   // 用神系统
@@ -206,6 +210,9 @@ export interface LiuyaoOutput {
   globalShenSha: string[];
   // 分析结果
   liuChongGuaInfo?: LiuChongGuaInfo;
+  liuHeGuaInfo?: LiuHeGuaInfo;
+  chongHeTransition?: ChongHeTransition;
+  guaFanFuYin?: GuaFanFuYinInfo;
   sanHeAnalysis?: SanHeAnalysisInfo;
   warnings?: string[];
   timeRecommendations?: TimeRecommendation[];
@@ -213,8 +220,14 @@ export interface LiuyaoOutput {
 
 export type LiuQinType = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
 export type WuXing = '木' | '火' | '土' | '金' | '水';
+export type TianGan = '甲' | '乙' | '丙' | '丁' | '戊' | '己' | '庚' | '辛' | '壬' | '癸';
 export type DiZhi = '子' | '丑' | '寅' | '卯' | '辰' | '巳' | '午' | '未' | '申' | '酉' | '戌' | '亥';
 export type YaoMovementState = 'static' | 'changing' | 'hidden_moving' | 'day_break';
+export type WangShuai = 'wang' | 'xiang' | 'xiu' | 'qiu' | 'si';
+export type KongWangState = 'not_kong' | 'kong_static' | 'kong_changing' | 'kong_ri_chong' | 'kong_yue_jian';
+export type YaoSpecialStatus = 'none' | 'anDong' | 'riPo' | 'yuePo';
+export type YongShenSelectionStatus = 'resolved' | 'ambiguous' | 'from_changed' | 'from_temporal' | 'from_fushen' | 'missing';
+export type CandidateStrength = 'strong' | 'moderate' | 'weak' | 'unknown';
 
 export interface ChangedYaoDetail {
   type: number;
@@ -231,32 +244,52 @@ export interface GanZhiTime {
   month: { gan: string; zhi: string };
   day: { gan: string; zhi: string };
   hour: { gan: string; zhi: string };
+  xun: string;
+}
+
+export interface YaoStrengthInfo {
+  wangShuai: WangShuai;
+  isStrong: boolean;
+  specialStatus: YaoSpecialStatus;
+  evidence: string[];
 }
 
 export interface YongShenCandidateInfo {
   liuQin: string;
   naJia?: string;
+  changedNaJia?: string;
+  huaType?: string;
   element: string;
   position?: number;
-  strengthScore: number;
-  isStrong: boolean;
+  source: 'visible' | 'changed' | 'temporal' | 'fushen';
+  strength: CandidateStrength;
   strengthLabel: string;
   movementState: YaoMovementState;
   movementLabel: string;
   isShiYao: boolean;
   isYingYao: boolean;
-  kongWangState?: string;
-  factors: string[];
+  kongWangState?: KongWangState;
+  evidence: string[];
 }
 
 export interface YongShenGroupInfo {
   targetLiuQin: LiuQinType;
+  selectionStatus: YongShenSelectionStatus;
+  selectionNote: string;
+  selected: YongShenCandidateInfo;
   candidates: YongShenCandidateInfo[];
 }
 
 export interface KongWangInfo {
   xun: string;
-  kongZhi: [string, string];
+  kongDizhi: [DiZhi, DiZhi];
+}
+
+export interface KongWangByPillarInfo {
+  year: KongWangInfo;
+  month: KongWangInfo;
+  day: KongWangInfo;
+  hour: KongWangInfo;
 }
 
 export interface FullYaoInfo {
@@ -271,19 +304,15 @@ export interface FullYaoInfo {
   wuXing: string;
   isShiYao: boolean;
   isYingYao: boolean;
-  // 旺衰状态
-  wangShuai: string;
-  wangShuaiLabel: string;
-  kongWangState?: string;
-  kongWangLabel?: string;
-  // 强度评分
-  strengthScore?: number;
-  isStrong?: boolean;
-  strengthFactors?: string[];
-  // 十二长生
-  changSheng?: string;
-  shenSha: string[];
+  kongWangState?: KongWangState;
+  strength: YaoStrengthInfo;
+  yaoCi?: string;
   changedYao: ChangedYaoDetail | null;
+  shenSha: string[];
+  changSheng?: {
+    stage: string;
+    strength: 'strong' | 'medium' | 'weak';
+  };
 }
 
 export interface FuShenInfo {
@@ -291,7 +320,8 @@ export interface FuShenInfo {
   wuXing: string;
   naJia: string;
   feiShenPosition: number;
-  isAvailable: boolean;
+  feiShenLiuQin?: string;
+  availabilityStatus: 'available' | 'conditional' | 'blocked';
   availabilityReason: string;
 }
 
@@ -310,9 +340,26 @@ export interface LiuChongGuaInfo {
   description?: string;
 }
 
+export interface LiuHeGuaInfo {
+  isLiuHeGua: boolean;
+  description?: string;
+}
+
+export interface ChongHeTransition {
+  type: 'chong_to_he' | 'he_to_chong' | 'none';
+  description?: string;
+}
+
+export interface GuaFanFuYinInfo {
+  isFanYin: boolean;
+  isFuYin: boolean;
+  description?: string;
+}
+
 export interface SanHeAnalysisInfo {
   hasFullSanHe: boolean;
-  fullSanHe?: { name: string; result: string; positions: number[] };
+  fullSanHe?: { name: string; result: string; positions: number[]; description?: string };
+  fullSanHeList?: Array<{ name: string; result: string; positions: number[]; description?: string }>;
   hasBanHe: boolean;
   banHe?: Array<{ branches: string[]; result: string; type: string; positions: number[] }>;
 }
@@ -320,10 +367,9 @@ export interface SanHeAnalysisInfo {
 export interface TimeRecommendation {
   targetLiuQin: LiuQinType;
   type: 'favorable' | 'unfavorable' | 'critical';
+  trigger: string;
   earthlyBranch?: string;
-  startDate: string;
-  endDate: string;
-  confidence: number;
+  basis: string[];
   description: string;
 }
 

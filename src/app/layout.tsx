@@ -11,7 +11,6 @@
  */
 
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
@@ -23,17 +22,6 @@ import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
-
-// 字体配置 - 使用 Google Fonts 的 Geist 字体
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 // SEO 元数据配置
 export const metadata: Metadata = {
@@ -90,7 +78,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className="antialiased min-h-screen"
       >
         {/* ThemeProvider 提供主题上下文，包裹整个应用 */}
         <ThemeProvider>
