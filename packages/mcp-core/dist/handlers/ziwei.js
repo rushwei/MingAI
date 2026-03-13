@@ -1,9 +1,9 @@
 /**
  * 紫微斗数排盘处理器
  */
-import { createAstrolabe, mapStar, MUTAGEN_NAMES } from './ziwei-shared.js';
+import { createAstrolabeWithTrueSolar, mapStar, MUTAGEN_NAMES, STEM_MUTAGEN_TABLE, computeLiuNianAges, computeDouJun, hourToTimeIndex } from './ziwei-shared.js';
 export async function handleZiweiCalculate(input) {
-    const astrolabe = createAstrolabe(input);
+    const { astrolabe, trueSolarTimeInfo } = createAstrolabeWithTrueSolar(input);
     const mutagenSummary = [];
     // 转换宫位数据
     const palaces = astrolabe.palaces.map((palace, idx) => {
@@ -29,13 +29,58 @@ export async function handleZiweiCalculate(input) {
             jiangqian12: palace.jiangqian12,
             suiqian12: palace.suiqian12,
             ages: palace.ages,
+            decadalRange: palace.decadal?.range ? [palace.decadal.range[0], palace.decadal.range[1]] : undefined,
             majorStars: palace.majorStars.map(mapStar),
             minorStars: palace.minorStars.map(mapStar),
             adjStars: (palace.adjectiveStars || []).map(mapStar),
         };
     });
+    // 宫干自化标注（离心 + 向心）
+    for (const palace of palaces) {
+        const allStars = [...palace.majorStars, ...palace.minorStars, ...(palace.adjStars || [])];
+        // 离心自化：本宫宫干四化落回本宫
+        const selfMutagenStars = STEM_MUTAGEN_TABLE[palace.heavenlyStem];
+        if (selfMutagenStars) {
+            for (const star of allStars) {
+                const mIdx = selfMutagenStars.indexOf(star.name);
+                if (mIdx >= 0)
+                    star.selfMutagen = MUTAGEN_NAMES[mIdx];
+            }
+        }
+        // 向心自化：对宫宫干四化飞入本宫
+        const palaceIdx = palace.index ?? 0;
+        const oppositeIdx = (palaceIdx + 6) % 12;
+        const oppositePalace = palaces.find(p => (p.index ?? 0) === oppositeIdx);
+        if (oppositePalace) {
+            const oppMutagenStars = STEM_MUTAGEN_TABLE[oppositePalace.heavenlyStem];
+            if (oppMutagenStars) {
+                for (const star of allStars) {
+                    const mIdx = oppMutagenStars.indexOf(star.name);
+                    if (mIdx >= 0)
+                        star.oppositeMutagen = MUTAGEN_NAMES[mIdx];
+                }
+            }
+        }
+    }
     // 获取四柱
     const pillars = (astrolabe.chineseDate || '').split(' ');
+    // 流年虚岁：从年柱第二个字取出生年地支
+    const yearPillar = pillars[0] || '';
+    const birthYearBranch = yearPillar.length >= 2 ? yearPillar[1] : '';
+    if (birthYearBranch) {
+        for (const palace of palaces) {
+            palace.liuNianAges = computeLiuNianAges(palace.earthlyBranch, birthYearBranch);
+        }
+    }
+    // 斗君计算
+    let douJun;
+    const rawDates = astrolabe.rawDates;
+    if (rawDates?.lunarDate) {
+        const lunarMonth = rawDates.lunarDate.lunarMonth;
+        const hourValue = input.birthHour + (input.birthMinute || 0) / 60;
+        const timeIdx = hourToTimeIndex(hourValue);
+        douJun = computeDouJun(lunarMonth, timeIdx);
+    }
     // 提取大限数据
     const decadalList = astrolabe.palaces.map((rawPalace, index) => {
         const decadal = rawPalace.decadal;
@@ -70,5 +115,8 @@ export async function handleZiweiCalculate(input) {
         time: astrolabe.time,
         timeRange: astrolabe.timeRange,
         mutagenSummary,
+        gender: input.gender,
+        douJun,
+        trueSolarTimeInfo,
     };
 }

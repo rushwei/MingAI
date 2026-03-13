@@ -16,6 +16,7 @@ export interface BirthTimeInput {
 export interface BaziInput extends BirthTimeInput {
     gender: Gender;
     birthPlace?: string;
+    longitude?: number;
 }
 export interface HiddenStemInfo {
     stem: string;
@@ -47,6 +48,7 @@ export interface BaziOutput {
         hour: PillarInfo;
     };
     relations: PillarRelation[];
+    trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 export interface PillarInfo {
     stem: string;
@@ -100,6 +102,7 @@ export interface BaziPillarsResolveOutput {
 }
 export interface ZiweiInput extends BirthTimeInput {
     gender: Gender;
+    longitude?: number;
 }
 export interface ZiweiOutput {
     solarDate: string;
@@ -122,6 +125,24 @@ export interface ZiweiOutput {
     time?: string;
     timeRange?: string;
     mutagenSummary?: MutagenSummaryItem[];
+    gender?: string;
+    douJun?: string;
+    trueSolarTimeInfo?: TrueSolarTimeInfo;
+}
+/** 真太阳时校正信息 */
+export interface TrueSolarTimeInfo {
+    /** 钟表时间 (HH:MM) */
+    clockTime: string;
+    /** 真太阳时 (HH:MM) */
+    trueSolarTime: string;
+    /** 出生地经度 */
+    longitude: number;
+    /** 总校正量（分钟，正值表示真太阳时比钟表时间快） */
+    correctionMinutes: number;
+    /** 真太阳时对应的时辰索引 (0-12) */
+    trueTimeIndex: number;
+    /** 跨日偏移（-1=前一天, 0=当天, 1=后一天） */
+    dayOffset: number;
 }
 export interface MutagenSummaryItem {
     mutagen: '禄' | '权' | '科' | '忌';
@@ -143,12 +164,16 @@ export interface PalaceInfo {
     jiangqian12?: string;
     suiqian12?: string;
     ages?: number[];
+    decadalRange?: [number, number];
+    liuNianAges?: number[];
 }
 export interface StarInfo {
     name: string;
     type?: string;
     brightness?: string;
     mutagen?: string;
+    selfMutagen?: string;
+    oppositeMutagen?: string;
 }
 export interface DecadalInfo {
     startAge: number;

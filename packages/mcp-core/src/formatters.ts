@@ -19,7 +19,7 @@ import { STEM_ELEMENTS } from './utils.js';
  * 格式化八字结果为 Markdown
  */
 export function formatBaziAsMarkdown(result: BaziOutput): string {
-  const { gender, birthPlace, dayMaster, kongWang, fourPillars, relations } = result;
+  const { gender, birthPlace, dayMaster, kongWang, fourPillars, relations, trueSolarTimeInfo } = result;
   const genderText = gender === 'male' ? '男' : '女';
 
   let md = `# 八字命盘
@@ -29,6 +29,8 @@ export function formatBaziAsMarkdown(result: BaziOutput): string {
 - **日主**: ${dayMaster}
 - **命主五行**: ${dayMaster.charAt(0)}${STEM_ELEMENTS[dayMaster.charAt(0)] || ''}
 ${birthPlace ? `- **出生地**: ${birthPlace}` : ''}
+${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
+- **真太阳时**: ${trueSolarTimeInfo.trueSolarTime}（经度 ${trueSolarTimeInfo.longitude}°，校正 ${trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${trueSolarTimeInfo.correctionMinutes} 分钟）` : ''}
 
 ## 四柱
 
@@ -144,11 +146,14 @@ ${candidate.isLeapMonth ? '- **闰月**' : ''}
  * 格式化紫微斗数结果为 Markdown
  */
 export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
-  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, sign, palaces, decadalList, time, timeRange, earthlyBranchOfSoulPalace, earthlyBranchOfBodyPalace, mutagenSummary } = result;
+  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, sign, palaces, decadalList, time, timeRange, earthlyBranchOfSoulPalace, earthlyBranchOfBodyPalace, mutagenSummary, gender, douJun, trueSolarTimeInfo } = result;
+
+  const genderText = gender === 'male' ? '男' : gender === 'female' ? '女' : '';
 
   let md = `# 紫微命盘
 
 ## 基本信息
+${genderText ? `- **性别**: ${genderText}` : ''}
 - **阳历**: ${solarDate}
 - **农历**: ${lunarDate}
 - **命主**: ${soul}
@@ -159,6 +164,9 @@ ${sign ? `- **星座**: ${sign}` : ''}
 ${time ? `- **时辰**: ${time}${timeRange ? `（${timeRange}）` : ''}` : ''}
 ${earthlyBranchOfSoulPalace ? `- **命宫地支**: ${earthlyBranchOfSoulPalace}` : ''}
 ${earthlyBranchOfBodyPalace ? `- **身宫地支**: ${earthlyBranchOfBodyPalace}` : ''}
+${douJun ? `- **子年斗君**: ${douJun}` : ''}
+${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
+- **真太阳时**: ${trueSolarTimeInfo.trueSolarTime}（经度 ${trueSolarTimeInfo.longitude}°，校正 ${trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${trueSolarTimeInfo.correctionMinutes} 分钟）` : ''}
 
 ## 四柱
 - 年柱: ${fourPillars.year}
@@ -168,19 +176,22 @@ ${earthlyBranchOfBodyPalace ? `- **身宫地支**: ${earthlyBranchOfBodyPalace}`
 
 ## 十二宫位
 
-| 宫位 | 干支 | 主星 | 辅星 | 长生 | 博士 | 标记 |
+| 宫位 | 干支 | 主星 | 辅星 | 杂曜 | 神煞 | 标记 |
 |------|------|------|------|------|------|------|
 `;
 
   for (const palace of palaces) {
     const majorStars = palace.majorStars.map(formatStarLabel).join('、') || '-';
     const minorStars = palace.minorStars.map(formatStarLabel).join('、') || '-';
-    const changsheng = palace.changsheng12 || '-';
-    const boshi = palace.boshi12 || '-';
+    const adjStars = (palace.adjStars || []).map(formatStarLabel).join('、') || '-';
+    const shensha = [palace.changsheng12, palace.boshi12, palace.jiangqian12, palace.suiqian12].filter(Boolean).join('、') || '-';
     const marks: string[] = [];
     if (palace.isBodyPalace) marks.push('身');
     if (palace.isOriginalPalace) marks.push('因');
-    md += `| ${palace.name} | ${palace.heavenlyStem}${palace.earthlyBranch} | ${majorStars} | ${minorStars} | ${changsheng} | ${boshi} | ${marks.join(' ') || '-'} |\n`;
+    if (palace.decadalRange) marks.push(`限${palace.decadalRange[0]}~${palace.decadalRange[1]}`);
+    if (palace.liuNianAges && palace.liuNianAges.length > 0) marks.push(`流年:${palace.liuNianAges.slice(0, 5).join(',')}`);
+    if (palace.ages && palace.ages.length > 0) marks.push(`小限:${palace.ages.slice(0, 5).join(',')}`);
+    md += `| ${palace.name} | ${palace.heavenlyStem}${palace.earthlyBranch} | ${majorStars} | ${minorStars} | ${adjStars} | ${shensha} | ${marks.join(' ') || '-'} |\n`;
   }
 
   if (mutagenSummary && mutagenSummary.length > 0) {
@@ -527,11 +538,13 @@ export function formatAsMarkdown(toolName: string, result: unknown): string {
   }
 }
 
-// 辅助函数：格式化星曜标签（名称+亮度+四化）
-function formatStarLabel(s: { name: string; brightness?: string; mutagen?: string }): string {
+// 辅助函数：格式化星曜标签（名称+亮度+四化+自化）
+function formatStarLabel(s: { name: string; brightness?: string; mutagen?: string; selfMutagen?: string; oppositeMutagen?: string }): string {
   let label = s.name;
   if (s.brightness) label += `(${s.brightness})`;
   if (s.mutagen) label += `[化${s.mutagen}]`;
+  if (s.selfMutagen) label += `[↓${s.selfMutagen}]`;
+  if (s.oppositeMutagen) label += `[↑${s.oppositeMutagen}]`;
   return label;
 }
 

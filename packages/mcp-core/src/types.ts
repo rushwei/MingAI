@@ -24,6 +24,7 @@ export interface BirthTimeInput {
 export interface BaziInput extends BirthTimeInput {
   gender: Gender;
   birthPlace?: string;
+  longitude?: number;
 }
 
 export interface HiddenStemInfo {
@@ -61,6 +62,7 @@ export interface BaziOutput {
     hour: PillarInfo;
   };
   relations: PillarRelation[];
+  trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 
 export interface PillarInfo {
@@ -121,6 +123,7 @@ export interface BaziPillarsResolveOutput {
 
 export interface ZiweiInput extends BirthTimeInput {
   gender: Gender;
+  longitude?: number;
 }
 
 export interface ZiweiOutput {
@@ -144,6 +147,25 @@ export interface ZiweiOutput {
   time?: string;
   timeRange?: string;
   mutagenSummary?: MutagenSummaryItem[];
+  gender?: string;    // 回显性别
+  douJun?: string;    // 子年斗君地支
+  trueSolarTimeInfo?: TrueSolarTimeInfo;
+}
+
+/** 真太阳时校正信息 */
+export interface TrueSolarTimeInfo {
+  /** 钟表时间 (HH:MM) */
+  clockTime: string;
+  /** 真太阳时 (HH:MM) */
+  trueSolarTime: string;
+  /** 出生地经度 */
+  longitude: number;
+  /** 总校正量（分钟，正值表示真太阳时比钟表时间快） */
+  correctionMinutes: number;
+  /** 真太阳时对应的时辰索引 (0-12) */
+  trueTimeIndex: number;
+  /** 跨日偏移（-1=前一天, 0=当天, 1=后一天） */
+  dayOffset: number;
 }
 
 export interface MutagenSummaryItem {
@@ -167,6 +189,8 @@ export interface PalaceInfo {
   jiangqian12?: string;
   suiqian12?: string;
   ages?: number[];
+  decadalRange?: [number, number];  // 大限虚岁范围 [起, 止]
+  liuNianAges?: number[];           // 流年虚岁列表
 }
 
 export interface StarInfo {
@@ -174,6 +198,8 @@ export interface StarInfo {
   type?: string;
   brightness?: string;
   mutagen?: string;
+  selfMutagen?: string;       // 离心自化 ↓（宫干四化落回本宫）
+  oppositeMutagen?: string;   // 向心自化 ↑（对宫宫干四化飞入本宫）
 }
 
 export interface DecadalInfo {

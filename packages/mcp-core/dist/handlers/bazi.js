@@ -4,6 +4,7 @@
 import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, getKongWang, } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
+import { calculateTrueSolarTime } from './ziwei-shared.js';
 // 从数据模块导入静态数据
 import { DI_ZHI, HIDDEN_STEM_DETAILS, NA_YIN_TABLE, DI_SHI_ORDER, CHANG_SHENG_START, LIU_HE, LIU_HE_HUA, SAN_HE, LIU_CHONG, XIANG_HAI, XIANG_XING, YUE_DE, TIAN_DE, JIN_YU, DE_XIU, TIAN_DE_HE, YUE_DE_HE, } from '../data/shensha-data.js';
 export function getNaYin(stem, branch) {
@@ -260,7 +261,31 @@ function validateLunarDateInput(params) {
     };
 }
 export async function handleBaziCalculate(input) {
-    const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, birthPlace, } = input;
+    const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, birthPlace, longitude, } = input;
+    // 真太阳时校正（仅公历 + 提供经度时生效）
+    let trueSolarTimeInfo;
+    let effectiveHour = birthHour;
+    let effectiveMinute = birthMinute;
+    let effectiveDay = birthDay;
+    if (longitude != null && calendarType !== 'lunar') {
+        if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+            throw new Error('longitude 必须是 -180 到 180 之间的数字');
+        }
+        trueSolarTimeInfo = calculateTrueSolarTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
+        // 用真太阳时的小时/分钟替换
+        const trueTotal = birthHour * 60 + birthMinute + trueSolarTimeInfo.correctionMinutes;
+        let trueMins = Math.round(trueTotal);
+        if (trueMins < 0) {
+            trueMins += 1440;
+            effectiveDay -= 1;
+        }
+        else if (trueMins >= 1440) {
+            trueMins -= 1440;
+            effectiveDay += 1;
+        }
+        effectiveHour = Math.floor(trueMins / 60);
+        effectiveMinute = trueMins % 60;
+    }
     let solar;
     let lunar;
     if (calendarType === 'lunar') {
@@ -276,7 +301,7 @@ export async function handleBaziCalculate(input) {
         lunar = prepared.lunar;
     }
     else {
-        solar = Solar.fromYmdHms(birthYear, birthMonth, birthDay, birthHour, birthMinute, 0);
+        solar = Solar.fromYmdHms(birthYear, birthMonth, effectiveDay, effectiveHour, effectiveMinute, 0);
         lunar = solar.getLunar();
     }
     const eightChar = lunar.getEightChar();
@@ -331,5 +356,6 @@ export async function handleBaziCalculate(input) {
         kongWang,
         fourPillars,
         relations,
+        trueSolarTimeInfo,
     };
 }

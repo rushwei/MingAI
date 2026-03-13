@@ -3,6 +3,49 @@
  */
 import { astro } from 'iztro';
 export const MUTAGEN_NAMES = ['禄', '权', '科', '忌'];
+/** 天干四化表: stem → [禄星, 权星, 科星, 忌星] */
+export const STEM_MUTAGEN_TABLE = {
+    '甲': ['廉贞', '破军', '武曲', '太阳'],
+    '乙': ['天机', '天梁', '紫微', '太阴'],
+    '丙': ['天同', '天机', '文昌', '廉贞'],
+    '丁': ['太阴', '天同', '天机', '巨门'],
+    '戊': ['贪狼', '太阴', '右弼', '天机'],
+    '己': ['武曲', '贪狼', '天梁', '文曲'],
+    '庚': ['太阳', '武曲', '太阴', '天同'],
+    '辛': ['巨门', '太阳', '文曲', '文昌'],
+    '壬': ['天梁', '紫微', '左辅', '武曲'],
+    '癸': ['破军', '巨门', '太阴', '贪狼'],
+};
+const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+/** 计算流年虚岁列表 */
+export function computeLiuNianAges(palaceBranch, birthYearBranch, max = 60) {
+    const pIdx = DI_ZHI.indexOf(palaceBranch);
+    const bIdx = DI_ZHI.indexOf(birthYearBranch);
+    if (pIdx < 0 || bIdx < 0)
+        return [];
+    const offset = (pIdx - bIdx + 12) % 12;
+    const ages = [];
+    for (let age = offset + 1; age <= max; age += 12)
+        ages.push(age);
+    return ages;
+}
+/**
+ * 计算子年斗君地支
+ *
+ * 公式来源：iztro FunctionalAstrolabe.js 流月算法
+ * 「流年地支逆数到生月所在宫位，再从该宫位顺数到生时，为正月所在宫位」
+ *
+ * 斗君 = 子年正月宫位地支
+ *   = DI_ZHI[(13 - lunarMonth + hourBranchIdx) % 12]
+ *
+ * 其中 hourBranchIdx 为时辰地支绝对索引（子=0, 丑=1, ..., 亥=11）
+ * timeIndex 12（晚子时）与 timeIndex 0（早子时）同为子，取 % 12
+ */
+export function computeDouJun(lunarMonth, timeIndex) {
+    // timeIndex: 早子时=0, 丑=1, ..., 亥=11, 晚子时=12 → 子=0
+    const hourBranchIdx = timeIndex % 12;
+    return DI_ZHI[(13 - lunarMonth + hourBranchIdx + 12) % 12];
+}
 /** 将 iztro Star 映射为 StarInfo */
 export function mapStar(star) {
     return {
@@ -19,6 +62,81 @@ export function hourToTimeIndex(hour) {
     if (hour >= 0 && hour < 1)
         return 0;
     return Math.floor((hour + 1) / 2);
+}
+// ===== 真太阳时计算 =====
+/** 中国标准时区基准经度 (UTC+8) */
+const STANDARD_MERIDIAN = 120;
+/**
+ * 计算时差方程 (Equation of Time)，单位：分钟
+ *
+ * 使用 Spencer (1971) 近似公式，精度约 ±30 秒，满足时辰判定需求。
+ * 参考: Spencer, J.W. (1971) "Fourier series representation of the position of the sun"
+ *
+ * @param dayOfYear 一年中的第几天 (1-366)
+ * @param year 年份（用于判断闰年计算总天数）
+ */
+function equationOfTime(dayOfYear, year) {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const totalDays = isLeap ? 366 : 365;
+    // B 角（弧度）
+    const B = (2 * Math.PI * (dayOfYear - 81)) / totalDays;
+    // Spencer 公式，结果单位：分钟
+    return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+}
+/** 计算某日期是一年中的第几天 */
+function getDayOfYear(year, month, day) {
+    const d = new Date(year, month - 1, day);
+    const start = new Date(year, 0, 1);
+    return Math.floor((d.getTime() - start.getTime()) / 86400000) + 1;
+}
+/**
+ * 计算真太阳时
+ *
+ * 公式: 真太阳时 = 钟表时间 + (经度 - 120°) × 4分钟 + 时差方程(日期)
+ *
+ * @param input 出生时间参数（公历）
+ * @param longitude 出生地经度（东经为正，西经为负；中国范围约 73°~135°）
+ * @returns 真太阳时信息，包含校正后的小时分钟和时辰索引
+ */
+export function calculateTrueSolarTime(input, longitude) {
+    const { birthYear, birthMonth, birthDay, birthHour, birthMinute = 0 } = input;
+    // 经度校正：每度 4 分钟
+    const longitudeCorrection = (longitude - STANDARD_MERIDIAN) * 4;
+    // 时差方程校正
+    const dayOfYear = getDayOfYear(birthYear, birthMonth, birthDay);
+    const eot = equationOfTime(dayOfYear, birthYear);
+    // 总校正量（分钟）
+    const totalCorrectionMinutes = longitudeCorrection + eot;
+    // 钟表时间转总分钟数
+    const clockTotalMinutes = birthHour * 60 + birthMinute;
+    // 真太阳时总分钟数
+    let trueTotalMinutes = clockTotalMinutes + totalCorrectionMinutes;
+    // 处理跨日（保持在 0~1440 范围内）
+    let dayOffset = 0;
+    if (trueTotalMinutes < 0) {
+        trueTotalMinutes += 1440;
+        dayOffset = -1;
+    }
+    else if (trueTotalMinutes >= 1440) {
+        trueTotalMinutes -= 1440;
+        dayOffset = 1;
+    }
+    const trueHour = Math.floor(trueTotalMinutes / 60);
+    const trueMinute = Math.round(trueTotalMinutes % 60);
+    // 格式化时间字符串
+    const clockTimeStr = `${String(birthHour).padStart(2, '0')}:${String(birthMinute).padStart(2, '0')}`;
+    const trueTimeStr = `${String(trueHour).padStart(2, '0')}:${String(trueMinute).padStart(2, '0')}`;
+    // 计算真太阳时对应的时辰索引
+    const trueHourValue = trueHour + trueMinute / 60;
+    const trueTimeIndex = hourToTimeIndex(trueHourValue);
+    return {
+        clockTime: clockTimeStr,
+        trueSolarTime: trueTimeStr,
+        longitude,
+        correctionMinutes: Math.round(totalCorrectionMinutes * 10) / 10,
+        trueTimeIndex,
+        dayOffset,
+    };
 }
 /** 校验出生参数并创建星盘 */
 export function createAstrolabe(input) {
@@ -46,4 +164,35 @@ export function createAstrolabe(input) {
         return astro.byLunar(dateStr, timeIndex, genderStr, isLeapMonth, true, 'zh-CN');
     }
     return astro.bySolar(dateStr, timeIndex, genderStr, true, 'zh-CN');
+}
+/**
+ * 创建星盘（支持真太阳时校正）
+ *
+ * 当提供 longitude 时，先计算真太阳时，再用校正后的时辰索引排盘。
+ * 注意：真太阳时仅影响时辰索引（决定命宫位置），不改变日期本身。
+ * 跨日情况（dayOffset !== 0）暂不调整日期，因为时辰边界才是命理关键。
+ */
+export function createAstrolabeWithTrueSolar(input) {
+    const { longitude, ...baseInput } = input;
+    if (longitude == null) {
+        return { astrolabe: createAstrolabe(baseInput) };
+    }
+    if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+        throw new Error('longitude 必须是 -180 到 180 之间的数字');
+    }
+    const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, } = input;
+    const trueSolarTimeInfo = calculateTrueSolarTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
+    const dateStr = `${birthYear}-${birthMonth}-${birthDay}`;
+    const genderStr = gender === 'male' ? '男' : '女';
+    // 使用真太阳时的时辰索引排盘
+    if (calendarType === 'lunar') {
+        return {
+            astrolabe: astro.byLunar(dateStr, trueSolarTimeInfo.trueTimeIndex, genderStr, isLeapMonth, true, 'zh-CN'),
+            trueSolarTimeInfo,
+        };
+    }
+    return {
+        astrolabe: astro.bySolar(dateStr, trueSolarTimeInfo.trueTimeIndex, genderStr, true, 'zh-CN'),
+        trueSolarTimeInfo,
+    };
 }

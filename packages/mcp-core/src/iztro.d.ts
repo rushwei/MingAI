@@ -73,6 +73,7 @@ declare module 'iztro' {
   }
 
   export interface Astrolabe {
+    gender?: string;
     palaces: FunctionalPalace[];
     chineseDate?: string;
     solarDate?: string;
@@ -86,6 +87,10 @@ declare module 'iztro' {
     fiveElementsClass?: string;
     time?: string;
     timeRange?: string;
+    rawDates?: {
+      lunarDate: { lunarYear: number; lunarMonth: number; lunarDay: number; isLeap: boolean };
+      chineseDate: { yearly: [string, string]; monthly: [string, string]; daily: [string, string]; hourly: [string, string] };
+    };
     horoscope(date?: string | Date, timeIndex?: number): Horoscope;
     palace(indexOrName: number | string): FunctionalPalace | undefined;
     surroundedPalaces(indexOrName: number | string): SurroundedPalaces;

@@ -11,6 +11,7 @@ import type {
   PillarKongWangInfo,
   PillarPosition,
   PillarRelation,
+  TrueSolarTimeInfo,
 } from '../types.js';
 import {
   STEM_ELEMENTS,
@@ -19,6 +20,7 @@ import {
   getKongWang,
 } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
+import { calculateTrueSolarTime } from './ziwei-shared.js';
 // 从数据模块导入静态数据
 import {
   DI_ZHI,
@@ -352,7 +354,31 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     calendarType = 'solar',
     isLeapMonth = false,
     birthPlace,
+    longitude,
   } = input;
+
+  // 真太阳时校正（仅公历 + 提供经度时生效）
+  let trueSolarTimeInfo: TrueSolarTimeInfo | undefined;
+  let effectiveHour = birthHour;
+  let effectiveMinute = birthMinute;
+  let effectiveDay = birthDay;
+
+  if (longitude != null && calendarType !== 'lunar') {
+    if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+      throw new Error('longitude 必须是 -180 到 180 之间的数字');
+    }
+    trueSolarTimeInfo = calculateTrueSolarTime(
+      { birthYear, birthMonth, birthDay, birthHour, birthMinute },
+      longitude,
+    );
+    // 用真太阳时的小时/分钟替换
+    const trueTotal = birthHour * 60 + birthMinute + trueSolarTimeInfo.correctionMinutes;
+    let trueMins = Math.round(trueTotal);
+    if (trueMins < 0) { trueMins += 1440; effectiveDay -= 1; }
+    else if (trueMins >= 1440) { trueMins -= 1440; effectiveDay += 1; }
+    effectiveHour = Math.floor(trueMins / 60);
+    effectiveMinute = trueMins % 60;
+  }
 
   let solar: ReturnType<typeof Solar.fromYmdHms>;
   let lunar: ReturnType<typeof Lunar.fromYmdHms>;
@@ -371,9 +397,9 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     solar = Solar.fromYmdHms(
       birthYear,
       birthMonth,
-      birthDay,
-      birthHour,
-      birthMinute,
+      effectiveDay,
+      effectiveHour,
+      effectiveMinute,
       0
     );
     lunar = solar.getLunar();
@@ -436,5 +462,6 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     kongWang,
     fourPillars,
     relations,
+    trueSolarTimeInfo,
   };
 }
