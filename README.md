@@ -70,12 +70,20 @@ Add to your Claude Desktop / Cursor MCP config — no manual download needed, ju
 | Tool | Function | Example Prompt |
 | --- | --- | --- |
 | `bazi_calculate` | Generate a Bazi chart (solar/lunar supported) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
-| `bazi_pillars_resolve` | Analyze a Four Pillars Bazi chart | "My Bazi is 丙午 庚寅 丙辰 癸巳, please analyze it." |
-| `ziwei_calculate` | Generate a Ziwei Doushu chart (solar/lunar supported) | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
-| `liuyao_analyze` | Liuyao divination (auto-casting / custom hexagram) | "I want to divine my career luck this year, please cast and analyze."<br/>"I want to divine my romance luck. My hexagram is Qian over Qian changing to Kun over Kun." |
-| `tarot_draw` | Draw Tarot cards | "Please draw a Tarot card for my recent love fortune." |
-| `daily_fortune` | Daily almanac | "How is today's almanac? Is it suitable for a proposal?" |
-| `dayun_calculate` | Compute major/yearly/monthly/daily cycles from birth info | AI automatically calls this based on your Bazi, no explicit prompt required |
+| `bazi_pillars_resolve` | Reverse-lookup birth time from Four Pillars | "My Bazi is 丙午 庚寅 丙辰 癸巳, please analyze it." |
+| `bazi_dayun` | Compute major luck cycles (10-year periods) | AI automatically calls this based on your Bazi |
+| `ziwei_calculate` | Generate a Ziwei Doushu chart | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
+| `ziwei_horoscope` | Ziwei fortune periods (decadal/yearly/monthly/daily) | "What are my Ziwei fortune periods for 2026?" |
+| `ziwei_flying_star` | Flying star analysis (four transformations, surrounded palaces) | "Analyze the flying stars of my Life Palace." |
+| `liuyao` | Liuyao divination (auto-casting / custom hexagram) | "I want to divine my career luck this year." |
+| `tarot` | Draw Tarot cards | "Please draw a Tarot card for my recent love fortune." |
+| `almanac` | Daily almanac & calendar query | "How is today's almanac? Is it suitable for a proposal?" |
+
+### SDK
+
+If you want to call the calculation engine directly in your own Node.js project (without MCP), use the core library:
+
+See [@mingai/mcp-core on npm](https://www.npmjs.com/package/@mingai/mcp-core) for full API docs.
 
 ---
 

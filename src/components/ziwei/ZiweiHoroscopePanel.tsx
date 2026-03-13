@@ -2,12 +2,12 @@
  * 紫微运势面板组件
  *
  * 'use client' 标记说明：
- * - 使用 React hooks (useState, useMemo, useEffect, useCallback)
+ * - 使用 React hooks (useReducer, useMemo, useEffect, useCallback)
  * - 有大限/流年选择交互功能
  */
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useReducer, useMemo, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar } from 'lucide-react';
 import type { ZiweiChart, ZiweiHoroscope, DecadalInfo } from '@/lib/divination/ziwei';
 import { getHoroscope, getDecadalList } from '@/lib/divination/ziwei';
@@ -33,38 +33,123 @@ interface ZiweiHoroscopePanelProps {
     onHoroscopeChange?: (info: HoroscopeInfo) => void;
 }
 
-export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
-    const [selectedDecadalIndex, setSelectedDecadalIndex] = useState<number | null>(null);
-    const [selectedYear, setSelectedYear] = useState<number | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-    const [selectedDay, setSelectedDay] = useState<number | null>(null);
+// Fix 2: useReducer 统一管理选择状态
+interface SelectionState {
+    selectedDecadalIndex: number | null;
+    selectedYear: number | null;
+    selectedMonth: number | null;
+    selectedDay: number | null;
+}
 
-    // 选中状态 - 默认全部未选中
-    const [decadalSelected, setDecadalSelected] = useState(false);
-    const [yearlySelected, setYearlySelected] = useState(false);
-    const [monthlySelected, setMonthlySelected] = useState(false);
-    const [dailySelected, setDailySelected] = useState(false);
+type SelectionAction =
+    | { type: 'SELECT_DECADAL'; index: number | null }
+    | { type: 'SELECT_YEAR'; year: number | null; decadalIndex?: number }
+    | { type: 'SELECT_MONTH'; month: number | null; year?: number }
+    | { type: 'SELECT_DAY'; day: number | null; year?: number; month?: number }
+    | { type: 'DESELECT_YEAR' }
+    | { type: 'DESELECT_MONTH' }
+    | { type: 'DESELECT_DAY' };
+
+const initialSelectionState: SelectionState = {
+    selectedDecadalIndex: null,
+    selectedYear: null,
+    selectedMonth: null,
+    selectedDay: null,
+};
+
+function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+    switch (action.type) {
+        case 'SELECT_DECADAL': {
+            const nextIndex = state.selectedDecadalIndex === action.index ? null : action.index;
+            return { ...initialSelectionState, selectedDecadalIndex: nextIndex };
+        }
+        case 'SELECT_YEAR':
+            return {
+                ...state,
+                selectedDecadalIndex: action.decadalIndex ?? state.selectedDecadalIndex,
+                selectedYear: action.year,
+                selectedMonth: null,
+                selectedDay: null,
+            };
+        case 'DESELECT_YEAR':
+            return { ...state, selectedYear: null, selectedMonth: null, selectedDay: null };
+        case 'SELECT_MONTH':
+            return {
+                ...state,
+                selectedYear: action.year ?? state.selectedYear,
+                selectedMonth: action.month,
+                selectedDay: null,
+            };
+        case 'DESELECT_MONTH':
+            return { ...state, selectedMonth: null, selectedDay: null };
+        case 'SELECT_DAY':
+            return {
+                ...state,
+                selectedYear: action.year ?? state.selectedYear,
+                selectedMonth: action.month ?? state.selectedMonth,
+                selectedDay: action.day,
+            };
+        case 'DESELECT_DAY':
+            return { ...state, selectedDay: null };
+        default:
+            return state;
+    }
+}
+
+// Fix 1: 模块级缓存，避免重复排盘计算
+// 使用 WeakMap 以 chart.rawAstrolabe 为 key，chart 被 GC 时缓存自动释放
+const horoscopeCacheMap = new WeakMap<object, Map<string, ZiweiHoroscope | null>>();
+
+function getCachedHoroscope(chart: ZiweiChart, date: Date): ZiweiHoroscope | null {
+    const cacheKey = chart.rawAstrolabe ?? chart;
+    let dateCache = horoscopeCacheMap.get(cacheKey);
+    if (!dateCache) {
+        dateCache = new Map();
+        horoscopeCacheMap.set(cacheKey, dateCache);
+    }
+    const dateKey = date.toISOString().split('T')[0];
+    if (dateCache.has(dateKey)) {
+        return dateCache.get(dateKey)!;
+    }
+    const result = getHoroscope(chart, date);
+    dateCache.set(dateKey, result);
+    return result;
+}
+
+export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
+    const [state, dispatch] = useReducer(selectionReducer, initialSelectionState);
+    const { selectedDecadalIndex, selectedYear, selectedMonth, selectedDay } = state;
+
+    // 派生布尔值，无需存储在 state 中
+    const decadalSelected = selectedDecadalIndex !== null;
+    const yearlySelected = selectedYear !== null;
+    const monthlySelected = selectedMonth !== null;
+    const dailySelected = selectedDay !== null;
 
     // 获取大限列表
     const decadalList = useMemo(() => getDecadalList(chart), [chart]);
 
-    const today = useMemo(() => new Date(), []);
+    // Fix 3: birthYear 提取为 useMemo 常量
+    const birthYear = useMemo(() => parseInt(chart.solarDate.split('-')[0]), [chart.solarDate]);
+
+    // Fix 4: 去掉 useMemo，直接在 render 中获取当前日期
+    const today = new Date();
     const viewYear = selectedYear ?? today.getFullYear();
     const viewMonth = selectedMonth ?? (today.getMonth() + 1);
 
     const yearlyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
         if (!selectedYear) return null;
-        return getHoroscope(chart, new Date(selectedYear, 5, 15));
+        return getCachedHoroscope(chart, new Date(selectedYear, 5, 15));
     }, [chart, selectedYear]);
 
     const monthlyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
         if (!selectedYear || !selectedMonth) return null;
-        return getHoroscope(chart, new Date(selectedYear, selectedMonth - 1, 15));
+        return getCachedHoroscope(chart, new Date(selectedYear, selectedMonth - 1, 15));
     }, [chart, selectedYear, selectedMonth]);
 
     const dailyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
         if (!selectedYear || !selectedMonth || !selectedDay) return null;
-        return getHoroscope(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
+        return getCachedHoroscope(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
     }, [chart, selectedYear, selectedMonth, selectedDay]);
 
     // 获取选中的大限
@@ -131,14 +216,13 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
     // 计算当前大限内的流年列表
     const yearlyList = useMemo(() => {
         if (!displayDecadal) return [];
-        const birthYear = parseInt(chart.solarDate.split('-')[0]);
         const startYear = birthYear + displayDecadal.startAge;
         const endYear = birthYear + displayDecadal.endAge;
         const years: { year: number; stem: string; branch: string; palace: string }[] = [];
 
         for (let year = startYear; year <= endYear; year++) {
             const yearDate = new Date(year, 5, 15);
-            const yearHoroscope = getHoroscope(chart, yearDate);
+            const yearHoroscope = getCachedHoroscope(chart, yearDate);
             if (yearHoroscope) {
                 years.push({
                     year,
@@ -149,14 +233,15 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             }
         }
         return years;
-    }, [chart, displayDecadal]);
+    }, [chart, displayDecadal, birthYear]);
 
-    // 计算当前选中年份的12个月
+    // 计算当前选中年份的12个月（仅在选中流年后才计算）
     const monthlyList = useMemo(() => {
+        if (!selectedYear) return [];
         const months: { month: number; stem: string; branch: string; palace: string }[] = [];
         for (let m = 1; m <= 12; m++) {
             const monthDate = new Date(viewYear, m - 1, 15);
-            const monthHoroscope = getHoroscope(chart, monthDate);
+            const monthHoroscope = getCachedHoroscope(chart, monthDate);
             if (monthHoroscope) {
                 months.push({
                     month: m,
@@ -167,10 +252,11 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             }
         }
         return months;
-    }, [chart, viewYear]);
+    }, [chart, viewYear, selectedYear]);
 
-    // 计算当前选中月份的日期列表
+    // 计算当前选中月份的日期列表（仅在选中流月后才计算）
     const dailyList = useMemo(() => {
+        if (!selectedMonth) return [];
         const year = viewYear;
         const month = viewMonth - 1;
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -178,7 +264,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
 
         for (let d = 1; d <= daysInMonth; d++) {
             const dayDate = new Date(year, month, d);
-            const dayHoroscope = getHoroscope(chart, dayDate);
+            const dayHoroscope = getCachedHoroscope(chart, dayDate);
             if (dayHoroscope) {
                 days.push({
                     day: d,
@@ -189,23 +275,11 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             }
         }
         return days;
-    }, [chart, viewYear, viewMonth]);
+    }, [chart, viewYear, viewMonth, selectedMonth]);
 
     // 大限选择 - 支持取消，切换大限时清除流年/流月/流日
     const handleDecadalSelect = (d: DecadalInfo) => {
-        setSelectedDecadalIndex(prev => {
-            const nextIndex = prev === d.index ? null : d.index;
-            const nextSelected = nextIndex !== null;
-            setDecadalSelected(nextSelected);
-            // 无论是取消还是切换大限，都清除流年/流月/流日
-            setYearlySelected(false);
-            setMonthlySelected(false);
-            setDailySelected(false);
-            setSelectedYear(null);
-            setSelectedMonth(null);
-            setSelectedDay(null);
-            return nextIndex;
-        });
+        dispatch({ type: 'SELECT_DECADAL', index: d.index });
     };
 
     // 获取天干或地支的五行颜色样式
@@ -227,7 +301,7 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                 </h2>
                 <div className="overflow-x-auto sm:-mx-4 sm:px-4 scrollbar-hide">
                     <div className="flex sm:gap-2 gap-1 min-w-max sm:pb-2">
-                        {decadalList.slice(0, 10).map(d => {
+                        {decadalList.map(d => {
                             const isSelected = decadalSelected && selectedDecadalIndex === d.index;
                             return (
                                 <button
@@ -275,31 +349,20 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                         <div className="flex sm:gap-2 gap-1 min-w-max sm:pb-2">
                             {yearlyList.map(yearInfo => {
                                 const isSelected = yearlySelected && selectedYear === yearInfo.year;
-                                const birthYear = parseInt(chart.solarDate.split('-')[0]);
                                 const age = yearInfo.year - birthYear;
                                 return (
                                     <button
                                         key={yearInfo.year}
                                         onClick={() => {
                                             if (isSelected) {
-                                                setYearlySelected(false);
-                                                setSelectedYear(null);
-                                                setMonthlySelected(false);
-                                                setDailySelected(false);
-                                                setSelectedMonth(null);
-                                                setSelectedDay(null);
+                                                dispatch({ type: 'DESELECT_YEAR' });
                                                 return;
                                             }
-                                            if (displayDecadal) {
-                                                setSelectedDecadalIndex(displayDecadal.index);
-                                                setDecadalSelected(true);
-                                            }
-                                            setSelectedYear(yearInfo.year);
-                                            setYearlySelected(true);
-                                            setMonthlySelected(false);
-                                            setDailySelected(false);
-                                            setSelectedMonth(null);
-                                            setSelectedDay(null);
+                                            dispatch({
+                                                type: 'SELECT_YEAR',
+                                                year: yearInfo.year,
+                                                decadalIndex: displayDecadal?.index,
+                                            });
                                         }}
                                         className={`
                                             flex-shrink-0 w-9.5 sm:w-14 text-center sm:p-2 rounded-lg border-2 transition-all
@@ -350,19 +413,14 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                                         type="button"
                                         onClick={() => {
                                             if (isSelected) {
-                                                setMonthlySelected(false);
-                                                setSelectedMonth(null);
-                                                setDailySelected(false);
-                                                setSelectedDay(null);
+                                                dispatch({ type: 'DESELECT_MONTH' });
                                                 return;
                                             }
-                                            if (selectedYear === null) {
-                                                setSelectedYear(viewYear);
-                                            }
-                                            setSelectedMonth(monthInfo.month);
-                                            setMonthlySelected(true);
-                                            setDailySelected(false);
-                                            setSelectedDay(null);
+                                            dispatch({
+                                                type: 'SELECT_MONTH',
+                                                month: monthInfo.month,
+                                                year: selectedYear === null ? viewYear : undefined,
+                                            });
                                         }}
                                         className={`
                                             flex-shrink-0 w-9 sm:w-12 text-center sm:p-1.5 rounded-lg border-2 transition-all
@@ -415,18 +473,15 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
                                         type="button"
                                         onClick={() => {
                                             if (isSelected) {
-                                                setDailySelected(false);
-                                                setSelectedDay(null);
+                                                dispatch({ type: 'DESELECT_DAY' });
                                                 return;
                                             }
-                                            if (selectedYear === null) {
-                                                setSelectedYear(viewYear);
-                                            }
-                                            if (selectedMonth === null) {
-                                                setSelectedMonth(viewMonth);
-                                            }
-                                            setSelectedDay(dayInfo.day);
-                                            setDailySelected(true);
+                                            dispatch({
+                                                type: 'SELECT_DAY',
+                                                day: dayInfo.day,
+                                                year: selectedYear === null ? viewYear : undefined,
+                                                month: selectedMonth === null ? viewMonth : undefined,
+                                            });
                                         }}
                                         className={`
                                             flex-shrink-0 w-10.5 sm:w-13 text-center sm:p-1.5 rounded-lg border-2 transition-all

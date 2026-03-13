@@ -9,11 +9,12 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
+import { LunarYear, Lunar, Solar } from 'lunar-javascript';
 import { Loader2 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { UnifiedZiweiForm } from '@/components/bazi/form/UnifiedZiweiForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
+import { clampDay } from '@/lib/date-utils';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -65,32 +66,24 @@ function ZiweiPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [unknownTime, setUnknownTime] = useState(() => {
+    // Fix 12: 将 unknownTime 统一到 formData 中管理
+    const [formData, setFormData] = useState<BaziFormData & { isUnknownTime?: boolean }>(() => {
+        const initial = getInitialFormData(searchParams);
         const hourParam = searchParams.get('hour');
-        return hourParam === null || hourParam === '-1';
+        return {
+            ...initial,
+            isUnknownTime: hourParam === null || hourParam === '-1',
+        };
     });
-
-    // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
-    const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
-
-    const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
-        if (calendarType === 'lunar') {
-            try {
-                const lunarMonth = isLeapMonth ? -Math.abs(month) : month;
-                return LunarMonth.fromYm(year, lunarMonth).getDayCount();
-            } catch {
-                return 30;
-            }
-        }
-        return new Date(year, month, 0).getDate();
+    const unknownTime = formData.isUnknownTime ?? false;
+    const setUnknownTime = (value: boolean | ((prev: boolean) => boolean)) => {
+        setFormData(prev => ({
+            ...prev,
+            isUnknownTime: typeof value === 'function' ? value(prev.isUnknownTime ?? false) : value,
+        }));
     };
 
-    const clampDay = (calendarType: CalendarType, year: number, month: number, day: number, isLeapMonth?: boolean) => {
-        const maxDay = getDayCount(calendarType, year, month, isLeapMonth);
-        if (day < 1) return 1;
-        if (day > maxDay) return maxDay;
-        return day;
-    };
+    // 使用共享的 getDayCount 和 clampDay（Fix 13）
 
     // 更新表单字段（含历法切换与日期校准）
     const updateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => {
@@ -197,6 +190,8 @@ function ZiweiPageContent() {
             router.push(`/ziwei/result?${params.toString()}`);
         } catch (error) {
             console.error('提交失败:', error);
+        } finally {
+            // Fix 11: 确保 isSubmitting 在 finally 中重置
             setIsSubmitting(false);
         }
     };

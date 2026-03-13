@@ -27,13 +27,13 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalFetch = global.fetch;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
     credits.useCredit = async () => null;
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
@@ -45,6 +45,10 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'free', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({ data: null, error: null }),
                         }),
                     }),
@@ -62,7 +66,7 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
 
     t.after(() => {
         consoleCapture.restore();
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
@@ -120,7 +124,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     const aiModule = require('../lib/ai/ai') as any;
     const liuyaoModule = require('../lib/divination/liuyao') as any;
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
@@ -130,7 +134,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     const createdAt = new Date('2024-01-02T03:04:05.000Z');
     let capturedDate: Date | undefined;
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 5;
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
@@ -148,6 +152,10 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({
                                 data: { membership: 'pro', membership_expires_at: null },
                                 error: null,
@@ -192,7 +200,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
@@ -248,7 +256,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const liuyaoModule = require('../lib/divination/liuyao') as any;
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
@@ -259,7 +267,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
 
     let capturedPrompt = '';
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
@@ -295,6 +303,10 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({
                                 data: { membership: 'pro', membership_expires_at: null },
                                 error: null,
@@ -315,7 +327,7 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
@@ -371,7 +383,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalCallAIStream = aiModule.callAIStream;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
@@ -392,7 +404,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
         },
     });
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
     aiModule.callAIStream = async () => stream;
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
@@ -409,6 +421,10 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({
                                 data: { membership: 'pro', membership_expires_at: null },
                                 error: null,
@@ -447,7 +463,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         aiModule.callAIStream = originalCallAIStream;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
@@ -625,11 +641,11 @@ test('liuyao route interpret enforces targets when persisted question exists but
     const credits = require('../lib/user/credits') as any;
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
 
-    credits.hasCredits = async () => false;
+    credits.getUserAuthInfo = async () => ({ credits: 0, effectiveMembership: 'pro', hasCredits: false });
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
         error: null,
@@ -657,6 +673,10 @@ test('liuyao route interpret enforces targets when persisted question exists but
             return {
                 select: () => ({
                     eq: () => ({
+                        single: async () => ({
+                            data: { ai_chat_count: 0, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                            error: null,
+                        }),
                         maybeSingle: async () => ({
                             data: { membership: 'pro', membership_expires_at: null },
                             error: null,
@@ -668,7 +688,7 @@ test('liuyao route interpret enforces targets when persisted question exists but
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
     });
@@ -772,7 +792,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalCallAIWithReasoning = aiModule.callAIWithReasoning;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
@@ -781,7 +801,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
 
     let updated: Record<string, unknown> | null = null;
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
     aiModule.callAIWithReasoning = async () => ({ content: 'analysis', reasoning: null });
     aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
@@ -795,6 +815,10 @@ test('liuyao route rejects interpret when question is empty and persisted questi
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({
                                 data: { membership: 'pro', membership_expires_at: null },
                                 error: null,
@@ -833,7 +857,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         aiModule.callAIWithReasoning = originalCallAIWithReasoning;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;

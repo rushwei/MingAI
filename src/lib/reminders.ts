@@ -7,7 +7,7 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
-import { calculateDailyFortune, generateEnhancedKeyDates } from '@/lib/divination/fortune';
+import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
 import type { BaziChart } from '@/types';
 
 // ===== 提醒类型 =====
@@ -418,8 +418,8 @@ export async function scheduleUpcomingFortuneReminders(
         const fortune = calculateDailyFortune(baziChart, targetDate);
         const dateStr = fortune.date;
 
-        // 识别运势波动：极高（≥88）或极低（≤55）
-        const isSignificant = fortune.overall >= 88 || fortune.overall <= 55;
+        // 识别运势波动：大吉 或 凶
+        const isSignificant = fortune.overall === '大吉' || compareLevels(fortune.overall, '小凶') <= 0;
         if (!isSignificant) continue;
 
         // 检查是否已经安排
@@ -434,10 +434,10 @@ export async function scheduleUpcomingFortuneReminders(
         if (existing && existing.length > 0) continue;
 
         // 创建提醒
-        const summaryType = fortune.overall >= 88 ? '大吉日' : '低谷日';
-        const summary = fortune.overall >= 88
-            ? `今日运势极佳（${fortune.overall}分），适合把握机会！`
-            : `今日运势较低（${fortune.overall}分），建议谨慎行事。`;
+        const summaryType = isLevelFavorable(fortune.overall) ? '大吉日' : '低谷日';
+        const summary = isLevelFavorable(fortune.overall)
+            ? `今日运势极佳（${fortune.overall}），适合把握机会！`
+            : `今日运势较低（${fortune.overall}），建议谨慎行事。`;
 
         const success = await scheduleFortuneReminder(userId, dateStr, {
             summary,
@@ -499,7 +499,7 @@ export async function scheduleKeyDateReminders(
                     type: keyDate.type,
                     summary: keyDate.summary,
                     recommendation: keyDate.recommendation,
-                    scores: keyDate.scores,
+                    scores: keyDate.levels,
                     description: `${month}月${keyDate.date}日：${keyDate.summary}`,
                 },
             });

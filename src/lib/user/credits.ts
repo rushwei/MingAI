@@ -14,6 +14,23 @@ import { type MembershipType, getPlanConfig } from './membership';
 import { getServiceRoleClient } from '@/lib/api-utils';
 import { getUserLevel } from './gamification';
 
+/**
+ * 一次查询获取用户积分 + 有效会员类型
+ * 合并 hasCredits + getEffectiveMembershipType，减少重复 DB 查询
+ */
+export async function getUserAuthInfo(userId: string): Promise<{
+    credits: number;
+    effectiveMembership: MembershipType;
+    hasCredits: boolean;
+} | null> {
+    const info = await getUserCreditInfo(userId);
+    if (!info) return null;
+    return {
+        credits: info.credits,
+        effectiveMembership: info.membership, // getUserCreditInfo 已处理过期降级
+        hasCredits: info.credits > 0,
+    };
+}
 
 /**
  * 获取用户完整信息（积分 + 会员类型 + 恢复时间）
@@ -195,9 +212,11 @@ export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
 
     let totalRestored = 0;
 
-    for (const user of users) {
-        const restored = await restoreUserCredits(user.id);
-        totalRestored += restored;
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(batch.map(user => restoreUserCredits(user.id)));
+        totalRestored += results.reduce((sum, r) => sum + r, 0);
     }
 
     return { processed: users.length, restored: totalRestored };

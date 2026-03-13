@@ -28,6 +28,14 @@ const highlightColors: Record<string, { border: string; bg: string }> = {
     daily: { border: 'border-orange-500', bg: 'bg-orange-500/10' },
 };
 
+// 多重高亮指示条颜色
+const indicatorBarColors: Record<string, string> = {
+    decadal: 'bg-purple-500',
+    yearly: 'bg-blue-500',
+    monthly: 'bg-green-500',
+    daily: 'bg-orange-500',
+};
+
 export function PalaceCard({
     palace,
     isSelected = false,
@@ -45,10 +53,15 @@ export function PalaceCard({
         if (isSelected) return 'border-accent bg-accent/5 shadow-md';
         if (isSanFangSiZheng) return 'border-green-500/50 bg-green-500/5 shadow-sm';
         if (isHighlighted && highlightTypes.length > 0) {
-            const highlight = highlightColors[highlightTypes[0]];
-            if (highlight) {
-                return `${highlight.border} ${highlight.bg} shadow-sm`;
+            // 单一高亮时直接使用对应颜色边框
+            if (highlightTypes.length === 1) {
+                const highlight = highlightColors[highlightTypes[0]];
+                if (highlight) {
+                    return `${highlight.border} ${highlight.bg} shadow-sm`;
+                }
             }
+            // 多重高亮时使用渐变背景 + 中性边框，指示条显示各色
+            return 'border-foreground/30 bg-gradient-to-br from-purple-500/5 to-blue-500/5 shadow-sm';
         }
         return 'border-border bg-background-secondary hover:bg-background-tertiary';
     };
@@ -58,12 +71,31 @@ export function PalaceCard({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onClick?.();
+                }
+            }}
             className={`
                 relative h-full min-h-[100px] p-2 rounded-lg border-2 transition-all cursor-pointer flex flex-col
                 ${getBorderClasses()}
             `}
         >
+            {/* 多重高亮指示条 */}
+            {highlightTypes.length > 1 && (
+                <div className="absolute top-0 left-0 right-0 flex h-1 rounded-t-md overflow-hidden">
+                    {highlightTypes.map((type) => (
+                        <div
+                            key={type}
+                            className={`flex-1 ${indicatorBarColors[type] || 'bg-gray-400'}`}
+                        />
+                    ))}
+                </div>
+            )}
             {/* 宫名和干支 */}
             <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs font-semibold ${isLifePalace ? 'text-accent' : 'text-foreground'}`}>

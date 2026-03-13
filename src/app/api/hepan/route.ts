@@ -3,11 +3,10 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 
 interface HepanRequest {
@@ -85,13 +84,13 @@ export async function POST(request: NextRequest) {
             }
             const { user } = authResult;
 
-            // 检查积分
-            const hasEnoughCredits = await hasCredits(user.id);
-            if (!hasEnoughCredits) {
+            // 检查积分 + 获取会员类型（单次 DB 查询）
+            const authInfo = await getUserAuthInfo(user.id);
+            if (!authInfo || !authInfo.hasCredits) {
                 return jsonError('积分不足，请充值后使用', 403, { success: false });
             }
 
-            const membershipType = await getEffectiveMembershipType(user.id);
+            const membershipType = authInfo.effectiveMembership;
             const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
             if ('error' in access) {
                 return jsonError(access.error, access.status, { success: false });

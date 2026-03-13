@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAuthContext, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,10 +13,11 @@ export async function POST(request: NextRequest) {
             return jsonError('缺少必要参数', 400);
         }
 
-        const { user } = await getAuthContext(request);
-        if (!user) {
-            return jsonError('未登录或登录已过期', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) {
+            return jsonError(auth.error.message, auth.error.status);
         }
+        const { user } = auth;
 
         const supabase = getServiceRoleClient();
         const sanitizedPayload = { ...payload };

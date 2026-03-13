@@ -2,7 +2,7 @@
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
 
-import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, ShenSystemInfo } from './types.js';
+import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, ZiweiHoroscopeOutput, ZiweiFlyingStarOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, ShenSystemInfo, FlyingStarResult, MutagedPlaceInfo, SurroundedPalaceInfo } from './types.js';
 import {
   YONG_SHEN_STATUS_LABELS,
   WANG_SHUAI_LABELS,
@@ -13,6 +13,7 @@ import {
   formatGuaLevelLines,
   sortYaosDescending,
 } from './liuyao-core.js';
+import { STEM_ELEMENTS } from './utils.js';
 
 /**
  * 格式化八字结果为 Markdown
@@ -26,17 +27,17 @@ export function formatBaziAsMarkdown(result: BaziOutput): string {
 ## 基本信息
 - **性别**: ${genderText}
 - **日主**: ${dayMaster}
-- **命主五行**: ${dayMaster.charAt(0)}${getElementByStem(dayMaster.charAt(0))}
+- **命主五行**: ${dayMaster.charAt(0)}${STEM_ELEMENTS[dayMaster.charAt(0)] || ''}
 ${birthPlace ? `- **出生地**: ${birthPlace}` : ''}
 
 ## 四柱
 
-| 柱 | 天干 | 地支 | 纳音 | 地势 |
-|---|------|------|------|------|
-| 年柱 | ${fourPillars.year.stem} | ${fourPillars.year.branch} | ${fourPillars.year.naYin || '-'} | ${fourPillars.year.diShi || '-'} |
-| 月柱 | ${fourPillars.month.stem} | ${fourPillars.month.branch} | ${fourPillars.month.naYin || '-'} | ${fourPillars.month.diShi || '-'} |
-| 日柱 | ${fourPillars.day.stem} | ${fourPillars.day.branch} | ${fourPillars.day.naYin || '-'} | ${fourPillars.day.diShi || '-'} |
-| 时柱 | ${fourPillars.hour.stem} | ${fourPillars.hour.branch} | ${fourPillars.hour.naYin || '-'} | ${fourPillars.hour.diShi || '-'} |
+| 柱 | 天干 | 地支 | 纳音 | 地势 | 空亡 |
+|---|------|------|------|------|------|
+| 年柱 | ${fourPillars.year.stem} | ${fourPillars.year.branch} | ${fourPillars.year.naYin || '-'} | ${fourPillars.year.diShi || '-'} | ${fourPillars.year.kongWang?.isKong ? '空' : '-'} |
+| 月柱 | ${fourPillars.month.stem} | ${fourPillars.month.branch} | ${fourPillars.month.naYin || '-'} | ${fourPillars.month.diShi || '-'} | ${fourPillars.month.kongWang?.isKong ? '空' : '-'} |
+| 日柱 | ${fourPillars.day.stem} | ${fourPillars.day.branch} | ${fourPillars.day.naYin || '-'} | ${fourPillars.day.diShi || '-'} | ${fourPillars.day.kongWang?.isKong ? '空' : '-'} |
+| 时柱 | ${fourPillars.hour.stem} | ${fourPillars.hour.branch} | ${fourPillars.hour.naYin || '-'} | ${fourPillars.hour.diShi || '-'} | ${fourPillars.hour.kongWang?.isKong ? '空' : '-'} |
 
 ## 空亡
 - **旬**: ${kongWang.xun}
@@ -52,6 +53,40 @@ ${birthPlace ? `- **出生地**: ${birthPlace}` : ''}
 - 时柱十神: ${fourPillars.hour.tenGod || '-'}
 
 `;
+
+  // 藏干
+  md += `## 藏干
+
+`;
+  const pillarLabels = ['年柱', '月柱', '日柱', '时柱'] as const;
+  const pillarKeys = ['year', 'month', 'day', 'hour'] as const;
+  for (let i = 0; i < pillarKeys.length; i++) {
+    const pillar = fourPillars[pillarKeys[i]];
+    if (pillar.hiddenStems && pillar.hiddenStems.length > 0) {
+      const parts = pillar.hiddenStems.map(
+        (hs) => `${hs.stem}(${hs.qiType}${hs.tenGod ? '·' + hs.tenGod : ''})`
+      );
+      md += `- ${pillarLabels[i]}: ${parts.join('、')}\n`;
+    } else {
+      md += `- ${pillarLabels[i]}: -\n`;
+    }
+  }
+  md += '\n';
+
+  // 神煞
+  const hasShenSha = pillarKeys.some(k => fourPillars[k].shenSha && fourPillars[k].shenSha.length > 0);
+  if (hasShenSha) {
+    md += `## 神煞
+
+`;
+    for (let i = 0; i < pillarKeys.length; i++) {
+      const pillar = fourPillars[pillarKeys[i]];
+      if (pillar.shenSha && pillar.shenSha.length > 0) {
+        md += `- ${pillarLabels[i]}: ${pillar.shenSha.join('、')}\n`;
+      }
+    }
+    md += '\n';
+  }
 
   // 地支关系
   if (relations && relations.length > 0) {
@@ -109,7 +144,7 @@ ${candidate.isLeapMonth ? '- **闰月**' : ''}
  * 格式化紫微斗数结果为 Markdown
  */
 export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
-  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, palaces, decadalList } = result;
+  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, sign, palaces, decadalList, time, timeRange, earthlyBranchOfSoulPalace, earthlyBranchOfBodyPalace, mutagenSummary } = result;
 
   let md = `# 紫微命盘
 
@@ -120,6 +155,10 @@ export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
 - **身主**: ${body}
 - **五行局**: ${fiveElement}
 - **属相**: ${zodiac}
+${sign ? `- **星座**: ${sign}` : ''}
+${time ? `- **时辰**: ${time}${timeRange ? `（${timeRange}）` : ''}` : ''}
+${earthlyBranchOfSoulPalace ? `- **命宫地支**: ${earthlyBranchOfSoulPalace}` : ''}
+${earthlyBranchOfBodyPalace ? `- **身宫地支**: ${earthlyBranchOfBodyPalace}` : ''}
 
 ## 四柱
 - 年柱: ${fourPillars.year}
@@ -129,13 +168,26 @@ export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
 
 ## 十二宫位
 
-| 宫位 | 主星 |
-|------|------|
+| 宫位 | 干支 | 主星 | 辅星 | 长生 | 博士 | 标记 |
+|------|------|------|------|------|------|------|
 `;
 
   for (const palace of palaces) {
-    const majorStars = palace.majorStars.map((s) => s.name).join('、') || '-';
-    md += `| ${palace.name} | ${majorStars} |\n`;
+    const majorStars = palace.majorStars.map(formatStarLabel).join('、') || '-';
+    const minorStars = palace.minorStars.map(formatStarLabel).join('、') || '-';
+    const changsheng = palace.changsheng12 || '-';
+    const boshi = palace.boshi12 || '-';
+    const marks: string[] = [];
+    if (palace.isBodyPalace) marks.push('身');
+    if (palace.isOriginalPalace) marks.push('因');
+    md += `| ${palace.name} | ${palace.heavenlyStem}${palace.earthlyBranch} | ${majorStars} | ${minorStars} | ${changsheng} | ${boshi} | ${marks.join(' ') || '-'} |\n`;
+  }
+
+  if (mutagenSummary && mutagenSummary.length > 0) {
+    md += `\n## 四化分布\n\n`;
+    for (const item of mutagenSummary) {
+      md += `- 化${item.mutagen}: ${item.starName} → ${item.palaceName}\n`;
+    }
   }
 
   if (decadalList && decadalList.length > 0) {
@@ -150,6 +202,79 @@ export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
   }
 
   return md;
+}
+
+/**
+ * 格式化紫微运限结果为 Markdown
+ */
+export function formatZiweiHoroscopeAsMarkdown(result: ZiweiHoroscopeOutput): string {
+  const { solarDate, lunarDate, soul, body, fiveElement, targetDate } = result;
+
+  const lines: string[] = [
+    '# 紫微运限',
+    '',
+    '## 基本信息',
+    `- **阳历**: ${solarDate}`,
+    `- **农历**: ${lunarDate}`,
+    `- **命主**: ${soul}`,
+    `- **身主**: ${body}`,
+    `- **五行局**: ${fiveElement}`,
+    `- **目标日期**: ${targetDate}`,
+    '',
+  ];
+
+  const periods = [
+    { label: '大限', data: result.decadal },
+    { label: '小限', data: result.age, extra: `虚岁 ${result.age.nominalAge}` },
+    { label: '流年', data: result.yearly },
+    { label: '流月', data: result.monthly },
+    { label: '流日', data: result.daily },
+    { label: '流时', data: result.hourly },
+  ];
+
+  for (const { label, data, extra } of periods) {
+    lines.push(`## ${label}`);
+    lines.push(`- **宫位**: ${data.name}（${data.heavenlyStem}${data.earthlyBranch}）`);
+    if (extra) lines.push(`- **${extra.split(' ')[0]}**: ${extra.split(' ')[1]}`);
+    if (data.mutagen.length > 0) lines.push(`- **四化**: ${data.mutagen.join('、')}`);
+    if (data.palaceNames.length > 0) lines.push(`- **十二宫重排**: ${data.palaceNames.join('、')}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * 格式化紫微飞星结果为 Markdown
+ */
+export function formatZiweiFlyingStarAsMarkdown(result: ZiweiFlyingStarOutput): string {
+  const lines: string[] = ['# 紫微飞星分析', ''];
+
+  for (const r of result.results) {
+    lines.push(`## 查询 #${r.queryIndex + 1}（${r.type}）`);
+    lines.push('');
+    formatSingleFlyingStarResult(r, lines);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function formatSingleFlyingStarResult(r: FlyingStarResult, lines: string[]): void {
+  if (r.type === 'fliesTo' || r.type === 'selfMutaged') {
+    lines.push(`- 结果: ${r.result ? '是' : '否'}`);
+  } else if (r.type === 'mutagedPlaces') {
+    const places = r.result as MutagedPlaceInfo[];
+    for (const p of places) {
+      lines.push(`- 化${p.mutagen} → ${p.targetPalace ?? '无'}`);
+    }
+  } else if (r.type === 'surroundedPalaces') {
+    const s = r.result as SurroundedPalaceInfo;
+    lines.push(`- 本宫: ${s.target.name}`);
+    lines.push(`- 对宫: ${s.opposite.name}`);
+    lines.push(`- 财帛: ${s.wealth.name}`);
+    lines.push(`- 官禄: ${s.career.name}`);
+  }
 }
 
 /**
@@ -325,9 +450,11 @@ export function formatDailyFortuneAsMarkdown(result: FortuneOutput): string {
 `;
 
   if (almanac) {
-    md += `- **农历**: ${almanac.lunarMonth}${almanac.lunarDay}
+    md += `- **农历**: ${almanac.lunarDate || `${almanac.lunarMonth}${almanac.lunarDay}`}
 - **生肖**: ${almanac.zodiac}
 ${almanac.solarTerm ? `- **节气**: ${almanac.solarTerm}` : ''}
+${almanac.chongSha ? `- **冲煞**: ${almanac.chongSha}` : ''}
+${almanac.pengZuBaiJi && almanac.pengZuBaiJi.length > 0 ? `- **彭祖百忌**: ${almanac.pengZuBaiJi.join('、')}` : ''}
 
 ### 宜
 ${almanac.suitable.map((s) => `- ${s}`).join('\n')}
@@ -355,12 +482,18 @@ export function formatDayunAsMarkdown(result: DayunOutput): string {
 
 ## 大运列表
 
-| 年龄 | 干支 | 十神 | 纳音 |
-|------|------|------|------|
+| 年龄 | 干支 | 天干十神 | 地支十神 | 纳音 | 地势 | 藏干 | 神煞 |
+|------|------|----------|----------|------|------|------|------|
 `;
 
   for (const dayun of result.list) {
-    md += `| ${dayun.startYear} | ${dayun.ganZhi} | ${dayun.tenGod} | ${dayun.naYin || '-'} |\n`;
+    const hiddenStemsText = dayun.hiddenStems && dayun.hiddenStems.length > 0
+      ? dayun.hiddenStems.map(hs => `${hs.stem}(${hs.qiType}·${hs.tenGod})`).join(' ')
+      : '-';
+    const shenShaText = dayun.shenSha && dayun.shenSha.length > 0
+      ? dayun.shenSha.join('、')
+      : '-';
+    md += `| ${dayun.startYear} | ${dayun.ganZhi} | ${dayun.tenGod || '-'} | ${dayun.branchTenGod || '-'} | ${dayun.naYin || '-'} | ${dayun.diShi || '-'} | ${hiddenStemsText} | ${shenShaText} |\n`;
   }
 
   return md;
@@ -377,17 +510,29 @@ export function formatAsMarkdown(toolName: string, result: unknown): string {
       return formatBaziPillarsResolveAsMarkdown(result as BaziPillarsResolveOutput);
     case 'ziwei_calculate':
       return formatZiweiAsMarkdown(result as ZiweiOutput);
-    case 'liuyao_analyze':
+    case 'ziwei_horoscope':
+      return formatZiweiHoroscopeAsMarkdown(result as ZiweiHoroscopeOutput);
+    case 'ziwei_flying_star':
+      return formatZiweiFlyingStarAsMarkdown(result as ZiweiFlyingStarOutput);
+    case 'liuyao':
       return formatLiuyaoAsMarkdown(result as LiuyaoOutput);
-    case 'tarot_draw':
+    case 'tarot':
       return formatTarotAsMarkdown(result as TarotOutput);
-    case 'daily_fortune':
+    case 'almanac':
       return formatDailyFortuneAsMarkdown(result as FortuneOutput);
-    case 'dayun_calculate':
+    case 'bazi_dayun':
       return formatDayunAsMarkdown(result as DayunOutput);
     default:
       return JSON.stringify(result, null, 2);
   }
+}
+
+// 辅助函数：格式化星曜标签（名称+亮度+四化）
+function formatStarLabel(s: { name: string; brightness?: string; mutagen?: string }): string {
+  let label = s.name;
+  if (s.brightness) label += `(${s.brightness})`;
+  if (s.mutagen) label += `[化${s.mutagen}]`;
+  return label;
 }
 
 // 辅助函数：构建 targetLiuQin → ShenSystem 映射（本地版，不依赖 web 侧）
@@ -402,16 +547,4 @@ function formatShenSystemParts(system: ShenSystemInfo | undefined): string[] {
   if (system?.jiShen) parts.push(`忌神=${system.jiShen.liuQin}（${system.jiShen.wuXing}）`);
   if (system?.chouShen) parts.push(`仇神=${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
   return parts;
-}
-
-// 辅助函数：根据天干获取五行
-function getElementByStem(stem: string): string {
-  const elements: Record<string, string> = {
-    甲: '木', 乙: '木',
-    丙: '火', 丁: '火',
-    戊: '土', 己: '土',
-    庚: '金', 辛: '金',
-    壬: '水', 癸: '水',
-  };
-  return elements[stem] || '';
 }

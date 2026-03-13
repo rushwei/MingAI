@@ -9,12 +9,13 @@
 
 import { useState } from 'react';
 import { Clock, MapPin, ChevronRight, Loader2 } from 'lucide-react';
-import type { BaziFormData, CalendarType } from '@/types';
+import type { BaziFormData } from '@/types';
 import { SmartPillarsInput } from '@/components/bazi/form/SmartPillarsInput';
 import { TimeInputModal } from '@/components/bazi/form/TimeInputModal';
 import { PlaceInputModal } from '@/components/bazi/form/PlaceInputModal';
 import { YEAR_OPTIONS, MONTH_OPTIONS, LUNAR_MONTH_NAMES } from '@/components/bazi/form/options';
-import { LunarMonth, LunarYear } from 'lunar-javascript';
+import { LunarYear } from 'lunar-javascript';
+import { getDayCount } from '@/lib/date-utils';
 
 type UpdateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => void;
 
@@ -37,19 +38,6 @@ export function BaziForm({
 }: BaziFormProps) {
     const [timeModalOpen, setTimeModalOpen] = useState(false);
     const [placeModalOpen, setPlaceModalOpen] = useState(false);
-
-    // 计算当前月份的天数
-    const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
-        if (calendarType === 'lunar') {
-            try {
-                const lunarMonth = isLeapMonth ? -Math.abs(month) : month;
-                return LunarMonth.fromYm(year, lunarMonth).getDayCount();
-            } catch {
-                return 30;
-            }
-        }
-        return new Date(year, month, 0).getDate();
-    };
 
     const dayCount = formData.calendarType !== 'pillars'
         ? getDayCount(formData.calendarType, formData.birthYear, formData.birthMonth, formData.isLeapMonth)

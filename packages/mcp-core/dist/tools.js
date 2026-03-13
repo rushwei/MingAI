@@ -321,6 +321,65 @@ export const tools = [
         },
     },
     {
+        name: 'bazi_dayun',
+        description: '八字大运计算 - 根据出生时间计算完整大运列表，输出起运详情与各步大运干支、十神',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                gender: { type: 'string', enum: ['male', 'female'], description: '性别' },
+                birthYear: { type: 'number', description: '出生年 (1900-2100)' },
+                birthMonth: { type: 'number', description: '出生月 (1-12)' },
+                birthDay: { type: 'number', description: '出生日 (1-31)' },
+                birthHour: { type: 'number', description: '出生时 (0-23)' },
+                birthMinute: { type: 'number', description: '出生分 (0-59)，默认 0' },
+                calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar (阳历)' },
+                isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
+                responseFormat: { type: 'string', enum: ['json', 'markdown'], description: '响应格式：json=结构化数据，markdown=人类可读文本', default: 'json' },
+            },
+            required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+            examples: [
+                { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9 },
+                { gender: 'female', birthYear: 1995, birthMonth: 6, birthDay: 20, birthHour: 23, calendarType: 'lunar' },
+            ],
+        },
+        outputSchema: {
+            type: 'object',
+            properties: {
+                list: {
+                    type: 'array',
+                    description: '大运列表',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            startYear: { type: 'number', description: '起始年份' },
+                            ganZhi: { type: 'string', description: '干支' },
+                            stem: { type: 'string', description: '天干' },
+                            branch: { type: 'string', description: '地支' },
+                            tenGod: { type: 'string', description: '大运天干十神' },
+                            branchTenGod: { type: 'string', description: '大运地支主气十神' },
+                            hiddenStems: {
+                                type: 'array',
+                                description: '藏干明细',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        stem: { type: 'string', description: '藏干天干' },
+                                        qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                                        tenGod: { type: 'string', description: '相对日主十神' },
+                                    },
+                                },
+                            },
+                            naYin: { type: 'string', description: '纳音' },
+                            diShi: { type: 'string', description: '地势（十二长生）' },
+                            shenSha: { type: 'array', items: { type: 'string' }, description: '神煞' },
+                        },
+                    },
+                },
+            },
+        },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    {
         name: 'ziwei_calculate',
         description: '紫微斗数排盘 - 根据出生时间计算紫微命盘，包含十二宫位、星曜、四化、大限等信息',
         inputSchema: {
@@ -403,6 +462,13 @@ export const tools = [
                             heavenlyStem: { type: 'string', description: '天干' },
                             earthlyBranch: { type: 'string', description: '地支' },
                             isBodyPalace: { type: 'boolean', description: '是否身宫' },
+                            index: { type: 'number', description: '宫位索引(0-11)' },
+                            isOriginalPalace: { type: 'boolean', description: '是否来因宫' },
+                            changsheng12: { type: 'string', description: '长生12神' },
+                            boshi12: { type: 'string', description: '博士12神' },
+                            jiangqian12: { type: 'string', description: '将前12神' },
+                            suiqian12: { type: 'string', description: '岁前12神' },
+                            ages: { type: 'array', items: { type: 'number' }, description: '小限年龄' },
                             majorStars: {
                                 type: 'array',
                                 description: '主星',
@@ -434,6 +500,9 @@ export const tools = [
                                     type: 'object',
                                     properties: {
                                         name: { type: 'string', description: '星名' },
+                                        type: { type: 'string', description: '星耀类型（adjective/flower/helper/lucun/tianma等）' },
+                                        brightness: { type: 'string', description: '亮度' },
+                                        mutagen: { type: 'string', description: '四化（禄/权/科/忌）' },
                                     },
                                 },
                             },
@@ -460,6 +529,22 @@ export const tools = [
                         },
                     },
                 },
+                earthlyBranchOfSoulPalace: { type: 'string', description: '命宫地支' },
+                earthlyBranchOfBodyPalace: { type: 'string', description: '身宫地支' },
+                time: { type: 'string', description: '时辰名' },
+                timeRange: { type: 'string', description: '时辰范围' },
+                mutagenSummary: {
+                    type: 'array',
+                    description: '四化分布',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            mutagen: { type: 'string', enum: ['禄', '权', '科', '忌'], description: '四化类型' },
+                            starName: { type: 'string', description: '星曜名' },
+                            palaceName: { type: 'string', description: '所在宫位' },
+                        },
+                    },
+                },
             },
         },
         annotations: {
@@ -470,7 +555,131 @@ export const tools = [
         },
     },
     {
-        name: 'liuyao_analyze',
+        name: 'ziwei_horoscope',
+        description: '紫微斗数运限 - 根据出生时间和目标日期计算大限、小限、流年、流月、流日、流时运限信息',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                gender: { type: 'string', enum: ['male', 'female'], description: '性别' },
+                birthYear: { type: 'number', description: '出生年 (1900-2100)' },
+                birthMonth: { type: 'number', description: '出生月 (1-12)' },
+                birthDay: { type: 'number', description: '出生日 (1-31)' },
+                birthHour: { type: 'number', description: '出生时 (0-23)' },
+                birthMinute: { type: 'number', description: '出生分 (0-59)，默认 0' },
+                calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar' },
+                isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
+                targetDate: { type: 'string', description: '目标日期 (YYYY-MM-DD)，默认今天' },
+                targetTimeIndex: { type: 'number', description: '目标时辰索引 (0-12)，默认当前时辰' },
+                responseFormat: {
+                    type: 'string',
+                    enum: ['json', 'markdown'],
+                    description: '响应格式：json=结构化数据，markdown=人类可读文本',
+                    default: 'json',
+                },
+            },
+            required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+            examples: [
+                { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9, targetDate: '2026-03-13' },
+            ],
+        },
+        outputSchema: {
+            type: 'object',
+            properties: {
+                solarDate: { type: 'string', description: '阳历出生日期' },
+                lunarDate: { type: 'string', description: '农历出生日期' },
+                soul: { type: 'string', description: '命主' },
+                body: { type: 'string', description: '身主' },
+                fiveElement: { type: 'string', description: '五行局' },
+                targetDate: { type: 'string', description: '目标日期' },
+                decadal: { type: 'object', description: '大限', properties: { index: { type: 'number' }, name: { type: 'string' }, heavenlyStem: { type: 'string' }, earthlyBranch: { type: 'string' }, palaceNames: { type: 'array', items: { type: 'string' } }, mutagen: { type: 'array', items: { type: 'string' } } } },
+                age: { type: 'object', description: '小限', properties: { index: { type: 'number' }, name: { type: 'string' }, heavenlyStem: { type: 'string' }, earthlyBranch: { type: 'string' }, palaceNames: { type: 'array', items: { type: 'string' } }, mutagen: { type: 'array', items: { type: 'string' } }, nominalAge: { type: 'number', description: '虚岁' } } },
+                yearly: { type: 'object', description: '流年' },
+                monthly: { type: 'object', description: '流月' },
+                daily: { type: 'object', description: '流日' },
+                hourly: { type: 'object', description: '流时' },
+            },
+        },
+        annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    },
+    {
+        name: 'ziwei_flying_star',
+        description: '紫微斗数飞星分析 - 分析宫位间四化飞布关系，支持飞化判断、自化检测、四化落宫查询、三方四正查询',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                gender: { type: 'string', enum: ['male', 'female'], description: '性别' },
+                birthYear: { type: 'number', description: '出生年 (1900-2100)' },
+                birthMonth: { type: 'number', description: '出生月 (1-12)' },
+                birthDay: { type: 'number', description: '出生日 (1-31)' },
+                birthHour: { type: 'number', description: '出生时 (0-23)' },
+                birthMinute: { type: 'number', description: '出生分 (0-59)，默认 0' },
+                calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar' },
+                isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
+                queries: {
+                    type: 'array',
+                    description: '查询列表',
+                    minItems: 1,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            type: { type: 'string', enum: ['fliesTo', 'selfMutaged', 'mutagedPlaces', 'surroundedPalaces'], description: '查询类型' },
+                            from: { type: 'string', description: '起飞宫位（fliesTo 用）' },
+                            to: { type: 'string', description: '目标宫位（fliesTo 用）' },
+                            palace: { type: 'string', description: '目标宫位（selfMutaged/mutagedPlaces/surroundedPalaces 用）' },
+                            mutagens: { type: 'array', items: { type: 'string', enum: ['禄', '权', '科', '忌'] }, description: '四化类型（fliesTo/selfMutaged 用）' },
+                        },
+                        required: ['type'],
+                    },
+                },
+                responseFormat: {
+                    type: 'string',
+                    enum: ['json', 'markdown'],
+                    description: '响应格式：json=结构化数据，markdown=人类可读文本',
+                    default: 'json',
+                },
+            },
+            required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour', 'queries'],
+            examples: [
+                {
+                    gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9,
+                    queries: [
+                        { type: 'mutagedPlaces', palace: '命宫' },
+                        { type: 'surroundedPalaces', palace: '命宫' },
+                    ],
+                },
+            ],
+        },
+        outputSchema: {
+            type: 'object',
+            properties: {
+                results: {
+                    type: 'array',
+                    description: '查询结果',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            queryIndex: { type: 'number', description: '对应查询索引' },
+                            type: { type: 'string', description: '查询类型' },
+                            result: { description: '查询结果（boolean/数组/对象，取决于查询类型）' },
+                        },
+                    },
+                },
+            },
+        },
+        annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+        },
+    },
+    {
+        name: 'liuyao',
         description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、定性应期线索、风险提示等。调用方/AI 需先根据问题语义选择目标六亲再调用；未明确问题时不应正式解卦。',
         inputSchema: {
             type: 'object',
@@ -843,7 +1052,7 @@ export const tools = [
         },
     },
     {
-        name: 'tarot_draw',
+        name: 'tarot',
         description: '塔罗抽牌 - 塔罗牌抽牌占卜，支持多种牌阵',
         inputSchema: {
             type: 'object',
@@ -916,8 +1125,8 @@ export const tools = [
         },
     },
     {
-        name: 'daily_fortune',
-        description: '每日运势 - 计算个性化每日运势，输出流日信息与黄历基础数据',
+        name: 'almanac',
+        description: '黄历查询 - 查询指定日期的干支、宜忌、冲煞、吉神凶煞等黄历信息，可选传入日主计算流日十神',
         inputSchema: {
             type: 'object',
             properties: {
@@ -988,101 +1197,6 @@ export const tools = [
                         pengZuBaiJi: { type: 'array', items: { type: 'string' }, description: '彭祖百忌' },
                         jishen: { type: 'array', items: { type: 'string' }, description: '吉神宜趋' },
                         xiongsha: { type: 'array', items: { type: 'string' }, description: '凶煞宜忌' },
-                    },
-                },
-            },
-        },
-        annotations: {
-            readOnlyHint: true,
-            destructiveHint: false,
-            idempotentHint: true,
-            openWorldHint: false,
-        },
-    },
-    {
-        name: 'dayun_calculate',
-        description: '大运计算 - 根据出生时间计算完整大运列表，输出起运详情与各步大运干支、十神',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                gender: {
-                    type: 'string',
-                    enum: ['male', 'female'],
-                    description: '性别',
-                },
-                birthYear: {
-                    type: 'number',
-                    description: '出生年 (1900-2100)',
-                },
-                birthMonth: {
-                    type: 'number',
-                    description: '出生月 (1-12)',
-                },
-                birthDay: {
-                    type: 'number',
-                    description: '出生日 (1-31)',
-                },
-                birthHour: {
-                    type: 'number',
-                    description: '出生时 (0-23)',
-                },
-                birthMinute: {
-                    type: 'number',
-                    description: '出生分 (0-59)，默认 0',
-                },
-                calendarType: {
-                    type: 'string',
-                    enum: ['solar', 'lunar'],
-                    description: '历法类型，默认 solar (阳历)',
-                },
-                isLeapMonth: {
-                    type: 'boolean',
-                    description: '是否闰月（仅农历有效），默认 false',
-                },
-                responseFormat: {
-                    type: 'string',
-                    enum: ['json', 'markdown'],
-                    description: '响应格式：json=结构化数据，markdown=人类可读文本',
-                    default: 'json',
-                },
-            },
-            required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
-            examples: [
-                { gender: 'male', birthYear: 1990, birthMonth: 1, birthDay: 15, birthHour: 9 },
-                { gender: 'female', birthYear: 1995, birthMonth: 6, birthDay: 20, birthHour: 23, calendarType: 'lunar' },
-            ],
-        },
-        outputSchema: {
-            type: 'object',
-            properties: {
-                list: {
-                    type: 'array',
-                    description: '大运列表',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            startYear: { type: 'number', description: '起始年份' },
-                            ganZhi: { type: 'string', description: '干支' },
-                            stem: { type: 'string', description: '天干' },
-                            branch: { type: 'string', description: '地支' },
-                            tenGod: { type: 'string', description: '大运天干十神' },
-                            branchTenGod: { type: 'string', description: '大运地支主气十神' },
-                            hiddenStems: {
-                                type: 'array',
-                                description: '藏干明细',
-                                items: {
-                                    type: 'object',
-                                    properties: {
-                                        stem: { type: 'string', description: '藏干天干' },
-                                        qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
-                                        tenGod: { type: 'string', description: '相对日主十神' },
-                                    },
-                                },
-                            },
-                            naYin: { type: 'string', description: '纳音' },
-                            diShi: { type: 'string', description: '地势（十二长生）' },
-                            shenSha: { type: 'array', items: { type: 'string' }, description: '神煞' },
-                        },
                     },
                 },
             },

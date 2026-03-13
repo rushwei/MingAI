@@ -16,6 +16,7 @@ import {
     getDiShi,
     calculateFortuneShenSha,
     getElementColor,
+    getKongWang,
     STEM_ELEMENTS,
     BRANCH_ELEMENTS,
     HIDDEN_STEMS,
@@ -103,6 +104,9 @@ export function ProfessionalTable({
     const dayStem = baziResult.fourPillars.day.stem as HeavenlyStem;
     const dayBranch = baziResult.fourPillars.day.branch as EarthlyBranch;
     const yearBranch = baziResult.fourPillars.year.branch as EarthlyBranch;
+
+    // 计算空亡
+    const kongWang = getKongWang(dayStem, dayBranch);
 
     // 构建运势柱列表（左侧列）
     const fortuneColumns: FortuneColumn[] = [];
@@ -397,6 +401,40 @@ export function ProfessionalTable({
                                 {col.hidden ? '?' : col.naYin}
                             </td>
                         ))}
+                    </tr>
+                    {/* 空亡行 */}
+                    <tr className="border-b border-border/50">
+                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-background/90 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                            title={`${kongWang.xun}空${kongWang.kongBranches.join('')}`}
+                        >空亡</td>
+                        {fortuneColumns.map((col) => {
+                            const isKong = kongWang.kongBranches.includes(col.branch as EarthlyBranch);
+                            return (
+                                <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs">
+                                    {isKong ? (
+                                        <span className="text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded">空</span>
+                                    ) : (
+                                        <span className="text-foreground-secondary/50">-</span>
+                                    )}
+                                </td>
+                            );
+                        })}
+                        {columns.map((col, idx) => {
+                            const branch = col.pillar.branch as EarthlyBranch;
+                            // 日支不查空亡
+                            const isKong = col.key !== 'day' && kongWang.kongBranches.includes(branch);
+                            return (
+                                <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center text-xs ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
+                                    {col.hidden ? '?' : col.key === 'day' ? (
+                                        <span className="text-foreground-secondary/50" title={kongWang.xun}>{kongWang.kongBranches.join('')}</span>
+                                    ) : isKong ? (
+                                        <span className="text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded">空</span>
+                                    ) : (
+                                        <span className="text-foreground-secondary/50">-</span>
+                                    )}
+                                </td>
+                            );
+                        })}
                     </tr>
                     {/* 神煞星行 */}
                     {hasShenSha && (

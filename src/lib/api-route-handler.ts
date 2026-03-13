@@ -7,8 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
-import { hasCredits, useCredit as consumeCredit, addCredits } from '@/lib/user/credits';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { getUserAuthInfo, useCredit as consumeCredit, addCredits } from '@/lib/user/credits';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 
@@ -66,7 +65,8 @@ export async function withAuthAndMembership(
         return authResult;
     }
 
-    const membershipType = await getEffectiveMembershipType(authResult.user.id);
+    const authInfo = await getUserAuthInfo(authResult.user.id);
+    const membershipType = authInfo?.effectiveMembership ?? 'free';
     return {
         user: authResult.user,
         membershipType,
@@ -91,14 +91,14 @@ export async function withAuthCreditsAndModel(
     }
     const { user } = authResult;
 
-    // 2. 检查积分
-    const hasEnoughCredits = await hasCredits(user.id);
-    if (!hasEnoughCredits) {
+    // 2. 检查积分 + 获取会员类型（单次 DB 查询）
+    const authInfo = await getUserAuthInfo(user.id);
+    if (!authInfo || !authInfo.hasCredits) {
         return apiError('积分不足，请充值后使用', 403);
     }
 
-    // 3. 获取会员类型和模型访问权限
-    const membershipType = await getEffectiveMembershipType(user.id);
+    // 3. 获取模型访问权限
+    const membershipType = authInfo.effectiveMembership;
     const access = await resolveModelAccessAsync(
         options.modelId,
         DEFAULT_MODEL_ID,

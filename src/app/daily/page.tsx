@@ -29,12 +29,12 @@ import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fort
 import { InterpretationModeToggle, type InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, type DailyFortune } from '@/lib/divination/fortune';
+import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, fortuneLevelToChartValue, isLevelFavorable, type DailyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
-import type { BaziChart } from '@/types';
+import type { BaziChart, FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 
 const scoreItems = [
@@ -425,10 +425,11 @@ function DailyPageContent() {
 
                             <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-4 flex-none">
                                 {scoreItems.map(item => {
-                                    const score = fortune[item.key as keyof typeof fortune] as number;
+                                    const level = fortune[item.key as keyof typeof fortune] as FortuneLevel;
+                                    const chartValue = fortuneLevelToChartValue(level);
                                     const Icon = item.icon;
-                                    const isHigh = score >= 80;
-                                    const isMedium = score >= 60;
+                                    const isFavorable = isLevelFavorable(level);
+                                    const isNeutral = level === '平';
 
                                     return (
                                         <div key={item.key} className="group">
@@ -439,17 +440,17 @@ function DailyPageContent() {
                                                     </div>
                                                     <span className="font-medium text-xs text-foreground/90">{item.label}</span>
                                                 </div>
-                                                <span className={`text-xs font-bold ${isHigh ? 'text-green-600' : isMedium ? 'text-amber-600' : 'text-red-600'}`}>
-                                                    {score}
+                                                <span className={`text-xs font-bold ${isFavorable ? 'text-green-600' : isNeutral ? 'text-amber-600' : 'text-red-600'}`}>
+                                                    {level}
                                                 </span>
                                             </div>
                                             <div className="h-1.5 bg-background-secondary/50 rounded-full overflow-hidden border border-border/30">
                                                 <div
-                                                    className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isHigh ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
-                                                        isMedium ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+                                                    className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isFavorable ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                                                        isNeutral ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
                                                             'bg-gradient-to-r from-red-400 to-rose-500'
                                                         }`}
-                                                    style={{ width: `${score}%` }}
+                                                    style={{ width: `${chartValue}%` }}
                                                 />
                                             </div>
                                         </div>

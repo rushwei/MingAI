@@ -146,9 +146,9 @@ export const SANG_MEN: Record<string, string> = {
 };
 
 export const XUE_REN: Record<string, string> = {
-  '甲': '卯', '乙': '辰', '丙': '午', '丁': '未',
-  '戊': '午', '己': '未', '庚': '酉', '辛': '戌',
-  '壬': '子', '癸': '丑',
+  '子': '酉', '丑': '戌', '寅': '亥', '卯': '子',
+  '辰': '丑', '巳': '寅', '午': '卯', '未': '辰',
+  '申': '巳', '酉': '午', '戌': '未', '亥': '申',
 };
 
 export const PI_TOU: Record<string, string> = {
@@ -201,9 +201,9 @@ export const BAI_HU: Record<string, string> = {
 };
 
 export const FEI_REN: Record<string, string> = {
-  '甲': '酉', '乙': '申', '丙': '子', '丁': '亥',
-  '戊': '子', '己': '亥', '庚': '卯', '辛': '寅',
-  '壬': '午', '癸': '巳',
+  '甲': '酉', '乙': '戌', '丙': '子', '丁': '丑',
+  '戊': '子', '己': '丑', '庚': '卯', '辛': '辰',
+  '壬': '午', '癸': '未',
 };
 
 // ===== 按日柱判定的神煞数组 =====
@@ -320,6 +320,16 @@ export const LIU_HE: Record<string, string> = {
   '辰': '酉', '酉': '辰',
   '巳': '申', '申': '巳',
   '午': '未', '未': '午',
+};
+
+/** 六合化五行：地支对 -> 合化结果 */
+export const LIU_HE_HUA: Record<string, string> = {
+  '子': '土', '丑': '土',
+  '寅': '木', '亥': '木',
+  '卯': '火', '戌': '火',
+  '辰': '金', '酉': '金',
+  '巳': '水', '申': '水',
+  '午': '土', '未': '土',
 };
 
 export const SAN_HE: Array<{ branches: string[]; element: string }> = [

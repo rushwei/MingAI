@@ -56,6 +56,8 @@ export declare const NA_YIN_TABLE: Record<string, string>;
 export declare const DI_SHI_ORDER: string[];
 export declare const CHANG_SHENG_START: Record<string, string>;
 export declare const LIU_HE: Record<string, string>;
+/** 六合化五行：地支对 -> 合化结果 */
+export declare const LIU_HE_HUA: Record<string, string>;
 export declare const SAN_HE: Array<{
     branches: string[];
     element: string;

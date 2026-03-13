@@ -107,7 +107,7 @@ export function calculateBranchShenSha(
   matchMapValue(TIAN_YI, monthBranch, targetBranch, '天医', names);
   matchMapValue(DIAO_KE, yearBranch, targetBranch, '吊客', names);
   matchMapValue(SANG_MEN, yearBranch, targetBranch, '丧门', names);
-  matchMapValue(XUE_REN, dayStem, targetBranch, '血刃', names);
+  matchMapValue(XUE_REN, dayBranch, targetBranch, '血刃', names);
   matchMapValue(PI_TOU, yearBranch, targetBranch, '披头', names);
   matchMapValue(FU_XING, dayStem, targetBranch, '福星贵人', names);
   matchMapValue(ZAI_SHA, yearBranch, targetBranch, '灾煞', names);

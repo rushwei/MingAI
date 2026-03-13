@@ -20,9 +20,9 @@ import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/supabase';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, type MonthlyFortune } from '@/lib/divination/fortune';
+import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
-import type { BaziChart } from '@/types';
+import type { BaziChart, FortuneLevel } from '@/types';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 
@@ -134,20 +134,20 @@ function MonthlyPageContent() {
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, month - 1, day);
-            let score: number;
+            let level: FortuneLevel;
 
             if (baziChart) {
                 const dayFortune = calculateDailyFortune(baziChart, date);
-                score = dayFortune.overall;
+                level = dayFortune.overall;
             } else {
                 const generic = calculateGenericDailyFortune(date);
-                score = generic.overall;
+                level = generic.overall;
             }
 
             days.push({
                 day,
-                score,
-                trend: score >= 80 ? 'up' : score <= 65 ? 'down' : 'neutral',
+                level,
+                trend: isLevelFavorable(level) ? 'up' : compareLevels(level, '平') < 0 ? 'down' : 'neutral',
             });
         }
 
@@ -193,13 +193,11 @@ function MonthlyPageContent() {
     const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
     const isPersonalized = !!baziChart;
 
-    const getScoreColor = (score: number) => {
-        if (score >= 80) return 'bg-green-500';  // 吉
-        if (score >= 60) return 'bg-gray-400';   // 平
-        return 'bg-red-500';                     // 凶
+    const getLevelDotColor = (level: FortuneLevel) => {
+        if (isLevelFavorable(level)) return 'bg-green-500';
+        if (level === '平') return 'bg-gray-400';
+        return 'bg-red-500';
     };
-
-    const average = Math.floor(calendarData.reduce((sum, d) => sum + d.score, 0) / calendarData.length);
 
     const handleSelectChart = (chart: BaziChart) => {
         setBaziChart(chart);
@@ -370,16 +368,16 @@ function MonthlyPageContent() {
                                         <span className="text-xs text-foreground-secondary">主运十神</span>
                                         <span className="text-sm font-bold">{fortune.tenGod}</span>
                                     </div>
-                                    {average > 0 && (
+                                    {fortune && (
                                         <div className="mt-4 flex flex-col items-center sm:items-start w-full">
                                             <div className="flex justify-between w-full text-xs text-foreground-secondary mb-1">
                                                 <span>综合运势</span>
-                                                <span className="font-bold">{average}分</span>
+                                                <span className="font-bold">{fortune.overall}</span>
                                             </div>
                                             <div className="h-2 w-full bg-background-secondary rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full rounded-full ${getScoreColor(average)} transition-all duration-1000`}
-                                                    style={{ width: `${average}%` }}
+                                                    className={`h-full rounded-full ${getLevelDotColor(fortune.overall)} transition-all duration-1000`}
+                                                    style={{ width: `${fortune._chart.overall}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -525,13 +523,13 @@ function MonthlyPageContent() {
                                             {day.day}
                                         </div>
                                         <div className="flex flex-col items-center gap-1">
-                                            <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getScoreColor(day.score)}`} />
+                                            <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${getLevelDotColor(day.level)}`} />
                                             <div className={`text-[10px] sm:text-xs font-medium ${
-                                                day.score >= 80 ? 'text-green-600 dark:text-green-400' :
-                                                day.score >= 60 ? 'text-gray-500 dark:text-gray-400' :
+                                                isLevelFavorable(day.level) ? 'text-green-600 dark:text-green-400' :
+                                                day.level === '平' ? 'text-gray-500 dark:text-gray-400' :
                                                 'text-red-600 dark:text-red-400'
                                             }`}>
-                                                {day.score}
+                                                {day.level}
                                             </div>
                                         </div>
                                     </Link>

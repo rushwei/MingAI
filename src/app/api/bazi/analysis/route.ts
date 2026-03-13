@@ -8,10 +8,16 @@
 import { NextRequest } from 'next/server';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { hasCredits, useCredit, addCredits } from '@/lib/user/credits';
+import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
+import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
+
+// 速率限制配置：每分钟每 IP 最多 10 次
+const RATE_LIMIT_CONFIG = {
+    maxRequests: 10,
+    windowMs: 60 * 1000, // 1 分钟
+};
 
 // AI系统提示词
 const WUXING_PROMPT = `你是一位专业的命理分析师，擅长八字五行分析。请根据用户提供的八字信息，进行专业的五行分析。
@@ -61,20 +67,37 @@ export async function POST(request: NextRequest) {
     try {
         const { chartId, type, chartSummary, modelId, reasoning, stream } = await request.json();
 
-        if (!chartId || !type || !chartSummary) {
-            return jsonError('缺少必要参数', 400);
+        // 参数校验
+        if (!chartId || typeof chartId !== 'string') {
+            return jsonError('缺少命盘ID', 400);
+        }
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chartId)) {
+            return jsonError('命盘ID格式无效', 400);
+        }
+        if (!chartSummary || typeof chartSummary !== 'string') {
+            return jsonError('缺少命盘摘要', 400);
+        }
+        if (chartSummary.length > 5000) {
+            return jsonError('命盘摘要过长', 400);
+        }
+        if (!type || !['wuxing', 'personality'].includes(type)) {
+            return jsonError('分析类型无效', 400);
         }
 
-        if (!['wuxing', 'personality'].includes(type)) {
-            return jsonError('无效的分析类型', 400);
-        }
-
+        // 鉴权
         const auth = await requireUserContext(request);
         if ('error' in auth) {
             return jsonError(auth.error.message, auth.error.status);
         }
         const { user } = auth;
         userId = user.id;
+
+        // 限流检查（鉴权之后、业务逻辑之前）
+        const clientIP = getClientIP(request);
+        const rateLimit = await checkRateLimit(clientIP, '/api/bazi/analysis', RATE_LIMIT_CONFIG);
+        if (!rateLimit.allowed) {
+            return jsonError('请求过于频繁，请稍后再试', 429);
+        }
 
         // 根据分析类型选择系统提示词，确保模型走对应的分析维度
         const systemPrompt = type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT;
@@ -93,16 +116,19 @@ export async function POST(request: NextRequest) {
             return jsonError('未找到命盘信息', 404);
         }
 
-        const membershipType = await getEffectiveMembershipType(user.id);
+        const authInfo = await getUserAuthInfo(user.id);
+        if (!authInfo) {
+            return jsonError('获取用户信息失败', 500);
+        }
+        const membershipType = authInfo.effectiveMembership;
         const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
         if ('error' in access) {
             return jsonError(access.error, access.status);
         }
         const { modelId: requestedModelId, reasoningEnabled } = access;
 
-        const hasEnough = await hasCredits(user.id);
-        if (!hasEnough) {
-            return jsonError('积分不足，请充值后继续使用', 402);
+        if (!authInfo.hasCredits) {
+            return jsonError('积分不足，请充值后继续使用', 403);
         }
 
         const remaining = await useCredit(user.id);
@@ -173,7 +199,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // 非流式输出模式（保持原有逻辑）
+        // 非流式输出模式
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
             [{ role: 'user', content: userPrompt }],
             'bazi',
@@ -220,6 +246,12 @@ export async function POST(request: NextRequest) {
             }
         } catch (saveError) {
             console.error('[analysis] Save exception:', saveError);
+            // 非流式模式下保存失败也退还积分
+            if (creditDeducted && userId) {
+                await addCredits(userId, 1);
+                creditDeducted = false;
+            }
+            return jsonError('保存分析结果失败', 500);
         }
 
         return jsonOk({

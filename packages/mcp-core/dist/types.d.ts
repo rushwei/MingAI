@@ -117,6 +117,16 @@ export interface ZiweiOutput {
     sign: string;
     palaces: PalaceInfo[];
     decadalList: DecadalInfo[];
+    earthlyBranchOfSoulPalace?: string;
+    earthlyBranchOfBodyPalace?: string;
+    time?: string;
+    timeRange?: string;
+    mutagenSummary?: MutagenSummaryItem[];
+}
+export interface MutagenSummaryItem {
+    mutagen: '禄' | '权' | '科' | '忌';
+    starName: string;
+    palaceName: string;
 }
 export interface PalaceInfo {
     name: string;
@@ -126,9 +136,17 @@ export interface PalaceInfo {
     majorStars: StarInfo[];
     minorStars: StarInfo[];
     adjStars?: StarInfo[];
+    index?: number;
+    isOriginalPalace?: boolean;
+    changsheng12?: string;
+    boshi12?: string;
+    jiangqian12?: string;
+    suiqian12?: string;
+    ages?: number[];
 }
 export interface StarInfo {
     name: string;
+    type?: string;
     brightness?: string;
     mutagen?: string;
 }
@@ -139,6 +157,85 @@ export interface DecadalInfo {
     palace: {
         earthlyBranch: string;
         name: string;
+    };
+}
+export interface ZiweiHoroscopeInput extends BirthTimeInput {
+    gender: Gender;
+    targetDate?: string;
+    targetTimeIndex?: number;
+}
+export interface HoroscopePeriodInfo {
+    index: number;
+    name: string;
+    heavenlyStem: string;
+    earthlyBranch: string;
+    palaceNames: string[];
+    mutagen: string[];
+}
+export interface ZiweiHoroscopeOutput {
+    solarDate: string;
+    lunarDate: string;
+    soul: string;
+    body: string;
+    fiveElement: string;
+    targetDate: string;
+    decadal: HoroscopePeriodInfo;
+    age: HoroscopePeriodInfo & {
+        nominalAge: number;
+    };
+    yearly: HoroscopePeriodInfo;
+    monthly: HoroscopePeriodInfo;
+    daily: HoroscopePeriodInfo;
+    hourly: HoroscopePeriodInfo;
+}
+export interface ZiweiFlyingStarInput extends BirthTimeInput {
+    gender: Gender;
+    queries: FlyingStarQuery[];
+}
+export type FlyingStarQuery = {
+    type: 'fliesTo';
+    from: string;
+    to: string;
+    mutagens: string[];
+} | {
+    type: 'selfMutaged';
+    palace: string;
+    mutagens?: string[];
+} | {
+    type: 'mutagedPlaces';
+    palace: string;
+} | {
+    type: 'surroundedPalaces';
+    palace: string;
+};
+export interface ZiweiFlyingStarOutput {
+    results: FlyingStarResult[];
+}
+export interface FlyingStarResult {
+    queryIndex: number;
+    type: string;
+    result: boolean | MutagedPlaceInfo[] | SurroundedPalaceInfo;
+}
+export interface MutagedPlaceInfo {
+    mutagen: string;
+    targetPalace: string | null;
+}
+export interface SurroundedPalaceInfo {
+    target: {
+        name: string;
+        index: number;
+    };
+    opposite: {
+        name: string;
+        index: number;
+    };
+    wealth: {
+        name: string;
+        index: number;
+    };
+    career: {
+        name: string;
+        index: number;
     };
 }
 export interface LiuyaoInput {
@@ -357,10 +454,6 @@ export interface TimeRecommendation {
     earthlyBranch?: string;
     basis: string[];
     description: string;
-}
-export interface SummaryInfo {
-    overallTrend: 'favorable' | 'neutral' | 'unfavorable';
-    keyFactors: string[];
 }
 export interface TarotInput {
     spreadType?: string;

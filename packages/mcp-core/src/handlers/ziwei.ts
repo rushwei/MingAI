@@ -2,61 +2,45 @@
  * 紫微斗数排盘处理器
  */
 
-import { astro, type Astrolabe, type Palace, type Star } from 'iztro';
-import type { ZiweiInput, ZiweiOutput, PalaceInfo, DecadalInfo } from '../types.js';
-
-// 将小时转换为时辰索引（子时=0, 丑时=1, ...）
-function hourToTimeIndex(hour: number): number {
-  // 23:00-00:59 为子时（索引 0）
-  if (hour >= 23 || hour < 1) return 0;
-  return Math.floor((hour + 1) / 2);
-}
+import type { Palace } from 'iztro';
+import type { ZiweiInput, ZiweiOutput, PalaceInfo, DecadalInfo, MutagenSummaryItem } from '../types.js';
+import { createAstrolabe, mapStar, MUTAGEN_NAMES, type MutagenName } from './ziwei-shared.js';
 
 export async function handleZiweiCalculate(input: ZiweiInput): Promise<ZiweiOutput> {
-  const {
-    gender,
-    birthYear,
-    birthMonth,
-    birthDay,
-    birthHour,
-    birthMinute = 0,
-    calendarType = 'solar',
-    isLeapMonth = false,
-  } = input;
+  const astrolabe = createAstrolabe(input);
 
-  const dateStr = `${birthYear}-${birthMonth}-${birthDay}`;
-  const hourValue = birthHour + birthMinute / 60;
-  const timeIndex = hourToTimeIndex(hourValue);
-  const genderStr = gender === 'male' ? '男' : '女';
-
-  let astrolabe: Astrolabe;
-
-  if (calendarType === 'lunar') {
-    astrolabe = astro.byLunar(dateStr, timeIndex, genderStr, isLeapMonth, true, 'zh-CN');
-  } else {
-    astrolabe = astro.bySolar(dateStr, timeIndex, genderStr, true, 'zh-CN');
-  }
+  const mutagenSummary: MutagenSummaryItem[] = [];
 
   // 转换宫位数据
-  const palaces: PalaceInfo[] = astrolabe.palaces.map((palace: Palace) => ({
-    name: palace.name,
-    heavenlyStem: palace.heavenlyStem,
-    earthlyBranch: palace.earthlyBranch,
-    isBodyPalace: palace.isBodyPalace,
-    majorStars: palace.majorStars.map((star: Star) => ({
-      name: star.name,
-      brightness: star.brightness,
-      mutagen: star.mutagen,
-    })),
-    minorStars: palace.minorStars.map((star: Star) => ({
-      name: star.name,
-      brightness: star.brightness,
-      mutagen: star.mutagen,
-    })),
-    adjStars: (palace.adjectiveStars || palace.adjStars || []).map(
-      (star: Star) => ({ name: star.name })
-    ),
-  }));
+  const palaces: PalaceInfo[] = astrolabe.palaces.map((palace: Palace, idx: number) => {
+    // 收集四化分布
+    for (const star of [...palace.majorStars, ...palace.minorStars]) {
+      if (star.mutagen && MUTAGEN_NAMES.includes(star.mutagen as MutagenName)) {
+        mutagenSummary.push({
+          mutagen: star.mutagen as MutagenName,
+          starName: star.name,
+          palaceName: palace.name,
+        });
+      }
+    }
+
+    return {
+      name: palace.name,
+      heavenlyStem: palace.heavenlyStem,
+      earthlyBranch: palace.earthlyBranch,
+      isBodyPalace: palace.isBodyPalace,
+      index: palace.index ?? idx,
+      isOriginalPalace: palace.isOriginalPalace ?? false,
+      changsheng12: palace.changsheng12,
+      boshi12: palace.boshi12,
+      jiangqian12: palace.jiangqian12,
+      suiqian12: palace.suiqian12,
+      ages: palace.ages,
+      majorStars: palace.majorStars.map(mapStar),
+      minorStars: palace.minorStars.map(mapStar),
+      adjStars: (palace.adjectiveStars || []).map(mapStar),
+    };
+  });
 
   // 获取四柱
   const pillars = (astrolabe.chineseDate || '').split(' ');
@@ -91,5 +75,10 @@ export async function handleZiweiCalculate(input: ZiweiInput): Promise<ZiweiOutp
     sign: astrolabe.sign || '',
     palaces,
     decadalList,
+    earthlyBranchOfSoulPalace: astrolabe.earthlyBranchOfSoulPalace,
+    earthlyBranchOfBodyPalace: astrolabe.earthlyBranchOfBodyPalace,
+    time: astrolabe.time,
+    timeRange: astrolabe.timeRange,
+    mutagenSummary,
   };
 }

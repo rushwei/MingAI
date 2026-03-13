@@ -27,7 +27,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalFetch = global.fetch;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
@@ -40,6 +40,10 @@ test('tarot route uses schema column names when inserting history', async (t) =>
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'free', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({ data: null, error: null }),
                         }),
                     }),
@@ -64,7 +68,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
         },
     };
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
     credits.useCredit = async () => 1;
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
@@ -78,7 +82,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
 
     t.after(() => {
         consoleCapture.restore();
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
@@ -134,13 +138,13 @@ test('tarot route returns error when credit deduction fails', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalFetch = global.fetch;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getServiceClient;
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
     credits.useCredit = async () => null;
     supabaseModule.supabase.auth.getUser = async () => ({
         data: { user: { id: 'user-1' } },
@@ -152,6 +156,10 @@ test('tarot route returns error when credit deduction fails', async (t) => {
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'free', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({ data: null, error: null }),
                         }),
                     }),
@@ -169,7 +177,7 @@ test('tarot route returns error when credit deduction fails', async (t) => {
 
     t.after(() => {
         consoleCapture.restore();
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getServiceClient = originalGetServiceClient;
@@ -219,7 +227,7 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     const supabaseModule = require('../lib/supabase') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalHasCredits = credits.hasCredits;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalCallAIStream = aiModule.callAIStream;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
@@ -240,7 +248,7 @@ test('tarot route persists analysis after streaming completes', async (t) => {
         },
     });
 
-    credits.hasCredits = async () => true;
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
     aiModule.callAIStream = async () => stream;
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
@@ -257,6 +265,10 @@ test('tarot route persists analysis after streaming completes', async (t) => {
                 return {
                     select: () => ({
                         eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
                             maybeSingle: async () => ({
                                 data: { membership: 'pro', membership_expires_at: null },
                                 error: null,
@@ -285,7 +297,7 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     });
 
     t.after(() => {
-        credits.hasCredits = originalHasCredits;
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         aiModule.callAIStream = originalCallAIStream;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;

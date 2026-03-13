@@ -21,11 +21,13 @@ import {
     Users,
 } from 'lucide-react';
 import { downloadShareCard, shareCard } from '@/lib/share-card';
-import type { DailyFortune, FortuneScores } from '@/lib/divination/fortune';
+import type { DailyFortune, FortuneLevels, FortuneChartScores } from '@/lib/divination/fortune';
+import { fortuneLevelToChartValue, isLevelFavorable } from '@/lib/divination/fortune';
+import type { FortuneLevel } from '@/types';
 
 interface ShareCardProps {
     /** 运势数据 */
-    fortune: DailyFortune | (FortuneScores & { advice: string[]; date?: string });
+    fortune: DailyFortune | (FortuneLevels & { advice: string[]; date?: string; _chart?: FortuneChartScores });
     /** 日期 */
     date: Date;
     /** 用户名 / 命盘名称（可选） */
@@ -91,7 +93,7 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                 { element: cardRef.current },
                 {
                     title: `MingAI ${formatDate(date)} 运势`,
-                    text: `我的${isPersonalized ? '个性化' : '今日'}运势 - 综合运势 ${fortune.overall} 分`,
+                    text: `我的${isPersonalized ? '个性化' : '今日'}运势 - 综合运势：${fortune.overall}`,
                 }
             );
             if (shared) {
@@ -105,15 +107,15 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
         }
     };
 
-    const getScoreColor = (score: number): string => {
-        if (score >= 80) return '#16a34a';
-        if (score >= 60) return '#d97706';
+    const getLevelColor = (level: FortuneLevel): string => {
+        if (isLevelFavorable(level)) return '#16a34a';
+        if (level === '平') return '#d97706';
         return '#dc2626';
     };
 
-    const getScoreBarColor = (score: number): string => {
-        if (score >= 80) return '#22c55e';
-        if (score >= 60) return '#f59e0b';
+    const getLevelBarColor = (level: FortuneLevel): string => {
+        if (isLevelFavorable(level)) return '#22c55e';
+        if (level === '平') return '#f59e0b';
         return '#ef4444';
     };
 
@@ -180,7 +182,8 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                 {/* 运势评分 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                     {scoreItemsWithColors.map(item => {
-                        const score = fortune[item.key as keyof typeof fortune] as number;
+                        const level = fortune[item.key as keyof typeof fortune] as FortuneLevel;
+                        const chartValue = fortuneLevelToChartValue(level);
                         const Icon = item.icon;
 
                         return (
@@ -193,14 +196,14 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                                     <div
                                         style={{
                                             height: '100%',
-                                            width: `${score}%`,
-                                            backgroundColor: getScoreBarColor(score),
+                                            width: `${chartValue}%`,
+                                            backgroundColor: getLevelBarColor(level),
                                             borderRadius: '9999px',
                                         }}
                                     />
                                 </div>
-                                <span style={{ width: '40px', textAlign: 'right', fontWeight: 700, color: getScoreColor(score), fontSize: '16px' }}>
-                                    {score}
+                                <span style={{ width: '40px', textAlign: 'right', fontWeight: 700, color: getLevelColor(level), fontSize: '16px' }}>
+                                    {level}
                                 </span>
                             </div>
                         );

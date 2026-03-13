@@ -1,7 +1,7 @@
 /**
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
-import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput } from './types.js';
+import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, ZiweiHoroscopeOutput, ZiweiFlyingStarOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput } from './types.js';
 /**
  * 格式化八字结果为 Markdown
  */
@@ -14,6 +14,14 @@ export declare function formatBaziPillarsResolveAsMarkdown(result: BaziPillarsRe
  * 格式化紫微斗数结果为 Markdown
  */
 export declare function formatZiweiAsMarkdown(result: ZiweiOutput): string;
+/**
+ * 格式化紫微运限结果为 Markdown
+ */
+export declare function formatZiweiHoroscopeAsMarkdown(result: ZiweiHoroscopeOutput): string;
+/**
+ * 格式化紫微飞星结果为 Markdown
+ */
+export declare function formatZiweiFlyingStarAsMarkdown(result: ZiweiFlyingStarOutput): string;
 /**
  * 格式化六爻结果为 Markdown
  */

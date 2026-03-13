@@ -7,6 +7,10 @@
 import type { ZiweiChart, PalaceInfo, StarInfo, DecadalInfo } from './ziwei';
 import { getDecadalList, getHoroscope } from './ziwei';
 
+// 传统宫位排列顺序（iztro zh-CN locale 不带"宫"后缀，除"命宫"外）
+const PALACE_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄',
+    '迁移', '仆役', '官禄', '田宅', '福德', '父母'];
+
 /**
  * 将星曜信息转为文字
  */
@@ -103,11 +107,7 @@ export function ziweiChartToText(chart: ZiweiChart, includeHoroscope: boolean = 
     // ===== 十二宫详情 =====
     sections.push('【十二宫详情】');
 
-    // 按传统顺序排列宫位
-    const palaceOrder = ['命宫', '兄弟宫', '夫妻宫', '子女宫', '财帛宫', '疾厄宫',
-        '迁移宫', '仆役宫', '官禄宫', '田宅宫', '福德宫', '父母宫'];
-
-    for (const palaceName of palaceOrder) {
+    for (const palaceName of PALACE_ORDER) {
         const palace = chart.palaces.find(p => p.name === palaceName);
         if (palace) {
             sections.push(palaceToText(palace));

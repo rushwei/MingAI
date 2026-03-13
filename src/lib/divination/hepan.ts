@@ -5,6 +5,7 @@
  */
 
 import { getConflictTriggers } from '@/lib/communication-templates';
+import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, BRANCH_ELEMENTS } from '@/lib/divination/bazi';
 
 // 合盘类型
 export type HepanType = 'love' | 'business' | 'family';
@@ -84,30 +85,11 @@ export interface HepanResult {
     createdAt: Date;
 }
 
-// 天干
-const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+// 天干五行（复用 bazi.ts 的 STEM_ELEMENTS）
+const GAN_WUXING = STEM_ELEMENTS as Record<string, WuXing>;
 
-// 地支
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-
-// 天干五行
-const GAN_WUXING: Record<string, WuXing> = {
-    '甲': '木', '乙': '木',
-    '丙': '火', '丁': '火',
-    '戊': '土', '己': '土',
-    '庚': '金', '辛': '金',
-    '壬': '水', '癸': '水',
-};
-
-// 地支五行
-const ZHI_WUXING: Record<string, WuXing> = {
-    '子': '水', '丑': '土',
-    '寅': '木', '卯': '木',
-    '辰': '土', '巳': '火',
-    '午': '火', '未': '土',
-    '申': '金', '酉': '金',
-    '戌': '土', '亥': '水',
-};
+// 地支五行（复用 bazi.ts 的 BRANCH_ELEMENTS）
+const ZHI_WUXING = BRANCH_ELEMENTS as Record<string, WuXing>;
 
 // 五行相生关系
 const WUXING_SHENG: Record<WuXing, WuXing> = {
@@ -186,7 +168,7 @@ function getDayPillar(year: number, month: number, day: number): { gan: string; 
  */
 function getHourPillar(dayGan: string, hour: number): { gan: string; zhi: string } {
     const zhiIndex = Math.floor((hour + 1) / 2) % 12;
-    const dayGanIndex = TIAN_GAN.indexOf(dayGan);
+    const dayGanIndex = (TIAN_GAN as readonly string[]).indexOf(dayGan);
     const hourGanStart = (dayGanIndex % 5) * 2;
     const ganIndex = (hourGanStart + zhiIndex) % 10;
     return {
@@ -367,30 +349,111 @@ export function analyzeCompatibility(
         description: yearDesc,
     });
 
-    // 4. 根据类型添加特定维度
+    // 4. 根据类型添加特定维度（基于柱位五行生克的确定性计算）
     if (type === 'love') {
-        // 感情维度
-        const emotionScore = Math.floor(50 + Math.random() * 40);
+        // 感情缘分：基于月柱关系（月支六合/相冲 + 月干五行生克）
+        const monthZhi1 = bazi1.monthZhi;
+        const monthZhi2 = bazi2.monthZhi;
+        const monthGanRelation = calculateWuxingRelation(
+            GAN_WUXING[bazi1.monthGan],
+            GAN_WUXING[bazi2.monthGan]
+        );
+
+        let emotionScore = 60;
+        let emotionDesc = '';
+
+        if (ZHI_LIUHE[monthZhi1] === monthZhi2) {
+            emotionScore += 25;
+            emotionDesc = '月支六合，情感共鸣深厚';
+        } else if (ZHI_CHONG[monthZhi1] === monthZhi2) {
+            emotionScore -= 15;
+            emotionDesc = '月支相冲，情感表达方式有差异';
+        }
+
+        if (monthGanRelation === 'sheng' || monthGanRelation === 'bei_sheng') {
+            emotionScore += 10;
+            if (!emotionDesc) emotionDesc = '月干相生，感情基础深厚';
+        } else if (monthGanRelation === 'ke' || monthGanRelation === 'bei_ke') {
+            emotionScore -= 5;
+            if (!emotionDesc) emotionDesc = '月干相克，感情需要经营';
+        } else {
+            if (!emotionDesc) emotionDesc = '感情平稳，需用心经营';
+        }
+
         dimensions.push({
             name: '感情缘分',
-            score: emotionScore,
-            description: emotionScore > 70 ? '感情基础深厚' : '感情需要经营',
+            score: Math.max(30, Math.min(95, emotionScore)),
+            description: emotionDesc,
         });
     } else if (type === 'business') {
-        // 事业维度
-        const businessScore = Math.floor(50 + Math.random() * 40);
+        // 事业互补：基于时柱关系（时支六合/相冲 + 时干五行生克）
+        const hourZhi1 = bazi1.hourZhi;
+        const hourZhi2 = bazi2.hourZhi;
+        const hourGanRelation = calculateWuxingRelation(
+            GAN_WUXING[bazi1.hourGan],
+            GAN_WUXING[bazi2.hourGan]
+        );
+
+        let businessScore = 60;
+        let businessDesc = '';
+
+        if (ZHI_LIUHE[hourZhi1] === hourZhi2) {
+            businessScore += 25;
+            businessDesc = '时支六合，事业目标一致';
+        } else if (ZHI_CHONG[hourZhi1] === hourZhi2) {
+            businessScore -= 15;
+            businessDesc = '时支相冲，事业理念有分歧';
+        }
+
+        if (hourGanRelation === 'sheng' || hourGanRelation === 'bei_sheng') {
+            businessScore += 10;
+            if (!businessDesc) businessDesc = '时干相生，能力互补，协作顺畅';
+        } else if (hourGanRelation === 'ke' || hourGanRelation === 'bei_ke') {
+            businessScore -= 5;
+            if (!businessDesc) businessDesc = '时干相克，需明确分工';
+        } else {
+            if (!businessDesc) businessDesc = '事业配合平稳，需磨合协作方式';
+        }
+
         dimensions.push({
             name: '事业互补',
-            score: businessScore,
-            description: businessScore > 70 ? '能力互补，协作顺畅' : '需明确分工',
+            score: Math.max(30, Math.min(95, businessScore)),
+            description: businessDesc,
         });
     } else if (type === 'family') {
-        // 亲子维度
-        const familyScore = Math.floor(50 + Math.random() * 40);
+        // 亲子沟通：基于双方月柱交叉关系（月支六合/相冲 + 月干五行生克）
+        const monthGanRelation = calculateWuxingRelation(
+            GAN_WUXING[bazi1.monthGan],
+            GAN_WUXING[bazi2.monthGan]
+        );
+        const monthZhi1 = bazi1.monthZhi;
+        const monthZhi2 = bazi2.monthZhi;
+
+        let familyScore = 60;
+        let familyDesc = '';
+
+        if (ZHI_LIUHE[monthZhi1] === monthZhi2) {
+            familyScore += 25;
+            familyDesc = '月支六合，沟通顺畅，理解深';
+        } else if (ZHI_CHONG[monthZhi1] === monthZhi2) {
+            familyScore -= 15;
+            familyDesc = '月支相冲，沟通方式需调整';
+        }
+
+        if (monthGanRelation === 'sheng' || monthGanRelation === 'bei_sheng') {
+            familyScore += 10;
+            if (!familyDesc) familyDesc = '月干相生，亲子关系融洽';
+        } else if (monthGanRelation === 'ke' || monthGanRelation === 'bei_ke') {
+            familyScore -= 5;
+            if (!familyDesc) familyDesc = '月干相克，需增加交流';
+        } else {
+            if (!familyDesc) familyDesc = '亲子关系平稳，需多互动增进理解';
+        }
+
         dimensions.push({
             name: '亲子沟通',
-            score: familyScore,
-            description: familyScore > 70 ? '沟通顺畅，理解深' : '需增加交流',
+            score: Math.max(30, Math.min(95, familyScore)),
+            description: familyDesc,
         });
     }
 
@@ -501,18 +564,31 @@ export function calculateCompatibilityTrend(
                 : `${person2.name}冲月，需多关照`;
         }
 
-        // 添加季节性波动（模拟真实关系的自然起伏）
-        const seed = targetYear * 100 + targetMonth + person1.year + person2.year;
-        const seasonalVariation = Math.sin(seed * 0.1) * 5;
-        baseScore += seasonalVariation;
-
         // 确保分数在合理范围
         const score = Math.max(35, Math.min(95, Math.round(baseScore)));
 
-        // 计算各维度分数
-        const wuxingScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 10)));
-        const communicationScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 12)));
-        const emotionScore = Math.max(40, Math.min(95, score + Math.round((Math.random() - 0.5) * 8)));
+        // 计算各维度分数（基于不同柱位的确定性关系）
+        // 五行配合：流月天干五行与双方主五行的关系（已体现在 baseScore 中）
+        const wuxingDimBase = 65 + (relationScores[relation1] || 0) + (relationScores[relation2] || 0);
+
+        // 沟通契合：流月地支与双方月支的六合/相冲关系
+        let commOffset = 0;
+        if (ZHI_LIUHE[bazi1.monthZhi] === monthZhi) commOffset += 10;
+        else if (ZHI_CHONG[bazi1.monthZhi] === monthZhi) commOffset -= 8;
+        if (ZHI_LIUHE[bazi2.monthZhi] === monthZhi) commOffset += 10;
+        else if (ZHI_CHONG[bazi2.monthZhi] === monthZhi) commOffset -= 8;
+        const communicationDimBase = 65 + commOffset;
+
+        // 情感共鸣：流月天干五行与双方日干（日主）五行的关系
+        const dayElement1 = GAN_WUXING[bazi1.dayGan];
+        const dayElement2 = GAN_WUXING[bazi2.dayGan];
+        const dayRelation1 = calculateWuxingRelation(dayElement1, monthElement);
+        const dayRelation2 = calculateWuxingRelation(dayElement2, monthElement);
+        const emotionDimBase = 65 + (relationScores[dayRelation1] || 0) + (relationScores[dayRelation2] || 0);
+
+        const wuxingScore = Math.max(40, Math.min(95, Math.round(wuxingDimBase)));
+        const communicationScore = Math.max(40, Math.min(95, Math.round(communicationDimBase)));
+        const emotionScore = Math.max(40, Math.min(95, Math.round(emotionDimBase)));
 
         result.push({
             month: `${targetMonth}月`,

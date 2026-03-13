@@ -25,15 +25,7 @@ const bazi = await handleToolCall('bazi_calculate', {
 });
 
 // 六爻排卦
-const liuyao = await handleToolCall('liuyao_analyze', {
-  yaos: [
-    { type: 1, change: false },
-    { type: 0, change: true },
-    { type: 1, change: false },
-    { type: 0, change: false },
-    { type: 1, change: false },
-    { type: 1, change: true },
-  ],
+const liuyao = await handleToolCall('liuyao', {
   question: '事业发展如何',
   yongShenTargets: ['官鬼'],
 });
@@ -45,11 +37,13 @@ const liuyao = await handleToolCall('liuyao_analyze', {
 |------|------|
 | `bazi_calculate` | 八字排盘 |
 | `bazi_pillars_resolve` | 八字反查（四柱 → 出生时间候选） |
-| `ziwei_calculate` | 紫微斗数排盘 |
-| `liuyao_analyze` | 六爻排卦分析 |
-| `tarot_draw` | 塔罗抽牌 |
-| `daily_fortune` | 每日运势 |
-| `dayun_calculate` | 大运计算 |
+| `bazi_dayun` | 八字大运计算 |
+| `ziwei_calculate` | 紫微斗数排盘（含长生12神、博士12神、四化分布等） |
+| `ziwei_horoscope` | 紫微运限（大限/小限/流年/流月/流日/流时） |
+| `ziwei_flying_star` | 紫微飞星分析（飞化/自化/四化落宫/三方四正） |
+| `liuyao` | 六爻排卦分析 |
+| `tarot` | 塔罗抽牌 |
+| `almanac` | 黄历查询 |
 
 ## API
 
@@ -75,3 +69,9 @@ import { tools, handleToolCall, formatAsMarkdown } from '@mingai/mcp-core';
   }
 }
 ```
+
+## 更新日志
+
+### 1.1.0 (2026-03-13)
+
+新增 `ziwei_horoscope`（运限）、`ziwei_flying_star`（飞星）；`ziwei_calculate` 补充来因宫、长生/博士12神、四化分布等字段。工具重命名：`dayun_calculate` → `bazi_dayun`、`liuyao_analyze` → `liuyao`、`tarot_draw` → `tarot`、`daily_fortune` → `almanac`。

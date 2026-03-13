@@ -1,13 +1,18 @@
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { generateZiweiChartText, type ZiweiChart } from '@/lib/divination/ziwei';
+import type { ZiweiChart } from '@/lib/divination/ziwei';
+import { ziweiChartToText } from '@/lib/divination/ziwei-to-text';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type ZiweiRow = {
     id: string;
     user_id: string | null;
     name: string;
+    gender: string | null;
     birth_date: string;
     birth_time: string | null;
+    calendar_type: string | null;
+    is_leap_month: boolean | null;
+    birth_place: string | null;
     chart_data: Record<string, unknown> | null;
     created_at: string;
 };
@@ -52,17 +57,36 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
-        const payload = chartData as unknown as ZiweiChart;
 
-        if (payload?.palaces) {
-            return generateZiweiChartText(payload);
+        // 类型守卫：检查 palaces 字段是否存在且为数组
+        if (
+            chartData &&
+            'palaces' in chartData &&
+            Array.isArray((chartData as Record<string, unknown>).palaces)
+        ) {
+            const payload = chartData as unknown as ZiweiChart;
+            // 优先使用更丰富的 ziweiChartToText（含四化分布等），
+            // 但已保存的命盘没有 rawAstrolabe，跳过运限部分
+            const hasRawAstrolabe = !!payload.rawAstrolabe;
+            return ziweiChartToText(payload, hasRawAstrolabe);
         }
 
-        return [
-            `## 紫微命盘：${name}`,
-            `- 出生时间：${birth}`,
-            `- 结构化数据：${JSON.stringify(chartData)}`
-        ].join('\n');
+        // Fallback: 尝试提取更多有用信息
+        const lines = [`## 紫微命盘：${name}`, `- 出生时间：${birth}`];
+        if (chart.gender) lines.push(`- 性别：${chart.gender}`);
+        if (chart.calendar_type) lines.push(`- 历法：${chart.calendar_type === 'lunar' ? '农历' : '阳历'}`);
+        if (chart.is_leap_month) lines.push(`- 闰月：是`);
+        if (chart.birth_place) lines.push(`- 出生地：${chart.birth_place}`);
+
+        // 尝试从 chartData 中提取关键字段
+        const cd = chartData as Record<string, unknown>;
+        if (cd.fiveElement) lines.push(`- 五行局：${cd.fiveElement}`);
+        if (cd.soul) lines.push(`- 命主：${cd.soul}`);
+        if (cd.body) lines.push(`- 身主：${cd.body}`);
+        if (cd.solarDate) lines.push(`- 阳历：${cd.solarDate}`);
+        if (cd.lunarDate) lines.push(`- 农历：${cd.lunarDate}`);
+
+        return lines.join('\n');
     },
 
     summarize(chart: ZiweiRow): string {

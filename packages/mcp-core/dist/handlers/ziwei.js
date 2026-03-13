@@ -1,45 +1,39 @@
 /**
  * 紫微斗数排盘处理器
  */
-import { astro } from 'iztro';
-// 将小时转换为时辰索引（子时=0, 丑时=1, ...）
-function hourToTimeIndex(hour) {
-    // 23:00-00:59 为子时（索引 0）
-    if (hour >= 23 || hour < 1)
-        return 0;
-    return Math.floor((hour + 1) / 2);
-}
+import { createAstrolabe, mapStar, MUTAGEN_NAMES } from './ziwei-shared.js';
 export async function handleZiweiCalculate(input) {
-    const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, } = input;
-    const dateStr = `${birthYear}-${birthMonth}-${birthDay}`;
-    const hourValue = birthHour + birthMinute / 60;
-    const timeIndex = hourToTimeIndex(hourValue);
-    const genderStr = gender === 'male' ? '男' : '女';
-    let astrolabe;
-    if (calendarType === 'lunar') {
-        astrolabe = astro.byLunar(dateStr, timeIndex, genderStr, isLeapMonth, true, 'zh-CN');
-    }
-    else {
-        astrolabe = astro.bySolar(dateStr, timeIndex, genderStr, true, 'zh-CN');
-    }
+    const astrolabe = createAstrolabe(input);
+    const mutagenSummary = [];
     // 转换宫位数据
-    const palaces = astrolabe.palaces.map((palace) => ({
-        name: palace.name,
-        heavenlyStem: palace.heavenlyStem,
-        earthlyBranch: palace.earthlyBranch,
-        isBodyPalace: palace.isBodyPalace,
-        majorStars: palace.majorStars.map((star) => ({
-            name: star.name,
-            brightness: star.brightness,
-            mutagen: star.mutagen,
-        })),
-        minorStars: palace.minorStars.map((star) => ({
-            name: star.name,
-            brightness: star.brightness,
-            mutagen: star.mutagen,
-        })),
-        adjStars: (palace.adjectiveStars || palace.adjStars || []).map((star) => ({ name: star.name })),
-    }));
+    const palaces = astrolabe.palaces.map((palace, idx) => {
+        // 收集四化分布
+        for (const star of [...palace.majorStars, ...palace.minorStars]) {
+            if (star.mutagen && MUTAGEN_NAMES.includes(star.mutagen)) {
+                mutagenSummary.push({
+                    mutagen: star.mutagen,
+                    starName: star.name,
+                    palaceName: palace.name,
+                });
+            }
+        }
+        return {
+            name: palace.name,
+            heavenlyStem: palace.heavenlyStem,
+            earthlyBranch: palace.earthlyBranch,
+            isBodyPalace: palace.isBodyPalace,
+            index: palace.index ?? idx,
+            isOriginalPalace: palace.isOriginalPalace ?? false,
+            changsheng12: palace.changsheng12,
+            boshi12: palace.boshi12,
+            jiangqian12: palace.jiangqian12,
+            suiqian12: palace.suiqian12,
+            ages: palace.ages,
+            majorStars: palace.majorStars.map(mapStar),
+            minorStars: palace.minorStars.map(mapStar),
+            adjStars: (palace.adjectiveStars || []).map(mapStar),
+        };
+    });
     // 获取四柱
     const pillars = (astrolabe.chineseDate || '').split(' ');
     // 提取大限数据
@@ -71,5 +65,10 @@ export async function handleZiweiCalculate(input) {
         sign: astrolabe.sign || '',
         palaces,
         decadalList,
+        earthlyBranchOfSoulPalace: astrolabe.earthlyBranchOfSoulPalace,
+        earthlyBranchOfBodyPalace: astrolabe.earthlyBranchOfBodyPalace,
+        time: astrolabe.time,
+        timeRange: astrolabe.timeRange,
+        mutagenSummary,
     };
 }

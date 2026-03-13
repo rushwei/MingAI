@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useMemo, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Star, Loader2, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { getDayCount } from '@/lib/date-utils';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -51,6 +52,7 @@ function ZiweiResultContent() {
 
         setLoading(true);
         setNotFound(false);
+        // TODO: 应改为通过 API 路由读取，避免客户端直接操作 Supabase（Fix 8）
         supabase
             .from('ziwei_charts')
             .select('*')
@@ -123,8 +125,13 @@ function ZiweiResultContent() {
             adjustedDay -= 1;
         }
 
-        // 简化处理：月份和年份溢出（支持多天偏移）
-        let daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+        // Fix 6: 使用 getDayCount 支持农历月天数计算
+        let daysInMonth = getDayCount(
+            resolvedFormData.calendarType,
+            adjustedYear,
+            adjustedMonth,
+            resolvedFormData.isLeapMonth,
+        );
         while (adjustedDay > daysInMonth) {
             adjustedDay -= daysInMonth;
             adjustedMonth += 1;
@@ -132,7 +139,12 @@ function ZiweiResultContent() {
                 adjustedMonth = 1;
                 adjustedYear += 1;
             }
-            daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+            daysInMonth = getDayCount(
+                resolvedFormData.calendarType,
+                adjustedYear,
+                adjustedMonth,
+                resolvedFormData.isLeapMonth,
+            );
         }
         while (adjustedDay < 1) {
             adjustedMonth -= 1;
@@ -140,7 +152,12 @@ function ZiweiResultContent() {
                 adjustedMonth = 12;
                 adjustedYear -= 1;
             }
-            daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
+            daysInMonth = getDayCount(
+                resolvedFormData.calendarType,
+                adjustedYear,
+                adjustedMonth,
+                resolvedFormData.isLeapMonth,
+            );
             adjustedDay += daysInMonth;
         }
 
@@ -169,7 +186,7 @@ function ZiweiResultContent() {
     }, [adjustedFormData]);
 
     // 修改命盘
-    const handleEdit = () => {
+    const handleEdit = useCallback(() => {
         const params = new URLSearchParams({
             name: resolvedFormData.name,
             gender: resolvedFormData.gender,
@@ -191,9 +208,9 @@ function ZiweiResultContent() {
             params.set('chart', chartId);
         }
         router.push(`/ziwei?${params.toString()}`);
-    };
+    }, [resolvedFormData, chartId, router]);
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
         if (saving || !chart) return;
 
         const { data: { session } } = await supabase.auth.getSession();
@@ -234,6 +251,7 @@ function ZiweiResultContent() {
                     throw new Error(result?.error || '更新失败');
                 }
             } else {
+                // TODO: 应改为通过 API 路由操作，避免客户端直接操作 Supabase（Fix 8）
                 const { data: inserted, error: insertError } = await supabase
                     .from('ziwei_charts')
                     .insert({ ...payload, user_id: session.user.id })
@@ -257,10 +275,10 @@ function ZiweiResultContent() {
         } finally {
             setSaving(false);
         }
-    };
+    }, [saving, chart, resolvedFormData, chartId, router, showToast]);
 
     // 分享
-    const handleShare = async () => {
+    const handleShare = useCallback(async () => {
         const url = window.location.href;
         if (navigator.share) {
             try {
@@ -273,10 +291,15 @@ function ZiweiResultContent() {
                 // 用户取消
             }
         } else {
-            await navigator.clipboard.writeText(url);
-            showToast('success', '链接已复制到剪贴板');
+            // Fix 9: clipboard API 添加错误处理
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('success', '链接已复制到剪贴板');
+            } catch {
+                showToast('error', '复制链接失败，请手动复制');
+            }
         }
-    };
+    }, [resolvedFormData.name, showToast]);
 
     // 设置移动端 Header 菜单项
     useEffect(() => {
@@ -303,8 +326,7 @@ function ZiweiResultContent() {
         ];
         setMenuItems(items);
         return () => clearMenuItems();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [saving, saved, setMenuItems, clearMenuItems]);
+    }, [saving, saved, setMenuItems, clearMenuItems, handleEdit, handleSave, handleShare]);
 
     if (loading) {
         return (

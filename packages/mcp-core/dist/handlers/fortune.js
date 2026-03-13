@@ -5,6 +5,7 @@ import { Solar } from 'lunar-javascript';
 import { calculateTenGod } from '../utils.js';
 // ===== 缓存配置 =====
 const FORTUNE_CACHE_TTL = 60 * 60 * 1000; // 1小时
+const FORTUNE_CACHE_MAX = 200;
 const fortuneCache = new Map();
 function getCachedFortune(date, dayMaster) {
     const key = `${date}:${dayMaster || 'none'}`;
@@ -12,10 +13,18 @@ function getCachedFortune(date, dayMaster) {
     if (cached && cached.expire > Date.now()) {
         return cached.data;
     }
+    if (cached)
+        fortuneCache.delete(key);
     return undefined;
 }
 function setCachedFortune(date, dayMaster, data) {
     const key = `${date}:${dayMaster || 'none'}`;
+    if (fortuneCache.size >= FORTUNE_CACHE_MAX) {
+        // 淘汰最早的条目
+        const firstKey = fortuneCache.keys().next().value;
+        if (firstKey !== undefined)
+            fortuneCache.delete(firstKey);
+    }
     fortuneCache.set(key, { data, expire: Date.now() + FORTUNE_CACHE_TTL });
 }
 export async function handleDailyFortune(input) {

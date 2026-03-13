@@ -27,6 +27,7 @@ import {
   DI_SHI_ORDER,
   CHANG_SHENG_START,
   LIU_HE,
+  LIU_HE_HUA,
   SAN_HE,
   LIU_CHONG,
   XIANG_HAI,
@@ -125,7 +126,7 @@ const PILLAR_POSITION_MAP: Record<string, PillarPosition> = {
 function normalizePillarPosition(label: string): PillarPosition {
   const normalized = PILLAR_POSITION_MAP[label];
   if (!normalized) {
-    throw new Error(`Invalid pillar position label: ${label}`);
+    throw new Error(`无效的柱位标签: ${label}`);
   }
   return normalized;
 }
@@ -138,10 +139,11 @@ function analyzePillarRelations(yearBranch: string, monthBranch: string, dayBran
   for (let i = 0; i < branches.length; i++) {
     for (let j = i + 1; j < branches.length; j++) {
       if (LIU_HE[branches[i]] === branches[j]) {
+        const huaElement = LIU_HE_HUA[branches[i]] || '';
         relations.push({
           type: '合',
           pillars: [normalizePillarPosition(pillarNames[i]), normalizePillarPosition(pillarNames[j])],
-          description: `${branches[i]}${branches[j]}六合`,
+          description: `${branches[i]}${branches[j]}六合${huaElement ? '化' + huaElement : ''}`,
         });
       }
     }

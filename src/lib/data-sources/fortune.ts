@@ -1,4 +1,4 @@
-import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune } from '@/lib/divination/fortune';
+import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune, calculateGenericMonthlyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import type { BaziChart } from '@/types';
 import { getServiceRoleClient } from '@/lib/api-utils';
@@ -185,27 +185,16 @@ export const monthlyFortuneProvider: DataSourceProvider<FortuneData> = {
 
         const baziChart = await getDefaultBaziChartForUser(userId, ctx);
         if (!baziChart) {
-            const seed = year * 100 + month;
-            const random = (offset: number) => {
-                const x = Math.sin(seed + offset) * 10000;
-                return Math.floor((x - Math.floor(x)) * 35) + 60;
-            };
-            const overall = random(1);
-            const career = random(2);
-            const love = random(3);
-            const wealth = random(4);
-            const health = random(5);
-            const social = random(6);
-            const summary = overall >= 75 ? '本月整体运势偏强，适合稳步推进重点事项。' : '本月宜稳中求进，先把基础打牢。';
+            const generic = calculateGenericMonthlyFortune(year, month);
             const content = [
                 `## 本月运势（${String(year)}-${String(month).padStart(2, '0')}）`,
-                `- 综合：${overall}`,
-                `- 事业：${career}`,
-                `- 感情：${love}`,
-                `- 财运：${wealth}`,
-                `- 健康：${health}`,
-                `- 人际：${social}`,
-                `- 总结：${summary}`,
+                `- 综合：${generic.overall}`,
+                `- 事业：${generic.career}`,
+                `- 感情：${generic.love}`,
+                `- 财运：${generic.wealth}`,
+                `- 健康：${generic.health}`,
+                `- 人际：${generic.social}`,
+                `- 总结：${generic.summary}`,
             ].join('\n');
             return { id: `${String(year)}-${String(month).padStart(2, '0')}`, name: `本月运势（${String(year)}-${String(month).padStart(2, '0')}）`, content, createdAt };
         }

@@ -4,10 +4,8 @@
  * 六爻占卜的核心数据结构，用于计算六亲、世应等
  */
 
-import { TRIGRAM_NA_JIA } from '@mingai/mcp-core/liuyao-core';
-
-// 五行类型
-export type WuXing = '金' | '木' | '水' | '火' | '土';
+import { TRIGRAM_NA_JIA, type WuXing } from '@mingai/mcp-core/liuyao-core';
+import { BRANCH_ELEMENTS } from '@/lib/divination/bazi';
 
 // 八宫名称
 export type PalaceName = '乾宫' | '坎宫' | '艮宫' | '震宫' | '巽宫' | '离宫' | '坤宫' | '兑宫';
@@ -16,12 +14,8 @@ export type PalaceName = '乾宫' | '坎宫' | '艮宫' | '震宫' | '巽宫' | 
 export const DIZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
 export type DiZhi = typeof DIZHI[number];
 
-// 地支五行
-export const DIZHI_WUXING: Record<DiZhi, WuXing> = {
-    '子': '水', '丑': '土', '寅': '木', '卯': '木',
-    '辰': '土', '巳': '火', '午': '火', '未': '土',
-    '申': '金', '酉': '金', '戌': '土', '亥': '水',
-};
+// 地支五行（复用 bazi.ts 的 BRANCH_ELEMENTS）
+export const DIZHI_WUXING: Record<DiZhi, WuXing> = BRANCH_ELEMENTS;
 
 // 八宫结构
 export interface Palace {

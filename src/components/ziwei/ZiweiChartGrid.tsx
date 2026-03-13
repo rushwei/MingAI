@@ -9,11 +9,13 @@
 
 import { useState } from 'react';
 import type { ZiweiChart } from '@/lib/divination/ziwei';
-import { getBranchIndex, generateZiweiChartText } from '@/lib/divination/ziwei';
-import { getBranchElement, getElementColor } from '@/lib/divination/bazi';
+import { getBranchIndex, generateZiweiChartText, getTriangleSquare } from '@/lib/divination/ziwei';
+import { getBranchElement, getStemElement, getElementColor } from '@/lib/divination/bazi';
 import { PalaceCard } from '@/components/ziwei/PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
 import { Eye, EyeOff } from 'lucide-react';
+
+import { useToast } from '@/components/ui/Toast';
 
 interface ZiweiChartProps {
     chart: ZiweiChart;
@@ -21,30 +23,11 @@ interface ZiweiChartProps {
     horoscopeInfo?: HoroscopeInfo;
 }
 
-// 三方四正计算：获取与指定宫位形成三方四正的宫位索引
-function getSanFangSiZheng(palaceIndex: number): number[] {
-    // 三方：相隔4宫（120度）
-    // 四正：对宫（相隔6宫，180度）
-    const sanFang = [
-        (palaceIndex + 4) % 12,
-        (palaceIndex + 8) % 12,
-    ];
-    const siZheng = (palaceIndex + 6) % 12;
-    return [palaceIndex, ...sanFang, siZheng];
-}
-
-// 五行颜色映射：天干对应五行
-function getStemElementColor(stem: string | undefined): string {
-    if (!stem) return 'text-foreground';
-    // 甲乙-木-绿, 丙丁-火-红, 戊己-土-黄, 庚辛-金-金色, 壬癸-水-蓝
-    switch (stem) {
-        case '甲': case '乙': return 'text-green-500';  // 木
-        case '丙': case '丁': return 'text-red-500';    // 火
-        case '戊': case '己': return 'text-amber-500';  // 土
-        case '庚': case '辛': return 'text-yellow-400'; // 金
-        case '壬': case '癸': return 'text-blue-500';   // 水
-        default: return 'text-foreground';
-    }
+// 五行颜色映射：天干对应五行（使用 bazi.ts 的 getStemElement + getElementColor）
+function getStemElementStyle(stem: string | undefined): { color: string } | undefined {
+    if (!stem) return undefined;
+    const element = getStemElement(stem);
+    return element ? { color: getElementColor(element) } : undefined;
 }
 
 function getBranchElementStyle(branch: string | undefined): { color: string } | undefined {
@@ -78,6 +61,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
     const [selectedPalace, setSelectedPalace] = useState<number | null | undefined>(undefined);
     const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
     const [copied, setCopied] = useState(false);
+    const { showToast } = useToast();
 
     const defaultSelectedPalace = lifePalaceIndex >= 0 ? lifePalaceIndex : null;
     const activeSelectedPalace = selectedPalace === undefined ? defaultSelectedPalace : selectedPalace;
@@ -87,7 +71,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
     };
 
     // 计算三方四正高亮
-    const sanFangSiZhengPalaces = activeSelectedPalace !== null ? getSanFangSiZheng(activeSelectedPalace) : [];
+    const sanFangSiZhengPalaces = activeSelectedPalace !== null ? getTriangleSquare(activeSelectedPalace).square : [];
 
     // 获取宫位高亮类型（多色支持）
     const getHighlightTypes = (palaceIndex: number) => {
@@ -102,9 +86,13 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
     // 复制命盘
     const handleCopy = async () => {
         const text = generateChartText(chart, horoscopeInfo);
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
     };
 
     // 生成宫位的流年流月信息
@@ -179,7 +167,8 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                 {activeSelectedPalace !== null && (
                     <svg
                         className="absolute inset-0 w-full h-full pointer-events-none z-10"
-                        style={{ aspectRatio: '4/4' }}
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
                     >
                         {(() => {
                             const selectedPalaceInfo = chart.palaces[activeSelectedPalace];
@@ -196,7 +185,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                             const selectedPos = positionMap[selectedBranch];
                             if (!selectedPos) return null;
 
-                            const sanFangIndexes = getSanFangSiZheng(activeSelectedPalace);
+                            const sanFangIndexes = getTriangleSquare(activeSelectedPalace).square;
                             const cellSize = 25; // 每个宫位占25%
                             const padding = 1; // 边框内侧偏移
 
@@ -271,28 +260,28 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">年柱</div>
                                                         <div className="font-semibold">
-                                                            <span className={getStemElementColor(chart.yearStem)}>{chart.yearStem || '*'}</span>
+                                                            <span style={getStemElementStyle(chart.yearStem)}>{chart.yearStem || '*'}</span>
                                                             <span style={getBranchElementStyle(chart.yearBranch)}>{chart.yearBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">月柱</div>
                                                         <div className="font-semibold">
-                                                            <span className={getStemElementColor(chart.monthStem)}>{chart.monthStem || '*'}</span>
+                                                            <span style={getStemElementStyle(chart.monthStem)}>{chart.monthStem || '*'}</span>
                                                             <span style={getBranchElementStyle(chart.monthBranch)}>{chart.monthBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">日柱</div>
                                                         <div className="font-semibold">
-                                                            <span className={getStemElementColor(chart.dayStem)}>{chart.dayStem || '*'}</span>
+                                                            <span style={getStemElementStyle(chart.dayStem)}>{chart.dayStem || '*'}</span>
                                                             <span style={getBranchElementStyle(chart.dayBranch)}>{chart.dayBranch || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">时柱</div>
                                                         <div className="font-semibold">
-                                                            <span className={getStemElementColor(chart.hourStem)}>{chart.hourStem || '*'}</span>
+                                                            <span style={getStemElementStyle(chart.hourStem)}>{chart.hourStem || '*'}</span>
                                                             <span style={getBranchElementStyle(chart.hourBranch)}>{chart.hourBranch || '*'}</span>
                                                         </div>
                                                     </div>

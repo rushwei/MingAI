@@ -1,14 +1,4 @@
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary, DataSourceType } from '@/lib/data-sources/types';
-import { baziProvider } from '@/lib/data-sources/bazi';
-import { ziweiProvider } from '@/lib/data-sources/ziwei';
-import { tarotProvider } from '@/lib/data-sources/tarot';
-import { liuyaoProvider } from '@/lib/data-sources/liuyao';
-import { mbtiProvider } from '@/lib/data-sources/mbti';
-import { hepanProvider } from '@/lib/data-sources/hepan';
-import { faceProvider } from '@/lib/data-sources/face';
-import { palmProvider } from '@/lib/data-sources/palm';
-import { recordProvider } from '@/lib/data-sources/record';
-import { dailyFortuneProvider, monthlyFortuneProvider } from '@/lib/data-sources/fortune';
 
 const providers = new Map<DataSourceType, () => Promise<DataSourceProvider>>();
 
@@ -67,17 +57,50 @@ export async function resolveDataSources(
 }
 
 const _init = (() => {
-    registerDataSource('bazi_chart', async () => baziProvider);
-    registerDataSource('ziwei_chart', async () => ziweiProvider);
-    registerDataSource('tarot_reading', async () => tarotProvider);
-    registerDataSource('liuyao_divination', async () => liuyaoProvider);
-    registerDataSource('mbti_reading', async () => mbtiProvider);
-    registerDataSource('hepan_chart', async () => hepanProvider);
-    registerDataSource('face_reading', async () => faceProvider);
-    registerDataSource('palm_reading', async () => palmProvider);
-    registerDataSource('ming_record', async () => recordProvider);
-    registerDataSource('daily_fortune', async () => dailyFortuneProvider);
-    registerDataSource('monthly_fortune', async () => monthlyFortuneProvider);
+    registerDataSource('bazi_chart', async () => {
+        const { baziProvider } = await import('@/lib/data-sources/bazi');
+        return baziProvider;
+    });
+    registerDataSource('ziwei_chart', async () => {
+        const { ziweiProvider } = await import('@/lib/data-sources/ziwei');
+        return ziweiProvider;
+    });
+    registerDataSource('tarot_reading', async () => {
+        const { tarotProvider } = await import('@/lib/data-sources/tarot');
+        return tarotProvider;
+    });
+    registerDataSource('liuyao_divination', async () => {
+        const { liuyaoProvider } = await import('@/lib/data-sources/liuyao');
+        return liuyaoProvider;
+    });
+    registerDataSource('mbti_reading', async () => {
+        const { mbtiProvider } = await import('@/lib/data-sources/mbti');
+        return mbtiProvider;
+    });
+    registerDataSource('hepan_chart', async () => {
+        const { hepanProvider } = await import('@/lib/data-sources/hepan');
+        return hepanProvider;
+    });
+    registerDataSource('face_reading', async () => {
+        const { faceProvider } = await import('@/lib/data-sources/face');
+        return faceProvider;
+    });
+    registerDataSource('palm_reading', async () => {
+        const { palmProvider } = await import('@/lib/data-sources/palm');
+        return palmProvider;
+    });
+    registerDataSource('ming_record', async () => {
+        const { recordProvider } = await import('@/lib/data-sources/record');
+        return recordProvider;
+    });
+    registerDataSource('daily_fortune', async () => {
+        const { dailyFortuneProvider } = await import('@/lib/data-sources/fortune');
+        return dailyFortuneProvider;
+    });
+    registerDataSource('monthly_fortune', async () => {
+        const { monthlyFortuneProvider } = await import('@/lib/data-sources/fortune');
+        return monthlyFortuneProvider;
+    });
 })();
 
 void _init;

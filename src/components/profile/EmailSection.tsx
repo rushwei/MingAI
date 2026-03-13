@@ -7,6 +7,16 @@ import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 
 type EmailChangeStep = 'idle' | 'input-email' | 'verify';
 
+const EMAIL_SUFFIXES = [
+    '@qq.com',
+    '@163.com',
+    '@126.com',
+    '@gmail.com',
+    '@outlook.com',
+    '@icloud.com',
+    '@foxmail.com',
+];
+
 export function EmailSection({
     currentEmail,
     onEmailChanged,
@@ -23,17 +33,6 @@ export function EmailSection({
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [countdown, setCountdown] = useState(0);
-
-    // 常用邮箱后缀
-    const emailSuffixes = [
-        '@qq.com',
-        '@163.com',
-        '@126.com',
-        '@gmail.com',
-        '@outlook.com',
-        '@icloud.com',
-        '@foxmail.com',
-    ];
 
     // 完整新邮箱
     const fullNewEmail = newEmailPrefix + newEmailSuffix;
@@ -185,7 +184,7 @@ export function EmailSection({
                                 onChange={(e) => setNewEmailSuffix(e.target.value)}
                                 className="px-3 py-3 rounded-lg bg-background border border-border focus:border-accent focus:outline-none transition-colors text-sm"
                             >
-                                {emailSuffixes.map(suffix => (
+                                {EMAIL_SUFFIXES.map(suffix => (
                                     <option key={suffix} value={suffix}>{suffix}</option>
                                 ))}
                             </select>

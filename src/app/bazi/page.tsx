@@ -9,7 +9,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Lunar, Solar, LunarMonth, LunarYear } from 'lunar-javascript';
+import { Lunar, Solar, LunarYear } from 'lunar-javascript';
 import { Loader2 } from 'lucide-react';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
@@ -17,6 +17,7 @@ import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { normalizeBirthDateForCalendarSwitch } from '@/lib/divination/bazi-form-utils';
 import { useToast } from '@/components/ui/Toast';
+import { clampDay } from '@/lib/date-utils';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -78,25 +79,6 @@ function BaziPageContent() {
 
     // 表单状态 - 初始从 URL 参数读取（用于修改已有命盘）
     const [formData, setFormData] = useState<BaziFormData>(() => getInitialFormData(searchParams));
-
-    const getDayCount = (calendarType: CalendarType, year: number, month: number, isLeapMonth?: boolean) => {
-        if (calendarType === 'lunar') {
-            try {
-                const lunarMonth = isLeapMonth ? -Math.abs(month) : month;
-                return LunarMonth.fromYm(year, lunarMonth).getDayCount();
-            } catch {
-                return 30;
-            }
-        }
-        return new Date(year, month, 0).getDate();
-    };
-
-    const clampDay = (calendarType: CalendarType, year: number, month: number, day: number, isLeapMonth?: boolean) => {
-        const maxDay = getDayCount(calendarType, year, month, isLeapMonth);
-        if (day < 1) return 1;
-        if (day > maxDay) return maxDay;
-        return day;
-    };
 
     // 更新表单字段（含历法切换与日期校准）
     const updateField = <K extends keyof BaziFormData>(field: K, value: BaziFormData[K]) => {

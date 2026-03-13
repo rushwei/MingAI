@@ -18,7 +18,7 @@ import {
     Legend,
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { FortuneScores } from '@/lib/divination/fortune';
+import type { FortuneChartScores } from '@/lib/divination/fortune';
 
 // 运势维度类型
 export type FortuneDimension = 'overall' | 'career' | 'love' | 'wealth' | 'health' | 'social';
@@ -28,7 +28,7 @@ export interface FortuneTrendDataPoint {
     date: string;          // 'MM-DD' 格式
     fullDate: string;      // 'YYYY-MM-DD' 格式
     dayOfMonth: number;
-    scores: FortuneScores;
+    scores: FortuneChartScores;
     isKeyDate?: boolean;   // 是否为关键日期
     keyDateType?: 'lucky' | 'warning' | 'turning' | 'peak' | 'valley';
     keyDateDesc?: string;  // 关键日期描述

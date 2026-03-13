@@ -1,30 +1,79 @@
 declare module 'iztro' {
+  export type Mutagen = '禄' | '权' | '科' | '忌';
+
   export interface Star {
     name: string;
+    type?: string;
     brightness?: string;
     mutagen?: string;
   }
 
   export interface Decadal {
-    range?: [number, number];
-    heavenlyStem?: string;
-    earthlyBranch?: string;
+    range: [number, number];
+    heavenlyStem: string;
+    earthlyBranch: string;
   }
 
   export interface Palace {
+    index: number;
     name: string;
     heavenlyStem: string;
     earthlyBranch: string;
     isBodyPalace: boolean;
+    isOriginalPalace: boolean;
     majorStars: Star[];
     minorStars: Star[];
-    adjectiveStars?: Star[];
-    adjStars?: Star[];
-    decadal?: Decadal;
+    adjectiveStars: Star[];
+    changsheng12: string;
+    boshi12: string;
+    jiangqian12: string;
+    suiqian12: string;
+    decadal: Decadal;
+    ages: number[];
+  }
+
+  export interface FunctionalPalace extends Palace {
+    has(stars: string[]): boolean;
+    hasOneOf(stars: string[]): boolean;
+    hasMutagen(mutagen: Mutagen): boolean;
+    isEmpty(excludeStars?: string[]): boolean;
+    fliesTo(to: number | string, withMutagens: Mutagen | Mutagen[]): boolean;
+    selfMutaged(withMutagens: Mutagen | Mutagen[]): boolean;
+    mutagedPlaces(): (FunctionalPalace | undefined)[];
+  }
+
+  export interface SurroundedPalaces {
+    target: FunctionalPalace;
+    opposite: FunctionalPalace;
+    wealth: FunctionalPalace;
+    career: FunctionalPalace;
+  }
+
+  export interface HoroscopeItem {
+    index: number;
+    name: string;
+    heavenlyStem: string;
+    earthlyBranch: string;
+    palaceNames: string[];
+    mutagen: string[];
+    stars?: Star[][];
+  }
+
+  export interface Horoscope {
+    lunarDate: string;
+    solarDate: string;
+    decadal: HoroscopeItem;
+    age: HoroscopeItem & { nominalAge: number };
+    yearly: HoroscopeItem & {
+      yearlyDecStar: { jiangqian12: string[]; suiqian12: string[] };
+    };
+    monthly: HoroscopeItem;
+    daily: HoroscopeItem;
+    hourly: HoroscopeItem;
   }
 
   export interface Astrolabe {
-    palaces: Palace[];
+    palaces: FunctionalPalace[];
     chineseDate?: string;
     solarDate?: string;
     lunarDate?: string;
@@ -35,6 +84,11 @@ declare module 'iztro' {
     soul?: string;
     body?: string;
     fiveElementsClass?: string;
+    time?: string;
+    timeRange?: string;
+    horoscope(date?: string | Date, timeIndex?: number): Horoscope;
+    palace(indexOrName: number | string): FunctionalPalace | undefined;
+    surroundedPalaces(indexOrName: number | string): SurroundedPalaces;
   }
 
   export const astro: {

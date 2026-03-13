@@ -1,13 +1,16 @@
 /**
  * 运势计算库
- * 
- * 基于八字命理理论，通过日主与流日/流月的五行生克关系计算个性化运势
+ *
+ * 基于八字命理理论，通过日主与流日/流月的五行生克关系推导个性化运势。
+ * 运势以等级（大吉/吉/中吉/平/小凶/凶）呈现，不使用硬性数值打分。
+ * 所有推导均由天干地支的五行生克、十神、地支藏干互动等确定性规则完成，
+ * 不使用任何随机数或伪随机种子。
  */
 
 import { Solar } from 'lunar-javascript';
 import { STEM_ELEMENTS } from './bazi';
 import { createMemoryCache } from '@/lib/cache';
-import type { BaziChart, HeavenlyStem, FiveElement } from '@/types';
+import type { BaziChart, HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
 
 // 运势计算缓存（TTL 24h，按天不变）
 const dailyFortuneCache = createMemoryCache<DailyFortune>(24 * 60 * 60 * 1000);
@@ -15,26 +18,39 @@ const monthlyFortuneCache = createMemoryCache<MonthlyFortune>(24 * 60 * 60 * 100
 
 // ===== 类型定义 =====
 
-export interface FortuneScores {
-    overall: number;    // 综合运势 (0-100)
-    career: number;     // 事业运
-    love: number;       // 感情运
-    wealth: number;     // 财运
-    health: number;     // 健康运
-    social: number;     // 人际运
+/** 运势等级集合（用户可见） */
+export interface FortuneLevels {
+    overall: FortuneLevel;
+    career: FortuneLevel;
+    love: FortuneLevel;
+    wealth: FortuneLevel;
+    health: FortuneLevel;
+    social: FortuneLevel;
 }
 
-export interface DailyFortune extends FortuneScores {
+/** 图表数值（仅用于趋势图渲染，不对用户展示） */
+export interface FortuneChartScores {
+    overall: number;
+    career: number;
+    love: number;
+    wealth: number;
+    health: number;
+    social: number;
+}
+
+export interface DailyFortune extends FortuneLevels {
     date: string;
     dayStem: HeavenlyStem;
     dayBranch: string;
-    tenGod: string;     // 流日与日主形成的十神
-    advice: string[];   // 运势建议
-    luckyColor: string; // 幸运色
-    luckyDirection: string; // 吉方位
+    tenGod: string;
+    advice: string[];
+    luckyColor: string;
+    luckyDirection: string;
+    /** 内部图表数值，仅供趋势图使用 */
+    _chart: FortuneChartScores;
 }
 
-export interface MonthlyFortune extends FortuneScores {
+export interface MonthlyFortune extends FortuneLevels {
     year: number;
     month: number;
     monthStem: HeavenlyStem;
@@ -42,30 +58,62 @@ export interface MonthlyFortune extends FortuneScores {
     tenGod: string;
     summary: string;
     keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[];
+    _chart: FortuneChartScores;
 }
 
-// 增强的关键日期接口
 export interface EnhancedKeyDate {
     date: number;
     type: 'lucky' | 'warning' | 'turning' | 'peak' | 'valley';
-    scores: FortuneScores;
-    summary: string;          // 关键日摘要
-    recommendation: string;   // 具体建议
+    levels: FortuneLevels;
+    summary: string;
+    recommendation: string;
+}
+
+// ===== 等级系统 =====
+
+const LEVEL_ORDER: FortuneLevel[] = ['凶', '小凶', '平', '中吉', '吉', '大吉'];
+
+/** 内部权重 → 运势等级 */
+function weightToLevel(w: number): FortuneLevel {
+    if (w >= 85) return '大吉';
+    if (w >= 75) return '吉';
+    if (w >= 65) return '中吉';
+    if (w >= 55) return '平';
+    if (w >= 45) return '小凶';
+    return '凶';
+}
+
+/** 运势等级 → 图表数值（仅供趋势图渲染） */
+export function fortuneLevelToChartValue(level: FortuneLevel): number {
+    const map: Record<FortuneLevel, number> = {
+        '大吉': 92, '吉': 78, '中吉': 65, '平': 52, '小凶': 40, '凶': 30,
+    };
+    return map[level];
+}
+
+/** 比较两个等级的高低（返回 >0 表示 a 更高） */
+export function compareLevels(a: FortuneLevel, b: FortuneLevel): number {
+    return LEVEL_ORDER.indexOf(a) - LEVEL_ORDER.indexOf(b);
+}
+
+/** 等级是否为吉（中吉及以上） */
+export function isLevelFavorable(level: FortuneLevel): boolean {
+    return compareLevels(level, '中吉') >= 0;
 }
 
 // ===== 常量 =====
 
-/** 五行相生相克权重 */
-const ELEMENT_RELATION_SCORES: Record<string, number> = {
-    'same': 75,       // 比和：平稳
-    'produce': 85,    // 我生：付出但有回报
-    'produced': 90,   // 生我：贵人运
-    'control': 70,    // 我克：有压力但可掌控
-    'controlled': 55, // 克我：有阻力
+/** 天干五行生克 → 基础权重 */
+const ELEMENT_RELATION_WEIGHTS: Record<string, number> = {
+    'same': 70,       // 比和：平稳
+    'produce': 75,    // 我生：付出但有回报
+    'produced': 85,   // 生我：贵人运
+    'control': 62,    // 我克：有压力但可掌控
+    'controlled': 50, // 克我：有阻力
 };
 
-/** 十神对应各类运势的加成 */
-const TEN_GOD_FORTUNE_BONUS: Record<string, Partial<FortuneScores>> = {
+/** 十神对各维度的权重调整 */
+const TEN_GOD_ADJUSTMENTS: Record<string, Partial<FortuneChartScores>> = {
     '比肩': { career: 5, love: 0, wealth: -5, health: 5, social: 10 },
     '劫财': { career: 0, love: -5, wealth: -10, health: 5, social: 5 },
     '食神': { career: 5, love: 10, wealth: 5, health: 10, social: 8 },
@@ -78,42 +126,64 @@ const TEN_GOD_FORTUNE_BONUS: Record<string, Partial<FortuneScores>> = {
     '正印': { career: 10, love: 5, wealth: 0, health: 10, social: 5 },
 };
 
-/** 五行对应颜色 */
-const ELEMENT_COLORS: Record<FiveElement, string> = {
-    '木': '绿色',
-    '火': '红色',
-    '土': '黄色',
-    '金': '白色',
-    '水': '黑色/蓝色',
+/** 地支藏干表 */
+const BRANCH_HIDDEN_STEMS: Record<string, HeavenlyStem[]> = {
+    '子': ['癸'],
+    '丑': ['己', '癸', '辛'],
+    '寅': ['甲', '丙', '戊'],
+    '卯': ['乙'],
+    '辰': ['戊', '乙', '癸'],
+    '巳': ['丙', '庚', '戊'],
+    '午': ['丁', '己'],
+    '未': ['己', '丁', '乙'],
+    '申': ['庚', '壬', '戊'],
+    '酉': ['辛'],
+    '戌': ['戊', '辛', '丁'],
+    '亥': ['壬', '甲'],
 };
 
-/** 五行对应方位 */
+/** 地支六冲 */
+const BRANCH_CLASH: Record<string, string> = {
+    '子': '午', '午': '子', '丑': '未', '未': '丑',
+    '寅': '申', '申': '寅', '卯': '酉', '酉': '卯',
+    '辰': '戌', '戌': '辰', '巳': '亥', '亥': '巳',
+};
+
+/** 地支六合 */
+const BRANCH_COMBINE: Record<string, string> = {
+    '子': '丑', '丑': '子', '寅': '亥', '亥': '寅',
+    '卯': '戌', '戌': '卯', '辰': '酉', '酉': '辰',
+    '巳': '申', '申': '巳', '午': '未', '未': '午',
+};
+
+const PEACH_BLOSSOM_BRANCHES = new Set(['子', '午', '卯', '酉']);
+const TRAVEL_STAR_BRANCHES = new Set(['寅', '申', '巳', '亥']);
+
+const ELEMENT_COLORS: Record<FiveElement, string> = {
+    '木': '绿色', '火': '红色', '土': '黄色', '金': '白色', '水': '黑色/蓝色',
+};
+
 const ELEMENT_DIRECTIONS: Record<FiveElement, string> = {
-    '木': '东方',
-    '火': '南方',
-    '土': '中央',
-    '金': '西方',
-    '水': '北方',
+    '木': '东方', '火': '南方', '土': '中央', '金': '西方', '水': '北方',
+};
+
+const BRANCH_ELEMENTS: Record<string, FiveElement> = {
+    '子': '水', '丑': '土', '寅': '木', '卯': '木',
+    '辰': '土', '巳': '火', '午': '火', '未': '土',
+    '申': '金', '酉': '金', '戌': '土', '亥': '水',
 };
 
 // ===== 工具函数 =====
 
-/**
- * 获取天干阴阳
- */
 function getStemYinYang(stem: HeavenlyStem): 'yang' | 'yin' {
     const yangStems: HeavenlyStem[] = ['甲', '丙', '戊', '庚', '壬'];
     return yangStems.includes(stem) ? 'yang' : 'yin';
 }
 
-/**
- * 获取五行生克关系
- */
 function getElementRelation(from: FiveElement, to: FiveElement): string {
     const order: FiveElement[] = ['木', '火', '土', '金', '水'];
     const fromIdx = order.indexOf(from);
     const toIdx = order.indexOf(to);
-
     if (from === to) return 'same';
     if ((fromIdx + 1) % 5 === toIdx) return 'produce';
     if ((toIdx + 1) % 5 === fromIdx) return 'produced';
@@ -121,20 +191,12 @@ function getElementRelation(from: FiveElement, to: FiveElement): string {
     return 'controlled';
 }
 
-/**
- * 计算十神
- */
 function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): string {
     if (dayStem === targetStem) return '比肩';
-
     const dayElement = STEM_ELEMENTS[dayStem];
     const targetElement = STEM_ELEMENTS[targetStem];
-    const dayYY = getStemYinYang(dayStem);
-    const targetYY = getStemYinYang(targetStem);
-    const sameYY = dayYY === targetYY;
-
+    const sameYY = getStemYinYang(dayStem) === getStemYinYang(targetStem);
     const relation = getElementRelation(dayElement, targetElement);
-
     const tenGodMap: Record<string, [string, string]> = {
         'same': ['比肩', '劫财'],
         'produce': ['食神', '伤官'],
@@ -142,36 +204,97 @@ function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem): strin
         'controlled': ['七杀', '正官'],
         'produced': ['偏印', '正印'],
     };
-
     return tenGodMap[relation][sameYY ? 0 : 1];
 }
 
-/**
- * 限制分数在合理范围内
- */
-function clampScore(score: number): number {
-    return Math.max(30, Math.min(98, Math.round(score)));
+/** 限制内部权重范围 */
+function clampWeight(w: number): number {
+    return Math.max(30, Math.min(98, Math.round(w)));
 }
 
-/**
- * 基于种子的伪随机函数（用于微调）
- * @param seed 日期种子
- * @param offset 维度偏移
- * @param userSeed 用户种子（可选，用于个性化）
- */
-function seededRandom(seed: number, offset: number = 0, userSeed: number = 0): number {
-    const x = Math.sin(seed + offset + userSeed * 0.001) * 10000;
-    return x - Math.floor(x);
+/** 地支藏干对日主的综合影响（权重） */
+function calcHiddenStemBonus(userDayStem: HeavenlyStem, branch: string): number {
+    const hiddenStems = BRANCH_HIDDEN_STEMS[branch];
+    if (!hiddenStems || hiddenStems.length === 0) return 0;
+    const weights = [0.6, 0.3, 0.1];
+    const userElement = STEM_ELEMENTS[userDayStem];
+    let bonus = 0;
+    for (let i = 0; i < hiddenStems.length; i++) {
+        const stemElement = STEM_ELEMENTS[hiddenStems[i]];
+        const relation = getElementRelation(userElement, stemElement);
+        const w = weights[i] ?? 0.1;
+        const relW: Record<string, number> = {
+            'produced': 6, 'same': 3, 'produce': 1, 'control': -2, 'controlled': -5,
+        };
+        bonus += (relW[relation] ?? 0) * w;
+    }
+    return bonus;
+}
+
+/** 地支互动（六合/六冲/桃花/驿马） */
+function calcBranchInteraction(
+    userDayBranch: string,
+    flowBranch: string
+): { career: number; love: number; wealth: number; health: number; social: number } {
+    const r = { career: 0, love: 0, wealth: 0, health: 0, social: 0 };
+    if (BRANCH_COMBINE[userDayBranch] === flowBranch) {
+        r.career += 4; r.love += 5; r.wealth += 3; r.health += 3; r.social += 5;
+    }
+    if (BRANCH_CLASH[userDayBranch] === flowBranch) {
+        r.career -= 5; r.love -= 4; r.wealth -= 3; r.health -= 6; r.social -= 4;
+    }
+    if (PEACH_BLOSSOM_BRANCHES.has(flowBranch)) { r.love += 4; r.social += 3; }
+    if (TRAVEL_STAR_BRANCHES.has(flowBranch)) { r.career += 3; r.wealth += 2; }
+    return r;
+}
+
+// ===== 核心计算：内部权重 → 等级 =====
+
+/** 计算各维度的内部权重和等级 */
+function calcDimensionWeightsAndLevels(
+    baseWeight: number,
+    tenGod: string,
+    hiddenBonus: number,
+    branchBonus: { career: number; love: number; wealth: number; health: number; social: number }
+): { levels: FortuneLevels; chart: FortuneChartScores } {
+    const adj = TEN_GOD_ADJUSTMENTS[tenGod] || {};
+    const cw = clampWeight(baseWeight + (adj.career || 0) + hiddenBonus + branchBonus.career);
+    const lw = clampWeight(baseWeight + (adj.love || 0) + hiddenBonus + branchBonus.love);
+    const ww = clampWeight(baseWeight + (adj.wealth || 0) + hiddenBonus + branchBonus.wealth);
+    const hw = clampWeight(baseWeight + (adj.health || 0) + hiddenBonus + branchBonus.health);
+    const sw = clampWeight(baseWeight + (adj.social || 0) + hiddenBonus + branchBonus.social);
+    const ow = clampWeight((cw + lw + ww + hw + sw) / 5);
+
+    return {
+        levels: {
+            overall: weightToLevel(ow),
+            career: weightToLevel(cw),
+            love: weightToLevel(lw),
+            wealth: weightToLevel(ww),
+            health: weightToLevel(hw),
+            social: weightToLevel(sw),
+        },
+        chart: { overall: ow, career: cw, love: lw, wealth: ww, health: hw, social: sw },
+    };
+}
+
+function getLuckyElement(userElement: FiveElement): FiveElement {
+    const order: FiveElement[] = ['木', '火', '土', '金', '水'];
+    const idx = order.indexOf(userElement);
+    return order[(idx + 4) % 5];
 }
 
 // ===== 主要导出函数 =====
 
 /**
  * 计算每日个性化运势
- * 
- * @param baziChart 用户八字命盘
- * @param date 目标日期
- * @returns 每日运势
+ *
+ * 推导流程：
+ * 1. 天干五行生克 → 基础权重
+ * 2. 十神 → 维度调整
+ * 3. 地支藏干 → 综合影响
+ * 4. 地支互动（六合/六冲/桃花/驿马）
+ * 5. 权重 → FortuneLevel
  */
 export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFortune {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -184,58 +307,33 @@ export function calculateDailyFortune(baziChart: BaziChart, date: Date): DailyFo
     const eightChar = lunar.getEightChar();
 
     const dayStem = eightChar.getDayGan() as HeavenlyStem;
-    const dayBranch = eightChar.getDayZhi();
+    const dayBranch = eightChar.getDayZhi() as string;
     const userDayStem = baziChart.dayMaster as HeavenlyStem;
+    const userDayBranch = (baziChart.fourPillars?.day?.branch ?? '') as string;
 
-    // 计算流日与日主的十神关系
+    const relation = getElementRelation(STEM_ELEMENTS[userDayStem], STEM_ELEMENTS[dayStem]);
+    const baseWeight = ELEMENT_RELATION_WEIGHTS[relation];
     const tenGod = calculateTenGod(userDayStem, dayStem);
+    const hiddenBonus = calcHiddenStemBonus(userDayStem, dayBranch);
+    const branchBonus = userDayBranch
+        ? calcBranchInteraction(userDayBranch, dayBranch)
+        : { career: 0, love: 0, wealth: 0, health: 0, social: 0 };
 
-    // 计算五行生克关系基础分
-    const dayElement = STEM_ELEMENTS[dayStem];
+    const { levels, chart } = calcDimensionWeightsAndLevels(baseWeight, tenGod, hiddenBonus, branchBonus);
+    const advice = generateDailyAdvice(tenGod, levels);
     const userElement = STEM_ELEMENTS[userDayStem];
-    const relation = getElementRelation(userElement, dayElement);
-    const baseScore = ELEMENT_RELATION_SCORES[relation];
-
-    // 获取十神加成
-    const godBonus = TEN_GOD_FORTUNE_BONUS[tenGod] || {};
-
-    // 添加日期种子的微调（让每天有变化）
-    const dateSeed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-
-    // 命盘种子：基于出生日期生成唯一值，确保不同命盘同一天运势有差异
-    const birthDate = baziChart.birthDate || '';
-    const chartSeed = birthDate.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    // 计算各项运势
-    const career = clampScore(baseScore + (godBonus.career || 0) + seededRandom(dateSeed, 1, chartSeed) * 10 - 5);
-    const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(dateSeed, 2, chartSeed) * 10 - 5);
-    const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(dateSeed, 3, chartSeed) * 10 - 5);
-    const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(dateSeed, 4, chartSeed) * 10 - 5);
-    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(dateSeed, 5, chartSeed) * 10 - 5);
-    const overall = clampScore((career + love + wealth + health + social) / 5);
-
-    // 生成运势建议
-    const advice = generateDailyAdvice(tenGod, overall, career, wealth, health);
-
-    // 幸运色：生日主的五行对应颜色
     const luckyElement = getLuckyElement(userElement);
-    const luckyColor = ELEMENT_COLORS[luckyElement];
-    const luckyDirection = ELEMENT_DIRECTIONS[luckyElement];
 
     const result: DailyFortune = {
         date: dateStr,
         dayStem,
         dayBranch,
         tenGod,
-        overall,
-        career,
-        love,
-        wealth,
-        health,
-        social,
+        ...levels,
         advice,
-        luckyColor,
-        luckyDirection,
+        luckyColor: ELEMENT_COLORS[luckyElement],
+        luckyDirection: ELEMENT_DIRECTIONS[luckyElement],
+        _chart: chart,
     };
     dailyFortuneCache.set(cacheKey, result);
     return result;
@@ -249,104 +347,133 @@ export function calculateMonthlyFortune(baziChart: BaziChart, year: number, mont
     const monthlyCached = monthlyFortuneCache.get(monthlyCacheKey);
     if (monthlyCached) return monthlyCached;
 
-    // 获取该月第一天的干支
-    const solar = Solar.fromYmd(year, month, 15); // 取月中
+    const solar = Solar.fromYmd(year, month, 15);
     const lunar = solar.getLunar();
     const eightChar = lunar.getEightChar();
 
     const monthStem = eightChar.getMonthGan() as HeavenlyStem;
-    const monthBranch = eightChar.getMonthZhi();
+    const monthBranch = eightChar.getMonthZhi() as string;
     const userDayStem = baziChart.dayMaster as HeavenlyStem;
+    const userDayBranch = (baziChart.fourPillars?.day?.branch ?? '') as string;
 
-    // 计算流月与日主的十神关系
     const tenGod = calculateTenGod(userDayStem, monthStem);
+    const relation = getElementRelation(STEM_ELEMENTS[userDayStem], STEM_ELEMENTS[monthStem]);
+    const baseWeight = ELEMENT_RELATION_WEIGHTS[relation];
+    const hiddenBonus = calcHiddenStemBonus(userDayStem, monthBranch);
+    const branchBonus = userDayBranch
+        ? calcBranchInteraction(userDayBranch, monthBranch)
+        : { career: 0, love: 0, wealth: 0, health: 0, social: 0 };
 
-    // 计算基础分
-    const monthElement = STEM_ELEMENTS[monthStem];
-    const userElement = STEM_ELEMENTS[userDayStem];
-    const relation = getElementRelation(userElement, monthElement);
-    const baseScore = ELEMENT_RELATION_SCORES[relation];
-
-    // 获取十神加成
-    const godBonus = TEN_GOD_FORTUNE_BONUS[tenGod] || {};
-
-    // 月度种子
-    const monthSeed = year * 100 + month;
-
-    // 计算各项运势
-    const career = clampScore(baseScore + (godBonus.career || 0) + seededRandom(monthSeed, 1) * 8 - 4);
-    const love = clampScore(baseScore + (godBonus.love || 0) + seededRandom(monthSeed, 2) * 8 - 4);
-    const wealth = clampScore(baseScore + (godBonus.wealth || 0) + seededRandom(monthSeed, 3) * 8 - 4);
-    const health = clampScore(baseScore + (godBonus.health || 0) + seededRandom(monthSeed, 4) * 8 - 4);
-    const social = clampScore(baseScore + (godBonus.social || 0) + seededRandom(monthSeed, 5) * 8 - 4);
-    const overall = clampScore((career + love + wealth + health + social) / 5);
-
-    // 生成月度总结
-    const summary = generateMonthlySummary(tenGod, overall);
-
-    // 生成重要日期
+    const { levels, chart } = calcDimensionWeightsAndLevels(baseWeight, tenGod, hiddenBonus, branchBonus);
+    const summary = generateMonthlySummary(tenGod, levels.overall);
     const keyDates = generateKeyDates(baziChart, year, month);
 
     const monthlyResult: MonthlyFortune = {
-        year,
-        month,
-        monthStem,
-        monthBranch,
-        tenGod,
-        overall,
-        career,
-        love,
-        wealth,
-        health,
-        social,
+        year, month, monthStem, monthBranch, tenGod,
+        ...levels,
         summary,
         keyDates,
+        _chart: chart,
     };
     monthlyFortuneCache.set(monthlyCacheKey, monthlyResult);
     return monthlyResult;
 }
 
 /**
- * 计算通用运势（无八字时使用）
+ * 通用每日运势（无八字时使用）
  */
-export function calculateGenericDailyFortune(date: Date): FortuneScores & { advice: string[] } {
-    const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+export function calculateGenericDailyFortune(date: Date): FortuneLevels & { advice: string[]; _chart: FortuneChartScores } {
+    const solar = Solar.fromYmd(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+    const dayStem = eightChar.getDayGan() as HeavenlyStem;
+    const dayBranch = eightChar.getDayZhi() as string;
 
-    const random = (offset: number) => {
-        const x = Math.sin(seed + offset) * 10000;
-        return Math.floor((x - Math.floor(x)) * 40) + 55;
+    const stemElement = STEM_ELEMENTS[dayStem];
+    const stemBaseMap: Record<FiveElement, number> = {
+        '木': 72, '火': 68, '土': 75, '金': 70, '水': 73,
+    };
+    const base = stemBaseMap[stemElement] ?? 70;
+    const branchElement = BRANCH_ELEMENTS[dayBranch];
+    const branchAdj: Record<FiveElement, Partial<FortuneChartScores>> = {
+        '木': { career: 3, love: 2, wealth: 0, health: 4, social: 1 },
+        '火': { career: 2, love: 4, wealth: 1, health: -2, social: 3 },
+        '土': { career: 1, love: 0, wealth: 3, health: 3, social: 0 },
+        '金': { career: 4, love: -1, wealth: 4, health: 1, social: -1 },
+        '水': { career: 0, love: 3, wealth: 2, health: 2, social: 4 },
+    };
+    const adj = branchElement ? (branchAdj[branchElement] ?? {}) : {};
+
+    const cw = clampWeight(base + (adj.career || 0));
+    const lw = clampWeight(base + (adj.love || 0));
+    const ww = clampWeight(base + (adj.wealth || 0));
+    const hw = clampWeight(base + (adj.health || 0));
+    const sw = clampWeight(base + (adj.social || 0));
+    const ow = clampWeight((cw + lw + ww + hw + sw) / 5);
+
+    const levels: FortuneLevels = {
+        overall: weightToLevel(ow), career: weightToLevel(cw), love: weightToLevel(lw),
+        wealth: weightToLevel(ww), health: weightToLevel(hw), social: weightToLevel(sw),
     };
 
-    const overall = random(1);
-    const career = random(2);
-    const love = random(3);
-    const wealth = random(4);
-    const health = random(5);
-    const social = random(6);
-
     const advice = [
-        overall >= 75 ? '整体运势良好，适合开展新计划' : '今日宜稳健行事，不宜冒进',
-        career >= 70 ? '工作上有贵人相助，把握机会' : '职场上需多加耐心，避免冲突',
-        wealth >= 70 ? '财运亨通，可适当投资' : '守财为主，避免大额消费',
-        health >= 70 ? '精力充沛，适合运动健身' : '注意休息，避免过度劳累',
+        isLevelFavorable(levels.overall) ? '整体运势良好，适合开展新计划' : '今日宜稳健行事，不宜冒进',
+        isLevelFavorable(levels.career) ? '工作上有贵人相助，把握机会' : '职场上需多加耐心，避免冲突',
+        isLevelFavorable(levels.wealth) ? '财运亨通，可适当投资' : '守财为主，避免大额消费',
+        isLevelFavorable(levels.health) ? '精力充沛，适合运动健身' : '注意休息，避免过度劳累',
     ];
 
-    return { overall, career, love, wealth, health, social, advice };
+    return { ...levels, advice, _chart: { overall: ow, career: cw, love: lw, wealth: ww, health: hw, social: sw } };
+}
+
+/**
+ * 通用月度运势（无八字时使用）
+ */
+export function calculateGenericMonthlyFortune(year: number, month: number): FortuneLevels & { summary: string; _chart: FortuneChartScores } {
+    const solar = Solar.fromYmd(year, month, 15);
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+    const monthStem = eightChar.getMonthGan() as HeavenlyStem;
+    const monthBranch = eightChar.getMonthZhi() as string;
+
+    const stemElement = STEM_ELEMENTS[monthStem];
+    const stemBaseMap: Record<FiveElement, number> = {
+        '木': 72, '火': 68, '土': 75, '金': 70, '水': 73,
+    };
+    const base = stemBaseMap[stemElement] ?? 70;
+    const branchElement = BRANCH_ELEMENTS[monthBranch];
+    const branchAdj: Record<FiveElement, Partial<FortuneChartScores>> = {
+        '木': { career: 3, love: 2, wealth: 0, health: 4, social: 1 },
+        '火': { career: 2, love: 4, wealth: 1, health: -2, social: 3 },
+        '土': { career: 1, love: 0, wealth: 3, health: 3, social: 0 },
+        '金': { career: 4, love: -1, wealth: 4, health: 1, social: -1 },
+        '水': { career: 0, love: 3, wealth: 2, health: 2, social: 4 },
+    };
+    const adj = branchElement ? (branchAdj[branchElement] ?? {}) : {};
+
+    const cw = clampWeight(base + (adj.career || 0));
+    const lw = clampWeight(base + (adj.love || 0));
+    const ww = clampWeight(base + (adj.wealth || 0));
+    const hw = clampWeight(base + (adj.health || 0));
+    const sw = clampWeight(base + (adj.social || 0));
+    const ow = clampWeight((cw + lw + ww + hw + sw) / 5);
+
+    const levels: FortuneLevels = {
+        overall: weightToLevel(ow), career: weightToLevel(cw), love: weightToLevel(lw),
+        wealth: weightToLevel(ww), health: weightToLevel(hw), social: weightToLevel(sw),
+    };
+
+    const summary = isLevelFavorable(levels.overall)
+        ? '本月整体运势偏强，适合稳步推进重点事项。'
+        : '本月宜稳中求进，先把基础打牢。';
+
+    return { ...levels, summary, _chart: { overall: ow, career: cw, love: lw, wealth: ww, health: hw, social: sw } };
 }
 
 // ===== 辅助函数 =====
 
-function getLuckyElement(userElement: FiveElement): FiveElement {
-    // 生我者为吉
-    const order: FiveElement[] = ['木', '火', '土', '金', '水'];
-    const idx = order.indexOf(userElement);
-    return order[(idx + 4) % 5]; // 生我的五行
-}
-
-function generateDailyAdvice(tenGod: string, overall: number, career: number, wealth: number, health: number): string[] {
+function generateDailyAdvice(tenGod: string, levels: FortuneLevels): string[] {
     const advice: string[] = [];
-
-    // 根据十神给出针对性建议
     const tenGodAdvice: Record<string, string> = {
         '比肩': '今日适合与朋友合作，互帮互助',
         '劫财': '注意财务支出，避免借贷',
@@ -359,34 +486,28 @@ function generateDailyAdvice(tenGod: string, overall: number, career: number, we
         '偏印': '适合学习研究，提升自我',
         '正印': '长辈相助，学业事业顺遂',
     };
-
     advice.push(tenGodAdvice[tenGod] || '顺其自然，平常心对待');
 
-    // 根据分数给出其他建议
-    if (overall >= 80) {
+    if (compareLevels(levels.overall, '吉') >= 0) {
         advice.push('整体运势极佳，可大胆行动');
-    } else if (overall < 60) {
+    } else if (compareLevels(levels.overall, '平') < 0) {
         advice.push('今日宜静不宜动，稳健为上');
     }
-
-    if (career >= 80) {
+    if (compareLevels(levels.career, '吉') >= 0) {
         advice.push('事业运强劲，把握晋升机会');
-    } else if (career < 60) {
+    } else if (compareLevels(levels.career, '平') < 0) {
         advice.push('职场需低调行事，避免冲突');
     }
-
-    if (wealth < 60) {
+    if (compareLevels(levels.wealth, '平') < 0) {
         advice.push('财运平平，不宜大额消费投资');
     }
-
-    if (health < 60) {
+    if (compareLevels(levels.health, '平') < 0) {
         advice.push('注意休息，避免过度劳累');
     }
-
     return advice.slice(0, 4);
 }
 
-function generateMonthlySummary(tenGod: string, overall: number): string {
+function generateMonthlySummary(tenGod: string, overall: FortuneLevel): string {
     const tenGodSummary: Record<string, string> = {
         '比肩': '本月人际关系活跃，适合团队合作',
         '劫财': '本月财务需谨慎，防止意外支出',
@@ -399,258 +520,157 @@ function generateMonthlySummary(tenGod: string, overall: number): string {
         '偏印': '本月适合学习进修，提升能力',
         '正印': '本月稳健发展，长辈贵人相助',
     };
-
     let summary = tenGodSummary[tenGod] || '本月运势平稳，顺其自然';
-
-    if (overall >= 80) {
+    if (compareLevels(overall, '吉') >= 0) {
         summary += '。整体运势极佳，可积极把握机会。';
-    } else if (overall >= 65) {
+    } else if (compareLevels(overall, '中吉') >= 0) {
         summary += '。运势良好，稳步前进即可。';
     } else {
         summary += '。建议稳健行事，避免冒险。';
     }
-
     return summary;
 }
 
 function generateKeyDates(baziChart: BaziChart, year: number, month: number): { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] {
     const keyDates: { date: number; desc: string; type?: 'lucky' | 'warning' | 'turning' }[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
-
-    // 计算所有天的运势
-    const dailyScores: { day: number; overall: number; career: number; wealth: number; love: number; health: number; social: number }[] = [];
+    const dailyData: { day: number; levels: FortuneLevels; chart: FortuneChartScores }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        const fortune = calculateDailyFortune(baziChart, date);
-        dailyScores.push({
-            day,
-            overall: fortune.overall,
-            career: fortune.career,
-            wealth: fortune.wealth,
-            love: fortune.love,
-            health: fortune.health,
-            social: fortune.social,
-        });
+        const d = new Date(year, month - 1, day);
+        const f = calculateDailyFortune(baziChart, d);
+        dailyData.push({ day, levels: { overall: f.overall, career: f.career, love: f.love, wealth: f.wealth, health: f.health, social: f.social }, chart: f._chart });
     }
 
-    // 识别吉日（高分日）
-    for (const score of dailyScores) {
+    // 识别吉日
+    for (const d of dailyData) {
         if (keyDates.length >= 8) break;
-
-        if (score.overall >= 85) {
-            keyDates.push({ date: score.day, desc: '大吉日', type: 'lucky' });
-        } else if (score.wealth >= 88) {
-            keyDates.push({ date: score.day, desc: '财运日', type: 'lucky' });
-        } else if (score.career >= 88) {
-            keyDates.push({ date: score.day, desc: '事业吉日', type: 'lucky' });
-        } else if (score.love >= 88) {
-            keyDates.push({ date: score.day, desc: '桃花日', type: 'lucky' });
+        if (d.levels.overall === '大吉') {
+            keyDates.push({ date: d.day, desc: '大吉日', type: 'lucky' });
+        } else if (d.levels.wealth === '大吉') {
+            keyDates.push({ date: d.day, desc: '财运日', type: 'lucky' });
+        } else if (d.levels.career === '大吉') {
+            keyDates.push({ date: d.day, desc: '事业吉日', type: 'lucky' });
+        } else if (d.levels.love === '大吉') {
+            keyDates.push({ date: d.day, desc: '桃花日', type: 'lucky' });
         }
     }
 
-    // 识别波动节点（转折日）- 运势急剧变化的日子
-    for (let i = 1; i < dailyScores.length - 1; i++) {
+    // 识别转折日
+    for (let i = 1; i < dailyData.length - 1; i++) {
         if (keyDates.length >= 10) break;
-
-        const prev = dailyScores[i - 1];
-        const curr = dailyScores[i];
-        const next = dailyScores[i + 1];
-
-        // 检测运势急剧上升（谷底转折）
-        if (prev.overall < 65 && curr.overall < 65 && next.overall >= 75) {
+        const prev = dailyData[i - 1];
+        const next = dailyData[i + 1];
+        if (!isLevelFavorable(prev.levels.overall) && isLevelFavorable(next.levels.overall)) {
             if (!keyDates.find(k => k.date === next.day)) {
                 keyDates.push({ date: next.day, desc: '转运日', type: 'turning' });
             }
         }
-
-        // 检测运势急剧下降（高峰转折）
-        if (prev.overall >= 75 && curr.overall >= 75 && next.overall < 65) {
+        if (isLevelFavorable(prev.levels.overall) && !isLevelFavorable(next.levels.overall)) {
             if (!keyDates.find(k => k.date === next.day)) {
                 keyDates.push({ date: next.day, desc: '需谨慎', type: 'warning' });
             }
         }
     }
 
-    // 按日期排序
     keyDates.sort((a, b) => a.date - b.date);
-
     return keyDates.slice(0, 8);
 }
 
 /**
- * 生成增强版关键日期（含详细摘要和建议）
+ * 生成增强版关键日期
  */
 export function generateEnhancedKeyDates(baziChart: BaziChart, year: number, month: number): EnhancedKeyDate[] {
     const enhancedKeyDates: EnhancedKeyDate[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
-
-    // 计算所有天的运势
-    const dailyScores: { day: number; scores: FortuneScores; tenGod: string }[] = [];
+    const dailyData: { day: number; levels: FortuneLevels; chart: FortuneChartScores }[] = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        const fortune = calculateDailyFortune(baziChart, date);
-        dailyScores.push({
-            day,
-            scores: {
-                overall: fortune.overall,
-                career: fortune.career,
-                love: fortune.love,
-                wealth: fortune.wealth,
-                health: fortune.health,
-                social: fortune.social,
-            },
-            tenGod: fortune.tenGod,
-        });
+        const d = new Date(year, month - 1, day);
+        const f = calculateDailyFortune(baziChart, d);
+        dailyData.push({ day, levels: { overall: f.overall, career: f.career, love: f.love, wealth: f.wealth, health: f.health, social: f.social }, chart: f._chart });
     }
 
-    // 识别局部极值（峰值和谷值）
-    for (let i = 1; i < dailyScores.length - 1; i++) {
-        const prev = dailyScores[i - 1];
-        const curr = dailyScores[i];
-        const next = dailyScores[i + 1];
-
-        // 检测峰值（局部最大）
-        if (curr.scores.overall > prev.scores.overall && curr.scores.overall > next.scores.overall && curr.scores.overall >= 78) {
+    // 识别局部极值
+    for (let i = 1; i < dailyData.length - 1; i++) {
+        const prev = dailyData[i - 1], curr = dailyData[i], next = dailyData[i + 1];
+        if (curr.chart.overall > prev.chart.overall && curr.chart.overall > next.chart.overall && compareLevels(curr.levels.overall, '吉') >= 0) {
             enhancedKeyDates.push({
-                date: curr.day,
-                type: 'peak',
-                scores: curr.scores,
-                summary: `运势高峰日，综合运势达${curr.scores.overall}分`,
+                date: curr.day, type: 'peak', levels: curr.levels,
+                summary: `运势高峰日（${curr.levels.overall}）`,
                 recommendation: '把握这天的好运势，适合推进重要事项，做出关键决策。',
             });
         }
-
-        // 检测谷值（局部最小）
-        if (curr.scores.overall < prev.scores.overall && curr.scores.overall < next.scores.overall && curr.scores.overall <= 62) {
+        if (curr.chart.overall < prev.chart.overall && curr.chart.overall < next.chart.overall && compareLevels(curr.levels.overall, '平') < 0) {
             enhancedKeyDates.push({
-                date: curr.day,
-                type: 'valley',
-                scores: curr.scores,
-                summary: `运势低谷日，综合运势仅${curr.scores.overall}分`,
+                date: curr.day, type: 'valley', levels: curr.levels,
+                summary: `运势低谷日（${curr.levels.overall}）`,
                 recommendation: '今日宜静不宜动，避免重大决策，以休息调整为主。',
             });
         }
     }
 
-    // 识别大吉日（高分日）
-    for (const score of dailyScores) {
-        if (score.scores.overall >= 88) {
-            if (!enhancedKeyDates.find(k => k.date === score.day)) {
-                enhancedKeyDates.push({
-                    date: score.day,
-                    type: 'lucky',
-                    scores: score.scores,
-                    summary: `大吉日！综合运势高达${score.scores.overall}分`,
-                    recommendation: '天时地利人和，诸事皆宜，可大胆行动。',
-                });
-            }
+    // 大吉日
+    for (const d of dailyData) {
+        if (d.levels.overall === '大吉' && !enhancedKeyDates.find(k => k.date === d.day)) {
+            enhancedKeyDates.push({
+                date: d.day, type: 'lucky', levels: d.levels,
+                summary: '大吉日！诸事皆宜',
+                recommendation: '天时地利人和，诸事皆宜，可大胆行动。',
+            });
         }
     }
 
-    // 识别特殊运势日
-    for (const score of dailyScores) {
+    // 特殊维度吉日
+    for (const d of dailyData) {
         if (enhancedKeyDates.length >= 12) break;
-        if (enhancedKeyDates.find(k => k.date === score.day)) continue;
-
-        if (score.scores.wealth >= 90) {
-            enhancedKeyDates.push({
-                date: score.day,
-                type: 'lucky',
-                scores: score.scores,
-                summary: `财运大吉日，财运高达${score.scores.wealth}分`,
-                recommendation: '财运亨通，适合投资理财、谈判签约、商业活动。',
-            });
-        } else if (score.scores.career >= 90) {
-            enhancedKeyDates.push({
-                date: score.day,
-                type: 'lucky',
-                scores: score.scores,
-                summary: `事业吉日，事业运达${score.scores.career}分`,
-                recommendation: '事业运旺，适合面试、汇报、争取晋升机会。',
-            });
-        } else if (score.scores.love >= 90) {
-            enhancedKeyDates.push({
-                date: score.day,
-                type: 'lucky',
-                scores: score.scores,
-                summary: `桃花日，感情运达${score.scores.love}分`,
-                recommendation: '桃花运旺，适合表白、约会、增进感情。',
-            });
+        if (enhancedKeyDates.find(k => k.date === d.day)) continue;
+        if (d.levels.wealth === '大吉') {
+            enhancedKeyDates.push({ date: d.day, type: 'lucky', levels: d.levels, summary: '财运大吉日', recommendation: '财运亨通，适合投资理财、谈判签约。' });
+        } else if (d.levels.career === '大吉') {
+            enhancedKeyDates.push({ date: d.day, type: 'lucky', levels: d.levels, summary: '事业吉日', recommendation: '事业运旺，适合面试、汇报、争取晋升。' });
+        } else if (d.levels.love === '大吉') {
+            enhancedKeyDates.push({ date: d.day, type: 'lucky', levels: d.levels, summary: '桃花日', recommendation: '桃花运旺，适合表白、约会、增进感情。' });
         }
     }
 
-    // 识别运势转折点
-    for (let i = 2; i < dailyScores.length; i++) {
+    // 转折点
+    for (let i = 2; i < dailyData.length; i++) {
         if (enhancedKeyDates.length >= 14) break;
-
-        const prev2 = dailyScores[i - 2];
-        const prev1 = dailyScores[i - 1];
-        const curr = dailyScores[i];
-
-        // 检测运势连续上升（谷底回升）
-        if (prev2.scores.overall < 65 && prev1.scores.overall < 70 && curr.scores.overall >= 75) {
+        const prev2 = dailyData[i - 2], prev1 = dailyData[i - 1], curr = dailyData[i];
+        if (!isLevelFavorable(prev2.levels.overall) && !isLevelFavorable(prev1.levels.overall) && isLevelFavorable(curr.levels.overall)) {
             if (!enhancedKeyDates.find(k => k.date === curr.day)) {
-                enhancedKeyDates.push({
-                    date: curr.day,
-                    type: 'turning',
-                    scores: curr.scores,
-                    summary: `转运日！运势开始回升至${curr.scores.overall}分`,
-                    recommendation: '否极泰来，运势开始好转，可逐步恢复行动节奏。',
-                });
+                enhancedKeyDates.push({ date: curr.day, type: 'turning', levels: curr.levels, summary: `转运日（${curr.levels.overall}）`, recommendation: '否极泰来，运势开始好转，可逐步恢复行动节奏。' });
             }
         }
-
-        // 检测运势急剧下降（需警惕）
-        if (prev2.scores.overall >= 75 && prev1.scores.overall >= 70 && curr.scores.overall < 60) {
+        if (isLevelFavorable(prev2.levels.overall) && isLevelFavorable(prev1.levels.overall) && !isLevelFavorable(curr.levels.overall)) {
             if (!enhancedKeyDates.find(k => k.date === curr.day)) {
-                enhancedKeyDates.push({
-                    date: curr.day,
-                    type: 'warning',
-                    scores: curr.scores,
-                    summary: `运势骤降日，综合运势跌至${curr.scores.overall}分`,
-                    recommendation: '运势转弱，宜谨慎行事，避免冲动决策和大额支出。',
-                });
+                enhancedKeyDates.push({ date: curr.day, type: 'warning', levels: curr.levels, summary: `运势骤降日（${curr.levels.overall}）`, recommendation: '运势转弱，宜谨慎行事，避免冲动决策和大额支出。' });
             }
         }
     }
 
-    // 按日期排序
     enhancedKeyDates.sort((a, b) => a.date - b.date);
-
     return enhancedKeyDates.slice(0, 10);
 }
 
 /**
  * 计算周趋势数据（用于趋势图）
+ * 返回 FortuneChartScores 供图表渲染
  */
-export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] {
-    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores }[] = [];
-
+export function calculateWeeklyTrend(baziChart: BaziChart, centerDate: Date): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores }[] {
+    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores }[] = [];
     for (let offset = -2; offset <= 4; offset++) {
-        const date = new Date(centerDate);
-        date.setDate(date.getDate() + offset);
-
-        const fortune = calculateDailyFortune(baziChart, date);
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-
+        const d = new Date(centerDate);
+        d.setDate(d.getDate() + offset);
+        const fortune = calculateDailyFortune(baziChart, d);
         result.push({
-            date: `${month}/${day}`,
+            date: `${d.getMonth() + 1}/${d.getDate()}`,
             fullDate: fortune.date,
-            dayOfMonth: day,
-            scores: {
-                overall: fortune.overall,
-                career: fortune.career,
-                love: fortune.love,
-                wealth: fortune.wealth,
-                health: fortune.health,
-                social: fortune.social,
-            },
+            dayOfMonth: d.getDate(),
+            scores: fortune._chart,
         });
     }
-
     return result;
 }
 
@@ -661,36 +681,26 @@ export function calculateMonthlyTrend(
     baziChart: BaziChart,
     year: number,
     month: number
-): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] {
+): { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] {
     const daysInMonth = new Date(year, month, 0).getDate();
-    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] = [];
+    const result: { date: string; fullDate: string; dayOfMonth: number; scores: FortuneChartScores; isKeyDate?: boolean; keyDateType?: string; keyDateDesc?: string }[] = [];
 
-    // 先获取增强的关键日期
     const enhancedKeyDates = generateEnhancedKeyDates(baziChart, year, month);
     const keyDateMap = new Map(enhancedKeyDates.map(k => [k.date, k]));
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        const fortune = calculateDailyFortune(baziChart, date);
+        const d = new Date(year, month - 1, day);
+        const fortune = calculateDailyFortune(baziChart, d);
         const keyDate = keyDateMap.get(day);
-
         result.push({
             date: `${month}/${day}`,
             fullDate: fortune.date,
             dayOfMonth: day,
-            scores: {
-                overall: fortune.overall,
-                career: fortune.career,
-                love: fortune.love,
-                wealth: fortune.wealth,
-                health: fortune.health,
-                social: fortune.social,
-            },
+            scores: fortune._chart,
             isKeyDate: !!keyDate,
             keyDateType: keyDate?.type,
             keyDateDesc: keyDate?.summary,
         });
     }
-
     return result;
 }

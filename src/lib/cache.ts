@@ -3,8 +3,18 @@ type CacheEntry<T> = {
     expiresAt: number;
 };
 
-export function createMemoryCache<T>(defaultTtlMs: number) {
+export function createMemoryCache<T>(defaultTtlMs: number, maxSize: number = 1000) {
     const store = new Map<string, CacheEntry<T>>();
+
+    const evictOldest = () => {
+        let toDelete = store.size - maxSize;
+        if (toDelete <= 0) return;
+        for (const key of store.keys()) {
+            if (toDelete <= 0) break;
+            store.delete(key);
+            toDelete--;
+        }
+    };
 
     const get = (key: string): T | null => {
         const entry = store.get(key);
@@ -18,6 +28,9 @@ export function createMemoryCache<T>(defaultTtlMs: number) {
 
     const set = (key: string, value: T, ttlMs: number = defaultTtlMs) => {
         store.set(key, { value, expiresAt: Date.now() + ttlMs });
+        if (store.size > maxSize) {
+            evictOldest();
+        }
     };
 
     const remove = (key: string) => {
@@ -28,7 +41,16 @@ export function createMemoryCache<T>(defaultTtlMs: number) {
         store.clear();
     };
 
-    return { get, set, remove, clear };
+    const cleanup = () => {
+        const now = Date.now();
+        for (const [key, entry] of store) {
+            if (entry.expiresAt <= now) {
+                store.delete(key);
+            }
+        }
+    };
+
+    return { get, set, remove, clear, cleanup };
 }
 
 export function createSingleFlight<T>() {

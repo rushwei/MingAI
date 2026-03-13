@@ -5,6 +5,8 @@
  */
 
 import type { InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
+import type { FortuneLevel } from '@/types';
+import { compareLevels } from './fortune';
 
 // 十神解读模板
 export const TEN_GOD_INTERPRETATIONS: Record<string, Record<InterpretationMode, string>> = {
@@ -212,18 +214,18 @@ export function getTenGodInterpretation(tenGod: string, mode: InterpretationMode
 /**
  * 根据分数获取运势等级
  */
-export function getScoreLevel(score: number): 'high' | 'medium' | 'low' {
-    if (score >= 80) return 'high';
-    if (score >= 60) return 'medium';
+export function getScoreLevel(level: FortuneLevel): 'high' | 'medium' | 'low' {
+    if (compareLevels(level, '吉') >= 0) return 'high';
+    if (compareLevels(level, '平') >= 0) return 'medium';
     return 'low';
 }
 
 /**
  * 根据模式获取分数解读
  */
-export function getScoreInterpretation(score: number, mode: InterpretationMode): string {
-    const level = getScoreLevel(score);
-    return SCORE_INTERPRETATIONS[level][mode];
+export function getScoreInterpretation(level: FortuneLevel, mode: InterpretationMode): string {
+    const grade = getScoreLevel(level);
+    return SCORE_INTERPRETATIONS[grade][mode];
 }
 
 /**
@@ -231,11 +233,11 @@ export function getScoreInterpretation(score: number, mode: InterpretationMode):
  */
 export function getDimensionAdvice(
     dimension: 'career' | 'wealth' | 'love' | 'health' | 'social',
-    score: number,
+    level: FortuneLevel,
     mode: InterpretationMode
 ): string {
-    const level = getScoreLevel(score);
-    return DIMENSION_ADVICE[dimension]?.[level]?.[mode] || '';
+    const grade = getScoreLevel(level);
+    return DIMENSION_ADVICE[dimension]?.[grade]?.[mode] || '';
 }
 
 /**
@@ -251,12 +253,12 @@ export function getKeyDateDescription(desc: string, mode: InterpretationMode): s
 export function generateFortuneInterpretation(
     tenGod: string,
     scores: {
-        overall: number;
-        career: number;
-        love: number;
-        wealth: number;
-        health: number;
-        social: number;
+        overall: FortuneLevel;
+        career: FortuneLevel;
+        love: FortuneLevel;
+        wealth: FortuneLevel;
+        health: FortuneLevel;
+        social: FortuneLevel;
     },
     mode: InterpretationMode
 ): string[] {
@@ -270,24 +272,24 @@ export function generateFortuneInterpretation(
 
     // 各维度建议（只添加分数较高或较低的）
     const dimensions = [
-        { key: 'career' as const, score: scores.career },
-        { key: 'wealth' as const, score: scores.wealth },
-        { key: 'love' as const, score: scores.love },
-        { key: 'health' as const, score: scores.health },
-        { key: 'social' as const, score: scores.social },
+        { key: 'career' as const, level: scores.career },
+        { key: 'wealth' as const, level: scores.wealth },
+        { key: 'love' as const, level: scores.love },
+        { key: 'health' as const, level: scores.health },
+        { key: 'social' as const, level: scores.social },
     ];
 
     // 找出最高和最低的维度
-    const sorted = [...dimensions].sort((a, b) => b.score - a.score);
+    const sorted = [...dimensions].sort((a, b) => compareLevels(b.level, a.level));
     const highest = sorted[0];
     const lowest = sorted[sorted.length - 1];
 
-    if (highest.score >= 75) {
-        interpretation.push(getDimensionAdvice(highest.key, highest.score, mode));
+    if (compareLevels(highest.level, '吉') >= 0) {
+        interpretation.push(getDimensionAdvice(highest.key, highest.level, mode));
     }
 
-    if (lowest.score < 65 && lowest.key !== highest.key) {
-        interpretation.push(getDimensionAdvice(lowest.key, lowest.score, mode));
+    if (compareLevels(lowest.level, '中吉') < 0 && lowest.key !== highest.key) {
+        interpretation.push(getDimensionAdvice(lowest.key, lowest.level, mode));
     }
 
     return interpretation.filter(Boolean);

@@ -92,6 +92,34 @@ export interface ZiweiChart {
     rawAstrolabe?: Astrolabe;
 }
 
+// ===== 常量 =====
+
+const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+const PALACE_LAYOUT_ORDER = [
+    5, 6, 7, 8,    // 巳午未申 (第一行)
+    4, -1, -1, 9,  // 辰-中空-酉 (第二行)
+    3, -1, -1, 10, // 卯-中空-戌 (第三行)
+    2, 1, 0, 11,   // 寅丑子亥 (第四行)
+];
+
+const BRIGHTNESS_COLORS: Record<string, string> = {
+    '庙': '#FFD700', // 金色
+    '旺': '#FF8C00', // 橙色
+    '得': '#32CD32', // 绿色
+    '利': '#4169E1', // 蓝色
+    '平': '#808080', // 灰色
+    '不': '#CD853F', // 棕色
+    '陷': '#DC143C', // 红色
+};
+
+const MUTAGEN_COLORS: Record<string, string> = {
+    '禄': '#FFD700', // 金色 - 财禄
+    '权': '#FF4500', // 红色 - 权力
+    '科': '#4169E1', // 蓝色 - 文曲
+    '忌': '#2F4F4F', // 暗灰 - 忌讳
+};
+
 // ===== 时辰映射 =====
 
 /**
@@ -134,7 +162,7 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
             timeIndex,
             genderStr,
             formData.isLeapMonth ?? false, // 使用表单中的闰月设置
-            true,  // 使用真太阳时
+            true,  // fixLeap: 闰月前15天算上月，后15天算下月
             'zh-CN'
         );
     } else {
@@ -143,7 +171,7 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
             dateStr,
             timeIndex,
             genderStr,
-            true,  // 使用真太阳时
+            true,  // fixLeap: 闰月前15天算上月，后15天算下月
             'zh-CN'
         );
     }
@@ -235,51 +263,28 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
  *   [寅] [丑] [子] [亥]
  */
 export function getPalaceLayoutOrder(): number[] {
-    // 地支顺序：子=0, 丑=1, 寅=2, 卯=3, 辰=4, 巳=5, 午=6, 未=7, 申=8, 酉=9, 戌=10, 亥=11
-    // 布局顺序（从左到右，从上到下）:
-    return [
-        5, 6, 7, 8,    // 巳午未申 (第一行)
-        4, -1, -1, 9,  // 辰-中空-酉 (第二行)
-        3, -1, -1, 10, // 卯-中空-戌 (第三行)
-        2, 1, 0, 11,   // 寅丑子亥 (第四行)
-    ];
+    return PALACE_LAYOUT_ORDER;
 }
 
 /**
  * 根据地支获取宫位索引
  */
 export function getBranchIndex(branch: string): number {
-    const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-    return branches.indexOf(branch);
+    return EARTHLY_BRANCHES.indexOf(branch);
 }
 
 /**
  * 获取星曜亮度对应的颜色
  */
 export function getBrightnessColor(brightness?: string): string {
-    const colors: Record<string, string> = {
-        '庙': '#FFD700', // 金色
-        '旺': '#FF8C00', // 橙色
-        '得': '#32CD32', // 绿色
-        '利': '#4169E1', // 蓝色
-        '平': '#808080', // 灰色
-        '不': '#CD853F', // 棕色
-        '陷': '#DC143C', // 红色
-    };
-    return colors[brightness || ''] || '#808080';
+    return BRIGHTNESS_COLORS[brightness || ''] || '#808080';
 }
 
 /**
  * 获取四化对应的颜色
  */
 export function getMutagenColor(mutagen?: string): string {
-    const colors: Record<string, string> = {
-        '禄': '#FFD700', // 金色 - 财禄
-        '权': '#FF4500', // 红色 - 权力
-        '科': '#4169E1', // 蓝色 - 文曲
-        '忌': '#2F4F4F', // 暗灰 - 忌讳
-    };
-    return colors[mutagen || ''] || 'transparent';
+    return MUTAGEN_COLORS[mutagen || ''] || 'transparent';
 }
 
 // ===== 运限类型定义 =====
@@ -340,12 +345,16 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
         const mo = horoscope.monthly as HoroscopeData | undefined;
         const dy = horoscope.daily as HoroscopeData | undefined;
 
+        // 从宫位的 decadal.range 获取大限起止年龄（HoroscopeItem 本身没有 range）
+        const decPalaceIndex = dec?.index ?? 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const decPalaceRaw = (chart.rawAstrolabe!.palaces[decPalaceIndex] as any)?.decadal;
         const decadal: DecadalInfo = {
-            index: dec?.index ?? 0,
-            startAge: dec?.range?.[0] ?? 0,
-            endAge: dec?.range?.[1] ?? 0,
+            index: decPalaceIndex,
+            startAge: decPalaceRaw?.range?.[0] ?? 0,
+            endAge: decPalaceRaw?.range?.[1] ?? 0,
             palace: {
-                index: dec?.palaceIndex ?? 0,
+                index: decPalaceIndex,
                 name: dec?.name ?? '',
                 heavenlyStem: dec?.heavenlyStem ?? '',
                 earthlyBranch: dec?.earthlyBranch ?? '',
@@ -356,7 +365,7 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
         const yearly: FlowPeriodInfo = {
             period: String(date.getFullYear()),
             palace: {
-                index: yr?.palaceIndex ?? 0,
+                index: yr?.index ?? 0,
                 name: yr?.name ?? '',
                 heavenlyStem: yr?.heavenlyStem ?? '',
                 earthlyBranch: yr?.earthlyBranch ?? '',
@@ -368,7 +377,7 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
         const monthly: FlowPeriodInfo = {
             period: String(date.getMonth() + 1),
             palace: {
-                index: mo?.palaceIndex ?? 0,
+                index: mo?.index ?? 0,
                 name: mo?.name ?? '',
                 heavenlyStem: mo?.heavenlyStem ?? '',
                 earthlyBranch: mo?.earthlyBranch ?? '',
@@ -380,7 +389,7 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
         const daily: FlowPeriodInfo = {
             period: date.toISOString().split('T')[0],
             palace: {
-                index: dy?.palaceIndex ?? 0,
+                index: dy?.index ?? 0,
                 name: dy?.name ?? '',
                 heavenlyStem: dy?.heavenlyStem ?? '',
                 earthlyBranch: dy?.earthlyBranch ?? '',
@@ -465,15 +474,22 @@ export function getDecadalList(chart: ZiweiChart): DecadalInfo[] {
     }
 
     // Fallback: 基于五行局计算（精度较低，无法判断顺逆排）
+    // 大限从命宫所在宫位开始，而非从 palaces[0]（寅宫）开始
     const startAge = getFiveElementStartAge(chart.fiveElement);
-    const decadalList: DecadalInfo[] = chart.palaces.map((palace, index) => {
-        const decadalAge = startAge + index * 10;
+    const soulPalaceIndex = chart.palaces.findIndex(p => p.name === '命宫');
+    const soulIdx = soulPalaceIndex >= 0 ? soulPalaceIndex : 0;
+
+    const decadalList: DecadalInfo[] = chart.palaces.map((_, i) => {
+        // 默认顺行（无性别/年干信息时无法判断顺逆，按顺行处理）
+        const palaceIndex = (soulIdx + i) % 12;
+        const palace = chart.palaces[palaceIndex];
+        const decadalAge = startAge + i * 10;
         return {
-            index,
+            index: palaceIndex,
             startAge: decadalAge,
             endAge: decadalAge + 9,
             palace: {
-                index,
+                index: palaceIndex,
                 name: palace.name,
                 heavenlyStem: palace.heavenlyStem,
                 earthlyBranch: palace.earthlyBranch,

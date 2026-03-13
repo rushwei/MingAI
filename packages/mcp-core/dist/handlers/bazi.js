@@ -5,7 +5,7 @@ import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, getKongWang, } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
 // 从数据模块导入静态数据
-import { DI_ZHI, HIDDEN_STEM_DETAILS, NA_YIN_TABLE, DI_SHI_ORDER, CHANG_SHENG_START, LIU_HE, SAN_HE, LIU_CHONG, XIANG_HAI, XIANG_XING, YUE_DE, TIAN_DE, JIN_YU, DE_XIU, TIAN_DE_HE, YUE_DE_HE, } from '../data/shensha-data.js';
+import { DI_ZHI, HIDDEN_STEM_DETAILS, NA_YIN_TABLE, DI_SHI_ORDER, CHANG_SHENG_START, LIU_HE, LIU_HE_HUA, SAN_HE, LIU_CHONG, XIANG_HAI, XIANG_XING, YUE_DE, TIAN_DE, JIN_YU, DE_XIU, TIAN_DE_HE, YUE_DE_HE, } from '../data/shensha-data.js';
 export function getNaYin(stem, branch) {
     return NA_YIN_TABLE[`${stem}${branch}`] || '';
 }
@@ -78,7 +78,7 @@ const PILLAR_POSITION_MAP = {
 function normalizePillarPosition(label) {
     const normalized = PILLAR_POSITION_MAP[label];
     if (!normalized) {
-        throw new Error(`Invalid pillar position label: ${label}`);
+        throw new Error(`无效的柱位标签: ${label}`);
     }
     return normalized;
 }
@@ -89,10 +89,11 @@ function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) 
     for (let i = 0; i < branches.length; i++) {
         for (let j = i + 1; j < branches.length; j++) {
             if (LIU_HE[branches[i]] === branches[j]) {
+                const huaElement = LIU_HE_HUA[branches[i]] || '';
                 relations.push({
                     type: '合',
                     pillars: [normalizePillarPosition(pillarNames[i]), normalizePillarPosition(pillarNames[j])],
-                    description: `${branches[i]}${branches[j]}六合`,
+                    description: `${branches[i]}${branches[j]}六合${huaElement ? '化' + huaElement : ''}`,
                 });
             }
         }

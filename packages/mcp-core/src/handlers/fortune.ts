@@ -8,6 +8,7 @@ import { calculateTenGod } from '../utils.js';
 
 // ===== 缓存配置 =====
 const FORTUNE_CACHE_TTL = 60 * 60 * 1000; // 1小时
+const FORTUNE_CACHE_MAX = 200;
 const fortuneCache = new Map<string, { data: FortuneOutput; expire: number }>();
 
 function getCachedFortune(date: string, dayMaster?: string): FortuneOutput | undefined {
@@ -16,11 +17,17 @@ function getCachedFortune(date: string, dayMaster?: string): FortuneOutput | und
   if (cached && cached.expire > Date.now()) {
     return cached.data;
   }
+  if (cached) fortuneCache.delete(key);
   return undefined;
 }
 
 function setCachedFortune(date: string, dayMaster: string | undefined, data: FortuneOutput): void {
   const key = `${date}:${dayMaster || 'none'}`;
+  if (fortuneCache.size >= FORTUNE_CACHE_MAX) {
+    // 淘汰最早的条目
+    const firstKey = fortuneCache.keys().next().value;
+    if (firstKey !== undefined) fortuneCache.delete(firstKey);
+  }
   fortuneCache.set(key, { data, expire: Date.now() + FORTUNE_CACHE_TTL });
 }
 

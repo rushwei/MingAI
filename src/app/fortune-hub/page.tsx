@@ -138,21 +138,13 @@ function FortuneHubContent() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-emerald-500" />
-                                <span className="text-lg font-bold text-foreground">今日运势指数：</span>
-                                <span className="text-lg font-bold text-emerald-500">良好</span>
+                                <span className="text-lg font-bold text-foreground">探索今日运势</span>
                             </div>
                         </div>
 
                         <div className="flex-1 md:text-right">
-                            <div className="inline-flex flex-col items-start md:items-end gap-1.5">
-                                <div className="text-sm font-medium text-foreground-secondary flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    宜：学习、交友、思考规划
-                                </div>
-                                <div className="text-sm font-medium text-foreground-secondary flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                    忌：冲动决策、争执对抗
-                                </div>
+                            <div className="text-sm font-medium text-foreground-secondary">
+                                完成八字排盘后，即可查看个性化每日运势
                             </div>
                         </div>
                     </div>

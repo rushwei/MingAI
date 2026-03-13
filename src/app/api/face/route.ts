@@ -5,9 +5,8 @@
  */
 import { NextRequest } from 'next/server';
 import { getServiceRoleClient } from '@/lib/api-utils';
-import { useCredit, hasCredits, addCredits } from '@/lib/user/credits';
+import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { getProvider } from '@/lib/ai/providers';
 import type { VisionProviderOptions } from '@/lib/ai/providers';
@@ -72,14 +71,14 @@ export async function POST(request: NextRequest): Promise<Response> {
                 }
                 const { user } = authResult;
 
-                // 检查用户积分
-                const hasEnoughCredits = await hasCredits(user.id);
-                if (!hasEnoughCredits) {
+                // 检查用户积分 + 获取会员类型（单次 DB 查询）
+                const authInfo = await getUserAuthInfo(user.id);
+                if (!authInfo || !authInfo.hasCredits) {
                     return jsonError('积分不足，请充值后使用', 403, { success: false });
                 }
 
                 // 检查模型权限
-                const membershipType = await getEffectiveMembershipType(user.id);
+                const membershipType = authInfo.effectiveMembership;
                 const access = await resolveModelAccessAsync(modelId, DEFAULT_VISION_MODEL_ID, membershipType, reasoning, {
                     requireVision: true,
                     membershipDeniedMessage: '面相分析需要 Plus 会员或以上'

@@ -328,13 +328,17 @@ export interface ReasoningContent {
 
 // ===== 每日运势相关类型 =====
 
-/** 五维运势评分 */
+/** 运势等级 */
+export type FortuneLevel = '大吉' | '吉' | '中吉' | '平' | '小凶' | '凶';
+
+/** 六维运势等级 */
 export interface FortuneScores {
-    overall: number;   // 综合运势 0-100
-    career: number;    // 事业运
-    love: number;      // 感情运
-    wealth: number;    // 财运
-    health: number;    // 健康运
+    overall: FortuneLevel;
+    career: FortuneLevel;
+    love: FortuneLevel;
+    wealth: FortuneLevel;
+    health: FortuneLevel;
+    social: FortuneLevel;
 }
 
 /** 每日运势 */

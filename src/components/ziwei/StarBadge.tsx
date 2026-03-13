@@ -18,7 +18,7 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
 
     // 竖排显示星名，不使用外框
     const textColor = isMinorMalefic
-        ? 'text-black dark:text-foreground'
+        ? 'text-rose-600 dark:text-rose-400'
         : isMajor
             ? 'text-red-500'
             : isMinor
