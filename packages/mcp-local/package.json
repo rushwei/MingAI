@@ -1,11 +1,12 @@
 {
   "name": "@mingai/mcp",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "MingAI MCP Server - 命理计算工具 (stdio)",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "mcp": "dist/index.js",
     "mingai-mcp": "dist/index.js"
   },
   "files": ["dist"],
@@ -18,7 +19,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@mingai/mcp-core": "workspace:*",
+    "@mingai/mcp-core": "^1.2.0",
     "@modelcontextprotocol/sdk": "1.25.3"
   },
   "devDependencies": {
