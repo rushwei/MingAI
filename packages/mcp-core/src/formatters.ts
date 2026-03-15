@@ -146,7 +146,7 @@ ${candidate.isLeapMonth ? '- **闰月**' : ''}
  * 格式化紫微斗数结果为 Markdown
  */
 export function formatZiweiAsMarkdown(result: ZiweiOutput): string {
-  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, sign, palaces, decadalList, time, timeRange, earthlyBranchOfSoulPalace, earthlyBranchOfBodyPalace, mutagenSummary, gender, douJun, trueSolarTimeInfo } = result;
+  const { solarDate, lunarDate, fourPillars, soul, body, fiveElement, zodiac, sign, palaces, decadalList, time, timeRange, earthlyBranchOfSoulPalace, earthlyBranchOfBodyPalace, mutagenSummary, gender, douJun, trueSolarTimeInfo, lifeMasterStar, bodyMasterStar } = result;
 
   const genderText = gender === 'male' ? '男' : gender === 'female' ? '女' : '';
 
@@ -165,6 +165,8 @@ ${time ? `- **时辰**: ${time}${timeRange ? `（${timeRange}）` : ''}` : ''}
 ${earthlyBranchOfSoulPalace ? `- **命宫地支**: ${earthlyBranchOfSoulPalace}` : ''}
 ${earthlyBranchOfBodyPalace ? `- **身宫地支**: ${earthlyBranchOfBodyPalace}` : ''}
 ${douJun ? `- **子年斗君**: ${douJun}` : ''}
+${lifeMasterStar ? `- **命主星**: ${lifeMasterStar}` : ''}
+${bodyMasterStar ? `- **身主星**: ${bodyMasterStar}` : ''}
 ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
 - **真太阳时**: ${trueSolarTimeInfo.trueSolarTime}（经度 ${trueSolarTimeInfo.longitude}°，校正 ${trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${trueSolarTimeInfo.correctionMinutes} 分钟）` : ''}
 
@@ -212,6 +214,20 @@ ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
     }
   }
 
+  if (result.scholarStars && result.scholarStars.length > 0) {
+    md += `\n## 博士十二星\n\n`;
+    for (const entry of result.scholarStars) {
+      md += `- ${entry.starName} → ${entry.palaceName}\n`;
+    }
+  }
+
+  if (result.smallLimit && result.smallLimit.length > 0) {
+    md += `\n## 小限\n\n| 宫位 | 虚岁 |\n|------|------|\n`;
+    for (const entry of result.smallLimit) {
+      md += `| ${entry.palaceName} | ${entry.ages.slice(0, 5).join(', ')}... |\n`;
+    }
+  }
+
   return md;
 }
 
@@ -249,6 +265,14 @@ export function formatZiweiHoroscopeAsMarkdown(result: ZiweiHoroscopeOutput): st
     if (extra) lines.push(`- **${extra.split(' ')[0]}**: ${extra.split(' ')[1]}`);
     if (data.mutagen.length > 0) lines.push(`- **四化**: ${data.mutagen.join('、')}`);
     if (data.palaceNames.length > 0) lines.push(`- **十二宫重排**: ${data.palaceNames.join('、')}`);
+    lines.push('');
+  }
+
+  if (result.transitStars && result.transitStars.length > 0) {
+    lines.push('## 流年星曜');
+    for (const entry of result.transitStars) {
+      lines.push(`- ${entry.starName} → ${entry.palaceName}`);
+    }
     lines.push('');
   }
 

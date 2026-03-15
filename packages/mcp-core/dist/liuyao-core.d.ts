@@ -293,6 +293,11 @@ export declare function getPalaceInfo(code: string): {
     element: WuXing;
     order: number;
 } | undefined;
+export declare function getShiYingPosition(code: string): {
+    shi: number;
+    ying: number;
+};
+export declare function getNaJiaByHexagram(hexagramCode: string, position: number): DiZhi;
 export declare function calculateGanZhiTime(date: Date): GanZhiTime;
 export declare function getKongWang(dayGan: TianGan, dayZhi: DiZhi): KongWang;
 export declare function calculateKongWangByPillar(ganZhiTime: GanZhiTime): KongWangByPillar;

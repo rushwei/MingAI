@@ -89,6 +89,39 @@ declare module 'lunar-javascript' {
     getLiuYao(): string;
     getDayNineStar(): NineStar;
     getDayXunKong(): string;
+    // 建除十二值星
+    getZhiXing(): string;
+    // 日柱纳音
+    getDayNaYin(): string;
+    // 二十八星宿歌诀
+    getXiuSong(): string;
+    // 二十八星宿动物
+    getAnimal(): string;
+    // 十二时辰
+    getTimes(): LunarTime[];
+  }
+
+  export class LunarTime {
+    getGan(): string;
+    getZhi(): string;
+    getGanZhi(): string;
+    getTianShen(): string;
+    getTianShenType(): string;
+    getTianShenLuck(): string;
+    getChong(): string;
+    getChongDesc(): string;
+    getSha(): string;
+    getYi(): string[];
+    getJi(): string[];
+    getNaYin(): string;
+    getMinHm(): string;
+    getMaxHm(): string;
+    getShengXiao(): string;
+    getPositionCaiDesc(): string;
+    getPositionXiDesc(): string;
+    getPositionFuDesc(): string;
+    getPositionYangGuiDesc(): string;
+    getPositionYinGuiDesc(): string;
   }
 
   export class JieQi {

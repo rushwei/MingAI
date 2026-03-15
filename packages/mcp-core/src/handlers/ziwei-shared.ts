@@ -23,6 +23,14 @@ export const STEM_MUTAGEN_TABLE: Record<string, [string, string, string, string]
 };
 
 const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+export { DI_ZHI };
+
+/** 禄存所在地支：按年干查表 */
+export const LUCUN_TABLE: Record<string, string> = {
+  '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午',
+  '戊': '巳', '己': '午', '庚': '申', '辛': '酉',
+  '壬': '亥', '癸': '子',
+};
 
 /** 计算流年虚岁列表 */
 export function computeLiuNianAges(palaceBranch: string, birthYearBranch: string, max = 60): number[] {

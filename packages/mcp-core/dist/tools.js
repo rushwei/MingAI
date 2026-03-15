@@ -4,7 +4,7 @@
 export const tools = [
     {
         name: 'bazi_calculate',
-        description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞、分柱空亡、地支刑害合冲关系',
+        description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞（30+种）、分柱空亡、地支刑害合冲关系、天干五合、地支半合',
         inputSchema: {
             type: 'object',
             properties: {
@@ -231,6 +231,44 @@ export const tools = [
                         },
                     },
                 },
+                tianGanWuHe: {
+                    type: 'array',
+                    description: '天干五合（相邻柱天干相合）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            stemA: { type: 'string', description: '天干A' },
+                            stemB: { type: 'string', description: '天干B' },
+                            resultElement: { type: 'string', description: '合化五行' },
+                            positions: {
+                                type: 'array',
+                                items: { type: 'string', enum: ['年支', '月支', '日支', '时支'] },
+                                description: '涉及柱位',
+                            },
+                        },
+                    },
+                },
+                diZhiBanHe: {
+                    type: 'array',
+                    description: '地支半合（三合局中两支出现且缺一支）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            branches: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                description: '参与半合的地支',
+                            },
+                            resultElement: { type: 'string', description: '半合五行' },
+                            missingBranch: { type: 'string', description: '缺失的地支' },
+                            positions: {
+                                type: 'array',
+                                items: { type: 'string', enum: ['年支', '月支', '日支', '时支'] },
+                                description: '涉及柱位',
+                            },
+                        },
+                    },
+                },
                 trueSolarTimeInfo: {
                     type: 'object',
                     description: '真太阳时校正信息（仅在提供 longitude 且 calendarType=solar 时返回）',
@@ -338,7 +376,7 @@ export const tools = [
     },
     {
         name: 'bazi_dayun',
-        description: '八字大运计算 - 根据出生时间计算完整大运列表，输出起运详情与各步大运干支、十神',
+        description: '八字大运计算 - 根据出生时间计算完整大运列表，输出起运详情、各步大运干支/十神、大运与原局地支关系（六合/六冲/三合/相刑/相害）、每步大运10年流年干支/十神/纳音/太岁关系、流年与原局及大运地支关系、小运排列',
         inputSchema: {
             type: 'object',
             properties: {
@@ -361,6 +399,18 @@ export const tools = [
         outputSchema: {
             type: 'object',
             properties: {
+                xiaoYun: {
+                    type: 'array',
+                    description: '小运列表（起运前每年一步小运）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            age: { type: 'number', description: '虚岁' },
+                            ganZhi: { type: 'string', description: '小运干支' },
+                            tenGod: { type: 'string', description: '小运天干十神（相对日主）' },
+                        },
+                    },
+                },
                 list: {
                     type: 'array',
                     description: '大运列表',
@@ -388,6 +438,48 @@ export const tools = [
                             naYin: { type: 'string', description: '纳音' },
                             diShi: { type: 'string', description: '地势（十二长生）' },
                             shenSha: { type: 'array', items: { type: 'string' }, description: '神煞' },
+                            branchRelations: {
+                                type: 'array',
+                                description: '大运地支与原局四柱地支的关系',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        type: { type: 'string', enum: ['六合', '六冲', '三合', '相刑', '相害'], description: '关系类型' },
+                                        branches: { type: 'array', items: { type: 'string' }, description: '涉及地支' },
+                                        description: { type: 'string', description: '关系描述' },
+                                    },
+                                },
+                            },
+                            liunianList: {
+                                type: 'array',
+                                description: '该步大运内10年流年列表',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        year: { type: 'number', description: '公历年份' },
+                                        ganZhi: { type: 'string', description: '流年干支' },
+                                        tenGod: { type: 'string', description: '流年天干十神（相对日主）' },
+                                        nayin: { type: 'string', description: '流年纳音' },
+                                        branchRelations: {
+                                            type: 'array',
+                                            description: '流年地支与原局四柱及大运地支的关系',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    type: { type: 'string', enum: ['六合', '六冲', '三合', '相刑', '相害'], description: '关系类型' },
+                                                    branches: { type: 'array', items: { type: 'string' }, description: '涉及地支' },
+                                                    description: { type: 'string', description: '关系描述' },
+                                                },
+                                            },
+                                        },
+                                        taiSui: {
+                                            type: 'array',
+                                            items: { type: 'string' },
+                                            description: '太岁关系（值太岁/冲太岁/合太岁/刑太岁/害太岁/破太岁）',
+                                        },
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -397,7 +489,7 @@ export const tools = [
     },
     {
         name: 'ziwei_calculate',
-        description: '紫微斗数排盘 - 根据出生时间计算紫微命盘，包含十二宫位、星曜（含亮度/四化/宫干自化）、大限、流年虚岁、斗君、四化分布。可选传入经度启用真太阳时校正',
+        description: '紫微斗数排盘 - 根据出生时间计算紫微命盘，包含十二宫位、星曜（含亮度/四化/宫干自化）、大限、流年虚岁、斗君、四化分布、命主星、身主星、小限、博士十二星、三方四正。可选传入经度启用真太阳时校正',
         inputSchema: {
             type: 'object',
             properties: {
@@ -543,6 +635,11 @@ export const tools = [
                                 description: '流年虚岁列表',
                                 items: { type: 'number' },
                             },
+                            sanFangSiZheng: {
+                                type: 'array',
+                                description: '三方四正宫位名 [本宫, 三合1, 三合2, 对宫]',
+                                items: { type: 'string' },
+                            },
                         },
                     },
                 },
@@ -596,6 +693,30 @@ export const tools = [
                         dayOffset: { type: 'number', description: '跨日偏移（-1/0/1）' },
                     },
                 },
+                lifeMasterStar: { type: 'string', description: '命主星（由出生时辰地支决定）' },
+                bodyMasterStar: { type: 'string', description: '身主星（由出生年地支决定）' },
+                smallLimit: {
+                    type: 'array',
+                    description: '小限（按三合局起始宫排列，每宫对应12年周期虚岁）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            palaceName: { type: 'string', description: '宫位名' },
+                            ages: { type: 'array', items: { type: 'number' }, description: '虚岁列表' },
+                        },
+                    },
+                },
+                scholarStars: {
+                    type: 'array',
+                    description: '博士十二星（博士/力士/青龙/小耗/将军/奏书/飞廉/喜神/病符/大耗/伏兵/官府）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            starName: { type: 'string', description: '星名' },
+                            palaceName: { type: 'string', description: '所在宫位' },
+                        },
+                    },
+                },
             },
         },
         annotations: {
@@ -607,7 +728,7 @@ export const tools = [
     },
     {
         name: 'ziwei_horoscope',
-        description: '紫微斗数运限 - 根据出生时间和目标日期计算大限、小限、流年、流月、流日、流时运限信息',
+        description: '紫微斗数运限 - 根据出生时间和目标日期计算大限、小限、流年、流月、流日、流时运限信息，含流年星曜（流禄/流羊/流陀/流昌/流曲）',
         inputSchema: {
             type: 'object',
             properties: {
@@ -648,6 +769,17 @@ export const tools = [
                 monthly: { type: 'object', description: '流月' },
                 daily: { type: 'object', description: '流日' },
                 hourly: { type: 'object', description: '流时' },
+                transitStars: {
+                    type: 'array',
+                    description: '流年星曜（流禄/流羊/流陀/流昌/流曲及其所在宫位）',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            starName: { type: 'string', description: '星名' },
+                            palaceName: { type: 'string', description: '所在宫位' },
+                        },
+                    },
+                },
             },
         },
         annotations: {
@@ -731,7 +863,7 @@ export const tools = [
     },
     {
         name: 'liuyao',
-        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦或选卦。输出包含：本卦/变卦信息、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、定性应期线索、风险提示等。调用方/AI 需先根据问题语义选择目标六亲再调用；未明确问题时不应正式解卦。',
+        description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦、选卦、时间起卦、数字起卦。输出包含：本卦/变卦/互卦/错卦/综卦信息、卦身、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、定性应期线索、风险提示等。调用方/AI 需先根据问题语义选择目标六亲再调用；未明确问题时不应正式解卦。',
         inputSchema: {
             type: 'object',
             properties: {
@@ -751,8 +883,15 @@ export const tools = [
                 },
                 method: {
                     type: 'string',
-                    enum: ['auto', 'select'],
-                    description: '起卦方式：auto=自动起卦，select=选卦。默认 auto',
+                    enum: ['auto', 'select', 'time', 'number'],
+                    description: '起卦方式：auto=自动起卦，select=选卦，time=时间起卦（按占卜日期的农历年月日时辰自动起卦），number=数字起卦（需提供 numbers）。默认 auto',
+                },
+                numbers: {
+                    type: 'array',
+                    items: { type: 'number' },
+                    minItems: 2,
+                    maxItems: 3,
+                    description: '数字起卦所用数字（仅 method=number 时需要）。2个数字：上卦=num1%8, 下卦=num2%8, 动爻=(num1+num2)%6；3个数字：上卦=num1%8, 下卦=num2%8, 动爻=num3%6',
                 },
                 hexagramName: {
                     type: 'string',
@@ -1093,6 +1232,42 @@ export const tools = [
                         },
                     },
                 },
+                nuclearHexagram: {
+                    type: 'object',
+                    description: '互卦（取2-3-4爻为下卦、3-4-5爻为上卦组成的卦）',
+                    properties: {
+                        name: { type: 'string', description: '卦名' },
+                        guaCi: { type: 'string', description: '卦辞' },
+                        xiangCi: { type: 'string', description: '象辞' },
+                    },
+                },
+                oppositeHexagram: {
+                    type: 'object',
+                    description: '错卦（六爻阴阳全部相反的卦）',
+                    properties: {
+                        name: { type: 'string', description: '卦名' },
+                        guaCi: { type: 'string', description: '卦辞' },
+                        xiangCi: { type: 'string', description: '象辞' },
+                    },
+                },
+                reversedHexagram: {
+                    type: 'object',
+                    description: '综卦（六爻顺序上下颠倒的卦）',
+                    properties: {
+                        name: { type: 'string', description: '卦名' },
+                        guaCi: { type: 'string', description: '卦辞' },
+                        xiangCi: { type: 'string', description: '象辞' },
+                    },
+                },
+                guaShen: {
+                    type: 'object',
+                    description: '卦身（由世爻位置和阴阳推算的地支，定位于卦中某爻或不在卦中）',
+                    properties: {
+                        branch: { type: 'string', description: '卦身地支' },
+                        linePosition: { type: 'number', description: '卦身所在爻位(1-6)' },
+                        absent: { type: 'boolean', description: '卦身是否不在卦中（true=卦身飞伏）' },
+                    },
+                },
             },
         },
         annotations: {
@@ -1110,8 +1285,8 @@ export const tools = [
             properties: {
                 spreadType: {
                     type: 'string',
-                    enum: ['single', 'three-card', 'love', 'celtic-cross'],
-                    description: '牌阵类型：single=单牌，three-card=三牌，love=爱情牌阵，celtic-cross=凯尔特十字。默认 single',
+                    enum: ['single', 'three-card', 'love', 'celtic-cross', 'horseshoe', 'decision', 'mind-body-spirit', 'situation', 'yes-no'],
+                    description: '牌阵类型：single=单牌，three-card=三牌，love=爱情牌阵，celtic-cross=凯尔特十字，horseshoe=马蹄形(7牌)，decision=抉择(5牌)，mind-body-spirit=身心灵(3牌)，situation=处境/障碍/建议(3牌)，yes-no=是否(1牌)。默认 single',
                 },
                 question: {
                     type: 'string',
@@ -1163,6 +1338,9 @@ export const tools = [
                             },
                             orientation: { type: 'string', description: '正逆位(upright/reversed)' },
                             meaning: { type: 'string', description: '牌义' },
+                            reversedKeywords: { type: 'array', items: { type: 'string' }, description: '逆位关键词' },
+                            element: { type: 'string', description: '元素（火/水/风/土）' },
+                            astrologicalCorrespondence: { type: 'string', description: '星象对应' },
                         },
                     },
                 },
@@ -1177,7 +1355,7 @@ export const tools = [
     },
     {
         name: 'almanac',
-        description: '黄历查询 - 查询指定日期的干支、宜忌、冲煞、吉神凶煞等黄历信息，可选传入日主计算流日十神',
+        description: '黄历查询 - 查询指定日期的干支、宜忌、冲煞、吉神凶煞、财喜福贵方位、建除十二值星、黄道黑道日(天神)、二十八星宿、日柱纳音、十二时辰吉凶等完整黄历信息，可选传入日主计算流日十神',
         inputSchema: {
             type: 'object',
             properties: {
@@ -1248,6 +1426,42 @@ export const tools = [
                         pengZuBaiJi: { type: 'array', items: { type: 'string' }, description: '彭祖百忌' },
                         jishen: { type: 'array', items: { type: 'string' }, description: '吉神宜趋' },
                         xiongsha: { type: 'array', items: { type: 'string' }, description: '凶煞宜忌' },
+                        directions: {
+                            type: 'object',
+                            description: '方位',
+                            properties: {
+                                caiShen: { type: 'string', description: '财神方位' },
+                                xiShen: { type: 'string', description: '喜神方位' },
+                                fuShen: { type: 'string', description: '福神方位' },
+                                yangGui: { type: 'string', description: '阳贵人方位' },
+                                yinGui: { type: 'string', description: '阴贵人方位' },
+                            },
+                        },
+                        dayOfficer: { type: 'string', description: '建除十二值星' },
+                        tianShen: { type: 'string', description: '天神' },
+                        tianShenType: { type: 'string', description: '黄道/黑道' },
+                        tianShenLuck: { type: 'string', description: '吉/凶' },
+                        lunarMansion: { type: 'string', description: '二十八星宿' },
+                        lunarMansionLuck: { type: 'string', description: '星宿吉凶' },
+                        lunarMansionSong: { type: 'string', description: '星宿歌诀' },
+                        nayin: { type: 'string', description: '日柱纳音' },
+                        hourlyFortune: {
+                            type: 'array',
+                            description: '十二时辰吉凶',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    ganZhi: { type: 'string', description: '时辰干支' },
+                                    tianShen: { type: 'string', description: '时辰天神' },
+                                    tianShenType: { type: 'string', description: '黄道/黑道' },
+                                    tianShenLuck: { type: 'string', description: '吉/凶' },
+                                    chong: { type: 'string', description: '冲' },
+                                    sha: { type: 'string', description: '煞' },
+                                    suitable: { type: 'array', items: { type: 'string' }, description: '宜' },
+                                    avoid: { type: 'array', items: { type: 'string' }, description: '忌' },
+                                },
+                            },
+                        },
                     },
                 },
             },
