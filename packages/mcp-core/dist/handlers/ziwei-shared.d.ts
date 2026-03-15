@@ -7,6 +7,10 @@ export declare const MUTAGEN_NAMES: readonly ["禄", "权", "科", "忌"];
 export type MutagenName = typeof MUTAGEN_NAMES[number];
 /** 天干四化表: stem → [禄星, 权星, 科星, 忌星] */
 export declare const STEM_MUTAGEN_TABLE: Record<string, [string, string, string, string]>;
+declare const DI_ZHI: string[];
+export { DI_ZHI };
+/** 禄存所在地支：按年干查表 */
+export declare const LUCUN_TABLE: Record<string, string>;
 /** 计算流年虚岁列表 */
 export declare function computeLiuNianAges(palaceBranch: string, birthYearBranch: string, max?: number): number[];
 /**

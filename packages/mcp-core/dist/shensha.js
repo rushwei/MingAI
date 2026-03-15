@@ -1,5 +1,5 @@
 // 从数据模块导入
-import { TIAN_YI_GUI_REN, TAI_JI_GUI_REN, YANG_REN, WEN_CHANG, YI_MA, TAO_HUA, HUA_GAI, LU_SHEN, JIE_SHA, WANG_SHEN, GU_CHEN, GUA_SU, JIANG_XING, TIAN_CHU, GUO_YIN, XUE_TANG, CI_GUAN, HONG_LUAN, TIAN_XI, TIAN_YI, DIAO_KE, SANG_MEN, XUE_REN, PI_TOU, FU_XING, ZAI_SHA, LIU_XIA, HONG_YAN, GOU_SHA, JIAO_SHA, BAI_HU, FEI_REN, KUI_GANG, YIN_CHA_YANG_CUO, SHI_E_DA_BAI, BA_ZHUAN, JIN_SHEN, GU_LUAN, } from './data/shensha-data.js';
+import { TIAN_YI_GUI_REN, TAI_JI_GUI_REN, YANG_REN, WEN_CHANG, YI_MA, TAO_HUA, HUA_GAI, LU_SHEN, JIE_SHA, WANG_SHEN, GU_CHEN, GUA_SU, JIANG_XING, TIAN_CHU, GUO_YIN, XUE_TANG, CI_GUAN, HONG_LUAN, TIAN_XI, TIAN_YI, DIAO_KE, SANG_MEN, XUE_REN, PI_TOU, FU_XING, ZAI_SHA, LIU_XIA, HONG_YAN, GOU_SHA, JIAO_SHA, BAI_HU, FEI_REN, KUI_GANG, YIN_CHA_YANG_CUO, SHI_E_DA_BAI, BA_ZHUAN, JIN_SHEN, GU_LUAN, SI_FEI_RI, SAN_QI, } from './data/shensha-data.js';
 function addUnique(target, value) {
     if (value && !target.includes(value)) {
         target.push(value);
@@ -16,7 +16,7 @@ function matchMapValue(map, key, targetBranch, label, bag) {
     }
 }
 export function calculateBranchShenSha(context, targetBranch, options) {
-    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, kongWang } = context;
+    const { yearStem, yearBranch, monthBranch, dayStem, dayBranch, hourBranch, kongWang } = context;
     const positionHint = options?.positionHint;
     const names = [];
     matchValue(TIAN_YI_GUI_REN[dayStem], targetBranch, '天乙贵人', names);
@@ -24,50 +24,69 @@ export function calculateBranchShenSha(context, targetBranch, options) {
     matchMapValue(LU_SHEN, dayStem, targetBranch, '禄神', names);
     matchMapValue(YANG_REN, dayStem, targetBranch, '羊刃', names);
     matchMapValue(WEN_CHANG, dayStem, targetBranch, '文昌', names);
-    matchMapValue(YI_MA, dayBranch, targetBranch, '驿马', names);
-    matchMapValue(TAO_HUA, dayBranch, targetBranch, '桃花', names);
-    matchMapValue(HUA_GAI, dayBranch, targetBranch, '华盖', names);
-    matchMapValue(JIE_SHA, dayBranch, targetBranch, '劫煞', names);
-    matchMapValue(WANG_SHEN, dayBranch, targetBranch, '亡神', names);
     matchMapValue(TIAN_CHU, dayStem, targetBranch, '天厨', names);
     matchMapValue(GUO_YIN, dayStem, targetBranch, '国印贵人', names);
-    matchMapValue(XUE_TANG, yearStem, targetBranch, '学堂', names);
-    matchMapValue(CI_GUAN, dayStem, targetBranch, '词馆', names);
-    matchMapValue(HONG_LUAN, yearBranch, targetBranch, '红鸾', names);
-    matchMapValue(TIAN_XI, yearBranch, targetBranch, '天喜', names);
-    matchMapValue(TIAN_YI, monthBranch, targetBranch, '天医', names);
-    matchMapValue(DIAO_KE, yearBranch, targetBranch, '吊客', names);
-    matchMapValue(SANG_MEN, yearBranch, targetBranch, '丧门', names);
-    matchMapValue(XUE_REN, dayBranch, targetBranch, '血刃', names);
-    matchMapValue(PI_TOU, yearBranch, targetBranch, '披头', names);
     matchMapValue(FU_XING, dayStem, targetBranch, '福星贵人', names);
-    matchMapValue(ZAI_SHA, yearBranch, targetBranch, '灾煞', names);
     matchMapValue(LIU_XIA, dayStem, targetBranch, '流霞', names);
     matchMapValue(HONG_YAN, dayStem, targetBranch, '红艳煞', names);
+    matchMapValue(FEI_REN, dayStem, targetBranch, '飞刃', names);
+    matchMapValue(CI_GUAN, dayStem, targetBranch, '词馆', names);
+    // 三合局（年/日支）→地支
+    matchMapValue(YI_MA, dayBranch, targetBranch, '驿马', names);
+    if (YI_MA[yearBranch] === targetBranch && !names.includes('驿马'))
+        addUnique(names, '驿马');
+    matchMapValue(TAO_HUA, dayBranch, targetBranch, '桃花', names);
+    if (TAO_HUA[yearBranch] === targetBranch && !names.includes('桃花'))
+        addUnique(names, '桃花');
+    matchMapValue(HUA_GAI, dayBranch, targetBranch, '华盖', names);
+    if (HUA_GAI[yearBranch] === targetBranch && !names.includes('华盖'))
+        addUnique(names, '华盖');
+    matchMapValue(JIANG_XING, dayBranch, targetBranch, '将星', names);
+    if (JIANG_XING[yearBranch] === targetBranch && !names.includes('将星'))
+        addUnique(names, '将星');
+    matchMapValue(JIE_SHA, dayBranch, targetBranch, '劫煞', names);
+    if (JIE_SHA[yearBranch] === targetBranch && !names.includes('劫煞'))
+        addUnique(names, '劫煞');
+    matchMapValue(WANG_SHEN, dayBranch, targetBranch, '亡神', names);
+    if (WANG_SHEN[yearBranch] === targetBranch && !names.includes('亡神'))
+        addUnique(names, '亡神');
+    matchMapValue(ZAI_SHA, dayBranch, targetBranch, '灾煞', names);
+    if (ZAI_SHA[yearBranch] === targetBranch && !names.includes('灾煞'))
+        addUnique(names, '灾煞');
+    // 年支→地支
+    matchMapValue(XUE_TANG, yearStem, targetBranch, '学堂', names);
+    matchMapValue(HONG_LUAN, yearBranch, targetBranch, '红鸾', names);
+    matchMapValue(TIAN_XI, yearBranch, targetBranch, '天喜', names);
+    matchMapValue(DIAO_KE, yearBranch, targetBranch, '吊客', names);
+    matchMapValue(SANG_MEN, yearBranch, targetBranch, '丧门', names);
+    matchMapValue(PI_TOU, yearBranch, targetBranch, '披头', names);
     matchMapValue(GOU_SHA, yearBranch, targetBranch, '勾煞', names);
     matchMapValue(JIAO_SHA, yearBranch, targetBranch, '绞煞', names);
+    // 月支→干支
+    matchMapValue(TIAN_YI, monthBranch, targetBranch, '天医', names);
     matchMapValue(BAI_HU, monthBranch, targetBranch, '白虎', names);
-    matchMapValue(FEI_REN, dayStem, targetBranch, '飞刃', names);
+    // 日支→地支
+    matchMapValue(XUE_REN, dayBranch, targetBranch, '血刃', names);
     if (GU_CHEN[yearBranch] === targetBranch)
         addUnique(names, '孤辰');
     if (GUA_SU[yearBranch] === targetBranch)
         addUnique(names, '寡宿');
-    if (JIANG_XING[yearBranch] === targetBranch)
-        addUnique(names, '将星');
     if (kongWang?.kongZhi?.includes(targetBranch)) {
         addUnique(names, '空亡');
     }
-    if (positionHint === 'year' && yearBranch === '辰' && (monthBranch === '巳' || dayBranch === '巳' || context.hourBranch === '巳')) {
-        addUnique(names, '天罗');
-    }
-    if (positionHint === 'month' && monthBranch === '辰' && (yearBranch === '巳' || dayBranch === '巳' || context.hourBranch === '巳')) {
-        addUnique(names, '天罗');
-    }
-    if (positionHint === 'year' && yearBranch === '戌' && (monthBranch === '亥' || dayBranch === '亥' || context.hourBranch === '亥')) {
-        addUnique(names, '地网');
-    }
-    if (positionHint === 'month' && monthBranch === '戌' && (yearBranch === '亥' || dayBranch === '亥' || context.hourBranch === '亥')) {
-        addUnique(names, '地网');
+    // 天罗地网：戌亥=天罗, 辰巳=地网
+    // 当前柱位的地支是戌或亥时，且四柱中存在配对（戌↔亥），标记天罗
+    // 当前柱位的地支是辰或巳时，且四柱中存在配对（辰↔巳），标记地网
+    if (positionHint) {
+        const allBranches = [yearBranch, monthBranch, dayBranch, hourBranch];
+        if (targetBranch === '戌' && allBranches.includes('亥'))
+            addUnique(names, '天罗');
+        if (targetBranch === '亥' && allBranches.includes('戌'))
+            addUnique(names, '天罗');
+        if (targetBranch === '辰' && allBranches.includes('巳'))
+            addUnique(names, '地网');
+        if (targetBranch === '巳' && allBranches.includes('辰'))
+            addUnique(names, '地网');
     }
     if (positionHint === 'day') {
         const dayPillar = `${dayStem}${dayBranch}`;
@@ -83,6 +102,24 @@ export function calculateBranchShenSha(context, targetBranch, options) {
             addUnique(names, '金神');
         if (GU_LUAN.includes(dayPillar))
             addUnique(names, '孤鸾煞');
+        const siFeiList = SI_FEI_RI[monthBranch];
+        if (siFeiList && siFeiList.includes(dayPillar))
+            addUnique(names, '四废');
+    }
+    // 三奇（检查三柱天干连续出现）
+    if (positionHint) {
+        const stems = [context.yearStem, context.monthStem, context.dayStem, context.hourStem];
+        for (const [qiName, qiStems] of Object.entries(SAN_QI)) {
+            for (let i = 0; i <= stems.length - 3; i++) {
+                if (stems[i] === qiStems[0] && stems[i + 1] === qiStems[1] && stems[i + 2] === qiStems[2]) {
+                    const positions = ['year', 'month', 'day', 'hour'];
+                    if (positionHint === positions[i] || positionHint === positions[i + 1] || positionHint === positions[i + 2]) {
+                        addUnique(names, qiName);
+                    }
+                    break;
+                }
+            }
+        }
     }
     // 位置无关场景（如六爻逐爻）给出轻量全局命中提示
     if (!positionHint) {
@@ -111,11 +148,22 @@ export function calculateGlobalShenSha(context) {
         addUnique(result, '金神');
     if (GU_LUAN.includes(dayPillar))
         addUnique(result, '孤鸾煞');
-    if (context.yearBranch === '辰' && (context.monthBranch === '巳' || context.dayBranch === '巳' || context.hourBranch === '巳')) {
+    const allBranches = [context.yearBranch, context.monthBranch, context.dayBranch, context.hourBranch];
+    if ((allBranches.includes('戌') && allBranches.includes('亥'))) {
         addUnique(result, '天罗');
     }
-    if (context.yearBranch === '戌' && (context.monthBranch === '亥' || context.dayBranch === '亥' || context.hourBranch === '亥')) {
+    if ((allBranches.includes('辰') && allBranches.includes('巳'))) {
         addUnique(result, '地网');
+    }
+    // 三奇
+    const stems = [context.yearStem, context.monthStem, context.dayStem, context.hourStem];
+    for (const [qiName, qiStems] of Object.entries(SAN_QI)) {
+        for (let i = 0; i <= stems.length - 3; i++) {
+            if (stems[i] === qiStems[0] && stems[i + 1] === qiStems[1] && stems[i + 2] === qiStems[2]) {
+                addUnique(result, qiName);
+                break;
+            }
+        }
     }
     return result;
 }

@@ -3,7 +3,7 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import type { FortuneInput, FortuneOutput } from '../types.js';
+import type { FortuneInput, FortuneOutput, HourlyFortuneInfo } from '../types.js';
 import { calculateTenGod } from '../utils.js';
 
 // ===== 缓存配置 =====
@@ -95,6 +95,49 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
     try { return fn() || ''; } catch { return ''; }
   };
 
+  // 方位系统 - 使用 lunar-javascript 内置方法
+  const directions = {
+    caiShen: safeGetString(() => lunar.getDayPositionCaiDesc()),
+    xiShen: safeGetString(() => lunar.getDayPositionXiDesc()),
+    fuShen: safeGetString(() => lunar.getDayPositionFuDesc()),
+    yangGui: safeGetString(() => lunar.getDayPositionYangGuiDesc()),
+    yinGui: safeGetString(() => lunar.getDayPositionYinGuiDesc()),
+  };
+
+  // 建除十二值星
+  const dayOfficer = safeGetString(() => lunar.getZhiXing());
+
+  // 天神（黄道黑道日）
+  const tianShen = safeGetString(() => lunar.getDayTianShen());
+  const tianShenType = safeGetString(() => lunar.getDayTianShenType());
+  const tianShenLuck = safeGetString(() => lunar.getDayTianShenLuck());
+
+  // 二十八星宿
+  const lunarMansion = safeGetString(() => lunar.getXiu());
+  const lunarMansionLuck = safeGetString(() => lunar.getXiuLuck());
+  const lunarMansionSong = safeGetString(() => lunar.getXiuSong());
+
+  // 日柱纳音
+  const nayin = safeGetString(() => lunar.getDayNaYin());
+
+  // 时辰吉凶
+  const hourlyFortune: HourlyFortuneInfo[] = [];
+  try {
+    const times = lunar.getTimes();
+    for (const t of times) {
+      hourlyFortune.push({
+        ganZhi: safeGetString(() => t.getGanZhi()),
+        tianShen: safeGetString(() => t.getTianShen()),
+        tianShenType: safeGetString(() => t.getTianShenType()),
+        tianShenLuck: safeGetString(() => t.getTianShenLuck()),
+        chong: safeGetString(() => t.getChongDesc()),
+        sha: safeGetString(() => t.getSha()),
+        suitable: safeGetArray(() => t.getYi()),
+        avoid: safeGetArray(() => t.getJi()),
+      });
+    }
+  } catch { /* getTimes not available */ }
+
   const result: FortuneOutput = {
     date: dateKey,
     dayInfo: {
@@ -115,6 +158,16 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
       pengZuBaiJi: safeGetArray(() => lunar.getPengZuGan()).concat(safeGetArray(() => lunar.getPengZuZhi())),
       jishen: safeGetArray(() => lunar.getDayJiShen()),
       xiongsha: safeGetArray(() => lunar.getDayXiongSha()),
+      directions,
+      dayOfficer,
+      tianShen,
+      tianShenType,
+      tianShenLuck,
+      lunarMansion,
+      lunarMansionLuck,
+      lunarMansionSong,
+      nayin,
+      hourlyFortune,
     },
   };
 

@@ -69,4 +69,10 @@ export declare const XIANG_XING: Array<{
     name: string;
 }>;
 export declare const XUN_KONG_TABLE: Record<string, [string, string]>;
+export declare const SI_FEI_RI: Record<string, string[]>;
+export declare const SAN_QI: {
+    天三奇: string[];
+    地三奇: string[];
+    人三奇: string[];
+};
 //# sourceMappingURL=shensha-data.d.ts.map

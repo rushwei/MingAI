@@ -83,6 +83,72 @@ function normalizePillarPosition(label) {
     }
     return normalized;
 }
+// ===== 天干五合 =====
+const TIAN_GAN_WU_HE_RESULT = {
+    '甲己': '土', '己甲': '土',
+    '乙庚': '金', '庚乙': '金',
+    '丙辛': '水', '辛丙': '水',
+    '丁壬': '木', '壬丁': '木',
+    '戊癸': '火', '癸戊': '火',
+};
+function analyzeTianGanWuHe(yearStem, monthStem, dayStem, hourStem) {
+    const stems = [yearStem, monthStem, dayStem, hourStem];
+    const pillarNames = ['年支', '月支', '日支', '时支'];
+    const result = [];
+    // Check adjacent pillars: year-month, month-day, day-hour
+    for (let i = 0; i < 3; i++) {
+        const pair = `${stems[i]}${stems[i + 1]}`;
+        const element = TIAN_GAN_WU_HE_RESULT[pair];
+        if (element) {
+            result.push({
+                stemA: stems[i],
+                stemB: stems[i + 1],
+                resultElement: element,
+                positions: [pillarNames[i], pillarNames[i + 1]],
+            });
+        }
+    }
+    return result;
+}
+// ===== 地支半合 =====
+const BAN_HE_PAIRS = [
+    { pair: ['申', '子'], missing: '辰', element: '水' },
+    { pair: ['子', '辰'], missing: '申', element: '水' },
+    { pair: ['亥', '卯'], missing: '未', element: '木' },
+    { pair: ['卯', '未'], missing: '亥', element: '木' },
+    { pair: ['寅', '午'], missing: '戌', element: '火' },
+    { pair: ['午', '戌'], missing: '寅', element: '火' },
+    { pair: ['巳', '酉'], missing: '丑', element: '金' },
+    { pair: ['酉', '丑'], missing: '巳', element: '金' },
+];
+function analyzeDiZhiBanHe(yearBranch, monthBranch, dayBranch, hourBranch) {
+    const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
+    const pillarNames = ['年支', '月支', '日支', '时支'];
+    const result = [];
+    const seen = new Set();
+    for (const banHe of BAN_HE_PAIRS) {
+        const [a, b] = banHe.pair;
+        const positionsA = branches.map((br, i) => br === a ? i : -1).filter(i => i >= 0);
+        const positionsB = branches.map((br, i) => br === b ? i : -1).filter(i => i >= 0);
+        if (positionsA.length > 0 && positionsB.length > 0) {
+            // Check the full 三合 is NOT present (半合 only when the third is missing)
+            if (branches.includes(banHe.missing))
+                continue;
+            const key = [a, b].sort().join('') + banHe.element;
+            if (seen.has(key))
+                continue;
+            seen.add(key);
+            const positions = [...positionsA, ...positionsB].map(i => pillarNames[i]);
+            result.push({
+                branches: [a, b],
+                resultElement: banHe.element,
+                missingBranch: banHe.missing,
+                positions,
+            });
+        }
+    }
+    return result;
+}
 function analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch) {
     const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
     const pillarNames = ['year', 'month', 'day', 'hour'];
@@ -349,6 +415,8 @@ export async function handleBaziCalculate(input) {
     };
     fourPillars.day.tenGod = undefined;
     const relations = analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch);
+    const tianGanWuHe = analyzeTianGanWuHe(yearStem, monthStem, dayStem, hourStem);
+    const diZhiBanHe = analyzeDiZhiBanHe(yearBranch, monthBranch, dayBranch, hourBranch);
     return {
         gender,
         birthPlace,
@@ -356,6 +424,8 @@ export async function handleBaziCalculate(input) {
         kongWang,
         fourPillars,
         relations,
+        tianGanWuHe,
+        diZhiBanHe,
         trueSolarTimeInfo,
     };
 }

@@ -50,6 +50,20 @@ export interface PillarRelation {
   description: string;
 }
 
+export interface TianGanWuHeItem {
+  stemA: string;
+  stemB: string;
+  resultElement: string;
+  positions: [PillarPosition, PillarPosition];
+}
+
+export interface DiZhiBanHeItem {
+  branches: [string, string];
+  resultElement: string;
+  missingBranch: string;
+  positions: PillarPosition[];
+}
+
 export interface BaziOutput {
   gender: Gender;
   birthPlace?: string;
@@ -62,6 +76,8 @@ export interface BaziOutput {
     hour: PillarInfo;
   };
   relations: PillarRelation[];
+  tianGanWuHe: TianGanWuHeItem[];
+  diZhiBanHe: DiZhiBanHeItem[];
   trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 
@@ -126,6 +142,16 @@ export interface ZiweiInput extends BirthTimeInput {
   longitude?: number;
 }
 
+export interface SmallLimitEntry {
+  palaceName: string;
+  ages: number[];
+}
+
+export interface ScholarStarEntry {
+  starName: string;
+  palaceName: string;
+}
+
 export interface ZiweiOutput {
   solarDate: string;
   lunarDate: string;
@@ -150,6 +176,10 @@ export interface ZiweiOutput {
   gender?: string;    // 回显性别
   douJun?: string;    // 子年斗君地支
   trueSolarTimeInfo?: TrueSolarTimeInfo;
+  lifeMasterStar?: string;   // 命主星
+  bodyMasterStar?: string;   // 身主星
+  smallLimit?: SmallLimitEntry[];    // 小限
+  scholarStars?: ScholarStarEntry[]; // 博士十二星
 }
 
 /** 真太阳时校正信息 */
@@ -191,6 +221,7 @@ export interface PalaceInfo {
   ages?: number[];
   decadalRange?: [number, number];  // 大限虚岁范围 [起, 止]
   liuNianAges?: number[];           // 流年虚岁列表
+  sanFangSiZheng?: string[];        // 三方四正宫位名
 }
 
 export interface StarInfo {
@@ -229,6 +260,11 @@ export interface HoroscopePeriodInfo {
   mutagen: string[];
 }
 
+export interface TransitStarEntry {
+  starName: string;
+  palaceName: string;
+}
+
 export interface ZiweiHoroscopeOutput {
   solarDate: string;
   lunarDate: string;
@@ -242,6 +278,7 @@ export interface ZiweiHoroscopeOutput {
   monthly: HoroscopePeriodInfo;
   daily: HoroscopePeriodInfo;
   hourly: HoroscopePeriodInfo;
+  transitStars?: TransitStarEntry[];  // 流年星曜
 }
 
 // ===== 紫微飞星类型 =====
@@ -284,10 +321,13 @@ export interface SurroundedPalaceInfo {
 export interface LiuyaoInput {
   question: string;
   yongShenTargets: LiuQinType[];
-  method?: 'auto' | 'select';
+  method?: 'auto' | 'select' | 'time' | 'number';
   hexagramName?: string;
   changedHexagramName?: string;
+  numbers?: number[];
   date: string;  // 占卜日期时间，必须包含时间，格式 'YYYY-MM-DDTHH:MM' 或 'YYYY-MM-DD HH:MM:SS'
+  seed?: string;
+  seedScope?: string;
   responseFormat?: ResponseFormat;
 }
 
@@ -325,6 +365,24 @@ export interface LiuyaoOutput {
   sanHeAnalysis?: SanHeAnalysisInfo;
   warnings?: string[];
   timeRecommendations?: TimeRecommendation[];
+  // 互卦/错卦/综卦
+  nuclearHexagram?: DerivedHexagramInfo;
+  oppositeHexagram?: DerivedHexagramInfo;
+  reversedHexagram?: DerivedHexagramInfo;
+  // 卦身
+  guaShen?: GuaShenInfo;
+}
+
+export interface DerivedHexagramInfo {
+  name: string;
+  guaCi?: string;
+  xiangCi?: string;
+}
+
+export interface GuaShenInfo {
+  branch: string;
+  linePosition?: number;
+  absent?: boolean;
 }
 
 export type LiuQinType = '父母' | '兄弟' | '子孙' | '妻财' | '官鬼';
@@ -509,6 +567,9 @@ export interface TarotCardResult {
   };
   orientation: 'upright' | 'reversed';
   meaning: string;
+  reversedKeywords?: string[];
+  element?: string;
+  astrologicalCorrespondence?: string;
 }
 
 // ===== 运势相关类型 =====
@@ -533,6 +594,25 @@ export interface FortuneOutput {
   almanac: AlmanacInfo;
 }
 
+export interface DirectionsInfo {
+  caiShen: string;   // 财神方位
+  xiShen: string;    // 喜神方位
+  fuShen: string;    // 福神方位
+  yangGui: string;   // 阳贵人方位
+  yinGui: string;    // 阴贵人方位
+}
+
+export interface HourlyFortuneInfo {
+  ganZhi: string;       // 时辰干支
+  tianShen: string;     // 时辰天神
+  tianShenType: string; // 黄道/黑道
+  tianShenLuck: string; // 吉/凶
+  chong: string;        // 冲
+  sha: string;          // 煞
+  suitable: string[];   // 宜
+  avoid: string[];      // 忌
+}
+
 export interface AlmanacInfo {
   lunarDate: string;
   lunarMonth: string;
@@ -545,6 +625,16 @@ export interface AlmanacInfo {
   pengZuBaiJi: string[];
   jishen: string[];
   xiongsha: string[];
+  directions: DirectionsInfo;
+  dayOfficer: string;       // 建除十二值星
+  tianShen: string;          // 天神（日）
+  tianShenType: string;      // 黄道/黑道
+  tianShenLuck: string;      // 吉/凶
+  lunarMansion: string;      // 二十八星宿
+  lunarMansionLuck: string;  // 星宿吉凶
+  lunarMansionSong: string;  // 星宿歌诀
+  nayin: string;             // 日柱纳音
+  hourlyFortune: HourlyFortuneInfo[];
 }
 
 // ===== 大运相关类型 =====
@@ -553,7 +643,29 @@ export interface DayunInput extends BirthTimeInput {
   gender: Gender;
 }
 
+export interface BranchRelation {
+  type: '六合' | '六冲' | '三合' | '相刑' | '相害';
+  branches: string[];
+  description: string;
+}
+
+export interface LiunianInfo {
+  year: number;
+  ganZhi: string;
+  tenGod: string;
+  nayin: string;
+  branchRelations: BranchRelation[];
+  taiSui: string[];
+}
+
+export interface XiaoyunInfo {
+  age: number;
+  ganZhi: string;
+  tenGod: string;
+}
+
 export interface DayunOutput {
+  xiaoYun: XiaoyunInfo[];
   list: Array<{
     startYear: number;
     ganZhi: string;
@@ -565,5 +677,7 @@ export interface DayunOutput {
     naYin: string;
     diShi: string;
     shenSha: string[];
+    branchRelations: BranchRelation[];
+    liunianList: LiunianInfo[];
   }>;
 }

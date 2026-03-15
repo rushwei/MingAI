@@ -778,13 +778,13 @@ export function getPalaceInfo(code: string): { name: string; element: WuXing; or
   return findPalace(code);
 }
 
-function getShiYingPosition(code: string): { shi: number; ying: number } {
+export function getShiYingPosition(code: string): { shi: number; ying: number } {
   const palace = findPalace(code);
   const [shi, ying] = SHI_YING_TABLE[palace?.order ?? 0] ?? [6, 3];
   return { shi, ying };
 }
 
-function getNaJiaByHexagram(hexagramCode: string, position: number): DiZhi {
+export function getNaJiaByHexagram(hexagramCode: string, position: number): DiZhi {
   const hexagram = getHexagramByCode(hexagramCode);
   if (!hexagram || position < 1 || position > 6) {
     return '子';

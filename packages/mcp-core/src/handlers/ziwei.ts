@@ -3,8 +3,125 @@
  */
 
 import type { Palace } from 'iztro';
-import type { ZiweiInput, ZiweiOutput, PalaceInfo, DecadalInfo, MutagenSummaryItem, StarInfo } from '../types.js';
-import { createAstrolabeWithTrueSolar, mapStar, MUTAGEN_NAMES, STEM_MUTAGEN_TABLE, computeLiuNianAges, computeDouJun, hourToTimeIndex, type MutagenName } from './ziwei-shared.js';
+import type { ZiweiInput, ZiweiOutput, PalaceInfo, DecadalInfo, MutagenSummaryItem, StarInfo, SmallLimitEntry, ScholarStarEntry } from '../types.js';
+import { createAstrolabeWithTrueSolar, mapStar, MUTAGEN_NAMES, STEM_MUTAGEN_TABLE, computeLiuNianAges, computeDouJun, hourToTimeIndex, DI_ZHI, LUCUN_TABLE, type MutagenName } from './ziwei-shared.js';
+
+// ===== 命主星 =====
+const LIFE_MASTER_STAR_TABLE: Record<string, string> = {
+  '子': '贪狼', '丑': '巨门', '寅': '禄存', '卯': '文曲',
+  '辰': '廉贞', '巳': '武曲', '午': '破军', '未': '武曲',
+  '申': '廉贞', '酉': '文曲', '戌': '禄存', '亥': '巨门',
+};
+
+// ===== 身主星 =====
+const BODY_MASTER_STAR_TABLE: Record<string, string> = {
+  '子': '火星', '丑': '天相', '寅': '天梁', '卯': '天同',
+  '辰': '文昌', '巳': '天机', '午': '火星', '未': '天相',
+  '申': '天梁', '酉': '天同', '戌': '文昌', '亥': '天机',
+};
+
+// ===== 小限起始宫（三合局） =====
+const SMALL_LIMIT_START: Record<string, string> = {
+  '寅': '辰', '午': '辰', '戌': '辰',
+  '申': '戌', '子': '戌', '辰': '戌',
+  '巳': '未', '酉': '未', '丑': '未',
+  '亥': '丑', '卯': '丑', '未': '丑',
+};
+
+// ===== 博士十二星 =====
+const SCHOLAR_STAR_NAMES = ['博士', '力士', '青龙', '小耗', '将军', '奏书', '飞廉', '喜神', '病符', '大耗', '伏兵', '官府'];
+
+// 阳年天干：甲丙戊庚壬
+const YANG_STEMS = new Set(['甲', '丙', '戊', '庚', '壬']);
+
+/** 计算命主星 */
+function getLifeMasterStar(hourBranch: string): string | undefined {
+  return LIFE_MASTER_STAR_TABLE[hourBranch];
+}
+
+/** 计算身主星 */
+function getBodyMasterStar(yearBranch: string): string | undefined {
+  return BODY_MASTER_STAR_TABLE[yearBranch];
+}
+
+/** 计算小限 */
+function computeSmallLimit(
+  yearBranch: string,
+  gender: 'male' | 'female',
+  palaces: PalaceInfo[],
+): SmallLimitEntry[] {
+  const startBranch = SMALL_LIMIT_START[yearBranch];
+  if (!startBranch) return [];
+
+  const startIdx = DI_ZHI.indexOf(startBranch);
+  if (startIdx < 0) return [];
+
+  // male=forward, female=backward
+  const direction = gender === 'male' ? 1 : -1;
+
+  const result: SmallLimitEntry[] = [];
+  for (let i = 0; i < 12; i++) {
+    const branchIdx = ((startIdx + direction * i) % 12 + 12) % 12;
+    const branch = DI_ZHI[branchIdx];
+    const palace = palaces.find(p => p.earthlyBranch === branch);
+    if (!palace) continue;
+
+    // Each palace covers ages in 12-year cycles starting from (i+1)
+    const ages: number[] = [];
+    for (let age = i + 1; age <= 120; age += 12) {
+      ages.push(age);
+    }
+    result.push({ palaceName: palace.name, ages });
+  }
+  return result;
+}
+
+/** 计算博士十二星 */
+function computeScholarStars(
+  yearStem: string,
+  yearBranch: string,
+  gender: 'male' | 'female',
+  palaces: PalaceInfo[],
+): ScholarStarEntry[] {
+  const lucunBranch = LUCUN_TABLE[yearStem];
+  if (!lucunBranch) return [];
+
+  const startIdx = DI_ZHI.indexOf(lucunBranch);
+  if (startIdx < 0) return [];
+
+  // Direction: 阳年+男=顺, 阳年+女=逆, 阴年+男=逆, 阴年+女=顺
+  const isYangYear = YANG_STEMS.has(yearStem);
+  const isMale = gender === 'male';
+  const forward = (isYangYear && isMale) || (!isYangYear && !isMale);
+  const direction = forward ? 1 : -1;
+
+  const result: ScholarStarEntry[] = [];
+  for (let i = 0; i < 12; i++) {
+    const branchIdx = ((startIdx + direction * i) % 12 + 12) % 12;
+    const branch = DI_ZHI[branchIdx];
+    const palace = palaces.find(p => p.earthlyBranch === branch);
+    result.push({
+      starName: SCHOLAR_STAR_NAMES[i],
+      palaceName: palace?.name ?? branch,
+    });
+  }
+  return result;
+}
+
+/** 计算三方四正 */
+function computeSanFangSiZheng(palaceIdx: number, palaces: PalaceInfo[]): string[] {
+  // self, +4 (三合), +8 (三合), +6 (对宫)
+  const indices = [
+    palaceIdx,
+    (palaceIdx + 4) % 12,
+    (palaceIdx + 8) % 12,
+    (palaceIdx + 6) % 12,
+  ];
+  return indices.map(i => {
+    const p = palaces.find(palace => (palace.index ?? 0) === i);
+    return p?.name ?? '';
+  });
+}
 
 export async function handleZiweiCalculate(input: ZiweiInput): Promise<ZiweiOutput> {
   const { astrolabe, trueSolarTimeInfo } = createAstrolabeWithTrueSolar(input);
@@ -94,6 +211,29 @@ export async function handleZiweiCalculate(input: ZiweiInput): Promise<ZiweiOutp
     douJun = computeDouJun(lunarMonth, timeIdx);
   }
 
+  // 三方四正
+  for (const palace of palaces) {
+    const idx = palace.index ?? 0;
+    palace.sanFangSiZheng = computeSanFangSiZheng(idx, palaces);
+  }
+
+  // 命主星 & 身主星
+  const hourPillar = pillars[3] || '';
+  const hourBranch = hourPillar.length >= 2 ? hourPillar[1] : '';
+  const yearStem = yearPillar.length >= 2 ? yearPillar[0] : '';
+  const lifeMasterStar = hourBranch ? getLifeMasterStar(hourBranch) : undefined;
+  const bodyMasterStar = birthYearBranch ? getBodyMasterStar(birthYearBranch) : undefined;
+
+  // 小限
+  const smallLimit = birthYearBranch
+    ? computeSmallLimit(birthYearBranch, input.gender, palaces)
+    : undefined;
+
+  // 博士十二星
+  const scholarStars = (yearStem && birthYearBranch)
+    ? computeScholarStars(yearStem, birthYearBranch, input.gender, palaces)
+    : undefined;
+
   // 提取大限数据
   const decadalList: DecadalInfo[] = astrolabe.palaces.map((rawPalace: Palace, index: number) => {
     const decadal = rawPalace.decadal;
@@ -132,5 +272,9 @@ export async function handleZiweiCalculate(input: ZiweiInput): Promise<ZiweiOutp
     gender: input.gender,
     douJun,
     trueSolarTimeInfo,
+    lifeMasterStar,
+    bodyMasterStar,
+    smallLimit,
+    scholarStars,
   };
 }

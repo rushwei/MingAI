@@ -474,12 +474,12 @@ function findPalace(code) {
 export function getPalaceInfo(code) {
     return findPalace(code);
 }
-function getShiYingPosition(code) {
+export function getShiYingPosition(code) {
     const palace = findPalace(code);
     const [shi, ying] = SHI_YING_TABLE[palace?.order ?? 0] ?? [6, 3];
     return { shi, ying };
 }
-function getNaJiaByHexagram(hexagramCode, position) {
+export function getNaJiaByHexagram(hexagramCode, position) {
     const hexagram = getHexagramByCode(hexagramCode);
     if (!hexagram || position < 1 || position > 6) {
         return '子';
