@@ -22,6 +22,7 @@ import { KeyActivationModal } from '@/components/membership/KeyActivationModal';
 import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
 import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 interface PurchaseLinks {
     plus?: string;
@@ -30,6 +31,14 @@ interface PurchaseLinks {
 }
 
 export default function UpgradePage() {
+    return (
+        <FeatureGate featureId="upgrade">
+            <UpgradeContent />
+        </FeatureGate>
+    );
+}
+
+function UpgradeContent() {
     const { user, loading: sessionLoading } = useSessionSafe();
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);

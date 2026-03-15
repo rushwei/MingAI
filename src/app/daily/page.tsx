@@ -7,6 +7,7 @@
 
 import { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 import {
     Briefcase,
@@ -552,6 +553,7 @@ function DailyPageContent() {
 // 底部导出保持不变
 export default function DailyPage() {
     return (
+        <FeatureGate featureId="daily">
         <Suspense fallback={
             <div className="min-h-screen bg-background">
                 <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 space-y-6">
@@ -578,5 +580,6 @@ export default function DailyPage() {
         }>
             <DailyPageContent />
         </Suspense>
+        </FeatureGate>
     );
 }

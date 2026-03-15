@@ -142,3 +142,98 @@ export async function setPurchaseLink(
         return false;
     }
 }
+
+// ─── 功能模块开关 ───
+
+export const FEATURE_MODULE_IDS = [
+  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao',
+  'face', 'palm', 'mbti', 'chat', 'daily', 'monthly',
+  'records', 'community', 'knowledge-base', 'mcp-service',
+  'checkin', 'orders', 'charts', 'ai-personalization',
+  'notifications', 'upgrade', 'help',
+] as const;
+
+export type FeatureModuleId = typeof FEATURE_MODULE_IDS[number];
+
+export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
+  'fortune-hub': '运势中心',
+  bazi: '八字',
+  hepan: '八字合盘',
+  ziwei: '紫微斗数',
+  tarot: '塔罗',
+  liuyao: '六爻',
+  face: '面相',
+  palm: '手相',
+  mbti: 'MBTI',
+  chat: 'AI 对话',
+  daily: '日运',
+  monthly: '月运',
+  records: '命理记录',
+  community: '社区',
+  'knowledge-base': '知识库',
+  'mcp-service': 'MCP 服务',
+  checkin: '签到',
+  orders: '订单',
+  charts: '我的命盘',
+  'ai-personalization': '个性化',
+  notifications: '消息通知',
+  upgrade: '订阅',
+  help: '帮助',
+};
+
+const FEATURE_PREFIX = 'feature_disabled:';
+
+/** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
+export async function getFeatureToggles(): Promise<Record<string, boolean>> {
+  try {
+    const supabase = getServiceRoleClient();
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('setting_key, setting_value')
+      .like('setting_key', `${FEATURE_PREFIX}%`);
+
+    if (error) {
+      console.error('[app-settings] Failed to read feature toggles:', error.message);
+      return {};
+    }
+
+    const result: Record<string, boolean> = {};
+    for (const row of data ?? []) {
+      const id = row.setting_key.replace(FEATURE_PREFIX, '');
+      result[id] = !!row.setting_value;
+    }
+    return result;
+  } catch (error) {
+    console.error('[app-settings] Failed to read feature toggles:', error);
+    return {};
+  }
+}
+
+/** 设置单个功能模块开关。disabled=true 表示关闭该功能 */
+export async function setFeatureToggle(
+  featureId: FeatureModuleId,
+  disabled: boolean
+): Promise<boolean> {
+  try {
+    const supabase = getServiceRoleClient();
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        {
+          setting_key: `${FEATURE_PREFIX}${featureId}`,
+          setting_value: disabled,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'setting_key' }
+      );
+
+    if (error) {
+      console.error('[app-settings] Failed to set feature toggle:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[app-settings] Failed to set feature toggle:', error);
+    return false;
+  }
+}

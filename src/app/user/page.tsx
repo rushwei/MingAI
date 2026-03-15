@@ -35,6 +35,7 @@ import { supabase } from '@/lib/supabase';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User as SupabaseUser } from '@/lib/supabase';
@@ -44,18 +45,18 @@ const menuItems = [
     {
         section: '我的服务',
         items: [
-            { icon: CircleStar, label: '订阅', href: '/user/upgrade' },
-            { icon: Scroll, label: '我的命盘', href: '/user/charts' },
-            { icon: Bell, label: '消息', href: '/user/notifications', showBadge: true },
-            { icon: CreditCard, label: '订单', href: '/user/orders' },
+            { icon: CircleStar, label: '订阅', href: '/user/upgrade', featureId: 'upgrade' },
+            { icon: Scroll, label: '我的命盘', href: '/user/charts', featureId: 'charts' },
+            { icon: Bell, label: '消息', href: '/user/notifications', showBadge: true, featureId: 'notifications' },
+            { icon: CreditCard, label: '订单', href: '/user/orders', featureId: 'orders' },
         ],
     },
     {
         section: 'AI 设置',
         items: [
-            { icon: MessageCircleHeart, label: '个性化', href: '/user/settings/ai' },
-            { icon: BookOpenText, label: '知识库', href: '/user/knowledge-base', requiresPlus: true },
-            { icon: Plug, label: 'MCP 服务', href: '/user/mcp' },
+            { icon: MessageCircleHeart, label: '个性化', href: '/user/settings/ai', featureId: 'ai-personalization' },
+            { icon: BookOpenText, label: '知识库', href: '/user/knowledge-base', requiresPlus: true, featureId: 'knowledge-base' },
+            { icon: Plug, label: 'MCP 服务', href: '/user/mcp', featureId: 'mcp-service' },
         ],
     },
     {
@@ -211,6 +212,7 @@ export default function UserPage() {
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const { isFeatureEnabled } = useFeatureToggles();
     const effectiveUnreadCount = user ? unreadCount : 0;
 
     // 弹窗状态
@@ -612,8 +614,8 @@ export default function UserPage() {
                     )}
                 </Link>
 
-                {/* 经验进度条 */}
-                {level && (
+                {/* 经验进度条（签到功能关闭时隐藏） */}
+                {isFeatureEnabled('checkin') && level && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -642,7 +644,7 @@ export default function UserPage() {
                         </div>
                     </div>
                 )}
-                {!level && isLevelLoading && (
+                {isFeatureEnabled('checkin') && !level && isLevelLoading && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -659,22 +661,13 @@ export default function UserPage() {
                 {isMembershipLoading && (
                     <Skeleton className="h-11 w-full rounded-xl mt-4" />
                 )}
-                {!isMembershipLoading && membership?.type === 'free' && (
-                    isPaymentPaused ? (
-                        <div className="w-full mt-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 font-medium transition-colors flex items-center justify-center gap-2 cursor-not-allowed">
-                            <span>升级会员，解锁全部功能</span>
-                            <span className="text-[10px] bg-amber-500/20 text-amber-700 px-2 py-0.5 rounded-full">
-                                暂停服务
-                            </span>
-                        </div>
-                    ) : (
-                        <Link
-                            href="/user/upgrade"
-                            className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <span>升级会员，解锁全部功能</span>
-                        </Link>
-                    )
+                {!isMembershipLoading && membership?.type === 'free' && !isPaymentPaused && (
+                    <Link
+                        href="/user/upgrade"
+                        className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <span>升级会员，解锁全部功能</span>
+                    </Link>
                 )}
             </div>
 
@@ -688,7 +681,7 @@ export default function UserPage() {
                         section: '管理',
                         items: [
                             { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
-                            { icon: Wallet, label: '支付服务', href: '/admin/payment' },
+                            { icon: Wallet, label: '功能与支付管理', href: '/admin/features' },
                             { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
                             { icon: Plug, label: 'MCP 管理', href: '/admin/mcp' },
                         ],
@@ -701,15 +694,22 @@ export default function UserPage() {
                         </h2>
                         <div className="bg-background rounded-xl border border-border overflow-hidden">
                             {section.items.map((item, itemIndex) => {
+                                const featureId = 'featureId' in item ? (item as { featureId?: string }).featureId : undefined;
+                                if (featureId && !isFeatureEnabled(featureId)) {
+                                    return null;
+                                }
                                 const Icon = item.icon;
                                 const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
                                 const isSubscription = item.href === '/user/upgrade';
                                 const isDisabledByPayment = isSubscription && isPaymentPaused;
                                 const requiresPlus = 'requiresPlus' in item && item.requiresPlus;
                                 const isDisabledByMembership = requiresPlus && membership?.type === 'free';
-                                const isDisabled = isDisabledByPayment || isDisabledByMembership;
 
-                                if (isDisabled) {
+                                if (isDisabledByPayment) {
+                                    return null;
+                                }
+
+                                if (isDisabledByMembership) {
                                     return (
                                         <div
                                             key={itemIndex}
@@ -720,7 +720,7 @@ export default function UserPage() {
                                                 <span>{item.label}</span>
                                             </div>
                                             <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                                                {isDisabledByMembership ? 'Plus+' : '暂停服务'}
+                                                Plus+
                                             </span>
                                         </div>
                                     );
@@ -753,6 +753,7 @@ export default function UserPage() {
             }
 
             {/* 帮助 */}
+            {isFeatureEnabled('help') && (
             <div className="mb-6">
                 <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
                     帮助
@@ -770,6 +771,7 @@ export default function UserPage() {
                     </Link>
                 </div>
             </div>
+            )}
 
             {/* 退出登录 */}
             <button

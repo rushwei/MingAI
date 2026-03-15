@@ -15,6 +15,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
@@ -568,6 +569,8 @@ function MonthlyPageContent() {
 
 export default function MonthlyPage() {
     return (
-        <MonthlyPageContent />
+        <FeatureGate featureId="monthly">
+            <MonthlyPageContent />
+        </FeatureGate>
     );
 }

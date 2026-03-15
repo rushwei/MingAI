@@ -18,6 +18,7 @@ import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { normalizeBirthDateForCalendarSwitch } from '@/lib/divination/bazi-form-utils';
 import { useToast } from '@/components/ui/Toast';
 import { clampDay } from '@/lib/date-utils';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -322,6 +323,7 @@ function BaziPageContent() {
 // 主导出组件 - 使用 Suspense 包装
 export default function BaziPage() {
     return (
+        <FeatureGate featureId="bazi">
         <Suspense fallback={
             <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
@@ -330,5 +332,6 @@ export default function BaziPage() {
         }>
             <BaziPageContent />
         </Suspense>
+        </FeatureGate>
     );
 }

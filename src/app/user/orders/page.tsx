@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CreditCard, Calendar, ShoppingBag } from 'lucide-react';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 interface Order {
     id: string;
@@ -124,6 +125,7 @@ export default function OrdersPage() {
     };
 
     return (
+        <FeatureGate featureId="orders">
         <div className="min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
                 {/* 桌面端头部 */}
@@ -199,5 +201,6 @@ export default function OrdersPage() {
                 )}
             </div>
         </div>
+        </FeatureGate>
     );
 }

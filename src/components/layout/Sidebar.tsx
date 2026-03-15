@@ -37,6 +37,7 @@ import { SidebarUserCard } from '@/components/layout/UserMenu';
 import { useSidebarSafe } from '@/components/layout/SidebarContext';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 // 导航项配置
 const navItems = [
@@ -127,6 +128,7 @@ export function Sidebar() {
     const { config: sidebarConfig } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const { user } = useSessionSafe();
+    const { isFeatureEnabled } = useFeatureToggles();
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     // 切换折叠状态
@@ -137,6 +139,7 @@ export function Sidebar() {
 
     // 根据配置过滤并排序导航项
     const filteredNavItems = useMemo(() => navItems
+        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
         .sort((a, b) => {
             const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
@@ -145,9 +148,10 @@ export function Sidebar() {
             if (orderA === -1) return 1;
             if (orderB === -1) return -1;
             return orderA - orderB;
-        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder]);
+        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
 
     const filteredToolItems = useMemo(() => toolItems
+        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
         .sort((a, b) => {
             const idA = a.href.replace('/user/', '').replace('/', '');
@@ -158,7 +162,7 @@ export function Sidebar() {
             if (orderA === -1) return 1;
             if (orderB === -1) return -1;
             return orderA - orderB;
-        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder]);
+        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
 
     return (
         <>

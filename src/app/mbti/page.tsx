@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Brain, Play, Loader2, Eye } from 'lucide-react';
 
 import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/divination/mbti';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 function MBTIPageContent() {
     const router = useRouter();
@@ -118,6 +119,8 @@ function MBTIPageContent() {
 
 export default function MBTIPage() {
     return (
-        <MBTIPageContent />
+        <FeatureGate featureId="mbti">
+            <MBTIPageContent />
+        </FeatureGate>
     );
 }

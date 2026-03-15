@@ -28,6 +28,7 @@ import {
     deleteNotifications,
     type Notification
 } from '@/lib/notification';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 // 通知类型样式 - 保持简洁的颜色
 const typeStyles: Record<string, { icon: string; label: string }> = {
@@ -53,6 +54,14 @@ function formatTime(dateStr: string): string {
 }
 
 export default function NotificationsPage() {
+    return (
+        <FeatureGate featureId="notifications">
+            <NotificationsContent />
+        </FeatureGate>
+    );
+}
+
+function NotificationsContent() {
     const router = useRouter();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);

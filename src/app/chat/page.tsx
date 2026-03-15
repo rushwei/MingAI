@@ -38,6 +38,7 @@ import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 
 
@@ -1216,6 +1217,7 @@ export default function ChatPage() {
 
     // 获取最后一条 AI 消息的命盘信息（用于在 Composer 中显示）
     return (
+        <FeatureGate featureId="chat">
         <LoginOverlay message="登录后即可使用 AI 对话功能">
             <div className="flex h-[calc(100vh-var(--mobile-header-height)-5rem)] lg:h-screen">
                 {/* 对话历史侧边栏 */}
@@ -1471,5 +1473,6 @@ export default function ChatPage() {
                 onClose={() => setShowCreditsModal(false)}
             />
         </LoginOverlay>
+        </FeatureGate>
     );
 }

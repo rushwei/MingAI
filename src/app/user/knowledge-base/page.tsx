@@ -16,6 +16,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 type KnowledgeBase = {
     id: string;
@@ -378,6 +379,7 @@ export default function KnowledgeBaseManagePage() {
     }, [expandedKbId, loadArchives, showToast, uploadFile, uploadKbId]);
 
     return (
+        <FeatureGate featureId="knowledge-base">
         <div className="min-h-screen bg-background">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
                 {/* 桌面端 Header */}
@@ -717,5 +719,6 @@ export default function KnowledgeBaseManagePage() {
                 )}
             </div>
         </div>
+        </FeatureGate>
     );
 }

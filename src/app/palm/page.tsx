@@ -17,6 +17,7 @@ import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const HistoryDrawer = dynamic(
     () => import('@/components/layout/HistoryDrawer').then(mod => mod.HistoryDrawer),
@@ -170,6 +171,7 @@ export default function PalmPage() {
     };
 
     return (
+        <FeatureGate featureId="palm">
         <LoginOverlay message="登录后体验手相分析">
             <div className="min-h-screen bg-background md:pb-12">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
@@ -418,5 +420,6 @@ export default function PalmPage() {
                 onClose={() => setShowCreditsModal(false)}
             />
         </LoginOverlay>
+        </FeatureGate>
     );
 }

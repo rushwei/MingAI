@@ -17,6 +17,8 @@ import {
     ScanFace,
     Hand,
 } from 'lucide-react';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 
 const FORTUNE_SERVICES = [
@@ -95,6 +97,9 @@ const FORTUNE_SERVICES = [
 ];
 
 function FortuneHubContent() {
+    const { isFeatureEnabled } = useFeatureToggles();
+    const enabledServices = FORTUNE_SERVICES.filter(s => isFeatureEnabled(s.id));
+
     // 获取今日日期
     const today = new Date();
     const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
@@ -157,7 +162,7 @@ function FortuneHubContent() {
                     </h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-5 mb-4 md:mb-10">
-                    {FORTUNE_SERVICES.map((service) => {
+                    {enabledServices.map((service) => {
                         const Icon = service.icon;
                         return (
                             <Link
@@ -248,6 +253,8 @@ function FortuneHubContent() {
 
 export default function FortuneHubPage() {
     return (
-        <FortuneHubContent />
+        <FeatureGate featureId="fortune-hub">
+            <FortuneHubContent />
+        </FeatureGate>
     );
 }

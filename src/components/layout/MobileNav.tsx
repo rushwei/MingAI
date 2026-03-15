@@ -42,9 +42,24 @@ import {
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 // 底部导航栏的默认入口
 const DEFAULT_MAIN_ITEMS = ['fortune-hub', 'liuyao', 'chat', 'daily'];
+
+// 导航项 ID → 功能开关 ID 映射（用户中心子功能）
+const NAV_TO_FEATURE_ID: Record<string, string> = {
+    'user/upgrade': 'upgrade',
+    'user/charts': 'charts',
+    'user/notifications': 'notifications',
+    'user/orders': 'orders',
+    'user/settings/ai': 'ai-personalization',
+    'user/knowledge-base': 'knowledge-base',
+    'user/help': 'help',
+};
+
+/** 将导航项 ID 转为功能开关 ID */
+const toFeatureId = (navId: string) => NAV_TO_FEATURE_ID[navId] || navId;
 
 // 所有可用的导航项目映射
 const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideIcon }> = {
@@ -86,14 +101,16 @@ export function MobileNav() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { config } = useSidebarConfigSafe();
+    const { isFeatureEnabled } = useFeatureToggles();
 
     // 根据配置计算底部导航栏项目
     const mainNavItems = useMemo(() => {
         const items = config.mobileMainItems || DEFAULT_MAIN_ITEMS;
         return items
+            .filter(id => isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-    }, [config.mobileMainItems]);
+    }, [config.mobileMainItems, isFeatureEnabled]);
 
     // 根据配置计算抽屉中的项目
     const drawerNavItems = useMemo(() => {
@@ -104,17 +121,17 @@ export function MobileNav() {
 
         // 按顺序排列已有的项目
         const orderedItems = order
-            .filter(id => !mainSet.has(id) && !hidden.has(id))
+            .filter(id => !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
 
         // 添加不在 order 中的新项目（追加到末尾）
         const newItems = Object.entries(ALL_NAV_ITEMS)
-            .filter(([id]) => !orderSet.has(id) && !mainSet.has(id) && !hidden.has(id))
+            .filter(([id]) => !orderSet.has(id) && !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
             .map(([, item]) => item);
 
         return [...orderedItems, ...newItems];
-    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems]);
+    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, isFeatureEnabled]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {
@@ -188,24 +205,7 @@ export function MobileNav() {
                             const Icon = item.icon;
 
                             if (item.href === '/user/upgrade' && isPaymentPaused) {
-                                return (
-                                    <div
-                                        key={item.href}
-                                        className="flex flex-col items-center justify-center p-3 rounded-xl
-                                            bg-background-secondary opacity-60 cursor-not-allowed"
-                                        onClick={(e) => e.preventDefault()}
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center mb-2">
-                                            <Icon className="w-5 h-5 text-foreground-secondary" />
-                                        </div>
-                                        <span className="text-xs text-foreground-secondary text-center flex flex-col items-center gap-0.5">
-                                            {item.label}
-                                            <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-px rounded-full transform scale-90">
-                                                暂停服务
-                                            </span>
-                                        </span>
-                                    </div>
-                                );
+                                return null;
                             }
 
                             return (

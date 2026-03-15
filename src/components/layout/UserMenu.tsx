@@ -253,15 +253,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <User className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>我的</span>
                         </Link>
-                        {isPaymentPaused ? (
-                            <div className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg text-foreground-secondary cursor-not-allowed opacity-60">
-                                <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
-                                <span>订阅</span>
-                                <span className="ml-auto text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                                    暂停服务
-                                </span>
-                            </div>
-                        ) : (
+                        {isPaymentPaused ? null : (
                             <Link
                                 href="/user/upgrade"
                                 onClick={() => setIsMenuOpen(false)}

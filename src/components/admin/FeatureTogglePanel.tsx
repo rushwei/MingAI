@@ -1,0 +1,142 @@
+/**
+ * 功能模块开关管理面板
+ *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useState)
+ * - 有开关切换交互功能
+ */
+'use client';
+
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
+
+const MODULES: { id: string; label: string }[] = [
+    { id: 'fortune-hub', label: '运势中心' },
+    { id: 'bazi', label: '八字' },
+    { id: 'hepan', label: '八字合盘' },
+    { id: 'ziwei', label: '紫微斗数' },
+    { id: 'tarot', label: '塔罗' },
+    { id: 'liuyao', label: '六爻' },
+    { id: 'face', label: '面相' },
+    { id: 'palm', label: '手相' },
+    { id: 'mbti', label: 'MBTI' },
+    { id: 'chat', label: 'AI 对话' },
+    { id: 'daily', label: '日运' },
+    { id: 'monthly', label: '月运' },
+    { id: 'records', label: '命理记录' },
+    { id: 'community', label: '社区' },
+    { id: 'knowledge-base', label: '知识库' },
+    { id: 'mcp-service', label: 'MCP 服务' },
+    { id: 'checkin', label: '签到' },
+    { id: 'orders', label: '订单' },
+    { id: 'charts', label: '我的命盘' },
+    { id: 'ai-personalization', label: '个性化' },
+    { id: 'notifications', label: '消息通知' },
+    { id: 'upgrade', label: '订阅' },
+    { id: 'help', label: '帮助' },
+];
+
+export function FeatureTogglePanel() {
+    const { isFeatureEnabled, isLoading, refresh } = useFeatureToggles();
+    const [savingId, setSavingId] = useState<string | null>(null);
+    const [error, setError] = useState("");
+
+    const handleToggle = async (featureId: string, currentlyEnabled: boolean) => {
+        if (savingId || isLoading) return;
+
+        setSavingId(featureId);
+        setError("");
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            if (!token) {
+                setError("请先登录");
+                setSavingId(null);
+                return;
+            }
+
+            const response = await fetch("/api/feature-toggles", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({ featureId, disabled: currentlyEnabled }),
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                setError(result.error || "更新失败");
+                setSavingId(null);
+                return;
+            }
+
+            await refresh();
+        } catch (err) {
+            console.error("[feature-toggles] Update failed:", err);
+            setError("网络错误，请重试");
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-foreground-secondary" />
+                <span className="ml-2 text-sm text-foreground-secondary">加载功能状态...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <p className="text-sm text-foreground-secondary">
+                关闭某个功能后，用户将无法访问对应页面和入口。
+            </p>
+
+            {error && (
+                <div className="text-sm text-rose-500 bg-rose-500/10 rounded-lg px-3 py-2">{error}</div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {MODULES.map(({ id, label }) => {
+                    const enabled = isFeatureEnabled(id);
+                    const isSaving = savingId === id;
+
+                    return (
+                        <div
+                            key={id}
+                            className="flex items-center justify-between rounded-xl border border-border bg-background p-3"
+                        >
+                            <span className="text-sm font-medium truncate mr-2">{label}</span>
+                            <button
+                                onClick={() => handleToggle(id, enabled)}
+                                disabled={!!savingId || isLoading}
+                                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                                    enabled ? "bg-emerald-500" : "bg-rose-400"
+                                } ${savingId ? "opacity-60 cursor-not-allowed" : ""}`}
+                                aria-pressed={!enabled}
+                                aria-label={`${label}功能开关`}
+                            >
+                                {isSaving ? (
+                                    <Loader2 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-white" />
+                                ) : (
+                                    <span
+                                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                            enabled ? "translate-x-5" : "translate-x-0"
+                                        }`}
+                                    />
+                                )}
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}

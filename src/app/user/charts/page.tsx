@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeLocalCache } from '@/lib/cache';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 type ChartType = 'bazi' | 'ziwei';
 
@@ -282,6 +283,7 @@ export default function ChartsPage() {
     };
 
     return (
+        <FeatureGate featureId="charts">
         <div className="md:min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-6 animate-fade-in">
                 {/* 桌面端头部 */}
@@ -337,5 +339,6 @@ export default function ChartsPage() {
                 )}
             </div>
         </div>
+        </FeatureGate>
     );
 }

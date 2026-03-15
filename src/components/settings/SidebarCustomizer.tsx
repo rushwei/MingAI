@@ -51,6 +51,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 // 所有可配置的导航项
 const ALL_NAV_ITEMS = [
@@ -168,6 +169,7 @@ interface SidebarCustomizerProps {
 
 export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
     const { config, setConfig, saveConfig, loading } = useSidebarConfigSafe();
+    const { isFeatureEnabled } = useFeatureToggles();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [activeNavId, setActiveNavId] = useState<string | null>(null);
@@ -186,7 +188,9 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
 
     // 排序后的导航项
     const sortedNavItems = useMemo(() => {
-        return [...ALL_NAV_ITEMS].sort((a, b) => {
+        return [...ALL_NAV_ITEMS]
+            .filter(item => isFeatureEnabled(item.id))
+            .sort((a, b) => {
             const orderA = config.navOrder?.indexOf(a.id) ?? -1;
             const orderB = config.navOrder?.indexOf(b.id) ?? -1;
             if (orderA === -1 && orderB === -1) return 0;
@@ -194,14 +198,16 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
             if (orderB === -1) return -1;
             return orderA - orderB;
         });
-    }, [config.navOrder]);
+    }, [config.navOrder, isFeatureEnabled]);
 
     const navItemMap = useMemo(() => {
         return new Map(ALL_NAV_ITEMS.map(item => [item.id, item]));
     }, []);
 
     const sortedToolItems = useMemo(() => {
-        return [...ALL_TOOL_ITEMS].sort((a, b) => {
+        return [...ALL_TOOL_ITEMS]
+            .filter(item => isFeatureEnabled(item.id))
+            .sort((a, b) => {
             const orderA = config.toolOrder?.indexOf(a.id) ?? -1;
             const orderB = config.toolOrder?.indexOf(b.id) ?? -1;
             if (orderA === -1 && orderB === -1) return 0;
@@ -209,7 +215,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
             if (orderB === -1) return -1;
             return orderA - orderB;
         });
-    }, [config.toolOrder]);
+    }, [config.toolOrder, isFeatureEnabled]);
 
     const toolItemMap = useMemo(() => {
         return new Map(ALL_TOOL_ITEMS.map(item => [item.id, item]));

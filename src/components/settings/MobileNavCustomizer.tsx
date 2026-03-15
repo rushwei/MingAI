@@ -61,6 +61,7 @@ import {
     Scroll,
 } from 'lucide-react';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 // 所有可配置的移动端项目
 const ALL_MOBILE_ITEMS = [
@@ -103,6 +104,7 @@ interface MobileNavCustomizerProps {
 
 export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
     const { config, setConfig, saveConfig, loading } = useSidebarConfigSafe();
+    const { isFeatureEnabled } = useFeatureToggles();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
@@ -131,14 +133,14 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         const orderedItems = order
             .filter(id => !mainSet.has(id))
             .map(id => ALL_MOBILE_ITEMS.find(item => item.id === id))
-            .filter((item): item is typeof ALL_MOBILE_ITEMS[0] => !!item);
+            .filter((item): item is typeof ALL_MOBILE_ITEMS[0] => !!item && isFeatureEnabled(item.id));
 
         // 添加不在 order 中的新项目（追加到末尾）
         const newItems = ALL_MOBILE_ITEMS
-            .filter(item => !orderSet.has(item.id) && !mainSet.has(item.id));
+            .filter(item => !orderSet.has(item.id) && !mainSet.has(item.id) && isFeatureEnabled(item.id));
 
         return [...orderedItems, ...newItems];
-    }, [config.mobileDrawerOrder, mainItems]);
+    }, [config.mobileDrawerOrder, mainItems, isFeatureEnabled]);
 
     const itemMap = useMemo(() => {
         return new Map(ALL_MOBILE_ITEMS.map(item => [item.id, item]));

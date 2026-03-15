@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 interface McpKeyData {
   id: string;
@@ -52,7 +53,7 @@ function formatTime(iso: string | null): string {
   return new Date(iso).toLocaleString('zh-CN');
 }
 
-export default function McpPage() {
+function McpPageContent() {
   const { showToast } = useToast();
   const [keyData, setKeyData] = useState<McpKeyData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -390,5 +391,13 @@ export default function McpPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function McpPage() {
+  return (
+    <FeatureGate featureId="mcp-service">
+      <McpPageContent />
+    </FeatureGate>
   );
 }

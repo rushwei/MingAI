@@ -8,6 +8,7 @@ import { Heart, Briefcase, Users, ArrowRight, HeartHandshake } from 'lucide-reac
 import { type HepanType, getHepanTypeName } from '@/lib/divination/hepan';
 
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const HEPAN_TYPES: { type: HepanType; icon: typeof Heart; color: string; bg: string; description: string }[] = [
     {
@@ -157,6 +158,8 @@ function HepanPageContent() {
 
 export default function HepanPage() {
     return (
-        <HepanPageContent />
+        <FeatureGate featureId="hepan">
+            <HepanPageContent />
+        </FeatureGate>
     );
 }

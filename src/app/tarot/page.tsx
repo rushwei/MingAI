@@ -12,6 +12,7 @@ import { Calendar, Layers, ChevronRight, Gem } from 'lucide-react';
 import Image from 'next/image';
 
 import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const HistoryDrawer = dynamic(
     () => import('@/components/layout/HistoryDrawer').then(mod => mod.HistoryDrawer),
@@ -33,7 +34,7 @@ export default function TarotPage() {
     };
 
     return (
-        <>
+        <FeatureGate featureId="tarot">
             <div className="md:min-h-screen bg-background md:pb-12">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
@@ -168,6 +169,6 @@ export default function TarotPage() {
                 </div>
             </div>
             <HistoryDrawer type="tarot" />
-        </>
+        </FeatureGate>
     );
 }

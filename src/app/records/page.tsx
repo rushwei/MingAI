@@ -36,6 +36,7 @@ import {
 } from '@/lib/records';
 import { supabase } from '@/lib/supabase';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 
 // =====================================================
 // 记录卡片组件
@@ -812,6 +813,7 @@ export default function RecordsPage() {
     const totalPages = Math.ceil(total / pageSize);
 
     return (
+        <FeatureGate featureId="records">
         <LoginOverlay message="登录后使用命理记录功能">
             <div className="min-h-screen bg-background text-foreground">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
@@ -1091,5 +1093,6 @@ export default function RecordsPage() {
                 </div>
             </div>
         </LoginOverlay>
+        </FeatureGate>
     );
 }
