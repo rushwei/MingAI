@@ -90,12 +90,15 @@ export async function exchangeCode(code: string, codeVerifier: string, redirectU
 
 export interface LinuxDoUser {
   sub: string;
-  preferred_username: string;
+  username: string;
+  login?: string;
   name: string;
   email: string;
-  email_verified: boolean;
-  groups?: string[];
-  picture?: string;
+  email_verified?: boolean;
+  avatar_url?: string;
+  active?: boolean;
+  trust_level?: number;
+  silenced?: boolean;
 }
 
 export async function fetchUserInfo(accessToken: string): Promise<LinuxDoUser> {
