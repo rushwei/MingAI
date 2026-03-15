@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sparkles, RotateCw, Loader2, RefreshCw, Copy, Check } from 'lucide-react';
@@ -59,6 +59,7 @@ export default function QimenResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'summary' | 'imagery' | 'notes'>('summary');
     const [copied, setCopied] = useState(false);
+    const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
 
     useEffect(() => {
@@ -79,7 +80,8 @@ export default function QimenResultPage() {
             setResult(parsed);
 
             // 若尚未保存过，自动保存排盘记录（拿到 chartId 后供 AI 解读关联）
-            if (!parsed.chartId && session?.access_token) {
+            if (!parsed.chartId && session?.access_token && !hasSavedRef.current) {
+                hasSavedRef.current = true;
                 try {
                     const res = await fetch('/api/qimen', {
                         method: 'POST',
