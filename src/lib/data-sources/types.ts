@@ -7,6 +7,7 @@ export type DataSourceType =
     | 'hepan_chart' | 'ming_record'
     | 'daily_fortune' | 'monthly_fortune'
     | 'qimen_chart';
+    | 'daliuren_divination';
 
 export interface DataSourceSummary {
     id: string;

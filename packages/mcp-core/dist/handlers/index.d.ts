@@ -11,4 +11,5 @@ export { handleTarotDraw } from './tarot.js';
 export { handleDailyFortune } from './fortune.js';
 export { handleDayunCalculate } from './liunian.js';
 export { handleQimenCalculate } from './qimen.js';
+export { handleDaliurenCalculate } from './daliuren.js';
 //# sourceMappingURL=index.d.ts.map

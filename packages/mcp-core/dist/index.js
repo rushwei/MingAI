@@ -2,11 +2,11 @@
  * MCP Core 主入口
  */
 import { tools } from './tools.js';
-import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, } from './handlers/index.js';
+import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, } from './handlers/index.js';
 export { tools } from './tools.js';
 export { formatAsMarkdown } from './formatters.js';
 export * from './types.js';
-export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, };
+export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, };
 /**
  * 统一工具调用分发（消除 mcp-server / mcp-local 重复 switch）
  */
@@ -37,6 +37,8 @@ export async function handleToolCall(name, args) {
             return handleDayunCalculate(args);
         case 'qimen_calculate':
             return handleQimenCalculate(args);
+        case 'daliuren':
+            return handleDaliurenCalculate(args);
         default:
             const availableTools = tools.map((t) => t.name).join(', ');
             throw new Error(`未知工具: ${name}。可用的工具: ${availableTools}`);

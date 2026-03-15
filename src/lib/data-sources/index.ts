@@ -104,6 +104,9 @@ const _init = (() => {
     registerDataSource('qimen_chart', async () => {
         const { qimenProvider } = await import('@/lib/data-sources/qimen');
         return qimenProvider;
+    registerDataSource('daliuren_divination', async () => {
+        const { daliurenProvider } = await import('@/lib/data-sources/daliuren');
+        return daliurenProvider;
     });
 })();
 

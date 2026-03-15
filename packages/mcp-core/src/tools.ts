@@ -14,6 +14,7 @@ import type {
   DayunInput,
   QimenInput,
 } from './types.js';
+import type { DaliurenInput } from './daliuren/types.js';
 
 export interface ToolAnnotation {
   readOnlyHint?: boolean;
@@ -1714,6 +1715,32 @@ const baseTools: ToolDefinition[] = [
       openWorldHint: false,
     },
   },
+  {
+    name: 'daliuren',
+    description: '大六壬排盘 - 根据日期时间起课，计算天地盘、四课、三传、天将、遁干、神煞(49种)、课体判断、十二长生、五行旺衰、建除十二神',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: '公历日期 YYYY-MM-DD' },
+        hour: { type: 'number', description: '时辰 0-23' },
+        minute: { type: 'number', description: '分钟 0-59，默认 0' },
+        question: { type: 'string', description: '占事（可选）' },
+        birthYear: { type: 'number', description: '出生年（可选，用于计算本命和行年）' },
+        gender: { type: 'string', enum: ['male', 'female'], description: '性别（可选，用于计算行年）' },
+      },
+      required: ['date', 'hour'],
+      examples: [
+        { date: '2026-03-15', hour: 16, minute: 53, question: '今日运势如何' },
+        { date: '2026-03-15', hour: 16, birthYear: 1990, gender: 'male' },
+      ],
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ];
 
 const LEGACY_TOOL_ALIASES: Record<string, string> = {
@@ -1738,4 +1765,4 @@ export const tools: ToolDefinition[] = [
   }),
 ];
 
-export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput | QimenInput;
+export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput | QimenInput | DaliurenInput;
