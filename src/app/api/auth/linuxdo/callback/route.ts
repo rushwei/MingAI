@@ -11,6 +11,7 @@ import {
   exchangeCode,
   fetchUserInfo,
   generateDeterministicPassword,
+  type LinuxDoUser,
 } from '@/lib/oauth/linuxdo';
 import { createAnonClient, getAuthAdminClient, getServiceRoleClient } from '@/lib/api-utils';
 import { setSessionCookies } from '@/lib/auth-session';
@@ -51,6 +52,154 @@ async function signInWithLinuxDoPassword(
   }
 
   return data.session;
+}
+
+function buildLinuxDoUserMetadata(linuxdoUser: LinuxDoUser, nickname: string) {
+  return {
+    nickname,
+    avatar_url: linuxdoUser.picture || null,
+    linuxdo_sub: linuxdoUser.sub,
+    linuxdo_username: linuxdoUser.preferred_username,
+    linuxdo_email: linuxdoUser.email,
+  };
+}
+
+type AdminAuthClient = NonNullable<ReturnType<typeof getAuthAdminClient>>;
+type AdminAuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
+function canSyncLinuxDoAuthUser(
+  authAdminClient: AdminAuthClient | null,
+): authAdminClient is AdminAuthClient & {
+  auth: {
+    admin: {
+      getUserById: (id: string) => Promise<{ data: { user: AdminAuthUser | null }; error: unknown }>;
+      updateUserById: (
+        id: string,
+        payload: Record<string, unknown>,
+      ) => Promise<{ data: { user: AdminAuthUser | null }; error: unknown }>;
+    };
+  };
+} {
+  return Boolean(
+    authAdminClient
+    && typeof authAdminClient.auth.admin.getUserById === 'function'
+    && typeof authAdminClient.auth.admin.updateUserById === 'function',
+  );
+}
+
+function canListLinuxDoAuthUsers(
+  authAdminClient: AdminAuthClient | null,
+): authAdminClient is AdminAuthClient & {
+  auth: {
+    admin: {
+      listUsers: (options?: { page?: number; perPage?: number }) => Promise<{
+        data: { users: AdminAuthUser[] };
+        error: unknown;
+      }>;
+      updateUserById: (
+        id: string,
+        payload: Record<string, unknown>,
+      ) => Promise<{ data: { user: AdminAuthUser | null }; error: unknown }>;
+    };
+  };
+} {
+  return Boolean(
+    authAdminClient
+    && typeof authAdminClient.auth.admin.listUsers === 'function'
+    && typeof authAdminClient.auth.admin.updateUserById === 'function',
+  );
+}
+
+async function syncLinuxDoAuthUser(
+  authAdminClient: AdminAuthClient,
+  userId: string,
+  linuxdoUser: LinuxDoUser,
+  deterministicPassword: string,
+  nickname: string,
+  existingMetadata?: Record<string, unknown> | null,
+): Promise<AdminAuthUser | null> {
+  const { data, error } = await authAdminClient.auth.admin.updateUserById(userId, {
+    password: deterministicPassword,
+    email_confirm: true,
+    user_metadata: {
+      ...(existingMetadata ?? {}),
+      ...buildLinuxDoUserMetadata(linuxdoUser, nickname),
+    },
+  });
+
+  if (error || !data.user) {
+    console.error('[linuxdo-callback] Auth sync failed:', error);
+    return null;
+  }
+
+  return data.user as AdminAuthUser;
+}
+
+async function findExistingLinuxDoAuthUser(
+  authAdminClient: AdminAuthClient,
+  linuxdoUser: LinuxDoUser,
+): Promise<AdminAuthUser | null> {
+  if (!canListLinuxDoAuthUsers(authAdminClient)) {
+    return null;
+  }
+
+  const perPage = 200;
+
+  for (let page = 1; page <= 100; page += 1) {
+    const { data, error } = await authAdminClient.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error('[linuxdo-callback] Auth user lookup failed:', error);
+      return null;
+    }
+
+    const users = data.users as AdminAuthUser[];
+    const matchedUser = users.find((user) => {
+      const metadata = user.user_metadata ?? {};
+      return metadata.linuxdo_sub === linuxdoUser.sub || user.email === linuxdoUser.email;
+    });
+    if (matchedUser) {
+      return matchedUser;
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
+  }
+
+  return null;
+}
+
+async function recoverExistingLinuxDoSession(params: {
+  authAdminClient: AdminAuthClient;
+  anonClient: ReturnType<typeof createAnonClient>;
+  linuxdoUser: LinuxDoUser;
+  deterministicPassword: string;
+  nickname: string;
+}): Promise<Session | null> {
+  const existingAuthUser = await findExistingLinuxDoAuthUser(params.authAdminClient, params.linuxdoUser);
+  if (!existingAuthUser) {
+    return null;
+  }
+
+  const syncedAuthUser = await syncLinuxDoAuthUser(
+    params.authAdminClient,
+    existingAuthUser.id,
+    params.linuxdoUser,
+    params.deterministicPassword,
+    params.nickname,
+    existingAuthUser.user_metadata,
+  );
+  const authEmail = syncedAuthUser?.email || existingAuthUser.email;
+  if (!authEmail) {
+    console.error('[linuxdo-callback] Auth user email missing during recovery');
+    return null;
+  }
+
+  return signInWithLinuxDoPassword(params.anonClient, authEmail, params.deterministicPassword);
 }
 
 export async function GET(request: NextRequest) {
@@ -147,6 +296,7 @@ export async function GET(request: NextRequest) {
   const deterministicPassword = generateDeterministicPassword(linuxdoUser.sub);
   const nickname = linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者';
   const anonClient = createAnonClient();
+  const authAdminClient = getAuthAdminClient();
 
   if (existingProvider) {
     // 已有记录：直接登录
@@ -162,9 +312,33 @@ export async function GET(request: NextRequest) {
       return res;
     }
 
+    let authEmail = linuxdoUser.email;
+    if (canSyncLinuxDoAuthUser(authAdminClient)) {
+      const { data: authUserData, error: authUserError } = await authAdminClient.auth.admin.getUserById(
+        existingProvider.user_id,
+      );
+
+      if (authUserError || !authUserData.user) {
+        console.error('[linuxdo-callback] Bound auth user lookup failed:', authUserError);
+        const res = redirectWithError(origin, 'user_not_found');
+        clearCookie(res);
+        return res;
+      }
+
+      const syncedAuthUser = await syncLinuxDoAuthUser(
+        authAdminClient,
+        existingProvider.user_id,
+        linuxdoUser,
+        deterministicPassword,
+        nickname,
+        authUserData.user.user_metadata,
+      );
+      authEmail = syncedAuthUser?.email || authUserData.user.email || linuxdoUser.email;
+    }
+
     // 用确定性密码登录
     const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: linuxdoUser.email,
+      email: authEmail,
       password: deterministicPassword,
     });
 
@@ -202,43 +376,51 @@ export async function GET(request: NextRequest) {
   }
 
   // 6. 无记录：新用户流程
-  const authAdminClient = getAuthAdminClient();
   let session: Session | null = null;
 
   if (authAdminClient) {
-    const { data: createUserData, error: createUserError } = await authAdminClient.auth.admin.createUser({
-      email: linuxdoUser.email,
-      password: deterministicPassword,
-      email_confirm: true,
-      user_metadata: {
-        nickname,
-        avatar_url: linuxdoUser.picture || null,
-      },
+    session = await recoverExistingLinuxDoSession({
+      authAdminClient,
+      anonClient,
+      linuxdoUser,
+      deterministicPassword,
+      nickname,
     });
 
-    if (createUserError || !createUserData?.user) {
-      console.error('[linuxdo-callback] Admin create user failed:', createUserError);
-      if (isAlreadyRegisteredError(createUserError?.message)) {
-        const recoveredSession = await signInWithLinuxDoPassword(
-          anonClient,
-          linuxdoUser.email,
-          deterministicPassword,
-        );
-        if (!recoveredSession) {
-          const res = redirectWithError(origin, 'email_exists');
+    if (!session) {
+      const { data: createUserData, error: createUserError } = await authAdminClient.auth.admin.createUser({
+        email: linuxdoUser.email,
+        password: deterministicPassword,
+        email_confirm: true,
+        user_metadata: buildLinuxDoUserMetadata(linuxdoUser, nickname),
+      });
+
+      if (createUserError || !createUserData?.user) {
+        console.error('[linuxdo-callback] Admin create user failed:', createUserError);
+        if (isAlreadyRegisteredError(createUserError?.message)) {
+          const recoveredSession = await recoverExistingLinuxDoSession({
+            authAdminClient,
+            anonClient,
+            linuxdoUser,
+            deterministicPassword,
+            nickname,
+          });
+          if (!recoveredSession) {
+            const res = redirectWithError(origin, 'email_exists');
+            clearCookie(res);
+            return res;
+          }
+          session = recoveredSession;
+        } else {
+          if (createUserError?.status === 401 || createUserError?.status === 403) {
+            const res = redirectWithError(origin, 'signup_requires_admin_key');
+            clearCookie(res);
+            return res;
+          }
+          const res = redirectWithError(origin, 'signup_failed');
           clearCookie(res);
           return res;
         }
-        session = recoveredSession;
-      } else {
-        if (createUserError?.status === 401 || createUserError?.status === 403) {
-          const res = redirectWithError(origin, 'signup_requires_admin_key');
-          clearCookie(res);
-          return res;
-        }
-        const res = redirectWithError(origin, 'signup_failed');
-        clearCookie(res);
-        return res;
       }
     }
 
@@ -261,10 +443,7 @@ export async function GET(request: NextRequest) {
       email: linuxdoUser.email,
       password: deterministicPassword,
       options: {
-        data: {
-          nickname,
-          avatar_url: linuxdoUser.picture || null,
-        },
+        data: buildLinuxDoUserMetadata(linuxdoUser, nickname),
         emailRedirectTo: undefined,
       },
     });

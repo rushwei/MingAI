@@ -382,6 +382,10 @@ test('linuxdo callback should create new users through admin api instead of publ
   assert.equal(adminCreateUserCalls, 1);
   assert.equal(signInCalls, 1);
   assert.equal(createUserPayload?.email_confirm, true);
+  assert.equal(
+    (createUserPayload?.user_metadata as Record<string, unknown>)?.linuxdo_sub,
+    'linuxdo-user-2',
+  );
 });
 
 test('linuxdo callback should surface missing auth admin key when public signup is blocked', async (t) => {
@@ -489,6 +493,11 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
     getAuthAdminClient: () => {
       auth: {
         admin: {
+          listUsers: () => Promise<{ data: { users: Array<{ id: string; email: string; user_metadata: Record<string, unknown> }> }; error: null }>;
+          updateUserById: (
+            id: string,
+            payload: Record<string, unknown>,
+          ) => Promise<{ data: { user: { id: string; email: string } }; error: null }>;
           createUser: () => Promise<{ data: { user: null }; error: { message: string } }>;
         };
       };
@@ -542,6 +551,29 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
   apiUtilsModule.getAuthAdminClient = () => ({
     auth: {
       admin: {
+        listUsers: async () => ({
+          data: {
+            users: [
+              {
+                id: 'user-4',
+                email: 'dylan@example.com',
+                user_metadata: {
+                  linuxdo_sub: 'linuxdo-user-4',
+                },
+              },
+            ],
+          },
+          error: null,
+        }),
+        updateUserById: async () => ({
+          data: {
+            user: {
+              id: 'user-4',
+              email: 'dylan@example.com',
+            },
+          },
+          error: null,
+        }),
         createUser: async () => ({
           data: { user: null },
           error: { message: 'User already registered' },

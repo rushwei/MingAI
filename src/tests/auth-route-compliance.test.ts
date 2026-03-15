@@ -13,7 +13,7 @@ test('auth route should rely on api-utils supabase client factories', async () =
     'auth route should import supabase client factories from api-utils'
   );
   assert.ok(
-    !source.includes("from '@supabase/supabase-js'") || source.includes('import type { Session, User }'),
+    !source.includes("from '@supabase/supabase-js'") || source.includes('import type {'),
     'auth route should not create supabase client directly in route file'
   );
   assert.ok(

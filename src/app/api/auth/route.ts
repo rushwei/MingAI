@@ -4,7 +4,7 @@ import { createAnonClient, createAuthedClient } from '@/lib/api-utils';
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
-  buildSessionFromUser,
+  resolveSessionFromTokens,
   setSessionCookies,
 } from '@/lib/auth-session';
 
@@ -40,30 +40,10 @@ async function resolveSession(request: NextRequest): Promise<{
 }> {
   const bearer = request.headers.get('authorization');
   const bearerToken = bearer?.replace(/Bearer\s+/i, '') || null;
-  const accessToken = bearerToken || request.cookies.get(ACCESS_COOKIE)?.value || null;
-  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value || null;
-  const client = createAnonClient();
-
-  if (accessToken) {
-    const { data, error } = await client.auth.getUser(accessToken);
-    if (!error && data.user) {
-      return {
-        session: buildSessionFromUser(data.user, accessToken, refreshToken || ''),
-        refreshed: false,
-      };
-    }
-  }
-
-  if (refreshToken) {
-    const { data, error } = await client.auth.refreshSession({
-      refresh_token: refreshToken,
-    });
-    if (!error && data.session) {
-      return { session: data.session, refreshed: true };
-    }
-  }
-
-  return { session: null, refreshed: false };
+  return resolveSessionFromTokens(createAnonClient(), {
+    accessToken: bearerToken || request.cookies.get(ACCESS_COOKIE)?.value || null,
+    refreshToken: request.cookies.get(REFRESH_COOKIE)?.value || null,
+  });
 }
 
 export async function GET(request: NextRequest) {

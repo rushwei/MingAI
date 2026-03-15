@@ -27,6 +27,10 @@ function getClientSecret(): string {
   return v;
 }
 
+function getStablePasswordSeed(): string {
+  return process.env.SUPABASE_SECRET_KEY || getClientSecret();
+}
+
 // --- PKCE helpers ---
 
 function base64url(buf: Buffer): string {
@@ -217,7 +221,7 @@ export async function fetchUserInfo(accessToken: string): Promise<LinuxDoUser> {
 // --- Deterministic password ---
 
 export function generateDeterministicPassword(sub: string): string {
-  return createHmac('sha256', getClientSecret())
+  return createHmac('sha256', getStablePasswordSeed())
     .update(`linuxdo:${sub}`)
     .digest('hex');
 }

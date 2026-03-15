@@ -25,6 +25,54 @@ export function buildSessionFromUser(
   };
 }
 
+type AuthSessionResolverClient = {
+  auth: {
+    getUser: (accessToken: string) => Promise<{
+      data: { user: User | null };
+      error: unknown;
+    }>;
+    refreshSession: (tokens: { refresh_token: string }) => Promise<{
+      data: { session: Session | null };
+      error: unknown;
+    }>;
+  };
+};
+
+export async function resolveSessionFromTokens(
+  client: AuthSessionResolverClient,
+  tokens: {
+    accessToken?: string | null;
+    refreshToken?: string | null;
+  },
+): Promise<{ session: Session | null; refreshed: boolean }> {
+  const accessToken = tokens.accessToken || null;
+  const refreshToken = tokens.refreshToken || null;
+
+  if (accessToken) {
+    const { data, error } = await client.auth.getUser(accessToken);
+    if (!error && data.user) {
+      return {
+        session: buildSessionFromUser(data.user, accessToken, refreshToken || ''),
+        refreshed: false,
+      };
+    }
+  }
+
+  if (refreshToken) {
+    const { data, error } = await client.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+    if (!error && data.session) {
+      return {
+        session: data.session,
+        refreshed: true,
+      };
+    }
+  }
+
+  return { session: null, refreshed: false };
+}
+
 export function setSessionCookies(response: NextResponse, session: Session | null) {
   const secure = process.env.NODE_ENV === 'production';
 

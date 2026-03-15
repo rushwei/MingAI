@@ -75,6 +75,13 @@ export function FeatureTogglePanel() {
                 return;
             }
 
+            window.dispatchEvent(new CustomEvent('mingai:api-write', {
+                detail: {
+                    pathname: '/api/feature-toggles',
+                    method: 'POST',
+                    at: Date.now(),
+                },
+            }));
             await refresh();
         } catch (err) {
             console.error("[feature-toggles] Update failed:", err);
