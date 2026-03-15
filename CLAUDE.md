@@ -159,6 +159,30 @@ pnpm test
 
 若只改局部，可先跑受影响测试，再跑全量测试。
 
+## MCP 包发布规范
+
+**核心原则：本地始终保持 `workspace:*`，只用 `pnpm publish` 发布**
+
+- 本地开发：`packages/mcp-local/package.json` 中永远保持 `"@mingai/mcp-core": "workspace:*"`，禁止手动改为具体版本号
+- 发布流程：
+  ```bash
+  # 1. 更新版本号（两个包保持一致）
+  # 编辑 packages/mcp-core/package.json 和 packages/mcp-local/package.json
+
+  # 2. 构建
+  pnpm -C packages/mcp-core build
+  pnpm -C packages/mcp-local build
+
+  # 3. 发布（pnpm 会自动将 workspace:* 替换为实际版本号）
+  cd packages/mcp-core && pnpm publish --access public --no-git-checks
+  cd packages/mcp-local && pnpm publish --access public --no-git-checks
+
+  # 4. 验证
+  npm view @mingai/mcp dependencies  # 确认依赖是 ^x.x.x 而非 workspace:*
+  ```
+- 禁止使用 `npm publish`（不会自动替换 workspace 协议）
+- 发布后本地 package.json 保持 workspace:* 不变，无需修改
+
 ## 提交与变更说明
 
 - Commit message 使用 Conventional Commits：`feat: / fix: / refactor: / chore: / docs:`。
