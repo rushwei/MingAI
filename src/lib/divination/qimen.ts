@@ -28,6 +28,8 @@ export interface QimenInput {
 export interface QimenPalaceInfo {
     palaceNumber: number;
     palaceName: string;
+    direction: string;
+    element: string;
     earthStem: string;
     heavenStem: string;
     star: string;
@@ -37,10 +39,12 @@ export interface QimenPalaceInfo {
     patterns: string[];
     isEmpty: boolean;
     isHorseStar: boolean;
+    isRuMu: boolean;
     earthStemElement: string;
     heavenStemElement: string;
     starElement: string;
     gateElement: string;
+    stemWangShuai?: string;
 }
 
 export interface QimenOutput {
@@ -50,14 +54,23 @@ export interface QimenOutput {
     xunShou: string;
     dunType: 'yang' | 'yin';
     juNumber: number;
+    yuan: string;
     zhiFu: string;
+    zhiFuPalace: number;
     zhiShi: string;
+    zhiShiPalace: number;
     solarTerm: string;
     solarTermRange: string;
     panTypeLabel: string;
     juMethodLabel: string;
     palaces: QimenPalaceInfo[];
     monthPhase: Record<string, string>;
+    kongWang: {
+        dayKong: { branches: string[]; palaces: number[] };
+        hourKong: { branches: string[]; palaces: number[] };
+    };
+    yiMa: { branch: string; palace: number };
+    globalFormations: string[];
 }
 
 // ── 天干五行 ──
@@ -116,6 +129,8 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
     const palaces: QimenPalaceInfo[] = core.palaces.map((p) => ({
         palaceNumber: p.palaceIndex,
         palaceName: p.palaceName,
+        direction: p.direction,
+        element: p.element,
         earthStem: p.earthStem,
         heavenStem: p.heavenStem,
         star: p.star,
@@ -124,10 +139,12 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
         patterns: p.formations,
         isEmpty: p.isKongWang ?? false,
         isHorseStar: p.isYiMa ?? false,
+        isRuMu: p.isRuMu ?? false,
         earthStemElement: STEM_ELEMENT[p.earthStem] || '',
         heavenStemElement: STEM_ELEMENT[p.heavenStem] || '',
         starElement: p.starElement,
         gateElement: p.gateElement,
+        stemWangShuai: p.stemWangShuai,
     }));
 
     return {
@@ -137,13 +154,19 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
         xunShou: core.xunShou,
         dunType: core.dunType,
         juNumber: core.juNumber,
+        yuan: core.yuan,
         zhiFu: core.zhiFu.star,
+        zhiFuPalace: core.zhiFu.palace,
         zhiShi: core.zhiShi.gate,
+        zhiShiPalace: core.zhiShi.palace,
         solarTerm: core.dateInfo.solarTerm,
         solarTermRange: core.dateInfo.solarTermRange || '',
         panTypeLabel: core.panType,
         juMethodLabel: core.juMethod,
         palaces,
         monthPhase,
+        kongWang: core.kongWang,
+        yiMa: core.yiMa,
+        globalFormations: core.globalFormations,
     };
 }
