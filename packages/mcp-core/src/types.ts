@@ -287,14 +287,11 @@ export interface LiuyaoInput {
   method?: 'auto' | 'select';
   hexagramName?: string;
   changedHexagramName?: string;
-  date?: string;
-  seed?: string;
-  seedScope?: string;
+  date: string;  // 占卜日期时间，必须包含时间，格式 'YYYY-MM-DDTHH:MM' 或 'YYYY-MM-DD HH:MM:SS'
   responseFormat?: ResponseFormat;
 }
 
 export interface LiuyaoOutput {
-  seed: string;
   question: string;
   // 本卦信息
   hexagramName: string;

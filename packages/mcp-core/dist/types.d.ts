@@ -269,13 +269,10 @@ export interface LiuyaoInput {
     method?: 'auto' | 'select';
     hexagramName?: string;
     changedHexagramName?: string;
-    date?: string;
-    seed?: string;
-    seedScope?: string;
+    date: string;
     responseFormat?: ResponseFormat;
 }
 export interface LiuyaoOutput {
-    seed: string;
     question: string;
     hexagramName: string;
     hexagramGong: string;

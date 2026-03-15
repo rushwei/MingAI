@@ -764,11 +764,7 @@ export const tools = [
                 },
                 date: {
                     type: 'string',
-                    description: '占卜日期 (ISO格式)，默认今天',
-                },
-                seed: {
-                    type: 'string',
-                    description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
+                    description: '占卜日期时间，格式 "YYYY-MM-DDTHH:MM" 或 "YYYY-MM-DD HH:MM:SS"，必须包含时间',
                 },
                 responseFormat: {
                     type: 'string',
@@ -777,7 +773,7 @@ export const tools = [
                     default: 'json',
                 },
             },
-            required: ['question', 'yongShenTargets'],
+            required: ['question', 'yongShenTargets', 'date'],
             examples: [
                 { question: '本月事业运势如何？', yongShenTargets: ['官鬼'], method: 'auto' },
                 { question: '财运怎么样？', yongShenTargets: ['妻财'], hexagramName: '天火同人' },
@@ -786,7 +782,6 @@ export const tools = [
         outputSchema: {
             type: 'object',
             properties: {
-                seed: { type: 'string', description: '本次起卦使用的随机种子' },
                 question: { type: 'string', description: '占卜问题' },
                 hexagramName: { type: 'string', description: '本卦名' },
                 hexagramGong: { type: 'string', description: '卦宫' },

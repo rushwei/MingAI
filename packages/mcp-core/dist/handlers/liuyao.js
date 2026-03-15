@@ -1,4 +1,4 @@
-import { createSeededRng, resolveSeed } from '../seeded-rng.js';
+import { createSeededRng } from '../seeded-rng.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
 import { findHexagram, getPalaceInfo, hasInvalidYongShenTargets, normalizeYongShenTargets, performFullAnalysis, } from '../liuyao-core.js';
 function calculateChangedLines(mainCode, changedCode) {
@@ -60,7 +60,7 @@ function divine(rng) {
     };
 }
 function toLiuyaoOutput(params) {
-    const { seed, question, hexagramCode, changedCode, analysisDate, yaos } = params;
+    const { question, hexagramCode, changedCode, analysisDate, yaos } = params;
     const baseHexagram = findHexagram(hexagramCode);
     const changedHexagram = changedCode ? findHexagram(changedCode) : undefined;
     const basePalace = getPalaceInfo(hexagramCode);
@@ -75,7 +75,6 @@ function toLiuyaoOutput(params) {
         yaoCi: YAO_CI[baseHexagram.name]?.[yao.position - 1],
     }));
     return {
-        seed,
         question,
         hexagramName: baseHexagram.name,
         hexagramGong: basePalace?.name || '',
@@ -118,15 +117,19 @@ export async function handleLiuyaoAnalyze(input) {
         throw new Error('请至少选择一个分析目标');
     }
     const { method = 'auto', hexagramName, changedHexagramName, date, } = input;
-    let analysisDate = new Date();
-    if (date) {
-        analysisDate = date.includes('T')
-            ? new Date(date)
-            : new Date(`${date}T12:00:00`);
+    if (!date) {
+        throw new Error('date 为必填项，请提供占卜日期时间（格式：YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS）');
     }
-    const dateKey = `${analysisDate.getFullYear()}-${String(analysisDate.getMonth() + 1).padStart(2, '0')}-${String(analysisDate.getDate()).padStart(2, '0')}`;
-    const seed = resolveSeed(input.seed, `${question}|${method}|${dateKey}|${hexagramName || ''}|${changedHexagramName || ''}`, input.seedScope);
-    const rng = createSeededRng(seed);
+    const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/;
+    if (!DATE_TIME_RE.test(date.trim())) {
+        throw new Error('date 格式无效，请使用 YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS');
+    }
+    const analysisDate = new Date(date.replace(' ', 'T'));
+    if (isNaN(analysisDate.getTime())) {
+        throw new Error('date 日期无效，请检查年月日时分是否合理');
+    }
+    const dateKey = `${analysisDate.getFullYear()}-${String(analysisDate.getMonth() + 1).padStart(2, '0')}-${String(analysisDate.getDate()).padStart(2, '0')}T${String(analysisDate.getHours()).padStart(2, '0')}`;
+    const rng = createSeededRng(`${dateKey}|${question}|${method}|${hexagramName || ''}|${changedHexagramName || ''}`);
     let yaos;
     let hexagramCode;
     let changedCode;
@@ -164,7 +167,6 @@ export async function handleLiuyaoAnalyze(input) {
         }
     }
     const output = toLiuyaoOutput({
-        seed,
         question,
         hexagramCode,
         changedCode,

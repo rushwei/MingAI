@@ -1,6 +1,6 @@
 {
   "name": "@mingai/mcp-core",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "description": "MingAI MCP Core - 命理计算工具核心库",
   "license": "MIT",
   "type": "module",

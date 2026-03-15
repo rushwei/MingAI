@@ -84,6 +84,18 @@ import { tools, handleToolCall, formatAsMarkdown } from '@mingai/mcp-core';
 
 ## 更新日志
 
+### 1.1.4 (2026-03-13)
+
+**六爻增强：**
+- ✨ `liuyao` 的 `date` 字段现为必填，且必须包含时间部分（格式：`YYYY-MM-DDTHH:MM` 或 `YYYY-MM-DD HH:MM:SS`），时辰影响时柱与空亡计算
+- 🗑️ 移除 `seed` 输入参数，改为基于日期时辰自动生成确定性随机序列（相同日期时辰可复现）
+
+### 1.1.3 (2026-03-13)
+
+**六爻增强：**
+- ✨ `liuyao` 的 `date` 字段现支持完整日期时间（`YYYY-MM-DDTHH:MM:SS` 或 `YYYY-MM-DD HH:MM:SS`），时辰影响时柱干支
+- 🐛 修复仅传日期时时柱硬编码为午时的问题，改为使用当前时刻
+
 ### 1.1.2 (2026-03-13)
 
 **紫微斗数增强：**
