@@ -147,21 +147,34 @@ export async function POST(request: NextRequest) {
                         console.error('[qimen] 保存 AI 分析对话失败');
                     }
 
-                    const { error: insertError } = await serviceClient
-                        .from('qimen_charts')
-                        .insert({
-                            user_id: user.id,
-                            question: question || null,
-                            chart_time: new Date().toISOString(),
-                            chart_data: chart,
-                            dun_type: chart.dunType,
-                            ju_number: chart.juNumber,
-                            pan_type: 'zhuan',
-                            ju_method: chart.juMethodLabel === '茅山法' ? 'maoshan' : 'chaibu',
-                            conversation_id: conversationId,
-                        });
-                    if (insertError) {
-                        console.error('[qimen] 保存排盘记录失败:', insertError.message);
+                    // 若排盘时已自动保存过（有 chartId），只更新 conversation_id
+                    const existingChartId = body.chartId;
+                    if (existingChartId) {
+                        const { error: updateError } = await serviceClient
+                            .from('qimen_charts')
+                            .update({ conversation_id: conversationId })
+                            .eq('id', existingChartId)
+                            .eq('user_id', user.id);
+                        if (updateError) {
+                            console.error('[qimen] 更新排盘记录失败:', updateError.message);
+                        }
+                    } else {
+                        const { error: insertError } = await serviceClient
+                            .from('qimen_charts')
+                            .insert({
+                                user_id: user.id,
+                                question: question || null,
+                                chart_time: new Date().toISOString(),
+                                chart_data: chart,
+                                dun_type: chart.dunType,
+                                ju_number: chart.juNumber,
+                                pan_type: 'zhuan',
+                                ju_method: chart.juMethodLabel === '茅山法' ? 'maoshan' : 'chaibu',
+                                conversation_id: conversationId,
+                            });
+                        if (insertError) {
+                            console.error('[qimen] 保存排盘记录失败:', insertError.message);
+                        }
                     }
 
                     return conversationId;
