@@ -1,6 +1,6 @@
 {
   "name": "@mingai/mcp",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "MingAI MCP Server - 命理计算工具 (stdio)",
   "license": "MIT",
   "type": "module",
