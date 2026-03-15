@@ -7,10 +7,11 @@
 
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { ToastProvider } from '@/components/ui/Toast';
+import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
 import { supabase } from '@/lib/supabase';
 import { invalidateLocalCaches, type LocalCacheScope } from '@/lib/cache';
+import { getLinuxDoAuthErrorMessage } from '@/lib/auth-feedback';
 
 interface ClientProvidersProps {
     children: ReactNode;
@@ -26,6 +27,28 @@ const SessionContext = createContext<SessionState | undefined>(undefined);
 
 export function useSessionSafe() {
     return useContext(SessionContext) ?? { session: null, user: null, loading: false };
+}
+
+function AuthCallbackFeedback() {
+    const { showToast } = useToast();
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        const errorCode = url.searchParams.get('error');
+        const message = getLinuxDoAuthErrorMessage(errorCode);
+
+        if (!message) {
+            return;
+        }
+
+        showToast('error', message, 5000);
+        url.searchParams.delete('error');
+
+        const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState(window.history.state, '', nextUrl || '/');
+    }, [showToast]);
+
+    return null;
 }
 
 export function ClientProviders({ children }: ClientProvidersProps) {
@@ -194,6 +217,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
     return (
         <ToastProvider>
+            <AuthCallbackFeedback />
             <ChatTaskToastBridge />
             <SessionContext.Provider value={state}>
                 {children}

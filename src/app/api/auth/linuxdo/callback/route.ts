@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  // 仅信任已验证的邮箱（Linux DO 不一定返回 email_verified，默认信任）
+  // Linux.do 旧版 userinfo 不一定显式返回 email_verified，仅在明确为 false 时拒绝
   if (linuxdoUser.email_verified === false) {
     const res = redirectWithError(origin, 'email_not_verified');
     clearCookie(res);
@@ -141,8 +141,8 @@ export async function GET(request: NextRequest) {
       .from('user_oauth_providers')
       .update({
         provider_email: linuxdoUser.email,
-        provider_username: linuxdoUser.username,
-        provider_avatar_url: linuxdoUser.avatar_url || null,
+        provider_username: linuxdoUser.preferred_username,
+        provider_avatar_url: linuxdoUser.picture || null,
         provider_metadata: linuxdoUser as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
       })
@@ -162,8 +162,8 @@ export async function GET(request: NextRequest) {
     password: deterministicPassword,
     options: {
       data: {
-        nickname: linuxdoUser.name || linuxdoUser.username || '命理爱好者',
-        avatar_url: linuxdoUser.avatar_url || null,
+        nickname: linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者',
+        avatar_url: linuxdoUser.picture || null,
       },
       emailRedirectTo: undefined,
     },

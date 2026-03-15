@@ -6,8 +6,14 @@
 import { createHmac, randomBytes, createHash } from 'crypto';
 
 const AUTHORIZE_URL = 'https://connect.linux.do/oauth2/authorize';
-const TOKEN_URL = 'https://connect.linux.do/oauth2/token';
-const USERINFO_URL = 'https://connect.linux.do/api/user';
+const TOKEN_URLS = [
+  'https://connect.linux.do/oauth2/token',
+  'https://connect.linuxdo.org/oauth2/token',
+] as const;
+const USERINFO_URLS = [
+  'https://connect.linux.do/api/user',
+  'https://connect.linuxdo.org/api/user',
+] as const;
 
 function getClientId(): string {
   const v = process.env.LINUXDO_CLIENT_ID;
@@ -62,6 +68,18 @@ export interface TokenResponse {
   refresh_token?: string;
 }
 
+async function readErrorText(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return 'unknown error';
+  }
+}
+
+function shouldRetryEndpoint(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
 export async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenResponse> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -72,46 +90,128 @@ export async function exchangeCode(code: string, codeVerifier: string, redirectU
     code_verifier: codeVerifier,
   });
 
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  const errors: string[] = [];
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Token exchange failed (${res.status}): ${text}`);
+  for (const [index, url] of TOKEN_URLS.entries()) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+
+      if (res.ok) {
+        return res.json() as Promise<TokenResponse>;
+      }
+
+      const text = await readErrorText(res);
+      errors.push(`${url} -> ${res.status}: ${text}`);
+      const hasFallback = index < TOKEN_URLS.length - 1;
+      if (!hasFallback || !shouldRetryEndpoint(res.status)) {
+        break;
+      }
+    } catch (error) {
+      errors.push(`${url} -> ${error instanceof Error ? error.message : String(error)}`);
+      if (index === TOKEN_URLS.length - 1) {
+        break;
+      }
+    }
   }
 
-  return res.json() as Promise<TokenResponse>;
+  throw new Error(`Token exchange failed: ${errors.join(' | ')}`);
 }
 
 // --- UserInfo ---
 
+interface LinuxDoUserRaw {
+  sub?: string;
+  username?: string;
+  preferred_username?: string;
+  login?: string;
+  name?: string;
+  email?: string;
+  email_verified?: boolean;
+  avatar_url?: string;
+  picture?: string;
+  groups?: string[];
+  active?: boolean;
+  trust_level?: number;
+  silenced?: boolean;
+}
+
 export interface LinuxDoUser {
   sub: string;
-  username: string;
-  login?: string;
+  preferred_username: string;
   name: string;
   email: string;
   email_verified?: boolean;
+  groups?: string[];
+  picture?: string;
+  username?: string;
   avatar_url?: string;
   active?: boolean;
   trust_level?: number;
   silenced?: boolean;
 }
 
-export async function fetchUserInfo(accessToken: string): Promise<LinuxDoUser> {
-  const res = await fetch(USERINFO_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+export function normalizeLinuxDoUser(raw: LinuxDoUserRaw): LinuxDoUser {
+  const sub = raw.sub?.trim();
+  const preferredUsername = raw.preferred_username?.trim()
+    || raw.username?.trim()
+    || raw.login?.trim();
+  const email = raw.email?.trim();
+  const name = raw.name?.trim() || preferredUsername;
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`UserInfo request failed (${res.status}): ${text}`);
+  if (!sub) {
+    throw new Error('UserInfo payload missing sub');
+  }
+  if (!preferredUsername) {
+    throw new Error('UserInfo payload missing preferred username');
+  }
+  if (!email) {
+    throw new Error('UserInfo payload missing email');
   }
 
-  return res.json() as Promise<LinuxDoUser>;
+  return {
+    ...raw,
+    sub,
+    preferred_username: preferredUsername,
+    name: name || preferredUsername,
+    email,
+    email_verified: typeof raw.email_verified === 'boolean' ? raw.email_verified : undefined,
+    picture: raw.picture || raw.avatar_url,
+  };
+}
+
+export async function fetchUserInfo(accessToken: string): Promise<LinuxDoUser> {
+  const errors: string[] = [];
+
+  for (const [index, url] of USERINFO_URLS.entries()) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (res.ok) {
+        const payload = await res.json() as LinuxDoUserRaw;
+        return normalizeLinuxDoUser(payload);
+      }
+
+      const text = await readErrorText(res);
+      errors.push(`${url} -> ${res.status}: ${text}`);
+      const hasFallback = index < USERINFO_URLS.length - 1;
+      if (!hasFallback || !shouldRetryEndpoint(res.status)) {
+        break;
+      }
+    } catch (error) {
+      errors.push(`${url} -> ${error instanceof Error ? error.message : String(error)}`);
+      if (index === USERINFO_URLS.length - 1) {
+        break;
+      }
+    }
+  }
+
+  throw new Error(`UserInfo request failed: ${errors.join(' | ')}`);
 }
 
 // --- Deterministic password ---
