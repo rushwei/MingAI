@@ -19,9 +19,11 @@ const EMAIL_SUFFIXES = [
 
 export function EmailSection({
     currentEmail,
+    displayEmail,
     onEmailChanged,
 }: {
     currentEmail: string;
+    displayEmail?: string;
     onEmailChanged?: (newEmail: string) => void;
 }) {
     const [step, setStep] = useState<EmailChangeStep>('idle');
@@ -33,6 +35,7 @@ export function EmailSection({
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [countdown, setCountdown] = useState(0);
+    const resolvedDisplayEmail = displayEmail || currentEmail;
 
     // 完整新邮箱
     const fullNewEmail = newEmailPrefix + newEmailSuffix;
@@ -147,7 +150,7 @@ export function EmailSection({
             {step === 'idle' && (
                 <div className="flex items-center gap-2">
                     <div className="flex-1 px-4 py-3 rounded-xl bg-background-secondary border border-border text-foreground-secondary">
-                        {currentEmail}
+                        {resolvedDisplayEmail}
                     </div>
                     <button
                         onClick={() => setStep('input-email')}
@@ -162,7 +165,7 @@ export function EmailSection({
             {step === 'input-email' && (
                 <div className="space-y-4 p-4 rounded-xl bg-background-secondary border border-border">
                     <p className="text-sm text-foreground-secondary">
-                        当前邮箱：<span className="text-foreground">{currentEmail}</span>
+                        当前邮箱：<span className="text-foreground">{resolvedDisplayEmail}</span>
                     </p>
 
                     {/* 新邮箱输入 */}

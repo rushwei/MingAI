@@ -24,6 +24,7 @@ import { signOut, getUserProfile } from '@/lib/auth';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { getUnreadCount } from '@/lib/notification';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { getUserEmailDisplay } from '@/lib/user-email';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
 interface SidebarUserCardProps {
@@ -83,7 +84,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const { isPaused: isPaymentPaused } = usePaymentPause();
 
     const displayName = nickname || user.email?.split('@')[0] || '用户';
-    const handle = user.email || 'user';
+    const handle = getUserEmailDisplay(user) || 'user';
 
     // 加载用户信息
     useEffect(() => {

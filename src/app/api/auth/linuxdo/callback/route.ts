@@ -36,6 +36,23 @@ function isPublicSignupBlocked(message: string | undefined) {
     || normalized.includes('email address is not authorized');
 }
 
+async function signInWithLinuxDoPassword(
+  anonClient: ReturnType<typeof createAnonClient>,
+  email: string,
+  password: string,
+) {
+  const { data, error } = await anonClient.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error || !data.session) {
+    return null;
+  }
+
+  return data.session;
+}
+
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
   const { searchParams } = request.nextUrl;
@@ -113,12 +130,19 @@ export async function GET(request: NextRequest) {
   const serviceClient = getServiceRoleClient();
 
   // 5. 查 user_oauth_providers
-  const { data: existingProvider } = await serviceClient
+  const { data: existingProvider, error: existingProviderError } = await serviceClient
     .from('user_oauth_providers')
     .select('user_id')
     .eq('provider', 'linuxdo')
     .eq('provider_user_id', linuxdoUser.sub)
     .maybeSingle();
+
+  if (existingProviderError) {
+    console.error('[linuxdo-callback] Provider lookup failed:', existingProviderError);
+    const res = redirectWithError(origin, 'provider_lookup_failed');
+    clearCookie(res);
+    return res;
+  }
 
   const deterministicPassword = generateDeterministicPassword(linuxdoUser.sub);
   const nickname = linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者';
@@ -152,7 +176,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 更新 provider 信息（头像、用户名可能变化）
-    await serviceClient
+    const { error: providerUpdateError } = await serviceClient
       .from('user_oauth_providers')
       .update({
         provider_email: linuxdoUser.email,
@@ -163,6 +187,13 @@ export async function GET(request: NextRequest) {
       })
       .eq('provider', 'linuxdo')
       .eq('provider_user_id', linuxdoUser.sub);
+
+    if (providerUpdateError) {
+      console.error('[linuxdo-callback] Provider update failed:', providerUpdateError);
+      const res = redirectWithError(origin, 'provider_sync_failed');
+      clearCookie(res);
+      return res;
+    }
 
     const response = NextResponse.redirect(new URL('/', origin));
     setSessionCookies(response, signInData.session);
@@ -188,31 +219,43 @@ export async function GET(request: NextRequest) {
     if (createUserError || !createUserData?.user) {
       console.error('[linuxdo-callback] Admin create user failed:', createUserError);
       if (isAlreadyRegisteredError(createUserError?.message)) {
-        const res = redirectWithError(origin, 'email_exists');
+        const recoveredSession = await signInWithLinuxDoPassword(
+          anonClient,
+          linuxdoUser.email,
+          deterministicPassword,
+        );
+        if (!recoveredSession) {
+          const res = redirectWithError(origin, 'email_exists');
+          clearCookie(res);
+          return res;
+        }
+        session = recoveredSession;
+      } else {
+        if (createUserError?.status === 401 || createUserError?.status === 403) {
+          const res = redirectWithError(origin, 'signup_requires_admin_key');
+          clearCookie(res);
+          return res;
+        }
+        const res = redirectWithError(origin, 'signup_failed');
         clearCookie(res);
         return res;
       }
-      if (createUserError?.status === 401 || createUserError?.status === 403) {
-        const res = redirectWithError(origin, 'signup_requires_admin_key');
-        clearCookie(res);
-        return res;
-      }
-      const res = redirectWithError(origin, 'signup_failed');
-      clearCookie(res);
-      return res;
     }
 
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: linuxdoUser.email,
-      password: deterministicPassword,
-    });
-    if (signInError || !signInData.session) {
-      console.error('[linuxdo-callback] Post-admin-signup sign in failed:', signInError);
-      const res = redirectWithError(origin, 'login_failed');
-      clearCookie(res);
-      return res;
+    if (!session) {
+      const recoveredSession = await signInWithLinuxDoPassword(
+        anonClient,
+        linuxdoUser.email,
+        deterministicPassword,
+      );
+      if (!recoveredSession) {
+        console.error('[linuxdo-callback] Post-admin-signup sign in failed');
+        const res = redirectWithError(origin, 'login_failed');
+        clearCookie(res);
+        return res;
+      }
+      session = recoveredSession;
     }
-    session = signInData.session;
   } else {
     const { data: signUpData, error: signUpError } = await anonClient.auth.signUp({
       email: linuxdoUser.email,
@@ -229,33 +272,43 @@ export async function GET(request: NextRequest) {
     if (signUpError) {
       console.error('[linuxdo-callback] SignUp failed:', signUpError);
       if (isAlreadyRegisteredError(signUpError.message)) {
-        const res = redirectWithError(origin, 'email_exists');
+        const recoveredSession = await signInWithLinuxDoPassword(
+          anonClient,
+          linuxdoUser.email,
+          deterministicPassword,
+        );
+        if (!recoveredSession) {
+          const res = redirectWithError(origin, 'email_exists');
+          clearCookie(res);
+          return res;
+        }
+        session = recoveredSession;
+      } else {
+        if (isPublicSignupBlocked(signUpError.message)) {
+          const res = redirectWithError(origin, 'signup_requires_admin_key');
+          clearCookie(res);
+          return res;
+        }
+        const res = redirectWithError(origin, 'signup_failed');
         clearCookie(res);
         return res;
       }
-      if (isPublicSignupBlocked(signUpError.message)) {
-        const res = redirectWithError(origin, 'signup_requires_admin_key');
-        clearCookie(res);
-        return res;
-      }
-      const res = redirectWithError(origin, 'signup_failed');
-      clearCookie(res);
-      return res;
     }
 
-    session = signUpData.session;
+    session = session ?? signUpData.session;
     if (!session) {
-      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-        email: linuxdoUser.email,
-        password: deterministicPassword,
-      });
-      if (signInError || !signInData.session) {
-        console.error('[linuxdo-callback] Post-signup sign in failed:', signInError);
+      const recoveredSession = await signInWithLinuxDoPassword(
+        anonClient,
+        linuxdoUser.email,
+        deterministicPassword,
+      );
+      if (!recoveredSession) {
+        console.error('[linuxdo-callback] Post-signup sign in failed');
         const res = redirectWithError(origin, 'login_failed');
         clearCookie(res);
         return res;
       }
-      session = signInData.session;
+      session = recoveredSession;
     }
   }
 
@@ -274,7 +327,7 @@ export async function GET(request: NextRequest) {
   );
 
   // 写 user_oauth_providers
-  await serviceClient.from('user_oauth_providers').insert({
+  const { error: providerInsertError } = await serviceClient.from('user_oauth_providers').insert({
     user_id: userId,
     provider: 'linuxdo',
     provider_user_id: linuxdoUser.sub,
@@ -283,6 +336,13 @@ export async function GET(request: NextRequest) {
     provider_avatar_url: linuxdoUser.picture || null,
     provider_metadata: linuxdoUser as unknown as Record<string, unknown>,
   });
+
+  if (providerInsertError) {
+    console.error('[linuxdo-callback] Provider insert failed:', providerInsertError);
+    const res = redirectWithError(origin, 'provider_sync_failed');
+    clearCookie(res);
+    return res;
+  }
 
   const response = NextResponse.redirect(new URL('/', origin));
   setSessionCookies(response, session);

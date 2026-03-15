@@ -1,11 +1,19 @@
 /**
- * 根页面 - 重定向到运势中心
+ * 根页面
  *
- * 用户访问首页时自动跳转到运势中心页面
+ * 已登录用户默认进入用户中心，访客仍进入运势中心。
  */
 
 import { redirect } from 'next/navigation';
+import { createRequestSupabaseClient } from '@/lib/api-utils';
 
-export default function HomePage() {
+export default async function HomePage() {
+    const supabase = await createRequestSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+        redirect('/user');
+    }
+
     redirect('/fortune-hub');
 }

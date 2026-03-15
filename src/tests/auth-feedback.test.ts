@@ -25,6 +25,10 @@ test('linuxdo auth error mapper should translate known callback errors into user
     'Linux.do 登录失败：站点缺少 Supabase 管理密钥配置，请联系管理员处理'
   );
   assert.equal(
+    getLinuxDoAuthErrorMessage('provider_sync_failed'),
+    'Linux.do 登录失败：账号绑定同步失败，请稍后重试'
+  );
+  assert.equal(
     getLinuxDoAuthErrorMessage('unknown_code'),
     null
   );

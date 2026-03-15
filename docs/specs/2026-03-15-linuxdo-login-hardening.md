@@ -12,9 +12,10 @@
   - 提升服务端 token / userinfo 请求的可用性，兼容 Linux.do 官方备用接口。
   - 保证登录成功后能正确建立会话并写入最小用户资料。
   - 将 Linux.do 回调失败原因直接反馈到前端 UI，避免错误仅停留在 URL 参数。
+  - 修复 `user_oauth_providers` 在无 service-role 架构下的权限缺口，保证第三方账号绑定可持续写入。
+  - 对已出现“Auth 用户已创建但 provider 绑定缺失”的历史异常状态提供登录时自愈。
 - 非目标：
   - 不重构现有通用认证架构。
-  - 不新增数据库表、字段或迁移。
   - 不修改前端登录 UI 视觉与交互。
 
 ## 方案
@@ -31,11 +32,15 @@
   - 现有 `SUPABASE_SYSTEM_ADMIN_EMAIL/PASSWORD` 生成的系统管理员会话客户端仅用于 RLS + admin policy 的数据库访问；由于 `accessToken` 客户端无法访问 `supabase.auth.admin`，不能承担首次建号。
   - 专用 Auth 管理客户端使用 `SUPABASE_SECRET_KEY`。
   - 若部署环境未配置专用 Auth 管理密钥，则在 Linux.do 首次登录失败时返回明确错误码，避免继续落成笼统 `signup_failed`。
+  - 为 `public.user_oauth_providers` 增加基于 `public.is_admin_user()` 的管理员全权限策略，替代旧的 `service_role` 专用策略。
+  - 当首次建号前发现 provider 绑定缺失但账号邮箱已注册时，优先尝试用 Linux.do 确定性密码登录并回写 provider 绑定，自愈历史异常状态。
+  - provider 绑定表的查询、更新、插入必须显式检查错误并返回可观测错误码，避免静默失败。
   - 新增针对旧字段 payload、缺失 `email_verified`、备用域名回退的测试。
   - 在全局客户端 Provider 中识别 Linux.do 回调错误码，显示中文 Toast，并在展示后清理 URL 中的 `error` 参数。
 - 兼容性说明：
   - 保持现有回调地址、cookie 名称和前端入口不变。
   - 保持 `user_oauth_providers` 与 `users` 表写入结构不变。
+  - 不做离线批量数据回填，改为在用户下一次 Linux.do 登录时在线修复绑定。
 
 ## 验收
 

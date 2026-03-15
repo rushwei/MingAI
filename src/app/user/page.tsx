@@ -38,6 +38,7 @@ import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import { getUserEmailDisplay } from '@/lib/user-email';
 import type { User as SupabaseUser } from '@/lib/supabase';
 
 // 菜单项配置
@@ -533,7 +534,7 @@ export default function UserPage() {
     const avatarUrl = profile?.avatar_url
         || (user?.user_metadata?.avatar_url as string | undefined)
         || null;
-    const userEmail = user?.email ?? '';
+    const userEmail = getUserEmailDisplay(user);
     const isAdmin = profile?.is_admin ?? false;
     const membershipLabel = membership?.type
         ? membershipLabels[membership.type]

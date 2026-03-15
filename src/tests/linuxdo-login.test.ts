@@ -473,3 +473,272 @@ test('linuxdo callback should surface missing auth admin key when public signup 
     'http://localhost/?error=signup_requires_admin_key',
   );
 });
+
+test('linuxdo callback should recover existing deterministic linuxdo account when provider binding is missing', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signInWithPassword: () => Promise<{ data: { session: { user: { id: string } } }; error: null }>;
+      };
+    };
+    getAuthAdminClient: () => {
+      auth: {
+        admin: {
+          createUser: () => Promise<{ data: { user: null }; error: { message: string } }>;
+        };
+      };
+    };
+    getServiceRoleClient: () => {
+      from: (table: string) => Record<string, unknown>;
+    };
+  };
+  const authSessionModule = require('../lib/auth-session') as {
+    setSessionCookies: (response: Response, session: unknown) => void;
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let signInCalls = 0;
+  let providerInsertCalls = 0;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-4',
+    preferred_username: 'dylan',
+    name: 'Dylan',
+    email: 'dylan@example.com',
+    email_verified: true,
+    picture: 'https://cdn.example.com/dylan.png',
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async () => {
+        signInCalls += 1;
+        return {
+          data: {
+            session: {
+              user: { id: 'user-4' },
+            },
+          },
+          error: null,
+        };
+      },
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        createUser: async () => ({
+          data: { user: null },
+          error: { message: 'User already registered' },
+        }),
+      },
+    },
+  });
+
+  apiUtilsModule.getServiceRoleClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null, error: null }),
+              }),
+            }),
+          }),
+          insert: async () => {
+            providerInsertCalls += 1;
+            return { error: null };
+          },
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          upsert: async () => ({ error: null }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/');
+  assert.equal(signInCalls, 1);
+  assert.equal(providerInsertCalls, 1);
+});
+
+test('linuxdo callback should surface provider sync failure when oauth binding insert fails', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signInWithPassword: () => Promise<{ data: { session: { user: { id: string } } }; error: null }>;
+      };
+    };
+    getAuthAdminClient: () => {
+      auth: {
+        admin: {
+          createUser: () => Promise<{ data: { user: { id: string } }; error: null }>;
+        };
+      };
+    };
+    getServiceRoleClient: () => {
+      from: (table: string) => Record<string, unknown>;
+    };
+  };
+  const authSessionModule = require('../lib/auth-session') as {
+    setSessionCookies: (response: Response, session: unknown) => void;
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-5',
+    preferred_username: 'eve',
+    name: 'Eve',
+    email: 'eve@example.com',
+    email_verified: true,
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signInWithPassword: async () => ({
+        data: {
+          session: {
+            user: { id: 'user-5' },
+          },
+        },
+        error: null,
+      }),
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        createUser: async () => ({
+          data: { user: { id: 'user-5' } },
+          error: null,
+        }),
+      },
+    },
+  });
+
+  apiUtilsModule.getServiceRoleClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null, error: null }),
+              }),
+            }),
+          }),
+          insert: async () => ({
+            error: { message: 'new row violates row-level security policy' },
+          }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          upsert: async () => ({ error: null }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(
+    response.headers.get('location'),
+    'http://localhost/?error=provider_sync_failed',
+  );
+});

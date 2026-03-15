@@ -17,6 +17,7 @@ import { NicknameField } from '@/components/profile/NicknameField';
 import { EmailSection } from '@/components/profile/EmailSection';
 import { PasswordSection } from '@/components/profile/PasswordSection';
 import { CreatedAtField } from '@/components/profile/CreatedAtField';
+import { getUserEmailDisplay } from '@/lib/user-email';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -165,6 +166,7 @@ export default function ProfilePage() {
     };
 
     const hasNicknameChanges = nickname !== originalNickname;
+    const displayEmail = getUserEmailDisplay(user);
 
     if (loading) {
         return (
@@ -221,7 +223,7 @@ export default function ProfilePage() {
                     saving={saving}
                 />
 
-                <EmailSection currentEmail={user?.email || ''} />
+                <EmailSection currentEmail={user?.email || ''} displayEmail={displayEmail} />
 
                 <PasswordSection email={user?.email || ''} />
 

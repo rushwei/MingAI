@@ -125,11 +125,12 @@ const toolItems = [
 export function Sidebar() {
     const pathname = usePathname();
     const { collapsed, setCollapsed } = useSidebarSafe();
-    const { config: sidebarConfig } = useSidebarConfigSafe();
+    const { config: sidebarConfig, loading: sidebarConfigLoading } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const { user } = useSessionSafe();
-    const { isFeatureEnabled } = useFeatureToggles();
+    const { isFeatureEnabled, isLoading: featureLoading } = useFeatureToggles();
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const isNavLoading = sidebarConfigLoading || featureLoading;
 
     // 切换折叠状态
     const toggleCollapsed = useCallback((newState: boolean) => {
@@ -163,6 +164,46 @@ export function Sidebar() {
             if (orderB === -1) return -1;
             return orderA - orderB;
         }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
+
+    if (isNavLoading) {
+        return (
+            <aside
+                className={`
+                    hidden lg:flex flex-col h-screen sticky top-0
+                    bg-background border-r border-border
+                    transition-all duration-300 ease-in-out
+                    ${collapsed ? 'w-[72px]' : 'w-[240px]'}
+                `}
+            >
+                <div className={`flex items-center h-16 px-4 border-b border-border ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                    <Link href="/" className="flex items-center gap-2 min-w-0">
+                        <Image
+                            src="/Logo.png"
+                            alt="MingAI Logo"
+                            width={28}
+                            height={28}
+                            className="rounded-lg flex-shrink-0"
+                        />
+                        {!collapsed && (
+                            <span className="font-bold text-base text-foreground whitespace-nowrap">
+                                MingAI
+                            </span>
+                        )}
+                    </Link>
+                    {!collapsed && <div className="w-8 h-8 rounded-lg bg-background-secondary animate-pulse" />}
+                </div>
+
+                <div className="flex-1 py-4 px-2 space-y-3">
+                    {Array.from({ length: collapsed ? 7 : 9 }).map((_, index) => (
+                        <div
+                            key={index}
+                            className={`rounded-xl bg-background-secondary animate-pulse ${collapsed ? 'h-10 w-10 mx-auto' : 'h-10 w-full'}`}
+                        />
+                    ))}
+                </div>
+            </aside>
+        );
+    }
 
     return (
         <>
