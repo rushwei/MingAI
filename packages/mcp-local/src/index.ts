@@ -16,9 +16,13 @@ import {
   formatAsMarkdown,
 } from '@mingai/mcp-core';
 
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 // 创建服务器
 const server = new McpServer(
-  { name: 'mingai-mcp', version: '1.0.0' },
+  { name: 'mingai-mcp', version },
   { capabilities: { tools: {} } }
 );
 

@@ -6,8 +6,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { tools, handleToolCall, formatAsMarkdown, } from '@mingai/mcp-core';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
 // 创建服务器
-const server = new McpServer({ name: 'mingai-mcp', version: '1.0.0' }, { capabilities: { tools: {} } });
+const server = new McpServer({ name: 'mingai-mcp', version }, { capabilities: { tools: {} } });
 // 列出工具
 server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: tools.map((t) => ({
