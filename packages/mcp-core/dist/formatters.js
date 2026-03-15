@@ -502,12 +502,16 @@ export function formatAsMarkdown(toolName, result) {
             return formatZiweiHoroscopeAsMarkdown(result);
         case 'ziwei_flying_star':
             return formatZiweiFlyingStarAsMarkdown(result);
+        case 'liuyao_analyze':
         case 'liuyao':
             return formatLiuyaoAsMarkdown(result);
+        case 'tarot_draw':
         case 'tarot':
             return formatTarotAsMarkdown(result);
+        case 'daily_fortune':
         case 'almanac':
             return formatDailyFortuneAsMarkdown(result);
+        case 'dayun_calculate':
         case 'bazi_dayun':
             return formatDayunAsMarkdown(result);
         default:

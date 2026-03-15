@@ -22,7 +22,7 @@ import {
   getKongWang,
 } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
-import { calculateTrueSolarTime } from './ziwei-shared.js';
+import { resolveTrueSolarDateTime } from './ziwei-shared.js';
 // 从数据模块导入静态数据
 import {
   DI_ZHI,
@@ -444,6 +444,8 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
 
   // 真太阳时校正（仅公历 + 提供经度时生效）
   let trueSolarTimeInfo: TrueSolarTimeInfo | undefined;
+  let effectiveYear = birthYear;
+  let effectiveMonth = birthMonth;
   let effectiveHour = birthHour;
   let effectiveMinute = birthMinute;
   let effectiveDay = birthDay;
@@ -452,17 +454,16 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
       throw new Error('longitude 必须是 -180 到 180 之间的数字');
     }
-    trueSolarTimeInfo = calculateTrueSolarTime(
+    const resolvedDateTime = resolveTrueSolarDateTime(
       { birthYear, birthMonth, birthDay, birthHour, birthMinute },
       longitude,
     );
-    // 用真太阳时的小时/分钟替换
-    const trueTotal = birthHour * 60 + birthMinute + trueSolarTimeInfo.correctionMinutes;
-    let trueMins = Math.round(trueTotal);
-    if (trueMins < 0) { trueMins += 1440; effectiveDay -= 1; }
-    else if (trueMins >= 1440) { trueMins -= 1440; effectiveDay += 1; }
-    effectiveHour = Math.floor(trueMins / 60);
-    effectiveMinute = trueMins % 60;
+    trueSolarTimeInfo = resolvedDateTime.trueSolarTimeInfo;
+    effectiveYear = resolvedDateTime.year;
+    effectiveMonth = resolvedDateTime.month;
+    effectiveDay = resolvedDateTime.day;
+    effectiveHour = resolvedDateTime.hour;
+    effectiveMinute = resolvedDateTime.minute;
   }
 
   let solar: ReturnType<typeof Solar.fromYmdHms>;
@@ -480,8 +481,8 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     lunar = prepared.lunar;
   } else {
     solar = Solar.fromYmdHms(
-      birthYear,
-      birthMonth,
+      effectiveYear,
+      effectiveMonth,
       effectiveDay,
       effectiveHour,
       effectiveMinute,

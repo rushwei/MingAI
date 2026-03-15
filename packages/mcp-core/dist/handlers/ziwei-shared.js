@@ -96,6 +96,45 @@ function getDayOfYear(year, month, day) {
     const start = new Date(year, 0, 1);
     return Math.floor((d.getTime() - start.getTime()) / 86400000) + 1;
 }
+function applyMinuteOffsetToSolarDateTime(input, roundedOffsetMinutes) {
+    const { birthYear, birthMonth, birthDay, birthHour, birthMinute = 0 } = input;
+    const baseTime = Date.UTC(birthYear, birthMonth - 1, birthDay, birthHour, birthMinute, 0, 0);
+    const shifted = new Date(baseTime + roundedOffsetMinutes * 60_000);
+    const baseDay = Date.UTC(birthYear, birthMonth - 1, birthDay, 0, 0, 0, 0);
+    const shiftedDay = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(), 0, 0, 0, 0);
+    return {
+        year: shifted.getUTCFullYear(),
+        month: shifted.getUTCMonth() + 1,
+        day: shifted.getUTCDate(),
+        hour: shifted.getUTCHours(),
+        minute: shifted.getUTCMinutes(),
+        dayOffset: Math.round((shiftedDay - baseDay) / 86400000),
+    };
+}
+export function resolveTrueSolarDateTime(input, longitude) {
+    const { birthYear, birthMonth, birthDay, birthHour, birthMinute = 0 } = input;
+    // 经度校正：每度 4 分钟
+    const longitudeCorrection = (longitude - STANDARD_MERIDIAN) * 4;
+    // 时差方程校正
+    const dayOfYear = getDayOfYear(birthYear, birthMonth, birthDay);
+    const eot = equationOfTime(dayOfYear, birthYear);
+    // 总校正量（分钟）
+    const totalCorrectionMinutes = longitudeCorrection + eot;
+    const roundedCorrectionMinutes = Math.round(totalCorrectionMinutes);
+    const resolvedDateTime = applyMinuteOffsetToSolarDateTime(input, roundedCorrectionMinutes);
+    const trueTimeIndex = hourToTimeIndex(resolvedDateTime.hour + resolvedDateTime.minute / 60);
+    return {
+        ...resolvedDateTime,
+        trueSolarTimeInfo: {
+            clockTime: `${String(birthHour).padStart(2, '0')}:${String(birthMinute).padStart(2, '0')}`,
+            trueSolarTime: `${String(resolvedDateTime.hour).padStart(2, '0')}:${String(resolvedDateTime.minute).padStart(2, '0')}`,
+            longitude,
+            correctionMinutes: Math.round(totalCorrectionMinutes * 10) / 10,
+            trueTimeIndex,
+            dayOffset: resolvedDateTime.dayOffset,
+        },
+    };
+}
 /**
  * 计算真太阳时
  *
@@ -106,44 +145,7 @@ function getDayOfYear(year, month, day) {
  * @returns 真太阳时信息，包含校正后的小时分钟和时辰索引
  */
 export function calculateTrueSolarTime(input, longitude) {
-    const { birthYear, birthMonth, birthDay, birthHour, birthMinute = 0 } = input;
-    // 经度校正：每度 4 分钟
-    const longitudeCorrection = (longitude - STANDARD_MERIDIAN) * 4;
-    // 时差方程校正
-    const dayOfYear = getDayOfYear(birthYear, birthMonth, birthDay);
-    const eot = equationOfTime(dayOfYear, birthYear);
-    // 总校正量（分钟）
-    const totalCorrectionMinutes = longitudeCorrection + eot;
-    // 钟表时间转总分钟数
-    const clockTotalMinutes = birthHour * 60 + birthMinute;
-    // 真太阳时总分钟数
-    let trueTotalMinutes = clockTotalMinutes + totalCorrectionMinutes;
-    // 处理跨日（保持在 0~1440 范围内）
-    let dayOffset = 0;
-    if (trueTotalMinutes < 0) {
-        trueTotalMinutes += 1440;
-        dayOffset = -1;
-    }
-    else if (trueTotalMinutes >= 1440) {
-        trueTotalMinutes -= 1440;
-        dayOffset = 1;
-    }
-    const trueHour = Math.floor(trueTotalMinutes / 60);
-    const trueMinute = Math.round(trueTotalMinutes % 60);
-    // 格式化时间字符串
-    const clockTimeStr = `${String(birthHour).padStart(2, '0')}:${String(birthMinute).padStart(2, '0')}`;
-    const trueTimeStr = `${String(trueHour).padStart(2, '0')}:${String(trueMinute).padStart(2, '0')}`;
-    // 计算真太阳时对应的时辰索引
-    const trueHourValue = trueHour + trueMinute / 60;
-    const trueTimeIndex = hourToTimeIndex(trueHourValue);
-    return {
-        clockTime: clockTimeStr,
-        trueSolarTime: trueTimeStr,
-        longitude,
-        correctionMinutes: Math.round(totalCorrectionMinutes * 10) / 10,
-        trueTimeIndex,
-        dayOffset,
-    };
+    return resolveTrueSolarDateTime(input, longitude).trueSolarTimeInfo;
 }
 /** 校验出生参数并创建星盘 */
 export function createAstrolabe(input) {
@@ -157,7 +159,16 @@ export function createAstrolabe(input) {
     if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) {
         throw new Error('birthMonth 必须是 1-12 之间的整数');
     }
-    if (!Number.isInteger(birthDay) || birthDay < 1 || birthDay > 30) {
+    if (!Number.isInteger(birthDay) || birthDay < 1) {
+        throw new Error('birthDay 必须是合法日期');
+    }
+    if (calendarType === 'solar') {
+        const maxSolarDay = new Date(birthYear, birthMonth, 0).getDate();
+        if (birthDay > maxSolarDay) {
+            throw new Error(`birthDay 必须是 1-${maxSolarDay} 之间的整数`);
+        }
+    }
+    else if (birthDay > 30) {
         throw new Error('birthDay 必须是 1-30 之间的整数');
     }
     if (!Number.isInteger(birthHour) || birthHour < 0 || birthHour > 23) {
@@ -175,9 +186,7 @@ export function createAstrolabe(input) {
 /**
  * 创建星盘（支持真太阳时校正）
  *
- * 当提供 longitude 时，先计算真太阳时，再用校正后的时辰索引排盘。
- * 注意：真太阳时仅影响时辰索引（决定命宫位置），不改变日期本身。
- * 跨日情况（dayOffset !== 0）暂不调整日期，因为时辰边界才是命理关键。
+ * 当提供 longitude 时，先计算真太阳时，再用归一化后的日期与时辰索引排盘。
  */
 export function createAstrolabeWithTrueSolar(input) {
     const { longitude, ...baseInput } = input;
@@ -188,8 +197,9 @@ export function createAstrolabeWithTrueSolar(input) {
         throw new Error('longitude 必须是 -180 到 180 之间的数字');
     }
     const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, } = input;
-    const trueSolarTimeInfo = calculateTrueSolarTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
-    const dateStr = `${birthYear}-${birthMonth}-${birthDay}`;
+    const resolvedDateTime = resolveTrueSolarDateTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
+    const trueSolarTimeInfo = resolvedDateTime.trueSolarTimeInfo;
+    const dateStr = `${resolvedDateTime.year}-${resolvedDateTime.month}-${resolvedDateTime.day}`;
     const genderStr = gender === 'male' ? '男' : '女';
     // 使用真太阳时的时辰索引排盘
     if (calendarType === 'lunar') {

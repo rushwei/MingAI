@@ -30,6 +30,23 @@ export declare function computeDouJun(lunarMonth: number, timeIndex: number): st
 export declare function mapStar(star: Star): StarInfo;
 /** 将小时转换为时辰索引（早子时=0, 丑时=1, ..., 晚子时=12） */
 export declare function hourToTimeIndex(hour: number): number;
+type SolarDateTimeParts = {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    dayOffset: number;
+};
+export declare function resolveTrueSolarDateTime(input: {
+    birthYear: number;
+    birthMonth: number;
+    birthDay: number;
+    birthHour: number;
+    birthMinute?: number;
+}, longitude: number): SolarDateTimeParts & {
+    trueSolarTimeInfo: TrueSolarTimeInfo;
+};
 /**
  * 计算真太阳时
  *
@@ -53,9 +70,7 @@ export declare function createAstrolabe(input: BirthTimeInput & {
 /**
  * 创建星盘（支持真太阳时校正）
  *
- * 当提供 longitude 时，先计算真太阳时，再用校正后的时辰索引排盘。
- * 注意：真太阳时仅影响时辰索引（决定命宫位置），不改变日期本身。
- * 跨日情况（dayOffset !== 0）暂不调整日期，因为时辰边界才是命理关键。
+ * 当提供 longitude 时，先计算真太阳时，再用归一化后的日期与时辰索引排盘。
  */
 export declare function createAstrolabeWithTrueSolar(input: BirthTimeInput & {
     gender: Gender;

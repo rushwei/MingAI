@@ -325,7 +325,7 @@ export interface LiuyaoInput {
   hexagramName?: string;
   changedHexagramName?: string;
   numbers?: number[];
-  date: string;  // 占卜日期时间，必须包含时间，格式 'YYYY-MM-DDTHH:MM' 或 'YYYY-MM-DD HH:MM:SS'
+  date: string;  // 占卜日期时间，支持 YYYY-MM-DD、YYYY-MM-DDTHH:MM[:SS]、YYYY-MM-DD HH:MM[:SS] 及带时区偏移的 ISO 时间
   seed?: string;
   seedScope?: string;
   responseFormat?: ResponseFormat;
@@ -333,6 +333,7 @@ export interface LiuyaoInput {
 
 export interface LiuyaoOutput {
   question: string;
+  seed?: string;
   // 本卦信息
   hexagramName: string;
   hexagramGong: string;

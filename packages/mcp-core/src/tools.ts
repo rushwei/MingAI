@@ -38,7 +38,7 @@ export interface ToolDefinition {
   annotations?: ToolAnnotation;
 }
 
-export const tools: ToolDefinition[] = [
+const baseTools: ToolDefinition[] = [
   {
     name: 'bazi_calculate',
     description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞（30+种）、分柱空亡、地支刑害合冲关系、天干五合、地支半合',
@@ -1505,6 +1505,28 @@ export const tools: ToolDefinition[] = [
       openWorldHint: false,
     },
   },
+];
+
+const LEGACY_TOOL_ALIASES: Record<string, string> = {
+  liuyao: 'liuyao_analyze',
+  tarot: 'tarot_draw',
+  almanac: 'daily_fortune',
+  bazi_dayun: 'dayun_calculate',
+};
+
+function createLegacyToolAlias(tool: ToolDefinition, legacyName: string): ToolDefinition {
+  return {
+    ...tool,
+    name: legacyName,
+  };
+}
+
+export const tools: ToolDefinition[] = [
+  ...baseTools,
+  ...baseTools.flatMap((tool) => {
+    const legacyName = LEGACY_TOOL_ALIASES[tool.name];
+    return legacyName ? [createLegacyToolAlias(tool, legacyName)] : [];
+  }),
 ];
 
 export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput;

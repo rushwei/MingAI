@@ -49,12 +49,16 @@ export async function handleToolCall(name: string, args: any): Promise<unknown> 
       return handleZiweiHoroscope(args);
     case 'ziwei_flying_star':
       return handleZiweiFlyingStar(args);
+    case 'liuyao_analyze':
     case 'liuyao':
       return handleLiuyaoAnalyze(args);
+    case 'tarot_draw':
     case 'tarot':
       return handleTarotDraw(args);
+    case 'daily_fortune':
     case 'almanac':
       return handleDailyFortune(args);
+    case 'dayun_calculate':
     case 'bazi_dayun':
       return handleDayunCalculate(args);
     default:

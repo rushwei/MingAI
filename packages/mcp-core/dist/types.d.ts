@@ -309,6 +309,7 @@ export interface LiuyaoInput {
 }
 export interface LiuyaoOutput {
     question: string;
+    seed?: string;
     hexagramName: string;
     hexagramGong: string;
     hexagramElement: string;

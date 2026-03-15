@@ -1,12 +1,7 @@
-import { createSeededRng } from '../seeded-rng.js';
+import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
 import { Solar } from 'lunar-javascript';
 import { findHexagram, getPalaceInfo, getShiYingPosition, getNaJiaByHexagram, hasInvalidYongShenTargets, normalizeYongShenTargets, performFullAnalysis, } from '../liuyao-core.js';
-// ── 先天八卦数 ──
-const PRE_HEAVEN_NUMBERS = {
-    '乾': 1, '兑': 2, '离': 3, '震': 4,
-    '巽': 5, '坎': 6, '艮': 7, '坤': 8,
-};
 const NUMBER_TO_TRIGRAM = {
     1: '乾', 2: '兑', 3: '离', 4: '震',
     5: '巽', 6: '坎', 7: '艮', 8: '坤',
@@ -293,16 +288,22 @@ export async function handleLiuyaoAnalyze(input) {
     if (!date) {
         throw new Error('date 为必填项，请提供占卜日期时间（格式：YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS）');
     }
-    const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/;
-    if (!DATE_TIME_RE.test(date.trim())) {
-        throw new Error('date 格式无效，请使用 YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS');
+    const trimmedDate = date.trim();
+    const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+    const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d{1,3})?([zZ]|[+-]\d{2}:\d{2})?$/;
+    if (!DATE_ONLY_RE.test(trimmedDate) && !DATE_TIME_RE.test(trimmedDate)) {
+        throw new Error('date 格式无效，请使用 YYYY-MM-DD、YYYY-MM-DDTHH:MM[:SS] 或带时区偏移的 ISO 时间');
     }
-    const analysisDate = new Date(date.replace(' ', 'T'));
+    const normalizedDateInput = DATE_ONLY_RE.test(trimmedDate)
+        ? `${trimmedDate}T00:00:00`
+        : trimmedDate.replace(' ', 'T');
+    const analysisDate = new Date(normalizedDateInput);
     if (isNaN(analysisDate.getTime())) {
         throw new Error('date 日期无效，请检查年月日时分是否合理');
     }
     const dateKey = `${analysisDate.getFullYear()}-${String(analysisDate.getMonth() + 1).padStart(2, '0')}-${String(analysisDate.getDate()).padStart(2, '0')}T${String(analysisDate.getHours()).padStart(2, '0')}`;
-    const rng = createSeededRng(`${dateKey}|${question}|${method}|${hexagramName || ''}|${changedHexagramName || ''}`);
+    const seed = resolveSeed(input.seed, `${dateKey}|${question}|${method}|${hexagramName || ''}|${changedHexagramName || ''}`, input.seedScope);
+    const rng = createSeededRng(seed);
     let yaos;
     let hexagramCode;
     let changedCode;
@@ -369,5 +370,8 @@ export async function handleLiuyaoAnalyze(input) {
         changedLines,
         selectedTargets,
     });
-    return output;
+    return {
+        ...output,
+        seed: method === 'auto' || input.seed || input.seedScope ? seed : undefined,
+    };
 }
