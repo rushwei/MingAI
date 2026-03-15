@@ -3,7 +3,7 @@
  */
 
 import { Solar } from 'lunar-javascript';
-import type { FortuneInput, FortuneOutput, HourlyFortuneInfo } from '../types.js';
+import type { FortuneInput, FortuneOutput, HourlyFortuneInfo, NineStarInfo } from '../types.js';
 import { calculateTenGod } from '../utils.js';
 
 // ===== 缓存配置 =====
@@ -120,6 +120,29 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
   // 日柱纳音
   const nayin = safeGetString(() => lunar.getDayNaYin());
 
+  // 彭祖百忌（getPengZuGan/getPengZuZhi 返回字符串）
+  const pengZuGan = safeGetString(() => lunar.getPengZuGan() as unknown as string);
+  const pengZuZhi = safeGetString(() => lunar.getPengZuZhi() as unknown as string);
+  const pengZuBaiJi = [pengZuGan, pengZuZhi].filter(Boolean).join(' ');
+
+  // 日九宫飞星
+  let dayNineStar: NineStarInfo | undefined;
+  try {
+    const nineStar = lunar.getDayNineStar();
+    if (nineStar) {
+      dayNineStar = {
+        number: nineStar.getNumber(),
+        description: nineStar.toFullString(),
+        color: nineStar.getColor(),
+        wuXing: nineStar.getWuXing(),
+        position: nineStar.getPositionDesc(),
+      };
+    }
+  } catch { /* getDayNineStar not available */ }
+
+  // 胎神占方
+  const taiShen = safeGetString(() => lunar.getDayPositionTai());
+
   // 时辰吉凶
   const hourlyFortune: HourlyFortuneInfo[] = [];
   try {
@@ -155,7 +178,7 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
       suitable: safeGetArray(() => lunar.getDayYi()),
       avoid: safeGetArray(() => lunar.getDayJi()),
       chongSha: `冲${safeGetString(() => lunar.getDayChongDesc())} 煞${safeGetString(() => lunar.getDaySha())}`,
-      pengZuBaiJi: safeGetArray(() => lunar.getPengZuGan()).concat(safeGetArray(() => lunar.getPengZuZhi())),
+      pengZuBaiJi,
       jishen: safeGetArray(() => lunar.getDayJiShen()),
       xiongsha: safeGetArray(() => lunar.getDayXiongSha()),
       directions,
@@ -167,6 +190,8 @@ export async function handleDailyFortune(input: FortuneInput): Promise<FortuneOu
       lunarMansionLuck,
       lunarMansionSong,
       nayin,
+      dayNineStar,
+      taiShen: taiShen || undefined,
       hourlyFortune,
     },
   };

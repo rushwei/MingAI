@@ -48,6 +48,16 @@ export interface DiZhiBanHeItem {
     missingBranch: string;
     positions: PillarPosition[];
 }
+export interface TianGanChongKeItem {
+    stemA: string;
+    stemB: string;
+    positions: [PillarPosition, PillarPosition];
+}
+export interface DiZhiSanHuiItem {
+    branches: [string, string, string];
+    resultElement: string;
+    positions: PillarPosition[];
+}
 export interface BaziOutput {
     gender: Gender;
     birthPlace?: string;
@@ -61,7 +71,11 @@ export interface BaziOutput {
     };
     relations: PillarRelation[];
     tianGanWuHe: TianGanWuHeItem[];
+    tianGanChongKe: TianGanChongKeItem[];
     diZhiBanHe: DiZhiBanHeItem[];
+    diZhiSanHui: DiZhiSanHuiItem[];
+    taiYuan?: string;
+    mingGong?: string;
     trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 export interface PillarInfo {
@@ -228,6 +242,10 @@ export interface TransitStarEntry {
     starName: string;
     palaceName: string;
 }
+export interface YearlyDecStarInfo {
+    jiangqian12: string[];
+    suiqian12: string[];
+}
 export interface ZiweiHoroscopeOutput {
     solarDate: string;
     lunarDate: string;
@@ -244,6 +262,7 @@ export interface ZiweiHoroscopeOutput {
     daily: HoroscopePeriodInfo;
     hourly: HoroscopePeriodInfo;
     transitStars?: TransitStarEntry[];
+    yearlyDecStar?: YearlyDecStarInfo;
 }
 export interface ZiweiFlyingStarInput extends BirthTimeInput {
     gender: Gender;
@@ -429,6 +448,12 @@ export interface KongWangByPillarInfo {
     day: KongWangInfo;
     hour: KongWangInfo;
 }
+export interface YaoFuShenInfo {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+    relation: string;
+}
 export interface FullYaoInfo {
     position: number;
     type: number;
@@ -450,6 +475,7 @@ export interface FullYaoInfo {
         stage: string;
         strength: 'strong' | 'medium' | 'weak';
     };
+    fuShen?: YaoFuShenInfo;
 }
 export interface FuShenInfo {
     liuQin: string;
@@ -533,6 +559,20 @@ export interface TarotInput {
     allowReversed?: boolean;
     seed?: string;
     seedScope?: string;
+    birthYear?: number;
+    birthMonth?: number;
+    birthDay?: number;
+}
+export interface TarotNumerologyCard {
+    number: number;
+    name: string;
+    nameChinese: string;
+    year?: number;
+}
+export interface TarotNumerology {
+    personalityCard: TarotNumerologyCard;
+    soulCard: TarotNumerologyCard;
+    yearlyCard: TarotNumerologyCard;
 }
 export interface TarotOutput {
     spreadId: string;
@@ -540,6 +580,7 @@ export interface TarotOutput {
     question?: string;
     seed: string;
     cards: TarotCardResult[];
+    numerology?: TarotNumerology;
 }
 export interface TarotCardResult {
     position: string;
@@ -550,6 +591,7 @@ export interface TarotCardResult {
     };
     orientation: 'upright' | 'reversed';
     meaning: string;
+    number?: number;
     reversedKeywords?: string[];
     element?: string;
     astrologicalCorrespondence?: string;
@@ -589,6 +631,13 @@ export interface HourlyFortuneInfo {
     suitable: string[];
     avoid: string[];
 }
+export interface NineStarInfo {
+    number: number;
+    description: string;
+    color: string;
+    wuXing: string;
+    position: string;
+}
 export interface AlmanacInfo {
     lunarDate: string;
     lunarMonth: string;
@@ -598,7 +647,7 @@ export interface AlmanacInfo {
     suitable: string[];
     avoid: string[];
     chongSha: string;
-    pengZuBaiJi: string[];
+    pengZuBaiJi: string;
     jishen: string[];
     xiongsha: string[];
     directions: DirectionsInfo;
@@ -610,6 +659,8 @@ export interface AlmanacInfo {
     lunarMansionLuck: string;
     lunarMansionSong: string;
     nayin: string;
+    dayNineStar?: NineStarInfo;
+    taiShen?: string;
     hourlyFortune: HourlyFortuneInfo[];
 }
 export interface DayunInput extends BirthTimeInput {

@@ -64,6 +64,18 @@ export interface DiZhiBanHeItem {
   positions: PillarPosition[];
 }
 
+export interface TianGanChongKeItem {
+  stemA: string;
+  stemB: string;
+  positions: [PillarPosition, PillarPosition];
+}
+
+export interface DiZhiSanHuiItem {
+  branches: [string, string, string];
+  resultElement: string;
+  positions: PillarPosition[];
+}
+
 export interface BaziOutput {
   gender: Gender;
   birthPlace?: string;
@@ -77,7 +89,11 @@ export interface BaziOutput {
   };
   relations: PillarRelation[];
   tianGanWuHe: TianGanWuHeItem[];
+  tianGanChongKe: TianGanChongKeItem[];
   diZhiBanHe: DiZhiBanHeItem[];
+  diZhiSanHui: DiZhiSanHuiItem[];
+  taiYuan?: string;
+  mingGong?: string;
   trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 
@@ -265,6 +281,11 @@ export interface TransitStarEntry {
   palaceName: string;
 }
 
+export interface YearlyDecStarInfo {
+  jiangqian12: string[];  // 将前十二星
+  suiqian12: string[];    // 岁前十二星
+}
+
 export interface ZiweiHoroscopeOutput {
   solarDate: string;
   lunarDate: string;
@@ -278,7 +299,8 @@ export interface ZiweiHoroscopeOutput {
   monthly: HoroscopePeriodInfo;
   daily: HoroscopePeriodInfo;
   hourly: HoroscopePeriodInfo;
-  transitStars?: TransitStarEntry[];  // 流年星曜
+  transitStars?: TransitStarEntry[];      // 流年星曜
+  yearlyDecStar?: YearlyDecStarInfo;      // 流年神煞（岁前/将前十二星）
 }
 
 // ===== 紫微飞星类型 =====
@@ -460,6 +482,13 @@ export interface KongWangByPillarInfo {
   hour: KongWangInfo;
 }
 
+export interface YaoFuShenInfo {
+  liuQin: string;
+  naJia: string;
+  wuXing: string;
+  relation: string;  // 伏神与飞神的生克关系
+}
+
 export interface FullYaoInfo {
   position: number;
   type: number;
@@ -481,6 +510,7 @@ export interface FullYaoInfo {
     stage: string;
     strength: 'strong' | 'medium' | 'weak';
   };
+  fuShen?: YaoFuShenInfo;
 }
 
 export interface FuShenInfo {
@@ -549,6 +579,22 @@ export interface TarotInput {
   allowReversed?: boolean;
   seed?: string;
   seedScope?: string;
+  birthYear?: number;
+  birthMonth?: number;
+  birthDay?: number;
+}
+
+export interface TarotNumerologyCard {
+  number: number;
+  name: string;
+  nameChinese: string;
+  year?: number;
+}
+
+export interface TarotNumerology {
+  personalityCard: TarotNumerologyCard;
+  soulCard: TarotNumerologyCard;
+  yearlyCard: TarotNumerologyCard;
 }
 
 export interface TarotOutput {
@@ -557,6 +603,7 @@ export interface TarotOutput {
   question?: string;
   seed: string;
   cards: TarotCardResult[];
+  numerology?: TarotNumerology;
 }
 
 export interface TarotCardResult {
@@ -568,6 +615,7 @@ export interface TarotCardResult {
   };
   orientation: 'upright' | 'reversed';
   meaning: string;
+  number?: number;
   reversedKeywords?: string[];
   element?: string;
   astrologicalCorrespondence?: string;
@@ -614,6 +662,14 @@ export interface HourlyFortuneInfo {
   avoid: string[];      // 忌
 }
 
+export interface NineStarInfo {
+  number: number;       // 飞星数字 (1-9)
+  description: string;  // 完整描述
+  color: string;        // 颜色
+  wuXing: string;       // 五行
+  position: string;     // 方位
+}
+
 export interface AlmanacInfo {
   lunarDate: string;
   lunarMonth: string;
@@ -623,7 +679,7 @@ export interface AlmanacInfo {
   suitable: string[];
   avoid: string[];
   chongSha: string;
-  pengZuBaiJi: string[];
+  pengZuBaiJi: string;       // 彭祖百忌（完整文本）
   jishen: string[];
   xiongsha: string[];
   directions: DirectionsInfo;
@@ -635,6 +691,8 @@ export interface AlmanacInfo {
   lunarMansionLuck: string;  // 星宿吉凶
   lunarMansionSong: string;  // 星宿歌诀
   nayin: string;             // 日柱纳音
+  dayNineStar?: NineStarInfo;  // 日九宫飞星
+  taiShen?: string;            // 胎神占方
   hourlyFortune: HourlyFortuneInfo[];
 }
 

@@ -73,6 +73,12 @@ export interface FullYaoInfo {
     isShiYao: boolean;
     isYingYao: boolean;
 }
+export interface YaoFuShenDetail {
+    liuQin: LiuQinType;
+    naJia: DiZhi;
+    wuXing: WuXing;
+    relation: string;
+}
 export interface FullYaoInfoExtended extends FullYaoInfo {
     isChanging: boolean;
     movementState: YaoMovementState;
@@ -87,6 +93,7 @@ export interface FullYaoInfoExtended extends FullYaoInfo {
         stage: ShiErChangSheng;
         strength: 'strong' | 'medium' | 'weak';
     };
+    fuShen?: YaoFuShenDetail;
 }
 export interface FuShen {
     liuQin: LiuQinType;

@@ -105,6 +105,27 @@ export async function handleDailyFortune(input) {
     const lunarMansionSong = safeGetString(() => lunar.getXiuSong());
     // 日柱纳音
     const nayin = safeGetString(() => lunar.getDayNaYin());
+    // 彭祖百忌（getPengZuGan/getPengZuZhi 返回字符串）
+    const pengZuGan = safeGetString(() => lunar.getPengZuGan());
+    const pengZuZhi = safeGetString(() => lunar.getPengZuZhi());
+    const pengZuBaiJi = [pengZuGan, pengZuZhi].filter(Boolean).join(' ');
+    // 日九宫飞星
+    let dayNineStar;
+    try {
+        const nineStar = lunar.getDayNineStar();
+        if (nineStar) {
+            dayNineStar = {
+                number: nineStar.getNumber(),
+                description: nineStar.toFullString(),
+                color: nineStar.getColor(),
+                wuXing: nineStar.getWuXing(),
+                position: nineStar.getPositionDesc(),
+            };
+        }
+    }
+    catch { /* getDayNineStar not available */ }
+    // 胎神占方
+    const taiShen = safeGetString(() => lunar.getDayPositionTai());
     // 时辰吉凶
     const hourlyFortune = [];
     try {
@@ -140,7 +161,7 @@ export async function handleDailyFortune(input) {
             suitable: safeGetArray(() => lunar.getDayYi()),
             avoid: safeGetArray(() => lunar.getDayJi()),
             chongSha: `冲${safeGetString(() => lunar.getDayChongDesc())} 煞${safeGetString(() => lunar.getDaySha())}`,
-            pengZuBaiJi: safeGetArray(() => lunar.getPengZuGan()).concat(safeGetArray(() => lunar.getPengZuZhi())),
+            pengZuBaiJi,
             jishen: safeGetArray(() => lunar.getDayJiShen()),
             xiongsha: safeGetArray(() => lunar.getDayXiongSha()),
             directions,
@@ -152,6 +173,8 @@ export async function handleDailyFortune(input) {
             lunarMansionLuck,
             lunarMansionSong,
             nayin,
+            dayNineStar,
+            taiShen: taiShen || undefined,
             hourlyFortune,
         },
     };

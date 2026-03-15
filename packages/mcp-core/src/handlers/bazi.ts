@@ -12,7 +12,9 @@ import type {
   PillarPosition,
   PillarRelation,
   TianGanWuHeItem,
+  TianGanChongKeItem,
   DiZhiBanHeItem,
+  DiZhiSanHuiItem,
   TrueSolarTimeInfo,
 } from '../types.js';
 import {
@@ -25,6 +27,7 @@ import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shens
 import { resolveTrueSolarDateTime } from './ziwei-shared.js';
 // 从数据模块导入静态数据
 import {
+  TIAN_GAN,
   DI_ZHI,
   HIDDEN_STEM_DETAILS,
   NA_YIN_TABLE,
@@ -53,6 +56,13 @@ type PillarShenShaByPosition = {
 
 export function getNaYin(stem: string, branch: string): string {
   return NA_YIN_TABLE[`${stem}${branch}`] || '';
+}
+
+/** 从纳音字符串提取五行（最后一个字：金/木/水/火/土） */
+export function getNaYinElement(nayin: string): string {
+  if (!nayin) return '';
+  const last = nayin.charAt(nayin.length - 1);
+  return ['金', '木', '水', '火', '土'].includes(last) ? last : '';
 }
 
 export function getDiShi(dayStem: string, branch: string): string {
@@ -218,6 +228,112 @@ function analyzeDiZhiBanHe(
   return result;
 }
 
+// ===== 天干冲克 =====
+const TIAN_GAN_CHONG_KE: Array<[string, string]> = [
+  ['甲', '庚'], ['乙', '辛'], ['丙', '壬'], ['丁', '癸'],
+];
+
+function analyzeTianGanChongKe(
+  yearStem: string, monthStem: string, dayStem: string, hourStem: string,
+): TianGanChongKeItem[] {
+  const stems = [yearStem, monthStem, dayStem, hourStem];
+  const pillarNames: PillarPosition[] = ['年支', '月支', '日支', '时支'];
+  const result: TianGanChongKeItem[] = [];
+
+  for (let i = 0; i < stems.length; i++) {
+    for (let j = i + 1; j < stems.length; j++) {
+      for (const [a, b] of TIAN_GAN_CHONG_KE) {
+        if ((stems[i] === a && stems[j] === b) || (stems[i] === b && stems[j] === a)) {
+          result.push({
+            stemA: stems[i],
+            stemB: stems[j],
+            positions: [pillarNames[i], pillarNames[j]],
+          });
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+// ===== 地支三会（方局） =====
+const SAN_HUI: Array<{ branches: [string, string, string]; element: string }> = [
+  { branches: ['寅', '卯', '辰'], element: '木' },
+  { branches: ['巳', '午', '未'], element: '火' },
+  { branches: ['申', '酉', '戌'], element: '金' },
+  { branches: ['亥', '子', '丑'], element: '水' },
+];
+
+function analyzeDiZhiSanHui(
+  yearBranch: string, monthBranch: string, dayBranch: string, hourBranch: string,
+): DiZhiSanHuiItem[] {
+  const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
+  const pillarNames: PillarPosition[] = ['年支', '月支', '日支', '时支'];
+  const result: DiZhiSanHuiItem[] = [];
+
+  for (const hui of SAN_HUI) {
+    const matchIndices = branches
+      .map((b, i) => hui.branches.includes(b) ? i : -1)
+      .filter(i => i >= 0);
+    const matchedUnique = new Set(matchIndices.map(i => branches[i]));
+    if (matchedUnique.size === 3) {
+      result.push({
+        branches: hui.branches,
+        resultElement: hui.element,
+        positions: matchIndices.map(i => pillarNames[i]),
+      });
+    }
+  }
+
+  return result;
+}
+
+// ===== 胎元计算 =====
+// 胎元 = 月干进一位 + 月支进三位
+function calculateTaiYuan(monthStem: string, monthBranch: string): string {
+  const stemIdx = TIAN_GAN.indexOf(monthStem as typeof TIAN_GAN[number]);
+  const branchIdx = DI_ZHI.indexOf(monthBranch as typeof DI_ZHI[number]);
+  if (stemIdx < 0 || branchIdx < 0) return '';
+  const newStem = TIAN_GAN[(stemIdx + 1) % 10];
+  const newBranch = DI_ZHI[(branchIdx + 3) % 12];
+  return `${newStem}${newBranch}`;
+}
+
+// ===== 命宫计算 =====
+// 从卯起正月逆数到生月，再从该位起子时顺数到生时
+// 天干用五虎遁月法：甲己→丙寅, 乙庚→戊寅, 丙辛→庚寅, 丁壬→壬寅, 戊癸→甲寅
+function calculateMingGong(yearStem: string, monthBranch: string, hourBranch: string): string {
+  const maoIdx = DI_ZHI.indexOf('卯'); // 4
+  const monthIdx = DI_ZHI.indexOf(monthBranch as typeof DI_ZHI[number]);
+  const hourIdx = DI_ZHI.indexOf(hourBranch as typeof DI_ZHI[number]);
+  if (monthIdx < 0 || hourIdx < 0) return '';
+
+  // 月支对应月份：寅=1月, 卯=2月, ..., 丑=12月
+  const yinIdx = DI_ZHI.indexOf('寅'); // 2
+  const monthNum = (monthIdx - yinIdx + 12) % 12 + 1;
+
+  // 从卯起正月逆数到生月，再从该位起子时顺数到生时
+  const mingBranchIdx = (maoIdx - (monthNum - 1) + hourIdx + 12 * 10) % 12;
+  const mingBranch = DI_ZHI[mingBranchIdx];
+
+  // 五虎遁月法：年干 → 寅月起始天干
+  const WU_HU_DUN: Record<string, number> = {
+    '甲': 2, '己': 2,  // 丙寅 → TIAN_GAN[2]=丙
+    '乙': 4, '庚': 4,  // 戊寅
+    '丙': 6, '辛': 6,  // 庚寅
+    '丁': 8, '壬': 8,  // 壬寅
+    '戊': 0, '癸': 0,  // 甲寅
+  };
+  const baseStemIdx = WU_HU_DUN[yearStem];
+  if (baseStemIdx === undefined) return mingBranch;
+
+  // 寅月天干 = baseStemIdx, 命宫地支距寅的偏移 = (mingBranchIdx - yinIdx + 12) % 12
+  const offset = (mingBranchIdx - yinIdx + 12) % 12;
+  const mingStem = TIAN_GAN[(baseStemIdx + offset) % 10];
+  return `${mingStem}${mingBranch}`;
+}
+
 function analyzePillarRelations(yearBranch: string, monthBranch: string, dayBranch: string, hourBranch: string): PillarRelation[] {
   const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
   const pillarNames = ['year', 'month', 'day', 'hour'] as const;
@@ -323,6 +439,7 @@ function calculatePillarShenSha(params: {
   hourStem: string;
   hourBranch: string;
   kongWang: { xun: string; kongZhi: [string, string] };
+  yearNaYinElement?: string;
 }): PillarShenShaByPosition {
   const shenSha = calculateSharedPillarShenSha(params);
   const {
@@ -502,6 +619,8 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
   const hourBranch = eightChar.getTimeZhi();
 
   const kongWang = getKongWang(dayStem, dayBranch);
+  const yearNaYin = getNaYin(yearStem, yearBranch);
+  const yearNaYinElement = getNaYinElement(yearNaYin);
   const pillarShenSha = calculatePillarShenSha({
     yearStem,
     yearBranch,
@@ -512,6 +631,7 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     hourStem,
     hourBranch,
     kongWang,
+    yearNaYinElement,
   });
 
   const fourPillars = {
@@ -541,7 +661,11 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
 
   const relations = analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch);
   const tianGanWuHe = analyzeTianGanWuHe(yearStem, monthStem, dayStem, hourStem);
+  const tianGanChongKe = analyzeTianGanChongKe(yearStem, monthStem, dayStem, hourStem);
   const diZhiBanHe = analyzeDiZhiBanHe(yearBranch, monthBranch, dayBranch, hourBranch);
+  const diZhiSanHui = analyzeDiZhiSanHui(yearBranch, monthBranch, dayBranch, hourBranch);
+  const taiYuan = calculateTaiYuan(monthStem, monthBranch);
+  const mingGong = calculateMingGong(yearStem, monthBranch, hourBranch);
 
   return {
     gender,
@@ -551,7 +675,11 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     fourPillars,
     relations,
     tianGanWuHe,
+    tianGanChongKe,
     diZhiBanHe,
+    diZhiSanHui,
+    taiYuan: taiYuan || undefined,
+    mingGong: mingGong || undefined,
     trueSolarTimeInfo,
   };
 }
