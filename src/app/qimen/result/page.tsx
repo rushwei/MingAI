@@ -20,9 +20,11 @@ import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { supabase } from '@/lib/supabase';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
+import type { ChatMessage } from '@/types';
 import type { QimenOutput } from '@/lib/divination/qimen';
 
 /** 五行旺衰图例 */
@@ -91,6 +93,50 @@ export default function QimenResultPage() {
         setMenuItems(items);
         return () => clearMenuItems();
     }, [router, setMenuItems, clearMenuItems]);
+
+    // 从历史记录查看时，恢复之前的 AI 解读
+    useEffect(() => {
+        if (!result?.conversationId || interpretation) return;
+
+        const loadAnalysis = async () => {
+            let resolvedId = result.conversationId;
+            if (!resolvedId && result.chartId) {
+                const { data } = await supabase
+                    .from('qimen_charts')
+                    .select('conversation_id')
+                    .eq('id', result.chartId)
+                    .maybeSingle();
+                resolvedId = data?.conversation_id || undefined;
+                if (resolvedId) {
+                    updateSessionJSON('qimen_result', (prev) => ({
+                        ...(prev || {}),
+                        conversationId: resolvedId,
+                    }));
+                }
+            }
+            if (!resolvedId) return;
+
+            const { data, error: fetchError } = await supabase
+                .from('conversations')
+                .select('messages, source_data')
+                .eq('id', resolvedId)
+                .maybeSingle();
+
+            if (fetchError || !data) return;
+
+            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const messages = (data.messages as ChatMessage[]) || [];
+            const { analysis, reasoning } = extractAnalysisFromConversation(messages, sourceData);
+            if (analysis) {
+                setInterpretation(analysis);
+            }
+            if (reasoning) {
+                setInterpretationReasoning(reasoning);
+            }
+        };
+
+        void loadAnalysis();
+    }, [result?.conversationId, result?.chartId, interpretation]);
 
     const handleGetInterpretation = async () => {
         if (!result || !user) return;
@@ -172,40 +218,25 @@ export default function QimenResultPage() {
             lines.push('');
         }
 
-        // 九宫盘 - 洛书排列
+        // 九宫盘 - 洛书排列（纯文本格式）
         lines.push('## 九宫盘');
         lines.push('');
         const palaces = result.palaces;
-        const layout = [[3, 8, 1], [2, 4, 6], [7, 0, 5]];
-        const headers = ['巽四宫', '离九宫', '坤二宫'];
-        const midHeaders = ['震三宫', '中五宫', '兑七宫'];
-        const botHeaders = ['艮八宫', '坎一宫', '乾六宫'];
-
-        lines.push(`| ${headers.join(' | ')} |`);
-        lines.push('|--------|--------|--------|');
-
-        for (let r = 0; r < layout.length; r++) {
-            const cells = layout[r].map(idx => {
-                const p = palaces[idx];
-                if (!p) return '';
-                if (idx === 4) {
-                    return `**中五宫**<br/>地:${p.earthStem}`;
-                }
-                const marks: string[] = [];
-                if (p.isEmpty) marks.push('空');
-                if (p.isHorseStar) marks.push('马');
-                if (p.isRuMu) marks.push('墓');
-                const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
-                const formStr = p.patterns.length > 0 ? `<br/>${p.patterns.join(',')}` : '';
-                return `**${p.palaceName}${p.palaceNumber}宫**${markStr}<br/>` +
-                    `${p.god}<br/>` +
-                    `天:${p.heavenStem} 地:${p.earthStem}<br/>` +
-                    `${p.star}<br/>` +
-                    `${p.gate}${formStr}`;
-            });
-            lines.push(`| ${cells.join(' | ')} |`);
-            if (r === 0) lines.push(`| ${midHeaders.join(' | ')} |`);
-            else if (r === 1) lines.push(`| ${botHeaders.join(' | ')} |`);
+        const luoshuOrder = [3, 8, 1, 2, 4, 6, 7, 0, 5]; // 巽离坤 震中兑 艮坎乾
+        for (const idx of luoshuOrder) {
+            const p = palaces[idx];
+            if (!p) continue;
+            if (idx === 4) {
+                lines.push(`【中五宫】地:${p.earthStem}`);
+                continue;
+            }
+            const marks: string[] = [];
+            if (p.isEmpty) marks.push('空');
+            if (p.isHorseStar) marks.push('马');
+            if (p.isRuMu) marks.push('墓');
+            const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
+            const formStr = p.patterns.length > 0 ? ` 格局:${p.patterns.join(',')}` : '';
+            lines.push(`【${p.palaceName}${p.palaceNumber}宫】${markStr} ${p.god} | 天:${p.heavenStem} 地:${p.earthStem} | ${p.star} | ${p.gate}${formStr}`);
         }
 
         // 九宫详情表

@@ -5,7 +5,8 @@ export type DataSourceType =
     | 'tarot_reading' | 'liuyao_divination'
     | 'face_reading' | 'palm_reading' | 'mbti_reading'
     | 'hepan_chart' | 'ming_record'
-    | 'daily_fortune' | 'monthly_fortune';
+    | 'daily_fortune' | 'monthly_fortune'
+    | 'qimen_chart';
 
 export interface DataSourceSummary {
     id: string;

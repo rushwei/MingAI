@@ -16,7 +16,7 @@ import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai/ai-config';
 
 // 支持的历史类型
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
+type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face' | 'qimen';
 
 // 格式化日期（提取到组件外部，避免每次渲染重新创建）
 function formatDate(dateStr: string): string {
@@ -53,6 +53,7 @@ const TYPE_CONFIG: Record<HistoryType, {
     hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
     palm: { label: '手相历史', tableName: 'palm_readings', historyPath: '/palm/history', detailPath: '/palm/result', sessionKey: 'palm_result' },
     face: { label: '面相历史', tableName: 'face_readings', historyPath: '/face/history', detailPath: '/face/result', sessionKey: 'face_result' },
+    qimen: { label: '奇门历史', tableName: 'qimen_charts', historyPath: '/qimen/history', detailPath: '/qimen/result', sessionKey: 'qimen_result' },
 };
 
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
@@ -191,6 +192,19 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         'wealth': '财运分析',
                     };
                     title = analysisNames[analysisType] || '面相分析';
+                } else if (type === 'qimen') {
+                    const dunType = item.dun_type as string;
+                    const juNumber = item.ju_number as number;
+                    const dunText = dunType === 'yang' ? '阳遁' : '阴遁';
+                    title = `${dunText}${juNumber}局`;
+                    const question = (item.question as string)?.trim();
+                    return {
+                        id: item.id as string,
+                        title,
+                        question: question || undefined,
+                        createdAt: item.created_at as string,
+                        modelName,
+                    };
                 }
                 return {
                     id: item.id as string,
@@ -359,6 +373,15 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     readingId: data.id,
                     analysisType: data.analysis_type,
                     createdAt: data.created_at,
+                    conversationId: data.conversation_id || null,
+                };
+                writeSessionJSON(config.sessionKey, sessionData);
+            } else if (type === 'qimen') {
+                const sessionData = {
+                    ...(data.chart_data as object),
+                    question: data.question,
+                    createdAt: data.created_at,
+                    chartId: data.id,
                     conversationId: data.conversation_id || null,
                 };
                 writeSessionJSON(config.sessionKey, sessionData);
