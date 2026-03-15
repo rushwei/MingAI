@@ -21,6 +21,7 @@ export function calculateBranchShenSha(context, targetBranch, options) {
     const names = [];
     matchValue(TIAN_YI_GUI_REN[dayStem], targetBranch, '天乙贵人', names);
     matchValue(TAI_JI_GUI_REN[dayStem], targetBranch, '太极贵人', names);
+    matchValue(TAI_JI_GUI_REN[yearStem], targetBranch, '太极贵人', names);
     matchMapValue(LU_SHEN, dayStem, targetBranch, '禄神', names);
     matchMapValue(YANG_REN, dayStem, targetBranch, '羊刃', names);
     matchMapValue(WEN_CHANG, dayStem, targetBranch, '文昌', names);
@@ -54,7 +55,10 @@ export function calculateBranchShenSha(context, targetBranch, options) {
     if (ZAI_SHA[yearBranch] === targetBranch && !names.includes('灾煞'))
         addUnique(names, '灾煞');
     // 年支→地支
-    matchMapValue(XUE_TANG, yearStem, targetBranch, '学堂', names);
+    // 学堂：以年柱纳音五行查表
+    if (context.yearNaYinElement) {
+        matchMapValue(XUE_TANG, context.yearNaYinElement, targetBranch, '学堂', names);
+    }
     matchMapValue(HONG_LUAN, yearBranch, targetBranch, '红鸾', names);
     matchMapValue(TIAN_XI, yearBranch, targetBranch, '天喜', names);
     matchMapValue(DIAO_KE, yearBranch, targetBranch, '吊客', names);

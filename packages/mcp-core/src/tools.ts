@@ -41,7 +41,7 @@ export interface ToolDefinition {
 export const tools: ToolDefinition[] = [
   {
     name: 'bazi_calculate',
-    description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞（30+种）、分柱空亡、地支刑害合冲关系、天干五合、地支半合',
+    description: '八字计算 - 根据出生时间计算八字命盘，输出四柱、藏干气性/十神、分柱神煞（30+种）、分柱空亡、地支刑害合冲关系、天干五合、天干冲克、地支半合、地支三会、胎元、命宫',
     inputSchema: {
       type: 'object',
       properties: {
@@ -285,6 +285,22 @@ export const tools: ToolDefinition[] = [
             },
           },
         },
+        tianGanChongKe: {
+          type: 'array',
+          description: '天干冲克（甲庚/乙辛/丙壬/丁癸）',
+          items: {
+            type: 'object',
+            properties: {
+              stemA: { type: 'string', description: '天干A' },
+              stemB: { type: 'string', description: '天干B' },
+              positions: {
+                type: 'array',
+                items: { type: 'string', enum: ['年支', '月支', '日支', '时支'] },
+                description: '涉及柱位',
+              },
+            },
+          },
+        },
         diZhiBanHe: {
           type: 'array',
           description: '地支半合（三合局中两支出现且缺一支）',
@@ -305,6 +321,34 @@ export const tools: ToolDefinition[] = [
               },
             },
           },
+        },
+        diZhiSanHui: {
+          type: 'array',
+          description: '地支三会（方局：寅卯辰→木/巳午未→火/申酉戌→金/亥子丑→水）',
+          items: {
+            type: 'object',
+            properties: {
+              branches: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '三会地支',
+              },
+              resultElement: { type: 'string', description: '三会五行' },
+              positions: {
+                type: 'array',
+                items: { type: 'string', enum: ['年支', '月支', '日支', '时支'] },
+                description: '涉及柱位',
+              },
+            },
+          },
+        },
+        taiYuan: {
+          type: 'string',
+          description: '胎元（月干进一位 + 月支进三位）',
+        },
+        mingGong: {
+          type: 'string',
+          description: '命宫地支',
         },
         trueSolarTimeInfo: {
           type: 'object',
@@ -765,7 +809,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'ziwei_horoscope',
-    description: '紫微斗数运限 - 根据出生时间和目标日期计算大限、小限、流年、流月、流日、流时运限信息，含流年星曜（流禄/流羊/流陀/流昌/流曲）',
+    description: '紫微斗数运限 - 根据出生时间和目标日期计算大限、小限、流年、流月、流日、流时运限信息，含流年星曜（流禄/流羊/流陀/流昌/流曲/流魁/流钺/流马/流鸾/流喜）及流年神煞（岁前/将前十二星）',
     inputSchema: {
       type: 'object',
       properties: {
@@ -808,13 +852,21 @@ export const tools: ToolDefinition[] = [
         hourly: { type: 'object', description: '流时' },
         transitStars: {
           type: 'array',
-          description: '流年星曜（流禄/流羊/流陀/流昌/流曲及其所在宫位）',
+          description: '流年星曜（流禄/流羊/流陀/流昌/流曲/流魁/流钺/流马/流鸾/流喜及其所在宫位）',
           items: {
             type: 'object',
             properties: {
               starName: { type: 'string', description: '星名' },
               palaceName: { type: 'string', description: '所在宫位' },
             },
+          },
+        },
+        yearlyDecStar: {
+          type: 'object',
+          description: '流年神煞（岁前十二星、将前十二星）',
+          properties: {
+            jiangqian12: { type: 'array', items: { type: 'string' }, description: '将前十二星' },
+            suiqian12: { type: 'array', items: { type: 'string' }, description: '岁前十二星' },
           },
         },
       },
@@ -900,7 +952,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'liuyao',
-    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦、选卦、时间起卦、数字起卦。输出包含：本卦/变卦/互卦/错卦/综卦信息、卦身、六亲六神、旺衰状态（旺/相/休/囚/死）、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、定性应期线索、风险提示等。调用方/AI 需先根据问题语义选择目标六亲再调用；未明确问题时不应正式解卦。',
+    description: '六爻分析 - 六爻卦象占卜分析，支持自动起卦、选卦、时间起卦、数字起卦。输出包含：本卦/变卦/互卦/错卦/综卦信息、卦身、六亲六神、飞伏神（缺亲从本宫首卦取伏神标注生克关系）、旺衰状态（旺/相/休/囚/死）、暗动/日破/月破、进神退神/反吟伏吟、空亡状态、用神/原神/忌神/仇神、三合局、六冲卦、定性应期线索、风险提示等。调用方/AI 需先根据问题语义选择目标六亲再调用；未明确问题时不应正式解卦。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1075,7 +1127,17 @@ export const tools: ToolDefinition[] = [
                   wuXing: { type: 'string', description: '变爻五行' },
                   liuShen: { type: 'string', description: '变爻六神' },
                   yaoCi: { type: 'string', description: '对应变爻爻辞' },
-                  relation: { type: 'string', description: '变爻关系（如回头克/回头生/化进/化退）' },
+                  relation: { type: 'string', description: '变爻关系（如回头克/回头生/化进/化退/伏吟/反吟）' },
+                },
+              },
+              fuShen: {
+                type: 'object',
+                description: '伏神信息（仅当本卦缺少某六亲时，从本宫首卦取伏神标注于该爻位下）',
+                properties: {
+                  liuQin: { type: 'string', description: '伏神六亲' },
+                  naJia: { type: 'string', description: '伏神纳甲地支' },
+                  wuXing: { type: 'string', description: '伏神五行' },
+                  relation: { type: 'string', description: '伏神与飞神的生克关系（飞生伏/飞克伏/伏生飞/伏克飞/比和）' },
                 },
               },
             },
@@ -1311,7 +1373,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'tarot',
-    description: '塔罗抽牌 - 塔罗牌抽牌占卜，支持多种牌阵',
+    description: '塔罗抽牌 - 塔罗牌抽牌占卜，支持多种牌阵。可选传入生日计算人格牌/灵魂牌/年度牌',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1332,6 +1394,18 @@ export const tools: ToolDefinition[] = [
           type: 'string',
           description: '随机种子（可选）。相同 seed + 输入将得到可复现结果',
         },
+        birthYear: {
+          type: 'number',
+          description: '出生年（可选，用于计算人格牌/灵魂牌/年度牌）',
+        },
+        birthMonth: {
+          type: 'number',
+          description: '出生月（可选，1-12）',
+        },
+        birthDay: {
+          type: 'number',
+          description: '出生日（可选，1-31）',
+        },
         responseFormat: {
           type: 'string',
           enum: ['json', 'markdown'],
@@ -1343,6 +1417,7 @@ export const tools: ToolDefinition[] = [
       examples: [
         { spreadType: 'three-card', question: '本月运势如何？' },
         { spreadType: 'love', question: '我和他的未来发展？', allowReversed: true },
+        { spreadType: 'celtic-cross', question: '事业发展', birthYear: 1990, birthMonth: 5, birthDay: 15 },
       ],
     },
     outputSchema: {
@@ -1370,9 +1445,44 @@ export const tools: ToolDefinition[] = [
               },
               orientation: { type: 'string', description: '正逆位(upright/reversed)' },
               meaning: { type: 'string', description: '牌义' },
+              number: { type: 'number', description: '大阿卡纳编号(0-21)，仅大阿卡纳有此字段' },
               reversedKeywords: { type: 'array', items: { type: 'string' }, description: '逆位关键词' },
               element: { type: 'string', description: '元素（火/水/风/土）' },
               astrologicalCorrespondence: { type: 'string', description: '星象对应' },
+            },
+          },
+        },
+        numerology: {
+          type: 'object',
+          description: '塔罗数秘术（需传入生日信息）',
+          properties: {
+            personalityCard: {
+              type: 'object',
+              description: '人格牌（生日数字相加缩减到1-22）',
+              properties: {
+                number: { type: 'number', description: '大阿卡纳编号' },
+                name: { type: 'string', description: '英文名' },
+                nameChinese: { type: 'string', description: '中文名' },
+              },
+            },
+            soulCard: {
+              type: 'object',
+              description: '灵魂牌（人格牌>9时各位再相加，否则等于人格牌）',
+              properties: {
+                number: { type: 'number', description: '大阿卡纳编号' },
+                name: { type: 'string', description: '英文名' },
+                nameChinese: { type: 'string', description: '中文名' },
+              },
+            },
+            yearlyCard: {
+              type: 'object',
+              description: '年度牌（出生月日+当前年份数字相加缩减到1-22）',
+              properties: {
+                number: { type: 'number', description: '大阿卡纳编号' },
+                name: { type: 'string', description: '英文名' },
+                nameChinese: { type: 'string', description: '中文名' },
+                year: { type: 'number', description: '计算年份' },
+              },
             },
           },
         },
@@ -1387,7 +1497,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'almanac',
-    description: '黄历查询 - 查询指定日期的干支、宜忌、冲煞、吉神凶煞、财喜福贵方位、建除十二值星、黄道黑道日(天神)、二十八星宿、日柱纳音、十二时辰吉凶等完整黄历信息，可选传入日主计算流日十神',
+    description: '黄历查询 - 查询指定日期的干支、宜忌、冲煞、吉神凶煞、财喜福贵方位、建除十二值星、黄道黑道日(天神)、二十八星宿、日柱纳音、九宫飞星、彭祖百忌、胎神占方、十二时辰吉凶等完整黄历信息，可选传入日主计算流日十神',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1455,7 +1565,7 @@ export const tools: ToolDefinition[] = [
             suitable: { type: 'array', items: { type: 'string' }, description: '宜' },
             avoid: { type: 'array', items: { type: 'string' }, description: '忌' },
             chongSha: { type: 'string', description: '冲煞' },
-            pengZuBaiJi: { type: 'array', items: { type: 'string' }, description: '彭祖百忌' },
+            pengZuBaiJi: { type: 'string', description: '彭祖百忌' },
             jishen: { type: 'array', items: { type: 'string' }, description: '吉神宜趋' },
             xiongsha: { type: 'array', items: { type: 'string' }, description: '凶煞宜忌' },
             directions: {
@@ -1477,6 +1587,18 @@ export const tools: ToolDefinition[] = [
             lunarMansionLuck: { type: 'string', description: '星宿吉凶' },
             lunarMansionSong: { type: 'string', description: '星宿歌诀' },
             nayin: { type: 'string', description: '日柱纳音' },
+            dayNineStar: {
+              type: 'object',
+              description: '日九宫飞星',
+              properties: {
+                number: { type: 'number', description: '飞星数字 (1-9)' },
+                description: { type: 'string', description: '完整描述' },
+                color: { type: 'string', description: '颜色' },
+                wuXing: { type: 'string', description: '五行' },
+                position: { type: 'string', description: '方位' },
+              },
+            },
+            taiShen: { type: 'string', description: '胎神占方' },
             hourlyFortune: {
               type: 'array',
               description: '十二时辰吉凶',

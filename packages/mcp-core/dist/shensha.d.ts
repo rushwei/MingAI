@@ -12,6 +12,7 @@ export interface ShenShaContext {
         xun: string;
         kongZhi: [string, string];
     };
+    yearNaYinElement?: string;
 }
 export interface PillarShenShaByPosition {
     year: string[];

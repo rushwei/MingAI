@@ -112,6 +112,13 @@ export interface FullYaoInfo {
   isYingYao: boolean;
 }
 
+export interface YaoFuShenDetail {
+  liuQin: LiuQinType;
+  naJia: DiZhi;
+  wuXing: WuXing;
+  relation: string;  // 伏神与飞神的生克关系
+}
+
 export interface FullYaoInfoExtended extends FullYaoInfo {
   isChanging: boolean;
   movementState: YaoMovementState;
@@ -126,6 +133,7 @@ export interface FullYaoInfoExtended extends FullYaoInfo {
     stage: ShiErChangSheng;
     strength: 'strong' | 'medium' | 'weak';
   };
+  fuShen?: YaoFuShenDetail;
 }
 
 export interface FuShen {
@@ -1384,6 +1392,62 @@ function calculateFuShen(
   return fuShenList;
 }
 
+/**
+ * 计算伏神与飞神的生克关系描述
+ */
+function describeFuFeiRelation(fuWuXing: WuXing, feiWuXing: WuXing): string {
+  if (fuWuXing === feiWuXing) return '比和';
+  if (WUXING_SHENG[feiWuXing] === fuWuXing) return '飞生伏';
+  if (WUXING_SHENG[fuWuXing] === feiWuXing) return '伏生飞';
+  if (WUXING_KE[feiWuXing] === fuWuXing) return '飞克伏';
+  if (WUXING_KE[fuWuXing] === feiWuXing) return '伏克飞';
+  return '';
+}
+
+/**
+ * 计算每爻位的飞伏神信息
+ * 对比本卦与本宫首卦（八纯卦），找出本卦中缺失的六亲对应的伏神
+ */
+function calculatePerYaoFuShen(
+  hexagramCode: string,
+  baseYaos: FullYaoInfo[],
+  gongElement: WuXing
+): Map<number, YaoFuShenDetail> {
+  const result = new Map<number, YaoFuShenDetail>();
+  const palace = findPalace(hexagramCode);
+  const benGuaCode = palace ? BA_GONG_BEN_GUA[palace.name] : undefined;
+  if (!benGuaCode || benGuaCode === hexagramCode) {
+    // 本宫首卦就是自己（八纯卦），不存在伏神
+    return result;
+  }
+
+  // 收集本卦中已出现的六亲
+  const visibleLiuQin = new Set(baseYaos.map(y => y.liuQin));
+
+  // 遍历本宫首卦的每个爻位
+  for (let position = 1; position <= 6; position++) {
+    const benGuaNaJia = getNaJiaByHexagram(benGuaCode, position);
+    const benGuaWuXing = DIZHI_WUXING[benGuaNaJia];
+    const benGuaLiuQin = getLiuQin(gongElement, benGuaWuXing);
+
+    // 只有当本卦中缺少该六亲时，才标注伏神
+    if (!visibleLiuQin.has(benGuaLiuQin)) {
+      const feiShen = baseYaos.find(y => y.position === position);
+      if (feiShen) {
+        const relation = describeFuFeiRelation(benGuaWuXing, feiShen.wuXing);
+        result.set(position, {
+          liuQin: benGuaLiuQin,
+          naJia: benGuaNaJia,
+          wuXing: benGuaWuXing,
+          relation,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
 function buildVisibleCandidate(yao: FullYaoInfoExtended): YongShenCandidate {
   const level = getStrengthLevel(yao.strength, yao.kongWangState);
   const evidence = [...yao.strength.evidence];
@@ -1971,6 +2035,15 @@ export function performFullAnalysis(
 
   for (const yao of fullYaos) {
     yao.shenSha = calculateBranchShenSha(shenShaContext, yao.naJia);
+  }
+
+  // 计算每爻位的飞伏神
+  const perYaoFuShen = calculatePerYaoFuShen(hexagramCode, baseYaos, gongElement);
+  for (const yao of fullYaos) {
+    const fs = perYaoFuShen.get(yao.position);
+    if (fs) {
+      yao.fuShen = fs;
+    }
   }
 
   const fuShenByTarget = new Map<LiuQinType, FuShen[]>();

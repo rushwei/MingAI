@@ -90,6 +90,16 @@ ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
     md += '\n';
   }
 
+  // 胎元与命宫
+  if (result.taiYuan || result.mingGong) {
+    md += `## 胎元与命宫
+
+`;
+    if (result.taiYuan) md += `- **胎元**: ${result.taiYuan}\n`;
+    if (result.mingGong) md += `- **命宫**: ${result.mingGong}\n`;
+    md += '\n';
+  }
+
   // 地支关系
   if (relations && relations.length > 0) {
     md += `## 地支关系
@@ -98,6 +108,29 @@ ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
     for (const rel of relations) {
       md += `- **${rel.type}**: ${rel.pillars.join('、')} - ${rel.description}\n`;
     }
+    md += '\n';
+  }
+
+  // 天干冲克
+  if (result.tianGanChongKe && result.tianGanChongKe.length > 0) {
+    md += `## 天干冲克
+
+`;
+    for (const ck of result.tianGanChongKe) {
+      md += `- ${ck.stemA}${ck.stemB}冲克（${ck.positions.join('、')}）\n`;
+    }
+    md += '\n';
+  }
+
+  // 地支三会
+  if (result.diZhiSanHui && result.diZhiSanHui.length > 0) {
+    md += `## 地支三会
+
+`;
+    for (const hui of result.diZhiSanHui) {
+      md += `- ${hui.branches.join('')}三会${hui.resultElement}（${hui.positions.join('、')}）\n`;
+    }
+    md += '\n';
   }
 
   return md;
@@ -276,6 +309,19 @@ export function formatZiweiHoroscopeAsMarkdown(result: ZiweiHoroscopeOutput): st
     lines.push('');
   }
 
+  if (result.yearlyDecStar) {
+    if (result.yearlyDecStar.suiqian12.length > 0) {
+      lines.push('## 岁前十二星');
+      lines.push(result.yearlyDecStar.suiqian12.join('、'));
+      lines.push('');
+    }
+    if (result.yearlyDecStar.jiangqian12.length > 0) {
+      lines.push('## 将前十二星');
+      lines.push(result.yearlyDecStar.jiangqian12.join('、'));
+      lines.push('');
+    }
+  }
+
   return lines.join('\n');
 }
 
@@ -362,6 +408,9 @@ export function formatLiuyaoAsMarkdown(result: LiuyaoOutput): string {
     if (yao.isChanging && yao.changedYao) {
       const cy = yao.changedYao;
       lines.push(`| ↳ 化 | ${cy.liuQin} | ${cy.liuShen || ''} | ${cy.naJia} | ${cy.wuXing} | | | | ${cy.relation || ''} |`);
+    }
+    if (yao.fuShen) {
+      lines.push(`| ↳ 伏 | ${yao.fuShen.liuQin} | | ${yao.fuShen.naJia} | ${yao.fuShen.wuXing} | | | | ${yao.fuShen.relation} |`);
     }
   }
   lines.push('');
@@ -456,11 +505,24 @@ ${question ? `- **问题**: ${question}` : ''}
 
   for (const card of cards) {
     const orientation = card.orientation === 'reversed' ? '逆位' : '正位';
-    md += `### ${card.position}: ${card.card.nameChinese} (${card.card.name})
+    const numberStr = card.number !== undefined ? ` [${card.number}]` : '';
+    md += `### ${card.position}: ${card.card.nameChinese} (${card.card.name})${numberStr}
 
 - **方向**: ${orientation}
 - **关键词**: ${card.card.keywords.join('、')}
 - **牌义**: ${card.meaning}
+${card.element ? `- **元素**: ${card.element}` : ''}
+
+`;
+  }
+
+  if (result.numerology) {
+    const n = result.numerology;
+    md += `## 塔罗数秘术
+
+- **人格牌**: ${n.personalityCard.nameChinese} (${n.personalityCard.name}) [${n.personalityCard.number}]
+- **灵魂牌**: ${n.soulCard.nameChinese} (${n.soulCard.name}) [${n.soulCard.number}]
+- **年度牌** (${n.yearlyCard.year}): ${n.yearlyCard.nameChinese} (${n.yearlyCard.name}) [${n.yearlyCard.number}]
 
 `;
   }
@@ -489,7 +551,9 @@ export function formatDailyFortuneAsMarkdown(result: FortuneOutput): string {
 - **生肖**: ${almanac.zodiac}
 ${almanac.solarTerm ? `- **节气**: ${almanac.solarTerm}` : ''}
 ${almanac.chongSha ? `- **冲煞**: ${almanac.chongSha}` : ''}
-${almanac.pengZuBaiJi && almanac.pengZuBaiJi.length > 0 ? `- **彭祖百忌**: ${almanac.pengZuBaiJi.join('、')}` : ''}
+${almanac.pengZuBaiJi ? `- **彭祖百忌**: ${almanac.pengZuBaiJi}` : ''}
+${almanac.taiShen ? `- **胎神占方**: ${almanac.taiShen}` : ''}
+${almanac.dayNineStar ? `- **日九星**: ${almanac.dayNineStar.description}（${almanac.dayNineStar.position}）` : ''}
 
 ### 宜
 ${almanac.suitable.map((s) => `- ${s}`).join('\n')}
