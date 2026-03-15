@@ -186,9 +186,10 @@ function getMeaning(orientation: 'upright' | 'reversed', keywords: string[], rev
   return `逆位：需要反思${keywords.join('、')}相关的问题`;
 }
 
-// 数字缩减到 1-22 范围（塔罗数秘术）
+// 数字缩减到 1-21 范围（塔罗数秘术，对应大阿卡纳 I-XXI）
+// 22 继续缩减为 4（皇帝），这是主流做法
 function reduceToArcana(num: number): number {
-  while (num > 22) {
+  while (num > 21) {
     num = String(num).split('').reduce((s, d) => s + Number(d), 0);
   }
   return num;
