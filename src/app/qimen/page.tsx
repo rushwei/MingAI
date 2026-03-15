@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Compass, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 
@@ -334,6 +335,7 @@ export default function QimenPage() {
                     </div>
                 </div>
             </div>
+            <HistoryDrawer type="qimen" />
         </div>
     );
 }

@@ -101,6 +101,10 @@ const _init = (() => {
         const { monthlyFortuneProvider } = await import('@/lib/data-sources/fortune');
         return monthlyFortuneProvider;
     });
+    registerDataSource('qimen_chart', async () => {
+        const { qimenProvider } = await import('@/lib/data-sources/qimen');
+        return qimenProvider;
+    });
 })();
 
 void _init;

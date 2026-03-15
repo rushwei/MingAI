@@ -269,6 +269,7 @@ export const FEATURE_NAMES: Record<string, string> = {
     tarot: '塔罗占卜',
     face: '面相分析',
     palm: '手相分析',
+    qimen: '奇门遁甲',
 };
 
 /**

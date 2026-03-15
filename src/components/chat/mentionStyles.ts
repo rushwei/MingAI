@@ -13,6 +13,7 @@ export const mentionStyleMap: Record<MentionType | 'default', { className: strin
     ming_record: { className: 'text-slate-500' },
     daily_fortune: { className: 'text-lime-600' },
     monthly_fortune: { className: 'text-lime-600' },
+    qimen_chart: { className: 'text-indigo-500' },
     default: { className: 'text-foreground' }
 };
 
@@ -29,6 +30,7 @@ export const mentionTypeLabels: Record<MentionType | 'default', string> = {
     ming_record: '命理记录',
     daily_fortune: '每日运势',
     monthly_fortune: '每月运势',
+    qimen_chart: '奇门遁甲',
     default: '数据'
 };
 

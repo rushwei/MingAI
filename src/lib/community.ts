@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 // 类型定义
 // =====================================================
 
-export type PostCategory = 'general' | 'bazi' | 'ziwei' | 'liuyao' | 'tarot' | 'other';
+export type PostCategory = 'general' | 'bazi' | 'ziwei' | 'liuyao' | 'tarot' | 'qimen' | 'other';
 
 export type VoteType = 'up' | 'down';
 
@@ -107,6 +107,7 @@ export const POST_CATEGORIES: { value: PostCategory; label: string; icon: string
     { value: 'bazi', label: '八字命理', icon: '🔮' },
     { value: 'ziwei', label: '紫微斗数', icon: '⭐' },
     { value: 'liuyao', label: '六爻占卜', icon: '☯️' },
+    { value: 'qimen', label: '奇门遁甲', icon: '🧭' },
     { value: 'tarot', label: '塔罗占卜', icon: '🃏' },
     { value: 'other', label: '其他', icon: '📌' },
 ];

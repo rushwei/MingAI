@@ -8,7 +8,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronRight, Folder, BookOpenText, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText } from 'lucide-react';
+import { ChevronRight, Folder, BookOpenText, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText, Compass } from 'lucide-react';
 import type { Mention, MentionType } from '@/types';
 
 interface MentionPopoverProps {
@@ -67,7 +67,7 @@ type ViewModel = {
 
 const DATA_SUBCATEGORY_MAP: Record<string, MentionType[]> = {
     命盘: ['bazi_chart', 'ziwei_chart'],
-    占卜记录: ['tarot_reading', 'liuyao_divination', 'face_reading', 'palm_reading', 'mbti_reading'],
+    占卜记录: ['tarot_reading', 'liuyao_divination', 'face_reading', 'palm_reading', 'mbti_reading', 'qimen_chart'],
     合盘记录: ['hepan_chart'],
     命理记录: ['ming_record'],
     运势: ['daily_fortune', 'monthly_fortune']
@@ -87,7 +87,8 @@ const TYPE_LABELS: Record<MentionType, string> = {
     hepan_chart: '合盘分析',
     ming_record: '命理记录',
     daily_fortune: '今日运势',
-    monthly_fortune: '本月运势'
+    monthly_fortune: '本月运势',
+    qimen_chart: '奇门遁甲'
 };
 
 const TYPE_ICONS: Record<MentionType, ReactNode> = {
@@ -102,7 +103,8 @@ const TYPE_ICONS: Record<MentionType, ReactNode> = {
     hepan_chart: <HeartHandshake className="w-4 h-4" />,
     ming_record: <FileText className="w-4 h-4" />,
     daily_fortune: <Calendar className="w-4 h-4" />,
-    monthly_fortune: <CalendarDays className="w-4 h-4" />
+    monthly_fortune: <CalendarDays className="w-4 h-4" />,
+    qimen_chart: <Compass className="w-4 h-4" />
 };
 
 const HEPAN_TYPE_LABELS: Record<string, string> = {
