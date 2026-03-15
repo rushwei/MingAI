@@ -196,24 +196,28 @@ export default function QimenResultPage() {
         lines.push('## 基本信息');
         lines.push(`- **公历**: ${result.solarDate}`);
         lines.push(`- **农历**: ${result.lunarDate}`);
-        lines.push(`- **节气**: ${result.solarTerm}${result.solarTermRange ? `（${result.solarTermRange}）` : ''}`);
+        lines.push(`- **节气**: ${result.solarTerm ?? ''}${result.solarTermRange ? `（${result.solarTermRange}）` : ''}`);
         lines.push(`- **四柱**: ${result.fourPillars.year} ${result.fourPillars.month} ${result.fourPillars.day} ${result.fourPillars.hour}`);
         lines.push(`- **局**: ${dunText}${result.juNumber}局`);
-        lines.push(`- **三元**: ${result.yuan}`);
+        if (result.yuan) lines.push(`- **三元**: ${result.yuan}`);
         lines.push(`- **旬首**: ${result.xunShou}`);
         lines.push(`- **盘式**: ${result.panTypeLabel}（${result.juMethodLabel}）`);
         if (result.question) lines.push(`- **占问**: ${result.question}`);
         lines.push('');
 
         lines.push('## 值符值使');
-        lines.push(`- **值符**: ${result.zhiFu}（${result.zhiFuPalace}宫）`);
-        lines.push(`- **值使**: ${result.zhiShi}（${result.zhiShiPalace}宫）`);
+        const zhiFuPalace = result.zhiFuPalace != null ? `${result.zhiFuPalace}宫` : '';
+        const zhiShiPalace = result.zhiShiPalace != null ? `${result.zhiShiPalace}宫` : '';
+        lines.push(`- **值符**: ${result.zhiFu}${zhiFuPalace ? `（${zhiFuPalace}）` : ''}`);
+        lines.push(`- **值使**: ${result.zhiShi}${zhiShiPalace ? `（${zhiShiPalace}）` : ''}`);
         lines.push('');
 
-        if (result.kongWang && result.yiMa) {
+        if (result.kongWang?.dayKong && result.yiMa?.branch) {
             lines.push('## 空亡与驿马');
             lines.push(`- **日空**: ${result.kongWang.dayKong.branches.join('、')}（${result.kongWang.dayKong.palaces.join('、')}宫）`);
-            lines.push(`- **时空**: ${result.kongWang.hourKong.branches.join('、')}（${result.kongWang.hourKong.palaces.join('、')}宫）`);
+            if (result.kongWang.hourKong?.branches?.length) {
+                lines.push(`- **时空**: ${result.kongWang.hourKong.branches.join('、')}（${result.kongWang.hourKong.palaces.join('、')}宫）`);
+            }
             lines.push(`- **驿马**: ${result.yiMa.branch}（${result.yiMa.palace}宫）`);
             lines.push('');
         }
@@ -235,7 +239,7 @@ export default function QimenResultPage() {
             if (p.isHorseStar) marks.push('马');
             if (p.isRuMu) marks.push('墓');
             const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
-            const formStr = p.patterns.length > 0 ? ` 格局:${p.patterns.join(',')}` : '';
+            const formStr = p.patterns?.length > 0 ? ` 格局:${p.patterns.join(',')}` : '';
             lines.push(`【${p.palaceName}${p.palaceNumber}宫】${markStr} ${p.god} | 天:${p.heavenStem} 地:${p.earthStem} | ${p.star} | ${p.gate}${formStr}`);
         }
 
@@ -250,13 +254,14 @@ export default function QimenResultPage() {
             if (p.isEmpty) marks.push('空亡');
             if (p.isHorseStar) marks.push('驿马');
             if (p.isRuMu) marks.push('入墓');
-            const formStr = p.patterns.join('、') || '-';
+            const formStr = p.patterns?.join('、') || '-';
             const wangShuai = p.stemWangShuai || '-';
-            lines.push(`| ${p.palaceName}${p.palaceNumber} | ${p.direction || '-'} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.gate || '-'} | ${p.god || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |`);
+            const direction = p.direction || '-';
+            lines.push(`| ${p.palaceName}${p.palaceNumber} | ${direction} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.gate || '-'} | ${p.god || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |`);
         }
 
         // 格局总览
-        if (result.globalFormations && result.globalFormations.length > 0) {
+        if (result.globalFormations?.length) {
             lines.push('');
             lines.push('## 格局总览');
             lines.push('');
