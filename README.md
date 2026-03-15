@@ -69,15 +69,15 @@ Add to your Claude Desktop / Cursor MCP config — no manual download needed, ju
 
 | Tool | Function | Example Prompt |
 | --- | --- | --- |
-| `bazi_calculate` | Generate a Bazi chart (solar/lunar supported) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
+| `bazi_calculate` | Generate a Bazi chart (solar/lunar supported, 51 shensha types, stem combinations, branch half-combinations) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
 | `bazi_pillars_resolve` | Reverse-lookup birth time from Four Pillars | "My Bazi is 丙午 庚寅 丙辰 癸巳, please analyze it." |
-| `bazi_dayun` | Compute major luck cycles (10-year periods) | AI automatically calls this based on your Bazi |
-| `ziwei_calculate` | Generate a Ziwei Doushu chart | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
-| `ziwei_horoscope` | Ziwei fortune periods (decadal/yearly/monthly/daily) | "What are my Ziwei fortune periods for 2026?" |
+| `bazi_dayun` | Compute major luck cycles (10-year periods with annual transits, Tai Sui annotations, minor luck) | AI automatically calls this based on your Bazi |
+| `ziwei_calculate` | Generate a Ziwei Doushu chart (Life/Body Master stars, Small Limit, Scholar Stars, San Fang Si Zheng) | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
+| `ziwei_horoscope` | Ziwei fortune periods (decadal/yearly/monthly/daily with transit stars) | "What are my Ziwei fortune periods for 2026?" |
 | `ziwei_flying_star` | Flying star analysis (four transformations, surrounded palaces) | "Analyze the flying stars of my Life Palace." |
-| `liuyao` | Liuyao divination (auto-casting / custom hexagram) | "I want to divine my career luck this year." |
-| `tarot` | Draw Tarot cards | "Please draw a Tarot card for my recent love fortune." |
-| `almanac` | Daily almanac & calendar query | "How is today's almanac? Is it suitable for a proposal?" |
+| `liuyao` | Liuyao divination (auto-casting / custom hexagram / time-based / number-based, with nuclear/opposite/reversed hexagrams) | "I want to divine my career luck this year." |
+| `tarot` | Draw Tarot cards (9 spreads, 78 cards with independent reversed keywords, astrological/elemental correspondences) | "Please draw a Tarot card for my recent love fortune." |
+| `almanac` | Daily almanac & calendar query (directions, 12 hourly fortunes, 28 mansions) | "How is today's almanac? Is it suitable for a proposal?" |
 
 ### SDK
 

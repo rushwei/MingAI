@@ -125,8 +125,8 @@ importers:
   packages/mcp-local:
     dependencies:
       '@mingai/mcp-core':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: workspace:*
+        version: link:../mcp-core
       '@modelcontextprotocol/sdk':
         specifier: 1.25.3
         version: 1.25.3(hono@4.11.7)(zod@4.3.4)
@@ -926,9 +926,6 @@ packages:
 
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
-
-  '@mingai/mcp-core@1.2.0':
-    resolution: {integrity: sha512-94TN5dpJncFTgttV/KAu+tMyHcYxA7DBvelc/t224rQaQcytpWqajoLssP91Wx5Cyv5LvYuLqvSWTdM1Qp+qdQ==}
 
   '@modelcontextprotocol/sdk@1.25.3':
     resolution: {integrity: sha512-vsAMBMERybvYgKbg/l4L1rhS7VXV1c0CtyJg72vwxONVX0l4ZfKVAnZEWTQixJGTzKnELjQ59e4NbdFDALRiAQ==}
@@ -6272,11 +6269,6 @@ snapshots:
   '@mermaid-js/parser@0.6.3':
     dependencies:
       langium: 3.3.1
-
-  '@mingai/mcp-core@1.2.0':
-    dependencies:
-      iztro: 2.5.4
-      lunar-javascript: 1.7.7
 
   '@modelcontextprotocol/sdk@1.25.3(hono@4.11.7)(zod@4.3.4)':
     dependencies:
