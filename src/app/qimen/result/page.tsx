@@ -62,7 +62,7 @@ export default function QimenResultPage() {
     const streaming = useStreamingResponse();
 
     useEffect(() => {
-        const loadSession = async () => {
+        const init = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             const currentUser = session?.user ? { id: session.user.id } : null;
             setUser(currentUser);
@@ -70,15 +70,43 @@ export default function QimenResultPage() {
                 const info = await getMembershipInfo(session.user.id);
                 if (info) setMembershipType(info.type);
             }
-        };
-        loadSession();
 
-        const parsed = readSessionJSON<QimenSessionData>('qimen_result');
-        if (parsed) {
+            const parsed = readSessionJSON<QimenSessionData>('qimen_result');
+            if (!parsed) {
+                router.push('/qimen');
+                return;
+            }
             setResult(parsed);
-        } else {
-            router.push('/qimen');
-        }
+
+            // 若尚未保存过，自动保存排盘记录（拿到 chartId 后供 AI 解读关联）
+            if (!parsed.chartId && session?.access_token) {
+                try {
+                    const res = await fetch('/api/qimen', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            action: 'save',
+                            chartData: parsed,
+                            question: parsed.question,
+                        }),
+                    });
+                    const json = await res.json();
+                    if (json?.success && json?.data?.chartId) {
+                        updateSessionJSON('qimen_result', (prev) => ({
+                            ...(prev || {}),
+                            chartId: json.data.chartId,
+                        }));
+                        setResult(prev => prev ? { ...prev, chartId: json.data.chartId } : prev);
+                    }
+                } catch (e) {
+                    console.error('[qimen] 自动保存排盘失败:', e);
+                }
+            }
+        };
+        void init();
     }, [router]);
 
     useEffect(() => {
@@ -160,6 +188,7 @@ export default function QimenResultPage() {
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
                     stream: true,
+                    chartId: result.chartId || null,
                 }),
             });
 
