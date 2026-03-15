@@ -10,13 +10,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, Loader2, RefreshCw, Copy, Check } from 'lucide-react';
+import { Sparkles, RotateCw, Loader2, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { supabase } from '@/lib/supabase';
@@ -58,6 +59,7 @@ export default function QimenResultPage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'summary' | 'imagery' | 'notes'>('summary');
+    const [showKbModal, setShowKbModal] = useState(false);
     const [copied, setCopied] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
@@ -126,7 +128,7 @@ export default function QimenResultPage() {
 
     // 从历史记录查看时，恢复之前的 AI 解读
     useEffect(() => {
-        if (!result?.conversationId || interpretation) return;
+        if ((!result?.conversationId && !result?.chartId) || interpretation) return;
 
         const loadAnalysis = async () => {
             let resolvedId = result.conversationId;
@@ -356,15 +358,27 @@ export default function QimenResultPage() {
 
                 {/* 顶部信息栏 */}
                 <div className="relative bg-white/[0.02] border border-white/10 rounded-xl p-3 md:p-4 mb-4">
-                    {/* 复制按钮 */}
-                    <button
-                        onClick={handleCopy}
-                        className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
-                        title="复制排盘数据"
-                    >
-                        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copied ? '已复制' : '复制'}</span>
-                    </button>
+                    {/* 操作按钮 */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {result.chartId && (
+                            <button
+                                onClick={() => setShowKbModal(true)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                                title="加入知识库"
+                            >
+                                <BookOpenText className="w-3.5 h-3.5" />
+                                <span>知识库</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={handleCopy}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                            title="复制排盘数据"
+                        >
+                            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copied ? '已复制' : '复制'}</span>
+                        </button>
+                    </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm text-foreground-secondary">
                         <span>{result.solarDate}</span>
                         <span>{result.lunarDate}</span>
@@ -517,6 +531,14 @@ export default function QimenResultPage() {
 
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
+            {result.chartId && (
+                <AddToKnowledgeBaseModal
+                    isOpen={showKbModal}
+                    onClose={() => setShowKbModal(false)}
+                    sourceType="qimen_chart"
+                    sourceId={result.chartId}
+                />
+            )}
         </div>
     );
 }
