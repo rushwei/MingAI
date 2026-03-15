@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, Loader2, RefreshCw } from 'lucide-react';
+import { Sparkles, RotateCw, Loader2, RefreshCw, Copy, Check } from 'lucide-react';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -56,6 +56,7 @@ export default function QimenResultPage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'summary' | 'imagery' | 'notes'>('summary');
+    const [copied, setCopied] = useState(false);
     const streaming = useStreamingResponse();
 
     useEffect(() => {
@@ -138,6 +139,112 @@ export default function QimenResultPage() {
         }
     };
 
+    // 生成与 MCP formatQimenAsMarkdown 一致的复制文本
+    const generateCopyText = (): string => {
+        if (!result) return '';
+        const dunText = result.dunType === 'yang' ? '阳遁' : '阴遁';
+        const lines: string[] = [];
+
+        lines.push('# 奇门遁甲排盘');
+        lines.push('');
+        lines.push('## 基本信息');
+        lines.push(`- **公历**: ${result.solarDate}`);
+        lines.push(`- **农历**: ${result.lunarDate}`);
+        lines.push(`- **节气**: ${result.solarTerm}${result.solarTermRange ? `（${result.solarTermRange}）` : ''}`);
+        lines.push(`- **四柱**: ${result.fourPillars.year} ${result.fourPillars.month} ${result.fourPillars.day} ${result.fourPillars.hour}`);
+        lines.push(`- **局**: ${dunText}${result.juNumber}局`);
+        lines.push(`- **三元**: ${result.yuan}`);
+        lines.push(`- **旬首**: ${result.xunShou}`);
+        lines.push(`- **盘式**: ${result.panTypeLabel}（${result.juMethodLabel}）`);
+        if (result.question) lines.push(`- **占问**: ${result.question}`);
+        lines.push('');
+
+        lines.push('## 值符值使');
+        lines.push(`- **值符**: ${result.zhiFu}（${result.zhiFuPalace}宫）`);
+        lines.push(`- **值使**: ${result.zhiShi}（${result.zhiShiPalace}宫）`);
+        lines.push('');
+
+        if (result.kongWang && result.yiMa) {
+            lines.push('## 空亡与驿马');
+            lines.push(`- **日空**: ${result.kongWang.dayKong.branches.join('、')}（${result.kongWang.dayKong.palaces.join('、')}宫）`);
+            lines.push(`- **时空**: ${result.kongWang.hourKong.branches.join('、')}（${result.kongWang.hourKong.palaces.join('、')}宫）`);
+            lines.push(`- **驿马**: ${result.yiMa.branch}（${result.yiMa.palace}宫）`);
+            lines.push('');
+        }
+
+        // 九宫盘 - 洛书排列
+        lines.push('## 九宫盘');
+        lines.push('');
+        const palaces = result.palaces;
+        const layout = [[3, 8, 1], [2, 4, 6], [7, 0, 5]];
+        const headers = ['巽四宫', '离九宫', '坤二宫'];
+        const midHeaders = ['震三宫', '中五宫', '兑七宫'];
+        const botHeaders = ['艮八宫', '坎一宫', '乾六宫'];
+
+        lines.push(`| ${headers.join(' | ')} |`);
+        lines.push('|--------|--------|--------|');
+
+        for (let r = 0; r < layout.length; r++) {
+            const cells = layout[r].map(idx => {
+                const p = palaces[idx];
+                if (!p) return '';
+                if (idx === 4) {
+                    return `**中五宫**<br/>地:${p.earthStem}`;
+                }
+                const marks: string[] = [];
+                if (p.isEmpty) marks.push('空');
+                if (p.isHorseStar) marks.push('马');
+                if (p.isRuMu) marks.push('墓');
+                const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
+                const formStr = p.patterns.length > 0 ? `<br/>${p.patterns.join(',')}` : '';
+                return `**${p.palaceName}${p.palaceNumber}宫**${markStr}<br/>` +
+                    `${p.god}<br/>` +
+                    `天:${p.heavenStem} 地:${p.earthStem}<br/>` +
+                    `${p.star}<br/>` +
+                    `${p.gate}${formStr}`;
+            });
+            lines.push(`| ${cells.join(' | ')} |`);
+            if (r === 0) lines.push(`| ${midHeaders.join(' | ')} |`);
+            else if (r === 1) lines.push(`| ${botHeaders.join(' | ')} |`);
+        }
+
+        // 九宫详情表
+        lines.push('');
+        lines.push('## 九宫详情');
+        lines.push('');
+        lines.push('| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 八门 | 八神 | 格局 | 旺衰 | 标记 |');
+        lines.push('|------|------|------|------|------|------|------|------|------|------|');
+        for (const p of palaces) {
+            const marks: string[] = [];
+            if (p.isEmpty) marks.push('空亡');
+            if (p.isHorseStar) marks.push('驿马');
+            if (p.isRuMu) marks.push('入墓');
+            const formStr = p.patterns.join('、') || '-';
+            const wangShuai = p.stemWangShuai || '-';
+            lines.push(`| ${p.palaceName}${p.palaceNumber} | ${p.direction || '-'} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.gate || '-'} | ${p.god || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |`);
+        }
+
+        // 格局总览
+        if (result.globalFormations && result.globalFormations.length > 0) {
+            lines.push('');
+            lines.push('## 格局总览');
+            lines.push('');
+            for (const f of result.globalFormations) {
+                lines.push(`- ${f}`);
+            }
+        }
+
+        return lines.join('\n');
+    };
+
+    const handleCopy = async () => {
+        const text = generateCopyText();
+        if (!text) return;
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
     if (!result) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -181,7 +288,16 @@ export default function QimenResultPage() {
                 )}
 
                 {/* 顶部信息栏 */}
-                <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3 md:p-4 mb-4">
+                <div className="relative bg-white/[0.02] border border-white/10 rounded-xl p-3 md:p-4 mb-4">
+                    {/* 复制按钮 */}
+                    <button
+                        onClick={handleCopy}
+                        className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                        title="复制排盘数据"
+                    >
+                        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copied ? '已复制' : '复制'}</span>
+                    </button>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm text-foreground-secondary">
                         <span>{result.solarDate}</span>
                         <span>{result.lunarDate}</span>
