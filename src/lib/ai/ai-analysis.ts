@@ -12,13 +12,14 @@ import type { AIPersonality } from '@/types';
 export type AIAnalysisSourceType =
     | 'chat'           // 普通聊天
     | 'bazi_wuxing'    // 八字五行分析
-    | 'bazi_personality' // 八字人格分析  
+    | 'bazi_personality' // 八字人格分析
     | 'tarot'          // 塔罗占卜
     | 'liuyao'         // 六爻占卜
     | 'mbti'           // MBTI 人格
     | 'hepan'          // 合盘分析
     | 'palm'           // 手相分析
-    | 'face';          // 面相分析
+    | 'face'           // 面相分析
+    | 'daliuren';      // 大六壬
 
 const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality>> = {
     bazi_wuxing: 'bazi',

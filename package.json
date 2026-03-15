@@ -25,6 +25,7 @@
     "@vercel/analytics": "^1.6.1",
     "html2canvas": "^1.4.1",
     "iztro": "^2.5.4",
+    "liuren-ts-lib": "^1.9.0",
     "lucide-react": "^0.562.0",
     "lunar-javascript": "^1.7.7",
     "next": "16.1.1",
@@ -33,7 +34,8 @@
     "react-markdown": "^10.1.0",
     "recharts": "^3.6.0",
     "remark-gfm": "^4.0.1",
-    "resend": "^6.7.0"
+    "resend": "^6.7.0",
+    "tyme4ts": "^1.4.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

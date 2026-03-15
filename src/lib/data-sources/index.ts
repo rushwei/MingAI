@@ -101,6 +101,10 @@ const _init = (() => {
         const { monthlyFortuneProvider } = await import('@/lib/data-sources/fortune');
         return monthlyFortuneProvider;
     });
+    registerDataSource('daliuren_divination', async () => {
+        const { daliurenProvider } = await import('@/lib/data-sources/daliuren');
+        return daliurenProvider;
+    });
 })();
 
 void _init;

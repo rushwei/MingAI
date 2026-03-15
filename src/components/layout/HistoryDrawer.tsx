@@ -16,7 +16,7 @@ import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai/ai-config';
 
 // 支持的历史类型
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
+type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face' | 'daliuren';
 
 // 格式化日期（提取到组件外部，避免每次渲染重新创建）
 function formatDate(dateStr: string): string {
@@ -53,6 +53,7 @@ const TYPE_CONFIG: Record<HistoryType, {
     hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
     palm: { label: '手相历史', tableName: 'palm_readings', historyPath: '/palm/history', detailPath: '/palm/result', sessionKey: 'palm_result' },
     face: { label: '面相历史', tableName: 'face_readings', historyPath: '/face/history', detailPath: '/face/result', sessionKey: 'face_result' },
+    daliuren: { label: '六壬历史', tableName: 'daliuren_divinations', historyPath: '/daliuren/history', detailPath: '/daliuren/result', sessionKey: 'daliuren_params', useTimestamp: true },
 };
 
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
@@ -191,6 +192,19 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         'wealth': '财运分析',
                     };
                     title = analysisNames[analysisType] || '面相分析';
+                } else if (type === 'daliuren') {
+                    const resultData = item.result_data as Record<string, unknown> | null;
+                    const keName = resultData?.keName as string | undefined;
+                    title = keName || `${item.day_ganzhi as string}日`;
+                    const question = (item.question as string)?.trim();
+                    return {
+                        id: item.id as string,
+                        title: title.length > 18 ? title.slice(0, 18) + '...' : title,
+                        question: question || undefined,
+                        createdAt: item.created_at as string,
+                        subType,
+                        modelName,
+                    };
                 }
                 return {
                     id: item.id as string,
@@ -360,6 +374,17 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     analysisType: data.analysis_type,
                     createdAt: data.created_at,
                     conversationId: data.conversation_id || null,
+                };
+                writeSessionJSON(config.sessionKey, sessionData);
+            } else if (type === 'daliuren') {
+                // 大六壬：恢复排盘参数，结果页会重新起课
+                const settings = (data.settings as Record<string, unknown>) || {};
+                const sessionData = {
+                    date: data.solar_date,
+                    hour: settings.hour ?? 0,
+                    minute: settings.minute ?? 0,
+                    question: data.question || undefined,
+                    divinationId: data.id,
                 };
                 writeSessionJSON(config.sessionKey, sessionData);
             }

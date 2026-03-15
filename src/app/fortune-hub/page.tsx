@@ -16,6 +16,7 @@ import {
     Orbit,
     ScanFace,
     Hand,
+    BookOpen,
 } from 'lucide-react';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -93,6 +94,15 @@ const FORTUNE_SERVICES = [
         href: '/palm',
         color: 'from-orange-500/20 to-rose-500/20 border-orange-500/30',
         iconColor: 'text-orange-500',
+    },
+    {
+        id: 'daliuren',
+        name: '大六壬',
+        description: '三式之首，推演时空吉凶',
+        icon: BookOpen,
+        href: '/daliuren',
+        color: 'from-cyan-500/20 to-teal-500/20 border-cyan-500/30',
+        iconColor: 'text-cyan-500',
     },
 ];
 
