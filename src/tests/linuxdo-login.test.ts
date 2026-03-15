@@ -127,6 +127,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
         signUp: (args: unknown) => Promise<{ data: { session: { user: { id: string } } }; error: null }>;
       };
     };
+    getAuthAdminClient: () => null;
     getServiceRoleClient: () => {
       from: (table: string) => {
         select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> }; maybeSingle?: () => Promise<{ data: { id: string } | null }> } };
@@ -143,6 +144,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
   const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
   const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
@@ -166,6 +168,158 @@ test('linuxdo callback should not reject login when email_verified claim is miss
         },
         error: null,
       }),
+    },
+  });
+  apiUtilsModule.getAuthAdminClient = () => null;
+
+  apiUtilsModule.getServiceRoleClient = () => ({
+    from: (table: string) => {
+      if (table === 'user_oauth_providers') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null }),
+              }),
+            }),
+          }),
+          insert: async () => ({ error: null }),
+        };
+      }
+
+      if (table === 'users') {
+        return {
+          upsert: async () => ({ error: null }),
+        };
+      }
+
+      throw new Error(`unexpected table: ${table}`);
+    },
+  });
+
+  authSessionModule.setSessionCookies = () => {};
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    authSessionModule.setSessionCookies = originalSetSessionCookies;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'http://localhost/');
+});
+
+test('linuxdo callback should create new users through admin api instead of public signup', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signUp: () => Promise<{ data: { session: null }; error: { message: string } }>;
+        signInWithPassword: () => Promise<{ data: { session: { user: { id: string } } }; error: null }>;
+      };
+    };
+    getAuthAdminClient: () => {
+      auth: {
+        admin: {
+          createUser: (payload: Record<string, unknown>) => Promise<{ data: { user: { id: string } }; error: null }>;
+        };
+      };
+    };
+    getServiceRoleClient: () => {
+      from: (table: string) => {
+        select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> }; maybeSingle?: () => Promise<{ data: { id: string } | null }> } };
+        upsert?: () => Promise<{ error: null }>;
+        insert?: () => Promise<{ error: null }>;
+      };
+    };
+  };
+  const authSessionModule = require('../lib/auth-session') as {
+    setSessionCookies: (response: Response, session: unknown) => void;
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalSetSessionCookies = authSessionModule.setSessionCookies;
+
+  let publicSignUpCalls = 0;
+  let adminCreateUserCalls = 0;
+  let signInCalls = 0;
+  let createUserPayload: Record<string, unknown> | null = null;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-2',
+    preferred_username: 'bob',
+    name: 'Bob',
+    email: 'bob@example.com',
+    email_verified: true,
+    picture: 'https://cdn.example.com/bob.png',
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signUp: async () => {
+        publicSignUpCalls += 1;
+        return {
+          data: { session: null },
+          error: { message: 'Email address not authorized' },
+        };
+      },
+      signInWithPassword: async () => {
+        signInCalls += 1;
+        return {
+          data: {
+            session: {
+              user: { id: 'user-2' },
+            },
+          },
+          error: null,
+        };
+      },
+    },
+  });
+
+  apiUtilsModule.getAuthAdminClient = () => ({
+    auth: {
+      admin: {
+        createUser: async (payload: Record<string, unknown>) => {
+          adminCreateUserCalls += 1;
+          createUserPayload = payload;
+          return {
+            data: { user: { id: 'user-2' } },
+            error: null,
+          };
+        },
+      },
     },
   });
 
@@ -201,6 +355,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
     linuxdoModule.fetchUserInfo = originalFetchUserInfo;
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
     apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
@@ -223,4 +378,98 @@ test('linuxdo callback should not reject login when email_verified claim is miss
 
   assert.equal(response.status, 307);
   assert.equal(response.headers.get('location'), 'http://localhost/');
+  assert.equal(publicSignUpCalls, 0);
+  assert.equal(adminCreateUserCalls, 1);
+  assert.equal(signInCalls, 1);
+  assert.equal(createUserPayload?.email_confirm, true);
+});
+
+test('linuxdo callback should surface missing auth admin key when public signup is blocked', async (t) => {
+  const linuxdoModule = require('../lib/oauth/linuxdo') as {
+    exchangeCode: (code: string, verifier: string, redirectUri: string) => Promise<{ access_token: string }>;
+    fetchUserInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+    generateDeterministicPassword: (sub: string) => string;
+  };
+  const apiUtilsModule = require('../lib/api-utils') as {
+    createAnonClient: () => {
+      auth: {
+        signUp: () => Promise<{ data: { session: null }; error: { message: string } }>;
+      };
+    };
+    getAuthAdminClient: () => null;
+    getServiceRoleClient: () => {
+      from: (table: string) => {
+        select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> } } };
+      };
+    };
+  };
+
+  const originalExchangeCode = linuxdoModule.exchangeCode;
+  const originalFetchUserInfo = linuxdoModule.fetchUserInfo;
+  const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
+  const originalCreateAnonClient = apiUtilsModule.createAnonClient;
+  const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+
+  linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
+  linuxdoModule.fetchUserInfo = async () => ({
+    sub: 'linuxdo-user-3',
+    preferred_username: 'carol',
+    name: 'Carol',
+    email: 'carol@example.com',
+    email_verified: true,
+  });
+  linuxdoModule.generateDeterministicPassword = () => 'deterministic-password';
+
+  apiUtilsModule.createAnonClient = () => ({
+    auth: {
+      signUp: async () => ({
+        data: { session: null },
+        error: { message: 'Email address not authorized' },
+      }),
+    },
+  });
+  apiUtilsModule.getAuthAdminClient = () => null;
+  apiUtilsModule.getServiceRoleClient = () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null }),
+          }),
+        }),
+      }),
+    }),
+  });
+
+  t.after(() => {
+    linuxdoModule.exchangeCode = originalExchangeCode;
+    linuxdoModule.fetchUserInfo = originalFetchUserInfo;
+    linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
+    apiUtilsModule.createAnonClient = originalCreateAnonClient;
+    apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
+    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+  });
+
+  const { GET } = await import('../app/api/auth/linuxdo/callback/route');
+  const stateValue = encodeURIComponent(JSON.stringify({
+    state: 'expected-state',
+    codeVerifier: 'code-verifier',
+  }));
+  const request = new NextRequest(
+    'http://localhost/api/auth/linuxdo/callback?code=oauth-code&state=expected-state',
+    {
+      headers: {
+        cookie: `linuxdo-oauth-state=${stateValue}`,
+      },
+    },
+  );
+
+  const response = await GET(request);
+
+  assert.equal(response.status, 307);
+  assert.equal(
+    response.headers.get('location'),
+    'http://localhost/?error=signup_requires_admin_key',
+  );
 });

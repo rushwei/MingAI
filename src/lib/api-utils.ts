@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
-import { getServiceClient } from '@/lib/supabase-server';
+import { getAuthAdminClient as getPrivilegedAuthClient, getServiceClient } from '@/lib/supabase-server';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export async function createRequestSupabaseClient() {
@@ -144,6 +144,10 @@ export async function requireAdminContext(
 
 export function getServiceRoleClient() {
     return getServiceClient();
+}
+
+export function getAuthAdminClient() {
+    return getPrivilegedAuthClient();
 }
 
 export function createAnonClient() {

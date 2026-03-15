@@ -6,12 +6,13 @@
  *   → 查/创建用户 → 设 session cookie → 302 跳转首页
  */
 import { NextRequest, NextResponse } from 'next/server';
+import type { Session } from '@supabase/supabase-js';
 import {
   exchangeCode,
   fetchUserInfo,
   generateDeterministicPassword,
 } from '@/lib/oauth/linuxdo';
-import { createAnonClient, getServiceRoleClient } from '@/lib/api-utils';
+import { createAnonClient, getAuthAdminClient, getServiceRoleClient } from '@/lib/api-utils';
 import { setSessionCookies } from '@/lib/auth-session';
 
 const OAUTH_STATE_COOKIE = 'linuxdo-oauth-state';
@@ -20,6 +21,19 @@ function redirectWithError(origin: string, error: string) {
   const url = new URL('/', origin);
   url.searchParams.set('error', error);
   return NextResponse.redirect(url);
+}
+
+function isAlreadyRegisteredError(message: string | undefined) {
+  return Boolean(
+    message?.includes('already registered')
+    || message?.includes('already been registered')
+  );
+}
+
+function isPublicSignupBlocked(message: string | undefined) {
+  const normalized = message?.toLowerCase() ?? '';
+  return normalized.includes('email address not authorized')
+    || normalized.includes('email address is not authorized');
 }
 
 export async function GET(request: NextRequest) {
@@ -107,6 +121,7 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   const deterministicPassword = generateDeterministicPassword(linuxdoUser.sub);
+  const nickname = linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者';
   const anonClient = createAnonClient();
 
   if (existingProvider) {
@@ -156,47 +171,92 @@ export async function GET(request: NextRequest) {
   }
 
   // 6. 无记录：新用户流程
-  // 直接尝试 signUp，如果邮箱已存在会报错（邮箱冲突检测）
-  const { data: signUpData, error: signUpError } = await anonClient.auth.signUp({
-    email: linuxdoUser.email,
-    password: deterministicPassword,
-    options: {
-      data: {
-        nickname: linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者',
+  const authAdminClient = getAuthAdminClient();
+  let session: Session | null = null;
+
+  if (authAdminClient) {
+    const { data: createUserData, error: createUserError } = await authAdminClient.auth.admin.createUser({
+      email: linuxdoUser.email,
+      password: deterministicPassword,
+      email_confirm: true,
+      user_metadata: {
+        nickname,
         avatar_url: linuxdoUser.picture || null,
       },
-      emailRedirectTo: undefined,
-    },
-  });
+    });
 
-  if (signUpError) {
-    console.error('[linuxdo-callback] SignUp failed:', signUpError);
-    // 邮箱已被占用
-    if (signUpError.message?.includes('already registered') || signUpError.message?.includes('already been registered')) {
-      const res = redirectWithError(origin, 'email_exists');
+    if (createUserError || !createUserData?.user) {
+      console.error('[linuxdo-callback] Admin create user failed:', createUserError);
+      if (isAlreadyRegisteredError(createUserError?.message)) {
+        const res = redirectWithError(origin, 'email_exists');
+        clearCookie(res);
+        return res;
+      }
+      if (createUserError?.status === 401 || createUserError?.status === 403) {
+        const res = redirectWithError(origin, 'signup_requires_admin_key');
+        clearCookie(res);
+        return res;
+      }
+      const res = redirectWithError(origin, 'signup_failed');
       clearCookie(res);
       return res;
     }
-    const res = redirectWithError(origin, 'signup_failed');
-    clearCookie(res);
-    return res;
-  }
 
-  // signUp 可能不返回 session（需要邮箱确认时），此时用 signIn 补偿
-  let session = signUpData.session;
-  if (!session) {
-    // 对于 OAuth 注册的用户，直接用密码登录
     const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
       email: linuxdoUser.email,
       password: deterministicPassword,
     });
     if (signInError || !signInData.session) {
-      console.error('[linuxdo-callback] Post-signup sign in failed:', signInError);
+      console.error('[linuxdo-callback] Post-admin-signup sign in failed:', signInError);
       const res = redirectWithError(origin, 'login_failed');
       clearCookie(res);
       return res;
     }
     session = signInData.session;
+  } else {
+    const { data: signUpData, error: signUpError } = await anonClient.auth.signUp({
+      email: linuxdoUser.email,
+      password: deterministicPassword,
+      options: {
+        data: {
+          nickname,
+          avatar_url: linuxdoUser.picture || null,
+        },
+        emailRedirectTo: undefined,
+      },
+    });
+
+    if (signUpError) {
+      console.error('[linuxdo-callback] SignUp failed:', signUpError);
+      if (isAlreadyRegisteredError(signUpError.message)) {
+        const res = redirectWithError(origin, 'email_exists');
+        clearCookie(res);
+        return res;
+      }
+      if (isPublicSignupBlocked(signUpError.message)) {
+        const res = redirectWithError(origin, 'signup_requires_admin_key');
+        clearCookie(res);
+        return res;
+      }
+      const res = redirectWithError(origin, 'signup_failed');
+      clearCookie(res);
+      return res;
+    }
+
+    session = signUpData.session;
+    if (!session) {
+      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+        email: linuxdoUser.email,
+        password: deterministicPassword,
+      });
+      if (signInError || !signInData.session) {
+        console.error('[linuxdo-callback] Post-signup sign in failed:', signInError);
+        const res = redirectWithError(origin, 'login_failed');
+        clearCookie(res);
+        return res;
+      }
+      session = signInData.session;
+    }
   }
 
   const userId = session.user.id;
@@ -205,7 +265,7 @@ export async function GET(request: NextRequest) {
   await serviceClient.from('users').upsert(
     {
       id: userId,
-      nickname: linuxdoUser.name || linuxdoUser.preferred_username || '命理爱好者',
+      nickname,
       avatar_url: linuxdoUser.picture || null,
       membership: 'free',
       ai_chat_count: 3,

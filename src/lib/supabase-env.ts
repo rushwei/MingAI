@@ -13,3 +13,7 @@ export function getSupabaseAnonKey(): string {
     }
     return anonKey;
 }
+
+export function getSupabaseAuthAdminKey(): string | null {
+    return process.env.SUPABASE_SECRET_KEY || null;
+}

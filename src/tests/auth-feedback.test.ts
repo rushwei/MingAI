@@ -21,6 +21,10 @@ test('linuxdo auth error mapper should translate known callback errors into user
     'Linux.do 登录失败：登录状态已过期，请重新发起登录'
   );
   assert.equal(
+    getLinuxDoAuthErrorMessage('signup_requires_admin_key'),
+    'Linux.do 登录失败：站点缺少 Supabase 管理密钥配置，请联系管理员处理'
+  );
+  assert.equal(
     getLinuxDoAuthErrorMessage('unknown_code'),
     null
   );

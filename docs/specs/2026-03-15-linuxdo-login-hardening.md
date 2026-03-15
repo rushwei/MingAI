@@ -27,6 +27,10 @@
   - 为 Linux.do userinfo 增加统一字段归一化，兼容旧字段与 OIDC 字段。
   - `email_verified` 仅在明确返回 `false` 时拒绝登录，避免因字段缺失误判。
   - token / userinfo 请求按官方主域名与备用域名顺序重试，减少部署地区网络差异导致的失败。
+  - Linux.do 新用户创建优先走专用服务端 Auth 管理客户端的 `auth.admin.createUser({ email_confirm: true })`，避免命中 Supabase 公共注册链路的邮件发送/注册策略限制。
+  - 现有 `SUPABASE_SYSTEM_ADMIN_EMAIL/PASSWORD` 生成的系统管理员会话客户端仅用于 RLS + admin policy 的数据库访问；由于 `accessToken` 客户端无法访问 `supabase.auth.admin`，不能承担首次建号。
+  - 专用 Auth 管理客户端使用 `SUPABASE_SECRET_KEY`。
+  - 若部署环境未配置专用 Auth 管理密钥，则在 Linux.do 首次登录失败时返回明确错误码，避免继续落成笼统 `signup_failed`。
   - 新增针对旧字段 payload、缺失 `email_verified`、备用域名回退的测试。
   - 在全局客户端 Provider 中识别 Linux.do 回调错误码，显示中文 Toast，并在展示后清理 URL 中的 `error` 参数。
 - 兼容性说明：

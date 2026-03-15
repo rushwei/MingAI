@@ -6,10 +6,11 @@
  */
 
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { getSupabaseAnonKey, getSupabaseAuthAdminKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 let serviceClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
+let authAdminClient: SupabaseClient | null = null;
 
 let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresAt = 0;
@@ -93,4 +94,23 @@ export function getServiceClient(): SupabaseClient {
     });
 
     return serviceClient;
+}
+
+/**
+ * 获取专用 Auth 管理客户端。
+ * 仅用于 auth.admin.* 管理接口，避免与 accessToken 客户端职责混淆。
+ */
+export function getAuthAdminClient(): SupabaseClient | null {
+    if (authAdminClient) return authAdminClient;
+
+    const adminKey = getSupabaseAuthAdminKey();
+    if (!adminKey) {
+        return null;
+    }
+
+    authAdminClient = createClient(getSupabaseUrl(), adminKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+
+    return authAdminClient;
 }
