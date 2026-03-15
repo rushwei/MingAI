@@ -61,6 +61,7 @@ const ALL_NAV_ITEMS = [
     { id: 'ziwei', label: '紫微斗数', icon: Sparkles },
     { id: 'tarot', label: '塔罗', icon: Gem },
     { id: 'liuyao', label: '六爻', icon: Dices },
+    { id: 'qimen', label: '奇门遁甲', icon: Compass },
     { id: 'face', label: '面相', icon: ScanFace },
     { id: 'palm', label: '手相', icon: Hand },
     { id: 'mbti', label: 'MBTI', icon: Brain },

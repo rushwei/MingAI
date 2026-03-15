@@ -88,6 +88,14 @@ const navItems = [
         description: '六爻占卜'
     },
     {
+        href: '/qimen',
+        label: '奇门遁甲',
+        icon: Compass,
+        available: true,
+        emoji: '🧭',
+        description: '奇门遁甲'
+    },
+    {
         href: '/face',
         label: '面相',
         icon: ScanFace,

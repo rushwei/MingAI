@@ -18,7 +18,8 @@ export type AIAnalysisSourceType =
     | 'mbti'           // MBTI 人格
     | 'hepan'          // 合盘分析
     | 'palm'           // 手相分析
-    | 'face';          // 面相分析
+    | 'face'           // 面相分析
+    | 'qimen';         // 奇门遁甲
 
 const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality>> = {
     bazi_wuxing: 'bazi',
