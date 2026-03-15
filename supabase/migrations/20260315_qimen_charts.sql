@@ -19,3 +19,5 @@ CREATE POLICY "Users can view own qimen charts"
   ON qimen_charts FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own qimen charts"
   ON qimen_charts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own qimen charts"
+  ON qimen_charts FOR DELETE USING (auth.uid() = user_id);
