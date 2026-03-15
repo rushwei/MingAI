@@ -1,12 +1,12 @@
 /**
  * MCP Core 主入口
  */
-import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate } from './handlers/index.js';
+import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleDaliurenCalculate } from './handlers/index.js';
 export { tools } from './tools.js';
 export { formatAsMarkdown } from './formatters.js';
 export type { ToolDefinition, ToolInput, ToolAnnotation } from './tools.js';
 export * from './types.js';
-export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, };
+export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleDaliurenCalculate, };
 /**
  * 统一工具调用分发（消除 mcp-server / mcp-local 重复 switch）
  */

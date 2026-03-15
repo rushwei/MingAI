@@ -6,7 +6,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,22 +25,37 @@
     "./data/shensha-data": {
       "types": "./dist/data/shensha-data.d.ts",
       "default": "./dist/data/shensha-data.js"
+    },
+    "./daliuren": {
+      "types": "./dist/daliuren/index.d.ts",
+      "default": "./dist/daliuren/index.js"
     }
   },
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["mcp", "mingai", "bazi", "ziwei", "liuyao", "tarot", "divination"],
+  "keywords": [
+    "mcp",
+    "mingai",
+    "bazi",
+    "ziwei",
+    "liuyao",
+    "tarot",
+    "daliuren",
+    "divination"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "iztro": "^2.5.4",
+    "liuren-ts-lib": "^1.9.0",
     "lunar-javascript": "^1.7.7",
-    "iztro": "^2.5.4"
+    "tyme4ts": "^1.4.4"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }
