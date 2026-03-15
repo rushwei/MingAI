@@ -80,6 +80,9 @@ importers:
       resend:
         specifier: ^6.7.0
         version: 6.7.0
+      taobi:
+        specifier: ^0.4.5
+        version: 0.4.5
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4
@@ -114,6 +117,9 @@ importers:
       lunar-javascript:
         specifier: ^1.7.7
         version: 1.7.7
+      taobi:
+        specifier: ^0.4.5
+        version: 0.4.5
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -3639,6 +3645,9 @@ packages:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
 
+  julian.js@2.0.0:
+    resolution: {integrity: sha512-ZzCCTJLOyTP9zU6MaY74aUPtHfHbgBm6cIFCnQjL/Pp/7thMXy0QgDs9+cXqKSsYuzWa9kwnFzTeJTFPdcTKiw==}
+
   katex@0.16.27:
     resolution: {integrity: sha512-aeQoDkuRWSqQN6nSvVCEFvfXdqo1OQiCmmW1kc9xSdjutPv7BGO7pqY9sQRJpMOGrEdfDgF2TfRXe5eUAD2Waw==}
     hasBin: true
@@ -4195,6 +4204,9 @@ packages:
 
   numeral@2.0.6:
     resolution: {integrity: sha512-qaKRmtYPZ5qdw4jWJD6bxEf1FJEqllJrwxCLIm0sQU/A7v2/czigzOb+C2uSiFsa9lBUzeH7M1oK+Q+OLxL3kA==}
+
+  nutation.js@0.4.1:
+    resolution: {integrity: sha512-x9FZfeXPVwyvTk4lAS06Tg4SiE4PK1lSTDAs/ciNVhGwYYZ9HTdVSVbf+Fa5nL/8PuIj641LNq63cxAUfliZ8Q==}
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -4871,6 +4883,9 @@ packages:
     resolution: {integrity: sha512-qMCMfhY040cVHT43K9BFygqYbUPFZKHOg7K73mtTWJRb8pyP3fzf4Ixd5SzdEJQ6MRUg/WBnOLxghZtKKurENQ==}
     engines: {node: '>=10'}
 
+  solar_terms.js@0.1.0:
+    resolution: {integrity: sha512-6i0DKfjSDg4kjmz407amEnxnx570zlCfarEga1FejJa6xRdnoZEWGojUGNbZFuXttpFc4lZ1N8iLvBZ/DAdp2g==}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -5006,6 +5021,21 @@ packages:
 
   tailwindcss@4.1.18:
     resolution: {integrity: sha512-4+Z+0yiYyEtUVCScyfHCxOYP06L5Ne+JiHhY2IjR2KWMIWhJOYZKLSGZaP5HkZ8+bY0cxfzwDE5uOmzFXyIwxw==}
+
+  tao_calendar@0.4.3:
+    resolution: {integrity: sha512-3e7Ba81y5azVBF970SOiaqmCHyDUJsKmURbAwgUBEI3NhuMC27uoXFcExpdwBqmXl29RJrLOiS1w63lqXtdi1A==}
+
+  tao_name@0.1.1:
+    resolution: {integrity: sha512-4+WS8mhB6NnXZJFf8MOFrAtbHhg7R/VOVUARGHg6zwO6UFAJ6wdNCsBYH+aWa5MY5o8NhfE0rrfnh7kzKLNwiw==}
+
+  tao_taichi.js@0.0.5:
+    resolution: {integrity: sha512-1iIgPl8JaKIkZKMD6MnlfVa1b5MC+Z5N3GjDRaMe1yybNXhQRsqAVOlXDU1OZUECOh1g9f22BMcpNeczfO5KxQ==}
+
+  tao_taichi.js@0.1.0:
+    resolution: {integrity: sha512-O41hQqtD3A3j3ZetVQRAT3O+2MLOvxfX0vMSm+i0cL59q7GGf04u5W5//SjaWelaCcedeThwBsz6CxHJmJ3ZXg==}
+
+  taobi@0.4.5:
+    resolution: {integrity: sha512-Hb91YLzAAwLkzKNmO7mjZnOpGQxwAbpQgWAP6UniVuMz31t2WHyfAs70u7ykeIesz5MxZcEKVaV14Xp1i5+NOA==}
 
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
@@ -9407,6 +9437,8 @@ snapshots:
       object.assign: 4.1.7
       object.values: 1.2.1
 
+  julian.js@2.0.0: {}
+
   katex@0.16.27:
     dependencies:
       commander: 8.3.0
@@ -10231,6 +10263,8 @@ snapshots:
   node-releases@2.0.27: {}
 
   numeral@2.0.6: {}
+
+  nutation.js@0.4.1: {}
 
   object-assign@4.1.1: {}
 
@@ -11137,6 +11171,11 @@ snapshots:
       astral-regex: 2.0.0
       is-fullwidth-code-point: 3.0.0
 
+  solar_terms.js@0.1.0:
+    dependencies:
+      julian.js: 2.0.0
+      nutation.js: 0.4.1
+
   source-map-js@1.2.1: {}
 
   source-map@0.5.7: {}
@@ -11281,6 +11320,29 @@ snapshots:
   tabbable@6.4.0: {}
 
   tailwindcss@4.1.18: {}
+
+  tao_calendar@0.4.3:
+    dependencies:
+      julian.js: 2.0.0
+      solar_terms.js: 0.1.0
+      tao_name: 0.1.1
+      tao_taichi.js: 0.0.5
+
+  tao_name@0.1.1: {}
+
+  tao_taichi.js@0.0.5: {}
+
+  tao_taichi.js@0.1.0:
+    dependencies:
+      tao_name: 0.1.1
+
+  taobi@0.4.5:
+    dependencies:
+      julian.js: 2.0.0
+      solar_terms.js: 0.1.0
+      tao_calendar: 0.4.3
+      tao_name: 0.1.1
+      tao_taichi.js: 0.1.0
 
   tapable@2.3.0: {}
 

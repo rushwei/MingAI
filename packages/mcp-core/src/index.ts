@@ -13,6 +13,7 @@ import {
   handleTarotDraw,
   handleDailyFortune,
   handleDayunCalculate,
+  handleQimenCalculate,
 } from './handlers/index.js';
 
 export { tools } from './tools.js';
@@ -31,6 +32,7 @@ export {
   handleTarotDraw,
   handleDailyFortune,
   handleDayunCalculate,
+  handleQimenCalculate,
 };
 
 /**
@@ -61,6 +63,8 @@ export async function handleToolCall(name: string, args: any): Promise<unknown> 
     case 'dayun_calculate':
     case 'bazi_dayun':
       return handleDayunCalculate(args);
+    case 'qimen_calculate':
+      return handleQimenCalculate(args);
     default:
       const availableTools = tools.map((t) => t.name).join(', ');
       throw new Error(`未知工具: ${name}。可用的工具: ${availableTools}`);

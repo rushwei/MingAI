@@ -6,7 +6,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -28,17 +30,26 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["mcp", "mingai", "bazi", "ziwei", "liuyao", "tarot", "divination"],
+  "keywords": [
+    "mcp",
+    "mingai",
+    "bazi",
+    "ziwei",
+    "liuyao",
+    "tarot",
+    "divination"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "iztro": "^2.5.4",
     "lunar-javascript": "^1.7.7",
-    "iztro": "^2.5.4"
+    "taobi": "^0.4.5"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }

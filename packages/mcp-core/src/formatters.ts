@@ -2,7 +2,7 @@
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
 
-import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, ZiweiHoroscopeOutput, ZiweiFlyingStarOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, ShenSystemInfo, FlyingStarResult, MutagedPlaceInfo, SurroundedPalaceInfo } from './types.js';
+import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, ZiweiHoroscopeOutput, ZiweiFlyingStarOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, QimenOutput, ShenSystemInfo, FlyingStarResult, MutagedPlaceInfo, SurroundedPalaceInfo } from './types.js';
 import {
   YONG_SHEN_STATUS_LABELS,
   WANG_SHUAI_LABELS,
@@ -599,6 +599,94 @@ export function formatDayunAsMarkdown(result: DayunOutput): string {
 }
 
 /**
+ * 格式化奇门遁甲结果为 Markdown
+ */
+export function formatQimenAsMarkdown(result: QimenOutput): string {
+  const { dateInfo, siZhu, dunType, juNumber, yuan, xunShou, zhiFu, zhiShi, palaces, kongWang, yiMa, globalFormations } = result;
+  const dunText = dunType === 'yang' ? '阳遁' : '阴遁';
+
+  let md = `# 奇门遁甲排盘
+
+## 基本信息
+- **公历**: ${dateInfo.solarDate}
+- **农历**: ${dateInfo.lunarDate}
+- **节气**: ${dateInfo.solarTerm}${dateInfo.solarTermRange ? `（${dateInfo.solarTermRange}）` : ''}
+- **四柱**: ${siZhu.year} ${siZhu.month} ${siZhu.day} ${siZhu.hour}
+- **局**: ${dunText}${juNumber}局
+- **三元**: ${yuan}
+- **旬首**: ${xunShou}
+- **盘式**: ${result.panType}（${result.juMethod}）
+${result.question ? `- **占问**: ${result.question}` : ''}
+
+## 值符值使
+- **值符**: ${zhiFu.star}（${zhiFu.palace}宫）
+- **值使**: ${zhiShi.gate}（${zhiShi.palace}宫）
+
+## 空亡与驿马
+- **日空**: ${kongWang.dayKong.branches.join('、')}（${kongWang.dayKong.palaces.join('、')}宫）
+- **时空**: ${kongWang.hourKong.branches.join('、')}（${kongWang.hourKong.palaces.join('、')}宫）
+- **驿马**: ${yiMa.branch}（${yiMa.palace}宫）
+
+## 九宫盘
+
+`;
+
+  // 九宫格表格：按洛书排列 4-9-2 / 3-5-7 / 8-1-6
+  const layout = [[3, 8, 1], [2, 4, 6], [7, 0, 5]];
+  md += '| 巽四宫 | 离九宫 | 坤二宫 |\n|--------|--------|--------|\n';
+
+  for (const row of layout) {
+    const cells = row.map(idx => {
+      const p = palaces[idx];
+      if (idx === 4) {
+        return `**中五宫**<br/>地:${p.earthStem}`;
+      }
+      const marks: string[] = [];
+      if (p.isKongWang) marks.push('空');
+      if (p.isYiMa) marks.push('马');
+      if (p.isRuMu) marks.push('墓');
+      const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
+      const formStr = p.formations.length > 0 ? `<br/>${p.formations.join(',')}` : '';
+      return `**${p.palaceName}${p.palaceIndex}宫**${markStr}<br/>` +
+        `${p.deity}<br/>` +
+        `天:${p.heavenStem} 地:${p.earthStem}<br/>` +
+        `${p.star}<br/>` +
+        `${p.gate}${formStr}`;
+    });
+    md += `| ${cells.join(' | ')} |\n`;
+
+    if (row === layout[0]) {
+      md += '| 震三宫 | 中五宫 | 兑七宫 |\n';
+    } else if (row === layout[1]) {
+      md += '| 艮八宫 | 坎一宫 | 乾六宫 |\n';
+    }
+  }
+
+  md += '\n## 九宫详情\n\n';
+  md += '| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 八门 | 八神 | 格局 | 旺衰 | 标记 |\n';
+  md += '|------|------|------|------|------|------|------|------|------|------|\n';
+
+  for (const p of palaces) {
+    const marks: string[] = [];
+    if (p.isKongWang) marks.push('空亡');
+    if (p.isYiMa) marks.push('驿马');
+    if (p.isRuMu) marks.push('入墓');
+    const formStr = p.formations.join('、') || '-';
+    const wangShuai = p.stemWangShuai || '-';
+    md += `| ${p.palaceName}${p.palaceIndex} | ${p.direction} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.gate || '-'} | ${p.deity || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |\n`;
+  }
+
+  if (globalFormations.length > 0) {
+    md += '\n## 格局总览\n\n';
+    for (const f of globalFormations) {
+      md += `- ${f}\n`;
+    }
+  }
+
+  return md;
+}
+
+/**
  * 根据工具名格式化结果
  */
 export function formatAsMarkdown(toolName: string, result: unknown): string {
@@ -625,6 +713,8 @@ export function formatAsMarkdown(toolName: string, result: unknown): string {
     case 'dayun_calculate':
     case 'bazi_dayun':
       return formatDayunAsMarkdown(result as DayunOutput);
+    case 'qimen_calculate':
+      return formatQimenAsMarkdown(result as QimenOutput);
     default:
       return JSON.stringify(result, null, 2);
   }

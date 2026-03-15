@@ -19,6 +19,7 @@ const MODULES: { id: string; label: string }[] = [
     { id: 'ziwei', label: '紫微斗数' },
     { id: 'tarot', label: '塔罗' },
     { id: 'liuyao', label: '六爻' },
+    { id: 'qimen', label: '奇门遁甲' },
     { id: 'face', label: '面相' },
     { id: 'palm', label: '手相' },
     { id: 'mbti', label: 'MBTI' },

@@ -71,6 +71,7 @@ const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideI
     'ziwei': { href: '/ziwei', label: '紫微斗数', icon: Sparkles },
     'tarot': { href: '/tarot', label: '塔罗', icon: Gem },
     'liuyao': { href: '/liuyao', label: '六爻', icon: Dices },
+    'qimen': { href: '/qimen', label: '奇门遁甲', icon: Compass },
     'face': { href: '/face', label: '面相', icon: ScanFace },
     'palm': { href: '/palm', label: '手相', icon: Hand },
     'mbti': { href: '/mbti', label: 'MBTI', icon: Brain },
@@ -90,7 +91,7 @@ const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideI
 
 // 抽屉中显示的默认顺序
 const DEFAULT_DRAWER_ORDER = [
-    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
+    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen',
     'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
     'user/upgrade', 'user/charts', 'user/notifications', 'user/orders',
     'user/settings/ai', 'user/knowledge-base', 'user/help'

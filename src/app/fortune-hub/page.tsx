@@ -59,6 +59,15 @@ const FORTUNE_SERVICES = [
         iconColor: 'text-yellow-500',
     },
     {
+        id: 'qimen',
+        name: '奇门遁甲',
+        description: '三式之首，预测时空能量格局',
+        icon: Compass,
+        href: '/qimen',
+        color: 'from-indigo-500/20 to-violet-500/20 border-indigo-500/30',
+        iconColor: 'text-indigo-500',
+    },
+    {
         id: 'hepan',
         name: '关系合盘',
         description: '分析双方八字的缘分契合度',

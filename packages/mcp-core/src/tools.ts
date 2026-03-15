@@ -12,6 +12,7 @@ import type {
   TarotInput,
   FortuneInput,
   DayunInput,
+  QimenInput,
 } from './types.js';
 
 export interface ToolAnnotation {
@@ -1627,6 +1628,92 @@ const baseTools: ToolDefinition[] = [
       openWorldHint: false,
     },
   },
+  {
+    name: 'qimen_calculate',
+    description: '奇门遁甲排盘 - 根据指定时间排出奇门遁甲盘，输出九宫（天盘/地盘天干、九星、八门、八神）、格局判断（吉凶格、伏吟反吟）、空亡、驿马、入墓、旺相休囚死等信息',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'number', description: '年 (1900-2100)' },
+        month: { type: 'number', description: '月 (1-12)' },
+        day: { type: 'number', description: '日 (1-31)' },
+        hour: { type: 'number', description: '时 (0-23)' },
+        minute: { type: 'number', description: '分 (0-59)，默认 0' },
+        question: { type: 'string', description: '占问事项（可选）' },
+        panType: { type: 'string', enum: ['zhuan'], description: '盘式：zhuan=转盘（默认）' },
+        juMethod: { type: 'string', enum: ['chaibu', 'maoshan'], description: '定局法：chaibu=拆补法（默认），maoshan=茅山法' },
+        responseFormat: {
+          type: 'string',
+          enum: ['json', 'markdown'],
+          description: '响应格式：json=结构化数据，markdown=人类可读文本',
+          default: 'json',
+        },
+      },
+      required: ['year', 'month', 'day', 'hour'],
+      examples: [
+        { year: 2026, month: 3, day: 15, hour: 16, minute: 51, question: '事业发展如何？' },
+      ],
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        dateInfo: {
+          type: 'object',
+          properties: {
+            solarDate: { type: 'string', description: '公历日期' },
+            lunarDate: { type: 'string', description: '农历日期' },
+            solarTerm: { type: 'string', description: '节气' },
+            solarTermRange: { type: 'string', description: '节气时间范围' },
+          },
+        },
+        siZhu: {
+          type: 'object',
+          description: '四柱',
+          properties: {
+            year: { type: 'string' }, month: { type: 'string' },
+            day: { type: 'string' }, hour: { type: 'string' },
+          },
+        },
+        dunType: { type: 'string', enum: ['yang', 'yin'], description: '阴阳遁' },
+        juNumber: { type: 'number', description: '局数' },
+        yuan: { type: 'string', description: '三元（上元/中元/下元）' },
+        xunShou: { type: 'string', description: '旬首' },
+        zhiFu: { type: 'object', description: '值符', properties: { star: { type: 'string' }, palace: { type: 'number' } } },
+        zhiShi: { type: 'object', description: '值使', properties: { gate: { type: 'string' }, palace: { type: 'number' } } },
+        palaces: {
+          type: 'array',
+          description: '九宫信息',
+          items: {
+            type: 'object',
+            properties: {
+              palaceIndex: { type: 'number', description: '宫位序号(1-9)' },
+              palaceName: { type: 'string', description: '卦名' },
+              direction: { type: 'string', description: '方位' },
+              element: { type: 'string', description: '宫五行' },
+              earthStem: { type: 'string', description: '地盘天干' },
+              heavenStem: { type: 'string', description: '天盘天干' },
+              star: { type: 'string', description: '九星' },
+              gate: { type: 'string', description: '八门' },
+              deity: { type: 'string', description: '八神' },
+              formations: { type: 'array', items: { type: 'string' }, description: '格局' },
+              isKongWang: { type: 'boolean', description: '是否空亡' },
+              isYiMa: { type: 'boolean', description: '是否驿马' },
+              isRuMu: { type: 'boolean', description: '是否入墓' },
+            },
+          },
+        },
+        kongWang: { type: 'object', description: '空亡信息' },
+        yiMa: { type: 'object', description: '驿马信息' },
+        globalFormations: { type: 'array', items: { type: 'string' }, description: '全局格局列表' },
+      },
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ];
 
 const LEGACY_TOOL_ALIASES: Record<string, string> = {
@@ -1651,4 +1738,4 @@ export const tools: ToolDefinition[] = [
   }),
 ];
 
-export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput;
+export type ToolInput = BaziInput | BaziPillarsResolveInput | ZiweiInput | ZiweiHoroscopeInput | ZiweiFlyingStarInput | LiuyaoInput | TarotInput | FortuneInput | DayunInput | QimenInput;

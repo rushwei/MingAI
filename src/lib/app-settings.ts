@@ -146,7 +146,7 @@ export async function setPurchaseLink(
 // ─── 功能模块开关 ───
 
 export const FEATURE_MODULE_IDS = [
-  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao',
+  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'qimen',
   'face', 'palm', 'mbti', 'chat', 'daily', 'monthly',
   'records', 'community', 'knowledge-base', 'mcp-service',
   'checkin', 'orders', 'charts', 'ai-personalization',
@@ -162,6 +162,7 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
   ziwei: '紫微斗数',
   tarot: '塔罗',
   liuyao: '六爻',
+  qimen: '奇门遁甲',
   face: '面相',
   palm: '手相',
   mbti: 'MBTI',

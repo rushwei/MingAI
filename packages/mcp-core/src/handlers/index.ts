@@ -11,3 +11,4 @@ export { handleLiuyaoAnalyze } from './liuyao.js';
 export { handleTarotDraw } from './tarot.js';
 export { handleDailyFortune } from './fortune.js';
 export { handleDayunCalculate } from './liunian.js';
+export { handleQimenCalculate } from './qimen.js';
