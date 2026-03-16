@@ -650,6 +650,10 @@ const markdownFormatters = {
     baziDayun: (result) => formatDayunAsMarkdown(result),
     qimen: (result) => formatQimenAsMarkdown(result),
 };
+export function hasMarkdownFormatter(toolName) {
+    const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
+    return !!(formatterKey && markdownFormatters[formatterKey]);
+}
 export function formatAsMarkdown(toolName, result) {
     const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
     const formatter = formatterKey ? markdownFormatters[formatterKey] : undefined;

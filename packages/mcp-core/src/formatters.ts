@@ -703,6 +703,11 @@ const markdownFormatters: Record<ToolFormatterKey, (result: unknown) => string> 
   qimen: (result) => formatQimenAsMarkdown(result as QimenOutput),
 };
 
+export function hasMarkdownFormatter(toolName: string): boolean {
+  const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
+  return !!(formatterKey && markdownFormatters[formatterKey]);
+}
+
 export function formatAsMarkdown(toolName: string, result: unknown): string {
   const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
   const formatter = formatterKey ? markdownFormatters[formatterKey] : undefined;
