@@ -14,6 +14,7 @@ import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from '
 import { supabase } from '@/lib/auth';
 import { writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
 
 type ChartType = 'bazi' | 'ziwei';
 
@@ -27,16 +28,6 @@ interface ChartItem {
     city: string | null;
     created_at: string;
     is_default: boolean;
-}
-
-interface ChartRow {
-    id: string;
-    name: string;
-    gender: 'male' | 'female' | null;
-    birth_date: string;
-    birth_time: string | null;
-    birth_place: string | null;
-    created_at: string;
 }
 
 const getChartIcon = (type: ChartType) => {
@@ -176,7 +167,6 @@ export default function ChartsPage() {
     const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
     const [ziweiCharts, setZiweiCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchCharts = async () => {
@@ -185,28 +175,10 @@ export default function ChartsPage() {
                 router.push('/login');
                 return;
             }
-            setUserId(session.user.id);
 
-            const [{ data: baziData }, { data: ziweiData }, { data: settings }] = await Promise.all([
-                supabase
-                    .from('bazi_charts')
-                    .select('*')
-                    .eq('user_id', session.user.id),
-                supabase
-                    .from('ziwei_charts')
-                    .select('*')
-                    .eq('user_id', session.user.id),
-                supabase
-                    .from('user_settings')
-                    .select('default_bazi_chart_id, default_ziwei_chart_id')
-                    .eq('user_id', session.user.id)
-                    .single(),
-            ]);
+            const { baziCharts: baziData, ziweiCharts: ziweiData, defaultChartIds } = await getUserCharts();
 
-            const defaultBaziId = settings?.default_bazi_chart_id;
-            const defaultZiweiId = settings?.default_ziwei_chart_id;
-
-            const formatChart = (c: ChartRow, type: ChartType, defaultId: string | undefined): ChartItem => ({
+            const formatChart = (c: typeof baziData[number], type: ChartType, defaultId: string | null): ChartItem => ({
                 id: c.id,
                 type,
                 name: c.name,
@@ -218,10 +190,10 @@ export default function ChartsPage() {
                 is_default: c.id === defaultId
             });
 
-            const parsedBazi = ((baziData as ChartRow[] | null) || []).map(c => formatChart(c, 'bazi', defaultBaziId))
+            const parsedBazi = (baziData || []).map(c => formatChart(c, 'bazi', defaultChartIds.bazi))
                 .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
 
-            const parsedZiwei = ((ziweiData as ChartRow[] | null) || []).map(c => formatChart(c, 'ziwei', defaultZiweiId))
+            const parsedZiwei = (ziweiData || []).map(c => formatChart(c, 'ziwei', defaultChartIds.ziwei))
                 .sort((a, b) => (a.is_default ? -1 : b.is_default ? 1 : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
 
             setBaziCharts(parsedBazi);
@@ -237,13 +209,9 @@ export default function ChartsPage() {
         e.stopPropagation();
         if (!confirm('确定要删除这个命盘吗？')) return;
 
-        const table = type === 'bazi' ? 'bazi_charts' : 'ziwei_charts';
-        const { error } = await supabase
-            .from(table)
-            .delete()
-            .eq('id', id);
-
-        if (error) {
+        try {
+            await deleteUserChart(type, id);
+        } catch (error) {
             console.error('删除命盘失败:', error);
             return;
         }
@@ -258,7 +226,6 @@ export default function ChartsPage() {
     const handleSetDefault = async (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!userId) return;
 
         // Optimistic update
         if (type === 'bazi') {
@@ -267,17 +234,12 @@ export default function ChartsPage() {
             setZiweiCharts(ziweiCharts.map(c => ({ ...c, is_default: c.id === id })));
         }
 
-        const field = type === 'bazi' ? 'default_bazi_chart_id' : 'default_ziwei_chart_id';
-        const { error } = await supabase
-            .from('user_settings')
-            .update({ [field]: id })
-            .eq('user_id', userId);
-
-        if (!error && type === 'bazi') {
-            writeLocalCache('mingai.pref.defaultBaziChartId', id);
-        }
-
-        if (error) {
+        try {
+            await setDefaultUserChart(type, id);
+            if (type === 'bazi') {
+                writeLocalCache('mingai.pref.defaultBaziChartId', id);
+            }
+        } catch (error) {
             console.error('设置默认命盘失败:', error);
         }
     };

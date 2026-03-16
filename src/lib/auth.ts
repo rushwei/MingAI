@@ -7,22 +7,26 @@
  */
 
 import type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
+import {
+    type BrowserApiError,
+    type BrowserApiPayload,
+    normalizeBrowserApiError as normalizeError,
+    requestBrowserJson,
+} from '@/lib/browser-api';
+import { browserSupabase } from '@/lib/browser-supabase';
+import {
+    getCurrentUserProfile,
+    loadCurrentUserProfileBundle,
+    updateAvatarUrl as updateAvatarProfile,
+    updateNickname as updateNicknameProfile,
+} from '@/lib/user/profile';
 
 export type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
 export type User = SupabaseUser;
 
-export type AuthError = {
-    message: string;
-    code?: string;
-};
+export type AuthError = BrowserApiError;
 
-type AuthPayload<T = unknown> = {
-    data: T | null;
-    error: AuthError | null;
-    count?: number | null;
-    status?: number;
-    statusText?: string;
-};
+type AuthPayload<T = unknown> = BrowserApiPayload<T>;
 
 export type AuthResult = {
     success: boolean;
@@ -31,40 +35,10 @@ export type AuthResult = {
 
 type AuthListener = (event: AuthChangeEvent, session: Session | null) => void;
 
-type UserProfile = {
-    id: string;
-    nickname: string | null;
-    avatar_url: string | null;
-    is_admin: boolean;
-    membership: string | null;
-    membership_expires_at: string | null;
-    ai_chat_count: number | null;
-    last_credit_restore_at: string | null;
-};
-
-type UserSettings = {
-    community_anonymous_name?: string | null;
-};
-
-type UserProfileBundle = {
-    profile: UserProfile | null;
-    settings: UserSettings | null;
-};
-
 type OtpType = 'signup' | 'magiclink' | 'recovery' | 'email_change' | 'email';
 
 const authListeners = new Set<AuthListener>();
 let cachedSession: Session | null = null;
-
-function normalizeError(raw: unknown): AuthError | null {
-    if (!raw) return null;
-    if (typeof raw === 'object' && raw && 'message' in raw) {
-        const message = String((raw as { message?: unknown }).message ?? 'Unknown error');
-        const code = 'code' in raw ? String((raw as { code?: unknown }).code ?? '') : undefined;
-        return code ? { message, code } : { message };
-    }
-    return { message: String(raw) };
-}
 
 function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
     for (const listener of authListeners) {
@@ -83,51 +57,8 @@ function applySession(session: Session | null, event?: AuthChangeEvent) {
     }
 }
 
-async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<{
-    ok: boolean;
-    status: number;
-    result: AuthPayload<T>;
-}> {
-    try {
-        const response = await fetch(input, {
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(init?.headers || {}),
-            },
-            ...init,
-        });
-
-        const payload = await response.json().catch(() => null) as
-            | { data?: T | null; error?: unknown; count?: number | null; status?: number; statusText?: string }
-            | null;
-
-        return {
-            ok: response.ok,
-            status: response.status,
-            result: {
-                data: (payload?.data ?? null) as T | null,
-                error: normalizeError(payload?.error ?? null),
-                count: payload?.count ?? null,
-                status: payload?.status,
-                statusText: payload?.statusText,
-            },
-        };
-    } catch (error) {
-        return {
-            ok: false,
-            status: 500,
-            result: {
-                data: null,
-                error: normalizeError(error) || { message: 'Request failed' },
-            },
-        };
-    }
-}
-
 async function requestJson<T>(url: string, init?: RequestInit): Promise<AuthPayload<T>> {
-    const { result } = await fetchJson<T>(url, init);
-    return result;
+    return requestBrowserJson<T>(url, init);
 }
 
 async function postAuthAction<T>(action: string, payload: Record<string, unknown> = {}): Promise<AuthPayload<T>> {
@@ -148,19 +79,6 @@ async function loadSessionFromServer(): Promise<AuthPayload<{ session: Session |
         applySession(result.data?.session ?? null);
     }
     return result;
-}
-
-async function loadCurrentUserProfile(): Promise<UserProfileBundle | null> {
-    const result = await requestJson<UserProfileBundle>('/api/user/profile', {
-        method: 'GET',
-    });
-
-    if (result.error) {
-        console.error('[auth] failed to load user profile:', result.error.message);
-        return null;
-    }
-
-    return result.data ?? null;
 }
 
 export const supabase = {
@@ -300,6 +218,15 @@ export const supabase = {
             };
         },
     },
+
+    // 过渡期兼容：仍有页面直接依赖 supabase.from/rpc，统一转发到浏览器查询客户端
+    from(table: string) {
+        return browserSupabase.from(table);
+    },
+
+    rpc(fn: string, args?: Record<string, unknown>) {
+        return browserSupabase.rpc(fn, args);
+    },
 };
 
 export const authClient = supabase;
@@ -379,21 +306,11 @@ export async function getSession() {
 }
 
 export async function getUserProfile(userId?: string) {
-    const bundle = await loadCurrentUserProfile();
-    const profile = bundle?.profile ?? null;
-
-    if (!profile) {
-        return null;
-    }
-    if (userId && profile.id !== userId) {
-        return null;
-    }
-
-    return profile;
+    return getCurrentUserProfile(userId);
 }
 
 export async function getCurrentUserProfileBundle() {
-    return loadCurrentUserProfile();
+    return loadCurrentUserProfileBundle();
 }
 
 export async function ensureUserRecord(user: SupabaseUser) {
@@ -411,17 +328,14 @@ export async function ensureUserRecord(user: SupabaseUser) {
 export async function updateNickname(userId: string, nickname: string): Promise<AuthResult> {
     void userId;
 
-    const result = await requestJson<UserProfileBundle>('/api/user/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({ nickname }),
-    });
+    const result = await updateNicknameProfile(nickname);
 
-    if (result.error) {
+    if (!result.success) {
         return {
             success: false,
             error: {
                 message: '更新失败，请重试',
-                code: result.error.code || result.error.message,
+                code: result.error?.code || result.error?.message,
             },
         };
     }
@@ -436,6 +350,31 @@ export async function updateNickname(userId: string, nickname: string): Promise<
 
     return { success: true };
 }
+
+export async function updateAvatarUrl(avatarUrl: string | null): Promise<AuthResult> {
+    const result = await updateAvatarProfile(avatarUrl);
+
+    if (!result.success) {
+        return {
+            success: false,
+            error: {
+                message: '更新头像失败，请重试',
+                code: result.error?.code || result.error?.message,
+            },
+        };
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+    });
+
+    if (authError) {
+        console.warn('[auth] failed to sync auth avatar:', authError.message);
+    }
+
+    return { success: true };
+}
+
 
 export async function resetPassword(email: string): Promise<AuthResult> {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {

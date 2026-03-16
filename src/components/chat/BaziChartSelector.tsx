@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Search, Orbit, Star, Check } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { getUserCharts } from '@/lib/user/charts';
 
 interface ChartItem {
     id: string;
@@ -69,27 +69,12 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
         const loadCharts = async () => {
             setLoading(true);
 
-            const [baziResult, ziweiResult] = await Promise.all([
-                supabase
-                    .from('bazi_charts')
-                    .select('id, name, gender, birth_date, birth_time')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false }),
-                supabase
-                    .from('ziwei_charts')
-                    .select('id, name, gender, birth_date, birth_time')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false }),
-            ]);
+            const { baziCharts, ziweiCharts } = await getUserCharts();
 
             const allCharts: ChartItem[] = [];
 
-            if (!baziResult.error && baziResult.data) {
-                allCharts.push(...baziResult.data.map((c: Record<string, unknown>) => ({ ...c, type: 'bazi' as const })));
-            }
-            if (!ziweiResult.error && ziweiResult.data) {
-                allCharts.push(...ziweiResult.data.map((c: Record<string, unknown>) => ({ ...c, type: 'ziwei' as const })));
-            }
+            allCharts.push(...baziCharts.map((chart) => ({ ...chart, type: 'bazi' as const })));
+            allCharts.push(...ziweiCharts.map((chart) => ({ ...chart, type: 'ziwei' as const })));
 
             setCharts(allCharts);
             setLoading(false);

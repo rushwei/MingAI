@@ -10,6 +10,7 @@ import { supabase } from '@/lib/auth';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User } from '@/lib/auth';
+import { uploadAvatarForCurrentUser } from '@/lib/user/profile';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
 import { StatusBanner } from '@/components/profile/StatusBanner';
@@ -93,9 +94,6 @@ export default function ProfilePage() {
         if (result.success) {
             setOriginalNickname(nickname.trim());
             writeProfileCache(user.id, nickname.trim(), avatarUrl);
-            supabase.auth.updateUser({ data: { nickname: nickname.trim() } }).catch(() => {
-                // 更新失败不影响页面展示
-            });
             setSuccess('昵称已更新');
             setTimeout(() => setSuccess(''), 3000);
         } else {
@@ -127,34 +125,14 @@ export default function ProfilePage() {
         setError('');
 
         try {
-            // 上传到 Supabase Storage
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file, { upsert: true });
-
-            if (uploadError) throw uploadError;
-            const publicUrl = uploadData?.publicUrl as string | undefined;
-            if (!publicUrl) {
-                throw new Error('头像 URL 生成失败');
+            const uploadResult = await uploadAvatarForCurrentUser(user.id, file);
+            if (!uploadResult.success || !uploadResult.publicUrl) {
+                throw new Error(uploadResult.error?.message || '头像上传失败');
             }
-
-            // 更新用户资料
-            const { error: updateError } = await supabase
-                .from('users')
-                .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
-                .eq('id', user.id);
-
-            if (updateError) throw updateError;
+            const publicUrl = uploadResult.publicUrl;
 
             setAvatarUrl(publicUrl);
             writeProfileCache(user.id, nickname || null, publicUrl);
-            supabase.auth.updateUser({ data: { avatar_url: publicUrl } }).catch(() => {
-                // 更新失败不影响页面展示
-            });
             setSuccess('头像已更新');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {

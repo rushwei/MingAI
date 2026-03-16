@@ -1,6 +1,15 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
+type UserProfilePatchBody = {
+    profile?: {
+        nickname?: unknown;
+        avatar_url?: unknown;
+    };
+    nickname?: unknown;
+    avatar_url?: unknown;
+};
+
 function buildEnsurePayload(user: { id: string; user_metadata?: Record<string, unknown> }) {
     return {
         id: user.id,
@@ -15,30 +24,26 @@ function buildEnsurePayload(user: { id: string; user_metadata?: Record<string, u
     };
 }
 
+async function loadProfile(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
+    return auth.supabase
+        .from('users')
+        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+        .eq('id', auth.user.id)
+        .maybeSingle();
+}
+
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-    const [profileResult, settingsResult] = await Promise.all([
-        auth.supabase
-            .from('users')
-            .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
-            .eq('id', auth.user.id)
-            .maybeSingle(),
-        auth.supabase
-            .from('user_settings')
-            .select('community_anonymous_name')
-            .eq('user_id', auth.user.id)
-            .maybeSingle(),
-    ]);
-
+    const profileResult = await loadProfile(auth);
     if (profileResult.error) {
         return jsonError('获取用户资料失败', 500);
     }
 
     return jsonOk({
         profile: profileResult.data ?? null,
-        settings: settingsResult.data ?? null,
+        settings: null,
     });
 }
 
@@ -76,34 +81,48 @@ export async function PATCH(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-    let body: { nickname?: unknown; avatar_url?: unknown };
+    let body: UserProfilePatchBody;
     try {
-        body = await request.json() as { nickname?: unknown; avatar_url?: unknown };
+        body = await request.json() as UserProfilePatchBody;
     } catch {
         return jsonError('请求体不是合法 JSON', 400);
     }
 
+    const profileInput = body.profile ?? {};
+    const nicknameInput = profileInput.nickname ?? body.nickname;
+    const avatarUrlInput = profileInput.avatar_url ?? body.avatar_url;
+
     const updatePayload: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
     };
+    let shouldUpdateUser = false;
 
-    if (typeof body.nickname === 'string') {
-        updatePayload.nickname = body.nickname.trim();
+    if (typeof nicknameInput === 'string') {
+        updatePayload.nickname = nicknameInput.trim();
+        shouldUpdateUser = true;
     }
-    if (typeof body.avatar_url === 'string' || body.avatar_url === null) {
-        updatePayload.avatar_url = body.avatar_url;
+    if (typeof avatarUrlInput === 'string' || avatarUrlInput === null) {
+        updatePayload.avatar_url = avatarUrlInput;
+        shouldUpdateUser = true;
     }
 
-    const { data, error } = await auth.supabase
+    if (!shouldUpdateUser) {
+        return jsonError('没有可更新的资料字段', 400);
+    }
+
+    const updateResult = await auth.supabase
         .from('users')
         .update(updatePayload)
         .eq('id', auth.user.id)
         .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
         .maybeSingle();
 
-    if (error) {
+    if (updateResult.error) {
         return jsonError('更新用户资料失败', 500);
     }
 
-    return jsonOk({ profile: data ?? null });
+    return jsonOk({
+        profile: updateResult.data ?? null,
+        settings: null,
+    });
 }

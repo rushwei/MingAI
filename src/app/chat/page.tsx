@@ -35,7 +35,7 @@ import {
     deleteConversation,
     renameConversation,
 } from '@/lib/chat/conversation';
-import { supabase } from '@/lib/auth';
+import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
@@ -286,25 +286,30 @@ export default function ChatPage() {
             setPromptKnowledgeBases([]);
             return;
         }
-        const { data: settings } = await supabase
-            .from('user_settings')
-            .select('prompt_kb_ids')
-            .eq('user_id', id)
-            .maybeSingle();
-        const rawIds = Array.isArray((settings as { prompt_kb_ids?: unknown })?.prompt_kb_ids)
-            ? (settings as { prompt_kb_ids: unknown[] }).prompt_kb_ids
+        const bundle = await getCurrentUserProfileBundle();
+        const rawIds = Array.isArray(bundle?.settings?.prompt_kb_ids)
+            ? bundle.settings.prompt_kb_ids
             : [];
         const kbIds = rawIds.filter((value): value is string => typeof value === 'string' && value.length > 0);
         if (kbIds.length === 0) {
             setPromptKnowledgeBases([]);
             return;
         }
-        const { data: kbs } = await supabase
-            .from('knowledge_bases')
-            .select('id, name, description')
-            .eq('user_id', id)
-            .in('id', kbIds);
-        const kbMap = new Map((kbs || []).map((kb: { id: string; name: string; description: string | null }) => [kb.id, kb]));
+        const response = await fetch('/api/knowledge-base', {
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            setPromptKnowledgeBases([]);
+            return;
+        }
+        const payload = await response.json().catch(() => null) as {
+            data?: {
+                knowledgeBases?: Array<{ id: string; name: string; description: string | null }>;
+            } | null;
+            knowledgeBases?: Array<{ id: string; name: string; description: string | null }>;
+        } | null;
+        const knowledgeBases = payload?.data?.knowledgeBases ?? payload?.knowledgeBases ?? [];
+        const kbMap = new Map(knowledgeBases.map((kb) => [kb.id, kb]));
         const ordered = kbIds.map(kbId => kbMap.get(kbId)).filter(Boolean) as Array<{ id: string; name: string; description: string | null }>;
         setPromptKnowledgeBases(ordered);
     }, [userId, isFeatureEnabled]);

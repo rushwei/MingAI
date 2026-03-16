@@ -7,7 +7,7 @@
  * - Pro: 立即+200次，每小时+1次，上限200次
  */
 
-import { supabase } from '@/lib/auth';
+import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
 
 export type MembershipType = 'free' | 'plus' | 'pro';
 
@@ -119,18 +119,17 @@ export function getCreditLimit(type: MembershipType): number {
  * 获取用户会员信息
  */
 export async function getMembershipInfo(userId: string): Promise<MembershipInfo | null> {
-    const { data, error } = await supabase
-        .from('users')
-        .select('membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
-        .eq('id', userId)
-        .maybeSingle();
+    const bundle = await getCurrentUserProfileBundle();
+    const profile = bundle?.profile ?? null;
 
-    if (error) {
-        console.error('Error fetching membership:', error);
+    if (!profile) {
+        return null;
+    }
+    if (profile.id !== userId) {
         return null;
     }
 
-    return buildMembershipInfo(data);
+    return buildMembershipInfo(profile);
 }
 
 export function buildMembershipInfo(source: MembershipInfoSource | null): MembershipInfo {
