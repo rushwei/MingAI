@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as mcpCore from '../dist/index.js';
 
-test('tarot_draw should be deterministic with identical seed', async () => {
+test('tarot should be deterministic with identical seed', async () => {
   const seed = 'seed-tarot-1';
   const input = { spreadType: 'three-card', question: '感情', allowReversed: true, seed };
 
@@ -14,7 +14,7 @@ test('tarot_draw should be deterministic with identical seed', async () => {
   assert.deepEqual(a.cards, b.cards);
 });
 
-test('daily_fortune should return consistent results for same date', async () => {
+test('almanac should return consistent results for same date', async () => {
   const input = { dayMaster: '甲', date: '2026-02-11' };
 
   const a = await mcpCore.handleDailyFortune(input);
@@ -29,16 +29,16 @@ test('daily_fortune should return consistent results for same date', async () =>
   assert.equal(a.luckyDirection, undefined);
 });
 
-test('daily_fortune schema should not expose removed guidance fields', async () => {
-  const tool = mcpCore.tools.find((item) => item.name === 'daily_fortune');
-  assert.ok(tool, 'daily_fortune tool missing');
+test('almanac schema should not expose removed guidance fields', async () => {
+  const tool = mcpCore.tools.find((item) => item.name === 'almanac');
+  assert.ok(tool, 'almanac tool missing');
   assert.equal(tool.outputSchema?.properties?.scores, undefined);
   assert.equal(tool.outputSchema?.properties?.advice, undefined);
   assert.equal(tool.outputSchema?.properties?.luckyColor, undefined);
   assert.equal(tool.outputSchema?.properties?.luckyDirection, undefined);
 });
 
-test('liuyao_analyze(auto) should be deterministic with identical seed', async () => {
+test('liuyao(auto) should be deterministic with identical seed', async () => {
   const seed = 'seed-liuyao-1';
   const input = {
     question: '这周项目顺利吗',

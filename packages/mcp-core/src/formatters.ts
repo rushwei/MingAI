@@ -14,6 +14,7 @@ import {
   sortYaosDescending,
 } from './liuyao-core.js';
 import { STEM_ELEMENTS } from './utils.js';
+import { getToolRegistryEntry, type ToolFormatterKey } from './tool-registry.js';
 
 /**
  * 格式化八字结果为 Markdown
@@ -689,35 +690,27 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
 /**
  * 根据工具名格式化结果
  */
+const markdownFormatters: Record<ToolFormatterKey, (result: unknown) => string> = {
+  bazi: (result) => formatBaziAsMarkdown(result as BaziOutput),
+  baziPillarsResolve: (result) => formatBaziPillarsResolveAsMarkdown(result as BaziPillarsResolveOutput),
+  ziwei: (result) => formatZiweiAsMarkdown(result as ZiweiOutput),
+  ziweiHoroscope: (result) => formatZiweiHoroscopeAsMarkdown(result as ZiweiHoroscopeOutput),
+  ziweiFlyingStar: (result) => formatZiweiFlyingStarAsMarkdown(result as ZiweiFlyingStarOutput),
+  liuyao: (result) => formatLiuyaoAsMarkdown(result as LiuyaoOutput),
+  tarot: (result) => formatTarotAsMarkdown(result as TarotOutput),
+  almanac: (result) => formatDailyFortuneAsMarkdown(result as FortuneOutput),
+  baziDayun: (result) => formatDayunAsMarkdown(result as DayunOutput),
+  qimen: (result) => formatQimenAsMarkdown(result as QimenOutput),
+};
+
 export function formatAsMarkdown(toolName: string, result: unknown): string {
-  switch (toolName) {
-    case 'bazi_calculate':
-      return formatBaziAsMarkdown(result as BaziOutput);
-    case 'bazi_pillars_resolve':
-      return formatBaziPillarsResolveAsMarkdown(result as BaziPillarsResolveOutput);
-    case 'ziwei_calculate':
-      return formatZiweiAsMarkdown(result as ZiweiOutput);
-    case 'ziwei_horoscope':
-      return formatZiweiHoroscopeAsMarkdown(result as ZiweiHoroscopeOutput);
-    case 'ziwei_flying_star':
-      return formatZiweiFlyingStarAsMarkdown(result as ZiweiFlyingStarOutput);
-    case 'liuyao_analyze':
-    case 'liuyao':
-      return formatLiuyaoAsMarkdown(result as LiuyaoOutput);
-    case 'tarot_draw':
-    case 'tarot':
-      return formatTarotAsMarkdown(result as TarotOutput);
-    case 'daily_fortune':
-    case 'almanac':
-      return formatDailyFortuneAsMarkdown(result as FortuneOutput);
-    case 'dayun_calculate':
-    case 'bazi_dayun':
-      return formatDayunAsMarkdown(result as DayunOutput);
-    case 'qimen_calculate':
-      return formatQimenAsMarkdown(result as QimenOutput);
-    default:
-      return JSON.stringify(result, null, 2);
+  const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
+  const formatter = formatterKey ? markdownFormatters[formatterKey] : undefined;
+  if (!formatter) {
+    return JSON.stringify(result, null, 2);
   }
+
+  return formatter(result);
 }
 
 // 辅助函数：格式化星曜标签（名称+亮度+四化+自化）

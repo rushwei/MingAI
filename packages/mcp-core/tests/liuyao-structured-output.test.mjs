@@ -7,8 +7,8 @@ const LIU_QIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 const MOVEMENT_STATES = ['static', 'changing', 'hidden_moving', 'day_break'];
 
 test('liuyao schema removes deprecated top-level fields and exposes refactored structures', () => {
-  const tool = mcpCore.tools.find((t) => t.name === 'liuyao_analyze');
-  assert.ok(tool, 'liuyao_analyze tool missing');
+  const tool = mcpCore.tools.find((t) => t.name === 'liuyao');
+  assert.ok(tool, 'liuyao tool missing');
 
   const inputProps = tool.inputSchema?.properties;
   assert.equal(inputProps?.question?.type, 'string');

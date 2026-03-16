@@ -102,10 +102,12 @@ function getXunShou(dayStem, dayBranch) {
 export async function handleQimenCalculate(input) {
     const { year, month, day, hour, minute = 0 } = input;
     const juMethod = input.juMethod || 'chaibu';
+    const zhiFuJiGong = input.zhiFuJiGong || 'ji_liuyi';
     const elementsOption = juMethod === 'maoshan' ? 2 : 1;
+    const followOption = zhiFuJiGong === 'ji_wugong' ? 0 : 1;
     // 调用 taobi 排盘
     const date = new Date(year, month - 1, day, hour, minute);
-    const t = new TheArtOfBecomingInvisible(date, null, null, null, { elements: elementsOption });
+    const t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
     // 基本信息
     const round = t.round;
     const dunType = round > 0 ? 'yang' : 'yin';

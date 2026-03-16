@@ -120,6 +120,7 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
         minute: input.minute,
         question: input.question,
         juMethod: input.juMethod,
+        zhiFuJiGong: input.zhiFuJiGong === 'jiWuGong' ? 'ji_wugong' : 'ji_liuyi',
     };
 
     const core: CoreOutput = await coreCalculate(coreInput);

@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import * as mcpCore from '../dist/index.js';
 
 test('liuyao schema no longer exposes score or confidence fields', () => {
-  const tool = mcpCore.tools.find((item) => item.name === 'liuyao_analyze');
-  assert.ok(tool, 'liuyao_analyze tool missing');
+  const tool = mcpCore.tools.find((item) => item.name === 'liuyao');
+  assert.ok(tool, 'liuyao tool missing');
 
   const fullYao = tool.outputSchema?.properties?.fullYaos?.items?.properties;
   assert.equal(fullYao?.strengthScore, undefined);

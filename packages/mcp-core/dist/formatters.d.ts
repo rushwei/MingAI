@@ -42,8 +42,5 @@ export declare function formatDayunAsMarkdown(result: DayunOutput): string;
  * 格式化奇门遁甲结果为 Markdown
  */
 export declare function formatQimenAsMarkdown(result: QimenOutput): string;
-/**
- * 根据工具名格式化结果
- */
 export declare function formatAsMarkdown(toolName: string, result: unknown): string;
 //# sourceMappingURL=formatters.d.ts.map

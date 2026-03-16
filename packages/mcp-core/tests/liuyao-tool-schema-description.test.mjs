@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import * as mcpCore from '../dist/index.js';
 
 test('liuyao tool description guides target selection by question semantics', () => {
-  const tool = mcpCore.tools.find((item) => item.name === 'liuyao_analyze');
-  assert.ok(tool, 'liuyao_analyze tool missing');
+  const tool = mcpCore.tools.find((item) => item.name === 'liuyao');
+  assert.ok(tool, 'liuyao tool missing');
   assert.equal(tool.inputSchema?.required?.includes('yongShenTargets'), true);
 
   assert.match(

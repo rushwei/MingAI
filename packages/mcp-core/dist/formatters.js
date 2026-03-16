@@ -3,6 +3,7 @@
  */
 import { YONG_SHEN_STATUS_LABELS, WANG_SHUAI_LABELS, KONG_WANG_LABELS, YAO_POSITION_NAMES, traditionalYaoName, formatGanZhiTime, formatGuaLevelLines, sortYaosDescending, } from './liuyao-core.js';
 import { STEM_ELEMENTS } from './utils.js';
+import { getToolRegistryEntry } from './tool-registry.js';
 /**
  * 格式化八字结果为 Markdown
  */
@@ -637,35 +638,25 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
 /**
  * 根据工具名格式化结果
  */
+const markdownFormatters = {
+    bazi: (result) => formatBaziAsMarkdown(result),
+    baziPillarsResolve: (result) => formatBaziPillarsResolveAsMarkdown(result),
+    ziwei: (result) => formatZiweiAsMarkdown(result),
+    ziweiHoroscope: (result) => formatZiweiHoroscopeAsMarkdown(result),
+    ziweiFlyingStar: (result) => formatZiweiFlyingStarAsMarkdown(result),
+    liuyao: (result) => formatLiuyaoAsMarkdown(result),
+    tarot: (result) => formatTarotAsMarkdown(result),
+    almanac: (result) => formatDailyFortuneAsMarkdown(result),
+    baziDayun: (result) => formatDayunAsMarkdown(result),
+    qimen: (result) => formatQimenAsMarkdown(result),
+};
 export function formatAsMarkdown(toolName, result) {
-    switch (toolName) {
-        case 'bazi_calculate':
-            return formatBaziAsMarkdown(result);
-        case 'bazi_pillars_resolve':
-            return formatBaziPillarsResolveAsMarkdown(result);
-        case 'ziwei_calculate':
-            return formatZiweiAsMarkdown(result);
-        case 'ziwei_horoscope':
-            return formatZiweiHoroscopeAsMarkdown(result);
-        case 'ziwei_flying_star':
-            return formatZiweiFlyingStarAsMarkdown(result);
-        case 'liuyao_analyze':
-        case 'liuyao':
-            return formatLiuyaoAsMarkdown(result);
-        case 'tarot_draw':
-        case 'tarot':
-            return formatTarotAsMarkdown(result);
-        case 'daily_fortune':
-        case 'almanac':
-            return formatDailyFortuneAsMarkdown(result);
-        case 'dayun_calculate':
-        case 'bazi_dayun':
-            return formatDayunAsMarkdown(result);
-        case 'qimen_calculate':
-            return formatQimenAsMarkdown(result);
-        default:
-            return JSON.stringify(result, null, 2);
+    const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
+    const formatter = formatterKey ? markdownFormatters[formatterKey] : undefined;
+    if (!formatter) {
+        return JSON.stringify(result, null, 2);
     }
+    return formatter(result);
 }
 // 辅助函数：格式化星曜标签（名称+亮度+四化+自化）
 function formatStarLabel(s) {
