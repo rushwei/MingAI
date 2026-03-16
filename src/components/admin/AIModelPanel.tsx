@@ -11,7 +11,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Loader2,
     RefreshCw,
     Check,
     X,
@@ -20,7 +19,8 @@ import {
     Zap,
     Eye,
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 
 // 类型定义
@@ -201,11 +201,7 @@ export function AIModelPanel() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     if (error) {
@@ -306,7 +302,7 @@ export function AIModelPanel() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    {isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {isUpdating && <SoundWaveLoader variant="inline" />}
                                     {isExpanded ? (
                                         <ChevronUp className="w-5 h-5 text-foreground-secondary" />
                                     ) : (

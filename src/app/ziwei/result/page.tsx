@@ -6,7 +6,8 @@
 import { useMemo, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Loader2, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
+import { Star, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { calculateZiwei, type ZiweiFormData } from '@/lib/divination/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
@@ -329,12 +330,7 @@ function ZiweiResultContent() {
     }, [saving, saved, setMenuItems, clearMenuItems, handleEdit, handleSave, handleShare]);
 
     if (loading) {
-        return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">正在加载命盘...</p>
-            </div>
-        );
+        return <SoundWaveLoader variant="block" text="正在加载命盘" />;
     }
 
     if (notFound) {
@@ -392,7 +388,7 @@ function ZiweiResultContent() {
                         {saved ? (
                             <><Check className="w-4 h-4" />已保存</>
                         ) : saving ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" />保存中</>
+                            <><SoundWaveLoader variant="inline" />保存中</>
                         ) : (
                             <><Save className="w-4 h-4" />保存</>
                         )}
@@ -502,10 +498,7 @@ function ZiweiResultContent() {
 export default function ZiweiResultPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">正在排盘...</p>
-            </div>
+            <SoundWaveLoader variant="block" text="正在排盘" />
         }>
             <ZiweiResultContent />
         </Suspense>

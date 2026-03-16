@@ -7,7 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Brain, Play, Loader2, Eye } from 'lucide-react';
+import { Brain, Play, Eye } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -55,7 +56,7 @@ function MBTIPageContent() {
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {questions.length === 0 ? (
                                 <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                     <span>准备试题中...</span>
                                 </>
                             ) : (

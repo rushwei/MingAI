@@ -1,4 +1,5 @@
-import { Camera, Loader2, User as UserIcon } from 'lucide-react';
+import { Camera, User as UserIcon } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 export function AvatarSection({
     fileInputRef,
@@ -28,7 +29,7 @@ export function AvatarSection({
                     onClick={onAvatarClick}
                 >
                     {uploadingAvatar ? (
-                        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                        <SoundWaveLoader variant="inline" />
                     ) : avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl} alt="头像" className="w-full h-full object-cover" />

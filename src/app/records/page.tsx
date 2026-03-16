@@ -37,6 +37,7 @@ import {
 import { supabase } from '@/lib/auth';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 // =====================================================
 // 记录卡片组件
@@ -424,7 +425,7 @@ function DailyNotes({
                             title="发送 (Enter)"
                         >
                             {loading ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                             ) : (
                                 <ChevronRight className="w-4 h-4" />
                             )}
@@ -910,13 +911,7 @@ export default function RecordsPage() {
 
                     {/* 记录列表 */}
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                            <div className="relative w-12 h-12">
-                                <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
-                                <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-                            </div>
-                            <p className="text-foreground-secondary animate-pulse">加载记录中...</p>
-                        </div>
+                        <SoundWaveLoader variant="block" text="加载记录中" />
                     ) : records.length === 0 ? (
                         <div className="py-20 text-center">
                             <div className="w-24 h-24 bg-background-secondary/50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1011,7 +1006,7 @@ export default function RecordsPage() {
                                 <div className="p-4 sm:p-6 space-y-4">
                                     {kbLoading ? (
                                         <div className="flex items-center justify-center py-8">
-                                            <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                                            <SoundWaveLoader variant="inline" />
                                         </div>
                                     ) : (
                                         <div className="space-y-2">

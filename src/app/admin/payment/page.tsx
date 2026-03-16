@@ -11,8 +11,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, ToggleLeft, Key, Link2 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { ArrowLeft, ToggleLeft, Key, Link2 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { PaymentPausePanel } from '@/components/admin/PaymentPausePanel';
 import { KeyManagementPanel } from '@/components/admin/KeyManagementPanel';
 import { PurchaseLinkPanel } from '@/components/admin/PurchaseLinkPanel';
@@ -71,7 +72,7 @@ export default function AdminPaymentPage() {
     if (state.loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <SoundWaveLoader variant="block" text="加载中" />
             </div>
         );
     }

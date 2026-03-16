@@ -292,10 +292,10 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             )}
             <MarkdownContent content={message.content} className="text-base text-foreground" />
             {isCurrentStreaming && !message.content && (
-                <div className="mt-2 inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/70 animate-bounce" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-bounce [animation-delay:120ms]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce [animation-delay:240ms]" />
+                <div className="mt-2 inline-flex items-end gap-[2px] h-4">
+                    {[0, 1, 2, 3].map((i) => (
+                        <span key={i} className="sound-wave-bar w-[2px] rounded-full bg-foreground/60" style={{ animationDelay: `${i * 0.15}s` }} />
+                    ))}
                 </div>
             )}
             {/* 来源面板 */}

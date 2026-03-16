@@ -10,14 +10,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { History, ChevronLeft, Calendar, X } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai/ai-config';
 
 // 支持的历史类型
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face' | 'qimen';
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face' | 'daliuren';
+type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
 
 // 格式化日期（提取到组件外部，避免每次渲染重新创建）
 function formatDate(dateStr: string): string {
@@ -54,8 +54,6 @@ const TYPE_CONFIG: Record<HistoryType, {
     hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
     palm: { label: '手相历史', tableName: 'palm_readings', historyPath: '/palm/history', detailPath: '/palm/result', sessionKey: 'palm_result' },
     face: { label: '面相历史', tableName: 'face_readings', historyPath: '/face/history', detailPath: '/face/result', sessionKey: 'face_result' },
-    qimen: { label: '奇门历史', tableName: 'qimen_charts', historyPath: '/qimen/history', detailPath: '/qimen/result', sessionKey: 'qimen_result' },
-    daliuren: { label: '六壬历史', tableName: 'daliuren_divinations', historyPath: '/daliuren/history', detailPath: '/daliuren/result', sessionKey: 'daliuren_params', useTimestamp: true },
 };
 
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
@@ -194,30 +192,6 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                         'wealth': '财运分析',
                     };
                     title = analysisNames[analysisType] || '面相分析';
-                } else if (type === 'qimen') {
-                    const dunType = item.dun_type as string;
-                    const juNumber = item.ju_number as number;
-                    const dunText = dunType === 'yang' ? '阳遁' : '阴遁';
-                    title = `${dunText}${juNumber}局`;
-                    const question = (item.question as string)?.trim();
-                    return {
-                        id: item.id as string,
-                        title,
-                        question: question || undefined,
-                        createdAt: item.created_at as string,
-                } else if (type === 'daliuren') {
-                    const resultData = item.result_data as Record<string, unknown> | null;
-                    const keName = resultData?.keName as string | undefined;
-                    title = keName || `${item.day_ganzhi as string}日`;
-                    const question = (item.question as string)?.trim();
-                    return {
-                        id: item.id as string,
-                        title: title.length > 18 ? title.slice(0, 18) + '...' : title,
-                        question: question || undefined,
-                        createdAt: item.created_at as string,
-                        subType,
-                        modelName,
-                    };
                 }
                 return {
                     id: item.id as string,
@@ -389,24 +363,6 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     conversationId: data.conversation_id || null,
                 };
                 writeSessionJSON(config.sessionKey, sessionData);
-            } else if (type === 'qimen') {
-                const sessionData = {
-                    ...(data.chart_data as object),
-                    question: data.question,
-                    createdAt: data.created_at,
-                    chartId: data.id,
-                    conversationId: data.conversation_id || null,
-            } else if (type === 'daliuren') {
-                // 大六壬：恢复排盘参数，结果页会重新起课
-                const settings = (data.settings as Record<string, unknown>) || {};
-                const sessionData = {
-                    date: data.solar_date,
-                    hour: settings.hour ?? 0,
-                    minute: settings.minute ?? 0,
-                    question: data.question || undefined,
-                    divinationId: data.id,
-                };
-                writeSessionJSON(config.sessionKey, sessionData);
             }
 
             // 关闭抽屉并导航
@@ -569,7 +525,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                         {/* 加载指示器 */}
                                         {navigating === item.id && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-                                                <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+                                                <SoundWaveLoader variant="inline" />
                                             </div>
                                         )}
                                         <div className="flex items-start gap-3 relative z-10">

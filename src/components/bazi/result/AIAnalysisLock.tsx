@@ -8,7 +8,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Sparkles, Loader2, Coins } from 'lucide-react';
+import { Lock, Sparkles, Coins } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 interface AIAnalysisLockProps {
     /** 分析类型 */
@@ -155,7 +156,7 @@ export function AIAnalysisLock({
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 解锁中...
                             </>
                         ) : (

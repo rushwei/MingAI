@@ -10,13 +10,13 @@ import {
     CalendarCheck,
     Flame,
     Gift,
-    Loader2,
     Trophy,
     CheckCircle2,
     X,
     Calendar,
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { CalendarModal } from '@/components/checkin/CalendarModal';
 
@@ -237,7 +237,7 @@ export function CheckinModal({ isOpen, onClose, onCheckinSuccess }: CheckinModal
                                                 } ${checking ? 'cursor-wait opacity-90' : ''}`}
                                         >
                                             {checking ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <SoundWaveLoader variant="inline" />
                                             ) : status?.todayCheckedIn ? (
                                                 <>
                                                     <CheckCircle2 className="w-4 h-4" />

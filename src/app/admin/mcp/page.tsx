@@ -6,8 +6,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Key } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { ArrowLeft, Key } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { McpKeyManagementPanel } from '@/components/admin/McpKeyManagementPanel';
 
 type AdminState = {
@@ -62,7 +63,7 @@ export default function AdminMcpPage() {
     if (state.loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <SoundWaveLoader variant="block" text="加载中" />
             </div>
         );
     }

@@ -25,6 +25,7 @@ import {
     type LucideIcon,
     type LucideProps
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/auth';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -267,13 +268,7 @@ export default function CommunityPage() {
 
                 {/* 帖子列表 */}
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                        <div className="relative w-12 h-12">
-                            <div className="absolute inset-0 border-4 border-purple-100 dark:border-purple-900 rounded-full"></div>
-                            <div className="absolute inset-0 border-4 border-purple-500 rounded-full border-t-transparent animate-spin"></div>
-                        </div>
-                        <p className="text-foreground-secondary animate-pulse">加载讨论中...</p>
-                    </div>
+                    <SoundWaveLoader variant="block" text="加载讨论中" />
                 ) : posts.length === 0 ? (
                     <div className="text-center py-20 bg-background-secondary/30 rounded-3xl border border-border/50">
                         <div className="w-20 h-20 bg-background-secondary rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">

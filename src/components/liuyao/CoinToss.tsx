@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Coins, RotateCw, Smartphone } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { tossThreeCoins, type CoinTossResult, type Yao } from '@/lib/divination/liuyao';
 
 interface CoinTossProps {
@@ -339,7 +340,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                 {!isComplete ? (
                     isFinalizing ? (
                         <div className="flex items-center gap-2 text-foreground-secondary">
-                            <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                             <span className="text-sm">生成卦象中...</span>
                         </div>
                     ) : results.length > currentLine ? (

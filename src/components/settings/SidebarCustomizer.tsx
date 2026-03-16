@@ -46,10 +46,10 @@ import {
     EyeOff,
     GripVertical,
     RotateCcw,
-    Loader2,
     Check,
     type LucideIcon,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
@@ -354,7 +354,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {saving && <Loader2 className="w-4 h-4 animate-spin text-accent" />}
+                    {saving && <SoundWaveLoader variant="inline" />}
                     {saved && <Check className="w-4 h-4 text-green-500" />}
                     <button
                         onClick={handleReset}

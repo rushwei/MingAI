@@ -10,7 +10,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { RotateCw, Sparkles, RefreshCw } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
 import { buildViewResult, type TestResult } from '@/lib/divination/mbti';
 import { supabase } from '@/lib/auth';
@@ -269,8 +270,7 @@ function MBTIResultContent() {
             <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
                 {/* Background Effects Removed */}
                 <div className="relative z-10 text-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-blue-400 mx-auto mb-4" />
-                    <p className="text-foreground-secondary">正在加载测试结果...</p>
+                    <SoundWaveLoader variant="block" text="正在加载测试结果" />
                 </div>
             </div>
         );
@@ -333,7 +333,7 @@ function MBTIResultContent() {
                                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-foreground-secondary hover:text-foreground hover:bg-white/10 text-sm disabled:opacity-50 transition-all"
                                     >
                                         {loadingAI ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <SoundWaveLoader variant="inline" />
                                         ) : (
                                             <RefreshCw className="w-4 h-4" />
                                         )}
@@ -363,7 +363,7 @@ function MBTIResultContent() {
                                 {errorBanner}
 
                                 {checkingAuth ? (
-                                    <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto" />
+                                    <SoundWaveLoader variant="block" />
                                 ) : !user ? (
                                     <div className="bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-pink-500/10 border border-white/10 rounded-2xl p-8 text-center max-w-md mx-auto backdrop-blur-sm">
                                         <div className="flex justify-center mb-6">
@@ -391,7 +391,7 @@ function MBTIResultContent() {
                                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
                                         {loadingAI ? (
                                             <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <SoundWaveLoader variant="inline" />
                                                 正在分析中...
                                             </>
                                         ) : (
@@ -467,7 +467,7 @@ export default function MBTIResultPage() {
         <Suspense fallback={
             <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
                 {/* Background Effects Removed */}
-                <Loader2 className="w-10 h-10 animate-spin text-blue-400 relative z-10" />
+                <SoundWaveLoader variant="block" />
             </div>
         }>
             <MBTIResultContent />

@@ -11,10 +11,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    ArrowLeft, Loader2, Save, Sparkles, BookOpenText,
+    ArrowLeft, Save, Sparkles, BookOpenText,
     MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 
@@ -315,7 +316,7 @@ export default function AISettingsPage() {
                         disabled={saving}
                         className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-md shadow-accent/20 font-medium text-sm"
                     >
-                        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-3.5 h-3.5" />}
                         保存设置
                     </button>
                 </div>
@@ -567,7 +568,7 @@ export default function AISettingsPage() {
 
                                 {previewLoading && (
                                     <div className="flex items-center justify-center gap-2 py-4 text-sm text-foreground-secondary animate-pulse">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <SoundWaveLoader variant="inline" />
                                         <span>正在计算上下文...</span>
                                     </div>
                                 )}
@@ -629,7 +630,7 @@ export default function AISettingsPage() {
                     disabled={saving}
                     className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-xl shadow-accent/20 font-bold text-base active:scale-[0.98]"
                 >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-5 h-5" />}
                     保存设置
                 </button>
             </div>

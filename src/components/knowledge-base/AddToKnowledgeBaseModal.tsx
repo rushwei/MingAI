@@ -8,8 +8,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { X } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 
 type KnowledgeBaseSummary = { id: string; name: string; description: string | null };
@@ -176,7 +177,7 @@ export function AddToKnowledgeBaseModal({
                 <div className="p-4 sm:p-6 space-y-4">
                     {kbLoading ? (
                         <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -250,7 +251,7 @@ export function AddToKnowledgeBaseModal({
                     >
                         {kbSaving ? (
                             <span className="inline-flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 加入中
                             </span>
                         ) : (

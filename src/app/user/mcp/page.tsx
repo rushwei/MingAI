@@ -13,10 +13,10 @@ import {
   Check,
   RefreshCw,
   Key,
-  Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -164,9 +164,7 @@ function McpPageContent() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-foreground-secondary" />
-        </div>
+        <SoundWaveLoader variant="block" />
       </div>
     );
   }
@@ -267,7 +265,7 @@ function McpPageContent() {
                   disabled={operating}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
                 >
-                  {operating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                  {operating ? <SoundWaveLoader variant="inline" /> : <Key className="w-4 h-4" />}
                   生成 MCP Key
                 </button>
               </div>
@@ -322,7 +320,7 @@ function McpPageContent() {
                                 title="重置"
                                 disabled={operating}
                               >
-                                {operating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                {operating ? <SoundWaveLoader variant="inline" /> : <RefreshCw className="w-3 h-3" />}
                               </button>
                             ) : null}
                           </div>

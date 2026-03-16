@@ -11,10 +11,10 @@ import {
     Sparkles,
     RotateCcw,
     RefreshCw,
-    Loader2,
     Send,
     BookOpenText,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
@@ -405,7 +405,7 @@ function TarotResultContent() {
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center animate-fade-in">
                 <div className="text-5xl mb-4 animate-pulse">🃏</div>
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-4" />
+                <SoundWaveLoader variant="inline" />
                 <p className="text-foreground-secondary">正在洗牌抽取...</p>
             </div>
         );
@@ -670,7 +670,7 @@ function TarotResultContent() {
                                                 >
                                                     {isInterpreting ? (
                                                         <>
-                                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                                            <SoundWaveLoader variant="inline" />
                                                             正在连接宇宙能量...
                                                         </>
                                                     ) : (

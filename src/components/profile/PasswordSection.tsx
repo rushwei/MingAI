@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, RefreshCw } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { sendOTP, verifyOTP } from '@/lib/auth';
 import { supabase } from '@/lib/auth';
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@/components/auth/PasswordStrengthIndicator';
@@ -190,7 +191,7 @@ export function PasswordSection({
                             disabled={loading}
                             className="flex-1 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <SoundWaveLoader variant="inline" />}
                             发送验证码
                         </button>
                     </div>
@@ -241,7 +242,7 @@ export function PasswordSection({
                             disabled={loading || verificationCode.length !== 6}
                             className="flex-1 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <SoundWaveLoader variant="inline" />}
                             验证
                         </button>
                     </div>
@@ -325,7 +326,7 @@ export function PasswordSection({
                             disabled={loading || !newPassword || !confirmPassword}
                             className="flex-1 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <SoundWaveLoader variant="inline" />}
                             确认修改
                         </button>
                     </div>

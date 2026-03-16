@@ -9,6 +9,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, Grid3X3, Layers } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HexagramSelector } from '@/components/liuyao/HexagramSelector';
 import { TrigramSelector } from '@/components/liuyao/TrigramSelector';
@@ -306,7 +307,7 @@ export default function SelectHexagramPage() {
                     >
                         {isLoading ? (
                             <>
-                                <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 生成中...
                             </>
                         ) : (

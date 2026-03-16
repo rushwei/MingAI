@@ -9,11 +9,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-    BookOpenText, Loader2, Plus, Trash2,
+    BookOpenText, Plus, Trash2,
     ChevronDown, ChevronUp, Unlink2, Save, Upload,
     FileText, Database, Sparkles, AlertCircle
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -422,7 +423,7 @@ export default function KnowledgeBaseManagePage() {
                                 disabled={creating || !newName.trim()}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-all shadow-md shadow-emerald-500/20 font-medium text-sm"
                             >
-                                {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                {creating ? <SoundWaveLoader variant="inline" /> : <Plus className="w-3.5 h-3.5" />}
                                 创建知识库
                             </button>
                             {error && <div className="text-[10px] text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</div>}
@@ -488,7 +489,7 @@ export default function KnowledgeBaseManagePage() {
                                     disabled={uploading || !uploadKbId || !uploadFile}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-all shadow-md shadow-blue-500/20 font-medium text-sm"
                                 >
-                                    {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                    {uploading ? <SoundWaveLoader variant="inline" /> : <Upload className="w-3.5 h-3.5" />}
                                     开始上传
                                 </button>
                                 {uploadError && <div className="text-[10px] text-red-500 text-center">{uploadError}</div>}
@@ -599,7 +600,7 @@ export default function KnowledgeBaseManagePage() {
                                                 >
                                                     <Sparkles className="w-3 h-3" />
                                                     {promptKbIds.includes(kb.id) ? '已启用搜索' : '启用搜索'}
-                                                    {promptSavingId === kb.id && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                                                    {promptSavingId === kb.id && <SoundWaveLoader variant="inline" />}
                                                 </button>
 
                                                 <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
@@ -611,7 +612,7 @@ export default function KnowledgeBaseManagePage() {
                                                     className="p-1.5 rounded-lg bg-background border border-border text-foreground-secondary hover:text-emerald-500 hover:border-emerald-500/30 disabled:opacity-50 transition-all"
                                                     title="保存更改"
                                                 >
-                                                    {savingKbId === kb.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                                    {savingKbId === kb.id ? <SoundWaveLoader variant="inline" /> : <Save className="w-3.5 h-3.5" />}
                                                 </button>
 
                                                 <button
@@ -633,7 +634,7 @@ export default function KnowledgeBaseManagePage() {
                                                     className="p-1.5 rounded-lg bg-background border border-border text-foreground-secondary hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 disabled:opacity-50 transition-all"
                                                     title="删除知识库"
                                                 >
-                                                    {deletingKbId === kb.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                    {deletingKbId === kb.id ? <SoundWaveLoader variant="inline" /> : <Trash2 className="w-3.5 h-3.5" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -696,7 +697,7 @@ export default function KnowledgeBaseManagePage() {
                                                                 className="p-1.5 rounded-lg text-foreground-tertiary hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                                 title="移除归档"
                                                             >
-                                                                {removingArchiveId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink2 className="w-3.5 h-3.5" />}
+                                                                {removingArchiveId === a.id ? <SoundWaveLoader variant="inline" /> : <Unlink2 className="w-3.5 h-3.5" />}
                                                             </button>
                                                         </div>
                                                     ))}

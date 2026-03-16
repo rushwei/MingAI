@@ -8,7 +8,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, FolderOpen, X, AlertCircle, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowLeft, FolderOpen, X, AlertCircle, Sparkles, ChevronDown } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/divination/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/auth';
@@ -353,7 +354,7 @@ function HepanCreateContent() {
                 >
                     {loading ? (
                         <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                             正在深度分析...
                         </>
                     ) : (
@@ -416,7 +417,7 @@ export default function HepanCreatePage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <SoundWaveLoader variant="block" text="加载中" />
             </div>
         }>
             <HepanCreateContent />

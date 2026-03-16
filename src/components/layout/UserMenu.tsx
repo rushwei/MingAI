@@ -14,12 +14,12 @@ import {
     LogOut,
     ChevronDown,
     ChevronUp,
-    Loader2,
     CircleStar,
     Bell,
     User,
     Scroll,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { getUnreadCount } from '@/lib/notification';
@@ -303,7 +303,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors w-full disabled:opacity-50"
                         >
                             {signingOut ? (
-                                <Loader2 className="w-4.5 h-4.5 animate-spin text-foreground-secondary" />
+                                <SoundWaveLoader variant="inline" />
                             ) : (
                                 <LogOut className="w-4.5 h-4.5 text-foreground-secondary" />
                             )}

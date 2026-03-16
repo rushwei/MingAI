@@ -6,8 +6,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link2, Loader2, Check, Crown, Sparkles, Coins } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { Link2, Check, Crown, Sparkles, Coins } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { supabase } from '@/lib/supabase';
 
 type ColorKey = 'amber' | 'purple' | 'blue';
 
@@ -89,11 +90,7 @@ export function PurchaseLinkPanel() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     return (
@@ -136,7 +133,7 @@ export function PurchaseLinkPanel() {
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
                             >
                                 {saving === type ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                 ) : saved === type ? (
                                     <Check className="w-4 h-4" />
                                 ) : (

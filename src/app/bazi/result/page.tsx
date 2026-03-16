@@ -7,7 +7,8 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { Loader2, Edit3, Save, Share2 } from 'lucide-react';
+import { Edit3, Save, Share2 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
     calculateBazi,
     calculateProfessionalData,
@@ -477,12 +478,7 @@ function BaziResultContent() {
     };
 
     if (loading) {
-        return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">正在加载命盘...</p>
-            </div>
-        );
+        return <SoundWaveLoader variant="block" text="正在加载命盘" />;
     }
 
     if (!baziResult || !proData) {
@@ -599,10 +595,7 @@ function BaziResultContent() {
 export default function BaziResultPage() {
     return (
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <div className="inline-block w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
-                <p className="mt-4 text-foreground-secondary">正在计算八字命盘...</p>
-            </div>
+            <SoundWaveLoader variant="block" text="正在计算八字命盘" />
         }>
             <BaziResultContent />
         </Suspense>

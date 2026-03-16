@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, Mail, RefreshCw } from 'lucide-react';
+import { Mail, RefreshCw } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { sendOTP, verifyOTP } from '@/lib/auth';
 import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 
@@ -210,7 +211,7 @@ export function EmailSection({
                             disabled={loading || !newEmailPrefix}
                             className="flex-1 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <SoundWaveLoader variant="inline" />}
                             发送验证码
                         </button>
                     </div>
@@ -261,7 +262,7 @@ export function EmailSection({
                             disabled={loading || verificationCode.length !== 6}
                             className="flex-1 py-2.5 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <SoundWaveLoader variant="inline" />}
                             确认修改
                         </button>
                     </div>

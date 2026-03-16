@@ -14,12 +14,12 @@ import {
     Heart,
     Wallet,
     Activity,
-    Loader2,
     Check,
     Calendar,
     Sparkles,
     Users,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { downloadShareCard, shareCard } from '@/lib/share-card';
 import type { DailyFortune, FortuneLevels, FortuneChartScores } from '@/lib/divination/fortune';
 import { fortuneLevelToChartValue, isLevelFavorable } from '@/lib/divination/fortune';
@@ -129,7 +129,7 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors disabled:opacity-50"
                 >
                     {isGenerating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <SoundWaveLoader variant="inline" />
                     ) : (
                         <Download className="w-4 h-4" />
                     )}
@@ -143,7 +143,7 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                     {shareSuccess ? (
                         <Check className="w-4 h-4" />
                     ) : isGenerating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <SoundWaveLoader variant="inline" />
                     ) : (
                         <Share2 className="w-4 h-4" />
                     )}

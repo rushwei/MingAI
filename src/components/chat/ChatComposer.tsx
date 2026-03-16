@@ -9,7 +9,8 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon, Loader2 } from 'lucide-react';
+import { Paperclip, Orbit, X, Sparkles, Square, Plus, FileText, ArrowUp, BookOpenText, AtSign, Globe, Settings, Check, Moon } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import type { AttachmentState, Mention, MentionType, PromptLayerDiagnostic } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -666,7 +667,7 @@ export function ChatComposer({
                                                         }
                                                     `}>
                                                         {enabled && !knowledgeBaseSavingId && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                        {knowledgeBaseSavingId === kb.id && <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+                                                        {knowledgeBaseSavingId === kb.id && <SoundWaveLoader variant="inline" />}
                                                     </div>
                                                 </div>
                                             );
@@ -1150,7 +1151,7 @@ export function ChatComposer({
                             `}
                         >
                             {isSendingToList ? (
-                                <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                             ) : isLoading ? (
                                 <>
                                     <Square className="w-4.5 h-4.5" strokeWidth={2.5} />

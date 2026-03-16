@@ -9,7 +9,8 @@
 
 import { useMemo, useEffect, useState } from 'react';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import { ChevronDown, Lightbulb, Loader2 } from 'lucide-react';
+import { ChevronDown, Lightbulb } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { Zhipu, DeepSeek, Gemini, Qwen, Claude, Kimi } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
@@ -225,7 +226,7 @@ export function ModelSelector({
                         disabled={modelSelectorDisabled}
                     >
                         {modelsLoading ? (
-                            <Loader2 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} animate-spin text-foreground-secondary`} />
+                            <SoundWaveLoader variant="inline" />
                         ) : (
                             VENDOR_ICONS[currentModelConfig.vendor]
                         )}
