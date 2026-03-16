@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Ban, Key, Users, Activity } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 interface McpKeyRow {
     id: string;

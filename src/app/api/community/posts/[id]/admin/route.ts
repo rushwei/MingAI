@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireAdminContext, getServiceRoleClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireAdminContext, getSystemAdminClient } from '@/lib/api-utils';
 import { missingFields } from '@/lib/validation';
 
 export async function PUT(
@@ -26,7 +26,7 @@ export async function PUT(
         }
 
         // 使用 Service Role Client 绕过 RLS
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         switch (action) {
             case 'pin': {

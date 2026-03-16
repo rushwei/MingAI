@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, Key } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { McpKeyManagementPanel } from '@/components/admin/McpKeyManagementPanel';
 
 type AdminState = {

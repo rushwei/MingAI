@@ -12,7 +12,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';

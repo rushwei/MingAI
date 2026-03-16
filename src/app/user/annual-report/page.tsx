@@ -13,7 +13,7 @@ import {
     Star,
     TrendingUp
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { useToast } from '@/components/ui/Toast';
 

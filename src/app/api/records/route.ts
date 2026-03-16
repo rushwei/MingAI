@@ -37,10 +37,19 @@ export async function GET(request: NextRequest) {
 
         const category = searchParams.get('category') as RecordCategory | null;
         const search = searchParams.get('search');
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+        const isPinned = searchParams.get('isPinned');
+        const tags = searchParams.getAll('tag');
 
         const filters: RecordFilters = {};
         if (category) filters.category = category;
         if (search) filters.search = search;
+        if (startDate) filters.startDate = startDate;
+        if (endDate) filters.endDate = endDate;
+        if (isPinned === 'true') filters.isPinned = true;
+        if (isPinned === 'false') filters.isPinned = false;
+        if (tags.length > 0) filters.tags = tags;
 
         // 构建查询
         let query = supabase
@@ -53,6 +62,18 @@ export async function GET(request: NextRequest) {
         // 应用筛选条件
         if (filters.category) {
             query = query.eq('category', filters.category);
+        }
+        if (filters.isPinned !== undefined) {
+            query = query.eq('is_pinned', filters.isPinned);
+        }
+        if (filters.startDate) {
+            query = query.gte('event_date', filters.startDate);
+        }
+        if (filters.endDate) {
+            query = query.lte('event_date', filters.endDate);
+        }
+        if (filters.tags && filters.tags.length > 0) {
+            query = query.overlaps('tags', filters.tags);
         }
         if (filters.search) {
             const pattern = quotePostgrestString(`%${filters.search}%`);

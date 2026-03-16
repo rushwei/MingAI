@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { FEATURE_NAMES, NOTIFICATION_TEMPLATES, type NotificationTemplate } from '@/lib/notification';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import {
     FileText,
     Bell,

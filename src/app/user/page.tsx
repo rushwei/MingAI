@@ -31,7 +31,7 @@ import {
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
 import { CalendarModal } from '@/components/checkin/CalendarModal';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
@@ -39,7 +39,7 @@ import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { getUserEmailDisplay } from '@/lib/user-email';
-import type { User as SupabaseUser } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@/lib/auth';
 
 // 菜单项配置
 const menuItems = [
@@ -442,12 +442,12 @@ export default function UserPage() {
                 void fetchCount({ bypassCache: true });
             }
         };
-        window.addEventListener('mingai:supabase-write', handleDbWrite);
+        window.addEventListener('mingai:api-write', handleDbWrite);
 
         return () => {
             isActive = false;
             window.clearInterval(timer);
-            window.removeEventListener('mingai:supabase-write', handleDbWrite);
+            window.removeEventListener('mingai:api-write', handleDbWrite);
         };
     }, [user]);
 

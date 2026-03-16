@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PostCategory, POST_CATEGORIES } from '@/lib/community';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 export default function NewPostPage() {
     const router = useRouter();

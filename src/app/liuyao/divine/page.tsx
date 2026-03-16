@@ -13,7 +13,7 @@ import { CoinToss } from '@/components/liuyao/CoinToss';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { useToast } from '@/components/ui/Toast';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 
 type LiuyaoQuestionSession = {

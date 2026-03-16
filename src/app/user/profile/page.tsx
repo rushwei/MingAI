@@ -6,10 +6,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
-import type { User } from '@/lib/supabase';
+import type { User } from '@/lib/auth';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AvatarSection } from '@/components/profile/AvatarSection';
 import { StatusBanner } from '@/components/profile/StatusBanner';

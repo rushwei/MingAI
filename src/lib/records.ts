@@ -1,10 +1,8 @@
 /**
  * 命理记录服务
- * 
- * 提供命理记录和小记的 CRUD 操作、搜索和导入导出功能
+ *
+ * 浏览器侧统一通过 records/notes API 访问数据。
  */
-
-import { supabase } from '@/lib/supabase';
 
 // =====================================================
 // 类型定义
@@ -72,6 +70,24 @@ export interface ExportData {
     exportedAt: string;
     records: MingRecord[];
     notes: MingNote[];
+}
+
+async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+    const response = await fetch(input, {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(init?.headers || {}),
+        },
+        ...init,
+    });
+
+    const payload = await response.json().catch(() => null) as T | { error?: string } | null;
+    if (!response.ok) {
+        throw new Error((payload as { error?: string } | null)?.error || '请求失败');
+    }
+
+    return payload as T;
 }
 
 // =====================================================
@@ -152,49 +168,26 @@ export async function getRecords(
     page: number = 1,
     pageSize: number = 20
 ): Promise<{ records: MingRecord[]; total: number }> {
-    let query = supabase
-        .from('ming_records')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false });
+    void userId;
 
-    // 应用筛选条件
-    if (filters?.category) {
-        query = query.eq('category', filters.category);
-    }
-    if (filters?.isPinned !== undefined) {
-        query = query.eq('is_pinned', filters.isPinned);
-    }
-    if (filters?.startDate) {
-        query = query.gte('event_date', filters.startDate);
-    }
-    if (filters?.endDate) {
-        query = query.lte('event_date', filters.endDate);
-    }
-    if (filters?.tags && filters.tags.length > 0) {
-        query = query.overlaps('tags', filters.tags);
-    }
-    if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
+    const query = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+    });
+    if (filters?.category) query.set('category', filters.category);
+    if (filters?.search) query.set('search', filters.search);
+    if (filters?.startDate) query.set('startDate', filters.startDate);
+    if (filters?.endDate) query.set('endDate', filters.endDate);
+    if (filters?.isPinned !== undefined) query.set('isPinned', String(filters.isPinned));
+    for (const tag of filters?.tags || []) {
+        query.append('tag', tag);
     }
 
-    // 分页
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-        console.error('获取记录失败:', error);
-        throw new Error('获取记录失败');
-    }
-
-    const validRecords = (data ?? []).filter(isValidMingRecord);
+    const payload = await requestJson<{ records?: unknown[]; total?: number }>(`/api/records?${query.toString()}`);
+    const validRecords = (payload.records ?? []).filter(isValidMingRecord);
     return {
         records: validRecords,
-        total: count || 0,
+        total: payload.total || 0,
     };
 }
 
@@ -202,49 +195,30 @@ export async function getRecords(
  * 获取单条记录
  */
 export async function getRecord(recordId: string): Promise<MingRecord | null> {
-    const { data, error } = await supabase
-        .from('ming_records')
-        .select('*')
-        .eq('id', recordId)
-        .single();
-
-    if (error) {
-        if (error.code === 'PGRST116') return null;
-        console.error('获取记录失败:', error);
-        throw new Error('获取记录失败');
+    try {
+        const payload = await requestJson<unknown>(`/api/records/${recordId}`);
+        const record = toMingRecord(payload);
+        if (!record) throw new Error('Invalid record data');
+        return record;
+    } catch (error) {
+        if (error instanceof Error && /不存在|404/u.test(error.message)) {
+            return null;
+        }
+        throw error;
     }
-
-    const record = toMingRecord(data);
-    if (!record) throw new Error('Invalid record data');
-    return record;
 }
 
 /**
  * 创建记录
  */
 export async function createRecord(userId: string, input: RecordInput): Promise<MingRecord> {
-    const { data, error } = await supabase
-        .from('ming_records')
-        .insert({
-            user_id: userId,
-            title: input.title,
-            content: input.content,
-            category: input.category || 'general',
-            tags: input.tags || [],
-            event_date: input.event_date,
-            related_chart_type: input.related_chart_type,
-            related_chart_id: input.related_chart_id,
-            is_pinned: input.is_pinned || false,
-        })
-        .select()
-        .single();
+    void userId;
 
-    if (error) {
-        console.error('创建记录失败:', error);
-        throw new Error('创建记录失败');
-    }
-
-    const record = toMingRecord(data);
+    const payload = await requestJson<unknown>('/api/records', {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
+    const record = toMingRecord(payload);
     if (!record) throw new Error('Invalid record data');
     return record;
 }
@@ -253,22 +227,11 @@ export async function createRecord(userId: string, input: RecordInput): Promise<
  * 更新记录
  */
 export async function updateRecord(recordId: string, input: Partial<RecordInput>): Promise<MingRecord> {
-    const { data, error } = await supabase
-        .from('ming_records')
-        .update({
-            ...input,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', recordId)
-        .select()
-        .single();
-
-    if (error) {
-        console.error('更新记录失败:', error);
-        throw new Error('更新记录失败');
-    }
-
-    const record = toMingRecord(data);
+    const payload = await requestJson<unknown>(`/api/records/${recordId}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+    });
+    const record = toMingRecord(payload);
     if (!record) throw new Error('Invalid record data');
     return record;
 }
@@ -277,15 +240,9 @@ export async function updateRecord(recordId: string, input: Partial<RecordInput>
  * 删除记录
  */
 export async function deleteRecord(recordId: string): Promise<void> {
-    const { error } = await supabase
-        .from('ming_records')
-        .delete()
-        .eq('id', recordId);
-
-    if (error) {
-        console.error('删除记录失败:', error);
-        throw new Error('删除记录失败');
-    }
+    await requestJson(`/api/records/${recordId}`, {
+        method: 'DELETE',
+    });
 }
 
 /**
@@ -314,35 +271,20 @@ export async function getNotes(
     page: number = 1,
     pageSize: number = 20
 ): Promise<{ notes: MingNote[]; total: number }> {
-    let query = supabase
-        .from('ming_notes')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('note_date', { ascending: false })
-        .order('created_at', { ascending: false });
+    void userId;
 
-    if (startDate) {
-        query = query.gte('note_date', startDate);
-    }
-    if (endDate) {
-        query = query.lte('note_date', endDate);
-    }
+    const query = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+    });
+    if (startDate) query.set('startDate', startDate);
+    if (endDate) query.set('endDate', endDate);
 
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-        console.error('获取小记失败:', error);
-        throw new Error('获取小记失败');
-    }
-
-    const validNotes = (data ?? []).filter(isValidMingNote);
+    const payload = await requestJson<{ notes?: unknown[]; total?: number }>(`/api/notes?${query.toString()}`);
+    const validNotes = (payload.notes ?? []).filter(isValidMingNote);
     return {
         notes: validNotes,
-        total: count || 0,
+        total: payload.total || 0,
     };
 }
 
@@ -350,42 +292,23 @@ export async function getNotes(
  * 获取某日的小记
  */
 export async function getNotesByDate(userId: string, date: string): Promise<MingNote[]> {
-    const { data, error } = await supabase
-        .from('ming_notes')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('note_date', date)
-        .order('created_at', { ascending: false });
+    void userId;
 
-    if (error) {
-        console.error('获取小记失败:', error);
-        throw new Error('获取小记失败');
-    }
-
-    return (data ?? []).filter(isValidMingNote);
+    const payload = await requestJson<{ notes?: unknown[] }>(`/api/notes?date=${encodeURIComponent(date)}`);
+    return (payload.notes ?? []).filter(isValidMingNote);
 }
 
 /**
  * 创建小记
  */
 export async function createNote(userId: string, input: NoteInput): Promise<MingNote> {
-    const { data, error } = await supabase
-        .from('ming_notes')
-        .insert({
-            user_id: userId,
-            note_date: input.note_date || new Date().toISOString().split('T')[0],
-            content: input.content,
-            mood: input.mood,
-        })
-        .select()
-        .single();
+    void userId;
 
-    if (error) {
-        console.error('创建小记失败:', error);
-        throw new Error('创建小记失败');
-    }
-
-    const note = toMingNote(data);
+    const payload = await requestJson<unknown>('/api/notes', {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
+    const note = toMingNote(payload);
     if (!note) throw new Error('Invalid note data');
     return note;
 }
@@ -394,22 +317,11 @@ export async function createNote(userId: string, input: NoteInput): Promise<Ming
  * 更新小记
  */
 export async function updateNote(noteId: string, input: Partial<NoteInput>): Promise<MingNote> {
-    const { data, error } = await supabase
-        .from('ming_notes')
-        .update({
-            ...input,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', noteId)
-        .select()
-        .single();
-
-    if (error) {
-        console.error('更新小记失败:', error);
-        throw new Error('更新小记失败');
-    }
-
-    const note = toMingNote(data);
+    const payload = await requestJson<unknown>(`/api/notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+    });
+    const note = toMingNote(payload);
     if (!note) throw new Error('Invalid note data');
     return note;
 }
@@ -418,15 +330,9 @@ export async function updateNote(noteId: string, input: Partial<NoteInput>): Pro
  * 删除小记
  */
 export async function deleteNote(noteId: string): Promise<void> {
-    const { error } = await supabase
-        .from('ming_notes')
-        .delete()
-        .eq('id', noteId);
-
-    if (error) {
-        console.error('删除小记失败:', error);
-        throw new Error('删除小记失败');
-    }
+    await requestJson(`/api/notes/${noteId}`, {
+        method: 'DELETE',
+    });
 }
 
 // =====================================================
@@ -437,20 +343,20 @@ export async function deleteNote(noteId: string): Promise<void> {
  * 导出所有数据
  */
 export async function exportData(userId: string): Promise<ExportData> {
-    const [recordsResult, notesResult] = await Promise.all([
-        supabase.from('ming_records').select('*').eq('user_id', userId),
-        supabase.from('ming_notes').select('*').eq('user_id', userId),
-    ]);
+    void userId;
 
-    if (recordsResult.error || notesResult.error) {
+    const response = await fetch('/api/records/export', {
+        credentials: 'include',
+    });
+    if (!response.ok) {
         throw new Error('导出数据失败');
     }
 
+    const payload = await response.json() as ExportData;
     return {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
-        records: (recordsResult.data ?? []).filter(isValidMingRecord),
-        notes: (notesResult.data ?? []).filter(isValidMingNote),
+        ...payload,
+        records: (payload.records ?? []).filter(isValidMingRecord),
+        notes: (payload.notes ?? []).filter(isValidMingNote),
     };
 }
 
@@ -458,57 +364,14 @@ export async function exportData(userId: string): Promise<ExportData> {
  * 导入数据（覆盖模式）
  */
 export async function importData(userId: string, data: ExportData): Promise<{ recordsImported: number; notesImported: number }> {
-    // 验证数据格式
-    if (!data.version || !Array.isArray(data.records) || !Array.isArray(data.notes)) {
-        throw new Error('导入数据格式无效');
-    }
+    void userId;
 
-    // 删除现有数据
-    await Promise.all([
-        supabase.from('ming_records').delete().eq('user_id', userId),
-        supabase.from('ming_notes').delete().eq('user_id', userId),
-    ]);
+    const payload = await requestJson<{ recordsImported: number; notesImported: number }>('/api/records/import', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 
-    // 导入记录
-    let recordsImported = 0;
-    if (data.records.length > 0) {
-        const recordsToInsert = data.records.map(record => ({
-            user_id: userId,
-            title: record.title,
-            content: record.content,
-            category: record.category,
-            tags: record.tags,
-            event_date: record.event_date,
-            related_chart_type: record.related_chart_type,
-            related_chart_id: record.related_chart_id,
-            is_pinned: record.is_pinned,
-            created_at: record.created_at,
-            updated_at: record.updated_at,
-        }));
-
-        const { error } = await supabase.from('ming_records').insert(recordsToInsert);
-        if (error) throw new Error('导入记录失败');
-        recordsImported = recordsToInsert.length;
-    }
-
-    // 导入小记
-    let notesImported = 0;
-    if (data.notes.length > 0) {
-        const notesToInsert = data.notes.map(note => ({
-            user_id: userId,
-            note_date: note.note_date,
-            content: note.content,
-            mood: note.mood,
-            created_at: note.created_at,
-            updated_at: note.updated_at,
-        }));
-
-        const { error } = await supabase.from('ming_notes').insert(notesToInsert);
-        if (error) throw new Error('导入小记失败');
-        notesImported = notesToInsert.length;
-    }
-
-    return { recordsImported, notesImported };
+    return payload;
 }
 
 /**

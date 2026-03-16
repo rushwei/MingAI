@@ -4,7 +4,7 @@
  * 管理节气提醒、运势提醒、关键日提醒等
  */
 
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
 import { getNextSolarTerm, getSolarTermMeaning } from '@/lib/divination/solar-terms';
 import { calculateDailyFortune, generateEnhancedKeyDates, compareLevels, isLevelFavorable } from '@/lib/divination/fortune';
@@ -42,7 +42,7 @@ const REMINDER_CLAIM_TTL_MS = 5 * 60 * 1000;
  */
 export async function getReminderSubscriptions(userId: string): Promise<ReminderSubscription[]> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data, error } = await serviceClient
         .from('reminder_subscriptions')
         .select('*')
@@ -72,7 +72,7 @@ export async function updateReminderSubscription(
     settings: { enabled?: boolean; notifyEmail?: boolean; notifySite?: boolean }
 ): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('reminder_subscriptions')
         .upsert({
@@ -99,7 +99,7 @@ export async function updateReminderSubscription(
  */
 export async function isSubscribed(userId: string, reminderType: ReminderType): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data: subscription, error: subscriptionError } = await serviceClient
         .from('reminder_subscriptions')
         .select('enabled, notify_site')
@@ -147,7 +147,7 @@ export async function scheduleSolarTermReminder(
     const meaning = getSolarTermMeaning(termName);
 
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
@@ -178,7 +178,7 @@ export async function scheduleFortuneReminder(
     fortuneData: Record<string, unknown>
 ): Promise<boolean> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .insert({
@@ -207,7 +207,7 @@ export async function processScheduledReminders(): Promise<number> {
 
     // 获取待发送的提醒
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data: pendingReminders, error } = await serviceClient
         .from('scheduled_reminders')
         .select('*')
@@ -304,7 +304,7 @@ async function sendReminder(reminder: {
  */
 async function claimReminder(reminderId: string, staleBefore: string): Promise<string | null> {
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const claimedAt = new Date().toISOString();
     const { data, error } = await serviceClient
         .from('scheduled_reminders')
@@ -329,7 +329,7 @@ async function claimReminder(reminderId: string, staleBefore: string): Promise<s
  * 标记提醒已发送（仅当前 lease 持有者可提交）
  */
 async function markReminderSent(reminderId: string, claimToken: string): Promise<boolean> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data, error } = await serviceClient
         .from('scheduled_reminders')
         .update({
@@ -354,7 +354,7 @@ async function markReminderSent(reminderId: string, claimToken: string): Promise
  * 释放提醒占用（发送失败时回滚）
  */
 async function releaseReminderClaim(reminderId: string, claimToken: string): Promise<void> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('scheduled_reminders')
         .update({
@@ -380,7 +380,7 @@ export async function scheduleUpcomingSolarTermReminders(userId: string): Promis
 
     // 检查是否已经安排
     // 使用 service client 绕过 RLS
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data: existing } = await serviceClient
         .from('scheduled_reminders')
         .select('id')
@@ -406,7 +406,7 @@ export async function scheduleUpcomingFortuneReminders(
     userId: string,
     baziChart: BaziChart
 ): Promise<number> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const now = new Date();
     let scheduled = 0;
 
@@ -462,7 +462,7 @@ export async function scheduleKeyDateReminders(
     userId: string,
     baziChart: BaziChart
 ): Promise<number> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -514,7 +514,7 @@ export async function scheduleKeyDateReminders(
  * 获取用户的主要八字命盘（用于运势计算）
  */
 async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
 
     // 查找用户最近保存的八字命盘
     const { data } = await serviceClient
@@ -534,7 +534,7 @@ async function getUserPrimaryBaziChart(userId: string): Promise<BaziChart | null
  * 为所有启用提醒的用户调度提醒（由 Cron 调用）
  */
 export async function scheduleAllUsersReminders(): Promise<number> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     let totalScheduled = 0;
 
     // 获取所有启用了提醒的订阅

@@ -4,7 +4,7 @@
  * 提供 AI 性格分析功能
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
             }
             const { user } = authResult;
 
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             const { data: insertedReading, error: insertError } = await serviceClient
                 .from('mbti_readings')
                 .insert({
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             }
             const { user } = authResult;
 
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             const { data: history, error: historyError } = await serviceClient
                 .from('mbti_readings')
                 .select('*')
@@ -196,7 +196,7 @@ ${basic.description}
                             console.error('[mbti] 保存 AI 分析对话失败');
                         }
 
-                        const serviceClient = getServiceRoleClient();
+                        const serviceClient = getSystemAdminClient();
                         if (readingId) {
                             const { error: updateError } = await serviceClient
                                 .from('mbti_readings')
@@ -271,7 +271,7 @@ ${basic.description}
             }
 
             // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             if (readingId) {
                 // 更新已有记录
                 const { error: updateError } = await serviceClient

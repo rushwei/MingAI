@@ -10,7 +10,7 @@ import {
     scheduleKeyDateReminders,
     type ReminderType
 } from '@/lib/reminders';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import type { BaziChart } from '@/types';
 
 // GET - 获取提醒订阅设置
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
                 scheduled = await scheduleUpcomingSolarTermReminders(user.id);
             } else if (reminderType === 'fortune' || reminderType === 'key_date') {
                 // 获取用户的八字命盘
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: chartData } = await serviceClient
                     .from('bazi_charts')
                     .select('chart_data')

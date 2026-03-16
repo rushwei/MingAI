@@ -18,7 +18,7 @@ import {
 import Image from 'next/image';
 import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';

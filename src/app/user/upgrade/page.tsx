@@ -15,7 +15,7 @@ import {
     Check
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo, type PricingPlan } from '@/lib/user/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { KeyActivationModal } from '@/components/membership/KeyActivationModal';

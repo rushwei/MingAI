@@ -34,7 +34,7 @@ import {
     NOTE_MOODS,
     NoteMood
 } from '@/lib/records';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 

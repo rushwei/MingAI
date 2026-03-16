@@ -6,7 +6,7 @@
  * action: 'save'     — 保存记录
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser, requireUserContext } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -32,6 +32,79 @@ interface QimenRequest {
     stream?: boolean;
     // save params
     chartId?: string;
+}
+
+export async function GET(request: NextRequest) {
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status, { success: false });
+    }
+
+    const serviceClient = getSystemAdminClient();
+    const { data, error } = await serviceClient
+        .from('qimen_charts')
+        .select('*, conversation:conversations(source_data)')
+        .eq('user_id', auth.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error('[qimen] 加载历史记录失败:', error.message);
+        return jsonError('加载历史记录失败', 500, { success: false });
+    }
+
+    return jsonOk({ success: true, data: { charts: data || [] } });
+}
+
+export async function DELETE(request: NextRequest) {
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status, { success: false });
+    }
+
+    const id = new URL(request.url).searchParams.get('id');
+    if (!id) {
+        return jsonError('缺少记录 ID', 400, { success: false });
+    }
+
+    const serviceClient = getSystemAdminClient();
+    const { data: existing, error: fetchError } = await serviceClient
+        .from('qimen_charts')
+        .select('conversation_id')
+        .eq('id', id)
+        .eq('user_id', auth.user.id)
+        .maybeSingle();
+
+    if (fetchError) {
+        console.error('[qimen] 查询历史记录失败:', fetchError.message);
+        return jsonError('删除历史记录失败', 500, { success: false });
+    }
+    if (!existing) {
+        return jsonError('记录不存在', 404, { success: false });
+    }
+
+    const { error } = await serviceClient
+        .from('qimen_charts')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', auth.user.id);
+    if (error) {
+        console.error('[qimen] 删除排盘记录失败:', error.message);
+        return jsonError('删除历史记录失败', 500, { success: false });
+    }
+
+    if (existing.conversation_id) {
+        const { error: conversationError } = await serviceClient
+            .from('conversations')
+            .delete()
+            .eq('id', existing.conversation_id)
+            .eq('user_id', auth.user.id);
+        if (conversationError) {
+            console.error('[qimen] 删除关联会话失败:', conversationError.message);
+        }
+    }
+
+    return jsonOk({ success: true });
 }
 
 export async function POST(request: NextRequest) {
@@ -117,7 +190,7 @@ export async function POST(request: NextRequest) {
                     return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
                 }
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
 
                 async function persistQimenResult(interpretation: string, reasoningText: string | null) {
                     const { createAIAnalysisConversation } = await import('@/lib/ai/ai-analysis');
@@ -240,7 +313,7 @@ export async function POST(request: NextRequest) {
                 }
                 const { user } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: inserted, error: insertError } = await serviceClient
                     .from('qimen_charts')
                     .insert({

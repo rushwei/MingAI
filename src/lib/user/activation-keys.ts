@@ -4,7 +4,7 @@
  * 提供激活Key的创建、验证、激活等功能
  */
 
-import { getServiceRoleClient } from "@/lib/api-utils";
+import { getSystemAdminClient } from "@/lib/api-utils";
 import type { MembershipType } from "@/lib/user/membership";
 
 // Key类型
@@ -61,7 +61,7 @@ export async function createActivationKeys(
     params: CreateKeyParams
 ): Promise<{ success: boolean; keys?: string[]; error?: string }> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         // 验证参数
         if (params.keyType === 'membership' && !params.membershipType) {
@@ -113,7 +113,7 @@ export async function getAllActivationKeys(
     filters?: { isUsed?: boolean; keyType?: KeyType }
 ): Promise<ActivationKey[]> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         let query = supabase
             .from('activation_keys')
@@ -146,7 +146,7 @@ export async function getAllActivationKeys(
  */
 export async function deleteActivationKey(keyId: string): Promise<boolean> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         const { error } = await supabase
             .from('activation_keys')
@@ -177,7 +177,7 @@ export async function activateKey(
         if (!keyCode || !keyCode.startsWith('sk-') || keyCode.length < 10) {
             return { success: false, error: '无效的激活码格式' };
         }
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase.rpc('activate_key_as_service', {
             p_user_id: userId,
             p_key_code: keyCode,

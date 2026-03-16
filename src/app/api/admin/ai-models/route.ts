@@ -5,7 +5,7 @@
  * POST: 创建新模型
  */
 import { NextRequest } from 'next/server';
-import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 // 检查环境变量是否存在
 function hasEnvVar(envVarName: string): boolean {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         return jsonError(authResult.error.message, authResult.error.status);
     }
 
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const url = new URL(request.url);
     const includeDisabled = url.searchParams.get('includeDisabled') === 'true';
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         return jsonError(authResult.error.message, authResult.error.status);
     }
 
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     try {
         const body = await request.json();

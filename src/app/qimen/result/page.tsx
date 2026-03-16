@@ -20,7 +20,7 @@ import { CreditsModal } from '@/components/ui/CreditsModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';

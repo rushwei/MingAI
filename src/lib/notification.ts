@@ -4,7 +4,7 @@
  * 提供站内通知和功能订阅的管理
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { createMemoryCache, createSingleFlight } from '@/lib/cache';
 
 const UNREAD_CACHE_TTL_MS = 2_000;

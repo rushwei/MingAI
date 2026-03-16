@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, Hand, BookOpenText } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES } from '@/lib/divination/palm';
 import { getModelName } from '@/lib/ai/ai-config';

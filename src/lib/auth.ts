@@ -1,15 +1,27 @@
 /**
- * 认证逻辑封装
- * 
- * 提供邮箱登录、注册、登出等功能
+ * 浏览器侧统一认证入口
+ *
+ * - 对外只暴露一个模块，避免 auth/auth-client 双入口
+ * - 仅保留 auth/storage 能力，不再暴露通用表查询与 RPC
+ * - 业务语义（资料、登录保护、错误文案）也统一放在这里
  */
 
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
+
+export type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
+export type User = SupabaseUser;
 
 export type AuthError = {
     message: string;
     code?: string;
+};
+
+type AuthPayload<T = unknown> = {
+    data: T | null;
+    error: AuthError | null;
+    count?: number | null;
+    status?: number;
+    statusText?: string;
 };
 
 export type AuthResult = {
@@ -17,9 +29,281 @@ export type AuthResult = {
     error?: AuthError;
 };
 
-/**
- * 邮箱登录
- */
+type AuthListener = (event: AuthChangeEvent, session: Session | null) => void;
+
+type UserProfile = {
+    id: string;
+    nickname: string | null;
+    avatar_url: string | null;
+    is_admin: boolean;
+    membership: string | null;
+    membership_expires_at: string | null;
+    ai_chat_count: number | null;
+    last_credit_restore_at: string | null;
+};
+
+type UserSettings = {
+    community_anonymous_name?: string | null;
+};
+
+type UserProfileBundle = {
+    profile: UserProfile | null;
+    settings: UserSettings | null;
+};
+
+type OtpType = 'signup' | 'magiclink' | 'recovery' | 'email_change' | 'email';
+
+const authListeners = new Set<AuthListener>();
+let cachedSession: Session | null = null;
+
+function normalizeError(raw: unknown): AuthError | null {
+    if (!raw) return null;
+    if (typeof raw === 'object' && raw && 'message' in raw) {
+        const message = String((raw as { message?: unknown }).message ?? 'Unknown error');
+        const code = 'code' in raw ? String((raw as { code?: unknown }).code ?? '') : undefined;
+        return code ? { message, code } : { message };
+    }
+    return { message: String(raw) };
+}
+
+function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
+    for (const listener of authListeners) {
+        try {
+            listener(event, session);
+        } catch (error) {
+            console.error('[auth] auth listener error:', error);
+        }
+    }
+}
+
+function applySession(session: Session | null, event?: AuthChangeEvent) {
+    cachedSession = session;
+    if (event) {
+        emitAuthEvent(event, session);
+    }
+}
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<{
+    ok: boolean;
+    status: number;
+    result: AuthPayload<T>;
+}> {
+    try {
+        const response = await fetch(input, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(init?.headers || {}),
+            },
+            ...init,
+        });
+
+        const payload = await response.json().catch(() => null) as
+            | { data?: T | null; error?: unknown; count?: number | null; status?: number; statusText?: string }
+            | null;
+
+        return {
+            ok: response.ok,
+            status: response.status,
+            result: {
+                data: (payload?.data ?? null) as T | null,
+                error: normalizeError(payload?.error ?? null),
+                count: payload?.count ?? null,
+                status: payload?.status,
+                statusText: payload?.statusText,
+            },
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            status: 500,
+            result: {
+                data: null,
+                error: normalizeError(error) || { message: 'Request failed' },
+            },
+        };
+    }
+}
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<AuthPayload<T>> {
+    const { result } = await fetchJson<T>(url, init);
+    return result;
+}
+
+async function postAuthAction<T>(action: string, payload: Record<string, unknown> = {}): Promise<AuthPayload<T>> {
+    return requestJson<T>('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({
+            action,
+            ...payload,
+        }),
+    });
+}
+
+async function loadSessionFromServer(): Promise<AuthPayload<{ session: Session | null; user: SupabaseUser | null }>> {
+    const result = await requestJson<{ session: Session | null; user: SupabaseUser | null }>('/api/auth', {
+        method: 'GET',
+    });
+    if (!result.error) {
+        applySession(result.data?.session ?? null);
+    }
+    return result;
+}
+
+async function loadCurrentUserProfile(): Promise<UserProfileBundle | null> {
+    const result = await requestJson<UserProfileBundle>('/api/user/profile', {
+        method: 'GET',
+    });
+
+    if (result.error) {
+        console.error('[auth] failed to load user profile:', result.error.message);
+        return null;
+    }
+
+    return result.data ?? null;
+}
+
+export const supabase = {
+    auth: {
+        async signInWithPassword(credentials: { email: string; password: string }) {
+            const result = await postAuthAction<{ session: Session | null; user: SupabaseUser | null }>('signInWithPassword', credentials);
+            if (!result.error) {
+                applySession(result.data?.session ?? null, 'SIGNED_IN');
+            }
+            return result;
+        },
+
+        async signUp(params: {
+            email: string;
+            password: string;
+            options?: Record<string, unknown>;
+        }) {
+            const result = await postAuthAction<{ session: Session | null; user: SupabaseUser | null }>('signUp', params);
+            if (!result.error && result.data?.session) {
+                applySession(result.data.session, 'SIGNED_IN');
+            }
+            return result;
+        },
+
+        async signOut() {
+            const result = await postAuthAction<{ signedOut: boolean }>('signOut');
+            if (!result.error) {
+                applySession(null, 'SIGNED_OUT');
+            }
+            return result;
+        },
+
+        async getSession(): Promise<{ data: { session: Session | null }; error: AuthError | null }> {
+            const result = await loadSessionFromServer();
+            return {
+                data: { session: result.data?.session ?? null },
+                error: result.error,
+            };
+        },
+
+        async getUser(token?: string): Promise<{ data: { user: SupabaseUser | null }; error: AuthError | null }> {
+            if (token) {
+                const result = await postAuthAction<{ user: SupabaseUser | null }>('getUser', { token });
+                return { data: { user: result.data?.user ?? null }, error: result.error };
+            }
+            const sessionResult = await loadSessionFromServer();
+            return { data: { user: sessionResult.data?.user ?? null }, error: sessionResult.error };
+        },
+
+        async updateUser(attributes: Record<string, unknown>) {
+            const result = await postAuthAction<{ user: SupabaseUser | null }>('updateUser', { attributes });
+            if (!result.error && cachedSession?.user) {
+                applySession(
+                    {
+                        ...cachedSession,
+                        user: result.data?.user || cachedSession.user,
+                    },
+                    'USER_UPDATED'
+                );
+            }
+            return result;
+        },
+
+        async resetPasswordForEmail(email: string, options?: Record<string, unknown>) {
+            return postAuthAction('resetPasswordForEmail', { email, options });
+        },
+
+        async signInWithOtp(params: Record<string, unknown>) {
+            return postAuthAction('signInWithOtp', { params });
+        },
+
+        async verifyOtp(params: { email: string; token: string; type: OtpType }) {
+            const result = await postAuthAction<{ session: Session | null; user: SupabaseUser | null }>('verifyOtp', { params });
+            if (!result.error && result.data?.session) {
+                applySession(result.data.session, 'SIGNED_IN');
+            }
+            return result;
+        },
+
+        onAuthStateChange(callback: AuthListener) {
+            authListeners.add(callback);
+            void this.getSession().then((res) => {
+                callback('INITIAL_SESSION', res.data?.session ?? null);
+            });
+            return {
+                data: {
+                    subscription: {
+                        unsubscribe() {
+                            authListeners.delete(callback);
+                        },
+                    },
+                },
+            };
+        },
+    },
+
+    // Realtime channel 桩（auth-only 模式下不支持，保留接口兼容）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    channel(name: string): any {
+        console.warn(`[auth] channel("${name}") is not supported in auth-only mode`);
+        const noop = () => channelObj;
+        const channelObj = { on: noop, subscribe: noop, unsubscribe: noop };
+        return channelObj;
+    },
+
+    removeChannel(channel?: unknown) {
+        void channel;
+    },
+
+    storage: {
+        from(bucket: string) {
+            return {
+                async upload(path: string, file: File | Blob, options?: { upsert?: boolean }) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('bucket', bucket);
+                    formData.append('path', path);
+                    if (options?.upsert) formData.append('upsert', 'true');
+                    try {
+                        const res = await fetch('/api/supabase/storage', {
+                            method: 'POST',
+                            credentials: 'include',
+                            body: formData,
+                        });
+                        const json = await res.json();
+                        return { data: json.data ?? null, error: normalizeError(json.error) };
+                    } catch (err) {
+                        return { data: null, error: normalizeError(err) || { message: 'Upload failed' } };
+                    }
+                },
+                getPublicUrl(path: string) {
+                    const qs = new URLSearchParams({ bucket, path });
+                    return {
+                        data: { publicUrl: `/api/supabase/storage?${qs.toString()}` },
+                    };
+                },
+            };
+        },
+    },
+};
+
+export const authClient = supabase;
+
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
     const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -31,7 +315,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
             success: false,
             error: {
                 message: getErrorMessage(error.message),
-                code: error.message,
+                code: error.code || error.message,
             },
         };
     }
@@ -39,9 +323,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
     return { success: true };
 }
 
-/**
- * 邮箱注册
- */
 export async function signUpWithEmail(
     email: string,
     password: string,
@@ -63,7 +344,7 @@ export async function signUpWithEmail(
             success: false,
             error: {
                 message: getErrorMessage(error.message),
-                code: error.message,
+                code: error.code || error.message,
             },
         };
     }
@@ -71,9 +352,6 @@ export async function signUpWithEmail(
     return { success: true };
 }
 
-/**
- * 登出
- */
 export async function signOut(): Promise<AuthResult> {
     const { error } = await supabase.auth.signOut();
 
@@ -82,7 +360,7 @@ export async function signOut(): Promise<AuthResult> {
             success: false,
             error: {
                 message: '登出失败，请重试',
-                code: error.message,
+                code: error.code || error.message,
             },
         };
     }
@@ -90,79 +368,60 @@ export async function signOut(): Promise<AuthResult> {
     return { success: true };
 }
 
-/**
- * 获取当前用户
- */
 export async function getCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
 }
 
-/**
- * 获取当前会话
- */
 export async function getSession() {
     const { data: { session } } = await supabase.auth.getSession();
     return session;
 }
 
-/**
- * 获取用户扩展信息
- */
-export async function getUserProfile(userId: string) {
-    const { data, error } = await supabase
-        .from('users')
-        .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
-        .eq('id', userId)
-        .maybeSingle();
+export async function getUserProfile(userId?: string) {
+    const bundle = await loadCurrentUserProfile();
+    const profile = bundle?.profile ?? null;
 
-    if (error) {
-        console.error('Error fetching user profile:', error);
+    if (!profile) {
+        return null;
+    }
+    if (userId && profile.id !== userId) {
         return null;
     }
 
-    return data;
+    return profile;
 }
 
-/**
- * 确保用户扩展信息存在
- */
+export async function getCurrentUserProfileBundle() {
+    return loadCurrentUserProfile();
+}
+
 export async function ensureUserRecord(user: SupabaseUser) {
-    const payload = {
-        id: user.id,
-        nickname: (user.user_metadata?.nickname as string | undefined) || '命理爱好者',
-        avatar_url: (user.user_metadata?.avatar_url as string | undefined) || null,
-        membership: 'free',
-        ai_chat_count: 3,
-    };
+    void user;
+    const result = await requestJson<{ success: boolean }>('/api/user/profile', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'ensure' }),
+    });
 
-    const { error } = await supabase
-        .from('users')
-        .upsert(payload, {
-            onConflict: 'id',
-            ignoreDuplicates: true,
-        });
-
-    if (error) {
-        console.error('Error ensuring user profile:', error);
+    if (result.error) {
+        console.error('[auth] failed to ensure user profile:', result.error.message);
     }
 }
 
-/**
- * 更新用户昵称
- */
 export async function updateNickname(userId: string, nickname: string): Promise<AuthResult> {
-    const { error } = await supabase
-        .from('users')
-        .update({ nickname, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+    void userId;
 
-    if (error) {
+    const result = await requestJson<UserProfileBundle>('/api/user/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ nickname }),
+    });
+
+    if (result.error) {
         return {
             success: false,
             error: {
                 message: '更新失败，请重试',
-                code: error.message,
+                code: result.error.code || result.error.message,
             },
         };
     }
@@ -172,15 +431,12 @@ export async function updateNickname(userId: string, nickname: string): Promise<
     });
 
     if (authError) {
-        console.warn('Failed to sync auth nickname:', authError.message);
+        console.warn('[auth] failed to sync auth nickname:', authError.message);
     }
 
     return { success: true };
 }
 
-/**
- * 发送密码重置邮件
- */
 export async function resetPassword(email: string): Promise<AuthResult> {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -191,7 +447,7 @@ export async function resetPassword(email: string): Promise<AuthResult> {
             success: false,
             error: {
                 message: getErrorMessage(error.message),
-                code: error.message,
+                code: error.code || error.message,
             },
         };
     }
@@ -199,16 +455,6 @@ export async function resetPassword(email: string): Promise<AuthResult> {
     return { success: true };
 }
 
-/**
- * 发送验证码
- * @param email 邮箱地址
- * @param type 验证码类型:
- *   - 'signup': 注册
- *   - 'magiclink': 登录
- *   - 'recovery': 重置密码
- *   - 'email_change': 修改邮箱（newEmail参数必填）
- * @param newEmail 新邮箱（仅email_change类型需要）
- */
 export async function sendOTP(
     email: string,
     type: 'signup' | 'magiclink' | 'recovery' | 'email_change' = 'signup',
@@ -216,7 +462,6 @@ export async function sendOTP(
 ): Promise<AuthResult> {
     try {
         if (type === 'signup') {
-            // 注册时发送验证码
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
@@ -230,12 +475,11 @@ export async function sendOTP(
                     success: false,
                     error: {
                         message: getErrorMessage(error.message),
-                        code: error.message,
+                        code: error.code || error.message,
                     },
                 };
             }
         } else if (type === 'magiclink') {
-            // 登录时发送验证码
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
@@ -248,12 +492,11 @@ export async function sendOTP(
                     success: false,
                     error: {
                         message: getErrorMessage(error.message),
-                        code: error.message,
+                        code: error.code || error.message,
                     },
                 };
             }
         } else if (type === 'recovery') {
-            // 重置密码 - 使用resend发送recovery类型验证码
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
                 redirectTo: `${window.location.origin}/auth/reset-password`,
             });
@@ -263,12 +506,11 @@ export async function sendOTP(
                     success: false,
                     error: {
                         message: getErrorMessage(error.message),
-                        code: error.message,
+                        code: error.code || error.message,
                     },
                 };
             }
         } else if (type === 'email_change') {
-            // 修改邮箱
             if (!newEmail) {
                 return {
                     success: false,
@@ -288,7 +530,7 @@ export async function sendOTP(
                     success: false,
                     error: {
                         message: getErrorMessage(error.message),
-                        code: error.message,
+                        code: error.code || error.message,
                     },
                 };
             }
@@ -296,7 +538,7 @@ export async function sendOTP(
 
         return { success: true };
     } catch (err) {
-        console.error('sendOTP failed:', err);
+        console.error('[auth] sendOTP failed:', err);
         return {
             success: false,
             error: {
@@ -306,16 +548,11 @@ export async function sendOTP(
         };
     }
 }
-/**
- * 使用验证码验证
- * @param email 邮箱地址
- * @param token 验证码
- * @param type 验证类型: 'email' | 'recovery' | 'email_change' | 'signup' | 'magiclink'
- */
+
 export async function verifyOTP(
     email: string,
     token: string,
-    type: Extract<Parameters<typeof supabase.auth.verifyOtp>[0], { email: string }>['type'] = 'email'
+    type: OtpType = 'email'
 ): Promise<AuthResult> {
     const { error } = await supabase.auth.verifyOtp({
         email,
@@ -328,7 +565,7 @@ export async function verifyOTP(
             success: false,
             error: {
                 message: getErrorMessage(error.message),
-                code: error.message,
+                code: error.code || error.message,
             },
         };
     }
@@ -336,101 +573,51 @@ export async function verifyOTP(
     return { success: true };
 }
 
-/**
- * 重置密码：通过 recovery OTP 验证并更新密码（不写入全局会话）
- */
 export async function resetPasswordWithOTP(
     email: string,
     token: string,
     newPassword: string
 ): Promise<AuthResult> {
-    try {
-        const response = await fetch('/api/auth', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-                action: 'resetPasswordWithOtp',
-                email,
-                token,
-                newPassword,
-            }),
-        });
+    const result = await postAuthAction<{ success: boolean }>('resetPasswordWithOtp', {
+        email,
+        token,
+        newPassword,
+    });
 
-        const payload = await response.json().catch(() => null) as {
-            error?: { message?: string; code?: string } | null;
-        } | null;
-
-        if (!response.ok || payload?.error) {
-            const message = payload?.error?.message || '重置密码失败，请重试';
-            return {
-                success: false,
-                error: {
-                    message: getErrorMessage(message),
-                    code: payload?.error?.code || message,
-                },
-            };
-        }
-
-        return { success: true };
-    } catch (err) {
-        console.error('resetPassword failed:', err);
+    if (result.error) {
         return {
             success: false,
             error: {
-                message: '重置密码失败，请重试',
-                code: 'RESET_PASSWORD_FAILED',
+                message: getErrorMessage(result.error.message),
+                code: result.error.code || result.error.message,
             },
         };
     }
+
+    return { success: true };
 }
 
-/**
- * 检查登录尝试次数（最近15分钟内）
- * 使用 SECURITY DEFINER 函数安全绕过 RLS
- */
 export async function checkLoginAttempts(email: string): Promise<{ blocked: boolean; remainingAttempts: number }> {
     const maxAttempts = 5;
+    const result = await postAuthAction<{ blocked: boolean; remainingAttempts: number }>('checkLoginAttempts', { email });
 
-    const { data, error } = await supabase.rpc('check_login_attempts', {
-        p_email: email,
-    });
-
-    if (error) {
-        console.error('Error checking login attempts:', error);
+    if (result.error || !result.data) {
+        console.error('[auth] failed to check login attempts:', result.error?.message);
         return { blocked: false, remainingAttempts: maxAttempts };
     }
 
-    const failedAttempts = (data as Array<{ failed_count: number }> | null)?.[0]?.failed_count || 0;
-
-    return {
-        blocked: failedAttempts >= maxAttempts,
-        remainingAttempts: Math.max(0, maxAttempts - failedAttempts),
-    };
+    return result.data;
 }
 
-/**
- * 记录登录尝试
- * 使用 SECURITY DEFINER 函数安全绕过 RLS
- */
 export async function recordLoginAttempt(email: string, success: boolean): Promise<void> {
-    const { error } = await supabase.rpc('record_login_attempt', {
-        p_email: email,
-        p_success: success,
-    });
+    const result = await postAuthAction<{ success: boolean }>('recordLoginAttempt', { email, success });
 
-    if (error) {
-        console.error('Error recording login attempt:', error);
+    if (result.error) {
+        console.error('[auth] failed to record login attempt:', result.error.message);
     }
 }
 
-/**
- * 带登录限制的邮箱登录
- */
 export async function signInWithEmailProtected(email: string, password: string): Promise<AuthResult> {
-    // 检查是否被锁定
     const { blocked, remainingAttempts } = await checkLoginAttempts(email);
 
     if (blocked) {
@@ -444,8 +631,6 @@ export async function signInWithEmailProtected(email: string, password: string):
     }
 
     const result = await signInWithEmail(email, password);
-
-    // 记录登录尝试
     await recordLoginAttempt(email, result.success);
 
     if (!result.success && remainingAttempts <= 1) {
@@ -461,9 +646,6 @@ export async function signInWithEmailProtected(email: string, password: string):
     return result;
 }
 
-/**
- * 错误信息中英文映射
- */
 function getErrorMessage(code: string): string {
     const errorMessages: Record<string, string> = {
         'Invalid login credentials': '邮箱或密码错误',

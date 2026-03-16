@@ -5,7 +5,7 @@
  * 统一存入 conversations 表，通过 source_type 区分来源
  */
 
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { AIPersonality } from '@/types';
 
 // AI 分析来源类型
@@ -45,7 +45,7 @@ export interface CreateAIAnalysisParams {
  * 绕过 RLS，用于 API 路由中保存 AI 分析结果
  */
 export async function createAIAnalysisConversation(params: CreateAIAnalysisParams): Promise<string | null> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
 
     const modelId = typeof params.sourceData?.model_id === 'string' ? params.sourceData.model_id : undefined;
     const reasoningText = typeof params.sourceData?.reasoning_text === 'string' ? params.sourceData.reasoning_text : undefined;

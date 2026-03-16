@@ -5,9 +5,42 @@
  */
 
 import { NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { hasNonEmptyStrings } from '@/lib/validation';
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { user } = await getAuthContext(request);
+        if (!user) {
+            return jsonError('请先登录', 401);
+        }
+
+        const { id } = await params;
+        const serviceClient = getSystemAdminClient();
+        const { data, error } = await serviceClient
+            .from('community_comments')
+            .select('id, user_id')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) {
+            console.error('获取评论失败:', error);
+            return jsonError('获取评论失败', 500);
+        }
+        if (!data) {
+            return jsonError('评论不存在', 404);
+        }
+
+        return jsonOk({ authorId: data.user_id });
+    } catch (error) {
+        console.error('获取评论失败:', error);
+        return jsonError('获取评论失败', 500);
+    }
+}
 
 export async function PUT(
     request: NextRequest,
@@ -28,7 +61,7 @@ export async function PUT(
         }
 
         // 使用 serviceClient 绕过 RLS
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         // 先验证用户是否是评论作者
         const checkResult = await withRetry(async () => {
@@ -92,7 +125,7 @@ export async function DELETE(
         const { id } = await params;
 
         // 使用 serviceClient 绕过 RLS
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         // 先验证用户是否是评论作者
         const checkResult = await withRetry(async () => {

@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { TargetType, ReportReason, ReportStatus } from '@/lib/community';
-import { jsonError, jsonOk, requireAdminContext, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireAdminContext, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { createNotification } from '@/lib/notification-server';
 import { parsePagination } from '@/lib/pagination';
 import { missingFields } from '@/lib/validation';
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         const { from, to } = parsePagination(searchParams, { defaultPageSize: 20 });
 
         // 使用 Service Role Client 获取所有举报
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         let query = serviceClient
             .from('community_reports')
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
         // 通知所有管理员用户（站内通知）
         try {
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             const { data: admins, error: adminError } = await serviceClient
                 .from('users')
                 .select('id, is_admin')
@@ -173,7 +173,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // 使用 Service Role Client 更新举报
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         const { error } = await serviceClient
             .from('community_reports')

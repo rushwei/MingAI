@@ -17,25 +17,39 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
+        const page = Math.max(Number(searchParams.get('page') || 1), 1);
+        const pageSize = Math.min(Math.max(Number(searchParams.get('pageSize') || 20), 1), 100);
 
         let query = supabase
             .from('ming_notes')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
         if (date) {
             query = query.eq('note_date', date);
         }
+        if (startDate) {
+            query = query.gte('note_date', startDate);
+        }
+        if (endDate) {
+            query = query.lte('note_date', endDate);
+        }
 
-        const { data, error } = await query;
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('获取小记失败:', error);
             return jsonError('获取小记失败', 500);
         }
 
-        return jsonOk({ notes: data });
+        return jsonOk({ notes: data, total: count || 0 });
     } catch (error) {
         console.error('获取小记失败:', error);
         return jsonError('获取小记失败', 500);

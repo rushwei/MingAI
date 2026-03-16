@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
 type KnowledgeBaseSummary = { id: string; name: string; description: string | null };

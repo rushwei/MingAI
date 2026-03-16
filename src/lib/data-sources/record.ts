@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type RecordRow = {
@@ -17,7 +17,7 @@ export const recordProvider: DataSourceProvider<RecordRow> = {
     displayName: '命理记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('ming_records')
@@ -37,7 +37,7 @@ export const recordProvider: DataSourceProvider<RecordRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<RecordRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('ming_records')
             .select('*')

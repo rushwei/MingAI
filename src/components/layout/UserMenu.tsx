@@ -25,7 +25,7 @@ import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership'
 import { getUnreadCount } from '@/lib/notification';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { getUserEmailDisplay } from '@/lib/user-email';
-import type { User as SupabaseUser } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@/lib/auth';
 
 interface SidebarUserCardProps {
     user: SupabaseUser;
@@ -138,13 +138,13 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
         const handleNotificationsInvalidate = () => {
             void fetchCount({ bypassCache: true });
         };
-        window.addEventListener('mingai:supabase-write', handleDbWrite);
+        window.addEventListener('mingai:api-write', handleDbWrite);
         window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
 
         return () => {
             isActive = false;
             window.clearInterval(timer);
-            window.removeEventListener('mingai:supabase-write', handleDbWrite);
+            window.removeEventListener('mingai:api-write', handleDbWrite);
             window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
         };
     }, [user.id]);

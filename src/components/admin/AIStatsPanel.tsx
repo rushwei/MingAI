@@ -21,7 +21,7 @@ import {
     BarChart3 as BarChart2,
     type LucideIcon,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import {
     XAxis,
     YAxis,

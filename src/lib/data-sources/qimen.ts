@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { QimenOutput, QimenPalaceInfo } from '@/lib/divination/qimen';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -32,7 +32,7 @@ export const qimenProvider: DataSourceProvider<QimenRow> = {
     displayName: '奇门遁甲',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('qimen_charts')
@@ -55,7 +55,7 @@ export const qimenProvider: DataSourceProvider<QimenRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<QimenRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('qimen_charts')
             .select('id, question, dun_type, ju_number, chart_data, created_at')

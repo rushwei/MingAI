@@ -11,7 +11,7 @@ import { ChevronDown, Eye, Loader2, Lightbulb } from 'lucide-react';
 import { Qwen, Gemini } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_VISION_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 interface VisionModelConfig {
     id: string;

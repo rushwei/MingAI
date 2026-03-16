@@ -15,8 +15,10 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { useStreamingResponse } from '@/lib/hooks/useStreamingResponse';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
+import type { ChatMessage } from '@/types';
 import type { DaliurenOutput } from '@mingai/mcp-core/daliuren';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 const SHENSHA_DISPLAY = [
     '日德', '日禄', '生气', '桃花', '天喜', '天医', '成神',
@@ -36,6 +38,8 @@ export default function DaliurenResultPage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [divinationId, setDivinationId] = useState<string | undefined>();
+    const [conversationId, setConversationId] = useState<string | undefined>();
+    const [interpretation, setInterpretation] = useState<string | null>(null);
 
     const streaming = useStreamingResponse();
 
@@ -45,10 +49,8 @@ export default function DaliurenResultPage() {
             router.replace('/daliuren');
             return;
         }
-        // 恢复历史记录时保留 divinationId
-        if (params.divinationId) {
-            setDivinationId(params.divinationId as string);
-        }
+        const nextDivinationId = typeof params.divinationId === 'string' ? params.divinationId : undefined;
+        const nextConversationId = typeof params.conversationId === 'string' ? params.conversationId : undefined;
         const controller = new AbortController();
         fetch('/api/daliuren', {
             method: 'POST',
@@ -58,6 +60,8 @@ export default function DaliurenResultPage() {
         })
             .then(r => r.json())
             .then(({ data }: { data: DaliurenOutput }) => {
+                if (nextDivinationId) setDivinationId(nextDivinationId);
+                if (nextConversationId) setConversationId(nextConversationId);
                 if (data) setResult(data);
                 else showToast('error', '排盘失败');
                 setIsLoading(false);
@@ -71,6 +75,35 @@ export default function DaliurenResultPage() {
         return () => controller.abort();
     }, [router, showToast]);
 
+    useEffect(() => {
+        if (!conversationId || interpretation || streaming.content) return;
+
+        let cancelled = false;
+
+        const loadSavedAnalysis = async () => {
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('messages, source_data')
+                .eq('id', conversationId)
+                .maybeSingle();
+
+            if (cancelled || error || !data) return;
+
+            const messages = (data.messages as ChatMessage[]) || [];
+            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const { analysis } = extractAnalysisFromConversation(messages, sourceData);
+            if (analysis) {
+                setInterpretation(analysis);
+            }
+        };
+
+        void loadSavedAnalysis();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [conversationId, interpretation, streaming.content]);
+
     const filteredShensha = useMemo(() => {
         if (!result) return [];
         return result.shenSha.filter(s => SHENSHA_DISPLAY.includes(s.name));
@@ -79,6 +112,7 @@ export default function DaliurenResultPage() {
     const handleInterpret = async () => {
         if (!result) return;
         const params = readSessionJSON('daliuren_params') as Record<string, unknown> | null;
+        setInterpretation(null);
 
         const session = await supabase.auth.getSession();
         const token = session.data.session?.access_token;
@@ -253,6 +287,8 @@ export default function DaliurenResultPage() {
 
                     {streaming.content ? (
                         <MarkdownContent content={streaming.content} />
+                    ) : interpretation ? (
+                        <MarkdownContent content={interpretation} />
                     ) : (
                         <div className="text-sm text-foreground-secondary text-center py-4">
                             点击下方按钮获取 AI 解读
@@ -265,7 +301,7 @@ export default function DaliurenResultPage() {
                             className="w-full mt-3 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
                         >
                             <BookOpen className="w-4 h-4" />
-                            {streaming.content ? '重新解读' : '开始 AI 解读'}
+                            {streaming.content || interpretation ? '重新解读' : '开始 AI 解读'}
                         </button>
                     )}
 

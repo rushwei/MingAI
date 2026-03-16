@@ -5,7 +5,7 @@
  * POST: 添加新来源
  */
 import { NextRequest } from 'next/server';
-import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 import { clearModelCache } from '@/lib/server/ai-config';
 
 // 检查环境变量是否存在
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const { id: modelId } = await context.params;
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data: sources, error } = await supabase
         .from('ai_model_sources')
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { id: modelId } = await context.params;
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     try {
         const body = await request.json();

@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
 import { countTokens, truncateToTokens } from '@/lib/token-utils';
@@ -71,7 +71,7 @@ export async function searchMentionTargets(
 }
 
 async function searchKnowledgeBases(userId: string, query: string, ctx?: DataSourceQueryContext): Promise<MentionTarget[]> {
-    const supabase = ctx?.client ?? getServiceRoleClient();
+    const supabase = ctx?.client ?? getSystemAdminClient();
     let q = supabase
         .from('knowledge_bases')
         .select('id, name, description, created_at')
@@ -109,7 +109,7 @@ export async function resolveMention(mention: Mention, userId: string, ctx?: Dat
 }
 
 async function resolveKnowledgeBase(kbId: string, userId: string, ctx?: DataSourceQueryContext): Promise<string> {
-    const supabase = ctx?.client ?? getServiceRoleClient();
+    const supabase = ctx?.client ?? getSystemAdminClient();
     const { data: kb } = await supabase
         .from('knowledge_bases')
         .select('id, name, description, weight')

@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { NotificationLaunchPanel } from '@/components/admin/NotificationLaunchPanel';
 
 type AdminState = {

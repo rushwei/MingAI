@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { Compass, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 
 type TimeMode = 'now' | 'custom';

@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { TAROT_SPREADS } from '@/lib/divination/tarot';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -36,7 +36,7 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
     displayName: '塔罗记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('tarot_readings')
@@ -59,7 +59,7 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<TarotRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('tarot_readings')
             .select('*')

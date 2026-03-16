@@ -13,7 +13,7 @@ import { ChevronDown, Lightbulb, Loader2 } from 'lucide-react';
 import { Zhipu, DeepSeek, Gemini, Qwen, Claude, Kimi } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import type { MembershipType } from '@/lib/user/membership';
 
 interface ClientModelConfig {

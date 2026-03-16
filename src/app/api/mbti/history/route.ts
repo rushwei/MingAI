@@ -4,7 +4,7 @@
  * 提供历史记录列表与删除操作
  */
 import { NextRequest } from 'next/server';
-import { requireBearerUser, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireBearerUser, getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 const MAX_HISTORY = 50;
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
     const { user } = auth;
 
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data, error: fetchError } = await serviceClient
         .from('mbti_readings')
         .select('id, mbti_type, scores, percentages, created_at, conversation_id, conversation:conversations(source_data)')
@@ -43,7 +43,7 @@ export async function DELETE(request: NextRequest) {
         return jsonError('缺少记录ID', 400, { success: false });
     }
 
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data: row, error: fetchError } = await serviceClient
         .from('mbti_readings')
         .select('id, conversation_id')

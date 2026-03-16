@@ -78,7 +78,7 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
         };
       };
     } | null;
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
     };
   };
@@ -91,7 +91,7 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   let signInEmail = '';
@@ -155,7 +155,7 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
     },
   });
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -196,7 +196,7 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 
@@ -244,7 +244,7 @@ test('linuxdo callback should recover missing provider bindings via admin user l
         };
       };
     } | null;
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
     };
   };
@@ -257,7 +257,7 @@ test('linuxdo callback should recover missing provider bindings via admin user l
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   let listUsersCalls = 0;
@@ -336,7 +336,7 @@ test('linuxdo callback should recover missing provider bindings via admin user l
     },
   });
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -372,7 +372,7 @@ test('linuxdo callback should recover missing provider bindings via admin user l
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 

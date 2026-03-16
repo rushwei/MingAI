@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 import { MentionPopover } from '@/components/chat/MentionPopover';
 import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
 import { mentionStyleMap, mentionTypeLabels } from '@/components/chat/mentionStyles';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
@@ -80,6 +80,8 @@ interface ChatComposerProps {
     onDreamModeChange?: (enabled: boolean) => void;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
     dreamContextLoading?: boolean;
+    // 功能开关
+    knowledgeBaseEnabled?: boolean;
 }
 
 export function ChatComposer({
@@ -110,6 +112,7 @@ export function ChatComposer({
     onDreamModeChange,
     dreamContext,
     dreamContextLoading = false,
+    knowledgeBaseEnabled = true,
 }: ChatComposerProps) {
     const hasBazi = selectedCharts?.bazi;
     const hasZiwei = selectedCharts?.ziwei;
@@ -143,7 +146,7 @@ export function ChatComposer({
     // 权限判断
     const canUseWeb = membershipType !== 'free';
     const canUseBoth = membershipType === 'pro';
-    const canUseKnowledgeBase = membershipType !== 'free';
+    const canUseKnowledgeBase = membershipType !== 'free' && knowledgeBaseEnabled;
     const hasFile = !!attachmentState?.file;
     const hasWebSearch = !!attachmentState?.webSearchEnabled;
     // 始终使用预览 API 的数据（实时反映当前模型的提示词预算）
@@ -971,7 +974,7 @@ export function ChatComposer({
                                                 </button>
                                             )}
                                             {/* 知识库按钮 */}
-                                            {!!userId && (
+                                            {!!userId && knowledgeBaseEnabled && (
                                                 <div className={`flex items-center w-full rounded-lg transition-all ${canUseKnowledgeBase
                                                     ? 'hover:bg-background-secondary text-foreground-secondary'
                                                     : 'opacity-50 text-foreground-secondary hover:bg-background-secondary'

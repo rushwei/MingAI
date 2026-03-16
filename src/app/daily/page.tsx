@@ -28,7 +28,7 @@ import { DailyAIChat } from '@/components/daily/DailyAIChat';
 import { ShareCard } from '@/components/fortune/ShareCard';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { InterpretationModeToggle, type InterpretationMode } from '@/components/fortune/InterpretationModeToggle';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, fortuneLevelToChartValue, isLevelFavorable, type DailyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';

@@ -2,7 +2,7 @@
  * 关系合盘 API 路由
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
             }
             const { user } = authResult;
 
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             const { data: insertedChart, error: insertError } = await serviceClient
                 .from('hepan_charts')
                 .insert({
@@ -186,7 +186,7 @@ ${conflictsSummary}
                                 console.error('[hepan] 保存 AI 分析对话失败');
                             }
 
-                            const serviceClient = getServiceRoleClient();
+                            const serviceClient = getSystemAdminClient();
                             if (chartId) {
                                 const { error: updateError } = await serviceClient
                                     .from('hepan_charts')
@@ -280,7 +280,7 @@ ${conflictsSummary}
                 }
 
                 // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 if (chartId) {
                     // 更新已有记录
                     const { error: updateError } = await serviceClient
@@ -342,7 +342,7 @@ ${conflictsSummary}
             }
             const { user } = authResult;
 
-            const serviceClient = getServiceRoleClient();
+            const serviceClient = getSystemAdminClient();
             const { data: charts, error: listError } = await serviceClient
                 .from('hepan_charts')
                 .select('*')

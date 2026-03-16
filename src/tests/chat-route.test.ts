@@ -49,7 +49,7 @@ function setupRouteMocks(
     const originalBuildPromptWithSources = promptBuilderModule.buildPromptWithSources;
     const originalGetPromptBudget = promptBuilderModule.getPromptBudget;
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalRequireUserContext = apiUtilsModule.requireUserContext;
 
     const state: MockState = {
@@ -100,7 +100,7 @@ function setupRouteMocks(
         },
     });
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         auth: {
             getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }),
         },
@@ -145,7 +145,7 @@ function setupRouteMocks(
         promptBuilderModule.buildPromptWithSources = originalBuildPromptWithSources;
         promptBuilderModule.getPromptBudget = originalGetPromptBudget;
         promptBuilderModule.resolvePersonalities = originalResolvePersonalities;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         apiUtilsModule.requireUserContext = originalRequireUserContext;
     });
 

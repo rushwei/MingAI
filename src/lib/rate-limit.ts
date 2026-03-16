@@ -4,12 +4,12 @@
  * 支持多实例部署，数据持久化
  */
 
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 
 // 尝试获取服务端客户端，失败返回null
-const getServiceClientSafe = () => {
+const getSystemAdminClientSafe = () => {
     try {
-        return getServiceRoleClient();
+        return getSystemAdminClient();
     } catch {
         return null;
     }
@@ -50,7 +50,7 @@ export async function checkRateLimit(
     endpoint: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
-    const supabase = getServiceClientSafe();
+    const supabase = getSystemAdminClientSafe();
 
     // 如果没有 Supabase 配置，回退到内存限制（开发环境）
     if (!supabase) {
@@ -124,7 +124,7 @@ export async function checkRateLimit(
 }
 
 async function handleExistingRow(
-    supabase: ReturnType<typeof getServiceRoleClient>,
+    supabase: ReturnType<typeof getSystemAdminClient>,
     row: { id: number; request_count: number | null; window_start: string | null },
     now: Date,
     config: RateLimitConfig

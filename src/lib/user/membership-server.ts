@@ -1,9 +1,9 @@
-import { getServiceRoleClient } from "@/lib/api-utils";
+import { getSystemAdminClient } from "@/lib/api-utils";
 import type { MembershipType } from "@/lib/user/membership";
 
 export async function getEffectiveMembershipType(userId: string): Promise<MembershipType> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from("users")
             .select("membership, membership_expires_at")

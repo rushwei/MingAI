@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/auth";
 import { usePaymentPause } from "@/lib/hooks/usePaymentPause";
 
 export function PaymentPausePanel() {

@@ -73,7 +73,7 @@ async function getSystemAccessToken(): Promise<string | null> {
  * 获取服务端 Supabase 客户端（系统管理员会话）
  * 使用单例避免重复构建；token 由 accessToken 回调按需获取。
  */
-export function getServiceClient(): SupabaseClient {
+export function getSystemAdminClient(): SupabaseClient {
     if (serviceClient) return serviceClient;
 
     const url = getSupabaseUrl();

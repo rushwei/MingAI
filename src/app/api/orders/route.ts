@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireBearerUser, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireBearerUser, getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 type OrderRecord = {
     id: string;
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
             return jsonError(auth.error.message, auth.error.status);
         }
         const userId = auth.user.id;
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         const { data: orders, error: ordersError } = await supabase
             .from('orders')

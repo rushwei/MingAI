@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, ToggleLeft, Key, Link2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { PaymentPausePanel } from '@/components/admin/PaymentPausePanel';
 import { KeyManagementPanel } from '@/components/admin/KeyManagementPanel';
 import { PurchaseLinkPanel } from '@/components/admin/PurchaseLinkPanel';

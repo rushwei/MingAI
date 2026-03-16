@@ -5,10 +5,10 @@ const ingestModule = require('../lib/knowledge-base/ingest') as any;
 const supabaseServerModule = require('../lib/supabase-server') as any;
 
 test('ingestChatMessageAsService stores chat_message entries with metadata', async () => {
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const inserted: Array<{ source_type: string; source_id: string; metadata: Record<string, unknown> }> = [];
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'conversations') {
                 return {
@@ -62,6 +62,6 @@ test('ingestChatMessageAsService stores chat_message entries with metadata', asy
         assert.equal(inserted[0]?.metadata?.conversation_id, 'conv-1');
         assert.equal(inserted[0]?.metadata?.message_id, 'a1');
     } finally {
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     }
 });

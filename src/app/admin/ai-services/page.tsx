@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, Bot, GitBranch, BarChart3 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { AIModelPanel } from '@/components/admin/AIModelPanel';
 import { AISourcePanel } from '@/components/admin/AISourcePanel';
 import { AIStatsPanel } from '@/components/admin/AIStatsPanel';

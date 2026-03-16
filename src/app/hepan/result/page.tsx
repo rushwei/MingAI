@@ -21,7 +21,7 @@ import {
     calculateCompatibilityTrend,
     getRelationshipAdvice,
 } from '@/lib/divination/hepan';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';

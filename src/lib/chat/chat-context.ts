@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { countTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
@@ -49,7 +49,7 @@ function truncateToTokens(text: string, maxTokens: number): string {
 
 // 加载命盘上下文（仅加载属于当前用户的命盘）
 export async function loadChartContext(chartIds: ChartIds, userId: string): Promise<ChartContext> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const context: ChartContext = {};
 
     if (chartIds.baziId) {
@@ -98,7 +98,7 @@ export async function loadChartContext(chartIds: ChartIds, userId: string): Prom
 }
 
 export async function buildDreamContextPayload(userId: string): Promise<{ payload: DreamContextPayload; context: { baziChartName?: string; dailyFortune?: string } }> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data: settings } = await supabase
         .from('user_settings')

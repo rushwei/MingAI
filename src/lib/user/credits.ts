@@ -11,7 +11,7 @@
  */
 
 import { type MembershipType, getPlanConfig } from './membership';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { getUserLevel } from './gamification';
 
 /**
@@ -41,7 +41,7 @@ export async function getUserCreditInfo(userId: string): Promise<{
     lastRestoreAt: Date | null;
     expiresAt: Date | null;
 } | null> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data, error } = await supabase
         .from('users')
@@ -83,7 +83,7 @@ export async function getCredits(userId: string): Promise<number> {
  * @returns 成功返回剩余积分，失败返回 null
  */
 export async function useCredit(userId: string): Promise<number | null> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data, error } = await supabase
         .rpc('decrement_ai_chat_count', { user_id: userId });
@@ -100,7 +100,7 @@ export async function useCredit(userId: string): Promise<number | null> {
  * 添加积分（充值）
  */
 export async function addCredits(userId: string, amount: number): Promise<number | null> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data, error } = await supabase
         .rpc('increment_ai_chat_count', { user_id: userId, amount });
@@ -126,7 +126,7 @@ export async function hasCredits(userId: string): Promise<boolean> {
  * @returns 恢复的积分数量，如果不需要恢复返回 0
  */
 export async function restoreUserCredits(userId: string): Promise<number> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const info = await getUserCreditInfo(userId);
 
     if (!info) return 0;
@@ -185,7 +185,7 @@ export async function restoreAllCredits(period: 'daily' | 'hourly'): Promise<{
     processed: number;
     restored: number;
 }> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const nowIso = new Date().toISOString();
 
     // 根据周期选择需要处理的会员类型

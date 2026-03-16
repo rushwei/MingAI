@@ -45,12 +45,12 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         const handleNotificationsInvalidate = () => {
             void fetchCount({ bypassCache: true });
         };
-        window.addEventListener('mingai:supabase-write', handleDbWrite);
+        window.addEventListener('mingai:api-write', handleDbWrite);
         window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
 
         return () => {
             window.clearInterval(timer);
-            window.removeEventListener('mingai:supabase-write', handleDbWrite);
+            window.removeEventListener('mingai:api-write', handleDbWrite);
             window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
         };
     }, [userId]);

@@ -7,7 +7,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 

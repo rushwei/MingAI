@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import {
     calculateGanZhiTime,
     calculateKongWangByPillar,
@@ -42,7 +42,7 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
     displayName: '六爻记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('liuyao_divinations')
@@ -71,7 +71,7 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<LiuyaoRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('liuyao_divinations')
             .select('*')

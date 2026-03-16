@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
 
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { user } = await getAuthContext(request);
     if (!user) return jsonError('请先登录', 401);
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data, error } = await service
         .from('knowledge_bases')
         .select('*')
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const limit = membership === 'plus' ? 3 : 10;
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { count: kbCount } = await service
         .from('knowledge_bases')
         .select('id', { count: 'exact', head: true })

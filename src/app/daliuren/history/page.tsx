@@ -4,11 +4,11 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, BookOpen, MessageSquare } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 
 interface DaliurenRecord {
@@ -33,25 +33,35 @@ export default function DaliurenHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-    const loadRecords = useCallback(async () => {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-            router.push('/daliuren');
-            return;
-        }
-        const { data, error } = await supabase
-            .from('daliuren_divinations')
-            .select('id, question, solar_date, day_ganzhi, hour_ganzhi, result_data, settings, conversation_id, created_at')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-        if (error) console.error('[daliuren history] 加载失败:', error.message);
-        setRecords((data as DaliurenRecord[]) || []);
-        setLoading(false);
-    }, [router]);
+    useEffect(() => {
+        let cancelled = false;
 
-    useEffect(() => { loadRecords(); }, [loadRecords]);
+        async function loadRecords() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) {
+                router.push('/daliuren');
+                return;
+            }
+            const response = await fetch('/api/daliuren', { credentials: 'include' });
+            const payload = await response.json().catch(() => null) as {
+                data?: { history?: DaliurenRecord[] };
+                error?: string;
+            } | null;
+
+            if (cancelled) return;
+            if (!response.ok) {
+                console.error('[daliuren history] 加载失败:', payload?.error || 'unknown');
+            }
+            setRecords(payload?.data?.history || []);
+            setLoading(false);
+        }
+
+        void loadRecords();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
 
     const handleView = (record: DaliurenRecord) => {
         const settings = record.settings || {};
@@ -61,15 +71,19 @@ export default function DaliurenHistoryPage() {
             minute: settings.minute ?? 0,
             question: record.question || undefined,
             divinationId: record.id,
+            conversationId: record.conversation_id || undefined,
         });
-        router.push(`/daliuren/result?from=history&t=${Date.now()}`);
+        router.push('/daliuren/result?from=history');
     };
 
     const handleDelete = async (id: string) => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { error } = await supabase.from('daliuren_divinations').delete().eq('id', id).eq('user_id', session.user.id);
-        if (!error) {
+        const response = await fetch(`/api/daliuren?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        if (response.ok) {
             setRecords(prev => prev.filter(r => r.id !== id));
         }
         setDeleteConfirmId(null);

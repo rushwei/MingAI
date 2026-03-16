@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { hasNonEmptyStrings } from '@/lib/validation';
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 使用 serviceClient 和重试逻辑
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         // 获取或创建匿名映射
         let anonymousName = '匿名用户';

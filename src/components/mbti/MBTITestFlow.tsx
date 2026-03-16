@@ -19,7 +19,7 @@ import {
     type TestAnswer,
     type LikertValue,
 } from '@/lib/divination/mbti';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 const QUESTIONS_PER_PAGE = 10;
 

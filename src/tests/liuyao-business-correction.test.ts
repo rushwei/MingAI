@@ -74,7 +74,7 @@ test('liuyao route rejects interpret when question is empty', async (t) => {
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalResolveModelAccessAsync = aiAccessModule.resolveModelAccessAsync;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     credits.hasCredits = async () => true;
     credits.useCredit = async () => 1;
@@ -88,7 +88,7 @@ test('liuyao route rejects interpret when question is empty', async (t) => {
         data: { user: { id: 'user-1' } },
         error: null,
     });
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -129,7 +129,7 @@ test('liuyao route rejects interpret when question is empty', async (t) => {
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         aiAccessModule.resolveModelAccessAsync = originalResolveModelAccessAsync;
         supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { POST } = await import('../app/api/liuyao/route');

@@ -31,13 +31,13 @@ test('community admin post rejects invalid action', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalRequireAdminContext = apiUtils.requireAdminContext;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     apiUtils.requireAdminContext = async () => ({
         supabase: {} as any,
         user: { id: 'admin-1' },
     });
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: () => ({
             update: () => ({ eq: async () => ({ error: null }) }),
         }),
@@ -45,7 +45,7 @@ test('community admin post rejects invalid action', async (t) => {
 
     t.after(() => {
         apiUtils.requireAdminContext = originalRequireAdminContext;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { PUT } = await import('../app/api/community/posts/[id]/admin/route');

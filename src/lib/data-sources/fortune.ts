@@ -1,7 +1,7 @@
 import { calculateDailyFortune, calculateMonthlyFortune, calculateGenericDailyFortune, calculateGenericMonthlyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import type { BaziChart } from '@/types';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type FortuneData = { id: string; name: string; content: string; createdAt: string };
@@ -15,7 +15,7 @@ function formatYm(date: Date) {
 }
 
 async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryContext): Promise<BaziChart | null> {
-    const supabase = ctx?.client ?? getServiceRoleClient();
+    const supabase = ctx?.client ?? getSystemAdminClient();
     const { data: settings } = await supabase
         .from('user_settings')
         .select('default_bazi_chart_id')

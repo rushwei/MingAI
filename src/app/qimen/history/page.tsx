@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Compass } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -55,15 +55,14 @@ export default function QimenHistoryPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) { router.push('/qimen'); return; }
 
-        const { data, error } = await supabase
-            .from('qimen_charts')
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
+        const response = await fetch('/api/qimen', { credentials: 'include' });
+        const payload = await response.json().catch(() => null) as {
+            data?: { charts?: QimenChart[] };
+            error?: string;
+        } | null;
 
-        if (error) console.error('加载历史记录失败:', error);
-        else setCharts(data || []);
+        if (!response.ok) console.error('加载历史记录失败:', payload?.error || 'unknown');
+        else setCharts(payload?.data?.charts || []);
         setLoading(false);
     }, [router]);
 
@@ -73,12 +72,11 @@ export default function QimenHistoryPage() {
     }, [loadCharts]);
 
     const handleDelete = async (id: string) => {
-        const target = charts.find(c => c.id === id);
-        const { error } = await supabase.from('qimen_charts').delete().eq('id', id);
-        if (!error) {
-            if (target?.conversation_id) {
-                await supabase.from('conversations').delete().eq('id', target.conversation_id);
-            }
+        const response = await fetch(`/api/qimen?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        if (response.ok) {
             setCharts(prev => prev.filter(c => c.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['qimen_chart'] } }));
         }

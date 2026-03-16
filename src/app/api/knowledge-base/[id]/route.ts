@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { user } = await getAuthContext(_request);
     if (!user) return jsonError('请先登录', 401);
 
     const { id } = await params;
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data, error } = await service
         .from('knowledge_bases')
         .select('*')
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.description !== undefined) updateData.description = body.description;
     if (body.weight !== undefined) updateData.weight = body.weight;
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data, error } = await service
         .from('knowledge_bases')
         .update(updateData)
@@ -49,7 +49,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!user) return jsonError('请先登录', 401);
 
     const { id } = await params;
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { error } = await service
         .from('knowledge_bases')
         .delete()

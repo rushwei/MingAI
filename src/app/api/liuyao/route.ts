@@ -4,7 +4,7 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
                 const hexagramCode = yaos?.map(y => y.type).join('') || '';
                 const changedCode = computeChangedCode(yaos, changedLines, Boolean(changedHexagram));
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: insertedDivination, error: insertError } = await serviceClient
                     .from('liuyao_divinations')
                     .insert({
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
                 }
                 const { user } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 let analysisDate = new Date();
                 let effectiveQuestion = parsedQuestion.question;
                 let persistedTargets: unknown = undefined;
@@ -550,7 +550,7 @@ ${traditionalInfo}
                 }
                 const { user } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: history, error: historyError } = await serviceClient
                     .from('liuyao_divinations')
                     .select('*')
@@ -583,7 +583,7 @@ ${traditionalInfo}
                 }
                 const { user } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: updatedRows, error: updateError } = await serviceClient
                     .from('liuyao_divinations')
                     .update({ yongshen_targets: parsedTargets.targets })

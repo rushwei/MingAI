@@ -11,7 +11,7 @@ import { useState, useEffect, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 

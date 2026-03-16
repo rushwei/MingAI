@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { generateBaziChartText } from '@/lib/divination/bazi';
 import type { BaziChart } from '@/types';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
@@ -22,7 +22,7 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
     displayName: '八字命盘',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('bazi_charts')
@@ -43,7 +43,7 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<BaziRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('bazi_charts')
             .select('*')

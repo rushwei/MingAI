@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 import { TAROT_SPREADS, type DrawnCard } from '@/lib/divination/tarot';
 import { getModelName } from '@/lib/ai/ai-config';

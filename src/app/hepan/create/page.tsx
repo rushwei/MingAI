@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, FolderOpen, X, AlertCircle, Sparkles, ChevronDown } from 'lucide-react';
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/divination/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 
 function BirthInput({

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const cachePath = resolve(process.cwd(), 'src/lib/cache.ts');
-const supabaseAdapterPath = resolve(process.cwd(), 'src/lib/supabase.ts');
+const authPath = resolve(process.cwd(), 'src/lib/auth.ts');
 const providersPath = resolve(process.cwd(), 'src/components/providers/ClientProviders.tsx');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
 const modelSelectorPath = resolve(process.cwd(), 'src/components/ui/ModelSelector.tsx');
@@ -28,16 +28,16 @@ test('cache module should expose scoped local cache invalidation helper', async 
   );
 });
 
-test('supabase adapter should invalidate scoped local caches on successful writes', async () => {
-  const source = await readFile(supabaseAdapterPath, 'utf-8');
+test('browser auth module should not expose generic query helpers after convergence', async () => {
+  const source = await readFile(authPath, 'utf-8');
 
   assert.ok(
-    source.includes('getCacheScopesForTable(table)') && source.includes('invalidateLocalCaches(cacheScopes);'),
-    'supabase write event path should invalidate only mapped cache scopes'
+    !source.includes('createQueryProxy(') && !source.includes('/api/supabase/proxy'),
+    'browser auth module should not keep the old query proxy implementation'
   );
   assert.ok(
-    source.includes("new CustomEvent('mingai:user-data:invalidate'"),
-    'supabase adapter should emit user-data invalidation event'
+    source.includes('export const supabase = {'),
+    'browser auth module should still expose the auth-compatible client shape'
   );
 });
 

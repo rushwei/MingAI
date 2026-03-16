@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { getHepanTypeName, type HepanType } from '@/lib/divination/hepan';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -21,7 +21,7 @@ export const hepanProvider: DataSourceProvider<HepanRow> = {
     displayName: '合盘记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('hepan_charts')
@@ -48,7 +48,7 @@ export const hepanProvider: DataSourceProvider<HepanRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<HepanRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('hepan_charts')
             .select('*')

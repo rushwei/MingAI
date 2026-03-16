@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
-import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 if (spreadAuthHeader) {
                     const { user: spreadUser } = await getAuthContext(request);
                     if (spreadUser) {
-                        const serviceClient = getServiceRoleClient();
+                        const serviceClient = getSystemAdminClient();
                         const { data: insertedReading, error: insertError } = await serviceClient
                             .from('tarot_readings')
                             .insert({
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 }
                 const { user: saveUser } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: insertedReading, error: insertError } = await serviceClient
                     .from('tarot_readings')
                     .insert({
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                                     console.error('[tarot] 保存 AI 分析对话失败');
                                 }
 
-                                const serviceClient = getServiceRoleClient();
+                                const serviceClient = getSystemAdminClient();
                                 if (readingId) {
                                     const { error: updateError } = await serviceClient
                                         .from('tarot_readings')
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                     }
 
                     // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
-                    const serviceClient = getServiceRoleClient();
+                    const serviceClient = getSystemAdminClient();
                     if (readingId) {
                         // 更新已有记录
                         const { error: updateError } = await serviceClient

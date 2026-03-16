@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { getPaymentsPaused } from '@/lib/app-settings';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { addCredits } from '@/lib/user/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         const { user } = auth;
         const userId = user.id;
 
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         // [MVP] 模拟支付：创建已支付订单
         // 生产环境应创建 pending 订单，等待支付回调确认

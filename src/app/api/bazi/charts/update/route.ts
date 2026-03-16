@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireUserContext, getServiceRoleClient, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, getSystemAdminClient, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
         }
         const { user } = auth;
 
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const sanitizedPayload = { ...payload };
         delete (sanitizedPayload as { user_id?: unknown }).user_id;
         delete (sanitizedPayload as { id?: unknown }).id;

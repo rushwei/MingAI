@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
-import { getAuthAdminClient as getPrivilegedAuthClient, getServiceClient } from '@/lib/supabase-server';
+import { getAuthAdminClient as getPrivilegedAuthClient, getSystemAdminClient as getPrivilegedSystemAdminClient } from '@/lib/supabase-server';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export async function createRequestSupabaseClient() {
@@ -66,7 +66,7 @@ export async function requireBearerUser(
     const token = authHeader.replace(/Bearer\s+/i, '');
     const useMockClient = process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
     const authClient = useMockClient
-        ? (await import('@/lib/supabase')).supabase
+        ? (await import('@/lib/auth')).authClient
         : createAuthedClient(token);
     const { data: { user }, error } = useMockClient
         ? await authClient.auth.getUser(token)
@@ -142,8 +142,8 @@ export async function requireAdminContext(
     return authResult;
 }
 
-export function getServiceRoleClient() {
-    return getServiceClient();
+export function getSystemAdminClient() {
+    return getPrivilegedSystemAdminClient();
 }
 
 export function getAuthAdminClient() {

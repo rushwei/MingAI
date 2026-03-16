@@ -9,7 +9,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import type { Session, User } from '@supabase/supabase-js';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { invalidateLocalCaches, type LocalCacheScope } from '@/lib/cache';
 import { getLinuxDoAuthErrorMessage } from '@/lib/auth-feedback';
 

@@ -3,21 +3,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const supabaseClientPath = resolve(process.cwd(), 'src/lib/supabase.ts');
+const providersPath = resolve(process.cwd(), 'src/components/providers/ClientProviders.tsx');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
 const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
 
-test('supabase proxy adapter should emit write events for CRUD methods', async () => {
-  const source = await readFile(supabaseClientPath, 'utf-8');
+test('client providers should emit api-write events for successful non-GET writes', async () => {
+  const source = await readFile(providersPath, 'utf-8');
 
   assert.ok(
-    source.includes("new CustomEvent('mingai:supabase-write'"),
-    'supabase adapter should emit write event after successful mutations'
+    source.includes("new CustomEvent('mingai:api-write'"),
+    'client providers should emit write events after successful api mutations'
   );
   assert.ok(
-    source.includes("const WRITE_QUERY_METHODS = new Set(['insert', 'upsert', 'update', 'delete'])"),
-    'supabase adapter should only emit on write-like methods'
+    source.includes('shouldHandleApiWrite(url.pathname, method)'),
+    'client providers should scope write event emission to non-GET api calls'
   );
 });
 
@@ -29,15 +29,15 @@ test('notification counters should listen to supabase write events for immediate
   ]);
 
   assert.ok(
-    userPage.includes("window.addEventListener('mingai:supabase-write'"),
+    userPage.includes("window.addEventListener('mingai:api-write'"),
     'user center should refresh unread count after write event'
   );
   assert.ok(
-    userMenu.includes("window.addEventListener('mingai:supabase-write'"),
+    userMenu.includes("window.addEventListener('mingai:api-write'"),
     'user menu should refresh unread count after write event'
   );
   assert.ok(
-    bell.includes("window.addEventListener('mingai:supabase-write'"),
+    bell.includes("window.addEventListener('mingai:api-write'"),
     'notification bell should refresh unread count after write event'
   );
 });

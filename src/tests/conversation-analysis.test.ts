@@ -62,10 +62,10 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     const supabaseServerPath = require.resolve('../lib/supabase-server');
     const aiAnalysisPath = require.resolve('../lib/ai/ai-analysis');
     const supabaseServerModule = require('../lib/supabase-server');
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     let capturedPayload: Record<string, unknown> | null = null;
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: () => ({
             insert: (payload: Record<string, unknown>) => {
                 capturedPayload = payload;
@@ -79,7 +79,7 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     });
 
     t.after(() => {
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         delete require.cache[aiAnalysisPath];
         delete require.cache[supabaseServerPath];
     });

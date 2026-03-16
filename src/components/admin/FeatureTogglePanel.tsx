@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/auth";
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
 
 const MODULES: { id: string; label: string }[] = [

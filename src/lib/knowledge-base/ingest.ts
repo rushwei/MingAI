@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import type { ChatMessage } from '@/types';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
 import type { IngestResult } from '@/lib/knowledge-base/types';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
@@ -182,7 +182,7 @@ export async function ingestConversationAsService(
     userId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { data: conversation } = await supabase
         .from('conversations')
         .select('id, user_id, messages')
@@ -223,7 +223,7 @@ export async function ingestChatMessageAsService(
     userId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { data: conversation } = await supabase
         .from('conversations')
         .select('id, user_id, messages')
@@ -282,7 +282,7 @@ export async function ingestRecordAsService(
     userId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { data: record } = await supabase
         .from('ming_records')
         .select('id, user_id, title, content, tags, category')
@@ -503,7 +503,7 @@ export async function upsertEntries(kbId: string, chunks: ChunkData[]): Promise<
 }
 
 export async function upsertEntriesAsService(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     if (chunks.length > 0) {
         const { sourceType, sourceId } = chunks[0];
@@ -607,7 +607,7 @@ export async function backfillVectorsAsService(
     userId: string,
     batchSize: number = 100
 ): Promise<IngestResultWithVectors> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data: kb } = await supabase
         .from('knowledge_bases')

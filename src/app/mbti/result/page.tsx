@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { RotateCw, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { PersonalityCard } from '@/components/mbti/PersonalityCard';
 import { buildViewResult, type TestResult } from '@/lib/divination/mbti';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';

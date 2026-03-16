@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { CreditCard, Calendar, ShoppingBag } from 'lucide-react';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 

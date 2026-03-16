@@ -128,7 +128,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
       };
     };
     getAuthAdminClient: () => null;
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => {
         select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> }; maybeSingle?: () => Promise<{ data: { id: string } | null }> } };
         upsert?: () => Promise<{ error: null }>;
@@ -145,7 +145,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
@@ -172,7 +172,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
   });
   apiUtilsModule.getAuthAdminClient = () => null;
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -205,7 +205,7 @@ test('linuxdo callback should not reject login when email_verified claim is miss
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 
@@ -249,7 +249,7 @@ test('linuxdo callback should create new users through admin api instead of publ
         };
       };
     };
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => {
         select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> }; maybeSingle?: () => Promise<{ data: { id: string } | null }> } };
         upsert?: () => Promise<{ error: null }>;
@@ -266,7 +266,7 @@ test('linuxdo callback should create new users through admin api instead of publ
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   let publicSignUpCalls = 0;
@@ -323,7 +323,7 @@ test('linuxdo callback should create new users through admin api instead of publ
     },
   });
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -356,7 +356,7 @@ test('linuxdo callback should create new users through admin api instead of publ
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 
@@ -401,7 +401,7 @@ test('linuxdo callback should surface missing auth admin key when public signup 
       };
     };
     getAuthAdminClient: () => null;
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => {
         select?: () => { eq: (field: string, value: string) => { eq?: (field2: string, value2: string) => { maybeSingle: () => Promise<{ data: { user_id: string } | null }> } } };
       };
@@ -413,7 +413,7 @@ test('linuxdo callback should surface missing auth admin key when public signup 
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
 
   linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
   linuxdoModule.fetchUserInfo = async () => ({
@@ -434,7 +434,7 @@ test('linuxdo callback should surface missing auth admin key when public signup 
     },
   });
   apiUtilsModule.getAuthAdminClient = () => null;
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -452,7 +452,7 @@ test('linuxdo callback should surface missing auth admin key when public signup 
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
   });
 
   const { GET } = await import('../app/api/auth/linuxdo/callback/route');
@@ -502,7 +502,7 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
         };
       };
     };
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
     };
   };
@@ -515,7 +515,7 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   let signInCalls = 0;
@@ -582,7 +582,7 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
     },
   });
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -618,7 +618,7 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 
@@ -663,7 +663,7 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
         };
       };
     };
-    getServiceRoleClient: () => {
+    getSystemAdminClient: () => {
       from: (table: string) => Record<string, unknown>;
     };
   };
@@ -676,7 +676,7 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
   const originalGenerateDeterministicPassword = linuxdoModule.generateDeterministicPassword;
   const originalCreateAnonClient = apiUtilsModule.createAnonClient;
   const originalGetAuthAdminClient = apiUtilsModule.getAuthAdminClient;
-  const originalGetServiceRoleClient = apiUtilsModule.getServiceRoleClient;
+  const originalGetServiceRoleClient = apiUtilsModule.getSystemAdminClient;
   const originalSetSessionCookies = authSessionModule.setSessionCookies;
 
   linuxdoModule.exchangeCode = async () => ({ access_token: 'access-token' });
@@ -713,7 +713,7 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
     },
   });
 
-  apiUtilsModule.getServiceRoleClient = () => ({
+  apiUtilsModule.getSystemAdminClient = () => ({
     from: (table: string) => {
       if (table === 'user_oauth_providers') {
         return {
@@ -748,7 +748,7 @@ test('linuxdo callback should surface provider sync failure when oauth binding i
     linuxdoModule.generateDeterministicPassword = originalGenerateDeterministicPassword;
     apiUtilsModule.createAnonClient = originalCreateAnonClient;
     apiUtilsModule.getAuthAdminClient = originalGetAuthAdminClient;
-    apiUtilsModule.getServiceRoleClient = originalGetServiceRoleClient;
+    apiUtilsModule.getSystemAdminClient = originalGetServiceRoleClient;
     authSessionModule.setSessionCookies = originalSetSessionCookies;
   });
 

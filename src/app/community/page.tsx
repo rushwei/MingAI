@@ -27,7 +27,7 @@ import {
     type LucideProps
 } from 'lucide-react';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 

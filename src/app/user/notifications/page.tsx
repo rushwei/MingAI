@@ -17,7 +17,7 @@ import {
     CheckSquare,
     MailOpen,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { BottomBar } from '@/components/layout/BottomBar';
 import {
     getNotifications,

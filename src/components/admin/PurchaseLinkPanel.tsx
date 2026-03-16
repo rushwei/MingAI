@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link2, Loader2, Check, Crown, Sparkles, Coins } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 type ColorKey = 'amber' | 'purple' | 'blue';
 

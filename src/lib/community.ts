@@ -1,10 +1,8 @@
 /**
  * 命理社区服务
- * 
- * 提供帖子、评论、投票、举报的 CRUD 操作和管理员功能
+ *
+ * 浏览器侧统一通过社区 API 访问数据。
  */
-
-import { supabase } from '@/lib/supabase';
 
 // =====================================================
 // 类型定义
@@ -98,6 +96,23 @@ export interface PostFilters {
     sortBy?: 'latest' | 'popular' | 'hot';
 }
 
+async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+    const response = await fetch(input, {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(init?.headers || {}),
+        },
+        ...init,
+    });
+
+    const payload = await response.json().catch(() => null) as T | { error?: string } | null;
+    if (!response.ok) {
+        throw new Error((payload as { error?: string } | null)?.error || '请求失败');
+    }
+    return payload as T;
+}
+
 // =====================================================
 // 帖子分类配置
 // =====================================================
@@ -135,45 +150,18 @@ export async function getPosts(
     page: number = 1,
     pageSize: number = 20
 ): Promise<{ posts: CommunityPost[]; total: number }> {
-    let query = supabase
-        .from('community_posts')
-        .select('*', { count: 'exact' })
-        .eq('is_deleted', false);
+    const query = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        sortBy: filters?.sortBy || 'latest',
+    });
+    if (filters?.category) query.set('category', filters.category);
+    if (filters?.search) query.set('search', filters.search);
 
-    // 应用筛选条件
-    if (filters?.category) {
-        query = query.eq('category', filters.category);
-    }
-    if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
-    }
-
-    // 排序
-    const sortBy = filters?.sortBy || 'latest';
-    if (sortBy === 'latest') {
-        query = query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
-    } else if (sortBy === 'popular') {
-        query = query.order('is_pinned', { ascending: false }).order('upvote_count', { ascending: false });
-    } else if (sortBy === 'hot') {
-        // 热门：综合考虑投票和评论
-        query = query.order('is_pinned', { ascending: false }).order('comment_count', { ascending: false });
-    }
-
-    // 分页
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-        console.error('获取帖子失败:', error);
-        throw new Error('获取帖子失败');
-    }
-
+    const payload = await requestJson<{ posts: CommunityPost[]; total: number }>(`/api/community/posts?${query.toString()}`);
     return {
-        posts: data as CommunityPost[],
-        total: count || 0,
+        posts: payload.posts || [],
+        total: payload.total || 0,
     };
 }
 
@@ -284,39 +272,23 @@ export async function createComment(input: CommentInput): Promise<CommunityComme
  * 更新评论
  */
 export async function updateComment(commentId: string, userId: string, content: string): Promise<CommunityComment> {
-    const { data, error } = await supabase
-        .from('community_comments')
-        .update({
-            content,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', commentId)
-        .eq('user_id', userId)
-        .select()
-        .single();
+    void userId;
 
-    if (error) {
-        console.error('更新评论失败:', error);
-        throw new Error('更新评论失败');
-    }
-
-    return data as CommunityComment;
+    return await requestJson<CommunityComment>(`/api/community/comments/${commentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+    });
 }
 
 /**
  * 删除评论（软删除）
  */
 export async function deleteComment(commentId: string, userId: string): Promise<void> {
-    const { error } = await supabase
-        .from('community_comments')
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', commentId)
-        .eq('user_id', userId);
+    void userId;
 
-    if (error) {
-        console.error('删除评论失败:', error);
-        throw new Error('删除评论失败');
-    }
+    await requestJson(`/api/community/comments/${commentId}`, {
+        method: 'DELETE',
+    });
 }
 
 // =====================================================
@@ -331,15 +303,11 @@ export async function getUserVote(
     targetType: TargetType,
     targetId: string
 ): Promise<VoteType | null> {
-    const { data } = await supabase
-        .from('community_votes')
-        .select('vote_type')
-        .eq('user_id', userId)
-        .eq('target_type', targetType)
-        .eq('target_id', targetId)
-        .single();
+    void userId;
 
-    return data?.vote_type as VoteType | null;
+    const query = new URLSearchParams({ targetType, targetId });
+    const payload = await requestJson<{ vote: VoteType | null }>(`/api/community/votes?${query.toString()}`);
+    return payload.vote || null;
 }
 
 /**
@@ -351,41 +319,13 @@ export async function vote(
     targetId: string,
     voteType: VoteType
 ): Promise<VoteType | null> {
-    // 获取现有投票
-    const { data: existing } = await supabase
-        .from('community_votes')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('target_type', targetType)
-        .eq('target_id', targetId)
-        .single();
+    void userId;
 
-    if (existing) {
-        if (existing.vote_type === voteType) {
-            // 取消投票
-            await supabase
-                .from('community_votes')
-                .delete()
-                .eq('id', existing.id);
-            return null;
-        } else {
-            // 切换投票类型
-            await supabase
-                .from('community_votes')
-                .update({ vote_type: voteType })
-                .eq('id', existing.id);
-            return voteType;
-        }
-    } else {
-        // 新增投票
-        await supabase.from('community_votes').insert({
-            user_id: userId,
-            target_type: targetType,
-            target_id: targetId,
-            vote_type: voteType,
-        });
-        return voteType;
-    }
+    const payload = await requestJson<{ vote: VoteType | null }>('/api/community/votes', {
+        method: 'POST',
+        body: JSON.stringify({ targetType, targetId, voteType }),
+    });
+    return payload.vote || null;
 }
 
 // =====================================================
@@ -402,24 +342,12 @@ export async function createReport(
     reason: ReportReason,
     description?: string
 ): Promise<CommunityReport> {
-    const { data, error } = await supabase
-        .from('community_reports')
-        .insert({
-            reporter_id: userId,
-            target_type: targetType,
-            target_id: targetId,
-            reason,
-            description,
-        })
-        .select()
-        .single();
+    void userId;
 
-    if (error) {
-        console.error('提交举报失败:', error);
-        throw new Error('提交举报失败');
-    }
-
-    return data as CommunityReport;
+    return await requestJson<CommunityReport>('/api/community/reports', {
+        method: 'POST',
+        body: JSON.stringify({ targetType, targetId, reason, description }),
+    });
 }
 
 // =====================================================
@@ -430,48 +358,39 @@ export async function createReport(
  * 管理员置顶帖子
  */
 export async function adminPinPost(postId: string, isPinned: boolean): Promise<void> {
-    const { error } = await supabase
-        .from('community_posts')
-        .update({ is_pinned: isPinned, updated_at: new Date().toISOString() })
-        .eq('id', postId);
-
-    if (error) throw new Error('操作失败');
+    await requestJson(`/api/community/posts/${postId}/admin`, {
+        method: 'PUT',
+        body: JSON.stringify({ action: 'pin', value: isPinned }),
+    });
 }
 
 /**
  * 管理员设置精华帖子
  */
 export async function adminFeaturePost(postId: string, isFeatured: boolean): Promise<void> {
-    const { error } = await supabase
-        .from('community_posts')
-        .update({ is_featured: isFeatured, updated_at: new Date().toISOString() })
-        .eq('id', postId);
-
-    if (error) throw new Error('操作失败');
+    await requestJson(`/api/community/posts/${postId}/admin`, {
+        method: 'PUT',
+        body: JSON.stringify({ action: 'feature', value: isFeatured }),
+    });
 }
 
 /**
  * 管理员删除帖子
  */
 export async function adminDeletePost(postId: string): Promise<void> {
-    const { error } = await supabase
-        .from('community_posts')
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', postId);
-
-    if (error) throw new Error('操作失败');
+    await requestJson(`/api/community/posts/${postId}/admin`, {
+        method: 'PUT',
+        body: JSON.stringify({ action: 'delete' }),
+    });
 }
 
 /**
  * 管理员删除评论
  */
 export async function adminDeleteComment(commentId: string): Promise<void> {
-    const { error } = await supabase
-        .from('community_comments')
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', commentId);
-
-    if (error) throw new Error('操作失败');
+    await requestJson(`/api/community/comments/${commentId}/admin`, {
+        method: 'DELETE',
+    });
 }
 
 /**
@@ -482,26 +401,16 @@ export async function adminGetReports(
     page: number = 1,
     pageSize: number = 20
 ): Promise<{ reports: CommunityReport[]; total: number }> {
-    let query = supabase
-        .from('community_reports')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+    const query = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+    });
+    if (status) query.set('status', status);
 
-    if (status) {
-        query = query.eq('status', status);
-    }
-
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) throw new Error('获取举报列表失败');
-
+    const payload = await requestJson<{ reports: CommunityReport[]; total: number }>(`/api/community/reports?${query.toString()}`);
     return {
-        reports: data as CommunityReport[],
-        total: count || 0,
+        reports: payload.reports || [],
+        total: payload.total || 0,
     };
 }
 
@@ -514,41 +423,26 @@ export async function adminResolveReport(
     status: 'resolved' | 'dismissed',
     notes?: string
 ): Promise<void> {
-    const { error } = await supabase
-        .from('community_reports')
-        .update({
-            status,
-            reviewed_by: adminId,
-            reviewed_at: new Date().toISOString(),
-            review_notes: notes,
-        })
-        .eq('id', reportId);
+    void adminId;
 
-    if (error) throw new Error('处理举报失败');
+    await requestJson('/api/community/reports', {
+        method: 'PUT',
+        body: JSON.stringify({ reportId, status, notes }),
+    });
 }
 
 /**
  * 检查用户是否是帖子作者
  */
 export async function isPostAuthor(postId: string, userId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('community_posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-
-    return data?.user_id === userId;
+    const payload = await requestJson<{ authorId?: string | null }>(`/api/community/posts/${postId}?includeAuthor=1`);
+    return payload.authorId === userId;
 }
 
 /**
  * 检查用户是否是评论作者
  */
 export async function isCommentAuthor(commentId: string, userId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('community_comments')
-        .select('user_id')
-        .eq('id', commentId)
-        .single();
-
-    return data?.user_id === userId;
+    const payload = await requestJson<{ authorId?: string | null }>(`/api/community/comments/${commentId}?includeAuthor=1`);
+    return payload.authorId === userId;
 }

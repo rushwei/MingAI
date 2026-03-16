@@ -26,7 +26,7 @@ test('requireAdminUser should check admin via authResult.supabase instead of ser
     'requireAdminUser should use shared checkIsAdmin function'
   );
   assert.ok(
-    !source.includes('const serviceClient = getServiceClient();'),
+    !source.includes('const serviceClient = getSystemAdminClient();'),
     'requireAdminUser should no longer create service role client'
   );
 });

@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { ZiweiChart } from '@/lib/divination/ziwei';
 import { ziweiChartToText } from '@/lib/divination/ziwei-to-text';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
@@ -22,7 +22,7 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
     displayName: '紫微命盘',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('ziwei_charts')
@@ -42,7 +42,7 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<ZiweiRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('ziwei_charts')
             .select('*')

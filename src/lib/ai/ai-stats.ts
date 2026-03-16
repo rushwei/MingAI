@@ -4,7 +4,7 @@
  * 通过 RPC 记录统计，不依赖 service role key。
  */
 
-import { getServiceClient } from '@/lib/supabase-server';
+import { getSystemAdminClient } from '@/lib/supabase-server';
 
 interface StatsRecord {
     modelKey: string;
@@ -26,7 +26,7 @@ export async function recordAIStatsAsync(record: StatsRecord): Promise<void> {
 
 async function writeStats(record: StatsRecord): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = getServiceClient() as any;
+    const supabase = getSystemAdminClient() as any;
     if (!supabase || typeof supabase.rpc !== 'function') {
         return;
     }

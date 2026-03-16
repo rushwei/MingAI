@@ -10,7 +10,7 @@ test('createNotification uses service client for inserts', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let inserted: Record<string, unknown> | null = null;
 
@@ -18,7 +18,7 @@ test('createNotification uses service client for inserts', async (t) => {
         throw new Error('browser client should not be used');
     };
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => ({
             insert: (payload: Record<string, unknown>) => {
                 if (table === 'notifications') {
@@ -32,7 +32,7 @@ test('createNotification uses service client for inserts', async (t) => {
 
     t.after(() => {
         supabaseModule.supabase.from = originalFrom;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const ok = await notificationModule.createNotification(
@@ -132,7 +132,7 @@ test('processScheduledReminders marks skipped reminder as sent only after succes
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCreateNotification = notificationModule.createNotification;
 
     let notified = false;
@@ -149,7 +149,7 @@ test('processScheduledReminders marks skipped reminder as sent only after succes
         return true;
     };
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'scheduled_reminders') {
                 return scheduledMock.table;
@@ -174,7 +174,7 @@ test('processScheduledReminders marks skipped reminder as sent only after succes
 
     t.after(() => {
         notificationModule.createNotification = originalCreateNotification;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { processScheduledReminders } = await import('../lib/reminders');
@@ -192,7 +192,7 @@ test('processScheduledReminders releases claimed reminder when notification fail
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCreateNotification = notificationModule.createNotification;
 
     const reminder = {
@@ -205,7 +205,7 @@ test('processScheduledReminders releases claimed reminder when notification fail
 
     notificationModule.createNotification = async () => false;
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'scheduled_reminders') {
                 return scheduledMock.table;
@@ -242,7 +242,7 @@ test('processScheduledReminders releases claimed reminder when notification fail
 
     t.after(() => {
         notificationModule.createNotification = originalCreateNotification;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { processScheduledReminders } = await import('../lib/reminders');
@@ -259,7 +259,7 @@ test('processScheduledReminders skips sending when reminder claim was already ta
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalCreateNotification = notificationModule.createNotification;
 
     let notified = false;
@@ -279,7 +279,7 @@ test('processScheduledReminders skips sending when reminder claim was already ta
         return true;
     };
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'scheduled_reminders') {
                 return scheduledMock.table;
@@ -316,7 +316,7 @@ test('processScheduledReminders skips sending when reminder claim was already ta
 
     t.after(() => {
         notificationModule.createNotification = originalCreateNotification;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { processScheduledReminders } = await import('../lib/reminders');

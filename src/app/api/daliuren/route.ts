@@ -4,7 +4,7 @@
  * action: calculate | interpret | save | history
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser, requireUserContext } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -24,6 +24,54 @@ interface DaliurenRequest {
     modelId?: string;
     reasoning?: boolean;
     resultData?: DaliurenOutput;
+}
+
+export async function GET(request: NextRequest) {
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status, { success: false });
+    }
+
+    const serviceClient = getSystemAdminClient();
+    const { data, error } = await serviceClient
+        .from('daliuren_divinations')
+        .select('id, question, solar_date, day_ganzhi, hour_ganzhi, result_data, settings, conversation_id, created_at')
+        .eq('user_id', auth.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error('[daliuren] 获取历史记录失败:', error.message);
+        return jsonError('获取历史记录失败', 500, { success: false });
+    }
+
+    return jsonOk({ success: true, data: { history: data || [] } });
+}
+
+export async function DELETE(request: NextRequest) {
+    const auth = await requireUserContext(request);
+    if ('error' in auth) {
+        return jsonError(auth.error.message, auth.error.status, { success: false });
+    }
+
+    const id = new URL(request.url).searchParams.get('id');
+    if (!id) {
+        return jsonError('缺少记录 ID', 400, { success: false });
+    }
+
+    const serviceClient = getSystemAdminClient();
+    const { error } = await serviceClient
+        .from('daliuren_divinations')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', auth.user.id);
+
+    if (error) {
+        console.error('[daliuren] 删除历史记录失败:', error.message);
+        return jsonError('删除历史记录失败', 500, { success: false });
+    }
+
+    return jsonOk({ success: true });
 }
 
 export async function POST(request: NextRequest) {
@@ -55,7 +103,7 @@ export async function POST(request: NextRequest) {
                     return jsonError('缺少排盘数据', 400, { success: false });
                 }
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: inserted, error: insertError } = await serviceClient
                     .from('daliuren_divinations')
                     .insert({
@@ -108,7 +156,7 @@ export async function POST(request: NextRequest) {
                     return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
                 }
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
 
                 async function persistDaliurenResult(interpretation: string) {
                     const { createAIAnalysisConversation } = await import('@/lib/ai/ai-analysis');
@@ -177,7 +225,7 @@ export async function POST(request: NextRequest) {
                 }
                 const { user } = authResult;
 
-                const serviceClient = getServiceRoleClient();
+                const serviceClient = getSystemAdminClient();
                 const { data: history, error: historyError } = await serviceClient
                     .from('daliuren_divinations')
                     .select('id, question, solar_date, day_ganzhi, hour_ganzhi, yue_jiang, conversation_id, created_at')

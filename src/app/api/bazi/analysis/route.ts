@@ -9,7 +9,7 @@ import { NextRequest } from 'next/server';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         // 用户提示词仅承载命盘摘要，避免混入系统规则
         const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
 
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data: chart, error: chartError } = await supabase
             .from('bazi_charts')
             .select('name, user_id')

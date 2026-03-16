@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Hand, Loader2, MessageCircle } from 'lucide-react';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';

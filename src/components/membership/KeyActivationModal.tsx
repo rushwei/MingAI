@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { X, Key, Loader2, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
 interface KeyActivationModalProps {

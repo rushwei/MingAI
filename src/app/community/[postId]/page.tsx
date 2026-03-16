@@ -29,7 +29,7 @@ import {
     VoteType,
     REPORT_REASONS
 } from '@/lib/community';
-import { supabase } from '@/lib/supabase';
+import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
 // 客户端 fetch 重试工具
@@ -462,15 +462,10 @@ export default function PostDetailPage() {
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
             if (user) {
-                const { data } = await supabase.from('users').select('is_admin').eq('id', user.id).single();
-                setIsAdmin(data?.is_admin || false);
-                const { data: settings } = await supabase
-                    .from('user_settings')
-                    .select('community_anonymous_name')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
-                const savedName = typeof settings?.community_anonymous_name === 'string'
-                    ? settings.community_anonymous_name.trim()
+                const bundle = await getCurrentUserProfileBundle();
+                setIsAdmin(bundle?.profile?.is_admin || false);
+                const savedName = typeof bundle?.settings?.community_anonymous_name === 'string'
+                    ? bundle.settings.community_anonymous_name.trim()
                     : '';
                 if (savedName) {
                     setAnonymousName(savedName);

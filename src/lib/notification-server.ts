@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { Notification } from '@/lib/notification';
 
 export async function createNotification(
@@ -8,7 +8,7 @@ export async function createNotification(
     content?: string,
     link?: string
 ): Promise<boolean> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { error } = await serviceClient
         .from('notifications')
         .insert({
@@ -33,7 +33,7 @@ export async function getFeatureSubscribers(featureKey: string): Promise<{
     notifyEmail: boolean;
     notifySite: boolean;
 }[]> {
-    const serviceClient = getServiceRoleClient();
+    const serviceClient = getSystemAdminClient();
     const { data, error } = await serviceClient
         .from('feature_subscriptions')
         .select('user_id, notify_email, notify_site')

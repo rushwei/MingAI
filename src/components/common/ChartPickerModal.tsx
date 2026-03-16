@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Search, Orbit, Star } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 export interface ChartItem {
     id: string;

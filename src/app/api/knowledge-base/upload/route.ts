@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { ingestFileAsService, backfillVectorsAsService } from '@/lib/knowledge-base/ingest';
 import { triggerVectorIndexCreation } from '@/lib/knowledge-base/vector-index';
-import { getAuthContext, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 function isAllowedFile(file: File) {
     if (file.type.startsWith('text/')) return true;
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         return jsonError('文件过大', 400);
     }
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data: kb } = await service
         .from('knowledge_bases')
         .select('id, user_id')

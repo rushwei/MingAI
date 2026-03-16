@@ -4,7 +4,7 @@
  * 管理用户等级、经验值、称号等
  */
 
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 
 // ===== 等级配置 =====
 
@@ -61,7 +61,7 @@ export interface UserLevel {
  * 获取用户等级信息
  */
 export async function getUserLevel(userId: string): Promise<UserLevel | null> {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { data, error } = await supabase
         .from('user_levels')
         .select('*')
@@ -93,7 +93,7 @@ export async function getUserLevel(userId: string): Promise<UserLevel | null> {
  */
 async function initUserLevel(userId: string): Promise<UserLevel | null> {
     const defaultLevel = LEVEL_CONFIG[0];
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     const { data, error } = await supabase
         .from('user_levels')
@@ -144,7 +144,7 @@ export async function addExperience(
     const leveledUp = newLevelInfo.level > currentLevel.level;
 
     // 更新数据库
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { error } = await supabase
         .from('user_levels')
         .update({

@@ -18,7 +18,7 @@ import {
     Coins,
     Filter
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
 interface ActivationKey {

@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type DaliurenRow = {
@@ -20,7 +20,7 @@ export const daliurenProvider: DataSourceProvider<DaliurenRow> = {
     displayName: '大六壬记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('daliuren_divinations')
@@ -40,7 +40,7 @@ export const daliurenProvider: DataSourceProvider<DaliurenRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<DaliurenRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('daliuren_divinations')
             .select('*')

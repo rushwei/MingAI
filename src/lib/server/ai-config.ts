@@ -5,7 +5,7 @@ import {
   buildModels,
   clearModelCache as clearSharedModelCache,
 } from '@/lib/ai/ai-config';
-import { getServiceClient } from '@/lib/supabase-server';
+import { getSystemAdminClient } from '@/lib/supabase-server';
 
 interface DBModelSourceRow {
   is_active: boolean;
@@ -74,7 +74,7 @@ async function fetchModelsFromDB(): Promise<AIModelConfig[] | null> {
 
   let supabase;
   try {
-    supabase = getServiceClient();
+    supabase = getSystemAdminClient();
   } catch (error) {
     console.warn('[ai-config/server] Supabase client unavailable, fallback to env models:', error);
     return null;

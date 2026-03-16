@@ -18,7 +18,9 @@ type AuthAction =
   | 'verifyOtp'
   | 'resetPasswordWithOtp'
   | 'getUser'
-  | 'getSession';
+  | 'getSession'
+  | 'checkLoginAttempts'
+  | 'recordLoginAttempt';
 
 function authSuccess(data: unknown, status = 200) {
   return NextResponse.json({ data, error: null }, { status });
@@ -190,6 +192,35 @@ export async function POST(request: NextRequest) {
         setSessionCookies(response, session);
       }
       return response;
+    }
+    case 'checkLoginAttempts': {
+      const email = String(payload.email || '').trim();
+      if (!email) return authFailure('Missing email', 400);
+
+      const { data, error } = await anonymousClient.rpc('check_login_attempts', {
+        p_email: email,
+      });
+      if (error) return authFailure(error.message, 500, error.code);
+
+      const maxAttempts = 5;
+      const failedAttempts = (data as Array<{ failed_count: number }> | null)?.[0]?.failed_count || 0;
+      return authSuccess({
+        blocked: failedAttempts >= maxAttempts,
+        remainingAttempts: Math.max(0, maxAttempts - failedAttempts),
+      });
+    }
+    case 'recordLoginAttempt': {
+      const email = String(payload.email || '').trim();
+      const success = Boolean(payload.success);
+      if (!email) return authFailure('Missing email', 400);
+
+      const { error } = await anonymousClient.rpc('record_login_attempt', {
+        p_email: email,
+        p_success: success,
+      });
+      if (error) return authFailure(error.message, 500, error.code);
+
+      return authSuccess({ success: true });
     }
     default:
       return authFailure(`Unsupported auth action: ${action}`, 400);

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { getAuthContext, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     const { user } = await getAuthContext(request);
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const kbId = searchParams.get('kbId');
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     if (kbId) {
         const { data: kb } = await service
             .from('knowledge_bases')
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         return jsonError('参数不完整', 400);
     }
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data: kb } = await service
         .from('knowledge_bases')
         .select('id')

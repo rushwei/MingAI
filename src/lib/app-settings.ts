@@ -1,10 +1,10 @@
-import { getServiceRoleClient } from "@/lib/api-utils";
+import { getSystemAdminClient } from "@/lib/api-utils";
 
 const PAYMENTS_PAUSED_KEY = "payments_paused";
 
 export async function getPaymentsPaused(): Promise<boolean> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from("app_settings")
             .select("setting_value")
@@ -25,7 +25,7 @@ export async function getPaymentsPaused(): Promise<boolean> {
 
 export async function setPaymentsPaused(paused: boolean): Promise<boolean> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { error } = await supabase
             .from("app_settings")
             .upsert(
@@ -65,7 +65,7 @@ export interface PurchaseLink {
  */
 export async function getPurchaseLink(type: PurchaseLinkType): Promise<string | null> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from("purchase_links")
             .select("url")
@@ -89,7 +89,7 @@ export async function getPurchaseLink(type: PurchaseLinkType): Promise<string | 
  */
 export async function getAllPurchaseLinks(): Promise<PurchaseLink[]> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from("purchase_links")
             .select("*")
@@ -117,7 +117,7 @@ export async function setPurchaseLink(
     updatedBy?: string
 ): Promise<boolean> {
     try {
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { error } = await supabase
             .from("purchase_links")
             .upsert(
@@ -187,7 +187,7 @@ const FEATURE_PREFIX = 'feature_disabled:';
 /** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
 export async function getFeatureToggles(): Promise<Record<string, boolean>> {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { data, error } = await supabase
       .from('app_settings')
       .select('setting_key, setting_value')
@@ -216,7 +216,7 @@ export async function setFeatureToggle(
   disabled: boolean
 ): Promise<boolean> {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const { error } = await supabase
       .from('app_settings')
       .upsert(

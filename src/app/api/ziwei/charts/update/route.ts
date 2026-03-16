@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { isValidUUID } from '@/lib/validation';
 
 const ALLOWED_FIELDS = [
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. 业务逻辑
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from('ziwei_charts')
             .update(sanitizedPayload)

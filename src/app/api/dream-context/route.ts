@@ -5,12 +5,12 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 import { countTokens } from '@/lib/token-utils';
 
-const getSupabase = () => getServiceRoleClient();
+const getSupabase = () => getSystemAdminClient();
 
 // Token 限制
 const MAX_BAZI_TOKENS = 1500;

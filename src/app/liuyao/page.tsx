@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 

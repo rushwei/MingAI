@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { X, CreditCard, Loader2, CheckCircle, QrCode } from 'lucide-react';
 import { type PricingPlan } from '@/lib/user/membership';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 interface PaymentModalProps {
     isOpen: boolean;

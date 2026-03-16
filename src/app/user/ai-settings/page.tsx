@@ -14,7 +14,7 @@ import {
     ArrowLeft, Loader2, Save, Sparkles, BookOpenText,
     MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 

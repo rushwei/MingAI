@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react';
 import { sendOTP, verifyOTP } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@/components/auth/PasswordStrengthIndicator';
 import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
 

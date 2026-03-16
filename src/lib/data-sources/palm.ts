@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { PALM_ANALYSIS_TYPES } from '@/lib/divination/palm';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -23,7 +23,7 @@ export const palmProvider: DataSourceProvider<PalmRow> = {
     displayName: '手相记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('palm_readings')
@@ -56,7 +56,7 @@ export const palmProvider: DataSourceProvider<PalmRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<PalmRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('palm_readings')
             .select('*, conversation:conversations(messages, source_data)')

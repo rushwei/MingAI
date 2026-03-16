@@ -10,7 +10,7 @@
 import { NextRequest } from 'next/server';
 import { sendFeatureLaunchEmail } from '@/lib/email';
 import { FEATURE_NAMES } from '@/lib/notification';
-import { getServiceRoleClient, jsonError, jsonOk, requireAdminContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireAdminContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 延迟初始化 service client，避免构建期缺失环境变量导致失败
-        const supabaseAdmin = getServiceRoleClient();
+        const supabaseAdmin = getSystemAdminClient();
 
         const body = await request.json() as {
             featureKey?: string;

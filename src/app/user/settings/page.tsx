@@ -19,7 +19,7 @@ import {
     Check,
     ChevronRight
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
 import { MobileNavCustomizer } from '@/components/settings/MobileNavCustomizer';

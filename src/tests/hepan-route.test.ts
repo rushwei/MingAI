@@ -31,7 +31,7 @@ test('hepan route returns error when credit deduction fails', async (t) => {
     const originalUseCredit = credits.useCredit;
     const originalFetch = global.fetch;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
     credits.useCredit = async () => null;
@@ -39,7 +39,7 @@ test('hepan route returns error when credit deduction fails', async (t) => {
         data: { user: { id: 'user-1' } },
         error: null,
     });
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -69,7 +69,7 @@ test('hepan route returns error when credit deduction fails', async (t) => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
         supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         global.fetch = originalFetch;
     });
 
@@ -119,7 +119,7 @@ test('hepan route persists analysis after streaming completes', async (t) => {
     const originalCallAIStream = aiModule.callAIStream;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let createArgs: Record<string, unknown> | null = null;
     let updated: Record<string, unknown> | null = null;
@@ -146,7 +146,7 @@ test('hepan route persists analysis after streaming completes', async (t) => {
         data: { user: { id: 'user-1' } },
         error: null,
     });
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'users') {
                 return {
@@ -189,7 +189,7 @@ test('hepan route persists analysis after streaming completes', async (t) => {
         aiModule.callAIStream = originalCallAIStream;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { POST } = await import('../app/api/hepan/route');

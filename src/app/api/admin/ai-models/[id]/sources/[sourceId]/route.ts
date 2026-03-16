@@ -6,7 +6,7 @@
  * POST: 激活该来源（设为活跃）
  */
 import { NextRequest } from 'next/server';
-import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 import { clearModelCache } from '@/lib/server/ai-config';
 
 type RouteContext = {
@@ -21,7 +21,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const { id: modelId, sourceId } = await context.params;
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     try {
         const body = await request.json();
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     const { id: modelId, sourceId } = await context.params;
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     // 检查是否是最后一个来源
     const { count } = await supabase
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { id: modelId, sourceId } = await context.params;
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
 
     // 检查来源是否存在且启用
     const { data: source } = await supabase

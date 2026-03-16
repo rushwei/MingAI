@@ -19,7 +19,7 @@ import { FeatureGate } from '@/components/layout/FeatureGate';
 
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';

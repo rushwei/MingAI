@@ -23,6 +23,7 @@ import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
@@ -34,7 +35,7 @@ import {
     deleteConversation,
     renameConversation,
 } from '@/lib/chat/conversation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
@@ -87,6 +88,7 @@ export default function ChatPage() {
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const { isFeatureEnabled } = useFeatureToggles();
     const { user, loading: sessionLoading } = useSessionSafe();
 
     // 消息状态
@@ -144,17 +146,20 @@ export default function ChatPage() {
 
     // 注册移动端顶部菜单项（个性化和知识库）
     useEffect(() => {
-        const menuItems = [
-            {
+        const menuItems = [];
+
+        // 个性化入口
+        if (isFeatureEnabled('ai-personalization')) {
+            menuItems.push({
                 id: 'ai-settings',
                 label: '个性化',
                 icon: <MessageCircleHeart className="w-4 h-4" />,
                 onClick: () => router.push('/user/settings/ai'),
-            },
-        ];
+            });
+        }
 
         // 非免费用户显示知识库入口
-        if (membership?.type !== 'free') {
+        if (membership?.type !== 'free' && isFeatureEnabled('knowledge-base')) {
             menuItems.push({
                 id: 'knowledge-base',
                 label: '知识库',
@@ -166,7 +171,7 @@ export default function ChatPage() {
         setMenuItems(menuItems);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [membership?.type]);
+    }, [membership?.type, isFeatureEnabled]);
 
     // 当解梦模式开启时获取参考数据（仅用于 UI 显示，服务端会始终获取最新数据）
     useEffect(() => {
@@ -276,6 +281,11 @@ export default function ChatPage() {
     const refreshPromptKnowledgeBases = useCallback(async (targetUserId?: string | null) => {
         const id = targetUserId ?? userId;
         if (!id) return;
+        // 知识库功能关闭时不获取数据
+        if (!isFeatureEnabled('knowledge-base')) {
+            setPromptKnowledgeBases([]);
+            return;
+        }
         const { data: settings } = await supabase
             .from('user_settings')
             .select('prompt_kb_ids')
@@ -297,7 +307,7 @@ export default function ChatPage() {
         const kbMap = new Map((kbs || []).map((kb: { id: string; name: string; description: string | null }) => [kb.id, kb]));
         const ordered = kbIds.map(kbId => kbMap.get(kbId)).filter(Boolean) as Array<{ id: string; name: string; description: string | null }>;
         setPromptKnowledgeBases(ordered);
-    }, [userId]);
+    }, [userId, isFeatureEnabled]);
 
     const refreshConversationList = useCallback(async (targetUserId?: string | null) => {
         const id = targetUserId ?? userId;
@@ -1243,6 +1253,7 @@ export default function ChatPage() {
                 <div className="flex-1 flex flex-col min-w-0 relative">
                     {/* 右上角个性化与知识库入口 - 仅桌面端显示，移动端通过顶部菜单访问 */}
                     <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-col gap-2 items-end">
+                        {isFeatureEnabled('ai-personalization') && (
                         <Link
                             href="/user/settings/ai"
                             className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
@@ -1251,8 +1262,9 @@ export default function ChatPage() {
                             <MessageCircleHeart className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
                             {sidebarCollapsed && <span className="text-sm font-medium">个性化</span>}
                         </Link>
+                        )}
 
-                        {membership?.type !== 'free' && (
+                        {membership?.type !== 'free' && isFeatureEnabled('knowledge-base') && (
                             <Link
                                 href="/user/knowledge-base"
                                 className={`flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group ${sidebarCollapsed ? 'pl-3 pr-4' : ''}`}
@@ -1334,6 +1346,7 @@ export default function ChatPage() {
                                     onDreamModeChange={setDreamMode}
                                     dreamContext={dreamContext}
                                     dreamContextLoading={dreamContextLoading}
+                                    knowledgeBaseEnabled={isFeatureEnabled('knowledge-base')}
                                 />
                             </div>
                         </div>
@@ -1432,13 +1445,14 @@ export default function ChatPage() {
                                 onDreamModeChange={setDreamMode}
                                 dreamContext={dreamContext}
                                 dreamContextLoading={dreamContextLoading}
+                                knowledgeBaseEnabled={isFeatureEnabled('knowledge-base')}
                             />
                         </>
                     )}
                 </div>
             </div>
 
-            {kbTargetMessage && activeConversationId && (
+            {kbTargetMessage && activeConversationId && isFeatureEnabled('knowledge-base') && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={closeKbModal}

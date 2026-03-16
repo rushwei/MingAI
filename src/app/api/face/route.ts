@@ -4,7 +4,7 @@
  * 提供面相图片分析、历史记录等功能
  */
 import { NextRequest } from 'next/server';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                     // 保存分析记录
                     let readingId: string | null = null;
                     if (conversationId) {
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
                         const { data: insertedReading, error: insertError } = await serviceClient
                             .from('face_readings')
                             .insert({

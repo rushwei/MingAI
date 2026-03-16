@@ -28,7 +28,7 @@ import {
 import { resolveResultYongShenState, resolveResultYongShenTargets } from '@/lib/divination/liuyao-result-state';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
 import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';

@@ -8,7 +8,7 @@
 import { NextRequest } from 'next/server';
 import { pricingPlans } from '@/lib/user/membership';
 import { getPaymentsPaused } from '@/lib/app-settings';
-import { getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         const { user } = auth;
         const userId = user.id;
 
-        const supabase = getServiceRoleClient();
+        const supabase = getSystemAdminClient();
 
         // 计算过期时间
         let expiresAt: Date | null = null;

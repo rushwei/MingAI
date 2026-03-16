@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { FACE_ANALYSIS_TYPES } from '@/lib/divination/face';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -22,7 +22,7 @@ export const faceProvider: DataSourceProvider<FaceRow> = {
     displayName: '面相记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('face_readings')
@@ -45,7 +45,7 @@ export const faceProvider: DataSourceProvider<FaceRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<FaceRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('face_readings')
             .select('*, conversation:conversations(messages, source_data)')

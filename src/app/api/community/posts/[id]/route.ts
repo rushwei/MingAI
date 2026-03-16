@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { CommunityPost, CommunityComment } from '@/lib/community';
-import { getAuthContext, jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 
 // 从帖子数据中移除 user_id 以保护匿名性
@@ -24,6 +24,8 @@ export async function GET(
     try {
         const { supabase, user } = await getAuthContext(_request);
         const { id } = await params;
+        const { searchParams } = new URL(_request.url);
+        const includeAuthor = searchParams.get('includeAuthor') === '1';
 
         // 获取帖子
         const { data: post, error: postError } = await supabase
@@ -42,7 +44,7 @@ export async function GET(
         }
 
         // 使用 Service Role Client 增加浏览量（绕过 RLS）
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
         await withRetry(async () => {
             const { error } = await serviceClient
                 .rpc('increment_community_post_view_count', { post_id: id });
@@ -146,6 +148,7 @@ export async function GET(
             post: safePost,
             comments: safeComments,
             isAuthor: isPostAuthor,
+            ...(includeAuthor ? { authorId: post.user_id } : {}),
         });
     } catch (error) {
         console.error('获取帖子失败:', error);

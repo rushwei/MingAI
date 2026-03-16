@@ -16,7 +16,7 @@ import {
     calculateShenSha,
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import type { BaziFormData, CalendarType, Gender, ChatMessage } from '@/types';
 import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import { ResultHeader } from '@/components/bazi/result/ResultHeader';
@@ -534,13 +534,29 @@ function BaziResultContent() {
                     onSaveWuxingAnalysis={async (analysis) => {
                         setSavedWuxingAnalysis(analysis);
                         if (chartId) {
-                            await supabase.from('bazi_charts').update({ ai_wuxing_analysis: analysis }).eq('id', chartId);
+                            await fetch('/api/bazi/charts/update', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                    chartId,
+                                    payload: { ai_wuxing_analysis: analysis },
+                                }),
+                            });
                         }
                     }}
                     onSavePersonalityAnalysis={async (analysis) => {
                         setSavedPersonalityAnalysis(analysis);
                         if (chartId) {
-                            await supabase.from('bazi_charts').update({ ai_personality_analysis: analysis }).eq('id', chartId);
+                            await fetch('/api/bazi/charts/update', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                    chartId,
+                                    payload: { ai_personality_analysis: analysis },
+                                }),
+                            });
                         }
                     }}
                     onLoginRequired={() => setShowAuthModal(true)}

@@ -13,7 +13,7 @@ import {
   generateDeterministicPassword,
   type LinuxDoUser,
 } from '@/lib/oauth/linuxdo';
-import { createAnonClient, getAuthAdminClient, getServiceRoleClient } from '@/lib/api-utils';
+import { createAnonClient, getAuthAdminClient, getSystemAdminClient } from '@/lib/api-utils';
 import { setSessionCookies } from '@/lib/auth-session';
 
 const OAUTH_STATE_COOKIE = 'linuxdo-oauth-state';
@@ -276,7 +276,7 @@ export async function GET(request: NextRequest) {
     return res;
   }
 
-  const serviceClient = getServiceRoleClient();
+  const serviceClient = getSystemAdminClient();
 
   // 5. 查 user_oauth_providers
   const { data: existingProvider, error: existingProviderError } = await serviceClient

@@ -16,7 +16,7 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';

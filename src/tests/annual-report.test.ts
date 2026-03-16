@@ -9,7 +9,7 @@ test('annual report generation uses service client for queries', async (t) => {
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     let usedServiceClient = false;
     let cachedReport: Record<string, unknown> | null = null;
@@ -18,7 +18,7 @@ test('annual report generation uses service client for queries', async (t) => {
         throw new Error('browser client should not be used');
     };
 
-    supabaseServerModule.getServiceClient = () => {
+    supabaseServerModule.getSystemAdminClient = () => {
         usedServiceClient = true;
         return {
             from: (table: string) => {
@@ -91,7 +91,7 @@ test('annual report generation uses service client for queries', async (t) => {
 
     t.after(() => {
         supabaseModule.supabase.from = originalFrom;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { generateAnnualReport } = await import('../lib/annual-report');
@@ -109,13 +109,13 @@ test('annual report summary uses service client when cache is empty', async (t) 
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;
-    const originalGetServiceClient = supabaseServerModule.getServiceClient;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
 
     supabaseModule.supabase.from = () => {
         throw new Error('browser client should not be used');
     };
 
-    supabaseServerModule.getServiceClient = () => ({
+    supabaseServerModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'annual_reports') {
                 return {
@@ -145,7 +145,7 @@ test('annual report summary uses service client when cache is empty', async (t) 
 
     t.after(() => {
         supabaseModule.supabase.from = originalFrom;
-        supabaseServerModule.getServiceClient = originalGetServiceClient;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const { getReportSummary } = await import('../lib/annual-report');

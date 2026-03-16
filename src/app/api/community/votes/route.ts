@@ -6,7 +6,7 @@
 
 import { NextRequest } from 'next/server';
 import { TargetType, VoteType } from '@/lib/community';
-import { getAuthContext, jsonError, jsonOk, requireUserContext, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { missingFields, missingSearchParams } from '@/lib/validation';
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
             return jsonError('缺少参数', 400);
         }
         // 使用 serviceClient 和重试逻辑获取投票状态
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
         const voteResult = await withRetry(async () => {
             const response = await serviceClient
                 .from('community_votes')
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
             return jsonError('无效的投票类型', 400);
         }
         // 使用 serviceClient 和重试逻辑
-        const serviceClient = getServiceRoleClient();
+        const serviceClient = getSystemAdminClient();
 
         // 获取现有投票
         const existingResult = await withRetry(async () => {

@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import { PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -17,7 +17,7 @@ export const mbtiProvider: DataSourceProvider<MbtiRow> = {
     displayName: 'MBTI记录',
 
     async list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const limit = ctx?.limit ?? 50;
         const { data, error } = await supabase
             .from('mbti_readings')
@@ -37,7 +37,7 @@ export const mbtiProvider: DataSourceProvider<MbtiRow> = {
     },
 
     async get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<MbtiRow | null> {
-        const supabase = ctx?.client ?? getServiceRoleClient();
+        const supabase = ctx?.client ?? getSystemAdminClient();
         const { data, error } = await supabase
             .from('mbti_readings')
             .select('*')

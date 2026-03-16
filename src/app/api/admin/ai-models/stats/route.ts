@@ -4,7 +4,7 @@
  * GET: 获取调用统计
  */
 import { NextRequest } from 'next/server';
-import { requireAdminUser, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     // 验证管理员权限
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         return jsonError(authResult.error.message, authResult.error.status);
     }
 
-    const supabase = getServiceRoleClient();
+    const supabase = getSystemAdminClient();
     const url = new URL(request.url);
 
     // 解析查询参数

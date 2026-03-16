@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk, getServiceRoleClient } from '@/lib/api-utils';
+import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { user } = await getAuthContext(_request);
@@ -7,7 +7,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
     const { id } = await params;
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     if (id.startsWith('chat_message:')) {
         const [, kbId, sourceId] = id.split(':');
         if (!kbId || !sourceId) return jsonError('取消归档失败', 400);

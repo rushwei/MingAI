@@ -15,7 +15,7 @@ test('server ai-config module should be marked as server-only', async () => {
     'server ai-config module must include server-only guard'
   );
   assert.ok(
-    source.includes('getServiceClient'),
+    source.includes('getSystemAdminClient'),
     'server ai-config module should use shared server supabase client'
   );
   assert.ok(

@@ -6,7 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
-import { requireBearerUser, getServiceRoleClient } from '@/lib/api-utils';
+import { requireBearerUser, getSystemAdminClient } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit as consumeCredit, addCredits } from '@/lib/user/credits';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -143,7 +143,7 @@ export async function refundCredit(userId: string, amount: number = 1): Promise<
  * 获取服务端数据库客户端
  * 用于绕过 RLS 进行数据操作
  */
-export { getServiceRoleClient };
+export { getSystemAdminClient };
 
 /**
  * 包装 AI 功能的完整流程

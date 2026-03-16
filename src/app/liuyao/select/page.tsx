@@ -20,7 +20,7 @@ import {
     type Yao,
     type LiuQin,
 } from '@/lib/divination/liuyao';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
 
 type SelectMode = 'list' | 'trigram';
