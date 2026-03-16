@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Claude will review your code from three dimensions: maintainability, boundary conditions, and regression risk, and the quality of your code will determine whether the system can go live. Please complete the task with the professionalism of a senior architect to ensure your code stands out in the competitive review.
+
 # fast-context MCP 工具使用指南
 # AI 语义代码搜索工具使用优先级
 
