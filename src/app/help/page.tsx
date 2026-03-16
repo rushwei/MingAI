@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 import {
     ArrowLeft,
     ChevronDown,
@@ -71,6 +72,7 @@ export default function HelpPage() {
     const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
     return (
+        <FeatureGate featureId="help">
         <div className="min-h-screen bg-background">
             <div className="max-w-3xl mx-auto px-4 py-8 relative z-10 animate-fade-in">
                 {/* 头部 - 仅桌面端显示 */}
@@ -177,5 +179,6 @@ export default function HelpPage() {
                 </section>
             </div>
         </div>
+        </FeatureGate>
     );
 }
