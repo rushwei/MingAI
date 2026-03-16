@@ -19,6 +19,7 @@ import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
 import type { DaliurenOutput } from '@mingai/mcp-core/daliuren';
 import { supabase } from '@/lib/auth';
+import { loadConversation } from '@/lib/chat/conversation';
 
 const SHENSHA_DISPLAY = [
     '日德', '日禄', '生气', '桃花', '天喜', '天医', '成神',
@@ -81,16 +82,11 @@ export default function DaliurenResultPage() {
         let cancelled = false;
 
         const loadSavedAnalysis = async () => {
-            const { data, error } = await supabase
-                .from('conversations')
-                .select('messages, source_data')
-                .eq('id', conversationId)
-                .maybeSingle();
+            const conversation = await loadConversation(conversationId);
+            if (cancelled || !conversation) return;
 
-            if (cancelled || error || !data) return;
-
-            const messages = (data.messages as ChatMessage[]) || [];
-            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
+            const messages = (conversation.messages as ChatMessage[]) || [];
+            const sourceData = (conversation.sourceData || undefined) as Record<string, unknown> | undefined;
             const { analysis } = extractAnalysisFromConversation(messages, sourceData);
             if (analysis) {
                 setInterpretation(analysis);

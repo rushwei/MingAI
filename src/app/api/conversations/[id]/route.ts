@@ -1,5 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { loadAllConversationMessages, loadConversationMessagePage, replaceConversationMessages } from '@/lib/server/conversation-messages';
+import type { ChatMessage } from '@/types';
 
 type ConversationPatchBody = {
     title?: string;
@@ -8,6 +10,22 @@ type ConversationPatchBody = {
     baziChartId?: string | null;
     ziweiChartId?: string | null;
 };
+
+const CONVERSATION_DETAIL_SELECT = [
+    'id',
+    'user_id',
+    'bazi_chart_id',
+    'ziwei_chart_id',
+    'personality',
+    'title',
+    'messages',
+    'created_at',
+    'updated_at',
+    'source_type',
+    'source_data',
+    'is_archived',
+    'archived_kb_ids',
+].join(', ');
 
 export async function GET(
     request: NextRequest,
@@ -19,10 +37,12 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const includeContext = searchParams.get('includeContext') === '1';
+    const messageLimit = Number(searchParams.get('messageLimit') || 0);
+    const messageOffset = Math.max(Number(searchParams.get('messageOffset') || 0), 0);
 
     const { data, error } = await auth.supabase
         .from('conversations_with_archive_status')
-        .select('*')
+        .select(CONVERSATION_DETAIL_SELECT)
         .eq('id', id)
         .eq('user_id', auth.user.id)
         .maybeSingle();
@@ -35,8 +55,31 @@ export async function GET(
         return jsonError('对话不存在', 404);
     }
 
+    const paginationRequested = Number.isFinite(messageLimit) && messageLimit > 0;
+    const messageResult = paginationRequested
+        ? await loadConversationMessagePage(auth.supabase, id, {
+            limit: messageLimit,
+            offset: messageOffset,
+        }, Array.isArray(data.messages) ? data.messages : [])
+        : await loadAllConversationMessages(auth.supabase, id, Array.isArray(data.messages) ? data.messages : []);
+
+    const conversation = {
+        ...data,
+        messages: messageResult.messages,
+    };
+
     if (!includeContext) {
-        return jsonOk({ conversation: data });
+        return jsonOk({
+            conversation,
+            ...(paginationRequested ? {
+                pagination: {
+                    total: 'total' in messageResult ? messageResult.total : messageResult.messages.length,
+                    hasMore: 'hasMore' in messageResult ? messageResult.hasMore : false,
+                    offset: messageOffset,
+                    limit: messageLimit,
+                },
+            } : {}),
+        });
     }
 
     const context: { baziName?: string; ziweiName?: string } = {};
@@ -59,7 +102,18 @@ export async function GET(
         context.ziweiName = ziweiResult.data.name;
     }
 
-    return jsonOk({ conversation: data, context });
+    return jsonOk({
+        conversation,
+        context,
+        ...(paginationRequested ? {
+            pagination: {
+                total: 'total' in messageResult ? messageResult.total : messageResult.messages.length,
+                hasMore: 'hasMore' in messageResult ? messageResult.hasMore : false,
+                offset: messageOffset,
+                limit: messageLimit,
+            },
+        } : {}),
+    });
 }
 
 export async function PATCH(
@@ -83,7 +137,9 @@ export async function PATCH(
     };
 
     if (body.title !== undefined) updatePayload.title = body.title;
-    if (body.messages !== undefined) updatePayload.messages = body.messages;
+    const shouldSyncMessages = body.messages !== undefined;
+    const nextMessages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
+    if (shouldSyncMessages) updatePayload.messages = nextMessages;
     if (body.personality !== undefined) updatePayload.personality = body.personality;
     if (body.baziChartId !== undefined) updatePayload.bazi_chart_id = body.baziChartId;
     if (body.ziweiChartId !== undefined) updatePayload.ziwei_chart_id = body.ziweiChartId;
@@ -102,6 +158,14 @@ export async function PATCH(
     }
     if (!data) {
         return jsonError('对话不存在', 404);
+    }
+
+    if (shouldSyncMessages) {
+        const syncResult = await replaceConversationMessages(auth.supabase, id, nextMessages);
+        if (syncResult.error) {
+            console.error('[conversations] failed to sync message rows:', syncResult.error);
+            return jsonError('更新对话失败', 500);
+        }
     }
 
     return jsonOk({ success: true, id: data.id });

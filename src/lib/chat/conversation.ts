@@ -272,21 +272,41 @@ export async function loadConversationMessages(
         offset?: number;
     } = {}
 ): Promise<PaginatedMessages | null> {
-    const conversation = await loadConversation(conversationId);
-    if (!conversation) {
+    const { limit = 20, offset = 0 } = options;
+    const params = new URLSearchParams({
+        messageLimit: String(limit),
+        messageOffset: String(offset),
+    });
+
+    const response = await fetch(`/api/conversations/${conversationId}?${params.toString()}`, {
+        credentials: 'include',
+    });
+
+    if (!response.ok) {
+        console.error('[conversation] 加载对话消息失败');
         return null;
     }
 
-    const { limit = 20, offset = 0 } = options;
-    const allMessages = conversation.messages || [];
-    const total = allMessages.length;
-    const startIndex = Math.max(0, total - offset - limit);
-    const endIndex = Math.max(0, total - offset);
+    const payload = await parseJson<{
+        conversation?: ConversationApiRow | null;
+        pagination?: {
+            total?: number;
+            hasMore?: boolean;
+        } | null;
+        messagePage?: {
+            total?: number;
+            hasMore?: boolean;
+        } | null;
+    }>(response);
+
+    if (!payload?.conversation) {
+        return null;
+    }
 
     return {
-        messages: allMessages.slice(startIndex, endIndex),
-        total,
-        hasMore: startIndex > 0,
+        messages: hydrateConversationMessages(payload.conversation.messages || [], payload.conversation.source_data || undefined),
+        total: payload.pagination?.total ?? payload.messagePage?.total ?? payload.conversation.messages?.length ?? 0,
+        hasMore: payload.pagination?.hasMore ?? payload.messagePage?.hasMore ?? false,
     };
 }
 

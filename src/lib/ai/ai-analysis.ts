@@ -6,6 +6,7 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
+import { replaceConversationMessages } from '@/lib/server/conversation-messages';
 import type { AIPersonality } from '@/types';
 
 // AI 分析来源类型
@@ -49,10 +50,13 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
 
     const modelId = typeof params.sourceData?.model_id === 'string' ? params.sourceData.model_id : undefined;
     const reasoningText = typeof params.sourceData?.reasoning_text === 'string' ? params.sourceData.reasoning_text : undefined;
+    const createdAt = new Date().toISOString();
     const messages = [
         {
+            id: crypto.randomUUID(),
             role: 'assistant',
             content: params.aiResponse,
+            createdAt,
             model: modelId,
             reasoning: reasoningText,
         },
@@ -77,6 +81,14 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
     if (error) {
         console.error(`[${params.sourceType}] 创建 AI 分析对话失败:`, error.message);
         return null;
+    }
+
+    if (data?.id) {
+        const syncResult = await replaceConversationMessages(serviceClient, data.id, messages);
+        if (syncResult.error) {
+            console.error(`[${params.sourceType}] 同步 AI 分析消息失败:`, syncResult.error.message);
+            return null;
+        }
     }
 
     return data?.id || null;

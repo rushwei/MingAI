@@ -64,6 +64,7 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     const supabaseServerModule = require('../lib/supabase-server');
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     let capturedPayload: Record<string, unknown> | null = null;
+    let capturedRpc: { fn: string; args: Record<string, unknown> } | null = null;
 
     supabaseServerModule.getSystemAdminClient = () => ({
         from: () => ({
@@ -76,6 +77,10 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
                 };
             },
         }),
+        rpc: async (fn: string, args: Record<string, unknown>) => {
+            capturedRpc = { fn, args };
+            return { data: null, error: null };
+        },
     });
 
     t.after(() => {
@@ -101,6 +106,22 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
     const messages = ((capturedPayload as Record<string, unknown> | null)?.messages as ChatMessage[]) || [];
     assert.equal(messages[0]?.model, 'glm-4');
     assert.equal(messages[0]?.reasoning, 'fallback');
+    assert.equal(capturedRpc?.fn, 'replace_conversation_messages');
+    assert.equal(capturedRpc?.args?.p_conversation_id, 'conv-1');
+});
+
+test('replaceConversationMessages should no-op safely when rpc is unavailable', async () => {
+    const { replaceConversationMessages } = require('../lib/server/conversation-messages') as typeof import('../lib/server/conversation-messages');
+    const result = await replaceConversationMessages({} as never, 'conv-1', [
+        {
+            id: 'm-1',
+            role: 'assistant',
+            content: 'analysis',
+            createdAt: '2024-01-01T00:00:00.000Z',
+        },
+    ]);
+
+    assert.equal(result.error, null);
 });
 
 test('chat message list only uses model in tooltip', () => {

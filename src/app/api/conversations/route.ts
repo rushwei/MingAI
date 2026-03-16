@@ -1,5 +1,22 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { replaceConversationMessages } from '@/lib/server/conversation-messages';
+import type { ChatMessage } from '@/types';
+
+const CONVERSATION_LIST_SELECT = [
+    'id',
+    'user_id',
+    'bazi_chart_id',
+    'ziwei_chart_id',
+    'personality',
+    'title',
+    'created_at',
+    'updated_at',
+    'source_type',
+    'source_data',
+    'is_archived',
+    'archived_kb_ids',
+].join(', ');
 
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
@@ -13,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let query = auth.supabase
         .from('conversations_with_archive_status')
-        .select('*')
+        .select(CONVERSATION_LIST_SELECT)
         .eq('user_id', auth.user.id)
         .order('updated_at', { ascending: false })
         .limit(limit);
@@ -55,6 +72,7 @@ export async function POST(request: NextRequest) {
         return jsonError('请求体不是合法 JSON', 400);
     }
 
+    const initialMessages = Array.isArray(body.messages) ? body.messages : [];
     const { data, error } = await auth.supabase
         .from('conversations')
         .insert({
@@ -63,7 +81,7 @@ export async function POST(request: NextRequest) {
             title: body.title || '新对话',
             bazi_chart_id: body.baziChartId ?? null,
             ziwei_chart_id: body.ziweiChartId ?? null,
-            messages: Array.isArray(body.messages) ? body.messages : [],
+            messages: initialMessages,
         })
         .select('id')
         .single();
@@ -71,6 +89,14 @@ export async function POST(request: NextRequest) {
     if (error) {
         console.error('[conversations] failed to create conversation:', error);
         return jsonError('创建对话失败', 500);
+    }
+
+    if (data?.id && initialMessages.length > 0) {
+        const syncResult = await replaceConversationMessages(auth.supabase, data.id, initialMessages as ChatMessage[]);
+        if (syncResult.error) {
+            console.error('[conversations] failed to sync message rows:', syncResult.error);
+            return jsonError('创建对话失败', 500);
+        }
     }
 
     return jsonOk({ id: data?.id ?? null }, 201);
