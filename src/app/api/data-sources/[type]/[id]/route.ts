@@ -1,4 +1,3 @@
-import '@/lib/data-sources/init';
 
 import { NextRequest } from 'next/server';
 import { getProvider } from '@/lib/data-sources';

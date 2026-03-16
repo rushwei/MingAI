@@ -17,17 +17,16 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
-import '@/lib/data-sources/init';
 import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 import type { Mention } from '@/types/mentions';
-import { getAuthContext, getServiceRoleClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat/chat-context';
 
 // 服务端 Supabase 客户端
-const getSupabase = () => getServiceRoleClient();
+const getSupabase = () => getSystemAdminClient();
 
 // 服务端内部密钥（必须通过环境变量设置，无 fallback）
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;

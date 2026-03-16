@@ -1,16 +1,8 @@
+import { DATA_SOURCE_LOADERS, DATA_SOURCE_TYPES } from '@/lib/data-sources/manifest';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary, DataSourceType } from '@/lib/data-sources/types';
 
-const providers = new Map<DataSourceType, () => Promise<DataSourceProvider>>();
-
-export function registerDataSource(
-    type: DataSourceType,
-    loader: () => Promise<DataSourceProvider>
-): void {
-    providers.set(type, loader);
-}
-
 export async function getProvider(type: DataSourceType): Promise<DataSourceProvider> {
-    const loader = providers.get(type);
+    const loader = DATA_SOURCE_LOADERS[type];
     if (!loader) throw new Error(`Unknown data source type: ${type}`);
     return await loader();
 }
@@ -27,7 +19,7 @@ export type UserDataSourcesResult = {
 
 export async function getUserDataSourcesWithErrors(userId: string, ctx?: DataSourceQueryContext): Promise<UserDataSourcesResult> {
     const errors: Array<{ type: DataSourceType; message: string }> = [];
-    const loaded = await Promise.all([...providers.values()].map(async (loader) => await loader()));
+    const loaded = await Promise.all(DATA_SOURCE_TYPES.map(async (type) => await getProvider(type)));
 
     const lists = await Promise.all(loaded.map(async (provider) => {
         try {
@@ -55,59 +47,3 @@ export async function resolveDataSources(
         return { type, id, content: data ? provider.formatForAI(data) : '' };
     }));
 }
-
-const _init = (() => {
-    registerDataSource('bazi_chart', async () => {
-        const { baziProvider } = await import('@/lib/data-sources/bazi');
-        return baziProvider;
-    });
-    registerDataSource('ziwei_chart', async () => {
-        const { ziweiProvider } = await import('@/lib/data-sources/ziwei');
-        return ziweiProvider;
-    });
-    registerDataSource('tarot_reading', async () => {
-        const { tarotProvider } = await import('@/lib/data-sources/tarot');
-        return tarotProvider;
-    });
-    registerDataSource('liuyao_divination', async () => {
-        const { liuyaoProvider } = await import('@/lib/data-sources/liuyao');
-        return liuyaoProvider;
-    });
-    registerDataSource('mbti_reading', async () => {
-        const { mbtiProvider } = await import('@/lib/data-sources/mbti');
-        return mbtiProvider;
-    });
-    registerDataSource('hepan_chart', async () => {
-        const { hepanProvider } = await import('@/lib/data-sources/hepan');
-        return hepanProvider;
-    });
-    registerDataSource('face_reading', async () => {
-        const { faceProvider } = await import('@/lib/data-sources/face');
-        return faceProvider;
-    });
-    registerDataSource('palm_reading', async () => {
-        const { palmProvider } = await import('@/lib/data-sources/palm');
-        return palmProvider;
-    });
-    registerDataSource('ming_record', async () => {
-        const { recordProvider } = await import('@/lib/data-sources/record');
-        return recordProvider;
-    });
-    registerDataSource('daily_fortune', async () => {
-        const { dailyFortuneProvider } = await import('@/lib/data-sources/fortune');
-        return dailyFortuneProvider;
-    });
-    registerDataSource('monthly_fortune', async () => {
-        const { monthlyFortuneProvider } = await import('@/lib/data-sources/fortune');
-        return monthlyFortuneProvider;
-    });
-    registerDataSource('qimen_chart', async () => {
-        const { qimenProvider } = await import('@/lib/data-sources/qimen');
-        return qimenProvider;
-    registerDataSource('daliuren_divination', async () => {
-        const { daliurenProvider } = await import('@/lib/data-sources/daliuren');
-        return daliurenProvider;
-    });
-})();
-
-void _init;

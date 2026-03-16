@@ -1,13 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSourceType } from '@/lib/data-sources/manifest';
 
-export type DataSourceType =
-    | 'bazi_chart' | 'ziwei_chart'
-    | 'tarot_reading' | 'liuyao_divination'
-    | 'face_reading' | 'palm_reading' | 'mbti_reading'
-    | 'hepan_chart' | 'ming_record'
-    | 'daily_fortune' | 'monthly_fortune'
-    | 'qimen_chart';
-    | 'daliuren_divination';
+export type { DataSourceType } from '@/lib/data-sources/manifest';
 
 export interface DataSourceSummary {
     id: string;

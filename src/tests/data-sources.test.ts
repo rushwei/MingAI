@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 test('data-sources registry resolves known providers', async () => {
-    require('../lib/data-sources/init');
     const ds = require('../lib/data-sources') as any;
 
     const types = [
@@ -17,6 +16,8 @@ test('data-sources registry resolves known providers', async () => {
         'ming_record',
         'daily_fortune',
         'monthly_fortune',
+        'qimen_chart',
+        'daliuren_divination',
     ];
 
     for (const t of types) {
@@ -31,8 +32,6 @@ test('data-sources registry resolves known providers', async () => {
 });
 
 test('data-sources registry rejects unknown types', async () => {
-    require('../lib/data-sources/init');
     const ds = require('../lib/data-sources') as any;
     await assert.rejects(async () => await ds.getProvider('unknown_type'), /Unknown data source type/);
 });
-

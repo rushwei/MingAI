@@ -1,9 +1,8 @@
-import '@/lib/data-sources/init';
 
 import { NextRequest } from 'next/server';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { getServiceRoleClient } from '@/lib/api-utils';
+import { getSystemAdminClient } from '@/lib/api-utils';
 import {
     ingestConversationAsService,
     ingestChatMessageAsService,
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
         return jsonError('缺少对话信息', 400);
     }
 
-    const service = getServiceRoleClient();
+    const service = getSystemAdminClient();
     const { data: kb } = await service
         .from('knowledge_bases')
         .select('id, user_id')
