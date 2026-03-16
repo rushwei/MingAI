@@ -8,7 +8,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, AlertCircle, Loader2, BookOpen, RefreshCw, Copy, Check, BookOpenText, X, Album } from 'lucide-react';
+import { Sparkles, RotateCw, AlertCircle, BookOpen, RefreshCw, Copy, Check, BookOpenText, X, Album } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { HexagramDisplay } from '@/components/liuyao/HexagramDisplay';
 import { TraditionalAnalysis } from '@/components/liuyao/TraditionalAnalysis';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
@@ -589,7 +590,7 @@ export default function ResultPage() {
                 <div className="text-center relative z-10 animate-fade-in">
                     <div className="inline-flex relative mb-6">
                         <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full animate-pulse" />
-                        <Loader2 className="w-12 h-12 animate-spin text-accent relative z-10" />
+                        <SoundWaveLoader variant="inline" />
                     </div>
                     <p className="text-foreground-secondary text-lg">正在推演卦象...</p>
                 </div>
@@ -763,7 +764,7 @@ export default function ResultPage() {
                             {errorBanner}
                             {streaming.isStreaming && !streaming.content && !streaming.reasoning && !interpretation ? (
                                 <div className="flex items-center gap-2 py-6 justify-center text-foreground-secondary">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                     <span className="text-sm">正在解读天机...</span>
                                 </div>
                             ) : (

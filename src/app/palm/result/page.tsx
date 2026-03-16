@@ -7,7 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hand, Loader2, MessageCircle } from 'lucide-react';
+import { Hand, MessageCircle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
@@ -143,8 +144,7 @@ export default function PalmResultPage() {
                                 <Hand className="w-8 h-8 text-amber-500" />
                             </div>
                         </div>
-                        <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto mb-3" />
-                        <p className="text-foreground-secondary font-medium">正在深度解析您的掌纹...</p>
+                        <SoundWaveLoader variant="block" text="正在深度解析您的掌纹" />
                     </div>
                 </div>
             </LoginOverlay>

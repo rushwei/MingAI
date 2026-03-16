@@ -7,7 +7,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Upload, Hand, AlertCircle, Loader2 } from 'lucide-react';
+import { Camera, Upload, Hand, AlertCircle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { useToast } from '@/components/ui/Toast';
@@ -396,7 +397,7 @@ export default function PalmPage() {
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {isAnalyzing ? (
                                 <>
-                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                     <span>AI 正在深度分析中...</span>
                                 </>
                             ) : (

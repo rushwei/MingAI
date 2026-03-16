@@ -47,7 +47,6 @@ import {
     EyeOff,
     GripVertical,
     RotateCcw,
-    Loader2,
     Check,
     Plus,
     X,
@@ -60,6 +59,7 @@ import {
     CircleQuestionMark,
     Scroll,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
@@ -284,7 +284,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
                 <div className="flex items-center gap-3">
                     {saving && (
                         <div className="flex items-center gap-1.5">
-                            <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                            <SoundWaveLoader variant="inline" />
                             <span className="text-xs text-foreground-secondary whitespace-nowrap">保存中</span>
                         </div>
                     )}

@@ -7,7 +7,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Sparkles, Loader2, Dices, Grid3X3 } from 'lucide-react';
+import { Coins, Sparkles, Dices, Grid3X3 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
@@ -197,7 +198,7 @@ export default function LiuyaoPage() {
                         <div className="relative z-10 flex flex-row md:flex-col h-full items-start text-left">
                             <div className="shrink-0 w-12 h-12 md:w-14 md:h-14 bg-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center mr-4 md:mr-0 md:mb-6 group-hover:scale-110 transition-transform duration-300">
                                 {isQuickLoading ? (
-                                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-purple-600 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                 ) : (
                                     <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
                                 )}

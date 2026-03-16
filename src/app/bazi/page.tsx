@@ -10,7 +10,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lunar, Solar, LunarYear } from 'lunar-javascript';
-import { Loader2 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
@@ -325,10 +325,7 @@ export default function BaziPage() {
     return (
         <FeatureGate featureId="bazi">
         <Suspense fallback={
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
-                <p className="mt-4 text-foreground-secondary">加载中...</p>
-            </div>
+            <SoundWaveLoader variant="block" text="加载中" />
         }>
             <BaziPageContent />
         </Suspense>

@@ -7,7 +7,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Upload, AlertTriangle, Loader2, X, ScanFace } from 'lucide-react';
+import { Camera, Upload, AlertTriangle, X, ScanFace } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { useToast } from '@/components/ui/Toast';
@@ -390,7 +391,7 @@ export default function FacePage() {
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {isAnalyzing ? (
                                 <>
-                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                     <span>AI 正在深度分析中...</span>
                                 </>
                             ) : (

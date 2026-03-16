@@ -7,7 +7,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Link from 'next/link';
 import { CoinToss } from '@/components/liuyao/CoinToss';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
@@ -164,7 +165,7 @@ export default function DivinePage() {
                 {/* 完成提示 */}
                 {isComplete && (
                     <div className="text-center mt-4 md:mt-8">
-                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin text-accent mx-auto" />
+                        <SoundWaveLoader variant="inline" />
                         <p className="text-accent text-sm md:text-base font-medium mt-2">卦象已成，正在跳转...</p>
                     </div>
                 )}

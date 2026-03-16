@@ -4,7 +4,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Ban, Key, Users, Activity } from 'lucide-react';
+import { Ban, Key, Users, Activity } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 
 interface McpKeyRow {
@@ -109,11 +110,7 @@ export function McpKeyManagementPanel() {
     }).length;
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-foreground-secondary" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     return (
@@ -193,7 +190,7 @@ export function McpKeyManagementPanel() {
                                                 className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 disabled:opacity-50"
                                             >
                                                 {revoking === k.user_id
-                                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                    ? <SoundWaveLoader variant="inline" />
                                                     : <Ban className="w-3 h-3" />
                                                 }
                                                 封禁
@@ -206,7 +203,7 @@ export function McpKeyManagementPanel() {
                                                 className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 disabled:opacity-50"
                                             >
                                                 {unbanning === k.user_id
-                                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                    ? <SoundWaveLoader variant="inline" />
                                                     : <Key className="w-3 h-3" />
                                                 }
                                                 解除封禁

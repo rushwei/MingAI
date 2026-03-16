@@ -8,7 +8,8 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { MessageSquare, Trash2, Search, ChevronDown, ChevronRight, SquarePen, Loader2, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine, Archive, Ellipsis, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Trash2, Search, ChevronDown, ChevronRight, SquarePen, Hand, User, PanelLeftClose, PanelLeft, ArrowLeftToLine, ArrowRightToLine, Archive, Ellipsis, ArrowLeft } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -274,7 +275,7 @@ export function ConversationSidebar({
             >
                 {isGeneratingTitle ? (
                     <div className={`w-4 h-4 flex items-center justify-center flex-shrink-0 ${subTitle ? 'mt-0.5' : ''}`}>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-secondary" />
+                        <SoundWaveLoader variant="inline" />
                     </div>
                 ) : null}
                 <div className="flex-1 min-w-0">
@@ -426,7 +427,7 @@ export function ConversationSidebar({
                                 <div className="flex flex-col items-center justify-center text-foreground-secondary text-sm py-8 gap-2">
                                     {hasLoaded ? (
                                         <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <SoundWaveLoader variant="inline" />
                                             <span>加载中...</span>
                                         </>
                                     ) : (
@@ -479,7 +480,7 @@ export function ConversationSidebar({
                                                     {showPendingInGroup && (
                                                         <div className="px-3 py-2 rounded-lg bg-background-secondary/70 border border-border/60">
                                                             <div className="flex items-center gap-2">
-                                                                <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-secondary flex-shrink-0" />
+                                                                <SoundWaveLoader variant="inline" />
                                                                 <span className="text-sm truncate">{pendingTitle}</span>
                                                             </div>
                                                         </div>

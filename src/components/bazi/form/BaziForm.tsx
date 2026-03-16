@@ -8,7 +8,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, MapPin, ChevronRight, Loader2 } from 'lucide-react';
+import { Clock, MapPin, ChevronRight } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { BaziFormData } from '@/types';
 import { SmartPillarsInput } from '@/components/bazi/form/SmartPillarsInput';
 import { TimeInputModal } from '@/components/bazi/form/TimeInputModal';
@@ -280,7 +281,7 @@ export function BaziForm({
                 >
                     {isSubmitting ? (
                         <>
-                            <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                             排盘中...
                         </>
                     ) : (

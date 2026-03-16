@@ -8,6 +8,7 @@
 'use client';
 
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ShieldOff } from 'lucide-react';
 import Link from 'next/link';
 
@@ -22,7 +23,7 @@ export function FeatureGate({ featureId, children }: FeatureGateProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <SoundWaveLoader variant="block" />
             </div>
         );
     }

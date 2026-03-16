@@ -6,7 +6,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Key, Loader2, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Key, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
@@ -176,7 +177,7 @@ export function KeyActivationModal({
                     {/* 处理中状态 */}
                     {step === 'processing' && (
                         <div className="text-center py-8">
-                            <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
+                            <SoundWaveLoader variant="block" />
                             <h3 className="text-xl font-bold mb-2">正在激活</h3>
                             <p className="text-foreground-secondary">
                                 请稍候...

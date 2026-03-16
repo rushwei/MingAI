@@ -10,7 +10,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Loader2,
     TrendingUp,
     TrendingDown,
     Clock,
@@ -21,6 +20,7 @@ import {
     BarChart3 as BarChart2,
     type LucideIcon,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import {
     XAxis,
@@ -133,11 +133,7 @@ export function AIStatsPanel() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     if (error) {

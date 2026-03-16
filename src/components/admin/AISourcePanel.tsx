@@ -10,7 +10,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Loader2,
     Plus,
     Trash2,
     Check,
@@ -18,6 +17,7 @@ import {
     ChevronDown,
     ChevronUp,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 
@@ -213,11 +213,7 @@ export function AISourcePanel() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     if (error) {
@@ -410,7 +406,7 @@ export function AISourcePanel() {
                                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
                                                 >
                                                     {updating ? (
-                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        <SoundWaveLoader variant="inline" />
                                                     ) : (
                                                         <Save className="w-3.5 h-3.5" />
                                                     )}

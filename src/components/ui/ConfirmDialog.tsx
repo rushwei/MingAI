@@ -7,7 +7,8 @@
 
 import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 interface ConfirmDialogProps {
     isOpen: boolean;
@@ -111,7 +112,7 @@ export function ConfirmDialog({
                         disabled={loading}
                         className={`flex-1 px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${styles.button}`}
                     >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading && <SoundWaveLoader variant="inline" />}
                         {confirmText}
                     </button>
                 </div>

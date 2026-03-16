@@ -8,7 +8,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Plus,
-    Loader2,
     Copy,
     Check,
     Trash2,
@@ -18,6 +17,7 @@ import {
     Coins,
     Filter
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 
@@ -172,11 +172,7 @@ export function KeyManagementPanel() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            </div>
-        );
+        return <SoundWaveLoader variant="block" />;
     }
 
     return (
@@ -258,7 +254,7 @@ export function KeyManagementPanel() {
                             disabled={creating}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
                         >
-                            {creating && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {creating && <SoundWaveLoader variant="inline" />}
                             创建
                         </button>
                     </div>

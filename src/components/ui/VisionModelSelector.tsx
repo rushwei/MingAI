@@ -7,7 +7,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { ChevronDown, Eye, Loader2, Lightbulb } from 'lucide-react';
+import { ChevronDown, Eye, Lightbulb } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { Qwen, Gemini } from '@lobehub/icons';
 import type { AIVendor } from '@/types';
 import { DEFAULT_VISION_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
@@ -152,7 +153,7 @@ export function VisionModelSelector({
                         disabled={isDisabled}
                     >
                         {loading ? (
-                            <Loader2 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} animate-spin text-foreground-secondary`} />
+                            <SoundWaveLoader variant="inline" />
                         ) : currentModel ? (
                             VISION_VENDOR_ICONS[currentModel.vendor] || <Eye className="w-4 h-4" />
                         ) : (

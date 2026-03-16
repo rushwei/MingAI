@@ -10,13 +10,13 @@ import { useRouter } from 'next/navigation';
 import {
     Bell,
     CheckCheck,
-    Loader2,
     ExternalLink,
     Trash2,
     Square,
     CheckSquare,
     MailOpen,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { BottomBar } from '@/components/layout/BottomBar';
 import {
@@ -271,7 +271,7 @@ function NotificationsContent() {
                                 className="text-sm px-3 py-1.5 rounded-lg text-foreground-secondary hover:bg-background-secondary transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isProcessing ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                 ) : (
                                     <CheckCheck className="w-4 h-4" />
                                 )}

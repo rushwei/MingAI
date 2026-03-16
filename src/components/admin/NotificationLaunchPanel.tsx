@@ -16,11 +16,11 @@ import {
     CheckCircle2,
     AlertCircle,
     Link as LinkIcon,
-    Loader2,
     Sparkles,
     Eye,
     type LucideIcon,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 const FEATURE_OPTIONS = Object.entries(FEATURE_NAMES);
 
@@ -232,7 +232,7 @@ export function NotificationLaunchPanel() {
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 正在发送通知...
                             </>
                         ) : (

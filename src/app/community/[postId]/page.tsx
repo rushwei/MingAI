@@ -31,6 +31,7 @@ import {
 } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 // 客户端 fetch 重试工具
 async function fetchWithRetry(
@@ -786,7 +787,7 @@ export default function PostDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                <SoundWaveLoader variant="block" />
             </div>
         );
     }
@@ -966,7 +967,7 @@ export default function PostDetailPage() {
                                         className="absolute right-3 bottom-3 p-2 bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:shadow-none transition-all hover:scale-105 active:scale-95"
                                     >
                                         {submitting ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <SoundWaveLoader variant="inline" />
                                         ) : (
                                             <Send className="w-4 h-4" />
                                         )}

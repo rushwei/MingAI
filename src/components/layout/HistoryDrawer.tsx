@@ -10,7 +10,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { History, ChevronLeft, Calendar, Loader2, X } from 'lucide-react';
+import { History, ChevronLeft, Calendar, X } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
 import { getModelName } from '@/lib/ai/ai-config';
@@ -524,7 +525,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                         {/* 加载指示器 */}
                                         {navigating === item.id && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-                                                <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+                                                <SoundWaveLoader variant="inline" />
                                             </div>
                                         )}
                                         <div className="flex items-start gap-3 relative z-10">

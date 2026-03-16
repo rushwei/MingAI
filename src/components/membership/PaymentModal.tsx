@@ -7,7 +7,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, CreditCard, Loader2, CheckCircle, QrCode } from 'lucide-react';
+import { X, CreditCard, CheckCircle, QrCode } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { type PricingPlan } from '@/lib/user/membership';
 import { supabase } from '@/lib/supabase';
 
@@ -161,7 +162,7 @@ export function PaymentModal({
                     {/* 处理中状态 */}
                     {step === 'processing' && (
                         <div className="text-center py-8">
-                            <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
+                            <SoundWaveLoader variant="block" />
                             <h3 className="text-xl font-bold mb-2">支付处理中</h3>
                             <p className="text-foreground-secondary">
                                 请稍候...

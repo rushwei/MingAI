@@ -8,7 +8,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, MapPin, ChevronRight, Loader2 } from 'lucide-react';
+import { Clock, MapPin, ChevronRight } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { BaziFormData } from '@/types';
 import { TimeInputModal } from '@/components/bazi/form/TimeInputModal';
 import { PlaceInputModal } from '@/components/bazi/form/PlaceInputModal';
@@ -239,7 +240,7 @@ export function UnifiedZiweiForm({
                 >
                     {isSubmitting ? (
                         <>
-                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                             排盘中...
                         </>
                     ) : (

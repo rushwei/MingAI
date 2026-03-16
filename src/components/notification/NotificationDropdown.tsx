@@ -4,7 +4,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { CheckCheck, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCheck, ExternalLink } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getNotifications, markAsRead, markAllAsRead, type Notification } from '@/lib/notification';
 
 interface NotificationDropdownProps {
@@ -106,7 +107,7 @@ export function NotificationDropdown({ userId, onClose, onReadCountChange }: Not
                         className="text-xs text-accent hover:underline flex items-center gap-1"
                     >
                         {markingAll ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                         ) : (
                             <CheckCheck className="w-3 h-3" />
                         )}

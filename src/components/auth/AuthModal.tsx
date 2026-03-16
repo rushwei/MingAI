@@ -8,7 +8,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { X, Mail, Lock, User, Loader2, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, User, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
     signInWithEmailProtected,
     sendOTP,
@@ -756,7 +757,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                             className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
                                         >
                                             {sendingCode ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <SoundWaveLoader variant="inline" />
                                             ) : countdown > 0 ? (
                                                 `${countdown}s 后重发`
                                             ) : (
@@ -794,7 +795,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                         disabled={loading}
                         className="w-full py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading && <SoundWaveLoader variant="inline" />}
                         {getSubmitText()}
                     </button>
 

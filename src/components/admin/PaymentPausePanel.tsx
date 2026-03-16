@@ -8,7 +8,8 @@
 'use client';
 
 import { useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from "@/lib/supabase";
 import { usePaymentPause } from "@/lib/hooks/usePaymentPause";
 
@@ -88,7 +89,7 @@ export function PaymentPausePanel() {
             <div className="flex items-center gap-2 text-sm">
                 {isLoading ? (
                     <>
-                        <Loader2 className="w-4 h-4 animate-spin text-foreground-secondary" />
+                        <SoundWaveLoader variant="inline" />
                         <span className="text-foreground-secondary">读取状态中...</span>
                     </>
                 ) : (

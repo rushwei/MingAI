@@ -11,7 +11,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Bot, GitBranch, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Bot, GitBranch, BarChart3 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/supabase';
 import { AIModelPanel } from '@/components/admin/AIModelPanel';
 import { AISourcePanel } from '@/components/admin/AISourcePanel';
@@ -71,7 +72,7 @@ export default function AdminAIServicesPage() {
     if (state.loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <SoundWaveLoader variant="block" text="加载中" />
             </div>
         );
     }

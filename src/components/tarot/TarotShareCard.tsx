@@ -9,11 +9,11 @@ import { useRef, useState } from 'react';
 import {
     Download,
     Share2,
-    Loader2,
     Check,
     Sparkles,
     Gem,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { downloadShareCard, shareCard } from '@/lib/share-card';
 import type { DrawnCard, TarotSpread } from '@/lib/divination/tarot';
 
@@ -103,7 +103,7 @@ export function TarotShareCard({ cards, spread, question, interpretation }: Taro
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors disabled:opacity-50"
                 >
                     {isGenerating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <SoundWaveLoader variant="inline" />
                     ) : (
                         <Download className="w-4 h-4" />
                     )}
@@ -117,7 +117,7 @@ export function TarotShareCard({ cards, spread, question, interpretation }: Taro
                     {shareSuccess ? (
                         <Check className="w-4 h-4" />
                     ) : isGenerating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <SoundWaveLoader variant="inline" />
                     ) : (
                         <Share2 className="w-4 h-4" />
                     )}

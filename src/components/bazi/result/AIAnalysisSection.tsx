@@ -11,7 +11,8 @@
 'use client';
 
 import { useState, useEffect, type ReactNode } from 'react';
-import { RefreshCw, Loader2, Copy, Check } from 'lucide-react';
+import { RefreshCw, Copy, Check } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { AIAnalysisLock } from '@/components/bazi/result/AIAnalysisLock';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -205,7 +206,7 @@ export function AIAnalysisSection({
                     )}
                     <button onClick={startAnalysis} disabled={loading}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-secondary hover:bg-accent hover:text-white transition-colors text-sm disabled:opacity-50">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                        {loading ? <SoundWaveLoader variant="inline" /> : <RefreshCw className="w-4 h-4" />}
                         {loading ? '分析中...' : '重新分析'}
                     </button>
                 </div>
@@ -225,7 +226,7 @@ export function AIAnalysisSection({
                             </>
                         ) : (
                             <>
-                                <Loader2 className="w-10 h-10 animate-spin text-accent" />
+                                <SoundWaveLoader variant="inline" />
                                 <p className="text-sm text-foreground-secondary">{loadingText}</p>
                             </>
                         )}

@@ -13,7 +13,6 @@ import {
     Settings,
     ChevronRight,
     LogOut,
-    Loader2,
     LogIn,
     Bell,
     Megaphone,
@@ -28,6 +27,7 @@ import {
     CalendarCheck,
     Plug,
 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
 import { CalendarModal } from '@/components/checkin/CalendarModal';
@@ -780,7 +780,7 @@ export default function UserPage() {
                 className="w-full py-3 rounded-xl border border-border text-foreground-secondary hover:border-red-500 hover:text-red-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {signingOut ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <SoundWaveLoader variant="inline" />
                 ) : (
                     <LogOut className="w-4 h-4" />
                 )}

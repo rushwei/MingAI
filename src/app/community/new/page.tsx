@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/supabase';
 
@@ -94,7 +95,7 @@ export default function NewPostPage() {
     if (!user) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                <SoundWaveLoader variant="block" />
             </div>
         );
     }
@@ -238,7 +239,7 @@ export default function NewPostPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <SoundWaveLoader variant="inline" />
                                         发布中...
                                     </>
                                 ) : (

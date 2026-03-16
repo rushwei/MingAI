@@ -8,7 +8,7 @@
 'use client';
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from "@/lib/supabase";
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
 
@@ -87,7 +87,7 @@ export function FeatureTogglePanel() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-foreground-secondary" />
+                <SoundWaveLoader variant="inline" />
                 <span className="ml-2 text-sm text-foreground-secondary">加载功能状态...</span>
             </div>
         );
@@ -124,7 +124,7 @@ export function FeatureTogglePanel() {
                                 aria-label={`${label}功能开关`}
                             >
                                 {isSaving ? (
-                                    <Loader2 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-white" />
+                                    <SoundWaveLoader variant="inline" />
                                 ) : (
                                     <span
                                         className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${

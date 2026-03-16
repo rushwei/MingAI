@@ -8,7 +8,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Brain, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Brain, Check } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { QuestionCard } from '@/components/mbti/QuestionCard';
 import { MBTIProgressBar } from '@/components/mbti/MBTIProgressBar';
 import { useToast } from '@/components/ui/Toast';
@@ -231,8 +232,8 @@ export function MBTITestFlow() {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-4" />
-                    <p className="text-foreground-secondary">正在加载题目...</p>
+                    <SoundWaveLoader variant="inline" />
+                    <p className="text-foreground-secondary mt-4">正在加载题目...</p>
                 </div>
             </div>
         );
@@ -367,7 +368,7 @@ export function MBTITestFlow() {
                         </ul>
                         {isLoading && (
                             <div className="mt-4 flex items-center gap-2 text-sm text-foreground-secondary">
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 正在加载题目...
                             </div>
                         )}

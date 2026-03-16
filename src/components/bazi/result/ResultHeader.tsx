@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Edit3, Save, Check, Loader2, Share2 } from 'lucide-react';
+import { Edit3, Save, Check, Share2 } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 export function ResultHeader({
     chartId,
@@ -49,7 +50,7 @@ export function ResultHeader({
                     {saved ? (
                         <><Check className="w-4 h-4" />已保存</>
                     ) : saving ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" />保存中</>
+                        <><SoundWaveLoader variant="inline" />保存中</>
                     ) : (
                         <><Save className="w-4 h-4" />保存</>
                     )}

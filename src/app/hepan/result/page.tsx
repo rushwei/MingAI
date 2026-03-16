@@ -6,7 +6,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { RotateCw, Sparkles, Loader2, Lightbulb, RefreshCw, Quote } from 'lucide-react';
+import { RotateCw, Sparkles, Lightbulb, RefreshCw, Quote } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { CompatibilityChart } from '@/components/hepan/CompatibilityChart';
 import { ConflictPoints } from '@/components/hepan/ConflictPoints';
 import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/components/hepan/CompatibilityTrendChart';
@@ -250,7 +251,7 @@ export default function HepanResultPage() {
     if (!result) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <SoundWaveLoader variant="block" text="加载中" />
             </div>
         );
     }
@@ -372,7 +373,7 @@ export default function HepanResultPage() {
                                     title="重新分析"
                                 >
                                     {loadingAI ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <SoundWaveLoader variant="inline" />
                                     ) : (
                                         <RefreshCw className="w-4 h-4" />
                                     )}
@@ -428,7 +429,7 @@ export default function HepanResultPage() {
                                 >
                                     {loadingAI ? (
                                         <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <SoundWaveLoader variant="inline" />
                                             正在解读天机...
                                         </>
                                     ) : (

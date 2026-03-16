@@ -7,7 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanFace, Loader2, MessageCircle } from 'lucide-react';
+import { ScanFace, MessageCircle } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { supabase } from '@/lib/supabase';
@@ -133,7 +134,7 @@ export default function FaceResultPage() {
                                 <ScanFace className="w-8 h-8 text-purple-400" />
                             </div>
                         </div>
-                        <Loader2 className="w-6 h-6 animate-spin text-purple-400 mx-auto mb-3" />
+                        <SoundWaveLoader variant="inline" />
                         <p className="text-foreground-secondary font-medium">正在解读您的面相...</p>
                     </div>
                 </div>

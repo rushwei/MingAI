@@ -6,7 +6,8 @@
 'use client'; // 客户端组件：需要管理实时输入与聊天状态
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Send, Calendar, RefreshCw, Info, Loader2 } from 'lucide-react';
+import { Send, Calendar, RefreshCw, Info } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
 import { getMembershipInfo } from '@/lib/user/membership';
 import { supabase } from '@/lib/supabase';
@@ -249,7 +250,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
                         ))}
                         {isLoading && (
                             <div className="p-3 rounded-lg bg-background mr-8 flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <SoundWaveLoader variant="inline" />
                                 <span className="text-sm text-foreground-secondary">思考中...</span>
                             </div>
                         )}
