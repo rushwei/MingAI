@@ -1,15 +1,21 @@
 /**
  * 社区帖子列表 API 路由
- * GET: 获取帖子列表（移除 user_id 保护匿名性）
+ * GET: 获取帖子列表
  * POST: 创建新帖子
  */
 
 import { NextRequest } from 'next/server';
 import { PostCategory, PostFilters, CommunityPost } from '@/lib/community';
+import { loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
 import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { parsePagination } from '@/lib/pagination';
 import { hasNonEmptyStrings } from '@/lib/validation';
+
+type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
+    user_id: string;
+    anonymous_name: string | null;
+};
 
 function quotePostgrestString(value: string): string {
     const sanitized = value
@@ -19,11 +25,28 @@ function quotePostgrestString(value: string): string {
     return `"${sanitized}"`;
 }
 
-// 从帖子数据中移除 user_id 以保护匿名性
-function sanitizePost(post: CommunityPost): Omit<CommunityPost, 'user_id'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { user_id, ...safePost } = post;
-    return safePost;
+function toPublicPost(
+    post: CommunityPostRow,
+    authorProfile: { name: string; avatarUrl: string | null },
+): CommunityPost {
+    return {
+        id: post.id,
+        author_name: authorProfile.name,
+        author_avatar_url: authorProfile.avatarUrl,
+        title: post.title,
+        content: post.content,
+        category: post.category,
+        tags: post.tags,
+        view_count: post.view_count,
+        upvote_count: post.upvote_count,
+        downvote_count: post.downvote_count,
+        comment_count: post.comment_count,
+        is_pinned: post.is_pinned,
+        is_featured: post.is_featured,
+        is_deleted: post.is_deleted,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+    };
 }
 
 export async function GET(request: NextRequest) {
@@ -77,8 +100,13 @@ export async function GET(request: NextRequest) {
             return jsonError('获取帖子失败', 500);
         }
 
-        // 移除 user_id 保护匿名性
-        const safePosts = (result.data || []).map((post: CommunityPost) => sanitizePost(post));
+        const authorMap = await loadCommunityAuthorProfileMap(
+            serviceClient,
+            (result.data || []).map((post: CommunityPostRow) => post.user_id),
+        );
+        const safePosts = (result.data || []).map((post: CommunityPostRow) =>
+            toPublicPost(post, authorMap.get(post.user_id) || { name: '命理爱好者', avatarUrl: null }),
+        );
 
         return jsonOk({
             posts: safePosts,
@@ -104,25 +132,14 @@ export async function POST(request: NextRequest) {
             return jsonError('标题和内容不能为空', 400);
         }
 
-        let anonymousName = typeof body.anonymous_name === 'string' ? body.anonymous_name.trim() : '';
-        if (!anonymousName) {
-            const { data: settings } = await supabase
-                .from('user_settings')
-                .select('community_anonymous_name')
-                .eq('user_id', user.id)
-                .maybeSingle();
-            const savedName = typeof settings?.community_anonymous_name === 'string'
-                ? settings.community_anonymous_name.trim()
-                : '';
-            anonymousName = savedName || '匿名用户';
-        }
+        const authorProfile = await loadSingleCommunityAuthorProfile(supabase, user.id);
 
         // 创建帖子
         const { data: post, error: postError } = await supabase
             .from('community_posts')
             .insert({
                 user_id: user.id,
-                anonymous_name: anonymousName,
+                anonymous_name: authorProfile.name,
                 title: body.title,
                 content: body.content,
                 category: body.category || 'general',
@@ -136,16 +153,7 @@ export async function POST(request: NextRequest) {
             return jsonError('创建帖子失败', 500);
         }
 
-        // 创建作者的匿名映射（楼主）
-        await supabase.from('community_anonymous_mapping').insert({
-            post_id: post.id,
-            user_id: user.id,
-            anonymous_name: anonymousName,
-            display_order: 0,
-        });
-
-        // 创建成功后返回时移除 user_id
-        return jsonOk(sanitizePost(post as CommunityPost));
+        return jsonOk(toPublicPost(post as CommunityPostRow, authorProfile));
     } catch (error) {
         console.error('创建帖子失败:', error);
         return jsonError('创建帖子失败', 500);

@@ -1,20 +1,49 @@
 /**
  * 单个帖子 API 路由
- * GET: 获取帖子详情（移除 user_id 保护匿名性，使用 Service Role 更新浏览量）
- * PUT: 更新帖子（限制可更新字段）
+ * GET: 获取帖子详情
+ * PUT: 更新帖子
  * DELETE: 删除帖子（软删除）
  */
 
 import { NextRequest } from 'next/server';
 import { CommunityPost, CommunityComment } from '@/lib/community';
+import { loadCommunityAuthorProfileMap } from '@/lib/community-server';
 import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 
-// 从帖子数据中移除 user_id 以保护匿名性
-function sanitizePost(post: CommunityPost): Omit<CommunityPost, 'user_id'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { user_id, ...safePost } = post;
-    return safePost;
+type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
+    user_id: string;
+    anonymous_name: string | null;
+};
+
+type CommunityCommentRow = Omit<CommunityComment, 'author_name' | 'replies'> & {
+    user_id: string;
+    anonymous_name?: string | null;
+    replies?: CommunityCommentRow[];
+};
+
+function toPublicPost(
+    post: CommunityPostRow,
+    authorProfile: { name: string; avatarUrl: string | null },
+): CommunityPost {
+    return {
+        id: post.id,
+        author_name: authorProfile.name,
+        author_avatar_url: authorProfile.avatarUrl,
+        title: post.title,
+        content: post.content,
+        category: post.category,
+        tags: post.tags,
+        view_count: post.view_count,
+        upvote_count: post.upvote_count,
+        downvote_count: post.downvote_count,
+        comment_count: post.comment_count,
+        is_pinned: post.is_pinned,
+        is_featured: post.is_featured,
+        is_deleted: post.is_deleted,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+    };
 }
 
 export async function GET(
@@ -24,8 +53,6 @@ export async function GET(
     try {
         const { supabase, user } = await getAuthContext(_request);
         const { id } = await params;
-        const { searchParams } = new URL(_request.url);
-        const includeAuthor = searchParams.get('includeAuthor') === '1';
 
         // 获取帖子
         const { data: post, error: postError } = await supabase
@@ -73,29 +100,14 @@ export async function GET(
             console.error('获取评论失败:', commentsError);
         }
 
-        // 获取匿名映射 - 使用 serviceClient 和重试逻辑
-        const mappingsResult = await withRetry(async () => {
-            const response = await serviceClient
-                .from('community_anonymous_mapping')
-                .select('user_id, anonymous_name')
-                .eq('post_id', id);
-            if (response.error) {
-                throw response.error;
-            }
-            return response;
-        });
-        const mappings = mappingsResult.data;
+        const authorMap = await loadCommunityAuthorProfileMap(serviceClient, [
+            post.user_id,
+            ...((commentsData || []).map((comment: CommunityCommentRow) => comment.user_id)),
+        ]);
 
-        const anonymousMap = new Map<string, string>();
-        mappings?.forEach((item: { user_id: string; anonymous_name: string }) => {
-            anonymousMap.set(item.user_id, item.anonymous_name);
-        });
-
-        // 构建评论树并添加匿名名称
-        type CommentWithReplies = CommunityComment & { replies: CommentWithReplies[] };
-        const comments: CommentWithReplies[] = (commentsData || []).map((comment: CommunityComment) => ({
+        type CommentWithReplies = CommunityCommentRow & { replies: CommentWithReplies[] };
+        const comments: CommentWithReplies[] = (commentsData || []).map((comment: CommunityCommentRow) => ({
             ...comment,
-            anonymous_name: anonymousMap.get(comment.user_id) || '匿名用户',
             replies: [],
         }));
 
@@ -120,9 +132,17 @@ export async function GET(
         // 获取当前用户信息（需要在处理评论前获取）
         const currentUserId = user?.id;
         const isPostAuthor = currentUserId ? post.user_id === currentUserId : false;
+        const viewer = {
+            isAuthenticated: !!currentUserId,
+            isAuthor: isPostAuthor,
+            canEdit: isPostAuthor,
+            canDelete: isPostAuthor,
+        };
 
-        // 为评论添加 isAuthor 标记，然后移除 user_id
+        // 为评论添加 author/isAuthor 标记，然后移除 user_id
         type SafeComment = Omit<CommentWithReplies, 'user_id' | 'replies'> & {
+            author_name: string;
+            author_avatar_url: string | null;
             isAuthor: boolean;
             isPostAuthor: boolean;
             replies: SafeComment[];
@@ -130,25 +150,30 @@ export async function GET(
         function processComment(comment: CommentWithReplies): SafeComment {
             const isCommentAuthor = currentUserId ? comment.user_id === currentUserId : false;
             const isPostAuthor = comment.user_id === post.user_id;
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { user_id, replies, ...safeComment } = comment;
+            const { replies, ...safeComment } = comment;
+            delete (safeComment as { user_id?: unknown }).user_id;
+            const authorProfile = authorMap.get(comment.user_id) || { name: '命理爱好者', avatarUrl: null };
             return {
                 ...safeComment,
+                author_name: authorProfile.name,
+                author_avatar_url: authorProfile.avatarUrl,
                 isAuthor: isCommentAuthor,
                 isPostAuthor,
                 replies: (replies || []).map(processComment),
             };
         }
 
-        // 移除 user_id 保护匿名性
-        const safePost = sanitizePost(post as CommunityPost);
+        const safePost = toPublicPost(
+            post as CommunityPostRow,
+            authorMap.get(post.user_id) || { name: '命理爱好者', avatarUrl: null },
+        );
         const safeComments = rootComments.map(c => processComment(c));
 
         return jsonOk({
             post: safePost,
             comments: safeComments,
             isAuthor: isPostAuthor,
-            ...(includeAuthor ? { authorId: post.user_id } : {}),
+            viewer,
         });
     } catch (error) {
         console.error('获取帖子失败:', error);
@@ -171,7 +196,7 @@ export async function PUT(
         const body = await request.json();
 
         // 只允许用户更新特定字段，防止权限提升
-        const allowedFields = ['title', 'content', 'category', 'tags', 'anonymous_name'];
+        const allowedFields = ['title', 'content', 'category', 'tags'];
         const updateData: Record<string, unknown> = {
             updated_at: new Date().toISOString(),
         };
@@ -195,8 +220,10 @@ export async function PUT(
             return jsonError('更新帖子失败', 500);
         }
 
-        // 移除 user_id
-        return jsonOk(sanitizePost(data as CommunityPost));
+        const authorMap = await loadCommunityAuthorProfileMap(auth.supabase, [user.id]);
+        return jsonOk(
+            toPublicPost(data as CommunityPostRow, authorMap.get(user.id) || { name: '命理爱好者', avatarUrl: null }),
+        );
     } catch (error) {
         console.error('更新帖子失败:', error);
         return jsonError('更新帖子失败', 500);

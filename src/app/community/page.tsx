@@ -19,7 +19,6 @@ import {
     Star,
     Filter,
     Aperture,
-    Sparkles,
     Clock,
     MessageSquare,
     Heart,
@@ -28,56 +27,7 @@ import {
 } from 'lucide-react';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/auth';
-import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
-
-// =====================================================
-// 匿名提示组件
-// =====================================================
-function AnonymityNotice() {
-    const [dismissed, setDismissed] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const cached = readLocalCache<boolean>('mingai.pref.communityAnonymityDismissed', Number.POSITIVE_INFINITY);
-        if (cached) return true;
-        const legacy = localStorage.getItem('community-anonymity-dismissed');
-        if (legacy) {
-            writeLocalCache('mingai.pref.communityAnonymityDismissed', true);
-            return true;
-        }
-        return false;
-    });
-
-    const handleDismiss = () => {
-        writeLocalCache('mingai.pref.communityAnonymityDismissed', true);
-        setDismissed(true);
-    };
-
-    if (dismissed) return null;
-
-    return (
-        <div className="relative overflow-hidden bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6 backdrop-blur-sm group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="flex items-start gap-4 relative z-10">
-                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400 group-hover:scale-110 transition-transform duration-300">
-                    <Sparkles className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                    <h3 className="font-bold text-foreground mb-1">开启你的匿名探索之旅</h3>
-                    <p className="text-sm text-foreground-secondary/90 leading-relaxed">
-                        在这里，所有互动均采用随机匿名代号。你可以放下顾虑，自由探讨命理玄学，分享真实感悟。请在这个温暖的社区里保持友善，共创和谐氛围。
-                    </p>
-                </div>
-                <button
-                    onClick={handleDismiss}
-                    className="p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-all"
-                    title="不再显示"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-        </div>
-    );
-}
 
 // =====================================================
 // 帖子卡片组件
@@ -125,10 +75,19 @@ function PostCard({ post }: { post: CommunityPost }) {
 
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-auto">
                         <div className="flex items-center gap-2 text-xs font-medium text-foreground-secondary/70">
-                            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-purple-400 to-indigo-400 flex items-center justify-center text-[10px] text-white">
-                                {post.anonymous_name ? post.anonymous_name.charAt(0) : '匿'}
-                            </div>
-                            <span>{post.anonymous_name}</span>
+                            {post.author_avatar_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={post.author_avatar_url}
+                                    alt={post.author_name}
+                                    className="w-5 h-5 rounded-full object-cover border border-border/40"
+                                />
+                            ) : (
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-purple-400 to-indigo-400 flex items-center justify-center text-[10px] text-white">
+                                    {post.author_name ? post.author_name.charAt(0) : '命'}
+                                </div>
+                            )}
+                            <span>{post.author_name}</span>
                         </div>
 
                         <div className="flex items-center gap-4 text-xs text-foreground-secondary">
@@ -227,7 +186,7 @@ export default function CommunityPage() {
                                 命理社区
                             </h1>
                             <p className="text-lg text-foreground-secondary/80 max-w-lg">
-                                匿名交流命理心得，探讨玄学奥秘，在这里找到你的同路人。
+                                交流命理心得，探讨玄学奥秘，在这里找到你的同路人。
                             </p>
                         </div>
                         {user && (
@@ -257,9 +216,6 @@ export default function CommunityPage() {
             )}
 
             <div className="max-w-4xl mx-auto px-4 space-y-6">
-                {/* 匿名提示 */}
-                <AnonymityNotice />
-
                 {/* 搜索和筛选 */}
                 <div className="sticky top-4 z-30 bg-background/80 backdrop-blur-md rounded-2xl border border-border shadow-sm p-2 flex flex-col sm:flex-row gap-2 transition-all">
                     <div className="flex-1 relative group">

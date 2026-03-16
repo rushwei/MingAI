@@ -330,9 +330,18 @@ function CommentItem({
         <div className="group/comment relative">
             <div className="flex gap-3">
                 <div className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-sm z-10 ${isAuthor ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-background-tertiary text-foreground-secondary'}`}>
-                        {comment.anonymous_name?.charAt(0) || '匿'}
-                    </div>
+                    {comment.author_avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={comment.author_avatar_url}
+                            alt={comment.author_name}
+                            className="w-8 h-8 rounded-full object-cover border border-border/50 shadow-sm z-10"
+                        />
+                    ) : (
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-sm z-10 ${isAuthor ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-background-tertiary text-foreground-secondary'}`}>
+                            {comment.author_name?.charAt(0) || '命'}
+                        </div>
+                    )}
                     {comment.replies && comment.replies.length > 0 && (
                         <div className="w-px h-full bg-border/50 my-1" />
                     )}
@@ -343,7 +352,7 @@ function CommentItem({
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <span className={`text-sm font-medium ${comment.isPostAuthor ? 'text-purple-600 dark:text-purple-400' : 'text-foreground'}`}>
-                                    {comment.anonymous_name}
+                                    {comment.author_name}
                                 </span>
                                 {comment.isPostAuthor && (
                                     <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
@@ -450,7 +459,6 @@ export default function PostDetailPage() {
     const [userVotes, setUserVotes] = useState<Map<string, VoteType>>(new Map());
     const [postVote, setPostVote] = useState<VoteType | null>(null);
     const [commentContent, setCommentContent] = useState('');
-    const [anonymousName, setAnonymousName] = useState('匿名用户');
     const [replyTo, setReplyTo] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment'; id: string } | null>(null);
@@ -464,12 +472,6 @@ export default function PostDetailPage() {
             if (user) {
                 const bundle = await getCurrentUserProfileBundle();
                 setIsAdmin(bundle?.profile?.is_admin || false);
-                const savedName = typeof bundle?.settings?.community_anonymous_name === 'string'
-                    ? bundle.settings.community_anonymous_name.trim()
-                    : '';
-                if (savedName) {
-                    setAnonymousName(savedName);
-                }
             }
         };
         checkAuth();
@@ -673,19 +675,10 @@ export default function PostDetailPage() {
 
         setSubmitting(true);
         try {
-            await supabase
-                .from('user_settings')
-                .upsert({
-                    user_id: user.id,
-                    community_anonymous_name: anonymousName.trim() || '匿名用户',
-                }, { onConflict: 'user_id' });
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
             const response = await fetch('/api/community/comments', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
                 body: JSON.stringify({
                     post_id: postId,
@@ -709,7 +702,12 @@ export default function PostDetailPage() {
                 // 更新帖子评论数
                 setPost(prev => prev ? { ...prev, comment_count: prev.comment_count + 1 } : null);
                 setReplyTo(null);
+            } else {
+                const data = await response.json().catch(() => null) as { error?: string } | null;
+                throw new Error(data?.error || '发表评论失败');
             }
+        } catch (err) {
+            showToast('error', err instanceof Error ? err.message : '发表评论失败，请重试');
         } finally {
             setSubmitting(false);
         }
@@ -881,11 +879,20 @@ export default function PostDetailPage() {
 
                         <div className="flex items-center justify-between border-b border-border/50 pb-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-lg font-medium shadow-md">
-                                    {post.anonymous_name?.charAt(0) || '匿'}
-                                </div>
+                                {post.author_avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={post.author_avatar_url}
+                                        alt={post.author_name}
+                                        className="w-10 h-10 rounded-full object-cover border border-border/50 shadow-md"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-lg font-medium shadow-md">
+                                        {post.author_name?.charAt(0) || '命'}
+                                    </div>
+                                )}
                                 <div>
-                                    <div className="font-medium text-foreground">{post.anonymous_name}</div>
+                                    <div className="font-medium text-foreground">{post.author_name}</div>
                                     <div className="text-xs text-foreground-secondary">楼主</div>
                                 </div>
                             </div>
@@ -923,16 +930,6 @@ export default function PostDetailPage() {
                     <div className="bg-background-secondary/30 rounded-2xl p-4 mb-8 border border-border/50">
                         {user ? (
                             <form onSubmit={handleComment}>
-                                <div className="flex items-center gap-3 mb-3">
-                                    <label className="text-xs text-foreground-secondary">匿名昵称</label>
-                                    <input
-                                        value={anonymousName}
-                                        onChange={(e) => setAnonymousName(e.target.value)}
-                                        className="flex-1 bg-background border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/30"
-                                        placeholder="设置通用匿名昵称"
-                                        maxLength={20}
-                                    />
-                                </div>
                                 {replyTo && (
                                     <div className="flex items-center justify-between bg-purple-500/10 px-3 py-2 rounded-lg mb-3 border border-purple-500/20">
                                         <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">

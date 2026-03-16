@@ -20,8 +20,8 @@ export type ReportStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed';
 
 export interface CommunityPost {
     id: string;
-    user_id: string;
-    anonymous_name: string;
+    author_name: string;
+    author_avatar_url: string | null;
     title: string;
     content: string;
     category: PostCategory;
@@ -40,7 +40,6 @@ export interface CommunityPost {
 export interface CommunityComment {
     id: string;
     post_id: string;
-    user_id: string;
     parent_id: string | null;
     content: string;
     upvote_count: number;
@@ -48,9 +47,16 @@ export interface CommunityComment {
     is_deleted: boolean;
     created_at: string;
     updated_at: string;
-    // 客户端附加的匿名信息
-    anonymous_name?: string;
+    author_name: string;
+    author_avatar_url: string | null;
     replies?: CommunityComment[];
+}
+
+export interface CommunityViewerState {
+    isAuthenticated: boolean;
+    isAuthor: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
 }
 
 export interface CommunityVote {
@@ -81,7 +87,6 @@ export interface PostInput {
     content: string;
     category?: PostCategory;
     tags?: string[];
-    anonymous_name?: string;
 }
 
 export interface CommentInput {
@@ -190,7 +195,6 @@ export async function createPost(input: PostInput): Promise<CommunityPost> {
             content: input.content,
             category: input.category || 'general',
             tags: input.tags || [],
-            anonymous_name: input.anonymous_name || '匿名用户',
         }),
     });
 
@@ -435,14 +439,18 @@ export async function adminResolveReport(
  * 检查用户是否是帖子作者
  */
 export async function isPostAuthor(postId: string, userId: string): Promise<boolean> {
-    const payload = await requestJson<{ authorId?: string | null }>(`/api/community/posts/${postId}?includeAuthor=1`);
-    return payload.authorId === userId;
+    void userId;
+
+    const payload = await requestJson<{ viewer?: { isAuthor?: boolean | null } }>(`/api/community/posts/${postId}`);
+    return payload.viewer?.isAuthor === true;
 }
 
 /**
  * 检查用户是否是评论作者
  */
 export async function isCommentAuthor(commentId: string, userId: string): Promise<boolean> {
-    const payload = await requestJson<{ authorId?: string | null }>(`/api/community/comments/${commentId}?includeAuthor=1`);
-    return payload.authorId === userId;
+    void userId;
+
+    const payload = await requestJson<{ viewer?: { isAuthor?: boolean | null } }>(`/api/community/comments/${commentId}`);
+    return payload.viewer?.isAuthor === true;
 }

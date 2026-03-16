@@ -108,17 +108,6 @@ CREATE TABLE public.bazi_charts (
   CONSTRAINT bazi_charts_pkey PRIMARY KEY (id),
   CONSTRAINT bazi_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.community_anonymous_mapping (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  post_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  anonymous_name text NOT NULL DEFAULT '匿名用户'::text,
-  display_order integer NOT NULL DEFAULT 1,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT community_anonymous_mapping_pkey PRIMARY KEY (id),
-  CONSTRAINT community_anonymous_mapping_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.community_posts(id),
-  CONSTRAINT community_anonymous_mapping_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
 CREATE TABLE public.community_comments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL,
@@ -520,7 +509,6 @@ CREATE TABLE public.user_settings (
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,
   prompt_kb_ids jsonb DEFAULT '[]'::jsonb,
-  community_anonymous_name text DEFAULT '匿名用户'::text,
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),

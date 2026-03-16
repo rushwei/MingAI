@@ -18,7 +18,6 @@ export default function NewPostPage() {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState<PostCategory>('general');
-    const [anonymousName, setAnonymousName] = useState('匿名用户');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [user, setUser] = useState<{ id: string } | null>(null);
@@ -31,17 +30,6 @@ export default function NewPostPage() {
                 return;
             }
             setUser(user);
-            const { data } = await supabase
-                .from('user_settings')
-                .select('community_anonymous_name')
-                .eq('user_id', user.id)
-                .maybeSingle();
-            const savedName = typeof data?.community_anonymous_name === 'string'
-                ? data.community_anonymous_name.trim()
-                : '';
-            if (savedName) {
-                setAnonymousName(savedName);
-            }
         };
         checkAuth();
     }, [router]);
@@ -58,14 +46,6 @@ export default function NewPostPage() {
         setError('');
 
         try {
-            if (user) {
-                await supabase
-                    .from('user_settings')
-                    .upsert({
-                        user_id: user.id,
-                        community_anonymous_name: anonymousName.trim() || '匿名用户',
-                    }, { onConflict: 'user_id' });
-            }
             const response = await fetch('/api/community/posts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -73,7 +53,6 @@ export default function NewPostPage() {
                     title,
                     content,
                     category,
-                    anonymous_name: anonymousName.trim() || '匿名用户',
                 }),
             });
 
@@ -138,30 +117,7 @@ export default function NewPostPage() {
                             </div>
                         )}
 
-                        {/* Top Row: Anonymous Name & Category */}
                         <div className="grid md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-foreground-secondary ml-1">
-                                    匿名昵称
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={anonymousName}
-                                        onChange={(e) => setAnonymousName(e.target.value)}
-                                        className="w-full bg-background/50 border border-border/50 hover:border-purple-500/30 rounded-xl px-4 py-3 pl-10 text-foreground focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
-                                        placeholder="自定义你的匿名昵称"
-                                        maxLength={20}
-                                    />
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-secondary/50">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-foreground-secondary/60 ml-1">
-                                    这将是你在这个讨论中显示的身份
-                                </p>
-                            </div>
-
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-foreground-secondary ml-1">
                                     话题分类
@@ -185,6 +141,18 @@ export default function NewPostPage() {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-foreground-secondary ml-1">
+                                    发布身份
+                                </label>
+                                <div className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-3 text-foreground-secondary">
+                                    社区将显示你的公开昵称
+                                </div>
+                                <p className="text-xs text-foreground-secondary/60 ml-1">
+                                    如需修改显示名称，请前往个人资料页调整昵称
+                                </p>
                             </div>
                         </div>
 

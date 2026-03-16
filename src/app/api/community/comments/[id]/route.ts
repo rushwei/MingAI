@@ -25,6 +25,7 @@ export async function GET(
             .from('community_comments')
             .select('id, user_id')
             .eq('id', id)
+            .eq('is_deleted', false)
             .maybeSingle();
 
         if (error) {
@@ -35,7 +36,15 @@ export async function GET(
             return jsonError('评论不存在', 404);
         }
 
-        return jsonOk({ authorId: data.user_id });
+        const isAuthor = data.user_id === user.id;
+        return jsonOk({
+            viewer: {
+                isAuthenticated: true,
+                isAuthor,
+                canEdit: isAuthor,
+                canDelete: isAuthor,
+            },
+        });
     } catch (error) {
         console.error('获取评论失败:', error);
         return jsonError('获取评论失败', 500);
