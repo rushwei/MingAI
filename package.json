@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm -C packages/mcp-core build && next dev",
-    "build": "pnpm -C packages/mcp-core build && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "pnpm -C packages/mcp-core build && NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/*.test.ts packages/mcp-core/tests/*.test.mjs"
+    "test": "pnpm -C packages/mcp-core build && NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/*.test.ts packages/mcp-core/tests/*.test.mjs",
+    "build:mcp-core": "pnpm -C packages/mcp-core build"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",

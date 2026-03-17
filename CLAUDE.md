@@ -58,17 +58,7 @@ NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logi
 - `src/lib/*`: 核心业务逻辑与可复用能力（AI、鉴权、积分、限流、数据源、RAG）。
 - `src/tests/*`: Node.js built-in test runner 测试。
 - `supabase/migrations/*`: 数据库迁移脚本。
-- `supabase/tabel_export_from_supabase.sql`: 当前 schema 导出快照。
-
-## 关键表速查（防止重复建模）
-
-- 用户与配置：`users`、`user_settings`、`app_settings`。
-- 对话与分析主表：`conversations`（统一承载 AI 结果与 `source_type/source_data`）。
-- 命理数据：`bazi_charts`、`ziwei_charts`、`tarot_readings`、`liuyao_divinations`、`hepan_charts`、`mbti_readings`、`face_readings`、`palm_readings`。
-- AI 模型管理：`ai_models`、`ai_model_sources`、`ai_model_stats`。
-- 会员与系统：`rate_limits`、`credit_transactions`、`activation_keys`、`orders`。
-- 知识库：`knowledge_bases`、`knowledge_entries`、`archived_sources`。
-- 全量字段与约束以 `supabase/tabel_export_from_supabase.sql` 为唯一准绳。
+- `supabase/tabel_export_from_supabase.sql`: 当前 schema 导出快照（不可修改）。
 
 ## 强制规范（MUST）
 
@@ -88,26 +78,6 @@ NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logi
 - TypeScript 保持 strict 通过；禁止引入无必要的 `any`、`@ts-ignore`。
 - 页面层保持轻量，业务逻辑尽量下沉到 `src/lib/*` 或 feature 组件。
 - 改动完成后必须补齐最小验证（见“测试与验收”）。
-
-## Spec-Kit 规范（MUST）
-
-- Spec 分级必须在开始开发前声明：
-  - `No Spec`：仅文案/样式/注释等不改变行为与契约的修改。
-  - `Spec-Lite`：单模块小改动，且不涉及 API 契约或数据库结构变更。
-  - `Full Spec`：新增功能、行为变更、接口契约变更、数据库结构变更、跨模块重构。
-- 如不确定等级，默认提升一级处理（`No Spec -> Spec-Lite -> Full Spec`）。
-- 模板与实例分离：
-  - 模板目录：`docs/specs/templates/`
-  - Spec 实例目录：`docs/specs/`
-  - 历史归档目录：`docs/specs/archive/`
-- Spec 编写起点：
-  - `Spec-Lite` 使用 `docs/specs/templates/spec-lite.md`
-  - `Full Spec` 使用 `docs/specs/templates/spec-full.md`
-- 默认 Spec 文件命名：`docs/specs/YYYY-MM-DD-<topic>.md`；同主题优先增量更新而非重复新建。
-- 未经明确批准，禁止“无 Spec 直接编码”；仅生产故障热修复可先修复后补 Spec。
-- 实现阶段必须与 Spec 对齐；如实现偏离 Spec，必须先更新 Spec 再继续开发。
-- PR 必须填写 Spec 类型，`Spec-Lite/Full Spec` 必须附 Spec 链接；`No Spec` 必须说明理由。
-- 流程细则见 `docs/specs/README.md`，PR 模板见 `.github/pull_request_template.md`。
 
 ## API 路由标准流程
 
@@ -160,30 +130,6 @@ pnpm test
 ```
 
 若只改局部，可先跑受影响测试，再跑全量测试。
-
-## MCP 包发布规范
-
-**核心原则：本地始终保持 `workspace:*`，只用 `pnpm publish` 发布**
-
-- 本地开发：`packages/mcp-local/package.json` 中永远保持 `"@mingai/mcp-core": "workspace:*"`，禁止手动改为具体版本号
-- 发布流程：
-  ```bash
-  # 1. 更新版本号（两个包保持一致）
-  # 编辑 packages/mcp-core/package.json 和 packages/mcp-local/package.json
-
-  # 2. 构建
-  pnpm -C packages/mcp-core build
-  pnpm -C packages/mcp-local build
-
-  # 3. 发布（pnpm 会自动将 workspace:* 替换为实际版本号）
-  cd packages/mcp-core && pnpm publish --access public --no-git-checks
-  cd packages/mcp-local && pnpm publish --access public --no-git-checks
-
-  # 4. 验证
-  npm view @mingai/mcp dependencies  # 确认依赖是 ^x.x.x 而非 workspace:*
-  ```
-- 禁止使用 `npm publish`（不会自动替换 workspace 协议）
-- 发布后本地 package.json 保持 workspace:* 不变，无需修改
 
 ## 提交与变更说明
 
