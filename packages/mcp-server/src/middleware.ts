@@ -122,7 +122,7 @@ async function touchLastUsedAt(keyId: string): Promise<void> {
   }
 }
 
-export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const apiKey = extractApiKey(req);
 
   if (!apiKey) {

@@ -17,7 +17,7 @@ import {
 import Link from 'next/link';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 
-import { ChartSelectorModal } from '@/components/ChartSelectorModal';
+import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/auth';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
@@ -32,8 +32,8 @@ function MonthlyPageContent() {
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
-    const [baziCharts, setBaziCharts] = useState<BaziChart[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showTrendChart, setShowTrendChart] = useState(true);
 
@@ -63,7 +63,6 @@ function MonthlyPageContent() {
             const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
             if (rows.length > 0) {
                 const charts = rows.map(toBaziChart);
-                setBaziCharts(charts);
                 const defaultId = bundle?.defaultChartIds?.bazi ?? null;
                 const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                 setBaziChart(defaultChart || charts[0]);
@@ -80,6 +79,7 @@ function MonthlyPageContent() {
         const init = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
+                setUserId(session.user.id);
                 await loadUserCharts(session.user.id);
             } else {
                 setLoading(false);
@@ -168,8 +168,14 @@ function MonthlyPageContent() {
         return 'bg-red-500';
     };
 
-    const handleSelectChart = (chart: BaziChart) => {
-        setBaziChart(chart);
+    const handleSelectChart = (chart: ChartItem) => {
+        setBaziChart({
+            id: chart.id,
+            name: chart.name,
+            gender: chart.gender ?? 'male',
+            birthDate: chart.birth_date,
+            birthTime: chart.birth_time,
+        } as BaziChart);
         setShowChartSelector(false);
     };
 
@@ -523,12 +529,14 @@ function MonthlyPageContent() {
             </div>
 
             {/* 命盘选择器弹窗 */}
-            {showChartSelector && (
-                <ChartSelectorModal
-                    charts={baziCharts}
-                    selectedId={baziChart?.id}
-                    onSelect={handleSelectChart}
+            {userId && (
+                <ChartPickerModal
+                    isOpen={showChartSelector}
                     onClose={() => setShowChartSelector(false)}
+                    onSelect={handleSelectChart}
+                    userId={userId}
+                    title="选择八字命盘"
+                    filterType="bazi"
                 />
             )}
         </div>

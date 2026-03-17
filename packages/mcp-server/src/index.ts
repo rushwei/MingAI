@@ -606,20 +606,14 @@ const handleMcpDelete: express.RequestHandler = async (req, res) => {
   if (!isSessionOwner(session, auth)) {
     return res.status(403).json({ error: 'Session does not belong to current user' });
   }
-  session.lastActivityAt = Date.now();
 
   await session.transport.handleRequest(req, res, req.body);
 };
 
-// Streamable HTTP - canonical MCP path
-app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
-app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
-app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
-
-// Streamable HTTP - root path compatibility alias
-app.post('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
-app.get('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
-app.delete('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
+// Streamable HTTP - canonical MCP path + root path compatibility alias
+app.post(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
+app.get(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
+app.delete(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
 
 // 启动服务器
 const PORT = parseInt(process.env.PORT || '3001', 10);
