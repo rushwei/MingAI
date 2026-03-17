@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { X, Mail, Lock, User, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, User, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
     signInWithEmailProtected,
@@ -20,6 +20,9 @@ import {
 import { supabase } from '@/lib/auth';
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@/components/auth/PasswordStrengthIndicator';
 import { VerificationCodeInput } from '@/components/auth/VerificationCodeInput';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { RegisterForm } from '@/components/auth/RegisterForm';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify-register' | 'verify-login' | 'set-password' | 'verify-reset' | 'reset-password';
 type LoginMethod = 'password' | 'otp';
@@ -466,30 +469,22 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                         </div>
                     )}
 
-                    {/* 登录方式切换（仅登录模式） */}
+                    {/* 登录模式 */}
                     {mode === 'login' && (
-                        <div className="flex gap-2 p-1 bg-background-secondary rounded-xl">
-                            <button
-                                type="button"
-                                onClick={() => setLoginMethod('password')}
-                                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${loginMethod === 'password'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-foreground-secondary hover:text-foreground'
-                                    }`}
-                            >
-                                密码登录
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setLoginMethod('otp')}
-                                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${loginMethod === 'otp'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-foreground-secondary hover:text-foreground'
-                                    }`}
-                            >
-                                验证码登录
-                            </button>
-                        </div>
+                        <LoginForm
+                            loginMethod={loginMethod}
+                            onLoginMethodChange={setLoginMethod}
+                            emailPrefix={emailPrefix}
+                            onEmailPrefixChange={setEmailPrefix}
+                            emailSuffix={emailSuffix}
+                            onEmailSuffixChange={setEmailSuffix}
+                            emailSuffixes={emailSuffixes}
+                            password={password}
+                            onPasswordChange={setPassword}
+                            showPassword={showPassword}
+                            onToggleShowPassword={() => setShowPassword(!showPassword)}
+                            onForgotPassword={() => switchMode('forgot')}
+                        />
                     )}
 
                     {/* 验证码输入（验证模式） */}
@@ -626,167 +621,60 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                         </>
                     )}
 
-                    {/* 常规输入区域 */}
-                    {mode !== 'verify-register' && mode !== 'verify-login' && mode !== 'verify-reset' && mode !== 'set-password' && mode !== 'reset-password' && (
-                        <>
-                            {/* 昵称（仅注册） */}
-                            {mode === 'register' && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-foreground-secondary">
-                                        昵称
-                                    </label>
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                        <input
-                                            type="text"
-                                            value={nickname}
-                                            onChange={(e) => setNickname(e.target.value)}
-                                            placeholder="输入您的昵称"
-                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                    {/* 注册模式 */}
+                    {mode === 'register' && (
+                        <RegisterForm
+                            nickname={nickname}
+                            onNicknameChange={setNickname}
+                            emailPrefix={emailPrefix}
+                            onEmailPrefixChange={setEmailPrefix}
+                            emailSuffix={emailSuffix}
+                            onEmailSuffixChange={setEmailSuffix}
+                            emailSuffixes={emailSuffixes}
+                            password={password}
+                            onPasswordChange={setPassword}
+                            confirmPassword={confirmPassword}
+                            onConfirmPasswordChange={setConfirmPassword}
+                            showPassword={showPassword}
+                            onToggleShowPassword={() => setShowPassword(!showPassword)}
+                            showConfirmPassword={showConfirmPassword}
+                            onToggleShowConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
+                            verificationCode={verificationCode}
+                            onVerificationCodeChange={setVerificationCode}
+                            onSendCode={handleSendRegisterCode}
+                            sendingCode={sendingCode}
+                            countdown={countdown}
+                            loading={loading}
+                        />
+                    )}
 
-                            {/* 邮箱 */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground-secondary">
-                                    邮箱
-                                </label>
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                        <input
-                                            type="text"
-                                            value={emailPrefix}
-                                            onChange={(e) => setEmailPrefix(e.target.value)}
-                                            placeholder="邮箱前缀"
-                                            required
-                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
-                                        />
-                                    </div>
-                                    <select
-                                        value={emailSuffix}
-                                        onChange={(e) => setEmailSuffix(e.target.value)}
-                                        className="px-3 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors text-sm"
-                                    >
-                                        {emailSuffixes.map(suffix => (
-                                            <option key={suffix} value={suffix}>{suffix}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* 密码（登录密码方式和注册） */}
-                            {(mode === 'register' || (mode === 'login' && loginMethod === 'password')) && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-foreground-secondary">
-                                        密码
-                                    </label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder={mode === 'register' ? '设置密码' : '输入密码'}
-                                            required
-                                            minLength={mode === 'register' ? 8 : 6}
-                                            className="w-full pl-10 pr-10 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
-                                        >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                    {/* 密码强度指示器（仅注册） */}
-                                    {mode === 'register' && (
-                                        <PasswordStrengthIndicator password={password} />
-                                    )}
-                                </div>
-                            )}
-
-                            {/* 确认密码（仅注册） */}
-                            {mode === 'register' && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-foreground-secondary">
-                                        确认密码
-                                    </label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
-                                        <input
-                                            type={showConfirmPassword ? 'text' : 'password'}
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="再次输入密码"
-                                            required
-                                            minLength={8}
-                                            className={`w-full pl-10 pr-10 py-3 rounded-xl bg-background-secondary border focus:outline-none transition-colors ${confirmPassword && password !== confirmPassword
-                                                ? 'border-red-500 focus:border-red-500'
-                                                : 'border-border focus:border-accent'
-                                                }`}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
-                                        >
-                                            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                    {confirmPassword && password !== confirmPassword && (
-                                        <p className="text-xs text-red-500">两次输入的密码不一致</p>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* 注册验证码输入和发送按钮 */}
-                            {mode === 'register' && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-sm font-medium text-foreground-secondary">
-                                            邮箱验证码
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={handleSendRegisterCode}
-                                            disabled={sendingCode || countdown > 0}
-                                            className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                                        >
-                                            {sendingCode ? (
-                                                <SoundWaveLoader variant="inline" />
-                                            ) : countdown > 0 ? (
-                                                `${countdown}s 后重发`
-                                            ) : (
-                                                '发送验证码'
-                                            )}
-                                        </button>
-                                    </div>
-                                    <VerificationCodeInput
-                                        value={verificationCode}
-                                        onChange={setVerificationCode}
-                                        length={6}
-                                        disabled={loading}
+                    {/* 忘记密码模式 - 邮箱输入 */}
+                    {mode === 'forgot' && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground-secondary">邮箱</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-secondary" />
+                                    <input
+                                        type="text"
+                                        value={emailPrefix}
+                                        onChange={(e) => setEmailPrefix(e.target.value)}
+                                        placeholder="邮箱前缀"
+                                        required
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
                                     />
                                 </div>
-                            )}
-
-                            {/* 忘记密码链接 */}
-                            {mode === 'login' && loginMethod === 'password' && (
-                                <div className="text-right">
-                                    <button
-                                        type="button"
-                                        onClick={() => switchMode('forgot')}
-                                        className="text-sm text-accent hover:underline"
-                                    >
-                                        忘记密码？
-                                    </button>
-                                </div>
-                            )}
-                        </>
+                                <select
+                                    value={emailSuffix}
+                                    onChange={(e) => setEmailSuffix(e.target.value)}
+                                    className="px-3 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors text-sm"
+                                >
+                                    {emailSuffixes.map(suffix => (
+                                        <option key={suffix} value={suffix}>{suffix}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     )}
 
                     {/* 提交按钮 */}
@@ -799,27 +687,9 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                         {getSubmitText()}
                     </button>
 
-                    {/* 第三方登录分隔线 */}
+                    {/* 第三方登录 */}
                     {(mode === 'login' || mode === 'register') && (
-                        <>
-                            <div className="relative flex items-center gap-4 py-1">
-                                <div className="flex-1 border-t border-border" />
-                                <span className="text-xs text-foreground-secondary">或</span>
-                                <div className="flex-1 border-t border-border" />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => { window.location.href = '/api/auth/linuxdo'; }}
-                                className="w-full py-3 rounded-xl border border-border bg-background-secondary hover:bg-background-secondary/80 font-medium transition-colors flex items-center justify-center gap-2 text-sm"
-                            >
-                                <svg width="20" height="20" viewBox="5 5 90 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <circle fill="#efefef" cx="50" cy="50" r="45"/>
-                                    <path fill="#feb005" d="M50,92.3c16.64,0,31.03-9.61,37.94-23.57H12.06c6.91,13.97,21.3,23.57,37.94,23.57Z"/>
-                                    <path fill="#1e1e20" d="M50,7.7c-16.64,0-31.03,9.61-37.94,23.57h75.88c-6.91-13.97-21.3-23.57-37.94-23.57Z"/>
-                                </svg>
-                                Linux DO 登录
-                            </button>
-                        </>
+                        <OAuthButtons />
                     )}
 
                     {/* 切换登录/注册 */}

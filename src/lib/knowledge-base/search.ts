@@ -1,11 +1,8 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { callReranker } from '@/lib/knowledge-base/reranker';
 import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from '@/lib/knowledge-base/embedding-config';
 import type { RankedResult, SearchCandidate, SearchOptions } from '@/lib/knowledge-base/types';
-import { createClient } from '@supabase/supabase-js';
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { getSystemAdminClient, createAuthedClient } from '@/lib/api-utils';
 
 interface SearchConfigInternal {
     ftsConfig: 'simple' | 'english';
@@ -18,44 +15,6 @@ const DEFAULT_SEARCH_CONFIG: SearchConfigInternal = {
     enableTrigram: true,
     trigramThreshold: 0.3
 };
-
-// 知识库搜索需要用户身份，用 accessToken 或 cookie 会话初始化客户端
-async function createSupabaseClient(accessToken?: string) {
-    if (accessToken) {
-        return createClient(
-            getSupabaseUrl(),
-            getSupabaseAnonKey(),
-            {
-                global: {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`
-                    }
-                }
-            }
-        );
-    }
-    const cookieStore = await cookies();
-    return createServerClient(
-        getSupabaseUrl(),
-        getSupabaseAnonKey(),
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        for (const { name, value, options } of cookiesToSet) {
-                            cookieStore.set(name, value, options);
-                        }
-                    } catch {
-                        // 只读 cookies 上下文无法写入时忽略
-                    }
-                },
-            },
-        }
-    );
-}
 
 function normalizeScore(method: 'fts' | 'trigram' | 'vector', rawScore: number): number {
     switch (method) {
@@ -82,7 +41,8 @@ function deduplicateResults(results: SearchCandidate[]): SearchCandidate[] {
 }
 
 async function getCurrentUserMembership(accessToken?: string): Promise<'free' | 'plus' | 'pro'> {
-    const supabase = await createSupabaseClient(accessToken);
+    if (!accessToken) return 'free';
+    const supabase = createAuthedClient(accessToken);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return 'free';
     return await getEffectiveMembershipType(user.id);
@@ -97,23 +57,47 @@ function getWeightMultiplier(weight?: string | null): number {
 // 缓存知识库权重信息，避免重复查询
 const kbWeightCache = new Map<string, { weights: Map<string, string>; timestamp: number }>();
 const KB_WEIGHT_CACHE_TTL = 60000; // 1 分钟缓存
+const KB_WEIGHT_CACHE_MAX = 128;
+
+function pruneKbWeightCache(now = Date.now()) {
+    for (const [cacheKey, entry] of kbWeightCache.entries()) {
+        if (now - entry.timestamp >= KB_WEIGHT_CACHE_TTL) {
+            kbWeightCache.delete(cacheKey);
+        }
+    }
+
+    if (kbWeightCache.size <= KB_WEIGHT_CACHE_MAX) {
+        return;
+    }
+
+    const overflow = kbWeightCache.size - KB_WEIGHT_CACHE_MAX;
+    const oldestEntries = [...kbWeightCache.entries()]
+        .sort((left, right) => left[1].timestamp - right[1].timestamp)
+        .slice(0, overflow);
+
+    for (const [cacheKey] of oldestEntries) {
+        kbWeightCache.delete(cacheKey);
+    }
+}
 
 async function applyKnowledgeBaseWeights(
     candidates: SearchCandidate[],
     accessToken?: string,
-    supabaseClient?: Awaited<ReturnType<typeof createSupabaseClient>>,
+    _supabaseClient?: unknown,
     userId?: string
 ): Promise<{ candidates: SearchCandidate[]; highKbIds: string[] }> {
     if (candidates.length === 0) return { candidates, highKbIds: [] };
+    pruneKbWeightCache();
 
-    // 复用已有的 supabase 客户端和用户 ID，避免重复创建和查询
-    const supabase = supabaseClient || await createSupabaseClient(accessToken);
+    const supabase = getSystemAdminClient();
     let effectiveUserId = userId;
-    if (!effectiveUserId) {
-        const { data: { user } } = await supabase.auth.getUser();
+    if (!effectiveUserId && accessToken) {
+        const authed = createAuthedClient(accessToken);
+        const { data: { user } } = await authed.auth.getUser();
         if (!user) return { candidates, highKbIds: [] };
         effectiveUserId = user.id;
     }
+    if (!effectiveUserId) return { candidates, highKbIds: [] };
 
     const kbIds = Array.from(new Set(candidates.map(c => c.kbId).filter(Boolean)));
     if (kbIds.length === 0) return { candidates, highKbIds: [] };
@@ -146,6 +130,7 @@ async function applyKnowledgeBaseWeights(
             weightMap.set(kb.id, kb.weight);
         });
         kbWeightCache.set(cacheKey, { weights: weightMap, timestamp: cached.timestamp });
+        pruneKbWeightCache();
     } else {
         // 缓存未命中，完整查询
         const { data: kbRows } = await supabase
@@ -159,6 +144,7 @@ async function applyKnowledgeBaseWeights(
             weightMap.set(kb.id, kb.weight);
         });
         kbWeightCache.set(cacheKey, { weights: weightMap, timestamp: Date.now() });
+        pruneKbWeightCache();
     }
 
     const highKbIdSet = new Set<string>();
@@ -178,7 +164,7 @@ async function applyKnowledgeBaseWeights(
 
 // 知识库检索主入口：FTS -> Trigram -> Vector（可选），并做去重合并
 export async function searchCandidates(query: string, options: SearchOptions): Promise<SearchCandidate[]> {
-    const supabase = await createSupabaseClient(options.accessToken);
+    const supabase = getSystemAdminClient();
     const { kbIds, limit = 20, useVector = false, accessToken } = options;
     const config: SearchConfigInternal = { ...DEFAULT_SEARCH_CONFIG, ...options.searchConfig };
 
@@ -210,7 +196,7 @@ export async function searchCandidates(query: string, options: SearchOptions): P
 
 // FTS 精确检索：适合关键字匹配，速度快
 async function searchByFTS(
-    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    supabase: ReturnType<typeof getSystemAdminClient>,
     query: string,
     kbIds: string[] | undefined,
     limit: number,
@@ -236,7 +222,7 @@ async function searchByFTS(
 
 // Trigram 近似检索：在 FTS 结果不足时补充模糊匹配
 async function searchByTrigram(
-    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    supabase: ReturnType<typeof getSystemAdminClient>,
     query: string,
     kbIds: string[] | undefined,
     limit: number,
@@ -261,7 +247,7 @@ async function searchByTrigram(
 }
 
 async function searchByVector(
-    supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+    supabase: ReturnType<typeof getSystemAdminClient>,
     query: string,
     kbIds: string[] | undefined,
     limit: number,
@@ -301,7 +287,7 @@ export async function rerankCandidates(
 }
 
 export async function searchKnowledge(query: string, options: SearchOptions = {}): Promise<SearchCandidate[] | RankedResult[]> {
-    const membership = await getCurrentUserMembership(options.accessToken);
+    const membership = options.membershipType ?? await getCurrentUserMembership(options.accessToken);
     if (membership === 'free') return [];
     const candidates = await searchCandidates(query, {
         ...options,
@@ -323,14 +309,16 @@ export async function searchKnowledge(query: string, options: SearchOptions = {}
             });
             const weightedExtra = await applyKnowledgeBaseWeights(extraCandidates, options.accessToken);
             weightedCandidates = deduplicateResults([...weightedCandidates, ...weightedExtra.candidates]);
-        } catch {
+        } catch (error) {
+            console.warn('[knowledge-base] extra high-weight candidate search failed:', error);
         }
     }
 
     if (membership === 'pro' && weightedCandidates.length > Math.max(5, topK)) {
         try {
             return await rerankCandidates(query, weightedCandidates, topK);
-        } catch {
+        } catch (error) {
+            console.warn('[knowledge-base] rerank failed, falling back to weighted candidates:', error);
             return weightedCandidates;
         }
     }
