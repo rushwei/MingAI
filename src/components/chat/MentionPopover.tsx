@@ -8,8 +8,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronRight, Folder, BookOpenText, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText, Compass } from 'lucide-react';
-import { ChevronRight, Folder, BookOpenText, BookOpen, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText } from 'lucide-react';
+import { ChevronRight, Folder, BookOpenText, BookOpen, ArrowLeft, Orbit, Sparkles, Gem, Dices, ScanFace, Hand, Brain, HeartHandshake, Heart, Briefcase, Users, Calendar, CalendarDays, FileText, Compass } from 'lucide-react';
 import type { Mention, MentionType } from '@/types';
 
 interface MentionPopoverProps {
@@ -89,8 +88,8 @@ const TYPE_LABELS: Record<MentionType, string> = {
     ming_record: '命理记录',
     daily_fortune: '今日运势',
     monthly_fortune: '本月运势',
-    qimen_chart: '奇门遁甲'
-    daliuren_divination: '大六壬'
+    qimen_chart: '奇门遁甲',
+    daliuren_divination: '大六壬',
 };
 
 const TYPE_ICONS: Record<MentionType, ReactNode> = {
@@ -106,8 +105,8 @@ const TYPE_ICONS: Record<MentionType, ReactNode> = {
     ming_record: <FileText className="w-4 h-4" />,
     daily_fortune: <Calendar className="w-4 h-4" />,
     monthly_fortune: <CalendarDays className="w-4 h-4" />,
-    qimen_chart: <Compass className="w-4 h-4" />
-    daliuren_divination: <BookOpen className="w-4 h-4" />
+    qimen_chart: <Compass className="w-4 h-4" />,
+    daliuren_divination: <BookOpen className="w-4 h-4" />,
 };
 
 const HEPAN_TYPE_LABELS: Record<string, string> = {

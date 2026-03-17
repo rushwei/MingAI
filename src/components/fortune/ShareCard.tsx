@@ -247,7 +247,7 @@ export function ShareCard({ fortune, date, userName, isPersonalized, almanac }: 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src="/Logo.png"
+                            src="/Logo.svg"
                             alt="MingAI"
                             style={{
                                 width: '24px',

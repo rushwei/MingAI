@@ -8,7 +8,6 @@
 import { useState, useEffect } from 'react';
 import { Link2, Check, Crown, Sparkles, Coins } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
 
 type ColorKey = 'amber' | 'purple' | 'blue';
 
@@ -40,17 +39,20 @@ export function PurchaseLinkPanel() {
 
     const fetchLinks = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) return;
+            const response = await fetch('/api/admin/purchase-links', {
+                credentials: 'include',
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch purchase links');
+            }
 
-            // 直接从数据库读取
-            const { data, error } = await supabase
-                .from('purchase_links')
-                .select('link_type, url');
+            const payload = await response.json() as {
+                links?: Array<{ link_type: string; url: string }>;
+            };
 
-            if (!error && data) {
+            if (payload.links) {
                 const linkMap: Record<string, string> = { plus: '', pro: '', credits: '' };
-                data.forEach((link: { link_type: string; url: string }) => {
+                payload.links.forEach((link) => {
                     linkMap[link.link_type] = link.url;
                 });
                 setLinks(linkMap);
@@ -65,23 +67,22 @@ export function PurchaseLinkPanel() {
     const handleSave = async (type: 'plus' | 'pro' | 'credits') => {
         setSaving(type);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token || !session.user) return;
-
-            // 直接使用 supabase 保存
-            const { error } = await supabase
-                .from('purchase_links')
-                .upsert({
-                    link_type: type,
+            const response = await fetch('/api/admin/purchase-links', {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type,
                     url: links[type],
-                    updated_by: session.user.id,
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'link_type' });
-
-            if (!error) {
-                setSaved(type);
-                setTimeout(() => setSaved(null), 2000);
+                }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to save purchase link');
             }
+            setSaved(type);
+            setTimeout(() => setSaved(null), 2000);
         } catch (error) {
             console.error('Failed to save purchase link:', error);
         } finally {

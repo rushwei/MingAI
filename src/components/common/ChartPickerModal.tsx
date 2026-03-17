@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Search, Orbit, Star } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { loadUserChartBundle } from '@/lib/user/charts-client';
 
 export interface ChartItem {
     id: string;
@@ -32,6 +32,31 @@ export interface ChartPickerModalProps {
     filterType?: 'bazi' | 'ziwei';  // 只显示某一类型
 }
 
+type ChartQueryRow = Pick<ChartItem, 'id' | 'name' | 'gender' | 'birth_date' | 'birth_time'>;
+
+function toChartRows(value: unknown): ChartQueryRow[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((item): item is ChartQueryRow => (
+        typeof item === 'object'
+        && item !== null
+        && typeof (item as { id?: unknown }).id === 'string'
+        && typeof (item as { name?: unknown }).name === 'string'
+        && typeof (item as { birth_date?: unknown }).birth_date === 'string'
+        && (
+            (item as { birth_time?: unknown }).birth_time === null
+            || typeof (item as { birth_time?: unknown }).birth_time === 'string'
+        )
+        && (
+            (item as { gender?: unknown }).gender === null
+            || (item as { gender?: unknown }).gender === 'male'
+            || (item as { gender?: unknown }).gender === 'female'
+        )
+    ));
+}
+
 export function ChartPickerModal({
     isOpen,
     onClose,
@@ -50,71 +75,48 @@ export function ChartPickerModal({
 
         const loadCharts = async () => {
             setLoading(true);
-
-            const promises = [];
-
-            if (!filterType || filterType === 'bazi') {
-                promises.push(
-                    supabase
-                        .from('bazi_charts')
-                        .select('id, name, gender, birth_date, birth_time')
-                        .eq('user_id', userId)
-                        .order('created_at', { ascending: false })
-                        .then((res: { data: unknown; error: unknown }) => ({
-                            type: 'bazi' as const,
-                            data: res.data,
-                            error: res.error
-                        }))
-                );
-            }
-
-            if (!filterType || filterType === 'ziwei') {
-                promises.push(
-                    supabase
-                        .from('ziwei_charts')
-                        .select('id, name, gender, birth_date, birth_time')
-                        .eq('user_id', userId)
-                        .order('created_at', { ascending: false })
-                        .then((res: { data: unknown; error: unknown }) => ({
-                            type: 'ziwei' as const,
-                            data: res.data,
-                            error: res.error
-                        }))
-                );
-            }
-
-            const results = await Promise.all(promises);
-
             const allCharts: ChartItem[] = [];
-            for (const result of results) {
-                if (!result.error && result.data) {
-                    allCharts.push(...result.data.map((c: Record<string, unknown>) => {
-                        // 解析 birth_date 获取年月日
-                        let year = 0, month = 0, day = 0;
-                        if (c.birth_date) {
-                            const date = new Date(`${c.birth_date}T00:00:00`);
-                            year = date.getFullYear();
-                            month = date.getMonth() + 1;
-                            day = date.getDate();
-                        }
-                        // 解析 birth_time 获取小时 (处理 null 情况)
-                        let hour: number | undefined = undefined;
-                        const birthTimeStr = c.birth_time as string | null;
-                        if (birthTimeStr && birthTimeStr.includes(':')) {
-                            const [h] = birthTimeStr.split(':');
-                            hour = parseInt(h);
-                            if (isNaN(hour)) hour = undefined;
-                        }
-                        return {
-                            ...c,
-                            type: result.type,
-                            birth_year: year,
-                            birth_month: month,
-                            birth_day: day,
-                            birth_hour: hour,
-                        };
-                    }));
-                }
+
+            const bundle = await loadUserChartBundle();
+            const sourceRows: Array<{ type: 'bazi' | 'ziwei'; rows: ChartQueryRow[] }> = [];
+            if (!filterType || filterType === 'bazi') {
+                sourceRows.push({
+                    type: 'bazi',
+                    rows: toChartRows(bundle?.baziCharts),
+                });
+            }
+            if (!filterType || filterType === 'ziwei') {
+                sourceRows.push({
+                    type: 'ziwei',
+                    rows: toChartRows(bundle?.ziweiCharts),
+                });
+            }
+
+            for (const source of sourceRows) {
+                allCharts.push(...source.rows.map((c) => {
+                    let year = 0, month = 0, day = 0;
+                    if (c.birth_date) {
+                        const date = new Date(`${c.birth_date}T00:00:00`);
+                        year = date.getFullYear();
+                        month = date.getMonth() + 1;
+                        day = date.getDate();
+                    }
+                    let hour: number | undefined = undefined;
+                    const birthTimeStr = c.birth_time as string | null;
+                    if (birthTimeStr && birthTimeStr.includes(':')) {
+                        const [h] = birthTimeStr.split(':');
+                        hour = parseInt(h);
+                        if (isNaN(hour)) hour = undefined;
+                    }
+                    return {
+                        ...c,
+                        type: source.type,
+                        birth_year: year,
+                        birth_month: month,
+                        birth_day: day,
+                        birth_hour: hour,
+                    };
+                }));
             }
 
             setCharts(allCharts);
