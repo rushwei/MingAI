@@ -16,6 +16,8 @@ let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresAt = 0;
 let tokenPromise: Promise<string | null> | null = null;
 let hasWarnedMissingSystemSession = false;
+const SYSTEM_ADMIN_SESSION_REQUIRED = process.env.NODE_ENV === 'production';
+const MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR = 'Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD';
 
 function getSystemAuthClient(): SupabaseClient {
     if (authClient) return authClient;
@@ -31,6 +33,9 @@ async function signInSystemAdmin(): Promise<Session | null> {
     const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
 
     if (!email || !password) {
+        if (SYSTEM_ADMIN_SESSION_REQUIRED) {
+            throw new Error(MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR);
+        }
         return null;
     }
 
@@ -38,6 +43,9 @@ async function signInSystemAdmin(): Promise<Session | null> {
     const { data, error } = await client.auth.signInWithPassword({ email, password });
 
     if (error || !data.session) {
+        if (SYSTEM_ADMIN_SESSION_REQUIRED) {
+            throw new Error('[supabase-server] Failed to sign in system admin session');
+        }
         console.error('[supabase-server] Failed to sign in system admin:', error);
         return null;
     }
@@ -85,9 +93,10 @@ export function getSystemAdminClient(): SupabaseClient {
             const token = await getSystemAccessToken();
             if (!token && !hasWarnedMissingSystemSession) {
                 hasWarnedMissingSystemSession = true;
-                console.warn(
-                    '[supabase-server] Missing system admin session config, privileged queries may fail with RLS'
-                );
+                const warning = SYSTEM_ADMIN_SESSION_REQUIRED
+                    ? `[supabase-server] ${MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR}`
+                    : '[supabase-server] Missing system admin session config, privileged queries may fail with RLS';
+                console.warn(warning);
             }
             return token;
         },

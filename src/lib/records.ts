@@ -4,6 +4,16 @@
  * 浏览器侧统一通过 records/notes API 访问数据。
  */
 
+import { requestBrowserJson } from '@/lib/browser-api';
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+    const result = await requestBrowserJson<T>(url, init);
+    if (result.error) {
+        throw new Error(result.error.message || '请求失败');
+    }
+    return result.data as T;
+}
+
 // =====================================================
 // 类型定义
 // =====================================================
@@ -70,24 +80,6 @@ export interface ExportData {
     exportedAt: string;
     records: MingRecord[];
     notes: MingNote[];
-}
-
-async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-    const response = await fetch(input, {
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(init?.headers || {}),
-        },
-        ...init,
-    });
-
-    const payload = await response.json().catch(() => null) as T | { error?: string } | null;
-    if (!response.ok) {
-        throw new Error((payload as { error?: string } | null)?.error || '请求失败');
-    }
-
-    return payload as T;
 }
 
 // =====================================================

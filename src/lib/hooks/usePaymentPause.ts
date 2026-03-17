@@ -8,7 +8,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { createMemoryCache, createSingleFlight } from "@/lib/cache";
 
 type PaymentPauseState = {
     isPaused: boolean;
@@ -17,12 +16,8 @@ type PaymentPauseState = {
 };
 
 const CACHE_TTL_MS = 60_000;
-const pauseCache = createMemoryCache<boolean>(CACHE_TTL_MS);
-const pauseSingleFlight = createSingleFlight<boolean>();
-const clearPauseCache = () => {
-    pauseCache.clear();
-    pauseSingleFlight.clear('status');
-};
+let pauseCache: boolean | null = null;
+let pauseCacheAt = 0;
 
 const getPerfEnabled = () => {
     if (typeof window === 'undefined') return false;
@@ -37,35 +32,35 @@ const getPerfEnabled = () => {
 
 const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-const fetchPauseStatus = async (): Promise<boolean> => {
-    const cached = pauseCache.get('status');
-    if (cached !== null) return cached;
-    return await pauseSingleFlight.run('status', async () => {
-        const url = getPerfEnabled() ? "/api/payment-status?perf=1" : "/api/payment-status";
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Status ${response.status}`);
-        }
-        const result = await response.json();
-        const paused = !!result?.paused;
-        pauseCache.set('status', paused);
-        return paused;
-    });
-};
+async function fetchPauseStatus(force = false): Promise<boolean> {
+    if (!force && pauseCache !== null && Date.now() - pauseCacheAt < CACHE_TTL_MS) {
+        return pauseCache;
+    }
+
+    const url = getPerfEnabled() ? "/api/payment-status?perf=1" : "/api/payment-status";
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error(`Status ${response.status}`);
+    }
+
+    const result = await response.json();
+    pauseCache = !!result?.paused;
+    pauseCacheAt = Date.now();
+    return pauseCache;
+}
 
 export function usePaymentPause(): PaymentPauseState {
-    const [isPaused, setIsPaused] = useState(false);
+    const [isPaused, setIsPaused] = useState(pauseCache ?? false);
     const [isLoading, setIsLoading] = useState(true);
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (force = false) => {
         const start = perfNow();
         setIsLoading(true);
         try {
-            const paused = await fetchPauseStatus();
+            const paused = await fetchPauseStatus(force);
             setIsPaused(paused);
         } catch (error) {
             console.error("[payment-status] Failed to fetch status:", error);
-            setIsPaused(false);
         } finally {
             setIsLoading(false);
             if (getPerfEnabled()) {
@@ -76,25 +71,19 @@ export function usePaymentPause(): PaymentPauseState {
     }, []);
 
     useEffect(() => {
-        refresh();
+        void refresh();
 
-        const handleApiWrite = (event: Event) => {
-            const detail = (event as CustomEvent<{ pathname?: string }>).detail;
-            if (detail?.pathname?.startsWith('/api/payment-status')) {
-                clearPauseCache();
-                void refresh();
+        const handleWindowRefresh = () => {
+            if (document.visibilityState === 'visible') {
+                void refresh(true);
             }
         };
-        const handleUserInvalidate = () => {
-            clearPauseCache();
-            void refresh();
-        };
-        window.addEventListener('mingai:api-write', handleApiWrite);
-        window.addEventListener('mingai:user-data:invalidate', handleUserInvalidate);
+        window.addEventListener('focus', handleWindowRefresh);
+        document.addEventListener('visibilitychange', handleWindowRefresh);
 
         return () => {
-            window.removeEventListener('mingai:api-write', handleApiWrite);
-            window.removeEventListener('mingai:user-data:invalidate', handleUserInvalidate);
+            window.removeEventListener('focus', handleWindowRefresh);
+            document.removeEventListener('visibilitychange', handleWindowRefresh);
         };
     }, [refresh]);
 

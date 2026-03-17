@@ -1,4 +1,5 @@
 import type { DataSourceType } from '@/lib/data-sources/types';
+import type { MembershipType } from '@/lib/user/membership';
 
 export type KnowledgeBaseWeight = 'low' | 'normal' | 'high';
 
@@ -52,6 +53,7 @@ export interface SearchOptions {
     topK?: number;
     useVector?: boolean;
     accessToken?: string;
+    membershipType?: MembershipType;
     searchConfig?: Partial<{
         ftsConfig: SearchConfig;
         enableTrigram: boolean;

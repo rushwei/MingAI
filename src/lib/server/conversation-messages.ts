@@ -15,7 +15,9 @@ type MessagePageOptions = {
     offset: number;
 };
 
-function isConversationMessageInfraMissing(error: { message?: string; code?: string } | null | undefined) {
+type ConversationMessageSyncError = { message?: string; code?: string };
+
+function isConversationMessageInfraMissing(error: ConversationMessageSyncError | null | undefined) {
     const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
     return text.includes('replace_conversation_messages')
         || text.includes('conversation_messages')
@@ -50,28 +52,48 @@ function fromStoredConversationMessage(row: StoredConversationMessageRow): ChatM
     };
 }
 
-function normalizeFallbackMessages(messages: unknown[] | null | undefined): ChatMessage[] {
-    if (!Array.isArray(messages)) return [];
-    return messages.filter((message): message is ChatMessage => (
-        !!message
-        && typeof message === 'object'
-        && typeof (message as ChatMessage).id === 'string'
-        && typeof (message as ChatMessage).role === 'string'
-        && typeof (message as ChatMessage).content === 'string'
-    ));
+async function replaceConversationMessagesByTable(
+    supabase: SupabaseClient,
+    conversationId: string,
+    messages: ChatMessage[]
+): Promise<{ error: ConversationMessageSyncError | null }> {
+    const from = (supabase as unknown as {
+        from?: (table: string) => {
+            delete: () => { eq: (column: string, value: string) => Promise<{ error: ConversationMessageSyncError | null }> };
+            insert: (value: unknown) => Promise<{ error: ConversationMessageSyncError | null }>;
+        };
+    }).from;
+
+    if (typeof from !== 'function') {
+        return { error: null };
+    }
+
+    const table = from('conversation_messages');
+    const deleteResult = await table.delete().eq('conversation_id', conversationId);
+    if (deleteResult.error) {
+        return { error: deleteResult.error };
+    }
+
+    const rows = mapConversationMessagesForInsert(conversationId, messages);
+    if (rows.length === 0) {
+        return { error: null };
+    }
+
+    const insertResult = await table.insert(rows);
+    return { error: insertResult.error };
 }
 
 export async function replaceConversationMessages(
     supabase: SupabaseClient,
     conversationId: string,
     messages: ChatMessage[]
-) {
+) : Promise<{ error: ConversationMessageSyncError | null }> {
     const rpc = (supabase as unknown as {
-        rpc?: (fn: string, args: Record<string, unknown>) => Promise<{ error: unknown }>;
+        rpc?: (fn: string, args: Record<string, unknown>) => Promise<{ error: ConversationMessageSyncError | null }>;
     }).rpc;
 
     if (typeof rpc !== 'function') {
-        return { error: null };
+        return await replaceConversationMessagesByTable(supabase, conversationId, messages);
     }
 
     const { error } = await rpc('replace_conversation_messages', {
@@ -80,7 +102,7 @@ export async function replaceConversationMessages(
     });
 
     if (isConversationMessageInfraMissing(error || undefined)) {
-        return { error: null };
+        return await replaceConversationMessagesByTable(supabase, conversationId, messages);
     }
 
     return { error };
@@ -89,7 +111,6 @@ export async function replaceConversationMessages(
 export async function loadAllConversationMessages(
     supabase: SupabaseClient,
     conversationId: string,
-    fallbackMessages?: unknown[] | null
 ) {
     const { data, error } = await supabase
         .from('conversation_messages')
@@ -98,21 +119,15 @@ export async function loadAllConversationMessages(
         .order('sequence', { ascending: true });
 
     if (error) {
-        if (isConversationMessageInfraMissing(error)) {
-            return {
-                messages: normalizeFallbackMessages(fallbackMessages),
-                error: null,
-            };
-        }
         return {
-            messages: normalizeFallbackMessages(fallbackMessages),
+            messages: [],
             error,
         };
     }
 
     if (!data?.length) {
         return {
-            messages: normalizeFallbackMessages(fallbackMessages),
+            messages: [],
             error: null,
         };
     }
@@ -127,7 +142,6 @@ export async function loadConversationMessagePage(
     supabase: SupabaseClient,
     conversationId: string,
     options: MessagePageOptions,
-    fallbackMessages?: unknown[] | null
 ) {
     const { limit, offset } = options;
     const { data, error, count } = await supabase
@@ -138,40 +152,11 @@ export async function loadConversationMessagePage(
         .range(offset, offset + limit - 1);
 
     if (error) {
-        if (isConversationMessageInfraMissing(error)) {
-            const fallback = normalizeFallbackMessages(fallbackMessages);
-            const total = fallback.length;
-            const startIndex = Math.max(0, total - offset - limit);
-            const endIndex = Math.max(0, total - offset);
-            return {
-                messages: fallback.slice(startIndex, endIndex),
-                total,
-                hasMore: startIndex > 0,
-                error: null,
-            };
-        }
-        const fallback = normalizeFallbackMessages(fallbackMessages);
-        const total = fallback.length;
-        const startIndex = Math.max(0, total - offset - limit);
-        const endIndex = Math.max(0, total - offset);
         return {
-            messages: fallback.slice(startIndex, endIndex),
-            total,
-            hasMore: startIndex > 0,
+            messages: [],
+            total: 0,
+            hasMore: false,
             error,
-        };
-    }
-
-    if (!data?.length && Array.isArray(fallbackMessages)) {
-        const fallback = normalizeFallbackMessages(fallbackMessages);
-        const total = fallback.length;
-        const startIndex = Math.max(0, total - offset - limit);
-        const endIndex = Math.max(0, total - offset);
-        return {
-            messages: fallback.slice(startIndex, endIndex),
-            total,
-            hasMore: startIndex > 0,
-            error: null,
         };
     }
 

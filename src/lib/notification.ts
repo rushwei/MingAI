@@ -4,8 +4,8 @@
  * 提供站内通知和功能订阅的管理
  */
 
-import { supabase } from '@/lib/auth';
 import { createMemoryCache, createSingleFlight } from '@/lib/cache';
+import { requestBrowserJson } from '@/lib/browser-api';
 
 const UNREAD_CACHE_TTL_MS = 2_000;
 const unreadCountCache = createMemoryCache<number>(UNREAD_CACHE_TTL_MS);
@@ -30,15 +30,6 @@ export interface Notification {
     created_at: string;
 }
 
-export interface FeatureSubscription {
-    id: string;
-    user_id: string;
-    feature_key: string;
-    notify_email: boolean;
-    notify_site: boolean;
-    created_at: string;
-}
-
 /**
  * 获取未读通知数量
  */
@@ -52,18 +43,16 @@ export async function getUnreadCount(
         if (cached !== null) return cached;
     }
     return await unreadCountSingleFlight.run(userId, async () => {
-            const { count, error } = await supabase
-                .from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId)
-                .eq('is_read', false);
+            const result = await requestBrowserJson<{ count?: number }>('/api/notifications?count=1&unread=1', {
+                method: 'GET',
+            });
 
-            if (error) {
-                console.error('获取未读数量失败:', error);
+            if (result.error) {
+                console.error('获取未读数量失败:', result.error.message);
                 return 0;
             }
 
-            return count ?? 0;
+            return result.count ?? result.data?.count ?? 0;
         }).then((value) => {
             unreadCountCache.set(userId, value);
             return value;
@@ -77,32 +66,34 @@ export async function getNotifications(
     userId: string,
     limit: number = 20
 ): Promise<Notification[]> {
-    const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+    void userId;
 
-    if (error) {
-        console.error('获取通知列表失败:', error);
+    const result = await requestBrowserJson<{ notifications?: Notification[] }>(`/api/notifications?limit=${limit}`, {
+        method: 'GET',
+    });
+
+    if (result.error) {
+        console.error('获取通知列表失败:', result.error.message);
         return [];
     }
 
-    return data ?? [];
+    return result.data?.notifications ?? [];
 }
 
 /**
  * 标记单条通知为已读
  */
 export async function markAsRead(notificationId: string): Promise<boolean> {
-    const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
+    const result = await requestBrowserJson<{ success?: boolean }>('/api/notifications', {
+        method: 'PATCH',
+        body: JSON.stringify({
+            action: 'mark-one',
+            id: notificationId,
+        }),
+    });
 
-    if (error) {
-        console.error('标记已读失败:', error);
+    if (result.error) {
+        console.error('标记已读失败:', result.error.message);
         return false;
     }
 
@@ -114,14 +105,17 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
  * 标记所有通知为已读
  */
 export async function markAllAsRead(userId: string): Promise<boolean> {
-    const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
+    void userId;
 
-    if (error) {
-        console.error('标记全部已读失败:', error);
+    const result = await requestBrowserJson<{ success?: boolean }>('/api/notifications', {
+        method: 'PATCH',
+        body: JSON.stringify({
+            action: 'mark-all',
+        }),
+    });
+
+    if (result.error) {
+        console.error('标记全部已读失败:', result.error.message);
         return false;
     }
 
@@ -135,13 +129,16 @@ export async function markAllAsRead(userId: string): Promise<boolean> {
 export async function markSelectedAsRead(notificationIds: string[]): Promise<boolean> {
     if (notificationIds.length === 0) return true;
 
-    const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .in('id', notificationIds);
+    const result = await requestBrowserJson<{ success?: boolean }>('/api/notifications', {
+        method: 'PATCH',
+        body: JSON.stringify({
+            action: 'mark-selected',
+            ids: notificationIds,
+        }),
+    });
 
-    if (error) {
-        console.error('批量标记已读失败:', error);
+    if (result.error) {
+        console.error('批量标记已读失败:', result.error.message);
         return false;
     }
 
@@ -153,13 +150,12 @@ export async function markSelectedAsRead(notificationIds: string[]): Promise<boo
  * 删除单条通知
  */
 export async function deleteNotification(notificationId: string): Promise<boolean> {
-    const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
+    const result = await requestBrowserJson<{ success?: boolean }>(`/api/notifications?id=${notificationId}`, {
+        method: 'DELETE',
+    });
 
-    if (error) {
-        console.error('删除通知失败:', error);
+    if (result.error) {
+        console.error('删除通知失败:', result.error.message);
         return false;
     }
 
@@ -173,88 +169,21 @@ export async function deleteNotification(notificationId: string): Promise<boolea
 export async function deleteNotifications(notificationIds: string[]): Promise<boolean> {
     if (notificationIds.length === 0) return true;
 
-    const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .in('id', notificationIds);
+    const query = new URLSearchParams();
+    for (const id of notificationIds) {
+        query.append('id', id);
+    }
 
-    if (error) {
-        console.error('批量删除通知失败:', error);
+    const result = await requestBrowserJson<{ success?: boolean }>(`/api/notifications?${query.toString()}`, {
+        method: 'DELETE',
+    });
+
+    if (result.error) {
+        console.error('批量删除通知失败:', result.error.message);
         return false;
     }
 
     invalidateUnreadCountCache();
-    return true;
-}
-
-/**
- * 检查功能订阅状态
- */
-export async function checkSubscription(
-    userId: string,
-    featureKey: string
-): Promise<boolean> {
-    const { data, error } = await supabase
-        .from('feature_subscriptions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('feature_key', featureKey)
-        .maybeSingle();
-
-    if (error) {
-        console.error('检查订阅状态失败:', error);
-        return false;
-    }
-
-    return !!data;
-}
-
-/**
- * 订阅功能上线提醒
- */
-export async function subscribeFeature(
-    userId: string,
-    featureKey: string,
-    notifyEmail: boolean = true,
-    notifySite: boolean = true
-): Promise<boolean> {
-    const { error } = await supabase
-        .from('feature_subscriptions')
-        .upsert({
-            user_id: userId,
-            feature_key: featureKey,
-            notify_email: notifyEmail,
-            notify_site: notifySite,
-        }, {
-            onConflict: 'user_id,feature_key'
-        });
-
-    if (error) {
-        console.error('订阅失败:', error);
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * 取消功能订阅
- */
-export async function unsubscribeFeature(
-    userId: string,
-    featureKey: string
-): Promise<boolean> {
-    const { error } = await supabase
-        .from('feature_subscriptions')
-        .delete()
-        .eq('user_id', userId)
-        .eq('feature_key', featureKey);
-
-    if (error) {
-        console.error('取消订阅失败:', error);
-        return false;
-    }
-
     return true;
 }
 
