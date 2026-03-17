@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
 import { NotificationLaunchPanel } from '@/components/admin/NotificationLaunchPanel';
+import { loadAdminClientAccessState } from '@/lib/admin/client';
 
 type AdminState = {
     loading: boolean;
@@ -28,30 +28,10 @@ export default function AdminNotificationsPage() {
     useEffect(() => {
         // useEffect: 首次进入页面时验证管理员权限
         const checkAdmin = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) {
-                setState({ loading: false, isAuthed: false, isAdmin: false });
-                return;
-            }
-
-            const { data, error } = await supabase
-                .from('users')
-                .select('is_admin')
-                .eq('id', session.user.id)
-                .maybeSingle();
-
-            if (error) {
-                console.error('管理员校验失败:', error);
-            }
-
-            setState({
-                loading: false,
-                isAuthed: true,
-                isAdmin: !!data?.is_admin,
-            });
+            setState(await loadAdminClientAccessState());
         };
 
-        checkAdmin();
+        void checkAdmin();
     }, []);
 
     if (state.loading) {
