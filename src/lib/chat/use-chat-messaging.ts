@@ -2,10 +2,9 @@
  * 消息发送、流式响应、中止、重试逻辑 hook
  */
 import { useCallback, useEffect } from 'react';
-import type { ChatMessage, Conversation, AttachmentState, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
+import type { ChatMessage, Conversation, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
-import { createConversation, renameConversation, saveConversation } from '@/lib/chat/conversation';
+import { createConversation, renameConversation } from '@/lib/chat/conversation';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
@@ -50,8 +49,8 @@ export function useChatMessaging({
     state,
     userId,
     user,
-    membership,
-    credits,
+    membership: _membership,
+    credits: _credits,
     refreshBootstrap,
     markBootstrapCreditsExhausted,
     showToast,
@@ -66,21 +65,21 @@ export function useChatMessaging({
         activeConversationIdRef, conversationValidatedRef,
         manualRenamedConversationIdsRef, hasLoadedConversationsRef,
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
-        selectedCharts, setSelectedCharts,
+        selectedCharts,
         selectedModel, reasoningEnabled,
         attachmentState, setAttachmentState,
         mentions, setMentions,
-        dreamMode, dreamContext, dreamContextLoading,
+        dreamMode, dreamContextLoading,
         setDreamContext,
-        streamingConversationIds, setStreamingConversationIds,
+        setStreamingConversationIds,
         isLoading,
-        conversations, setConversations,
+        setConversations,
         setHasLoadedConversations,
-        pendingSidebarTitle, setPendingSidebarTitle,
-        titleGeneratingConversationIds, setTitleGeneratingConversationIds,
-        kbModalOpen, setKbModalOpen,
-        kbTargetMessage, setKbTargetMessage,
-        showCreditsModal, setShowCreditsModal,
+        setPendingSidebarTitle,
+        setTitleGeneratingConversationIds,
+        setKbModalOpen,
+        setKbTargetMessage,
+        setShowCreditsModal,
         refreshConversationList,
         saveMessages,
     } = state;

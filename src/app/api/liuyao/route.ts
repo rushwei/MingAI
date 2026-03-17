@@ -13,24 +13,8 @@ import {
     type Hexagram,
     type Yao,
     type LiuQin,
-    performFullAnalysis,
     yaosTpCode,
 } from '@/lib/divination/liuyao';
-import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
-import { getHexagramText } from '@/lib/divination/hexagram-texts';
-import {
-    YONG_SHEN_STATUS_LABELS,
-    YAO_POSITION_NAMES,
-    traditionalYaoName,
-    buildYongShenMarkers,
-    formatGuaLevelLines,
-    formatKongWangLines,
-    formatGanZhiTime,
-    sortYaosDescending,
-    formatYaoDetailLine,
-    buildShenSystemMap,
-    formatShenSystemParts,
-} from '@/lib/divination/liuyao-format-utils';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 
 interface LiuyaoRequest {
@@ -123,7 +107,7 @@ const LIUYAO_SYSTEM_PROMPT = `你是一位精通《周易》的资深易学大�
 export async function POST(request: NextRequest) {
     try {
         const body: LiuyaoRequest = await request.json();
-        const { action, question, yongShenTargets, hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning, stream } = body;
+        const { action, question, yongShenTargets, changedHexagram, changedLines, yaos, divinationId } = body;
 
         switch (action) {
             case 'save': {

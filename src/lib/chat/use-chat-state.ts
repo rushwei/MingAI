@@ -4,13 +4,12 @@
  * 管理对话列表、当前对话、加载状态、侧边栏状态等
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ChatMessage, Conversation, Mention, DreamInterpretationInfo } from '@/types';
+import type { ChatMessage, Conversation, Mention } from '@/types';
 import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import {
     loadConversations,
     loadConversation,
-    createConversation,
     saveConversation,
     deleteConversation,
     renameConversation,
