@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { normalizeUserSettings, USER_SETTINGS_SELECT } from '@/lib/user/settings';
 
 type UserProfilePatchBody = {
     profile?: {
@@ -32,18 +33,34 @@ async function loadProfile(auth: Exclude<Awaited<ReturnType<typeof requireUserCo
         .maybeSingle();
 }
 
+async function loadSettings(auth: Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>) {
+    const { data, error } = await auth.supabase
+        .from('user_settings')
+        .select(USER_SETTINGS_SELECT)
+        .eq('user_id', auth.user.id)
+        .maybeSingle();
+
+    return {
+        settings: normalizeUserSettings((data ?? null) as Record<string, unknown> | null),
+        error,
+    };
+}
+
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-    const profileResult = await loadProfile(auth);
-    if (profileResult.error) {
+    const [profileResult, settingsResult] = await Promise.all([
+        loadProfile(auth),
+        loadSettings(auth),
+    ]);
+    if (profileResult.error || settingsResult.error) {
         return jsonError('获取用户资料失败', 500);
     }
 
     return jsonOk({
         profile: profileResult.data ?? null,
-        settings: null,
+        settings: settingsResult.settings,
     });
 }
 
@@ -110,19 +127,22 @@ export async function PATCH(request: NextRequest) {
         return jsonError('没有可更新的资料字段', 400);
     }
 
-    const updateResult = await auth.supabase
+    const [updateResult, settingsResult] = await Promise.all([
+        auth.supabase
         .from('users')
         .update(updatePayload)
         .eq('id', auth.user.id)
         .select('id, nickname, avatar_url, is_admin, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
-        .maybeSingle();
+        .maybeSingle(),
+        loadSettings(auth),
+    ]);
 
-    if (updateResult.error) {
+    if (updateResult.error || settingsResult.error) {
         return jsonError('更新用户资料失败', 500);
     }
 
     return jsonOk({
         profile: updateResult.data ?? null,
-        settings: null,
+        settings: settingsResult.settings,
     });
 }

@@ -6,20 +6,14 @@
 
 import { NextRequest } from 'next/server';
 import { RecordCategory, RecordFilters } from '@/lib/records';
-import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
-
-function quotePostgrestString(value: string): string {
-    const sanitized = value
-        .replace(/\u0000/g, '')
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
-    return `"${sanitized}"`;
-}
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { quotePostgrestString } from '@/lib/utils/postgrest';
 
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         const { searchParams } = new URL(request.url);
         const rawPage = searchParams.get('page');
@@ -104,8 +98,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         const body = await request.json();
 

@@ -10,6 +10,9 @@ type ChartRecord = {
     birth_date: string;
     birth_time: string | null;
     birth_place: string | null;
+    calendar_type?: string | null;
+    is_leap_month?: boolean | null;
+    chart_data?: Record<string, unknown> | null;
     created_at: string;
 };
 
@@ -28,12 +31,12 @@ export async function GET(request: NextRequest) {
     const [baziResult, ziweiResult, settingsResult] = await Promise.all([
         auth.supabase
             .from('bazi_charts')
-            .select('id, name, gender, birth_date, birth_time, birth_place, created_at')
+            .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at')
             .eq('user_id', auth.user.id)
             .order('created_at', { ascending: false }),
         auth.supabase
             .from('ziwei_charts')
-            .select('id, name, gender, birth_date, birth_time, birth_place, created_at')
+            .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at')
             .eq('user_id', auth.user.id)
             .order('created_at', { ascending: false }),
         auth.supabase

@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server";
 import { getFeatureToggles, setFeatureToggle, FEATURE_MODULE_IDS, type FeatureModuleId } from "@/lib/app-settings";
-import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
+import { jsonError, jsonOk, requireAdminUser, requireUserContext } from "@/lib/api-utils";
 import { createMemoryCache } from "@/lib/cache";
 
 const CACHE_TTL_MS = 30_000;
 const togglesCache = createMemoryCache<Record<string, boolean>>(CACHE_TTL_MS);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireUserContext(request);
+  if ("error" in auth) {
+    return jsonError(auth.error.message, auth.error.status);
+  }
+
   const cached = togglesCache.get('all');
   if (cached !== null) {
     return jsonOk({ toggles: cached });
