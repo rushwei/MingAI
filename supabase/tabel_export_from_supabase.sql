@@ -85,7 +85,7 @@ CREATE TABLE public.app_settings (
 CREATE TABLE public.archived_sources (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  source_type text NOT NULL CHECK (source_type = ANY (ARRAY['conversation'::text, 'record'::text, 'chat_message'::text, 'bazi_chart'::text, 'ziwei_chart'::text, 'tarot_reading'::text, 'liuyao_divination'::text, 'hepan_chart'::text, 'face_reading'::text, 'palm_reading'::text, 'mbti_reading'::text, 'ming_record'::text, 'daily_fortune'::text, 'monthly_fortune'::text])),
+  source_type text NOT NULL CHECK (source_type = ANY (ARRAY['conversation'::text, 'record'::text, 'chat_message'::text, 'bazi_chart'::text, 'ziwei_chart'::text, 'tarot_reading'::text, 'liuyao_divination'::text, 'hepan_chart'::text, 'face_reading'::text, 'palm_reading'::text, 'mbti_reading'::text, 'ming_record'::text, 'daily_fortune'::text, 'monthly_fortune'::text, 'qimen_chart'::text, 'daliuren_divination'::text])),
   source_id text NOT NULL,
   kb_id uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
@@ -183,6 +183,7 @@ CREATE TABLE public.conversations (
   source_type text DEFAULT 'chat'::text,
   source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_source_type_check CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALID,
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT conversations_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id),
   CONSTRAINT conversations_ziwei_chart_id_fkey FOREIGN KEY (ziwei_chart_id) REFERENCES public.ziwei_charts(id)
@@ -432,6 +433,22 @@ CREATE TABLE public.purchase_links (
   CONSTRAINT purchase_links_pkey PRIMARY KEY (id),
   CONSTRAINT purchase_links_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
 );
+CREATE TABLE public.qimen_charts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  question text,
+  chart_time timestamp with time zone NOT NULL,
+  chart_data jsonb NOT NULL,
+  dun_type text NOT NULL CHECK (dun_type = ANY (ARRAY['yang'::text, 'yin'::text])),
+  ju_number integer NOT NULL CHECK (ju_number >= 1 AND ju_number <= 9),
+  pan_type text NOT NULL DEFAULT 'zhuan'::text CHECK (pan_type = ANY (ARRAY['zhuan'::text, 'fei'::text])),
+  ju_method text NOT NULL DEFAULT 'chaibu'::text CHECK (ju_method = ANY (ARRAY['chaibu'::text, 'zhirun'::text, 'maoshan'::text])),
+  conversation_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT qimen_charts_pkey PRIMARY KEY (id),
+  CONSTRAINT qimen_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT qimen_charts_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
 CREATE TABLE public.rate_limits (
   id integer NOT NULL DEFAULT nextval('rate_limits_id_seq'::regclass),
   identifier character varying NOT NULL,
@@ -463,6 +480,22 @@ CREATE TABLE public.scheduled_reminders (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT scheduled_reminders_pkey PRIMARY KEY (id),
   CONSTRAINT scheduled_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.daliuren_divinations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  question text,
+  solar_date text NOT NULL,
+  day_ganzhi text NOT NULL,
+  hour_ganzhi text NOT NULL,
+  yue_jiang text NOT NULL,
+  result_data jsonb NOT NULL,
+  settings jsonb,
+  conversation_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT daliuren_divinations_pkey PRIMARY KEY (id),
+  CONSTRAINT daliuren_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT daliuren_divinations_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.tarot_readings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
