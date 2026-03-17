@@ -9,9 +9,4 @@ export interface Mention {
     preview: string;
 }
 
-export interface MentionTarget {
-    id: string;
-    type: MentionType;
-    name: string;
-    preview: string;
-}
+export type MentionTarget = Required<Mention>;

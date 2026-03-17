@@ -7,7 +7,7 @@
  * - Pro: 立即+200次，每小时+1次，上限200次
  */
 
-import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
+import { getCurrentUserProfileBundle } from '@/lib/auth';
 
 export type MembershipType = 'free' | 'plus' | 'pro';
 
@@ -25,6 +25,22 @@ export type MembershipInfoSource = {
     ai_chat_count?: number | null;
     last_credit_restore_at?: string | null;
 };
+
+/**
+ * 判断付费会员是否已过期
+ * free 用户永远返回 false（无过期概念）
+ */
+export function isMembershipExpired(source: {
+    membership?: MembershipType | string | null;
+    membership_expires_at?: string | null;
+    expiresAt?: Date | null;
+}): boolean {
+    const type = (source.membership || 'free') as MembershipType;
+    if (type === 'free') return false;
+    const expiresAt = source.expiresAt
+        ?? (source.membership_expires_at ? new Date(source.membership_expires_at) : null);
+    return expiresAt !== null && expiresAt <= new Date();
+}
 
 export interface PricingPlan {
     id: MembershipType;
@@ -155,7 +171,7 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
     let isActive = true;
     let effectiveType = membershipType;
 
-    if (membershipType !== 'free' && expiresAt !== null && expiresAt <= new Date()) {
+    if (isMembershipExpired({ membership: membershipType, expiresAt })) {
         isActive = false;
         effectiveType = 'free';
     }
@@ -176,160 +192,4 @@ export async function canUseAIChat(userId: string): Promise<boolean> {
     const membership = await getMembershipInfo(userId);
     if (!membership) return false;
     return membership.aiChatCount > 0;
-}
-
-/**
- * 消耗一次AI对话次数
- */
-export async function consumeAIChatCount(userId: string): Promise<boolean> {
-    const membership = await getMembershipInfo(userId);
-
-    if (!membership) return false;
-    if (membership.aiChatCount <= 0) return false;
-
-    const { error } = await supabase
-        .from('users')
-        .update({ ai_chat_count: membership.aiChatCount - 1 })
-        .eq('id', userId);
-
-    return !error;
-}
-
-/**
- * 升级会员（支付成功后调用）
- */
-export async function upgradeMembership(
-    userId: string,
-    planId: MembershipType
-): Promise<{ success: boolean; error?: string }> {
-    if (planId === 'free') {
-        return { success: false, error: '无法升级到免费版' };
-    }
-
-    const plan = pricingPlans.find(p => p.id === planId);
-    if (!plan) {
-        return { success: false, error: '无效的套餐' };
-    }
-
-    // 计算过期时间
-    let expiresAt: Date | null = null;
-    if (planId === 'plus') {
-        expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-    } else if (planId === 'pro') {
-        expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
-
-    // 创建订单
-    const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-            user_id: userId,
-            product_type: planId,
-            amount: plan.price,
-            status: 'paid',
-            payment_method: 'simulated',
-            paid_at: new Date().toISOString(),
-        });
-
-    if (orderError) {
-        console.error('Error creating order:', orderError);
-        return { success: false, error: '创建订单失败' };
-    }
-
-    // 获取当前积分
-    const membership = await getMembershipInfo(userId);
-    const currentCredits = membership?.aiChatCount || 0;
-
-    // 更新用户会员状态
-    const updateData: Record<string, unknown> = {
-        membership: planId,
-        updated_at: new Date().toISOString(),
-        // 叠加初始积分，但不超过上限
-        ai_chat_count: Math.min(currentCredits + plan.initialCredits, plan.creditLimit),
-        last_credit_restore_at: new Date().toISOString(),
-    };
-
-    if (expiresAt) {
-        updateData.membership_expires_at = expiresAt.toISOString();
-    }
-
-    const { error: updateError } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', userId);
-
-    if (updateError) {
-        console.error('Error updating membership:', updateError);
-        return { success: false, error: '更新会员状态失败' };
-    }
-
-    return { success: true };
-}
-
-/**
- * 按量付费购买对话次数
- */
-export async function purchaseCredits(
-    userId: string,
-    count: number,
-    amount: number
-): Promise<{ success: boolean; error?: string }> {
-    // 创建订单
-    const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-            user_id: userId,
-            product_type: 'pay_per_use',
-            amount: amount,
-            status: 'paid',
-            payment_method: 'simulated',
-            paid_at: new Date().toISOString(),
-        });
-
-    if (orderError) {
-        console.error('Error creating pay_per_use order:', orderError);
-        return { success: false, error: '创建订单失败' };
-    }
-
-    // 获取当前信息
-    const membership = await getMembershipInfo(userId);
-    const currentCredits = membership?.aiChatCount || 0;
-
-    // 按量付费可以突破常规上限，使用较高的上限
-    const newCredits = currentCredits + count;
-
-    const { error: updateError } = await supabase
-        .from('users')
-        .update({
-            ai_chat_count: newCredits,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
-
-    if (updateError) {
-        console.error('Error updating credits:', updateError);
-        return { success: false, error: '更新积分失败' };
-    }
-
-    return { success: true };
-}
-
-/**
- * 获取用户订单历史
- */
-export async function getOrderHistory(userId: string) {
-    const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error('Error fetching orders:', error);
-        return [];
-    }
-
-    return data;
 }

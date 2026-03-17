@@ -6,6 +6,8 @@
  */
 
 import type { Mention } from '@/types/mentions';
+import type { ConversationSourceType } from '@/lib/source-contracts';
+export type { ConversationSourceType } from '@/lib/source-contracts';
 
 // ===== 基础类型 =====
 
@@ -257,19 +259,6 @@ export interface AIMessageMetadata {
 
 export type { MentionType, Mention, MentionTarget } from '@/types/mentions';
 
-/** AI 分析来源类型 */
-export type ConversationSourceType =
-    | 'chat'           // 普通聊天
-    | 'bazi_wuxing'    // 八字五行分析
-    | 'bazi_personality' // 八字人格分析  
-    | 'tarot'          // 塔罗占卜
-    | 'liuyao'         // 六爻占卜
-    | 'mbti'           // MBTI 人格
-    | 'hepan'          // 合盘分析
-    | 'palm'           // 手相分析
-    | 'face'           // 面相分析
-    | 'dream';         // 周公解梦
-
 /** 对话会话 */
 export interface Conversation {
     id: string;
@@ -292,9 +281,6 @@ export interface Conversation {
 
 /** AI 供应商 */
 export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai' | 'qwen-vl' | 'gemini-vl' | 'moonshot';
-
-/** AI 模型 ID - 动态生成，这里只定义基础结构 */
-export type AIModelId = string;
 
 /** AI 模型配置 */
 export interface AIModelConfig {
@@ -320,37 +306,10 @@ export interface AIModelConfig {
     sourceKey?: string;  // 当前活跃来源 key
 }
 
-/** 聊天消息中的推理内容 */
-export interface ReasoningContent {
-    thinking: string;      // 思考过程
-    duration?: number;     // 思考时长（秒）
-}
-
 // ===== 每日运势相关类型 =====
 
 /** 运势等级 */
 export type FortuneLevel = '大吉' | '吉' | '中吉' | '平' | '小凶' | '凶';
-
-/** 六维运势等级 */
-export interface FortuneScores {
-    overall: FortuneLevel;
-    career: FortuneLevel;
-    love: FortuneLevel;
-    wealth: FortuneLevel;
-    health: FortuneLevel;
-    social: FortuneLevel;
-}
-
-/** 每日运势 */
-export interface DailyFortune {
-    id: string;
-    userId?: string;
-    baziChartId?: string;
-    date: string;      // ISO 日期
-    scores: FortuneScores;
-    advice: string[];  // 今日建议
-    createdAt: string;
-}
 
 // ===== 用户相关类型 =====
 
@@ -365,16 +324,12 @@ export interface User {
     updatedAt: string;
 }
 
-/** 会员等级 */
-export type MembershipLevel = 'free' | 'monthly' | 'yearly';
+import type { MembershipType } from '@/lib/user/membership';
 
-/** 用户会员信息 */
-export interface UserMembership {
-    userId: string;
-    level: MembershipLevel;
-    expiresAt?: string;
-    createdAt: string;
-}
+/**
+ * @deprecated Use `MembershipType` from `@/lib/user/membership` instead.
+ */
+export type MembershipLevel = MembershipType;
 
 // ===== Dify 增强功能相关类型 =====
 

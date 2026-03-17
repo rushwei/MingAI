@@ -1,3 +1,5 @@
+import type { MembershipType } from '@/lib/user/membership';
+import { dispatchUserDataInvalidate, type UserSettingsSnapshot } from '@/lib/user/settings';
 import { normalizeBrowserApiError, requestBrowserJson } from '@/lib/browser-api';
 
 export type UserProfile = {
@@ -5,22 +7,15 @@ export type UserProfile = {
   nickname: string | null;
   avatar_url: string | null;
   is_admin: boolean;
-  membership: string | null;
+  membership: MembershipType | null;
   membership_expires_at: string | null;
   ai_chat_count: number | null;
   last_credit_restore_at: string | null;
 };
 
-export type UserSettings = {
-  prompt_kb_ids?: string[] | null;
-  expression_style?: 'direct' | 'gentle' | null;
-  user_profile?: unknown;
-  custom_instructions?: string | null;
-};
-
 export type UserProfileBundle = {
   profile: UserProfile | null;
-  settings: UserSettings | null;
+  settings: UserSettingsSnapshot | null;
 };
 
 export type ProfileUpdateInput = {
@@ -33,7 +28,7 @@ export type ProfileUpdateInput = {
 export type ProfileUpdateResult = {
   success: boolean;
   profile: UserProfile | null;
-  settings: UserSettings | null;
+  settings: UserSettingsSnapshot | null;
   error?: { message: string; code?: string };
 };
 
@@ -97,7 +92,12 @@ export async function updateCurrentUserProfile(input: ProfileUpdateInput): Promi
     body: JSON.stringify(payload),
   });
 
-  return toProfileUpdateResult(result);
+  const normalized = toProfileUpdateResult(result);
+  if (normalized.success) {
+    dispatchUserDataInvalidate('/api/user/profile');
+  }
+
+  return normalized;
 }
 
 export async function updateAvatarUrl(avatarUrl: string | null) {

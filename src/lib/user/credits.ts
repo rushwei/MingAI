@@ -10,7 +10,7 @@
  * - Pro: 每小时+1次，上限200次
  */
 
-import { type MembershipType, getPlanConfig } from './membership';
+import { type MembershipType, getPlanConfig, isMembershipExpired } from './membership';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { getUserLevel } from './gamification';
 
@@ -58,7 +58,7 @@ export async function getUserCreditInfo(userId: string): Promise<{
     const expiresAt = data.membership_expires_at ? new Date(data.membership_expires_at) : null;
     let membership = (data.membership || 'free') as MembershipType;
 
-    if (membership !== 'free' && expiresAt && expiresAt <= new Date()) {
+    if (isMembershipExpired({ membership, expiresAt })) {
         membership = 'free';
     }
 
