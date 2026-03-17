@@ -14,8 +14,6 @@ import { CompatibilityTrendChart, type CompatibilityTrendPoint } from '@/compone
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import type { ChatMessage } from '@/types';
 import {
     type HepanResult,
     getHepanTypeName,
@@ -31,6 +29,8 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
+import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 export default function HepanResultPage() {
     const router = useRouter();
@@ -182,12 +182,7 @@ export default function HepanResultPage() {
             if (!resolvedConversationId) {
                 const chartId = (result as unknown as { chartId?: string }).chartId;
                 if (chartId) {
-                    const { data } = await supabase
-                        .from('hepan_charts')
-                        .select('conversation_id')
-                        .eq('id', chartId)
-                        .single();
-                    resolvedConversationId = data?.conversation_id || null;
+                    resolvedConversationId = await resolveHistoryConversationId('hepan', chartId, 'hepan_result');
                     if (resolvedConversationId) {
                         setConversationId(resolvedConversationId);
                     }
@@ -196,29 +191,19 @@ export default function HepanResultPage() {
 
             if (!resolvedConversationId) return;
 
-            const { data, error } = await supabase
-                .from('conversations')
-                .select('messages, source_data')
-                .eq('id', resolvedConversationId)
-                .single();
+            const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
+            if (!snapshot) return;
 
-            if (error || !data) return;
-
-            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
-            const messages = (data.messages as ChatMessage[]) || [];
-            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
-            if (analysis) {
-                setAiAnalysis(analysis);
+            if (snapshot.analysis) {
+                setAiAnalysis(snapshot.analysis);
             }
-            if (reasoning) {
-                setAnalysisReasoning(reasoning);
+            if (snapshot.reasoning) {
+                setAnalysisReasoning(snapshot.reasoning);
             }
-            if (modelId) {
-                setSelectedModel(modelId);
+            if (snapshot.modelId) {
+                setSelectedModel(snapshot.modelId);
             }
-            if (typeof sourceData?.reasoning === 'boolean') {
-                setReasoningEnabled(sourceData.reasoning);
-            }
+            setReasoningEnabled(snapshot.reasoningEnabled);
         };
 
         void loadAnalysis();

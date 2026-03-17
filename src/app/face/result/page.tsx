@@ -11,11 +11,12 @@ import { ScanFace, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { supabase } from '@/lib/auth';
 import { readSessionJSON } from '@/lib/cache';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 interface FaceResultData {
     readingId?: string;
@@ -80,20 +81,18 @@ export default function FaceResultPage() {
                         return;
                     }
 
-                    // 如果没有分析内容，从对话中加载
-                    if (parsed.conversationId) {
-                        const { data, error: fetchError } = await supabase
-                            .from('conversations')
-                            .select('messages')
-                            .eq('id', parsed.conversationId)
-                            .single();
+                    let resolvedConversationId = parsed.conversationId || null;
+                    if (!resolvedConversationId && parsed.readingId) {
+                        resolvedConversationId = await resolveHistoryConversationId('face', parsed.readingId, 'face_result');
+                        if (resolvedConversationId) {
+                            setResultData(prev => prev ? { ...prev, conversationId: resolvedConversationId } : prev);
+                        }
+                    }
 
-                        if (!fetchError && data?.messages) {
-                            const messages = data.messages as Array<{ role: string; content: string }>;
-                            const assistantMsg = messages.find(m => m.role === 'assistant');
-                            if (assistantMsg) {
-                                setAnalysis(assistantMsg.content);
-                            }
+                    if (resolvedConversationId) {
+                        const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
+                        if (snapshot?.analysis) {
+                            setAnalysis(snapshot.analysis);
                         }
                     }
 

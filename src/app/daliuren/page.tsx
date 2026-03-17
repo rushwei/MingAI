@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
@@ -15,15 +15,13 @@ import { writeSessionJSON } from '@/lib/cache';
 export default function DaliurenPage() {
     const router = useRouter();
     const { showToast } = useToast();
+    const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     // 基础参数
     const [question, setQuestion] = useState('');
-    const [date, setDate] = useState(() => {
-        const now = new Date();
-        return now.toISOString().split('T')[0];
-    });
-    const [hour, setHour] = useState(() => new Date().getHours());
-    const [minute, setMinute] = useState(() => new Date().getMinutes());
+    const [date, setDate] = useState('');
+    const [hour, setHour] = useState(0);
+    const [minute, setMinute] = useState(0);
 
     // 高级设置
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -31,6 +29,13 @@ export default function DaliurenPage() {
     const [gender, setGender] = useState<'male' | 'female' | ''>('');
 
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const now = new Date();
+        setDate(now.toISOString().split('T')[0]);
+        setHour(now.getHours());
+        setMinute(now.getMinutes());
+    }, []);
 
     const handleStartDivination = async () => {
         if (!date) {
@@ -43,6 +48,7 @@ export default function DaliurenPage() {
                 date,
                 hour,
                 minute,
+                timezone: localTimeZone,
                 question: question.trim() || undefined,
                 birthYear: birthYear ? parseInt(birthYear) : undefined,
                 gender: gender || undefined,

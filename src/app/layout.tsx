@@ -45,6 +45,20 @@ export const metadata: Metadata = {
     title: "MingAI",
     description: "AI驱动的个性化命理分析",
   },
+  icons: {
+    icon: [
+      {
+        url: "/Logo.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/Logo-dark.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+  },
   robots: {
     index: true,
     follow: true,

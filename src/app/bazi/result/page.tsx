@@ -18,8 +18,7 @@ import {
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
 import { supabase } from '@/lib/auth';
-import type { BaziFormData, CalendarType, Gender, ChatMessage } from '@/types';
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
+import type { BaziFormData, CalendarType, Gender } from '@/types';
 import { ResultHeader } from '@/components/bazi/result/ResultHeader';
 import { ProfileSummaryCard } from '@/components/bazi/result/ProfileSummaryCard';
 import { ResultTabs, type ResultTab } from '@/components/bazi/result/ResultTabs';
@@ -29,6 +28,9 @@ import { ResultFooterLinks } from '@/components/bazi/result/ResultFooterLinks';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
+import { getMembershipInfo } from '@/lib/user/membership';
 
 // 结果内容组件
 function BaziResultContent() {
@@ -51,6 +53,16 @@ function BaziResultContent() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
     const { showToast } = useToast();
+
+    type SavedBaziChartRow = {
+        name: string;
+        gender: Gender;
+        birth_date: string;
+        birth_time: string | null;
+        birth_place: string | null;
+        calendar_type: CalendarType | null;
+        is_leap_month: boolean | null;
+    };
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -89,30 +101,18 @@ function BaziResultContent() {
 
             // 同时查询命盘数据和 AI 分析
             Promise.all([
-                supabase
-                    .from('bazi_charts')
-                    .select('*')
-                    .eq('id', chartId)
-                    .single(),
-                // 查询五行分析
-                supabase
-                    .from('conversations')
-                    .select('messages, source_data')
-                    .eq('bazi_chart_id', chartId)
-                    .eq('source_type', 'bazi_wuxing')
-                    .order('created_at', { ascending: false })
-                    .limit(1),
-                // 查询人格分析
-                supabase
-                    .from('conversations')
-                    .select('messages, source_data')
-                    .eq('bazi_chart_id', chartId)
-                    .eq('source_type', 'bazi_personality')
-                    .order('created_at', { ascending: false })
-                    .limit(1),
-            ]).then(([chartResult, wuxingResult, personalityResult]) => {
-                const data = chartResult.data;
-                if (data && !chartResult.error) {
+                loadSavedChart('bazi', chartId),
+                loadLatestConversationAnalysisSnapshot({
+                    sourceType: 'bazi_wuxing',
+                    baziChartId: chartId,
+                }),
+                loadLatestConversationAnalysisSnapshot({
+                    sourceType: 'bazi_personality',
+                    baziChartId: chartId,
+                }),
+            ]).then(([chartData, wuxingAnalysis, personalityAnalysis]) => {
+                const data = chartData as SavedBaziChartRow | null;
+                if (data) {
                     const [year, month, day] = data.birth_date.split('-').map(Number);
                     const hasTime = Boolean(data.birth_time);
                     const [hour, minute] = (data.birth_time || '12:00').split(':').map(Number);
@@ -131,28 +131,13 @@ function BaziResultContent() {
                         birthPlace: data.birth_place || undefined,
                     });
 
-                    // 从 conversations 加载 AI 分析
-                    const extractAnalysis = (result: {
-                        data: Array<{ messages: unknown; source_data?: Record<string, unknown> }> | null;
-                    }) => {
-                        if (!result.data?.[0]?.messages) {
-                            return { analysis: null, reasoning: null, modelId: null };
-                        }
-                        const row = result.data[0];
-                        const messages = row.messages as ChatMessage[];
-                        const sourceData = row.source_data as Record<string, unknown> | undefined;
-                        return extractAnalysisFromConversation(messages, sourceData);
-                    };
+                    setSavedWuxingAnalysis(wuxingAnalysis?.analysis ?? null);
+                    setSavedWuxingReasoning(wuxingAnalysis?.reasoning ?? null);
+                    setSavedWuxingModelId(wuxingAnalysis?.modelId ?? null);
 
-                    const wuxingAnalysis = extractAnalysis(wuxingResult);
-                    setSavedWuxingAnalysis(wuxingAnalysis.analysis);
-                    setSavedWuxingReasoning(wuxingAnalysis.reasoning);
-                    setSavedWuxingModelId(wuxingAnalysis.modelId);
-
-                    const personalityAnalysis = extractAnalysis(personalityResult);
-                    setSavedPersonalityAnalysis(personalityAnalysis.analysis);
-                    setSavedPersonalityReasoning(personalityAnalysis.reasoning);
-                    setSavedPersonalityModelId(personalityAnalysis.modelId);
+                    setSavedPersonalityAnalysis(personalityAnalysis?.analysis ?? null);
+                    setSavedPersonalityReasoning(personalityAnalysis?.reasoning ?? null);
+                    setSavedPersonalityModelId(personalityAnalysis?.modelId ?? null);
                     setSaved(true);
                 }
                 setLoading(false);
@@ -164,12 +149,8 @@ function BaziResultContent() {
             const uid = session?.user?.id || null;
             setUserId(uid);
             if (uid) {
-                const { data } = await supabase
-                    .from('users')
-                    .select('ai_chat_count')
-                    .eq('id', uid)
-                    .single();
-                setCredits(data?.ai_chat_count ?? null);
+                const membershipInfo = await getMembershipInfo(uid);
+                setCredits(membershipInfo?.aiChatCount ?? null);
             }
         });
     }, [chartId, hasFormParams]);
@@ -330,14 +311,11 @@ function BaziResultContent() {
                     throw new Error(result?.error || '更新失败');
                 }
             } else {
-                const { data: inserted, error: insertError } = await supabase
-                    .from('bazi_charts')
-                    .insert({ ...payload, user_id: session.user.id })
-                    .select('id')
-                    .maybeSingle();
-                error = insertError;
-                if (inserted?.id) {
-                    router.replace(`/bazi/result?chart=${inserted.id}`);
+                const insertedId = await createSavedChart('bazi', payload);
+                if (insertedId) {
+                    router.replace(`/bazi/result?chart=${insertedId}`);
+                } else {
+                    error = new Error('保存失败');
                 }
             }
 

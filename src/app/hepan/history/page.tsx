@@ -12,23 +12,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Trash2, Search, MessageSquare, Heart, Briefcase, Users, Clock, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-
-interface HepanChart {
-    id: string;
-    type: 'love' | 'business' | 'family';
-    person1_name: string;
-    person1_birth: { year: number; month: number; day: number };
-    person2_name: string;
-    person2_birth: { year: number; month: number; day: number };
-    compatibility_score: number | null;
-    conversation_id?: string | null;
-    conversation?: { source_data?: Record<string, unknown> } | null;
-    result_data?: Record<string, unknown> | null;
-    created_at: string;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 const TYPE_CONFIG = {
     love: {
@@ -59,12 +50,12 @@ const TYPE_CONFIG = {
 
 export default function HepanHistoryPage() {
     const router = useRouter();
-    const [charts, setCharts] = useState<HepanChart[]>([]);
+    const [charts, setCharts] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<HepanChart | null>(null);
+    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
 
     const loadCharts = useCallback(async () => {
         setLoading(true);
@@ -74,18 +65,7 @@ export default function HepanHistoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('hepan_charts')
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
-            console.error('加载历史记录失败:', error);
-        } else {
-            setCharts(data || []);
-        }
+        setCharts(await loadHistorySummaries('hepan'));
         setLoading(false);
     }, [router]);
 
@@ -97,22 +77,8 @@ export default function HepanHistoryPage() {
     }, [loadCharts]);
 
     const handleDelete = async (id: string) => {
-        const target = charts.find(c => c.id === id);
-        const { error } = await supabase
-            .from('hepan_charts')
-            .delete()
-            .eq('id', id);
-
-        if (!error) {
-            if (target?.conversation_id) {
-                const { error: conversationError } = await supabase
-                    .from('conversations')
-                    .delete()
-                    .eq('id', target.conversation_id);
-                if (conversationError) {
-                    console.error('删除对话记录失败:', conversationError);
-                }
-            }
+        const success = await deleteHistorySummary('hepan', id);
+        if (success) {
             setCharts(prev => prev.filter(c => c.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['hepan_chart'] } }));
         }
@@ -128,51 +94,19 @@ export default function HepanHistoryPage() {
         });
     };
 
-    const formatBirth = (birth: { year: number; month: number; day: number }) => {
-        return `${birth.year}.${birth.month}.${birth.day}`;
-    };
-
     const filteredCharts = charts.filter(c => {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
         return (
-            c.person1_name.toLowerCase().includes(query) ||
-            c.person2_name.toLowerCase().includes(query) ||
-            TYPE_CONFIG[c.type].label.toLowerCase().includes(query)
+            (c.question || '').toLowerCase().includes(query) ||
+            c.title.toLowerCase().includes(query)
         );
     });
 
-    const handleView = async (chart: HepanChart) => {
-        if (chart.result_data) {
-            const resultWithId = {
-                ...(chart.result_data as object),
-                chartId: chart.id,
-                conversationId: chart.conversation_id || null,
-            };
-            writeSessionJSON('hepan_result', resultWithId);
-            router.push('/hepan/result');
-            return;
-        }
-
-        const { analyzeCompatibility } = await import('@/lib/divination/hepan');
-        const birth1 = chart.person1_birth as { year: number; month: number; day: number; hour: number };
-        const birth2 = chart.person2_birth as { year: number; month: number; day: number; hour: number };
-        const person1 = {
-            name: chart.person1_name,
-            ...birth1,
-        };
-        const person2 = {
-            name: chart.person2_name,
-            ...birth2,
-        };
-        const result = analyzeCompatibility(person1, person2, chart.type);
-        const resultWithId = {
-            ...result,
-            chartId: chart.id,
-            conversationId: chart.conversation_id || null,
-        };
-        writeSessionJSON('hepan_result', resultWithId);
-        router.push('/hepan/result');
+    const handleView = async (chart: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('hepan', chart.id);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, chart.id));
     };
 
     return (
@@ -265,18 +199,20 @@ export default function HepanHistoryPage() {
                 ) : (
                     <div className="grid gap-4">
                         {filteredCharts.map(chart => {
-                            const config = TYPE_CONFIG[chart.type];
+                            const chartType = chart.subType === 'business' || chart.subType === 'family' ? chart.subType : 'love';
+                            const config = TYPE_CONFIG[chartType];
                             const Icon = config.icon;
-                            const sourceData = chart.conversation?.source_data;
-                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                            const modelName = modelId ? getModelName(modelId) : null;
+                            const [person1Name = chart.title, person2Name = ''] = (chart.question || '')
+                                .split(/\s*&\s*/u)
+                                .map(item => item.trim())
+                                .filter(Boolean);
 
                             return (
                                 <div
                                     key={chart.id}
                                     className={`group relative bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10
                                         hover:bg-white/10 hover:shadow-xl transition-all duration-300 cursor-pointer ${config.border}`}
-                                    onClick={() => handleView(chart)}
+                                    onClick={() => void handleView(chart)}
                                 >
                                     <div className="flex items-start gap-5">
                                         {/* 图标 */}
@@ -288,44 +224,42 @@ export default function HepanHistoryPage() {
                                         <div className="flex-1 min-w-0 pt-1">
                                             <div className="flex items-center justify-between gap-4 mb-2">
                                                 <h3 className="text-lg font-bold text-foreground truncate flex items-center gap-2">
-                                                    {chart.person1_name}
+                                                    {person1Name}
                                                     <span className="text-foreground-secondary/40 text-sm font-normal">&</span>
-                                                    {chart.person2_name}
+                                                    {person2Name}
                                                 </h3>
                                                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${config.badge}`}>
-                                                    {config.label}
+                                                    {chart.title || config.label}
                                                 </span>
                                             </div>
 
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-foreground-secondary">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-1 h-1 rounded-full bg-foreground-secondary/40" />
-                                                    <span>{formatBirth(chart.person1_birth)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-1 h-1 rounded-full bg-foreground-secondary/40" />
-                                                    <span>{formatBirth(chart.person2_birth)}</span>
-                                                </div>
+                                                {chart.question && (
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <div className="w-1 h-1 rounded-full bg-foreground-secondary/40" />
+                                                        <span className="truncate">{chart.question}</span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
                                                 <div className="flex items-center gap-3">
                                                     <span className="flex items-center gap-1.5 text-xs text-foreground-tertiary">
                                                         <Clock className="w-3.5 h-3.5" />
-                                                        {formatDate(chart.created_at)}
+                                                        {formatDate(chart.createdAt)}
                                                     </span>
-                                                    {modelName && (
+                                                    {chart.modelName && (
                                                         <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-foreground-secondary border border-white/5">
-                                                            {modelName}
+                                                            {chart.modelName}
                                                         </span>
                                                     )}
                                                 </div>
 
-                                                {chart.compatibility_score !== null && (
+                                                {chart.metric && (
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm text-foreground-secondary">契合度</span>
                                                         <span className={`text-lg font-bold ${config.color}`}>
-                                                            {chart.compatibility_score}%
+                                                            {chart.metric}
                                                         </span>
                                                     </div>
                                                 )}
@@ -399,7 +333,7 @@ export default function HepanHistoryPage() {
                         setKbModalOpen(false);
                         setKbTarget(null);
                     }}
-                    sourceTitle={`${kbTarget.person1_name} × ${kbTarget.person2_name}`}
+                    sourceTitle={kbTarget.question || kbTarget.title}
                     sourceType="hepan_chart"
                     sourceId={kbTarget.id}
                 />

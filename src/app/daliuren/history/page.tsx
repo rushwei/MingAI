@@ -9,19 +9,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, BookOpen, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-
-interface DaliurenRecord {
-    id: string;
-    question: string | null;
-    solar_date: string;
-    day_ganzhi: string;
-    hour_ganzhi: string;
-    result_data: Record<string, unknown>;
-    settings: Record<string, unknown> | null;
-    conversation_id: string | null;
-    created_at: string;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -29,9 +23,10 @@ function formatDate(dateStr: string): string {
 
 export default function DaliurenHistoryPage() {
     const router = useRouter();
-    const [records, setRecords] = useState<DaliurenRecord[]>([]);
+    const [records, setRecords] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const defaultTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     useEffect(() => {
         let cancelled = false;
@@ -42,17 +37,9 @@ export default function DaliurenHistoryPage() {
                 router.push('/daliuren');
                 return;
             }
-            const response = await fetch('/api/daliuren', { credentials: 'include' });
-            const payload = await response.json().catch(() => null) as {
-                data?: { history?: DaliurenRecord[] };
-                error?: string;
-            } | null;
-
+            const history = await loadHistorySummaries('daliuren');
             if (cancelled) return;
-            if (!response.ok) {
-                console.error('[daliuren history] 加载失败:', payload?.error || 'unknown');
-            }
-            setRecords(payload?.data?.history || []);
+            setRecords(history);
             setLoading(false);
         }
 
@@ -63,27 +50,15 @@ export default function DaliurenHistoryPage() {
         };
     }, [router]);
 
-    const handleView = (record: DaliurenRecord) => {
-        const settings = record.settings || {};
-        writeSessionJSON('daliuren_params', {
-            date: record.solar_date,
-            hour: settings.hour ?? 0,
-            minute: settings.minute ?? 0,
-            question: record.question || undefined,
-            divinationId: record.id,
-            conversationId: record.conversation_id || undefined,
-        });
-        router.push('/daliuren/result?from=history');
+    const handleView = async (record: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('daliuren', record.id, defaultTimeZone);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, record.id));
     };
 
     const handleDelete = async (id: string) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const response = await fetch(`/api/daliuren?id=${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            credentials: 'include',
-        });
-        if (response.ok) {
+        const success = await deleteHistorySummary('daliuren', id);
+        if (success) {
             setRecords(prev => prev.filter(r => r.id !== id));
         }
         setDeleteConfirmId(null);
@@ -109,17 +84,15 @@ export default function DaliurenHistoryPage() {
                 ) : records.length === 0 ? (
                     <div className="text-center py-12 text-foreground-secondary text-sm">暂无历史记录</div>
                 ) : records.map(record => {
-                    const keName = record.result_data?.keName as string | undefined;
-                    const title = keName || `${record.day_ganzhi}日`;
                     return (
                         <div
                             key={record.id}
                             className="bg-background-secondary/50 rounded-xl p-4 border border-border/30 cursor-pointer hover:border-cyan-500/30 transition-colors"
-                            onClick={() => handleView(record)}
+                            onClick={() => void handleView(record)}
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-foreground truncate">{title}</div>
+                                    <div className="text-sm font-medium text-foreground truncate">{record.title}</div>
                                     {record.question && (
                                         <div className="text-xs text-foreground-secondary mt-0.5 truncate flex items-center gap-1">
                                             <MessageSquare className="w-3 h-3 flex-shrink-0" />
@@ -128,7 +101,7 @@ export default function DaliurenHistoryPage() {
                                     )}
                                     <div className="text-xs text-foreground-tertiary mt-1 flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
-                                        {formatDate(record.created_at)}
+                                        {formatDate(record.createdAt)}
                                     </div>
                                 </div>
                                 <button
