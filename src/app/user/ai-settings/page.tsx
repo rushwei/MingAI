@@ -11,13 +11,15 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    ArrowLeft, Save, Sparkles, BookOpenText,
+    ArrowLeft, Save, BookOpenText,
     MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 type ExpressionStyle = 'direct' | 'gentle';
 
@@ -36,8 +38,10 @@ const LAYER_LABELS: Record<string, string> = {
 
 export default function AISettingsPage() {
     const router = useRouter();
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
 
@@ -58,6 +62,7 @@ export default function AISettingsPage() {
     const [previewTotalTokens, setPreviewTotalTokens] = useState(0);
     const [previewBudgetTotal, setPreviewBudgetTotal] = useState(0);
     const [previewPromptKbs, setPreviewPromptKbs] = useState<Array<{ id: string; name: string }>>([]);
+    const knowledgeBaseFeatureEnabled = !featureToggleLoading && isFeatureEnabled('knowledge-base');
 
     useEffect(() => {
         const init = async () => {
@@ -70,26 +75,17 @@ export default function AISettingsPage() {
             const membership = await getMembershipInfo(session.user.id);
             setMembershipType(membership?.type || 'free');
 
-            const { data, error } = await supabase
-                .from('user_settings')
-                .select('expression_style, custom_instructions, user_profile')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-
+            const { settings, error } = await loadCurrentUserSettings();
             if (error) {
+                setError(error.message || '加载个性化设置失败');
+                setSettingsLoadFailed(true);
                 setLoading(false);
                 return;
             }
-
-            const row = data as null | {
-                expression_style: ExpressionStyle | null;
-                custom_instructions: string | null;
-                user_profile: unknown;
-            };
-
-            setExpressionStyle(row?.expression_style || 'direct');
-            setCustomInstructions((row?.custom_instructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
-            const profile = row?.user_profile;
+            setSettingsLoadFailed(false);
+            setExpressionStyle((settings?.expressionStyle || 'direct') as ExpressionStyle);
+            setCustomInstructions((settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
+            const profile = settings?.userProfile;
             if (typeof profile === 'string') {
                 setUserProfile({
                     identity: '',
@@ -201,6 +197,7 @@ export default function AISettingsPage() {
 
     const handleSave = async () => {
         if (!userId) return;
+        if (settingsLoadFailed) return;
         setError(null);
 
         const profileValue = {
@@ -215,17 +212,14 @@ export default function AISettingsPage() {
             : null;
 
         setSaving(true);
-        const { error } = await supabase
-            .from('user_settings')
-            .upsert({
-                user_id: userId,
-                expression_style: expressionStyle,
-                custom_instructions: customInstructions || null,
-                user_profile: profilePayload
-            }, { onConflict: 'user_id' });
+        const saved = await updateCurrentUserSettings({
+            expressionStyle,
+            customInstructions: customInstructions || null,
+            userProfile: profilePayload,
+        });
 
         setSaving(false);
-        if (error) {
+        if (!saved) {
             setError('保存失败');
         }
     };
@@ -301,7 +295,6 @@ export default function AISettingsPage() {
                         </button>
                         <div>
                             <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                                <Sparkles className="w-5 h-5 text-accent" />
                                 AI 个性化设置
                             </h1>
                             <p className="text-xs text-foreground-secondary mt-0.5">
@@ -313,7 +306,7 @@ export default function AISettingsPage() {
                     <button
                         type="button"
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || settingsLoadFailed}
                         className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-md shadow-accent/20 font-medium text-sm"
                     >
                         {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-3.5 h-3.5" />}
@@ -324,7 +317,7 @@ export default function AISettingsPage() {
                 <div className="grid grid-cols-1 xl:grid-cols-3 sm:gap-6 gap-2">
                     {/* 左侧主要设置区域 */}
                     <div className="xl:col-span-2 sm:space-y-5 space-y-2">
-                        {membershipType === 'free' ? (
+                        {knowledgeBaseFeatureEnabled && (membershipType === 'free' ? (
                             <div className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 rounded-2xl p-4 border border-border opacity-60 cursor-not-allowed shadow-sm">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
                                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
@@ -359,7 +352,7 @@ export default function AISettingsPage() {
                                 </div>
                                 <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                             </Link>
-                        )}
+                        ))}
 
                         {/* 个人档案 */}
                         <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
@@ -477,9 +470,6 @@ export default function AISettingsPage() {
                                             className="w-full min-h-[80px] p-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all resize-y text-xs leading-relaxed placeholder:text-foreground-tertiary/50"
                                             placeholder="在此输入你希望 AI 遵循的特殊指令..."
                                         />
-                                        <div className="absolute bottom-2 right-2 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
-                                            <Sparkles className="w-3 h-3 text-blue-500/30" />
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -495,6 +485,7 @@ export default function AISettingsPage() {
                             </div>
 
                             <div className="space-y-6">
+                                {knowledgeBaseFeatureEnabled && (
                                 <div>
                                     <label className="text-xs font-medium text-foreground-secondary mb-3 block uppercase tracking-wider">生效的知识库</label>
                                     {membershipType === 'free' ? (
@@ -522,6 +513,7 @@ export default function AISettingsPage() {
                                         启用大量提示词会损失算命精确度
                                     </div>
                                 </div>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-background rounded-2xl p-4 border border-border">
@@ -627,7 +619,7 @@ export default function AISettingsPage() {
                 <button
                     type="button"
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || settingsLoadFailed}
                     className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-xl shadow-accent/20 font-bold text-base active:scale-[0.98]"
                 >
                     {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-5 h-5" />}

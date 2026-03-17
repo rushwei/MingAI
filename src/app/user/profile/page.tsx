@@ -67,7 +67,7 @@ export default function ProfilePage() {
                 setAvatarUrl(cachedProfile.avatar_url || null);
             }
 
-            await ensureUserRecord(session.user);
+            await ensureUserRecord(session.user, session.access_token);
             const profile = await getUserProfile(session.user.id);
             if (profile) {
                 setNickname(profile.nickname || '');

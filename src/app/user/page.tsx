@@ -235,7 +235,7 @@ export default function UserPage() {
             try {
                 const totalStart = perfNow();
                 const ensureStart = perfNow();
-                const ensurePromise = ensureUserRecord(currentUser);
+                const ensurePromise = ensureUserRecord(currentUser, accessToken);
                 const profileStart = perfNow();
                 const profileData = await getUserProfile(currentUser.id);
                 logPerf('profile:first', profileStart, { hasProfile: !!profileData });

@@ -20,10 +20,10 @@ import { FeatureGate } from '@/components/layout/FeatureGate';
 import { ChartSelectorModal } from '@/components/ChartSelectorModal';
 import { FortuneTrendChart, type FortuneTrendDataPoint } from '@/components/fortune/FortuneTrendChart';
 import { supabase } from '@/lib/auth';
-import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 import type { BaziChart, FortuneLevel } from '@/types';
+import { loadUserChartBundle } from '@/lib/user/charts-client';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 
@@ -37,67 +37,35 @@ function MonthlyPageContent() {
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showTrendChart, setShowTrendChart] = useState(true);
 
+    const toBaziChart = useCallback((row: Record<string, unknown>): BaziChart => {
+        const chartData = row.chart_data as Record<string, unknown> || {};
+        return {
+            id: row.id as string,
+            name: row.name as string,
+            gender: row.gender as string,
+            birthDate: row.birth_date as string,
+            birthTime: row.birth_time as string | null,
+            birthPlace: row.birth_place as string | null,
+            calendarType: row.calendar_type as string | null,
+            isLeapMonth: row.is_leap_month as boolean | null,
+            fourPillars: chartData.fourPillars,
+            dayMaster: chartData.dayMaster,
+            fiveElements: chartData.fiveElements,
+            createdAt: row.created_at as string,
+        } as BaziChart;
+    }, []);
+
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
+        void uid;
         try {
-            const { data, error } = await supabase
-                .from('bazi_charts')
-                .select('*')
-                .eq('user_id', uid)
-                .order('created_at', { ascending: false });
-
-            if (!error && data && data.length > 0) {
-                // 从 chart_data 中提取完整的八字数据
-                const charts = data.map((row: Record<string, unknown>) => {
-                    const chartData = row.chart_data as Record<string, unknown> || {};
-                    return {
-                        id: row.id,
-                        name: row.name,
-                        gender: row.gender,
-                        birthDate: row.birth_date,
-                        birthTime: row.birth_time,
-                        birthPlace: row.birth_place,
-                        calendarType: row.calendar_type,
-                        isLeapMonth: row.is_leap_month,
-                        // 从 chart_data 中读取排盘结果
-                        fourPillars: chartData.fourPillars,
-                        dayMaster: chartData.dayMaster,
-                        fiveElements: chartData.fiveElements,
-                        createdAt: row.created_at,
-                    } as BaziChart;
-                });
+            const bundle = await loadUserChartBundle();
+            const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
+            if (rows.length > 0) {
+                const charts = rows.map(toBaziChart);
                 setBaziCharts(charts);
-
-                const { data: settings, error: settingsError } = await supabase
-                    .from('user_settings')
-                    .select('default_bazi_chart_id')
-                    .eq('user_id', uid)
-                    .maybeSingle();
-
-                if (!settingsError) {
-                    const cachedDefaultId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY);
-                    const legacyDefaultId = cachedDefaultId ? null : localStorage.getItem('defaultBaziChartId');
-                    const storedDefaultId = cachedDefaultId || legacyDefaultId;
-                    if (legacyDefaultId) {
-                        writeLocalCache('mingai.pref.defaultBaziChartId', legacyDefaultId);
-                    }
-                    const defaultId = settings?.default_bazi_chart_id || storedDefaultId;
-                    if (settings?.default_bazi_chart_id) {
-                        writeLocalCache('mingai.pref.defaultBaziChartId', settings.default_bazi_chart_id);
-                    } else if (!settings && storedDefaultId) {
-                        await supabase
-                            .from('user_settings')
-                            .upsert({ user_id: uid, default_bazi_chart_id: storedDefaultId }, { onConflict: 'user_id' });
-                    }
-                    const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
-                    setBaziChart(defaultChart || charts[0]);
-                    return;
-                }
-
-                // 回退到本地默认
-                const fallbackId = readLocalCache<string>('mingai.pref.defaultBaziChartId', Number.POSITIVE_INFINITY)
-                    || localStorage.getItem('defaultBaziChartId');
-                const defaultChart = fallbackId ? charts.find((c: { id: string }) => c.id === fallbackId) : null;
+                const defaultId = bundle?.defaultChartIds?.bazi ?? null;
+                const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
                 setBaziChart(defaultChart || charts[0]);
             }
         } catch (err) {
@@ -105,7 +73,7 @@ function MonthlyPageContent() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [toBaziChart]);
 
     // 初始化
     useEffect(() => {

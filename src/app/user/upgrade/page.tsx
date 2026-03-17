@@ -56,12 +56,19 @@ function UpgradeContent() {
     };
 
     const fetchPurchaseLinks = async () => {
-        const { data } = await supabase
-            .from('purchase_links')
-            .select('link_type, url');
-        if (data) {
+        const response = await fetch('/api/purchase-links', {
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json() as {
+            links?: Array<{ link_type: string; url: string }>;
+        };
+        if (payload.links) {
             const links: PurchaseLinks = {};
-            data.forEach((item: { link_type: string; url: string }) => {
+            payload.links.forEach((item) => {
                 links[item.link_type as keyof PurchaseLinks] = item.url;
             });
             setPurchaseLinks(links);

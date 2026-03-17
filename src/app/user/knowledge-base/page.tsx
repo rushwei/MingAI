@@ -14,10 +14,11 @@ import {
     FileText, Database, Sparkles, AlertCircle
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 type KnowledgeBase = {
     id: string;
@@ -58,6 +59,8 @@ const sourceTypeLabel: Record<string, string> = {
     ming_record: '命理记录',
     daily_fortune: '今日运势',
     monthly_fortune: '本月运势',
+    qimen_chart: '奇门遁甲',
+    daliuren_divination: '大六壬',
 };
 
 async function getAccessToken() {
@@ -114,19 +117,13 @@ export default function KnowledgeBaseManagePage() {
     }, []);
 
     const loadPromptKbIds = useCallback(async (id: string) => {
-        const { data, error } = await supabase
-            .from('user_settings')
-            .select('prompt_kb_ids')
-            .eq('user_id', id)
-            .maybeSingle();
+        void id;
+        const { settings, error } = await loadCurrentUserSettings();
         if (error) {
-            setPromptKbIds([]);
+            setError(error.message || '加载知识库设置失败');
             return;
         }
-        const rawIds = Array.isArray((data as { prompt_kb_ids?: unknown })?.prompt_kb_ids)
-            ? (data as { prompt_kb_ids: unknown[] }).prompt_kb_ids
-            : [];
-        setPromptKbIds(rawIds.filter((value): value is string => typeof value === 'string' && value.length > 0));
+        setPromptKbIds(settings?.promptKbIds ?? []);
     }, []);
 
     useEffect(() => {
@@ -234,16 +231,15 @@ export default function KnowledgeBaseManagePage() {
             : [...promptKbIds, kbId];
         setPromptKbIds(next);
         setPromptSavingId(kbId);
-        const { error: saveError } = await supabase
-            .from('user_settings')
-            .upsert({ user_id: userId, prompt_kb_ids: next }, { onConflict: 'user_id' });
+        const saved = await updateCurrentUserSettings({ promptKbIds: next });
         setPromptSavingId(null);
-        if (saveError) {
+        if (!saved) {
+            setPromptKbIds(promptKbIds);
             setError('保存知识库失败');
             showToast('error', '保存知识库失败');
             return;
         }
-        window.dispatchEvent(new CustomEvent('mingai:knowledge-base:prompt-updated'));
+        setPromptKbIds(saved.promptKbIds);
     }, [membershipType, promptKbIds, showToast, userId]);
 
     const updateKb = useCallback(async (kb: KnowledgeBase) => {

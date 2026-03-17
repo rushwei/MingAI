@@ -19,11 +19,11 @@ import {
     Check,
     ChevronRight
 } from 'lucide-react';
-import { supabase } from '@/lib/auth';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
 import { MobileNavCustomizer } from '@/components/settings/MobileNavCustomizer';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 interface Settings {
     notifications: boolean;
@@ -35,13 +35,15 @@ function ReminderToggle({
     label,
     description,
     userId,
-    accessToken
+    accessToken,
+    disabled = false,
 }: {
     type: string;
     label: string;
     description: string;
     userId: string | null;
     accessToken: string | null;
+    disabled?: boolean;
 }) {
     const [enabled, setEnabled] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -71,14 +73,17 @@ function ReminderToggle({
     }, [fetchStatus]);
 
     const handleToggle = async () => {
-        if (!userId) return;
-        const newEnabled = !enabled;
+        if (!userId || disabled) return;
+        const previousEnabled = enabled;
+        const newEnabled = !previousEnabled;
         setEnabled(newEnabled);
 
         try {
-            if (!accessToken) return;
+            if (!accessToken) {
+                throw new Error('Missing access token');
+            }
 
-            await fetch('/api/reminders', {
+            const res = await fetch('/api/reminders', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -90,9 +95,12 @@ function ReminderToggle({
                     notifySite: true,
                 }),
             });
+            if (!res.ok) {
+                throw new Error('更新提醒状态失败');
+            }
         } catch (error) {
             console.error('更新提醒状态失败:', error);
-            setEnabled(!newEnabled);
+            setEnabled(previousEnabled);
         }
     };
 
@@ -106,11 +114,11 @@ function ReminderToggle({
             </div>
             <button
                 onClick={handleToggle}
-                disabled={loading}
+                disabled={loading || disabled}
                 className={`
                     w-10 h-6 rounded-full transition-colors relative
                     ${enabled ? 'bg-accent' : 'bg-border'}
-                    ${loading ? 'opacity-50' : ''}
+                    ${loading || disabled ? 'opacity-50' : ''}
                 `}
             >
                 <div className={`
@@ -133,6 +141,7 @@ export default function SettingsPage() {
     });
     const [userId, setUserId] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     // 检测设备类型
     useEffect(() => {
@@ -154,41 +163,17 @@ export default function SettingsPage() {
 
             setUserId(user.id);
 
-            const { data, error } = await supabase
-                .from('user_settings')
-                .select('notifications_enabled, notify_email, notify_site, language')
-                .eq('user_id', user.id)
-                .maybeSingle();
-
+            const { settings: loaded, error } = await loadCurrentUserSettings();
             if (error) {
-                console.error('获取偏好设置失败:', error);
+                setLoadError(error.message || '加载偏好设置失败');
+                setLoading(false);
+                return;
             }
-
-            if (!data) {
-                const defaults = {
-                    user_id: user.id,
-                    notifications_enabled: true,
-                    notify_email: true,
-                    notify_site: true,
-                    language: 'zh' as const,
-                };
-
-                const { data: created } = await supabase
-                    .from('user_settings')
-                    .upsert(defaults, { onConflict: 'user_id' })
-                    .select('notifications_enabled, notify_email, notify_site, language')
-                    .maybeSingle();
-
-                setSettings({
-                    notifications: created?.notifications_enabled ?? defaults.notifications_enabled,
-                    language: (created?.language as 'zh' | 'en') ?? defaults.language,
-                });
-            } else {
-                setSettings({
-                    notifications: data.notifications_enabled ?? true,
-                    language: (data.language as 'zh' | 'en') ?? 'zh',
-                });
-            }
+            setLoadError(null);
+            setSettings({
+                notifications: loaded?.notificationsEnabled ?? true,
+                language: loaded?.language ?? 'zh',
+            });
 
             setLoading(false);
         };
@@ -197,35 +182,21 @@ export default function SettingsPage() {
     }, [router, sessionLoading, user]);
 
     const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-        if (!userId) return;
+        if (!userId || loadError) return;
+        const previousSettings = settings;
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
 
-        const updates = key === 'notifications'
-            ? {
-                notifications_enabled: value as boolean,
-                notify_email: value as boolean,
-                notify_site: value as boolean,
-            }
-            : { language: value as Settings['language'] };
+        const saved = await updateCurrentUserSettings(
+            key === 'notifications'
+                ? { notificationsEnabled: value as boolean }
+                : { language: value as Settings['language'] }
+        );
 
-        const { error } = await supabase
-            .from('user_settings')
-            .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' });
-
-        if (error) {
-            console.error('更新偏好设置失败:', error);
+        if (!saved) {
+            console.error('更新偏好设置失败');
+            setSettings(previousSettings);
             return;
-        }
-
-        if (key === 'notifications') {
-            await supabase
-                .from('feature_subscriptions')
-                .update({
-                    notify_email: value as boolean,
-                    notify_site: value as boolean,
-                })
-                .eq('user_id', userId);
         }
     };
 
@@ -272,6 +243,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="sm:space-y-6 space-y-2">
+                    {loadError && (
+                        <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl px-4 py-3 text-sm text-red-600 dark:text-red-400">
+                            {loadError}
+                        </div>
+                    )}
                     {/* 外观与语言 */}
                     <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
                         <div className="flex items-center gap-2 pb-3 border-b border-border/50">
@@ -337,6 +313,7 @@ export default function SettingsPage() {
                                 <select
                                     value={settings.language}
                                     onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
+                                    disabled={Boolean(loadError)}
                                     className="appearance-none pl-3 pr-8 py-1.5 rounded-lg bg-background-secondary border border-border hover:border-accent text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
                                 >
                                     <option value="zh">简体中文</option>
@@ -368,6 +345,7 @@ export default function SettingsPage() {
                             </div>
                             <button
                                 onClick={() => updateSetting('notifications', !settings.notifications)}
+                                disabled={Boolean(loadError)}
                                 className={`
                                     w-12 h-7 rounded-full transition-all duration-300 relative shadow-inner
                                     ${settings.notifications ? 'bg-accent' : 'bg-slate-200'}
@@ -390,6 +368,7 @@ export default function SettingsPage() {
                                     description="每个节气当天收到养生建议"
                                     userId={userId}
                                     accessToken={session?.access_token || null}
+                                    disabled={Boolean(loadError)}
                                 />
                                 <div className="h-px bg-border/50" />
                                 <ReminderToggle
@@ -398,6 +377,7 @@ export default function SettingsPage() {
                                     description="每日运势变化提醒"
                                     userId={userId}
                                     accessToken={session?.access_token || null}
+                                    disabled={Boolean(loadError)}
                                 />
                                 <div className="h-px bg-border/50" />
                                 <ReminderToggle
@@ -406,6 +386,7 @@ export default function SettingsPage() {
                                     description="重要日期（如本命年）提醒"
                                     userId={userId}
                                     accessToken={session?.access_token || null}
+                                    disabled={Boolean(loadError)}
                                 />
                             </div>
                         </div>

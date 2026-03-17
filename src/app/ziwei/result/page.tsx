@@ -17,6 +17,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { getDayCount } from '@/lib/date-utils';
+import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -32,6 +33,16 @@ function ZiweiResultContent() {
     const [hourOffset, setHourOffset] = useState(0); // 时辰调整偏移
     const [showAuthModal, setShowAuthModal] = useState(false);
     const { showToast } = useToast();
+
+    type SavedZiweiChartRow = {
+        name: string;
+        gender: Gender;
+        birth_date: string;
+        birth_time: string | null;
+        birth_place: string | null;
+        calendar_type: CalendarType | null;
+        is_leap_month: boolean | null;
+    };
 
     const chartId = searchParams.get('chart');
     const hasFormParams = useMemo(() => {
@@ -53,14 +64,10 @@ function ZiweiResultContent() {
 
         setLoading(true);
         setNotFound(false);
-        // TODO: 应改为通过 API 路由读取，避免客户端直接操作 Supabase（Fix 8）
-        supabase
-            .from('ziwei_charts')
-            .select('*')
-            .eq('id', chartId)
-            .single()
-            .then(({ data, error }: { data: Record<string, unknown> | null; error: { message: string } | null }) => {
-                if (data && !error) {
+        loadSavedChart('ziwei', chartId)
+            .then((row) => {
+                const data = row as SavedZiweiChartRow | null;
+                if (data) {
                     const birthDate = data.birth_date as string;
                     const birthTime = data.birth_time as string | null;
                     const [year, month, day] = birthDate.split('-').map(Number);
@@ -252,15 +259,11 @@ function ZiweiResultContent() {
                     throw new Error(result?.error || '更新失败');
                 }
             } else {
-                // TODO: 应改为通过 API 路由操作，避免客户端直接操作 Supabase（Fix 8）
-                const { data: inserted, error: insertError } = await supabase
-                    .from('ziwei_charts')
-                    .insert({ ...payload, user_id: session.user.id })
-                    .select('id')
-                    .maybeSingle();
-                error = insertError;
-                if (inserted?.id) {
-                    router.replace(`/ziwei/result?chart=${inserted.id}`);
+                const insertedId = await createSavedChart('ziwei', payload);
+                if (insertedId) {
+                    router.replace(`/ziwei/result?chart=${insertedId}`);
+                } else {
+                    error = new Error('保存失败');
                 }
             }
 
