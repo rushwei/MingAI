@@ -1,0 +1,304 @@
+import 'server-only';
+
+import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
+import { getSystemAdminClient } from '@/lib/api-utils';
+import { searchKnowledge } from '@/lib/knowledge-base/search';
+import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
+import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
+import type { AIMessageMetadata, AIPersonality, ChatMessage } from '@/types';
+import type { Mention } from '@/types/mentions';
+import { buildDreamContextPayload, loadChartContext } from '@/lib/chat/chat-context';
+import type { ResolvedChatRequest } from '@/lib/server/chat/request';
+import { isFeatureModuleEnabled } from '@/lib/app-settings';
+
+function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatMessage[] {
+  if (!prefix) return messages;
+  return messages.map((msg, index) => {
+    if (index === messages.length - 1 && msg.role === 'user') {
+      return { ...msg, content: prefix + msg.content };
+    }
+    return msg;
+  });
+}
+
+type UserSettingsContext = {
+  expressionStyle: 'direct' | 'gentle';
+  userProfile: unknown;
+  customInstructions: string;
+  promptKbIds: string[];
+};
+
+type ChatPromptContextResult = {
+  sanitizedMessages: ChatMessage[];
+  metadata: AIMessageMetadata & {
+    sources?: unknown;
+    kbSearchEnabled: boolean;
+    kbHitCount: number;
+    promptDiagnostics: {
+      modelId: string;
+      layers: unknown;
+      totalTokens: number;
+      budgetTotal: number;
+      userMessageTokens: number;
+    };
+    dreamContext?: { baziChartName?: string; dailyFortune?: string };
+  };
+  fallbackPersonality: AIPersonality;
+  systemPrompt: string;
+  promptKnowledgeBases: Array<{ id: string; name: string }>;
+};
+
+type ResolvedMention = Mention & { resolvedContent: string };
+
+function extractUserQuestion(rawUserContent: string): string {
+  const marker = '【用户的问题如下】';
+  const idx = rawUserContent.lastIndexOf(marker);
+  if (idx >= 0) {
+    return rawUserContent.slice(idx + marker.length).trim();
+  }
+  return rawUserContent.trim();
+}
+
+function mergeMentions(rawUserContent: string, mentions?: Mention[]): Mention[] {
+  const parsedMentions = parseMentions(rawUserContent);
+  return [...(mentions || []), ...parsedMentions]
+    .filter((mention) => mention && mention.type && mention.name)
+    .slice(0, 20);
+}
+
+async function resolveMentionsForPrompt(
+  mentions: Mention[],
+  userId: string,
+  supabase: ReturnType<typeof getSystemAdminClient>,
+  maxTokens: number
+): Promise<ResolvedMention[]> {
+  return await Promise.all(mentions.map(async (mention) => {
+    const resolvedContent = await resolveMention(mention, userId, {
+      client: supabase,
+      maxTokens,
+    });
+    return { ...mention, resolvedContent };
+  }));
+}
+
+async function loadUserSettingsContext(
+  supabase: ReturnType<typeof getSystemAdminClient>,
+  userId: string
+): Promise<UserSettingsContext> {
+  const { data } = await supabase
+    .from('user_settings')
+    .select('expression_style, user_profile, custom_instructions, prompt_kb_ids')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const row = data as null | {
+    expression_style: 'direct' | 'gentle' | null;
+    user_profile: unknown;
+    custom_instructions: string | null;
+    prompt_kb_ids?: unknown;
+  };
+
+  return {
+    expressionStyle: (row?.expression_style ?? 'direct') as 'direct' | 'gentle',
+    userProfile: row?.user_profile || {},
+    customInstructions: row?.custom_instructions || '',
+    promptKbIds: Array.isArray(row?.prompt_kb_ids)
+      ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+      : [],
+  };
+}
+
+function applyUserSettingsOverrides(
+  settings: UserSettingsContext,
+  overrides: Pick<ResolvedChatRequest['body'], 'expressionStyle' | 'customInstructions' | 'userProfile'>
+): UserSettingsContext {
+  return {
+    expressionStyle: overrides.expressionStyle === 'gentle' ? 'gentle' : (
+      overrides.expressionStyle === 'direct' ? 'direct' : settings.expressionStyle
+    ),
+    customInstructions: typeof overrides.customInstructions === 'string'
+      ? overrides.customInstructions
+      : settings.customInstructions,
+    userProfile: overrides.userProfile !== undefined ? overrides.userProfile : settings.userProfile,
+    promptKbIds: settings.promptKbIds,
+  };
+}
+
+async function buildKnowledgeHits(
+  query: string,
+  userId: string,
+  membershipType: ResolvedChatRequest['membershipType'],
+  accessTokenForKB: string | null,
+  userSettings: UserSettingsContext,
+  supabase: ReturnType<typeof getSystemAdminClient>
+): Promise<KnowledgeHit[]> {
+  if (membershipType === 'free') return [];
+
+  const cleanedQuery = stripMentionTokens(query);
+  if (!cleanedQuery) return [];
+
+  const kbScopeIds = Array.from(new Set(userSettings.promptKbIds));
+  if (kbScopeIds.length === 0) return [];
+
+  const results = await searchKnowledge(cleanedQuery, {
+    limit: 12,
+    topK: 5,
+    accessToken: accessTokenForKB || undefined,
+    kbIds: kbScopeIds.length > 0 ? kbScopeIds : undefined,
+  });
+  const candidates = results as Array<SearchCandidate | RankedResult>;
+  const kbIds = Array.from(new Set(candidates.map((result) => result.kbId).filter(Boolean))) as string[];
+  if (kbIds.length === 0) return [];
+
+  const { data: kbRows } = await supabase
+    .from('knowledge_bases')
+    .select('id, name, weight')
+    .eq('user_id', userId)
+    .in('id', kbIds);
+
+  const kbMap = new Map<string, { name: string; weight: string }>();
+  (kbRows || []).forEach((kb: { id: string; name: string; weight: string }) => {
+    kbMap.set(kb.id, { name: kb.name, weight: kb.weight });
+  });
+
+  return candidates.slice(0, 8).map((result): KnowledgeHit => ({
+    kbId: result.kbId,
+    kbName: kbMap.get(result.kbId)?.name || '知识库',
+    content: result.content,
+    score: result.score || 0,
+  }));
+}
+
+export async function buildChatPromptContext(
+  resolvedRequest: ResolvedChatRequest,
+): Promise<ChatPromptContextResult> {
+  const { body, userId, accessTokenForKB, requestedModelId, reasoningEnabled, membershipType } = resolvedRequest;
+  const supabase = getSystemAdminClient();
+  const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
+
+  const chartContext = userId && body.chartIds && (body.chartIds.baziId || body.chartIds.ziweiId)
+    ? await loadChartContext(body.chartIds, userId)
+    : undefined;
+
+  let dreamContext: { baziChartName?: string; dailyFortune?: string } | undefined;
+  let dreamPayload: { baziText?: string; fortuneText?: string } | undefined;
+  if (body.dreamMode && userId) {
+    const { payload, context } = await buildDreamContextPayload(userId);
+    dreamPayload = payload;
+    dreamContext = context;
+  }
+
+  const lastUserMessage = [...body.messages].reverse().find((message) => message.role === 'user');
+  const rawUserContent = lastUserMessage?.content || '';
+  const userQuestionForSearch = extractUserQuestion(rawUserContent);
+  const mergedMentions = mergeMentions(rawUserContent, body.mentions);
+
+  const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
+  const [resolvedMentions, userSettings] = await Promise.all([
+    userId ? resolveMentionsForPrompt(mergedMentions, userId, supabase, mentionBudget) : [],
+    userId ? loadUserSettingsContext(supabase, userId) : {
+      expressionStyle: 'direct' as const,
+      userProfile: {},
+      customInstructions: '',
+      promptKbIds: [] as string[],
+    },
+  ]);
+
+  const effectiveUserSettings = applyUserSettingsOverrides(userSettings, {
+    expressionStyle: body.expressionStyle,
+    customInstructions: body.customInstructions,
+    userProfile: body.userProfile,
+  });
+
+  const promptKnowledgeBases = userId && knowledgeBaseFeatureEnabled && membershipType !== 'free' && effectiveUserSettings.promptKbIds.length > 0
+    ? await (async () => {
+      const { data: kbRows } = await supabase
+        .from('knowledge_bases')
+        .select('id, name')
+        .eq('user_id', userId)
+        .in('id', effectiveUserSettings.promptKbIds);
+
+      const kbMap = new Map<string, { id: string; name: string }>();
+      ((kbRows || []) as Array<{ id: string; name: string }>).forEach((kb) => {
+        kbMap.set(kb.id, kb);
+      });
+
+      return effectiveUserSettings.promptKbIds
+        .map((kbId) => kbMap.get(kbId))
+        .filter((kb): kb is { id: string; name: string } => !!kb);
+    })()
+    : [];
+
+  const knowledgeHits = userId && knowledgeBaseFeatureEnabled
+    ? await buildKnowledgeHits(
+      userQuestionForSearch,
+      userId,
+      membershipType,
+      accessTokenForKB,
+      effectiveUserSettings,
+      supabase
+    )
+    : [];
+
+  const promptChartContext = chartContext
+    ? { ...chartContext, analysisMode: body.chartIds?.baziAnalysisMode }
+    : undefined;
+  const promptDreamMode = body.dreamMode
+    ? {
+        enabled: true,
+        baziText: dreamPayload?.baziText,
+        fortuneText: dreamPayload?.fortuneText,
+      }
+    : undefined;
+
+  const promptBuild = await buildPromptWithSources({
+    modelId: requestedModelId,
+    reasoningEnabled,
+    userMessage: userQuestionForSearch,
+    mentions: resolvedMentions,
+    knowledgeHits,
+    userSettings: effectiveUserSettings,
+    chartContext: promptChartContext,
+    dreamMode: promptDreamMode,
+    difyContext: body.difyContext,
+  });
+
+  const processedMessages = promptBuild.userMessagePrefix
+    ? injectToLastUserMessage(body.messages, promptBuild.userMessagePrefix)
+    : body.messages;
+
+  const metadata = {
+    sources: promptBuild.sources,
+    kbSearchEnabled: knowledgeBaseFeatureEnabled && membershipType !== 'free' && effectiveUserSettings.promptKbIds.length > 0,
+    kbHitCount: knowledgeHits.length,
+    promptDiagnostics: {
+      modelId: requestedModelId,
+      layers: promptBuild.diagnostics,
+      totalTokens: promptBuild.totalTokens,
+      budgetTotal: promptBuild.budgetTotal,
+      userMessageTokens: promptBuild.userMessageTokens,
+    },
+    dreamContext,
+  };
+
+  const sanitizedMessages = processedMessages.map((message, index) => {
+    if (index === processedMessages.length - 1 && message.role === 'user') {
+      return { ...message, content: stripMentionTokens(message.content) };
+    }
+    return message;
+  });
+
+  const personalityResolution = resolvePersonalities({
+    chartContext: promptChartContext,
+    dreamMode: promptDreamMode,
+    mentions: resolvedMentions,
+  });
+  const fallbackPersonality = personalityResolution.personalities[0] ?? 'general';
+
+  return {
+    sanitizedMessages,
+    metadata,
+    fallbackPersonality,
+    systemPrompt: promptBuild.systemPrompt,
+    promptKnowledgeBases,
+  };
+}

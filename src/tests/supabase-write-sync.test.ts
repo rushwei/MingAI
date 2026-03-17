@@ -3,21 +3,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const providersPath = resolve(process.cwd(), 'src/components/providers/ClientProviders.tsx');
+const browserApiPath = resolve(process.cwd(), 'src/lib/browser-api.ts');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
 const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
 
-test('client providers should emit api-write events for successful non-GET writes', async () => {
-  const source = await readFile(providersPath, 'utf-8');
+test('browser api helper should emit api-write events for successful non-GET writes', async () => {
+  const source = await readFile(browserApiPath, 'utf-8');
 
   assert.ok(
     source.includes("new CustomEvent('mingai:api-write'"),
-    'client providers should emit write events after successful api mutations'
+    'browser api helper should emit write events after successful api mutations'
   );
   assert.ok(
-    source.includes('shouldHandleApiWrite(url.pathname, method)'),
-    'client providers should scope write event emission to non-GET api calls'
+    source.includes('shouldHandleApiWrite(pathname, method)'),
+    'browser api helper should scope write event emission to non-GET api calls'
   );
 });
 

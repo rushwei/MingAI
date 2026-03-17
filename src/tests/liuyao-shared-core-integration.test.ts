@@ -13,7 +13,7 @@ test('web liuyao compatibility layer uses @mingai/mcp-core package imports', () 
     assert.equal(file.includes('packages/mcp-core/dist/'), false);
 });
 
-test('root dev/build/test scripts rebuild shared core before invoking web defaults', () => {
+test('root scripts keep web dev/build decoupled while test still prebuilds shared core', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
         scripts?: Record<string, string>;
     };
@@ -21,8 +21,8 @@ test('root dev/build/test scripts rebuild shared core before invoking web defaul
     const buildScript = pkg.scripts?.build || '';
     const testScript = pkg.scripts?.test || '';
 
-    assert.equal(devScript.includes('pnpm -C packages/mcp-core build'), true);
-    assert.equal(buildScript.includes('pnpm -C packages/mcp-core build'), true);
+    assert.equal(devScript.includes('pnpm -C packages/mcp-core build'), false);
+    assert.equal(buildScript.includes('pnpm -C packages/mcp-core build'), false);
     assert.equal(testScript.includes('pnpm -C packages/mcp-core build'), true);
     assert.equal(testScript.includes('packages/mcp-core/tests/*.test.mjs'), true);
 });

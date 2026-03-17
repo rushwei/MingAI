@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('browser auth client should preserve temporary from/rpc compatibility during migration', async () => {
+test('browser auth client should not expose table query or rpc helpers', async () => {
   const { supabase } = await import('../lib/auth');
 
-  assert.equal(typeof (supabase as { from?: unknown }).from, 'function');
-  assert.equal(typeof (supabase as { rpc?: unknown }).rpc, 'function');
+  assert.equal('from' in (supabase as Record<string, unknown>), false);
+  assert.equal('rpc' in (supabase as Record<string, unknown>), false);
 });

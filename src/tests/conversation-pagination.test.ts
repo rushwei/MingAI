@@ -53,3 +53,74 @@ test('loadInitialMessages should request paginated messages from conversation de
     global.fetch = originalFetch;
   }
 });
+
+test('loadConversations should keep fetching pages until the conversation list is exhausted', async () => {
+  const originalFetch = global.fetch;
+  const requests: string[] = [];
+
+  global.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    requests.push(url);
+
+    if (url.includes('/api/conversations?limit=100&offset=0')) {
+      return new Response(JSON.stringify({
+        conversations: [
+          {
+            id: 'conv-1',
+            user_id: 'user-1',
+            personality: 'general',
+            title: '第一条',
+            created_at: '2026-03-17T00:00:00.000Z',
+            updated_at: '2026-03-17T00:00:00.000Z',
+            messages: [],
+          },
+        ],
+        pagination: {
+          hasMore: true,
+          nextOffset: 100,
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (url.includes('/api/conversations?limit=100&offset=100')) {
+      return new Response(JSON.stringify({
+        conversations: [
+          {
+            id: 'conv-2',
+            user_id: 'user-1',
+            personality: 'general',
+            title: '第二条',
+            created_at: '2026-03-16T00:00:00.000Z',
+            updated_at: '2026-03-16T00:00:00.000Z',
+            messages: [],
+          },
+        ],
+        pagination: {
+          hasMore: false,
+          nextOffset: null,
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as FetchLike;
+
+  try {
+    const conversationModule = await import('../lib/chat/conversation');
+    const result = await conversationModule.loadConversations('user-1');
+
+    assert.deepEqual(result.map((conversation) => conversation.id), ['conv-1', 'conv-2']);
+    assert.deepEqual(requests, [
+      '/api/conversations?limit=100&offset=0',
+      '/api/conversations?limit=100&offset=100',
+    ]);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

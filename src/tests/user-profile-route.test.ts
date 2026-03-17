@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
-test('user profile route should update profile fields without touching user_settings', async (t) => {
+test('user profile route should update profile fields and return the normalized settings bundle', async (t) => {
   const apiUtilsPath = require.resolve('../lib/api-utils');
   const routePath = require.resolve('../app/api/user/profile/route');
   const apiUtilsModule = require('../lib/api-utils');
@@ -50,7 +50,24 @@ test('user profile route should update profile fields without touching user_sett
       }
 
       if (table === 'user_settings') {
-        throw new Error('user_settings should not be touched after removing community anonymity');
+        return {
+          select() {
+            return this;
+          },
+          eq() {
+            return this;
+          },
+          maybeSingle: async () => ({
+            data: {
+              expression_style: 'gentle',
+              custom_instructions: 'keep calm',
+              user_profile: { identity: 'tester' },
+              prompt_kb_ids: ['kb-1'],
+              sidebar_config: { hiddenNavItems: ['community'] },
+            },
+            error: null,
+          }),
+        };
       }
 
       throw new Error(`Unexpected table: ${table}`);
@@ -93,5 +110,6 @@ test('user profile route should update profile fields without touching user_sett
   assert.equal(calls[0]?.action, 'update');
   assert.equal(calls[0]?.payload?.nickname, '新昵称');
   assert.equal(payload.profile?.nickname, '新昵称');
-  assert.equal(payload.settings, null);
+  assert.equal(payload.settings?.expressionStyle, 'gentle');
+  assert.deepEqual(payload.settings?.promptKbIds, ['kb-1']);
 });

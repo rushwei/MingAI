@@ -66,6 +66,7 @@ test('tarot route uses schema column names when inserting history', async (t) =>
                 },
             };
         },
+        rpc: async () => ({ error: null }),
     };
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
@@ -338,4 +339,16 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     assert.ok(createArgs);
     assert.equal((createArgs as Record<string, unknown>).sourceType, 'tarot');
     assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+});
+
+test('tarot route returns 400 for invalid timezone on GET daily requests', async () => {
+    const { GET } = await import('../app/api/tarot/route');
+
+    const request = new NextRequest('http://localhost/api/tarot?action=daily&timezone=Bad/Timezone');
+    const response = await GET(request);
+    const data = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(data.success, false);
+    assert.equal(data.error, 'timezone 无效');
 });

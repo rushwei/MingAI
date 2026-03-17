@@ -46,3 +46,13 @@ test('chart selector should load charts through a feature API instead of direct 
     'chart selector should not query ziwei_charts directly from the browser',
   );
 });
+
+test('browser membership helpers should not write users or orders directly through auth client', async () => {
+  const source = await readSource('src/lib/user/membership.ts');
+
+  assert.equal(
+    /supabase\s*\.\s*from\s*\(/ms.test(source),
+    false,
+    'browser membership helpers should use API boundaries instead of direct table access',
+  );
+});

@@ -17,7 +17,7 @@ import {
     analyzeFourPillarsLiuChong,
     analyzeFourPillarsSanHe,
 } from '@/lib/divination/bazi';
-import type { HeavenlyStem, EarthlyBranch, BaziFormData, TenGod } from '@/types';
+import type { HeavenlyStem, BaziFormData, TenGod } from '@/types';
 
 // ===== 1. 十神计算 (calculateTenGod) =====
 

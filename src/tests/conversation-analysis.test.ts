@@ -103,11 +103,12 @@ test('createAIAnalysisConversation stores model/reasoning in assistant message',
         aiResponse: 'analysis',
     });
 
-    const messages = ((capturedPayload as Record<string, unknown> | null)?.messages as ChatMessage[]) || [];
-    assert.equal(messages[0]?.model, 'glm-4');
-    assert.equal(messages[0]?.reasoning, 'fallback');
+    assert.equal((capturedPayload as Record<string, unknown> | null)?.messages, undefined);
     assert.equal(capturedRpc?.fn, 'replace_conversation_messages');
     assert.equal(capturedRpc?.args?.p_conversation_id, 'conv-1');
+    const rpcMessages = (capturedRpc?.args?.p_messages as ChatMessage[]) || [];
+    assert.equal(rpcMessages[0]?.model, 'glm-4');
+    assert.equal(rpcMessages[0]?.reasoning, 'fallback');
 });
 
 test('replaceConversationMessages should no-op safely when rpc is unavailable', async () => {

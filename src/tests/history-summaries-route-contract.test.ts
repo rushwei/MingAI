@@ -1,0 +1,179 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { NextRequest } from 'next/server';
+
+process.env.SUPABASE_URL = 'http://localhost';
+process.env.SUPABASE_ANON_KEY = 'test-anon';
+
+test('history summaries route should support qimen summaries through the shared history registry', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'qimen_charts');
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                range: async (from: number, to: number) => {
+                  assert.equal(from, 0);
+                  assert.equal(to, 50);
+                  return {
+                    data: [
+                      {
+                        id: 'qm-1',
+                        dun_type: 'yang',
+                        ju_number: 9,
+                        question: '事业如何',
+                        created_at: '2026-03-16T00:00:00.000Z',
+                      },
+                    ],
+                    error: null,
+                  };
+                },
+              }),
+            }),
+          }),
+        };
+      },
+    } as never,
+  } as unknown as RequireUserContextResult);
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { GET } = await import('../app/api/history-summaries/route');
+  const response = await GET(new NextRequest('http://localhost/api/history-summaries?type=qimen&limit=50'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.items[0].id, 'qm-1');
+  assert.equal(payload.items[0].title, '阳遁9局');
+  assert.equal(payload.pagination.hasMore, false);
+});
+
+test('history summaries route should return daliuren restore payloads through the shared history registry', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'daliuren_divinations');
+        return {
+          select(selectClause: string) {
+            assert.equal(selectClause, '*');
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({
+                        data: {
+                          id: 'lr-1',
+                          solar_date: '2026-03-16',
+                          question: '明天出行如何',
+                          conversation_id: 'conv-1',
+                          settings: {
+                            hour: 10,
+                            minute: 30,
+                            timezone: 'Asia/Shanghai',
+                          },
+                        },
+                        error: null,
+                      }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as never,
+  } as unknown as RequireUserContextResult);
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { GET } = await import('../app/api/history-summaries/route');
+  const response = await GET(new NextRequest(
+    'http://localhost/api/history-summaries?type=daliuren&id=lr-1&timezone=Asia%2FShanghai',
+  ));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.item.sessionKey, 'daliuren_params');
+  assert.equal(payload.item.sessionData.timezone, 'Asia/Shanghai');
+  assert.equal(payload.item.sessionData.conversationId, 'conv-1');
+});
+
+test('history summaries route should support offset pagination instead of clamping the list to the first 50 rows forever', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'tarot_readings');
+        return {
+          select(selectClause: string) {
+            assert.equal(
+              selectClause,
+              'id, spread_id, question, cards, conversation_id, created_at, conversation:conversations(source_data)',
+            );
+            return {
+              eq() {
+                return {
+                  order() {
+                    return {
+                      range: async (from: number, to: number) => {
+                        assert.equal(from, 100);
+                        assert.equal(to, 200);
+                        return {
+                          data: [
+                            {
+                              id: 'tarot-101',
+                              spread_id: 'single',
+                              question: '后续如何',
+                              cards: [],
+                              created_at: '2026-03-16T00:00:00.000Z',
+                            },
+                          ],
+                          error: null,
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as never,
+  } as unknown as RequireUserContextResult);
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { GET } = await import('../app/api/history-summaries/route');
+  const response = await GET(new NextRequest('http://localhost/api/history-summaries?type=tarot&limit=100&offset=100'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.items[0].id, 'tarot-101');
+  assert.equal(payload.pagination.hasMore, false);
+  assert.equal(payload.pagination.nextOffset, null);
+});

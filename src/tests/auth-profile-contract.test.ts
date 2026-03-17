@@ -21,7 +21,27 @@ test('profile helpers should parse raw /api/user/profile payload shape', async (
           ai_chat_count: 9,
           last_credit_restore_at: null,
         },
-        settings: null,
+        settings: {
+          expressionStyle: 'gentle',
+          customInstructions: 'keep calm',
+          userProfile: { identity: 'tester' },
+          promptKbIds: ['kb-1'],
+          sidebarConfig: {
+            hiddenNavItems: [],
+            hiddenToolItems: [],
+            navOrder: ['fortune-hub'],
+            toolOrder: ['chat'],
+            mobileMainItems: ['chat'],
+            mobileDrawerOrder: ['chat'],
+            hiddenMobileItems: [],
+          },
+          notificationsEnabled: true,
+          notifyEmail: true,
+          notifySite: true,
+          language: 'zh',
+          defaultBaziChartId: null,
+          defaultZiweiChartId: null,
+        },
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -40,7 +60,8 @@ test('profile helpers should parse raw /api/user/profile payload shape', async (
 
     const bundle = await authModule.getCurrentUserProfileBundle();
     assert.equal(bundle?.profile?.id, 'user-1');
-    assert.equal(bundle?.settings, null);
+    assert.equal(bundle?.settings?.expressionStyle, 'gentle');
+    assert.deepEqual(bundle?.settings?.promptKbIds, ['kb-1']);
 
     const profile = await authModule.getUserProfile('user-1');
     assert.equal(profile?.nickname, '命理爱好者');
@@ -72,7 +93,27 @@ test('profile helpers should update nickname through /api/user/profile', async (
           ai_chat_count: 3,
           last_credit_restore_at: null,
         },
-        settings: null,
+        settings: {
+          expressionStyle: 'direct',
+          customInstructions: '',
+          userProfile: {},
+          promptKbIds: [],
+          sidebarConfig: {
+            hiddenNavItems: [],
+            hiddenToolItems: [],
+            navOrder: [],
+            toolOrder: [],
+            mobileMainItems: [],
+            mobileDrawerOrder: [],
+            hiddenMobileItems: [],
+          },
+          notificationsEnabled: true,
+          notifyEmail: true,
+          notifySite: true,
+          language: 'zh',
+          defaultBaziChartId: null,
+          defaultZiweiChartId: null,
+        },
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -106,6 +147,42 @@ test('profile helpers should update nickname through /api/user/profile', async (
         nickname: '新昵称',
       },
     });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('ensureUserRecord should forward bearer token to profile ensure endpoint', async () => {
+  const originalFetch = global.fetch;
+  const requests: Array<{ url: string; headers: Headers }> = [];
+
+  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const headers = new Headers(init?.headers || {});
+
+    if (url.endsWith('/api/user/profile') && init?.method === 'POST') {
+      requests.push({ url, headers });
+      return new Response(JSON.stringify({
+        data: { success: true },
+        error: null,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as FetchLike;
+
+  try {
+    const authPath = require.resolve('../lib/auth');
+    delete require.cache[authPath];
+    const authModule = require('../lib/auth') as typeof import('../lib/auth');
+
+    await authModule.ensureUserRecord({ id: 'user-1' } as never, 'token-123');
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.headers.get('authorization'), 'Bearer token-123');
   } finally {
     global.fetch = originalFetch;
   }

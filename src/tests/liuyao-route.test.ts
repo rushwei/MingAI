@@ -58,6 +58,7 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
                 insert: async () => ({ error: null }),
             };
         },
+        rpc: async () => ({ error: null }),
     });
     global.fetch = async () => ({
         ok: true,
@@ -196,6 +197,15 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
             return {
                 insert: async () => ({ error: null }),
             };
+        },
+        rpc: async (fn: string) => {
+            if (fn === 'replace_conversation_messages') {
+                return { data: null, error: null };
+            }
+            if (fn === 'increment_ai_chat_count') {
+                return { data: 6, error: null };
+            }
+            return { data: 5, error: null };
         },
     });
 

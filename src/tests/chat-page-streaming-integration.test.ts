@@ -32,7 +32,7 @@ test('chat page normalizes insufficient credits handling across send/edit/regene
 
     assert.equal(content.includes('markCreditsExhausted'), true);
     assert.equal(content.includes('INSUFFICIENT_CREDITS'), true);
-    assert.equal(content.includes('setCredits(0)'), true);
+    assert.equal(content.includes('markBootstrapCreditsExhausted'), true);
 });
 
 test('chat page scopes streaming state and local stream updates to active conversation', () => {
