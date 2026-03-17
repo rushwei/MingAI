@@ -7,6 +7,7 @@
  */
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ShieldOff } from 'lucide-react';
@@ -19,8 +20,13 @@ interface FeatureGateProps {
 
 export function FeatureGate({ featureId, children }: FeatureGateProps) {
     const { isFeatureEnabled, isLoading } = useFeatureToggles();
+    const hydrated = useSyncExternalStore(
+        () => () => {},
+        () => true,
+        () => false
+    );
 
-    if (isLoading) {
+    if (!hydrated || isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <SoundWaveLoader variant="block" />

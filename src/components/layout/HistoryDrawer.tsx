@@ -7,17 +7,19 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
 import { writeSessionJSON } from '@/lib/cache';
-import { getModelName } from '@/lib/ai/ai-config';
-
-// 支持的历史类型
-type HistoryType = 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'palm' | 'face';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { loadHistoryRestore, loadHistorySummariesPage } from '@/lib/history/client';
+import {
+    HISTORY_CONFIG,
+    type HistorySummaryItem,
+    type HistoryType,
+} from '@/lib/history/registry';
 
 // 格式化日期（提取到组件外部，避免每次渲染重新创建）
 function formatDate(dateStr: string): string {
@@ -25,186 +27,35 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-interface HistoryItem {
-    id: string;
-    title: string;
-    changedTitle?: string; // 变卦名称（六爻专用）
-    question?: string;
-    createdAt: string;
-    subType?: string;
-    modelName?: string;
-}
-
 interface HistoryDrawerProps {
     type: HistoryType;
     className?: string;
 }
 
-const TYPE_CONFIG: Record<HistoryType, {
-    label: string;
-    tableName: string;
-    historyPath: string;
-    detailPath: string;
-    sessionKey: string;
-    useTimestamp?: boolean;
-}> = {
-    tarot: { label: '塔罗历史', tableName: 'tarot_readings', historyPath: '/tarot/history', detailPath: '/tarot/result', sessionKey: 'tarot_result', useTimestamp: true },
-    liuyao: { label: '六爻历史', tableName: 'liuyao_divinations', historyPath: '/liuyao/history', detailPath: '/liuyao/result', sessionKey: 'liuyao_result' },
-    mbti: { label: 'MBTI历史', tableName: 'mbti_readings', historyPath: '/mbti/history', detailPath: '/mbti/result', sessionKey: 'mbti_result' },
-    hepan: { label: '合盘历史', tableName: 'hepan_charts', historyPath: '/hepan/history', detailPath: '/hepan/result', sessionKey: 'hepan_result' },
-    palm: { label: '手相历史', tableName: 'palm_readings', historyPath: '/palm/history', detailPath: '/palm/result', sessionKey: 'palm_result' },
-    face: { label: '面相历史', tableName: 'face_readings', historyPath: '/face/history', detailPath: '/face/result', sessionKey: 'face_result' },
-};
-
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
     const router = useRouter();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [navigating, setNavigating] = useState<string | null>(null); // item id being navigated to
-    const [items, setItems] = useState<HistoryItem[]>([]);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [navigating, setNavigating] = useState<string | null>(null);
+    const [items, setItems] = useState<HistorySummaryItem[]>([]);
+    const defaultTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
-    const config = TYPE_CONFIG[type];
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUserId(session?.user?.id || null);
-        });
-    }, []);
+    const config = HISTORY_CONFIG[type];
 
     const loadHistory = useCallback(async () => {
-        if (!userId) return;
+        if (!user?.id) return;
         setLoading(true);
-
-        const query = supabase
-            .from(config.tableName)
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(10); // 增加每页显示数量
-
-        const { data, error } = await query;
-
-        if (!error && data) {
-            // 使用 Promise.all 处理异步映射（liuyao 需要动态导入）
-            const items = await Promise.all(data.map(async (item: Record<string, unknown>) => {
-                let title = '';
-                const subType = '';
-                let modelName: string | undefined;
-
-                const sourceData = (item.conversation as { source_data?: Record<string, unknown> } | null)?.source_data;
-                const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                if (modelId) {
-                    modelName = getModelName(modelId);
-                }
-
-                if (type === 'hepan') {
-                    // 合盘：类型作为主标题，名字放下方
-                    const hepanType = item.type as string;
-                    if (hepanType === 'love') title = '情侣合盘';
-                    else if (hepanType === 'business') title = '商业合盘';
-                    else if (hepanType === 'family') title = '亲子合盘';
-                    else title = '合盘分析';
-
-                    const names = `${item.person1_name || ''} & ${item.person2_name || ''}`;
-                    return {
-                        id: item.id as string,
-                        title,
-                        question: names, // 名字显示在下方
-                        createdAt: item.created_at as string,
-                        modelName,
-                    };
-                } else if (type === 'mbti') {
-                    title = `${item.mbti_type} 人格`;
-                } else if (type === 'tarot') {
-                    // 映射牌阵 ID 到中文名称
-                    const spreadNames: Record<string, string> = {
-                        'single': '单牌',
-                        'three-card': '三牌阵',
-                        'love': '爱情牌阵',
-                        'celtic-cross': '凯尔特十字',
-                    };
-                    const spreadId = item.spread_id as string;
-                    const spreadName = spreadNames[spreadId] || spreadId || '塔罗占卜';
-                    const question = (item.question as string)?.trim();
-                    // 标题只显示牌阵名称，问题单独存储
-                    title = spreadName;
-                    return {
-                        id: item.id as string,
-                        title,
-                        question: question || undefined,
-                        createdAt: item.created_at as string,
-                        subType,
-                        modelName,
-                    };
-                } else if (type === 'liuyao') {
-                    // 使用卦名显示，支持变卦（动态导入避免首屏加载大型库）
-                    const hexagramCode = item.hexagram_code as string;
-                    const changedHexagramCode = item.changed_hexagram_code as string | null;
-
-                    const { findHexagram } = await import('@/lib/divination/liuyao');
-                    const hexagram = findHexagram(hexagramCode);
-                    const hexagramName = hexagram?.name || '未知卦';
-
-                    let changedName: string | undefined;
-                    if (changedHexagramCode) {
-                        const changedHexagram = findHexagram(changedHexagramCode);
-                        changedName = changedHexagram?.name || '未知卦';
-                    }
-
-                    const question = (item.question as string)?.trim();
-                    return {
-                        id: item.id as string,
-                        title: hexagramName,
-                        changedTitle: changedName,
-                        question: question || undefined,
-                        createdAt: item.created_at as string,
-                        subType,
-                        modelName,
-                    };
-                } else if (type === 'palm') {
-                    // 手相分析标题
-                    const analysisType = item.analysis_type as string;
-                    const handType = item.hand_type as string;
-                    const analysisNames: Record<string, string> = {
-                        'full': '综合分析',
-                        'lifeline': '生命线',
-                        'headline': '智慧线',
-                        'heartline': '感情线',
-                        'fateline': '事业线',
-                        'marriage': '婚姻线',
-                    };
-                    const handNames: Record<string, string> = { 'left': '左手', 'right': '右手' };
-                    const analysisName = analysisNames[analysisType] || '手相分析';
-                    const handName = handNames[handType] || '';
-                    title = handName ? `${handName}${analysisName}` : analysisName;
-                } else if (type === 'face') {
-                    // 面相分析标题
-                    const analysisType = item.analysis_type as string;
-                    const analysisNames: Record<string, string> = {
-                        'full': '综合分析',
-                        'forehead': '天庭分析',
-                        'eyes': '眼相分析',
-                        'nose': '鼻相分析',
-                        'mouth': '口相分析',
-                        'career': '事业运势',
-                        'love': '感情运势',
-                        'wealth': '财运分析',
-                    };
-                    title = analysisNames[analysisType] || '面相分析';
-                }
-                return {
-                    id: item.id as string,
-                    title: title.length > 18 ? title.slice(0, 18) + '...' : title,
-                    createdAt: item.created_at as string,
-                    subType,
-                    modelName,
-                };
-            }));
-            setItems(items);
+        try {
+            const result = await loadHistorySummariesPage(type, { limit: 10, offset: 0 });
+            setItems(result.items);
+        } catch (error) {
+            console.error('[history-drawer] failed to load history:', error);
+            setItems([]);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [userId, config.tableName, type]);
+    }, [type, user?.id]);
 
     const handleToggle = useCallback(() => {
         if (!isOpen) {
@@ -218,168 +69,28 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         setNavigating(itemId);
 
         try {
-            // 获取完整记录
-            const { data, error } = await supabase
-                .from(config.tableName)
-                .select('*')
-                .eq('id', itemId)
-                .single();
-
-            if (error || !data) {
-                console.error('Failed to fetch record:', error);
+            const payload = await loadHistoryRestore(type, itemId, defaultTimeZone);
+            if (!payload) {
+                console.error('[history-drawer] failed to restore record:', itemId);
                 setNavigating(null);
                 return;
             }
 
-            // 根据类型转换数据并存储
-            if (type === 'liuyao') {
-                // 重建六爻结果
-                const { findHexagram } = await import('@/lib/divination/liuyao');
+            writeSessionJSON(payload.sessionKey, payload.sessionData);
 
-                // 从 hexagram_code 重建 yaos
-                const hexagramCode = data.hexagram_code as string;
-                const changedLines = (data.changed_lines as number[]) || [];
-
-                // 重建 yaos 数据
-                const yaos = hexagramCode.split('').map((char, idx) => ({
-                    type: parseInt(char) as 0 | 1,
-                    change: changedLines.includes(idx + 1) ? 'changing' : 'stable' as const,
-                    position: idx + 1,
-                }));
-
-                const hexagram = findHexagram(hexagramCode);
-                const changedHexagram = data.changed_hexagram_code
-                    ? findHexagram(data.changed_hexagram_code as string)
-                    : undefined;
-
-                const sessionData = {
-                    question: data.question,
-                    yaos,
-                    hexagram,
-                    changedHexagram,
-                    changedLines,
-                    yongShenTargets: Array.isArray(data.yongshen_targets)
-                        ? (data.yongshen_targets as string[]).filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
-                            ['父母', '兄弟', '子孙', '妻财', '官鬼'].includes(item)
-                        )
-                        : [],
-                    divinationId: data.id, // 包含记录 ID
-                    createdAt: data.created_at,
-                    conversationId: data.conversation_id || null,
-                };
-
-                writeSessionJSON(config.sessionKey, sessionData);
-            } else if (type === 'mbti') {
-                // 重建 MBTI 结果 - 直接使用数据库中保存的 scores 和 percentages
-                const mbtiType = data.mbti_type as string;
-                const scores = data.scores || { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
-                const percentages = data.percentages || {
-                    EI: { E: 50, I: 50 },
-                    SN: { S: 50, N: 50 },
-                    TF: { T: 50, F: 50 },
-                    JP: { J: 50, P: 50 },
-                };
-
-                const sessionData = {
-                    type: mbtiType,
-                    scores,
-                    percentages,
-                    readingId: data.id, // 包含记录 ID
-                    conversationId: data.conversation_id || null,
-                };
-
-                writeSessionJSON(config.sessionKey, sessionData);
-            } else if (type === 'tarot') {
-                // 重建塔罗结果
-                const { TAROT_SPREADS } = await import('@/lib/divination/tarot');
-
-                const spreadId = data.spread_id as string;
-                const spread = TAROT_SPREADS.find(s => s.id === spreadId);
-                const cards = data.cards as unknown[];
-
-                const sessionData = {
-                    spread,
-                    spreadId,
-                    cards,
-                    question: data.question || '',
-                    readingId: data.id, // 包含记录 ID
-                    createdAt: data.created_at,
-                    conversationId: data.conversation_id || null,
-                };
-
-                writeSessionJSON(config.sessionKey, sessionData);
-            } else if (type === 'hepan') {
-                // 优先使用保存的完整结果，避免重新计算（有随机性）
-                if (data.result_data) {
-                    // 包含 chartId 以便后续 AI 分析能更新正确的记录
-                    const resultWithId = {
-                        ...(data.result_data as object),
-                        chartId: data.id,
-                        conversationId: data.conversation_id || null,
-                    };
-                    writeSessionJSON(config.sessionKey, resultWithId);
-                } else {
-                    // 兼容旧数据：没有 result_data 时重新计算
-                    const { analyzeCompatibility } = await import('@/lib/divination/hepan');
-
-                    const birth1 = data.person1_birth as { year: number; month: number; day: number; hour: number };
-                    const birth2 = data.person2_birth as { year: number; month: number; day: number; hour: number };
-
-                    const person1 = {
-                        name: data.person1_name as string,
-                        ...birth1,
-                    };
-                    const person2 = {
-                        name: data.person2_name as string,
-                        ...birth2,
-                    };
-                    const hepanType = data.type as 'love' | 'business' | 'family';
-
-                    const result = analyzeCompatibility(person1, person2, hepanType);
-                    // 包含 chartId
-                    const resultWithId = {
-                        ...result,
-                        chartId: data.id,
-                        conversationId: data.conversation_id || null,
-                    };
-                    writeSessionJSON(config.sessionKey, resultWithId);
-                }
-            } else if (type === 'palm') {
-                // 手相分析结果
-                const sessionData = {
-                    readingId: data.id,
-                    analysisType: data.analysis_type,
-                    handType: data.hand_type,
-                    createdAt: data.created_at,
-                    conversationId: data.conversation_id || null,
-                };
-                writeSessionJSON(config.sessionKey, sessionData);
-            } else if (type === 'face') {
-                // 面相分析结果
-                const sessionData = {
-                    readingId: data.id,
-                    analysisType: data.analysis_type,
-                    createdAt: data.created_at,
-                    conversationId: data.conversation_id || null,
-                };
-                writeSessionJSON(config.sessionKey, sessionData);
-            }
-
-            // 关闭抽屉并导航
             setIsOpen(false);
-            setNavigating(null); // 清除导航状态，避免组件不卸载时锁定列表
-            // 对于塔罗，添加时间戳参数确保 URL 变化触发重新加载
-            const targetPath = config.useTimestamp
-                ? `${config.detailPath}?from=history&t=${Date.now()}`
-                : config.detailPath;
+            setNavigating(null);
+            const targetPath = payload.useTimestamp
+                ? `${payload.detailPath}?from=history&t=${Date.now()}`
+                : payload.detailPath;
             router.push(targetPath);
         } catch (err) {
-            console.error('Navigation error:', err);
+            console.error('[history-drawer] navigation error:', err);
             setNavigating(null);
         }
-    }, [config.tableName, config.sessionKey, config.useTimestamp, config.detailPath, type, router]);
+    }, [defaultTimeZone, router, type]);
 
-    if (!userId) return null;
+    if (sessionLoading || !user?.id) return null;
 
     // 面板宽度
     const PANEL_WIDTH = 320; // 20rem

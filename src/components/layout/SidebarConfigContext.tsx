@@ -7,41 +7,17 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/auth';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import {
+    DEFAULT_SIDEBAR_CONFIG,
+    loadCurrentUserSettings,
+    normalizeSidebarConfig,
+    updateCurrentUserSettings,
+    type SidebarConfig,
+} from '@/lib/user/settings';
 
-export interface SidebarConfig {
-    // 桌面端配置
-    hiddenNavItems: string[];
-    hiddenToolItems: string[];
-    navOrder: string[];
-    toolOrder: string[];
-
-    // 移动端配置
-    mobileMainItems: string[];      // 底部导航栏显示的项目 ID（0-4 个）
-    mobileDrawerOrder: string[];    // 抽屉中项目的排序
-    hiddenMobileItems: string[];    // 隐藏的移动端项目
-}
-
-// 移动端所有可配置项目的默认顺序
-const DEFAULT_MOBILE_DRAWER_ORDER = [
-    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
-    'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-    'user/upgrade', 'user/notifications', 'user/orders',
-    'user/settings/ai', 'user/knowledge-base', 'user/help'
-];
-
-const DEFAULT_CONFIG: SidebarConfig = {
-    hiddenNavItems: [],
-    hiddenToolItems: [],
-    navOrder: ['fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'face', 'palm', 'mbti'],
-    toolOrder: ['checkin', 'chat', 'daily', 'monthly', 'records', 'community'],
-    // 移动端默认配置
-    mobileMainItems: ['fortune-hub', 'liuyao', 'chat', 'daily'],
-    mobileDrawerOrder: DEFAULT_MOBILE_DRAWER_ORDER,
-    hiddenMobileItems: [],
-};
+export type { SidebarConfig } from '@/lib/user/settings';
 
 const getSidebarCacheKey = (userId: string) => `mingai.sidebar_config.${userId}`;
 const SIDEBAR_CACHE_TTL = 10 * 60 * 1000;
@@ -52,14 +28,16 @@ interface SidebarConfigContextType {
     updateConfig: (updates: Partial<SidebarConfig>) => void;
     saveConfig: (config: SidebarConfig) => Promise<void>;
     loading: boolean;
+    refreshing: boolean;
     userId: string | null;
 }
 
 const SidebarConfigContext = createContext<SidebarConfigContextType | undefined>(undefined);
 
 export function SidebarConfigProvider({ children }: { children: ReactNode }) {
-    const [config, setConfigState] = useState<SidebarConfig>(DEFAULT_CONFIG);
+    const [config, setConfigState] = useState<SidebarConfig>(DEFAULT_SIDEBAR_CONFIG);
     const [configLoading, setConfigLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const { user, loading: sessionLoading } = useSessionSafe();
 
@@ -67,54 +45,47 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let isActive = true;
 
-        const syncConfig = async (nextUser: typeof user) => {
+        const syncConfig = async (nextUser: typeof user, options?: { showRefreshing?: boolean }) => {
+            const showRefreshing = options?.showRefreshing ?? false;
             if (!nextUser) {
                 setUserId(null);
-                setConfigState(DEFAULT_CONFIG);
+                setConfigState(DEFAULT_SIDEBAR_CONFIG);
                 setConfigLoading(false);
+                setRefreshing(false);
                 return;
             }
 
             setUserId(nextUser.id);
+            if (showRefreshing) {
+                setRefreshing(true);
+            }
             const cached = readLocalCache<SidebarConfig>(getSidebarCacheKey(nextUser.id), SIDEBAR_CACHE_TTL);
             if (cached) {
-                setConfigState({
-                    hiddenNavItems: cached.hiddenNavItems || [],
-                    hiddenToolItems: cached.hiddenToolItems || [],
-                    navOrder: cached.navOrder || DEFAULT_CONFIG.navOrder,
-                    toolOrder: cached.toolOrder || DEFAULT_CONFIG.toolOrder,
-                    mobileMainItems: cached.mobileMainItems || DEFAULT_CONFIG.mobileMainItems,
-                    mobileDrawerOrder: cached.mobileDrawerOrder || DEFAULT_CONFIG.mobileDrawerOrder,
-                    hiddenMobileItems: cached.hiddenMobileItems || [],
-                });
+                const normalizedCached = normalizeSidebarConfig(cached);
+                setConfigState(normalizedCached);
+                writeLocalCache(getSidebarCacheKey(nextUser.id), normalizedCached);
                 setConfigLoading(false);
             } else {
                 setConfigLoading(true);
             }
-            const { data } = await supabase
-                .from('user_settings')
-                .select('sidebar_config')
-                .eq('user_id', nextUser.id)
-                .maybeSingle();
+            const { settings, error } = await loadCurrentUserSettings();
 
             if (!isActive) return;
 
-            if (data?.sidebar_config) {
-                const nextConfig = {
-                    hiddenNavItems: data.sidebar_config.hiddenNavItems || [],
-                    hiddenToolItems: data.sidebar_config.hiddenToolItems || [],
-                    navOrder: data.sidebar_config.navOrder || DEFAULT_CONFIG.navOrder,
-                    toolOrder: data.sidebar_config.toolOrder || DEFAULT_CONFIG.toolOrder,
-                    mobileMainItems: data.sidebar_config.mobileMainItems || DEFAULT_CONFIG.mobileMainItems,
-                    mobileDrawerOrder: data.sidebar_config.mobileDrawerOrder || DEFAULT_CONFIG.mobileDrawerOrder,
-                    hiddenMobileItems: data.sidebar_config.hiddenMobileItems || [],
-                };
+            if (error) {
+                console.error('[sidebar-config] failed to load user settings:', error.message);
+                setConfigLoading(false);
+                setRefreshing(false);
+                return;
+            }
+
+            if (settings?.sidebarConfig) {
+                const nextConfig = settings.sidebarConfig;
                 setConfigState(nextConfig);
                 writeLocalCache(getSidebarCacheKey(nextUser.id), nextConfig);
-            } else {
-                setConfigState(DEFAULT_CONFIG);
             }
             setConfigLoading(false);
+            setRefreshing(false);
         };
 
         if (!sessionLoading) {
@@ -123,7 +94,7 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
 
         const handleUserDataInvalidate = () => {
             if (!sessionLoading) {
-                void syncConfig(user ?? null);
+                void syncConfig(user ?? null, { showRefreshing: true });
             }
         };
         window.addEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
@@ -144,12 +115,10 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
 
     const saveConfig = useCallback(async (newConfig: SidebarConfig) => {
         if (!userId) return;
-        await supabase
-            .from('user_settings')
-            .upsert({
-                user_id: userId,
-                sidebar_config: newConfig,
-            }, { onConflict: 'user_id' });
+        const saved = await updateCurrentUserSettings({ sidebarConfig: newConfig });
+        if (saved?.sidebarConfig) {
+            writeLocalCache(getSidebarCacheKey(userId), saved.sidebarConfig);
+        }
     }, [userId]);
 
     return (
@@ -159,6 +128,7 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
             updateConfig,
             saveConfig,
             loading: sessionLoading || configLoading,
+            refreshing: refreshing,
             userId,
         }}>
             {children}
@@ -177,11 +147,12 @@ export function useSidebarConfig() {
 export function useSidebarConfigSafe() {
     const context = useContext(SidebarConfigContext);
     return context ?? {
-        config: DEFAULT_CONFIG,
+        config: DEFAULT_SIDEBAR_CONFIG,
         setConfig: () => { },
         updateConfig: () => { },
         saveConfig: async () => { },
         loading: false,
+        refreshing: false,
         userId: null,
     };
 }
