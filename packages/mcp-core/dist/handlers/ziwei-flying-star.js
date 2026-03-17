@@ -2,7 +2,6 @@
  * 紫微斗数飞星分析处理器
  */
 import { createAstrolabe, MUTAGEN_NAMES } from './ziwei-shared.js';
-const MUTAGEN_ORDER = MUTAGEN_NAMES;
 function processQuery(astrolabe, query, idx) {
     switch (query.type) {
         case 'fliesTo': {
@@ -17,7 +16,7 @@ function processQuery(astrolabe, query, idx) {
             const palace = astrolabe.palace(query.palace);
             if (!palace)
                 throw new Error(`宫位 "${query.palace}" 不存在`);
-            const mutagens = (query.mutagens || MUTAGEN_ORDER);
+            const mutagens = (query.mutagens || MUTAGEN_NAMES);
             const result = palace.selfMutaged(mutagens);
             return { queryIndex: idx, type: 'selfMutaged', result };
         }
@@ -26,7 +25,7 @@ function processQuery(astrolabe, query, idx) {
             if (!palace)
                 throw new Error(`宫位 "${query.palace}" 不存在`);
             const places = palace.mutagedPlaces();
-            const result = MUTAGEN_ORDER.map((m, i) => ({
+            const result = MUTAGEN_NAMES.map((m, i) => ({
                 mutagen: m,
                 targetPalace: places[i]?.name ?? null,
             }));

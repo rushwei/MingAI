@@ -1,18 +1,25 @@
 /**
  * 紫微斗数共享工具函数
  */
-import { type Astrolabe, type Star } from 'iztro';
-import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo } from '../types.js';
+import { astro } from 'iztro';
+import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo, DiZhi } from '../types.js';
 export declare const MUTAGEN_NAMES: readonly ["禄", "权", "科", "忌"];
 export type MutagenName = typeof MUTAGEN_NAMES[number];
+type Astrolabe = ReturnType<typeof astro.bySolar>;
+type IztroStar = {
+    name: string;
+    type?: string;
+    brightness?: string;
+    mutagen?: string;
+};
 /** 天干四化表: stem → [禄星, 权星, 科星, 忌星] */
 export declare const STEM_MUTAGEN_TABLE: Record<string, [string, string, string, string]>;
-declare const DI_ZHI: string[];
+import { DI_ZHI } from '../constants/ganzhi.js';
 export { DI_ZHI };
 /** 禄存所在地支：按年干查表 */
 export declare const LUCUN_TABLE: Record<string, string>;
 /** 计算流年虚岁列表 */
-export declare function computeLiuNianAges(palaceBranch: string, birthYearBranch: string, max?: number): number[];
+export declare function computeLiuNianAges(palaceBranch: DiZhi, birthYearBranch: DiZhi, max?: number): number[];
 /**
  * 计算子年斗君地支
  *
@@ -27,7 +34,7 @@ export declare function computeLiuNianAges(palaceBranch: string, birthYearBranch
  */
 export declare function computeDouJun(lunarMonth: number, timeIndex: number): string;
 /** 将 iztro Star 映射为 StarInfo */
-export declare function mapStar(star: Star): StarInfo;
+export declare function mapStar(star: IztroStar): StarInfo;
 /** 将小时转换为时辰索引（早子时=0, 丑时=1, ..., 晚子时=12） */
 export declare function hourToTimeIndex(hour: number): number;
 type SolarDateTimeParts = {

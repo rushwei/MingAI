@@ -60,7 +60,7 @@ function computeSmallLimit(yearBranch, gender, palaces) {
     return result;
 }
 /** 计算博士十二星 */
-function computeScholarStars(yearStem, yearBranch, gender, palaces) {
+function computeScholarStars(yearStem, gender, palaces) {
     const lucunBranch = LUCUN_TABLE[yearStem];
     if (!lucunBranch)
         return [];
@@ -183,7 +183,6 @@ export async function handleZiweiCalculate(input) {
         palace.sanFangSiZheng = computeSanFangSiZheng(idx, palaces);
     }
     // 命主星 & 身主星
-    const hourPillar = pillars[3] || '';
     const yearStem = yearPillar.length >= 2 ? yearPillar[0] : '';
     const soulBranch = astrolabe.earthlyBranchOfSoulPalace || '';
     const lifeMasterStar = soulBranch ? getLifeMasterStar(soulBranch) : undefined;
@@ -194,7 +193,7 @@ export async function handleZiweiCalculate(input) {
         : undefined;
     // 博士十二星
     const scholarStars = (yearStem && birthYearBranch)
-        ? computeScholarStars(yearStem, birthYearBranch, input.gender, palaces)
+        ? computeScholarStars(yearStem, input.gender, palaces)
         : undefined;
     // 提取大限数据
     const decadalList = astrolabe.palaces.map((rawPalace, index) => {

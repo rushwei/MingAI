@@ -3,15 +3,35 @@
  * 核心算法使用 liuren-ts-lib，补充课体细分、十二长生、五行旺衰等
  */
 import { getLiuRenByDate } from 'liuren-ts-lib';
+import { getTimeZoneOffsetMinutes, zonedTimeToUtc } from '../timezone-utils.js';
 import { DI_ZHI, ZHI_WUXING, YUE_JIANG_NAMES, TIAN_JIANG_SHORT, getChangSheng, getWangShuai, getTaoHua, classifyKeTi, generateKeName, calcBenMingXingNian, } from './supplements.js';
 /**
  * 大六壬排盘主函数
  */
 export function handleDaliurenCalculate(input) {
-    const { date, hour, minute = 0, question, birthYear, gender } = input;
+    const { date, hour, minute = 0, question, birthYear, gender, timezone } = input;
     // 1. 构造 Date 对象
     const [y, m, d] = date.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d, hour, minute, 0);
+    let dateObj;
+    if (timezone) {
+        try {
+            const utcDate = zonedTimeToUtc({ year: y, month: m, day: d, hour, minute }, timezone);
+            const targetOffset = getTimeZoneOffsetMinutes(timezone, utcDate);
+            const serverOffset = -utcDate.getTimezoneOffset();
+            dateObj = new Date(utcDate.getTime() + (targetOffset - serverOffset) * 60000);
+        }
+        catch (error) {
+            if (error instanceof Error && error.message.includes('timezone')) {
+                dateObj = new Date(y, m - 1, d, hour, minute, 0);
+            }
+            else {
+                throw error;
+            }
+        }
+    }
+    else {
+        dateObj = new Date(y, m - 1, d, hour, minute, 0);
+    }
     // 2. 调用 liuren-ts-lib 核心排盘
     const raw = getLiuRenByDate(dateObj);
     // 3. 解析基础信息
@@ -71,7 +91,7 @@ export function handleDaliurenCalculate(input) {
     const ganYing = extractShangShen(siKe.erKe);
     const zhiYang = extractShangShen(siKe.sanKe);
     const zhiYing = extractShangShen(siKe.siKe);
-    const keTi = classifyKeTi(sanChuan.method, { ganYang, ganYing, zhiYang, zhiYing, gan: riGan, zhi: riZhi }, { chu: sanChuan.chu[0] || '', zhong: sanChuan.zhong[0] || '', mo: sanChuan.mo[0] || '' }, tianDiPan.tianPan, dateInfo.kongWang);
+    const keTi = classifyKeTi(sanChuan.method, { ganYang, ganYing, zhiYang, zhiYing, gan: riGan, zhi: riZhi }, { chu: sanChuan.chu[0] || '', zhong: sanChuan.zhong[0] || '', mo: sanChuan.mo[0] || '' });
     // 9. 课名
     const keName = generateKeName(riGanZhi, ganYang);
     // 10. 神煞（库提供 + 补充桃花和游都）

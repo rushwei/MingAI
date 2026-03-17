@@ -2,9 +2,7 @@
  * 大六壬补充计算 — 库未覆盖的部分
  * 包括：课体细分、课名、十二长生、五行旺衰、桃花、游都
  */
-// ===== 常量 =====
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+import { TIAN_GAN, DI_ZHI, GAN_WUXING, ZHI_WUXING } from '../constants/ganzhi.js';
 /** 地支序号 */
 function zhiIndex(zhi) {
     const i = DI_ZHI.indexOf(zhi);
@@ -15,28 +13,9 @@ function ganIndex(gan) {
     const i = TIAN_GAN.indexOf(gan);
     return i === -1 ? 0 : i;
 }
-/** 地支五行 */
-const ZHI_WUXING = {
-    子: '水', 丑: '土', 寅: '木', 卯: '木', 辰: '土', 巳: '火',
-    午: '火', 未: '土', 申: '金', 酉: '金', 戌: '土', 亥: '水',
-};
-/** 天干五行 */
-const GAN_WUXING = {
-    甲: '木', 乙: '木', 丙: '火', 丁: '火', 戊: '土',
-    己: '土', 庚: '金', 辛: '金', 壬: '水', 癸: '水',
-};
 /** 天干阴阳 */
 function ganYinYang(gan) {
     return ganIndex(gan) % 2 === 0 ? '阳' : '阴';
-}
-/** 日干寄宫 */
-const JI_GONG = {
-    甲: '寅', 乙: '辰', 丙: '巳', 丁: '未', 戊: '巳',
-    己: '未', 庚: '申', 辛: '戌', 壬: '亥', 癸: '丑',
-};
-/** 六冲表 */
-function liuChong(zhi) {
-    return DI_ZHI[(zhiIndex(zhi) + 6) % 12];
 }
 /** 月将名称 */
 const YUE_JIANG_NAMES = {
@@ -138,7 +117,7 @@ export function getTaoHua(riZhi) {
  * sanChuan: 三传数据
  * tianPan: 天盘
  */
-export function classifyKeTi(method, siKe, sanChuan, _tianPan, kongWang) {
+export function classifyKeTi(method, siKe, sanChuan) {
     const subTypes = [];
     const extraTypes = [];
     // --- 取传课体子类型 ---

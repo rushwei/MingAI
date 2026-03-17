@@ -2,16 +2,11 @@
  * 大六壬补充计算 — 库未覆盖的部分
  * 包括：课体细分、课名、十二长生、五行旺衰、桃花、游都
  */
-declare const DI_ZHI: readonly ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
-declare const TIAN_GAN: readonly ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+import { TIAN_GAN, DI_ZHI, GAN_WUXING, ZHI_WUXING } from '../constants/ganzhi.js';
 /** 地支序号 */
 declare function zhiIndex(zhi: string): number;
 /** 天干序号 */
 declare function ganIndex(gan: string): number;
-/** 地支五行 */
-declare const ZHI_WUXING: Record<string, string>;
-/** 天干五行 */
-declare const GAN_WUXING: Record<string, string>;
 /** 天干阴阳 */
 declare function ganYinYang(gan: string): '阳' | '阴';
 /** 月将名称 */
@@ -44,7 +39,7 @@ export declare function classifyKeTi(method: string, siKe: SiKeData, sanChuan: {
     chu: string;
     zhong: string;
     mo: string;
-}, _tianPan: Record<string, string>, kongWang: [string, string]): {
+}): {
     method: string;
     subTypes: string[];
     extraTypes: string[];

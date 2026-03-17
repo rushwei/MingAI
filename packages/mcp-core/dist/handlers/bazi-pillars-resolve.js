@@ -2,8 +2,7 @@
  * 四柱反推候选出生时间
  */
 import { Solar } from 'lunar-javascript';
-const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+import { TIAN_GAN, DI_ZHI } from '../constants/ganzhi.js';
 const HOUR_BRANCH_MAP = {
     '子': [23, 0],
     '丑': [1, 2],
@@ -19,8 +18,8 @@ const HOUR_BRANCH_MAP = {
     '亥': [21, 22],
 };
 function isValidPillar(stem, branch) {
-    const stemIndex = STEMS.indexOf(stem);
-    const branchIndex = BRANCHES.indexOf(branch);
+    const stemIndex = TIAN_GAN.indexOf(stem);
+    const branchIndex = DI_ZHI.indexOf(branch);
     return stemIndex % 2 === branchIndex % 2;
 }
 function parsePillar(raw, field) {
@@ -29,10 +28,10 @@ function parsePillar(raw, field) {
     }
     const stem = raw[0];
     const branch = raw[1];
-    if (!STEMS.includes(stem)) {
+    if (!TIAN_GAN.includes(stem)) {
         throw new Error(`${field} 天干无效：${raw[0]}`);
     }
-    if (!BRANCHES.includes(branch)) {
+    if (!DI_ZHI.includes(branch)) {
         throw new Error(`${field} 地支无效：${raw[1]}`);
     }
     if (!isValidPillar(stem, branch)) {

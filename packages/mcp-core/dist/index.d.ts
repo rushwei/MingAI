@@ -3,7 +3,7 @@
  */
 import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate } from './handlers/index.js';
 export { tools } from './tools.js';
-export { formatAsMarkdown } from './formatters.js';
+export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
 export type { ToolDefinition, ToolInput, ToolAnnotation } from './tools.js';
 export * from './types.js';
 export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, };

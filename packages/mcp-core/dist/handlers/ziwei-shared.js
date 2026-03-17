@@ -16,7 +16,7 @@ export const STEM_MUTAGEN_TABLE = {
     '壬': ['天梁', '紫微', '左辅', '武曲'],
     '癸': ['破军', '巨门', '太阴', '贪狼'],
 };
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+import { DI_ZHI } from '../constants/ganzhi.js';
 export { DI_ZHI };
 /** 禄存所在地支：按年干查表 */
 export const LUCUN_TABLE = {
