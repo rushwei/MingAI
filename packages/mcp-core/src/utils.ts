@@ -1,34 +1,29 @@
 /**
  * 共享工具函数和常量
+ *
+ * 基础干支常量已迁移至 ./constants/ganzhi.ts，此处 re-export 保持向后兼容。
  */
 
-import type { TianGan as TianGanType, DiZhi as DiZhiType } from './types.js';
+import {
+  TIAN_GAN as _TIAN_GAN,
+  DI_ZHI as _DI_ZHI,
+  STEM_ELEMENTS as _STEM_ELEMENTS,
+  getStemYinYang as _getStemYinYang,
+} from './constants/ganzhi.js';
 
-// 天干五行对应表
-export const STEM_ELEMENTS: Record<string, string> = {
-  '甲': '木', '乙': '木',
-  '丙': '火', '丁': '火',
-  '戊': '土', '己': '土',
-  '庚': '金', '辛': '金',
-  '壬': '水', '癸': '水',
-};
+export {
+  TIAN_GAN,
+  DI_ZHI,
+  GAN_WUXING,
+  STEM_ELEMENTS,
+  ZHI_WUXING,
+  YI_MA_MAP,
+  getStemYinYang,
+} from './constants/ganzhi.js';
+export type { TianGan, DiZhi } from './constants/ganzhi.js';
 
 // 五行顺序
 export const WU_XING_ORDER = ['木', '火', '土', '金', '水'];
-
-// 天干列表
-export const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
-export type TianGan = TianGanType;
-
-// 地支列表
-export const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
-export type DiZhi = DiZhiType;
-
-// 获取天干阴阳
-export function getStemYinYang(stem: string): 'yang' | 'yin' {
-  const yangStems = ['甲', '丙', '戊', '庚', '壬'];
-  return yangStems.includes(stem) ? 'yang' : 'yin';
-}
 
 // 获取五行生克关系
 export function getElementRelation(from: string, to: string): string {
@@ -46,10 +41,10 @@ export function getElementRelation(from: string, to: string): string {
 export function calculateTenGod(dayStem: string, targetStem: string): string {
   if (dayStem === targetStem) return '比肩';
 
-  const dayElement = STEM_ELEMENTS[dayStem];
-  const targetElement = STEM_ELEMENTS[targetStem];
-  const dayYY = getStemYinYang(dayStem);
-  const targetYY = getStemYinYang(targetStem);
+  const dayElement = _STEM_ELEMENTS[dayStem];
+  const targetElement = _STEM_ELEMENTS[targetStem];
+  const dayYY = _getStemYinYang(dayStem);
+  const targetYY = _getStemYinYang(targetStem);
   const sameYY = dayYY === targetYY;
 
   const relation = getElementRelation(dayElement, targetElement);
@@ -70,8 +65,8 @@ import { XUN_KONG_TABLE } from './data/shensha-data.js';
 
 // 计算空亡
 export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kongZhi: [string, string] } {
-  const ganIdx = TIAN_GAN.indexOf(dayGan as typeof TIAN_GAN[number]);
-  const zhiIdx = DI_ZHI.indexOf(dayZhi as typeof DI_ZHI[number]);
+  const ganIdx = _TIAN_GAN.indexOf(dayGan as typeof _TIAN_GAN[number]);
+  const zhiIdx = _DI_ZHI.indexOf(dayZhi as typeof _DI_ZHI[number]);
   if (ganIdx < 0 || zhiIdx < 0) {
     return { xun: '甲子旬', kongZhi: XUN_KONG_TABLE['甲子旬'] };
   }
@@ -79,7 +74,7 @@ export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kong
   const xunStart = (zhiIdx - ganIdx + 12) % 12;
   const xunNames = ['甲子旬', '甲戌旬', '甲申旬', '甲午旬', '甲辰旬', '甲寅旬'];
   const xunStartZhi = ['子', '戌', '申', '午', '辰', '寅'];
-  const startZhi = DI_ZHI[xunStart];
+  const startZhi = _DI_ZHI[xunStart];
   const xunIdx = xunStartZhi.indexOf(startZhi);
   const xun = xunNames[xunIdx] || '甲子旬';
 

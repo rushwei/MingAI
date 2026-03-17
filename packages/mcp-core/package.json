@@ -29,6 +29,18 @@
     "./daliuren": {
       "types": "./dist/daliuren/index.d.ts",
       "default": "./dist/daliuren/index.js"
+    },
+    "./tarot": {
+      "types": "./dist/tarot.d.ts",
+      "default": "./dist/tarot.js"
+    },
+    "./transport": {
+      "types": "./dist/transport.d.ts",
+      "default": "./dist/transport.js"
+    },
+    "./timezone-utils": {
+      "types": "./dist/timezone-utils.d.ts",
+      "default": "./dist/timezone-utils.js"
     }
   },
   "publishConfig": {

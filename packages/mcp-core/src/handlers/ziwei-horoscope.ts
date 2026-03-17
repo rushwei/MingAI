@@ -2,8 +2,7 @@
  * 紫微斗数运限处理器
  */
 
-import type { ZiweiHoroscopeInput, ZiweiHoroscopeOutput, HoroscopePeriodInfo, TransitStarEntry, YearlyDecStarInfo } from '../types.js';
-import type { HoroscopeItem } from 'iztro';
+import type { ZiweiHoroscopeInput, ZiweiHoroscopeOutput, HoroscopePeriodInfo, TransitStarEntry, YearlyDecStarInfo, DiZhi } from '../types.js';
 import { createAstrolabe, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
 
 /** 流昌/流曲查表：年干 → [流昌地支, 流曲地支] */
@@ -64,7 +63,7 @@ function computeTransitStars(
   result.push({ starName: '流禄', palaceName: findPalace(liuLuBranch) });
 
   // 流羊：流禄 +1 palace
-  const luIdx = DI_ZHI.indexOf(liuLuBranch);
+  const luIdx = DI_ZHI.indexOf(liuLuBranch as DiZhi);
   if (luIdx >= 0) {
     const yangBranch = DI_ZHI[(luIdx + 1) % 12];
     result.push({ starName: '流羊', palaceName: findPalace(yangBranch) });
@@ -105,7 +104,7 @@ function computeTransitStars(
     result.push({ starName: '流鸾', palaceName: findPalace(luanBranch) });
 
     // 流喜（天喜）= 红鸾对宫（+6）
-    const luanIdx = DI_ZHI.indexOf(luanBranch);
+    const luanIdx = DI_ZHI.indexOf(luanBranch as DiZhi);
     if (luanIdx >= 0) {
       const xiBranch = DI_ZHI[(luanIdx + 6) % 12];
       result.push({ starName: '流喜', palaceName: findPalace(xiBranch) });
@@ -115,7 +114,14 @@ function computeTransitStars(
   return result;
 }
 
-function mapPeriod(item: HoroscopeItem): HoroscopePeriodInfo {
+function mapPeriod(item: {
+  index: number;
+  name: string;
+  heavenlyStem: string;
+  earthlyBranch: string;
+  palaceNames: string[];
+  mutagen: string[];
+}): HoroscopePeriodInfo {
   return {
     index: item.index,
     name: item.name,

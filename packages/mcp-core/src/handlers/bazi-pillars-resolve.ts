@@ -8,12 +8,10 @@ import type {
   BaziPillarsResolveInput,
   BaziPillarsResolveOutput,
 } from '../types.js';
+import { TIAN_GAN, DI_ZHI } from '../constants/ganzhi.js';
 
-const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
-const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
-
-type Stem = (typeof STEMS)[number];
-type Branch = (typeof BRANCHES)[number];
+type Stem = (typeof TIAN_GAN)[number];
+type Branch = (typeof DI_ZHI)[number];
 
 type ParsedPillar = {
   stem: Stem;
@@ -43,8 +41,8 @@ const HOUR_BRANCH_MAP: Record<Branch, number[]> = {
 };
 
 function isValidPillar(stem: Stem, branch: Branch): boolean {
-  const stemIndex = STEMS.indexOf(stem);
-  const branchIndex = BRANCHES.indexOf(branch);
+  const stemIndex = TIAN_GAN.indexOf(stem);
+  const branchIndex = DI_ZHI.indexOf(branch);
   return stemIndex % 2 === branchIndex % 2;
 }
 
@@ -56,10 +54,10 @@ function parsePillar(raw: string, field: string): ParsedPillar {
   const stem = raw[0] as Stem;
   const branch = raw[1] as Branch;
 
-  if (!STEMS.includes(stem)) {
+  if (!TIAN_GAN.includes(stem)) {
     throw new Error(`${field} 天干无效：${raw[0]}`);
   }
-  if (!BRANCHES.includes(branch)) {
+  if (!DI_ZHI.includes(branch)) {
     throw new Error(`${field} 地支无效：${raw[1]}`);
   }
   if (!isValidPillar(stem, branch)) {

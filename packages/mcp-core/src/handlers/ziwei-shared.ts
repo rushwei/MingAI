@@ -2,11 +2,18 @@
  * 紫微斗数共享工具函数
  */
 
-import { astro, type Astrolabe, type Star } from 'iztro';
-import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo } from '../types.js';
+import { astro } from 'iztro';
+import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo, DiZhi } from '../types.js';
 
 export const MUTAGEN_NAMES = ['禄', '权', '科', '忌'] as const;
 export type MutagenName = typeof MUTAGEN_NAMES[number];
+type Astrolabe = ReturnType<typeof astro.bySolar>;
+type IztroStar = {
+  name: string;
+  type?: string;
+  brightness?: string;
+  mutagen?: string;
+};
 
 /** 天干四化表: stem → [禄星, 权星, 科星, 忌星] */
 export const STEM_MUTAGEN_TABLE: Record<string, [string, string, string, string]> = {
@@ -22,7 +29,7 @@ export const STEM_MUTAGEN_TABLE: Record<string, [string, string, string, string]
   '癸': ['破军', '巨门', '太阴', '贪狼'],
 };
 
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+import { DI_ZHI } from '../constants/ganzhi.js';
 export { DI_ZHI };
 
 /** 禄存所在地支：按年干查表 */
@@ -33,7 +40,7 @@ export const LUCUN_TABLE: Record<string, string> = {
 };
 
 /** 计算流年虚岁列表 */
-export function computeLiuNianAges(palaceBranch: string, birthYearBranch: string, max = 60): number[] {
+export function computeLiuNianAges(palaceBranch: DiZhi, birthYearBranch: DiZhi, max = 60): number[] {
   const pIdx = DI_ZHI.indexOf(palaceBranch);
   const bIdx = DI_ZHI.indexOf(birthYearBranch);
   if (pIdx < 0 || bIdx < 0) return [];
@@ -62,7 +69,7 @@ export function computeDouJun(lunarMonth: number, timeIndex: number): string {
 }
 
 /** 将 iztro Star 映射为 StarInfo */
-export function mapStar(star: Star): StarInfo {
+export function mapStar(star: IztroStar): StarInfo {
   return {
     name: star.name,
     type: star.type,
