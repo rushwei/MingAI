@@ -1,25 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
+import { captureConsoleErrors, ensureRouteTestEnv } from './helpers/route-mock';
 
-process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
-process.env.DEEPSEEK_API_KEY = 'test-key';
-process.env.DEEPSEEK_MODEL_ID = process.env.DEEPSEEK_MODEL_ID || 'deepseek-chat';
-
-const captureConsoleErrors = () => {
-    const original = console.error;
-    const errors: string[] = [];
-    console.error = (...args: unknown[]) => {
-        errors.push(args.map(String).join(' '));
-    };
-    return {
-        errors,
-        restore: () => {
-            console.error = original;
-        },
-    };
-};
+ensureRouteTestEnv();
 
 test('liuyao route returns error when credit deduction fails', async (t) => {
     const credits = require('../lib/user/credits') as any;
