@@ -9,7 +9,7 @@ test('mcp server should return both structuredContent and content when outputSch
 
   assert.match(
     source,
-    /if \(tool\?\.outputSchema\)[\s\S]*return \{[\s\S]*structuredContent:\s*result,[\s\S]*content:\s*humanReadableContent,[\s\S]*\};/,
-    'tools with outputSchema should include content alongside structuredContent'
+    /buildToolSuccessPayload/u,
+    'server entrypoint should delegate structuredContent/content policy to the shared transport adapter'
   );
 });
