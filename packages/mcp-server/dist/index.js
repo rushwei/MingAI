@@ -319,20 +319,29 @@ const oauthCleanupTimer = setInterval(async () => {
         await supabase.from('mcp_oauth_tokens')
             .delete()
             .or(`revoked.eq.true,expires_at.lt.${now}`);
-        // 删除没有活跃 token 的孤儿客户端
+        // 删除没有活跃 token 的孤儿客户端（保留安全检查）
         const { data: activeClientIds } = await supabase
             .from('mcp_oauth_tokens')
             .select('client_id');
         if (activeClientIds) {
             const ids = [...new Set(activeClientIds.map((r) => r.client_id))];
             if (ids.length > 0) {
-                await supabase.from('mcp_oauth_clients')
-                    .delete()
+                // 先检查将要删除的数量，防止误删全部
+                const { count: orphanCount } = await supabase
+                    .from('mcp_oauth_clients')
+                    .select('client_id', { count: 'exact', head: true })
                     .not('client_id', 'in', `(${ids.join(',')})`);
+                const { count: totalCount } = await supabase
+                    .from('mcp_oauth_clients')
+                    .select('client_id', { count: 'exact', head: true });
+                // 安全阈值：不删除超过总数 50% 的客户端
+                if (orphanCount != null && totalCount != null && totalCount > 0 && orphanCount / totalCount <= 0.5) {
+                    await supabase.from('mcp_oauth_clients')
+                        .delete()
+                        .not('client_id', 'in', `(${ids.join(',')})`);
+                }
             }
-            else {
-                await supabase.from('mcp_oauth_clients').delete().gte('client_id', '');
-            }
+            // 当没有活跃 token 时不再删除所有客户端（避免误清）
         }
     }
     catch (err) {
@@ -510,17 +519,12 @@ const handleMcpDelete = async (req, res) => {
     if (!isSessionOwner(session, auth)) {
         return res.status(403).json({ error: 'Session does not belong to current user' });
     }
-    session.lastActivityAt = Date.now();
     await session.transport.handleRequest(req, res, req.body);
 };
-// Streamable HTTP - canonical MCP path
-app.post('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
-app.get('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
-app.delete('/mcp', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
-// Streamable HTTP - root path compatibility alias
-app.post('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
-app.get('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
-app.delete('/', originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
+// Streamable HTTP - canonical MCP path + root path compatibility alias
+app.post(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpPost);
+app.get(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, sseConnectionLimitMiddleware, handleMcpGet);
+app.delete(['/', '/mcp'], originValidationMiddleware, hostValidationMiddleware, mcpAuth, rateLimitMiddleware, handleMcpDelete);
 // 启动服务器
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.MCP_HOST || '127.0.0.1';

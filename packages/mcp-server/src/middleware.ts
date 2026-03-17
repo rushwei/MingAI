@@ -129,24 +129,13 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: 'Missing API key' });
   }
 
-  // 查缓存：命中也要回源二次校验，确保封禁/重置立即生效
+  // 查缓存：TTL 已缩短至 60 秒，有效期内信任缓存避免回源
   const cached = getCachedKey(apiKey);
 
   if (cached) {
-    try {
-      const activeKey = await queryActiveKey(apiKey);
-      if (!activeKey || activeKey.id !== cached.keyId || activeKey.user_id !== cached.userId) {
-        invalidateCachedKey(apiKey);
-        return res.status(401).json({ error: 'Invalid API key' });
-      }
-
-      req.mcpAuth = { userId: activeKey.user_id, keyId: activeKey.id };
-      void touchLastUsedAt(activeKey.id);
-      return next();
-    } catch {
-      invalidateCachedKey(apiKey);
-      return res.status(500).json({ error: 'Authentication service error' });
-    }
+    req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
+    void touchLastUsedAt(cached.keyId);
+    return next();
   }
 
   try {
@@ -174,6 +163,7 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 120; // 认证用户 120 次/分钟
 const RATE_WINDOW = 60 * 1000;
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
+const MAX_RATE_LIMIT_ENTRIES = 50_000;
 
 let lastCleanup = Date.now();
 function cleanupExpiredRecords() {
@@ -200,6 +190,10 @@ export function rateLimitMiddleware(req: Request, res: Response, next: NextFunct
   const record = rateLimitMap.get(compositeKey);
 
   if (!record || now > record.resetTime) {
+    // 防止 Map 无限增长
+    if (rateLimitMap.size >= MAX_RATE_LIMIT_ENTRIES) {
+      cleanupExpiredRecords();
+    }
     rateLimitMap.set(compositeKey, { count: 1, resetTime: now + RATE_WINDOW });
     return next();
   }

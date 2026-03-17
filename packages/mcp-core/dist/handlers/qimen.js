@@ -3,7 +3,7 @@
  */
 import { createRequire } from 'module';
 import { Solar } from 'lunar-javascript';
-import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, YI_MA_MAP } from '../constants/ganzhi.js';
+import { TIAN_GAN, DI_ZHI, GAN_WUXING, YI_MA_MAP } from '../constants/ganzhi.js';
 import { getKongWang } from '../utils.js';
 const require = createRequire(import.meta.url);
 const { TheArtOfBecomingInvisible } = require('taobi');
@@ -204,7 +204,7 @@ export async function handleQimenCalculate(input) {
             formations.push('反吟');
         }
         // 旺衰
-        const stemElement = STEM_ELEMENTS[heavenStem] || '';
+        const stemElement = GAN_WUXING[heavenStem] || '';
         const stemWangShuai = stemElement ? getWangShuai(stemElement, season) : undefined;
         const elementState = getWangShuai(PALACE_ELEMENTS[i], season);
         // 空亡

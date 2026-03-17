@@ -3,7 +3,7 @@
  */
 
 import { tools } from './tools.js';
-import { getToolRegistryEntry } from './tool-registry.js';
+import { getToolRegistryEntry, toolRegistry } from './tool-registry.js';
 import {
   handleBaziCalculate,
   handleBaziPillarsResolve,
@@ -19,6 +19,8 @@ import {
 } from './handlers/index.js';
 
 export { tools } from './tools.js';
+export { toolRegistry } from './tool-registry.js';
+export type { ToolRegistryEntry } from './tool-registry.js';
 export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
 export type { ToolDefinition, ToolInput, ToolAnnotation } from './tools.js';
 

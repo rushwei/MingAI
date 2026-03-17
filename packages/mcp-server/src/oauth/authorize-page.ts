@@ -2,6 +2,32 @@
  * MCP OAuth 授权页面 HTML 模板
  */
 
+import { toolRegistry, type ToolRegistryEntry } from '@mingai/mcp-core';
+
+// 工具名到中文显示名的映射
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  bazi_calculate: '八字排盘',
+  bazi_pillars_resolve: '四柱反推',
+  bazi_dayun: '大运计算',
+  ziwei_calculate: '紫微斗数',
+  ziwei_horoscope: '紫微运限',
+  ziwei_flying_star: '紫微飞星',
+  liuyao: '六爻分析',
+  tarot: '塔罗占卜',
+  almanac: '每日运势',
+  qimen_calculate: '奇门遁甲',
+  daliuren: '大六壬',
+};
+
+function getToolChips(): { count: number; html: string } {
+  const chips = toolRegistry.map((entry) => {
+    const name = entry.definition.name;
+    const label = TOOL_DISPLAY_NAMES[name] || name;
+    return `<span class="tool-chip"><span class="tool-dot"></span>${escapeHtml(label)}</span>`;
+  });
+  return { count: chips.length, html: chips.join('\n        ') };
+}
+
 export function renderAuthorizePage(params: {
   clientName?: string;
   scopes: string[];
@@ -23,6 +49,7 @@ export function renderAuthorizePage(params: {
 
   const siteUrl = process.env.MINGAI_SITE_URL || 'https://mingai.fun';
   const logoUrl = `${siteUrl}/Logo.svg`;
+  const tools = getToolChips();
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -292,16 +319,10 @@ export function renderAuthorizePage(params: {
     <div class="tools">
       <div class="tools-header">
         <span class="tools-title">授权后可使用的命理工具</span>
-        <span class="tools-badge">7 项</span>
+        <span class="tools-badge">${tools.count} 项</span>
       </div>
       <div class="tools-list">
-        <span class="tool-chip"><span class="tool-dot"></span>八字排盘</span>
-        <span class="tool-chip"><span class="tool-dot"></span>四柱排盘</span>
-        <span class="tool-chip"><span class="tool-dot"></span>紫微斗数</span>
-        <span class="tool-chip"><span class="tool-dot"></span>六爻分析</span>
-        <span class="tool-chip"><span class="tool-dot"></span>塔罗占卜</span>
-        <span class="tool-chip"><span class="tool-dot"></span>每日运势</span>
-        <span class="tool-chip"><span class="tool-dot"></span>大运计算</span>
+        ${tools.html}
       </div>
     </div>
 

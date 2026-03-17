@@ -2,6 +2,7 @@
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
 import type { BaziOutput, BaziPillarsResolveOutput, ZiweiOutput, ZiweiHoroscopeOutput, ZiweiFlyingStarOutput, LiuyaoOutput, TarotOutput, FortuneOutput, DayunOutput, QimenOutput } from './types.js';
+import type { DaliurenOutput } from './daliuren/types.js';
 /**
  * 格式化八字结果为 Markdown
  */
@@ -42,4 +43,8 @@ export declare function formatDayunAsMarkdown(result: DayunOutput): string;
  * 格式化奇门遁甲结果为 Markdown
  */
 export declare function formatQimenAsMarkdown(result: QimenOutput): string;
+/**
+ * 格式化大六壬结果为 Markdown
+ */
+export declare function formatDaliurenAsMarkdown(result: DaliurenOutput): string;
 //# sourceMappingURL=formatters.d.ts.map

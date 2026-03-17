@@ -2,7 +2,7 @@
  * MCP 响应格式化器 - 将 JSON 结果转换为 Markdown 格式
  */
 import { YONG_SHEN_STATUS_LABELS, WANG_SHUAI_LABELS, KONG_WANG_LABELS, YAO_POSITION_NAMES, traditionalYaoName, formatGanZhiTime, formatGuaLevelLines, sortYaosDescending, } from './liuyao-core.js';
-import { STEM_ELEMENTS } from './utils.js';
+import { GAN_WUXING } from './utils.js';
 // Runtime formatter bindings live in tool-registry.ts; this module only keeps formatter implementations.
 /**
  * 格式化八字结果为 Markdown
@@ -15,7 +15,7 @@ export function formatBaziAsMarkdown(result) {
 ## 基本信息
 - **性别**: ${genderText}
 - **日主**: ${dayMaster}
-- **命主五行**: ${dayMaster.charAt(0)}${STEM_ELEMENTS[dayMaster.charAt(0)] || ''}
+- **命主五行**: ${dayMaster.charAt(0)}${GAN_WUXING[dayMaster.charAt(0)] || ''}
 ${birthPlace ? `- **出生地**: ${birthPlace}` : ''}
 ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
 - **真太阳时**: ${trueSolarTimeInfo.trueSolarTime}（经度 ${trueSolarTimeInfo.longitude}°，校正 ${trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${trueSolarTimeInfo.correctionMinutes} 分钟）` : ''}
@@ -636,8 +636,74 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
     return md;
 }
 /**
- * 根据工具名格式化结果
+ * 格式化大六壬结果为 Markdown
  */
+export function formatDaliurenAsMarkdown(result) {
+    const { dateInfo, siKe, sanChuan, keTi, keName, shenSha, gongInfos, question } = result;
+    let md = `# 大六壬排盘
+
+## 基本信息
+- **日期**: ${dateInfo.solarDate}
+- **八字**: ${dateInfo.bazi}
+- **月将**: ${dateInfo.yueJiang}（${dateInfo.yueJiangName}）
+- **旬**: ${dateInfo.xun}
+- **空亡**: ${dateInfo.kongWang.join('、')}
+- **驿马**: ${dateInfo.yiMa}
+- **昼夜**: ${dateInfo.diurnal ? '昼' : '夜'}
+${question ? `- **占事**: ${question}` : ''}
+
+## 四课
+
+| 课 | 上神 | 下神 | 天将 |
+|---|------|------|------|
+| 一课 | ${siKe.yiKe[0]?.[0] || '-'} | ${siKe.yiKe[0]?.[1] || '-'} | ${siKe.yiKe[1] || '-'} |
+| 二课 | ${siKe.erKe[0]?.[0] || '-'} | ${siKe.erKe[0]?.[1] || '-'} | ${siKe.erKe[1] || '-'} |
+| 三课 | ${siKe.sanKe[0]?.[0] || '-'} | ${siKe.sanKe[0]?.[1] || '-'} | ${siKe.sanKe[1] || '-'} |
+| 四课 | ${siKe.siKe[0]?.[0] || '-'} | ${siKe.siKe[0]?.[1] || '-'} | ${siKe.siKe[1] || '-'} |
+
+## 三传
+
+| 传 | 地支 | 天将 | 六亲 | 遁干 |
+|---|------|------|------|------|
+| 初传 | ${sanChuan.chu[0] || '-'} | ${sanChuan.chu[1] || '-'} | ${sanChuan.chu[2] || '-'} | ${sanChuan.chu[3] || '-'} |
+| 中传 | ${sanChuan.zhong[0] || '-'} | ${sanChuan.zhong[1] || '-'} | ${sanChuan.zhong[2] || '-'} | ${sanChuan.zhong[3] || '-'} |
+| 末传 | ${sanChuan.mo[0] || '-'} | ${sanChuan.mo[1] || '-'} | ${sanChuan.mo[2] || '-'} | ${sanChuan.mo[3] || '-'} |
+
+## 课体
+- **取传法**: ${keTi.method}
+${keTi.subTypes.length > 0 ? `- **课体**: ${keTi.subTypes.join('、')}` : ''}
+${keTi.extraTypes.length > 0 ? `- **附加**: ${keTi.extraTypes.join('、')}` : ''}
+${keName ? `- **课名**: ${keName}` : ''}
+
+`;
+    if (result.benMing || result.xingNian) {
+        md += `## 本命行年\n`;
+        if (result.benMing)
+            md += `- **本命**: ${result.benMing}\n`;
+        if (result.xingNian)
+            md += `- **行年**: ${result.xingNian}\n`;
+        md += '\n';
+    }
+    if (gongInfos.length > 0) {
+        md += `## 十二宫
+
+| 地盘 | 天盘 | 天将 | 遁干 | 长生 | 五行 | 旺衰 | 建除 |
+|------|------|------|------|------|------|------|------|
+`;
+        for (const g of gongInfos) {
+            md += `| ${g.diZhi} | ${g.tianZhi} | ${g.tianJiangShort || g.tianJiang} | ${g.dunGan || '-'} | ${g.changSheng || '-'} | ${g.wuXing || '-'} | ${g.wangShuai || '-'} | ${g.jianChu || '-'} |\n`;
+        }
+        md += '\n';
+    }
+    if (shenSha.length > 0) {
+        md += `## 神煞\n\n`;
+        for (const s of shenSha) {
+            md += `- **${s.name}**: ${s.value}${s.description ? `（${s.description}）` : ''}\n`;
+        }
+        md += '\n';
+    }
+    return md;
+}
 // 辅助函数：格式化星曜标签（名称+亮度+四化+自化）
 function formatStarLabel(s) {
     let label = s.name;

@@ -5,6 +5,7 @@ import { tools } from './tools.js';
 import { getToolRegistryEntry } from './tool-registry.js';
 import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, } from './handlers/index.js';
 export { tools } from './tools.js';
+export { toolRegistry } from './tool-registry.js';
 export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
 export * from './types.js';
 export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, };

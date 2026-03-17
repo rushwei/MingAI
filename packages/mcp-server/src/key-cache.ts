@@ -10,7 +10,8 @@ export interface CachedKeyInfo {
   cachedAt: number;
 }
 
-const KEY_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+const KEY_CACHE_TTL = 60 * 1000; // 60 秒（短 TTL 以便封禁/重置快速生效）
+const MAX_CACHE_SIZE = 10_000;
 const cache = new Map<string, CachedKeyInfo>();
 
 export function getCachedKey(keyCode: string): CachedKeyInfo | null {
@@ -26,6 +27,11 @@ export function getCachedKey(keyCode: string): CachedKeyInfo | null {
 }
 
 export function setCachedKey(keyCode: string, info: Omit<CachedKeyInfo, 'cachedAt'>): void {
+  if (cache.size >= MAX_CACHE_SIZE && !cache.has(keyCode)) {
+    // 淘汰最旧的条目
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(keyCode, { ...info, cachedAt: Date.now() });
 }
 

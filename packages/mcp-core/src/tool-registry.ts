@@ -22,6 +22,7 @@ import {
   formatDailyFortuneAsMarkdown,
   formatDayunAsMarkdown,
   formatQimenAsMarkdown,
+  formatDaliurenAsMarkdown,
 } from './formatters.js';
 import { toolDefinitions, type ToolDefinition } from './tool-schema.js';
 
@@ -69,7 +70,7 @@ export const toolRegistry: ToolRegistryEntry[] = [
   createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result) => formatDailyFortuneAsMarkdown(result as Parameters<typeof formatDailyFortuneAsMarkdown>[0])),
   createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result) => formatDayunAsMarkdown(result as Parameters<typeof formatDayunAsMarkdown>[0])),
   createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result) => formatQimenAsMarkdown(result as Parameters<typeof formatQimenAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate)),
+  createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result) => formatDaliurenAsMarkdown(result as Parameters<typeof formatDaliurenAsMarkdown>[0])),
 ];
 
 export const toolRegistryMap = new Map(toolRegistry.map((entry) => [entry.definition.name, entry] as const));

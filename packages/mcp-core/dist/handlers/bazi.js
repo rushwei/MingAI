@@ -2,7 +2,7 @@
  * 八字计算处理器
  */
 import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
-import { STEM_ELEMENTS, getStemYinYang, calculateTenGod, getKongWang, } from '../utils.js';
+import { GAN_WUXING, getStemYinYang, calculateTenGod, getKongWang, } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
 import { resolveTrueSolarDateTime } from './ziwei-shared.js';
 // 从数据模块导入静态数据
@@ -18,7 +18,7 @@ export function getNaYinElement(nayin) {
     return ['金', '木', '水', '火', '土'].includes(last) ? last : '';
 }
 export function getDiShi(dayStem, branch) {
-    const element = STEM_ELEMENTS[dayStem];
+    const element = GAN_WUXING[dayStem];
     if (!element)
         return '';
     const startBranch = CHANG_SHENG_START[element];

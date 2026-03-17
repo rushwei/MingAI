@@ -1,8 +1,18 @@
 /**
  * MCP Server 专用 Supabase 客户端
  *
- * 与 Web 端 src/lib/supabase-server.ts 同模式：
- * anon key + 系统管理员会话 access token → authenticated 角色 → 通过 RLS
+ * 设计决策：使用系统管理员凭据（SUPABASE_SYSTEM_ADMIN_EMAIL/PASSWORD）
+ * 通过 signInWithPassword 获取 access_token，以 authenticated 角色访问数据库。
+ *
+ * 为什么不用 service_role key：
+ * - service_role 绕过所有 RLS，权限过大
+ * - 系统管理员账户受 RLS 策略约束，遵循最小权限原则
+ * - 可通过 Supabase Dashboard 随时禁用/重置该账户
+ *
+ * 安全注意事项：
+ * - 系统管理员凭据仅存在于服务端环境变量，不暴露给客户端
+ * - access_token 有 TTL，过期自动刷新
+ * - 该账户应仅用于 MCP Server 的 API key 验证和 OAuth 存储操作
  */
 import { createClient } from '@supabase/supabase-js';
 let serviceClient = null;
@@ -10,8 +20,7 @@ let authClient = null;
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
 let tokenPromise = null;
-let hasWarnedMissingSystemSession = false;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR = 'Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD';
 function getUrl() {
     const url = process.env.SUPABASE_URL;
     if (!url)
@@ -32,39 +41,22 @@ function getSystemAuthClient() {
     });
     return authClient;
 }
-function warnDevSystemAdminFallback(reason) {
-    if (hasWarnedMissingSystemSession || IS_PRODUCTION) {
-        return;
-    }
-    hasWarnedMissingSystemSession = true;
-    console.warn(`[mcp-server:supabase] ${reason}; falling back to anon client in non-production`);
-}
 function getSystemAdminCredentials() {
     const email = process.env.SUPABASE_SYSTEM_ADMIN_EMAIL;
     const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
     if (!email || !password) {
-        if (IS_PRODUCTION) {
-            throw new Error('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
-        }
-        return null;
+        throw new Error(MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR);
     }
     return { email, password };
 }
 async function signInSystemAdmin() {
     const creds = getSystemAdminCredentials();
-    if (!creds) {
-        return null;
-    }
     const client = getSystemAuthClient();
     const { data, error } = await client.auth.signInWithPassword({
         email: creds.email,
         password: creds.password,
     });
     if (error || !data.session) {
-        if (!IS_PRODUCTION) {
-            console.warn('[mcp-server:supabase] Failed to sign in system admin:', error?.message ?? 'unknown error');
-            return null;
-        }
         throw new Error(`Failed to sign in system admin: ${error?.message ?? 'unknown error'}`);
     }
     return data.session;
@@ -79,11 +71,6 @@ async function getSystemAccessToken() {
     tokenPromise = (async () => {
         try {
             const session = await signInSystemAdmin();
-            if (!session) {
-                cachedAccessToken = null;
-                cachedAccessTokenExpiresAt = 0;
-                return null;
-            }
             const token = session.access_token;
             cachedAccessToken = token;
             cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
@@ -118,24 +105,10 @@ export function getSupabaseAuthClient() {
 export function getSupabaseClient() {
     if (serviceClient)
         return serviceClient;
-    const baseOptions = {
-        auth: { persistSession: false, autoRefreshToken: false },
-    };
-    const credentials = getSystemAdminCredentials();
-    if (!credentials) {
-        warnDevSystemAdminFallback('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
-        serviceClient = createClient(getUrl(), getAnonKey(), baseOptions);
-        return serviceClient;
-    }
+    getSystemAdminCredentials();
     serviceClient = createClient(getUrl(), getAnonKey(), {
-        ...baseOptions,
-        accessToken: async () => {
-            const token = await getSystemAccessToken();
-            if (token) {
-                return token;
-            }
-            throw new Error('Failed to resolve system admin access token');
-        },
+        auth: { persistSession: false, autoRefreshToken: false },
+        accessToken: async () => await getSystemAccessToken(),
     });
     return serviceClient;
 }

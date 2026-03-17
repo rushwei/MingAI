@@ -18,7 +18,7 @@ import type {
   TrueSolarTimeInfo,
 } from '../types.js';
 import {
-  STEM_ELEMENTS,
+  GAN_WUXING,
   getStemYinYang,
   calculateTenGod,
   getKongWang,
@@ -66,7 +66,7 @@ export function getNaYinElement(nayin: string): string {
 }
 
 export function getDiShi(dayStem: string, branch: string): string {
-  const element = STEM_ELEMENTS[dayStem];
+  const element = GAN_WUXING[dayStem];
   if (!element) return '';
 
   const startBranch = CHANG_SHENG_START[element];

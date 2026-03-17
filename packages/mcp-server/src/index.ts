@@ -391,19 +391,29 @@ const oauthCleanupTimer = setInterval(async () => {
       .delete()
       .or(`revoked.eq.true,expires_at.lt.${now}`);
 
-    // 删除没有活跃 token 的孤儿客户端
+    // 删除没有活跃 token 的孤儿客户端（保留安全检查）
     const { data: activeClientIds } = await supabase
       .from('mcp_oauth_tokens')
       .select('client_id');
     if (activeClientIds) {
       const ids = [...new Set(activeClientIds.map((r: { client_id: string }) => r.client_id))];
       if (ids.length > 0) {
-        await supabase.from('mcp_oauth_clients')
-          .delete()
+        // 先检查将要删除的数量，防止误删全部
+        const { count: orphanCount } = await supabase
+          .from('mcp_oauth_clients')
+          .select('client_id', { count: 'exact', head: true })
           .not('client_id', 'in', `(${ids.join(',')})`);
-      } else {
-        await supabase.from('mcp_oauth_clients').delete().gte('client_id', '');
+        const { count: totalCount } = await supabase
+          .from('mcp_oauth_clients')
+          .select('client_id', { count: 'exact', head: true });
+        // 安全阈值：不删除超过总数 50% 的客户端
+        if (orphanCount != null && totalCount != null && totalCount > 0 && orphanCount / totalCount <= 0.5) {
+          await supabase.from('mcp_oauth_clients')
+            .delete()
+            .not('client_id', 'in', `(${ids.join(',')})`);
+        }
       }
+      // 当没有活跃 token 时不再删除所有客户端（避免误清）
     }
   } catch (err) {
     console.error('[OAuth cleanup] failed:', err instanceof Error ? err.message : err);

@@ -5,10 +5,10 @@
  */
 
 import {
-  TIAN_GAN as _TIAN_GAN,
-  DI_ZHI as _DI_ZHI,
-  STEM_ELEMENTS as _STEM_ELEMENTS,
-  getStemYinYang as _getStemYinYang,
+  TIAN_GAN,
+  DI_ZHI,
+  GAN_WUXING,
+  getStemYinYang,
 } from './constants/ganzhi.js';
 
 export {
@@ -41,10 +41,10 @@ export function getElementRelation(from: string, to: string): string {
 export function calculateTenGod(dayStem: string, targetStem: string): string {
   if (dayStem === targetStem) return '比肩';
 
-  const dayElement = _STEM_ELEMENTS[dayStem];
-  const targetElement = _STEM_ELEMENTS[targetStem];
-  const dayYY = _getStemYinYang(dayStem);
-  const targetYY = _getStemYinYang(targetStem);
+  const dayElement = GAN_WUXING[dayStem];
+  const targetElement = GAN_WUXING[targetStem];
+  const dayYY = getStemYinYang(dayStem);
+  const targetYY = getStemYinYang(targetStem);
   const sameYY = dayYY === targetYY;
 
   const relation = getElementRelation(dayElement, targetElement);
@@ -65,8 +65,8 @@ import { XUN_KONG_TABLE } from './data/shensha-data.js';
 
 // 计算空亡
 export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kongZhi: [string, string] } {
-  const ganIdx = _TIAN_GAN.indexOf(dayGan as typeof _TIAN_GAN[number]);
-  const zhiIdx = _DI_ZHI.indexOf(dayZhi as typeof _DI_ZHI[number]);
+  const ganIdx = TIAN_GAN.indexOf(dayGan as typeof TIAN_GAN[number]);
+  const zhiIdx = DI_ZHI.indexOf(dayZhi as typeof DI_ZHI[number]);
   if (ganIdx < 0 || zhiIdx < 0) {
     return { xun: '甲子旬', kongZhi: XUN_KONG_TABLE['甲子旬'] };
   }
@@ -74,7 +74,7 @@ export function getKongWang(dayGan: string, dayZhi: string): { xun: string; kong
   const xunStart = (zhiIdx - ganIdx + 12) % 12;
   const xunNames = ['甲子旬', '甲戌旬', '甲申旬', '甲午旬', '甲辰旬', '甲寅旬'];
   const xunStartZhi = ['子', '戌', '申', '午', '辰', '寅'];
-  const startZhi = _DI_ZHI[xunStart];
+  const startZhi = DI_ZHI[xunStart];
   const xunIdx = xunStartZhi.indexOf(startZhi);
   const xun = xunNames[xunIdx] || '甲子旬';
 
