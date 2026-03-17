@@ -1,7 +1,6 @@
 /**
  * MCP Server 专用 Supabase 客户端
  *
- * 与 Web 端 src/lib/supabase-server.ts 同模式：
  * anon key + 系统管理员会话 access token → authenticated 角色 → 通过 RLS
  */
 
@@ -13,6 +12,8 @@ let authClient: SupabaseClient | null = null;
 let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresAt = 0;
 let tokenPromise: Promise<string> | null = null;
+
+const MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR = 'Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD';
 
 function getUrl(): string {
   const url = process.env.SUPABASE_URL;
@@ -39,7 +40,7 @@ function getSystemAdminCredentials(): { email: string; password: string } {
   const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
 
   if (!email || !password) {
-    throw new Error('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
+    throw new Error(MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR);
   }
 
   return { email, password };
@@ -106,9 +107,11 @@ export function getSupabaseAuthClient(): SupabaseClient {
 export function getSupabaseClient(): SupabaseClient {
   if (serviceClient) return serviceClient;
 
+  getSystemAdminCredentials();
+
   serviceClient = createClient(getUrl(), getAnonKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
-    accessToken: async () => getSystemAccessToken(),
+    accessToken: async () => await getSystemAccessToken(),
   });
 
   return serviceClient;

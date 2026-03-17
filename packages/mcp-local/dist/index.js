@@ -5,7 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
-import { tools, handleToolCall, formatAsMarkdown, } from '@mingai/mcp-core';
+import { tools, handleToolCall, renderToolResult, } from '@mingai/mcp-core';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -27,29 +27,17 @@ server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
         const result = await handleToolCall(name, args || {});
         const tool = tools.find((t) => t.name === name);
-        // 始终返回 structuredContent（JSON 对象），除非结果是错误
-        const hasStructuredContent = typeof result === 'object' && result !== null;
-        // content 格式：根据 responseFormat 决定
-        let humanReadableText;
-        if (hasStructuredContent && args?.responseFormat === 'markdown') {
-            // 要求 markdown 格式
-            humanReadableText = formatAsMarkdown(name, result);
-        }
-        else {
-            // 默认 JSON 格式
-            humanReadableText = hasStructuredContent
-                ? JSON.stringify(result, null, 2)
-                : String(result);
-        }
-        const humanReadableContent = [{ type: 'text', text: humanReadableText }];
+        const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
+        const rendered = renderToolResult(name, result, responseFormat);
+        const humanReadableContent = rendered.content;
         // 始终返回 structuredContent（给 AI 用）+ content（给人看）
-        if (tool?.outputSchema && hasStructuredContent) {
+        if (tool?.outputSchema && typeof result === 'object' && result !== null) {
             return {
                 structuredContent: result,
                 content: humanReadableContent,
             };
         }
-        return { content: humanReadableContent };
+        return rendered;
     }
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);

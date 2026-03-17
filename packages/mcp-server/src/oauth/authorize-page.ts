@@ -22,7 +22,7 @@ export function renderAuthorizePage(params: {
     : '';
 
   const siteUrl = process.env.MINGAI_SITE_URL || 'https://mingai.fun';
-  const logoUrl = `${siteUrl}/Logo.png`;
+  const logoUrl = `${siteUrl}/Logo.svg`;
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">

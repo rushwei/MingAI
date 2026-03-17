@@ -23,10 +23,13 @@ import {
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 import {
-  tools,
   handleToolCall,
-  formatAsMarkdown,
 } from '@mingai/mcp-core';
+import {
+  buildListToolsPayload,
+  buildToolSuccessPayload,
+} from '@mingai/mcp-core/transport';
+import { createRequire } from 'node:module';
 
 import {
   dualAuthMiddleware,
@@ -46,6 +49,8 @@ import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
 import { isOAuthDebugEnabled, oauthError } from './oauth/logger.js';
 import { getSupabaseAuthClient, getSupabaseClient } from './supabase.js';
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 // ─── 会话管理配置 ───
 const MAX_TOTAL_SESSIONS = readPositiveIntEnv('MCP_MAX_SESSIONS', 1000);
 const SESSION_TTL = readPositiveIntEnv('MCP_SESSION_TTL_MS', 1800000); // 30min
@@ -325,10 +330,7 @@ type SessionContext = {
   lastActivityAt: number;
 };
 
-const SEED_SCOPED_TOOLS = new Set(['liuyao_analyze', 'tarot_draw']);
-
-// 预构建工具名 → 工具的索引，避免每次 tool call 线性扫描
-const toolsByName = new Map(tools.map((t) => [t.name, t]));
+const SEED_SCOPED_TOOLS = new Set(['liuyao', 'tarot']);
 
 function withSeedScope(name: string, args: unknown, auth: McpAuthInfo): unknown {
   if (!SEED_SCOPED_TOOLS.has(name)) {
@@ -411,20 +413,12 @@ oauthCleanupTimer.unref?.();
 
 function createMcpServer(auth: McpAuthInfo) {
   const server = new McpServer(
-    { name: 'mingai-mcp-online', version: '1.0.0' },
+    { name: 'mingai-mcp-online', version },
     { capabilities: { tools: {} } }
   );
 
   // 列出工具
-  server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
-      outputSchema: t.outputSchema,
-      annotations: t.annotations,
-    })),
-  }));
+  server.server.setRequestHandler(ListToolsRequestSchema, async () => buildListToolsPayload());
 
   // 调用工具（错误脱敏）
   server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -433,34 +427,8 @@ function createMcpServer(auth: McpAuthInfo) {
 
     try {
       const result = await handleToolCall(name, toolArgs);
-
-      const tool = toolsByName.get(name);
-
-      // 始终返回 structuredContent（JSON 对象），除非结果是错误
-      const hasStructuredContent = typeof result === 'object' && result !== null;
-
-      // content 格式：根据 responseFormat 决定
-      let humanReadableText: string;
-      if (hasStructuredContent && args?.responseFormat === 'markdown') {
-        // 要求 markdown 格式
-        humanReadableText = formatAsMarkdown(name, result);
-      } else {
-        // 默认 JSON 格式
-        humanReadableText = hasStructuredContent
-          ? JSON.stringify(result, null, 2)
-          : String(result);
-      }
-
-      const humanReadableContent = [{ type: 'text', text: humanReadableText }];
-
-      // 始终返回 structuredContent（给 AI 用）+ content（给人看）
-      if (tool?.outputSchema && hasStructuredContent) {
-        return {
-          structuredContent: result,
-          content: humanReadableContent,
-        };
-      }
-      return { content: humanReadableContent };
+      const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
+      return buildToolSuccessPayload(name, result, responseFormat);
     } catch (error) {
       const internalMessage = error instanceof Error ? error.message : String(error);
 

@@ -10,6 +10,8 @@ let authClient = null;
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
 let tokenPromise = null;
+let hasWarnedMissingSystemSession = false;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 function getUrl() {
     const url = process.env.SUPABASE_URL;
     if (!url)
@@ -30,22 +32,39 @@ function getSystemAuthClient() {
     });
     return authClient;
 }
+function warnDevSystemAdminFallback(reason) {
+    if (hasWarnedMissingSystemSession || IS_PRODUCTION) {
+        return;
+    }
+    hasWarnedMissingSystemSession = true;
+    console.warn(`[mcp-server:supabase] ${reason}; falling back to anon client in non-production`);
+}
 function getSystemAdminCredentials() {
     const email = process.env.SUPABASE_SYSTEM_ADMIN_EMAIL;
     const password = process.env.SUPABASE_SYSTEM_ADMIN_PASSWORD;
     if (!email || !password) {
-        throw new Error('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
+        if (IS_PRODUCTION) {
+            throw new Error('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
+        }
+        return null;
     }
     return { email, password };
 }
 async function signInSystemAdmin() {
     const creds = getSystemAdminCredentials();
+    if (!creds) {
+        return null;
+    }
     const client = getSystemAuthClient();
     const { data, error } = await client.auth.signInWithPassword({
         email: creds.email,
         password: creds.password,
     });
     if (error || !data.session) {
+        if (!IS_PRODUCTION) {
+            console.warn('[mcp-server:supabase] Failed to sign in system admin:', error?.message ?? 'unknown error');
+            return null;
+        }
         throw new Error(`Failed to sign in system admin: ${error?.message ?? 'unknown error'}`);
     }
     return data.session;
@@ -60,6 +79,11 @@ async function getSystemAccessToken() {
     tokenPromise = (async () => {
         try {
             const session = await signInSystemAdmin();
+            if (!session) {
+                cachedAccessToken = null;
+                cachedAccessTokenExpiresAt = 0;
+                return null;
+            }
             const token = session.access_token;
             cachedAccessToken = token;
             cachedAccessTokenExpiresAt = (session.expires_at ?? Math.floor(now / 1000) + 3000) * 1000;
@@ -94,9 +118,24 @@ export function getSupabaseAuthClient() {
 export function getSupabaseClient() {
     if (serviceClient)
         return serviceClient;
-    serviceClient = createClient(getUrl(), getAnonKey(), {
+    const baseOptions = {
         auth: { persistSession: false, autoRefreshToken: false },
-        accessToken: async () => getSystemAccessToken(),
+    };
+    const credentials = getSystemAdminCredentials();
+    if (!credentials) {
+        warnDevSystemAdminFallback('Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD');
+        serviceClient = createClient(getUrl(), getAnonKey(), baseOptions);
+        return serviceClient;
+    }
+    serviceClient = createClient(getUrl(), getAnonKey(), {
+        ...baseOptions,
+        accessToken: async () => {
+            const token = await getSystemAccessToken();
+            if (token) {
+                return token;
+            }
+            throw new Error('Failed to resolve system admin access token');
+        },
     });
     return serviceClient;
 }

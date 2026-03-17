@@ -7,7 +7,7 @@ export function renderAuthorizePage(params) {
         ? `<div class="error"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dc2626" stroke-width="1.5"/><path d="M8 4.5v4M8 10.5v.5" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg><span>${escapeHtml(params.error)}</span></div>`
         : '';
     const siteUrl = process.env.MINGAI_SITE_URL || 'https://mingai.fun';
-    const logoUrl = `${siteUrl}/Logo.png`;
+    const logoUrl = `${siteUrl}/Logo.svg`;
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
