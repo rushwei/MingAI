@@ -6,23 +6,17 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
+import {
+    getSourceDataModelId,
+    getSourceDataReasoning,
+    normalizeAnalysisSourceData,
+    type AnalysisSourceData,
+    type AnalysisSourceType,
+} from '@/lib/ai/source-contract';
 import { replaceConversationMessages } from '@/lib/server/conversation-messages';
-import type { AIPersonality } from '@/types';
+import type { AIPersonality, ChatMessage } from '@/types';
 
-// AI 分析来源类型
-export type AIAnalysisSourceType =
-    | 'chat'           // 普通聊天
-    | 'bazi_wuxing'    // 八字五行分析
-    | 'bazi_personality' // 八字人格分析
-    | 'tarot'          // 塔罗占卜
-    | 'liuyao'         // 六爻占卜
-    | 'mbti'           // MBTI 人格
-    | 'hepan'          // 合盘分析
-    | 'palm'           // 手相分析
-    | 'face'           // 面相分析
-
-    | 'qimen'          // 奇门遁甲
-    | 'daliuren';      // 大六壬
+export type AIAnalysisSourceType = AnalysisSourceType;
 
 
 const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality>> = {
@@ -34,7 +28,7 @@ const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality
 export interface CreateAIAnalysisParams {
     userId: string;
     sourceType: AIAnalysisSourceType;
-    sourceData: Record<string, unknown>;
+    sourceData: AnalysisSourceData;
     title: string;
     aiResponse: string;
     baziChartId?: string;
@@ -47,11 +41,12 @@ export interface CreateAIAnalysisParams {
  */
 export async function createAIAnalysisConversation(params: CreateAIAnalysisParams): Promise<string | null> {
     const serviceClient = getSystemAdminClient();
+    const normalizedSourceData = normalizeAnalysisSourceData(params.sourceType, params.sourceData);
 
-    const modelId = typeof params.sourceData?.model_id === 'string' ? params.sourceData.model_id : undefined;
-    const reasoningText = typeof params.sourceData?.reasoning_text === 'string' ? params.sourceData.reasoning_text : undefined;
+    const modelId = getSourceDataModelId(normalizedSourceData) ?? undefined;
+    const reasoningText = getSourceDataReasoning(normalizedSourceData) ?? undefined;
     const createdAt = new Date().toISOString();
-    const messages = [
+    const messages: ChatMessage[] = [
         {
             id: crypto.randomUUID(),
             role: 'assistant',
@@ -68,9 +63,8 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
         .insert({
             user_id: params.userId,
             source_type: params.sourceType,
-            source_data: params.sourceData,
+            source_data: normalizedSourceData,
             title: params.title,
-            messages: messages,
             personality,
             bazi_chart_id: params.baziChartId || null,
             ziwei_chart_id: params.ziweiChartId || null,

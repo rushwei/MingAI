@@ -4,6 +4,11 @@
  * 浏览器侧统一通过 feature API 查询历史分析与摘要。
  */
 
+import {
+    getSourceDataModelId,
+    getSourceDataReasoning,
+} from '@/lib/ai/source-contract';
+import type { HistorySummaryItem, HistoryType } from '@/lib/history/registry';
 import type { ChatMessage } from '@/types';
 
 export function extractAnalysisFromConversation(
@@ -13,14 +18,10 @@ export function extractAnalysisFromConversation(
     const assistant = messages.find(m => m.role === 'assistant');
     const modelId = typeof assistant?.model === 'string'
         ? assistant.model
-        : typeof sourceData?.model_id === 'string'
-            ? sourceData.model_id
-            : null;
+        : getSourceDataModelId(sourceData);
     const reasoning = typeof assistant?.reasoning === 'string'
         ? assistant.reasoning
-        : typeof sourceData?.reasoning_text === 'string'
-            ? sourceData.reasoning_text
-            : null;
+        : getSourceDataReasoning(sourceData);
 
     return {
         analysis: assistant?.content || null,
@@ -34,8 +35,8 @@ export function hydrateConversationMessages(
     sourceData?: Record<string, unknown>
 ) {
     if (!sourceData) return messages;
-    const modelId = typeof sourceData.model_id === 'string' ? sourceData.model_id : null;
-    const reasoningText = typeof sourceData.reasoning_text === 'string' ? sourceData.reasoning_text : null;
+    const modelId = getSourceDataModelId(sourceData);
+    const reasoningText = getSourceDataReasoning(sourceData);
     if (!modelId && !reasoningText) return messages;
     return messages.map(msg => {
         if (msg.role !== 'assistant') return msg;
@@ -86,8 +87,8 @@ export async function getLatestBaziAnalysis(
  */
 export async function getHistoryList(
     userId: string,
-    type: 'tarot' | 'liuyao' | 'mbti' | 'hepan'
-): Promise<Array<{ id: string; title: string; createdAt: string }>> {
+    type: HistoryType
+): Promise<HistorySummaryItem[]> {
     void userId;
 
     const response = await fetch(`/api/history-summaries?type=${type}`, {
@@ -98,7 +99,7 @@ export async function getHistoryList(
     }
 
     const payload = await response.json().catch(() => null) as {
-        items?: Array<{ id: string; title: string; createdAt: string }>;
+        items?: HistorySummaryItem[];
     } | null;
     return payload?.items || [];
 }

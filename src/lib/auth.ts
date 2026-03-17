@@ -13,7 +13,6 @@ import {
     normalizeBrowserApiError as normalizeError,
     requestBrowserJson,
 } from '@/lib/browser-api';
-import { browserSupabase } from '@/lib/browser-supabase';
 import {
     getCurrentUserProfile,
     loadCurrentUserProfileBundle,
@@ -218,15 +217,6 @@ export const supabase = {
             };
         },
     },
-
-    // 过渡期兼容：仍有页面直接依赖 supabase.from/rpc，统一转发到浏览器查询客户端
-    from(table: string) {
-        return browserSupabase.from(table);
-    },
-
-    rpc(fn: string, args?: Record<string, unknown>) {
-        return browserSupabase.rpc(fn, args);
-    },
 };
 
 export const authClient = supabase;
@@ -313,10 +303,11 @@ export async function getCurrentUserProfileBundle() {
     return loadCurrentUserProfileBundle();
 }
 
-export async function ensureUserRecord(user: SupabaseUser) {
+export async function ensureUserRecord(user: SupabaseUser, accessToken?: string) {
     void user;
     const result = await requestJson<{ success: boolean }>('/api/user/profile', {
         method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: JSON.stringify({ action: 'ensure' }),
     });
 

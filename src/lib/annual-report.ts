@@ -5,6 +5,7 @@
  */
 
 import { getSystemAdminClient } from '@/lib/api-utils';
+import { toFeatureUsageBucket } from '@/lib/source-contracts';
 
 // ===== 报告数据类型 =====
 
@@ -33,6 +34,10 @@ export interface AnnualReportData {
         mbti: number;
         hepan: number;
         fortune: number;
+        qimen: number;
+        daliuren: number;
+        dream: number;
+        chat: number;
     };
 
     // 活跃度
@@ -89,6 +94,7 @@ export async function generateAnnualReport(
         const featureUsage = {
             bazi: 0, ziwei: 0, liuyao: 0, tarot: 0,
             palm: 0, face: 0, mbti: 0, hepan: 0, fortune: 0,
+            qimen: 0, daliuren: 0, dream: 0, chat: 0,
         };
 
         const monthlyUsage: Record<number, number> = {};
@@ -96,10 +102,8 @@ export async function generateAnnualReport(
         const hourDist: Record<number, number> = {};
 
         for (const conv of convList) {
-            const sourceType = conv.source_type as keyof typeof featureUsage;
-            if (sourceType in featureUsage) {
-                featureUsage[sourceType]++;
-            }
+            const bucket = toFeatureUsageBucket(conv.source_type);
+            featureUsage[bucket]++;
 
             const date = new Date(conv.created_at);
             const month = date.getMonth() + 1;

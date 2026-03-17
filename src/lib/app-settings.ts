@@ -147,6 +147,7 @@ export async function setPurchaseLink(
 
 export const FEATURE_MODULE_IDS = [
   'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'qimen',
+  'daliuren',
   'face', 'palm', 'mbti', 'chat', 'daily', 'monthly',
   'records', 'community', 'knowledge-base', 'mcp-service',
   'checkin', 'orders', 'charts', 'ai-personalization',
@@ -163,6 +164,7 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
   tarot: '塔罗',
   liuyao: '六爻',
   qimen: '奇门遁甲',
+  daliuren: '大六壬',
   face: '面相',
   palm: '手相',
   mbti: 'MBTI',
@@ -237,4 +239,9 @@ export async function setFeatureToggle(
     console.error('[app-settings] Failed to set feature toggle:', error);
     return false;
   }
+}
+
+export async function isFeatureModuleEnabled(featureId: FeatureModuleId): Promise<boolean> {
+  const toggles = await getFeatureToggles();
+  return toggles[featureId] !== true;
 }
