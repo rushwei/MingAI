@@ -1,15 +1,12 @@
 /**
  * MBTI 性格测试 API 路由
- * 
+ *
  * 提供 AI 性格分析功能
  */
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
-import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
+import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';
@@ -21,109 +18,38 @@ interface MBTIRequest {
         TF: { T: number; F: number };
         JP: { J: number; P: number };
     };
-    readingId?: string; // 已保存的测试记录 ID，用于关联 AI 分析
+    readingId?: string;
     modelId?: string;
     reasoning?: boolean;
-    stream?: boolean;  // 是否使用流式输出
+    stream?: boolean;
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body: MBTIRequest = await request.json();
-        const { action, type, scores, percentages, readingId, modelId, reasoning, stream } = body;
+// ─── Interpret pipeline config ───
 
-        // 保存测试记录（不含 AI 分析）
-        if (action === 'save') {
-            if (!type || !percentages) {
-                return jsonError('请提供完整的测试结果', 400, { success: false });
-            }
+interface MBTIInterpretInput extends InterpretInput {
+    type: MBTIType;
+    scores: Record<string, number>;
+    percentages: MBTIRequest['percentages'];
+    readingId?: string;
+}
 
-            const authResult = await requireBearerUser(request);
-            if ('error' in authResult) {
-                return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            }
-            const { user } = authResult;
-
-            const serviceClient = getSystemAdminClient();
-            const { data: insertedReading, error: insertError } = await serviceClient
-                .from('mbti_readings')
-                .insert({
-                    user_id: user.id,
-                    mbti_type: type,
-                    scores,
-                    percentages,
-                })
-                .select('id')
-                .single();
-
-            if (insertError) {
-                console.error('[mbti] 保存测试记录失败:', insertError.message);
-                return jsonError('保存记录失败', 500, { success: false });
-            }
-
-            return jsonOk({
-                success: true,
-                data: { readingId: insertedReading?.id }
-            });
+const handleInterpret = createInterpretHandler<MBTIInterpretInput>({
+    sourceType: 'mbti',
+    tag: 'mbti',
+    parseInput: (body) => {
+        const b = body as MBTIRequest;
+        if (!b.type || !b.percentages) {
+            return { error: '请提供完整的测试结果', status: 400 };
         }
-
-        // 获取历史记录
-        if (action === 'history') {
-            const authResult = await requireBearerUser(request);
-            if ('error' in authResult) {
-                return jsonError(authResult.error.message, authResult.error.status, { success: false });
-            }
-            const { user } = authResult;
-
-            const serviceClient = getSystemAdminClient();
-            const { data: history, error: historyError } = await serviceClient
-                .from('mbti_readings')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(20);
-
-            if (historyError) {
-                return jsonError('获取历史记录失败', 500, { success: false });
-            }
-
-            return jsonOk({
-                success: true,
-                data: { history }
-            });
-        }
-
-        if (action !== 'analyze') {
-            return jsonError('未知操作', 400, { success: false });
-        }
-
-        if (!type || !percentages) {
-            return jsonError('请提供完整的测试结果', 400, { success: false });
-        }
-
-        // 验证用户身份
-        const authResult = await requireBearerUser(request);
-        if ('error' in authResult) {
-            return jsonError(authResult.error.message, authResult.error.status, { success: false });
-        }
-        const { user } = authResult;
-
-        // 检查积分 + 获取会员类型（单次 DB 查询）
-        const authInfo = await getUserAuthInfo(user.id);
-        if (!authInfo || !authInfo.hasCredits) {
-            return jsonError('积分不足，请充值后使用', 403, { success: false });
-        }
-
-        const membershipType = authInfo.effectiveMembership;
-        const access = await resolveModelAccessAsync(modelId, DEFAULT_MODEL_ID, membershipType, reasoning);
-        if ('error' in access) {
-            return jsonError(access.error, access.status, { success: false });
-        }
-        const { modelId: requestedModelId, reasoningEnabled } = access;
-
-        const basic = PERSONALITY_BASICS[type];
-
-        // MBTI 系统提示词：固定分析结构与语气
+        return {
+            type: b.type,
+            scores: b.scores,
+            percentages: b.percentages,
+            readingId: b.readingId,
+        };
+    },
+    buildPrompts: (input) => {
+        const basic = PERSONALITY_BASICS[input.type];
         const systemPrompt = `你是一位专业的心理学家和 MBTI 性格分析专家。
 请根据用户的 MBTI 测试结果，提供个性化的深度分析和建议。
 
@@ -137,180 +63,107 @@ export async function POST(request: NextRequest) {
 语言应专业但易懂，具有鼓励性和建设性。
 字数控制在 600-800 字。`;
 
-        // 用户提示词：仅携带测试结果数据
         const userPrompt = `用户的 MBTI 测试结果：
 
-性格类型：${type} - ${basic.title}
+性格类型：${input.type} - ${basic.title}
 ${basic.description}
 
 维度分析：
-- 外向(E) ${percentages.EI.E}% vs 内向(I) ${percentages.EI.I}%
-- 实感(S) ${percentages.SN.S}% vs 直觉(N) ${percentages.SN.N}%
-- 思考(T) ${percentages.TF.T}% vs 情感(F) ${percentages.TF.F}%
-- 判断(J) ${percentages.JP.J}% vs 知觉(P) ${percentages.JP.P}%
+- 外向(E) ${input.percentages.EI.E}% vs 内向(I) ${input.percentages.EI.I}%
+- 实感(S) ${input.percentages.SN.S}% vs 直觉(N) ${input.percentages.SN.N}%
+- 思考(T) ${input.percentages.TF.T}% vs 情感(F) ${input.percentages.TF.F}%
+- 判断(J) ${input.percentages.JP.J}% vs 知觉(P) ${input.percentages.JP.P}%
 
 请为这位用户提供个性化的深度分析。`;
 
-        const remainingCredits = await useCredit(user.id);
-        if (remainingCredits === null) {
-            console.error('[mbti] 扣除积分失败');
-            return jsonError('积分扣减失败，请稍后重试', 500, { success: false });
-        }
-
-        try {
-            // 流式输出模式
-            if (stream) {
-                const streamBody = await callAIStream(
-                    [{ role: 'user', content: userPrompt }],
-                    'general',
-                    `\n\n${systemPrompt}\n\n`,
-                    requestedModelId,
-                    {
-                        reasoning: reasoningEnabled,
-                        temperature: 0.7,
-                    }
-                );
-                const [clientStream, tapStream] = streamBody.tee();
-
-                // 异步持久化流式结果
-                void (async () => {
-                    try {
-                        const { content: analysis, reasoning: reasoningText } = await readAIStream(tapStream);
-                        const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai/ai-analysis');
-                        const conversationId = await createAIAnalysisConversation({
-                            userId: user.id,
-                            sourceType: 'mbti',
-                            sourceData: {
-                                mbti_type: type,
-                                scores,
-                                percentages,
-                                model_id: requestedModelId,
-                                reasoning: reasoningEnabled,
-                                reasoning_text: reasoningText || null,
-                            },
-                            title: generateMbtiTitle(type),
-                            aiResponse: analysis,
-                        });
-
-                        if (!conversationId) {
-                            console.error('[mbti] 保存 AI 分析对话失败');
-                        }
-
-                        const serviceClient = getSystemAdminClient();
-                        if (readingId) {
-                            const { error: updateError } = await serviceClient
-                                .from('mbti_readings')
-                                .update({ conversation_id: conversationId })
-                                .eq('id', readingId)
-                                .eq('user_id', user.id);
-
-                            if (updateError) {
-                                console.error('[mbti] 更新测试记录失败:', updateError.message);
-                            }
-                        } else {
-                            const { error: insertError } = await serviceClient
-                                .from('mbti_readings')
-                                .insert({
-                                    user_id: user.id,
-                                    mbti_type: type,
-                                    scores,
-                                    percentages,
-                                    conversation_id: conversationId,
-                                });
-
-                            if (insertError) {
-                                console.error('[mbti] 保存测试记录失败:', insertError.message, insertError.details);
-                            }
-                        }
-                    } catch (streamError) {
-                        console.error('[mbti] 流式结果保存失败:', streamError);
-                    }
-                })();
-
-                // 返回 SSE 格式响应
-                return new Response(clientStream, {
-                    headers: {
-                        'Content-Type': 'text/event-stream',
-                        'Cache-Control': 'no-cache',
-                        'Connection': 'keep-alive',
-                    },
+        return { systemPrompt, userPrompt };
+    },
+    buildSourceData: (input, modelId, reasoningEnabled) => ({
+        mbti_type: input.type,
+        scores: input.scores,
+        percentages: input.percentages,
+        model_id: modelId,
+        reasoning: reasoningEnabled,
+    }),
+    generateTitle: (input) => `${input.type} 人格分析`,
+    persistRecord: async (input, userId, conversationId) => {
+        const serviceClient = getSystemAdminClient();
+        if (input.readingId) {
+            const { error } = await serviceClient
+                .from('mbti_readings')
+                .update({ conversation_id: conversationId })
+                .eq('id', input.readingId)
+                .eq('user_id', userId);
+            if (error) console.error('[mbti] 更新测试记录失败:', error.message);
+        } else {
+            const { error } = await serviceClient
+                .from('mbti_readings')
+                .insert({
+                    user_id: userId,
+                    mbti_type: input.type,
+                    scores: input.scores,
+                    percentages: input.percentages,
+                    conversation_id: conversationId,
                 });
+            if (error) console.error('[mbti] 保存测试记录失败:', error.message);
+        }
+    },
+});
+
+export async function POST(request: NextRequest) {
+    try {
+        const body: MBTIRequest = await request.json();
+        const { action } = body;
+
+        if (action === 'save') {
+            if (!body.type || !body.percentages) {
+                return jsonError('请提供完整的测试结果', 400, { success: false });
             }
-
-            // 非流式模式：覆盖默认人格提示词，确保 MBTI 解读模板稳定
-            const { content: analysis, reasoning: reasoningText } = await callAIWithReasoning(
-                [{ role: 'user', content: userPrompt }],
-                'general',
-                requestedModelId,
-                `\n\n${systemPrompt}\n\n`,
-                {
-                    reasoning: reasoningEnabled,
-                    temperature: 0.7,
-                }
-            );
-
-            // 保存 AI 分析到 conversations 表
-            const { createAIAnalysisConversation, generateMbtiTitle } = await import('@/lib/ai/ai-analysis');
-            const conversationId = await createAIAnalysisConversation({
-                userId: user.id,
-                sourceType: 'mbti',
-                sourceData: {
-                    mbti_type: type,
-                    scores,
-                    percentages,
-                    model_id: requestedModelId,
-                    reasoning: reasoningEnabled,
-                    reasoning_text: reasoningText || null,
-                },
-                title: generateMbtiTitle(type),
-                aiResponse: analysis,
-            });
-
-            if (!conversationId) {
-                console.error('[mbti] 保存 AI 分析对话失败');
+            const authResult = await requireBearerUser(request);
+            if ('error' in authResult) {
+                return jsonError(authResult.error.message, authResult.error.status, { success: false });
             }
-
-            // 更新已有记录的 conversation_id，或插入新记录（兼容旧调用）
             const serviceClient = getSystemAdminClient();
-            if (readingId) {
-                // 更新已有记录
-                const { error: updateError } = await serviceClient
-                    .from('mbti_readings')
-                    .update({ conversation_id: conversationId })
-                    .eq('id', readingId)
-                    .eq('user_id', user.id);
-
-                if (updateError) {
-                    console.error('[mbti] 更新测试记录失败:', updateError.message);
-                }
-            } else {
-                // 兼容旧调用：插入新记录
-                const { error: insertError } = await serviceClient
-                    .from('mbti_readings')
-                    .insert({
-                        user_id: user.id,
-                        mbti_type: type,
-                        scores,
-                        percentages,
-                        conversation_id: conversationId,
-                    });
-
-                if (insertError) {
-                    console.error('[mbti] 保存测试记录失败:', insertError.message, insertError.details);
-                }
+            const { data: insertedReading, error: insertError } = await serviceClient
+                .from('mbti_readings')
+                .insert({
+                    user_id: authResult.user.id,
+                    mbti_type: body.type,
+                    scores: body.scores,
+                    percentages: body.percentages,
+                })
+                .select('id')
+                .single();
+            if (insertError) {
+                console.error('[mbti] 保存测试记录失败:', insertError.message);
+                return jsonError('保存记录失败', 500, { success: false });
             }
-
-            return jsonOk({
-                success: true,
-                data: { analysis, reasoning: reasoningText, conversationId }
-            });
-
-        } catch (error) {
-            await addCredits(user.id, 1);
-            console.error('[mbti] AI 分析失败:', error);
-            return jsonError('AI 分析失败，请稍后重试', 500, { success: false });
+            return jsonOk({ success: true, data: { readingId: insertedReading?.id } });
         }
 
+        if (action === 'history') {
+            const authResult = await requireBearerUser(request);
+            if ('error' in authResult) {
+                return jsonError(authResult.error.message, authResult.error.status, { success: false });
+            }
+            const serviceClient = getSystemAdminClient();
+            const { data: history, error: historyError } = await serviceClient
+                .from('mbti_readings')
+                .select('*')
+                .eq('user_id', authResult.user.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
+            if (historyError) {
+                return jsonError('获取历史记录失败', 500, { success: false });
+            }
+            return jsonOk({ success: true, data: { history } });
+        }
+
+        if (action !== 'analyze') {
+            return jsonError('未知操作', 400, { success: false });
+        }
+
+        return handleInterpret(request, body as unknown as Record<string, unknown>);
     } catch (error) {
         console.error('[mbti] API 错误:', error);
         return jsonError('服务器错误', 500, { success: false });
