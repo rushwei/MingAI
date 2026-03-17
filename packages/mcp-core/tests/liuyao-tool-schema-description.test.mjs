@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '../dist/index.js';
+import * as mcpCore from '@mingai/mcp-core';
 
 test('liuyao tool description guides target selection by question semantics', () => {
   const tool = mcpCore.tools.find((item) => item.name === 'liuyao');

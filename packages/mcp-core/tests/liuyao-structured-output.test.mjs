@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as mcpCore from '../dist/index.js';
+import * as mcpCore from '@mingai/mcp-core';
 
 const LIU_QIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'];
 const MOVEMENT_STATES = ['static', 'changing', 'hidden_moving', 'day_break'];

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as mcpCore from '../dist/index.js';
+import * as mcpCore from '@mingai/mcp-core';
 
 test('mcp-core should only expose canonical renamed tool names', async () => {
   const toolNames = new Set(mcpCore.tools.map((item) => item.name));

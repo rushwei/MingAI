@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatLiuyaoAsMarkdown } from '../dist/formatters.js';
+import { formatAsMarkdown } from '@mingai/mcp-core';
 
 test('liuyao markdown preserves qualitative selection status and recommendation basis', () => {
-  const markdown = formatLiuyaoAsMarkdown({
+  const markdown = formatAsMarkdown('liuyao', {
     seed: 'seed',
     question: '事业是否顺利',
     hexagramName: '天火同人',
