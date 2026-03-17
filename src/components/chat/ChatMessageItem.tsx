@@ -292,7 +292,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             )}
             <MarkdownContent content={message.content} className="text-base text-foreground" />
             {isCurrentStreaming && !message.content && (
-                <div className="mt-2 inline-flex items-end gap-[2px] h-4">
+                <div className="mt-2 inline-flex items-center gap-[2px] h-4">
                     {[0, 1, 2, 3].map((i) => (
                         <span key={i} className="sound-wave-bar w-[2px] rounded-full bg-foreground/60" style={{ animationDelay: `${i * 0.15}s` }} />
                     ))}

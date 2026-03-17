@@ -36,7 +36,7 @@ import {
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { getCustomizerNavItems, getCustomizerToolItems, type LucideIcon } from '@/lib/navigation/registry';
+import { getCustomizerNavItems, getCustomizerToolItems, type NavIcon } from '@/lib/navigation/registry';
 
 const TOOL_LABEL_OVERRIDE: Record<string, string> = {
     daily: '每日运势',
@@ -57,7 +57,7 @@ function SortableItem({
     isHidden,
     onToggle,
 }: {
-    item: { id: string; label: string; icon: LucideIcon };
+    item: { id: string; label: string; icon: NavIcon };
     isHidden: boolean;
     onToggle: () => void;
 }) {
@@ -123,7 +123,7 @@ function SortableItem({
 function DragOverlayItem({
     item,
 }: {
-    item: { id: string; label: string; icon: LucideIcon };
+    item: { id: string; label: string; icon: NavIcon };
 }) {
     const Icon = item.icon;
     return (

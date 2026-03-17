@@ -39,7 +39,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
-import { getMobileItemsList, toFeatureId, type LucideIcon } from '@/lib/navigation/registry';
+import { getMobileItemsList, toFeatureId, type NavIcon } from '@/lib/navigation/registry';
 
 const ALL_MOBILE_ITEMS = getMobileItemsList();
 
@@ -276,7 +276,7 @@ function MainItemsSection({
     onRemove,
 }: {
     mainItems: string[];
-    itemMap: Map<string, { id: string; label: string; icon: LucideIcon }>;
+    itemMap: Map<string, { id: string; label: string; icon: NavIcon }>;
     onRemove: (itemId: string) => void;
 }) {
     return (
@@ -336,7 +336,7 @@ function SortableDrawerItem({
     onToggleHidden,
     onAddToMain,
 }: {
-    item: { id: string; label: string; icon: LucideIcon };
+    item: { id: string; label: string; icon: NavIcon };
     isHidden: boolean;
     canAddToMain: boolean;
     onToggleHidden: () => void;
@@ -414,7 +414,7 @@ function SortableDrawerItem({
 function DragOverlayItem({
     item,
 }: {
-    item: { id: string; label: string; icon: LucideIcon };
+    item: { id: string; label: string; icon: NavIcon };
 }) {
     const Icon = item.icon;
     return (
@@ -444,12 +444,12 @@ function DrawerItemsSection({
     onToggleHidden,
     onAddToMain,
 }: {
-    drawerItems: { id: string; label: string; icon: LucideIcon }[];
+    drawerItems: { id: string; label: string; icon: NavIcon }[];
     mainItems: string[];
     hiddenItems: string[];
     sensors: ReturnType<typeof useSensors>;
     activeDrawerId: string | null;
-    itemMap: Map<string, { id: string; label: string; icon: LucideIcon }>;
+    itemMap: Map<string, { id: string; label: string; icon: NavIcon }>;
     onDragStart: (event: DragStartEvent) => void;
     onDragEnd: (event: DragEndEvent) => void;
     onDragCancel: () => void;

@@ -32,7 +32,7 @@ export function SoundWaveLoader({
     const config = barConfigs[variant];
 
     const bars = (
-        <div className={`flex items-end ${config.gap} ${config.height}`}>
+        <div className={`flex items-center ${config.gap} ${config.height}`}>
             {Array.from({ length: config.count }, (_, i) => (
                 <span
                     key={i}
@@ -76,7 +76,7 @@ export function SoundWaveLoader({
  */
 export function StreamingIndicator({ className = '' }: { className?: string }) {
     return (
-        <span className={`inline-flex items-end gap-[2px] h-4 ${className}`}>
+        <span className={`inline-flex items-center gap-[2px] h-4 ${className}`}>
             {Array.from({ length: 4 }, (_, i) => (
                 <span
                     key={i}

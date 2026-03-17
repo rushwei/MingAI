@@ -6,9 +6,6 @@
  * its own duplicated item arrays.
  */
 import {
-  Orbit,
-  Sparkles,
-  Gem,
   Dices,
   HeartHandshake,
   BotMessageSquare,
@@ -23,7 +20,6 @@ import {
   Tags,
   Settings,
   CalendarCheck,
-  ScrollText,
   CircleStar,
   Bell,
   CreditCard,
@@ -31,8 +27,34 @@ import {
   BookOpenText,
   Scroll,
   CircleQuestionMark,
+  Telescope,
   type LucideIcon,
 } from 'lucide-react';
+import { YinYangIcon, CheckerboardIcon, CompassRoseIcon, StarOfDavidIcon } from '@phosphor-icons/react';
+import { createElement, type ComponentType } from 'react';
+
+/** Icon type that accepts both Lucide and Phosphor icon components. */
+export type NavIcon = ComponentType<{ className?: string; size?: number | string }>;
+
+/**
+ * Wrap a Phosphor icon so it visually matches Lucide's stroke weight.
+ * Phosphor regular paths are thinner than Lucide's default strokeWidth=2,
+ * so we scale up ~115% while keeping the bounding box unchanged.
+ */
+function phosphor(Icon: ComponentType<Record<string, unknown>>): NavIcon {
+  const Wrapped: NavIcon = (props) =>
+    createElement(Icon, {
+      ...props,
+      style: { transform: 'scale(1.1)' },
+    });
+  Wrapped.displayName = `Phosphor(${Icon.displayName ?? Icon.name})`;
+  return Wrapped;
+}
+
+const PYinYang = phosphor(YinYangIcon);
+const PCheckerboard = phosphor(CheckerboardIcon);
+const PCompassRose = phosphor(CompassRoseIcon);
+const PStarOfDavid = phosphor(StarOfDavidIcon);
 
 export type { LucideIcon };
 
@@ -49,8 +71,8 @@ export interface NavItemDef {
   href: string;
   /** Display label (Chinese) */
   label: string;
-  /** Lucide icon component */
-  icon: LucideIcon;
+  /** Icon component (Lucide or Phosphor) */
+  icon: NavIcon;
   /** Optional emoji for sidebar tooltip / share cards */
   emoji?: string;
   /** Short description */
@@ -71,13 +93,13 @@ export interface NavItemDef {
 export const NAV_REGISTRY: readonly NavItemDef[] = [
   // ── Divination ──────────────────────────────────────────────────────────
   { id: 'fortune-hub', href: '/fortune-hub', label: '运势中心', icon: Compass, category: 'divination' },
-  { id: 'bazi', href: '/bazi', label: '八字', icon: Orbit, emoji: '🔮', description: '四柱八字精批', category: 'divination' },
+  { id: 'bazi', href: '/bazi', label: '八字', icon: PYinYang, emoji: '🔮', description: '四柱八字精批', category: 'divination' },
   { id: 'hepan', href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑', description: '八字合盘', category: 'divination' },
-  { id: 'ziwei', href: '/ziwei', label: '紫微斗数', icon: Sparkles, emoji: '⭐', description: '紫微命盘', category: 'divination' },
-  { id: 'tarot', href: '/tarot', label: '塔罗', icon: Gem, emoji: '🃏', description: '塔罗占卜', category: 'divination' },
+  { id: 'ziwei', href: '/ziwei', label: '紫微斗数', icon: PCompassRose, emoji: '⭐', description: '紫微命盘', category: 'divination' },
+  { id: 'tarot', href: '/tarot', label: '塔罗', icon: PStarOfDavid, emoji: '🃏', description: '塔罗占卜', category: 'divination' },
   { id: 'liuyao', href: '/liuyao', label: '六爻', icon: Dices, emoji: '☯️', description: '六爻占卜', category: 'divination' },
-  { id: 'qimen', href: '/qimen', label: '奇门遁甲', icon: Compass, emoji: '🧭', description: '奇门遁甲', category: 'divination' },
-  { id: 'daliuren', href: '/daliuren', label: '大六壬', icon: ScrollText, emoji: '📜', description: '大六壬', category: 'divination' },
+  { id: 'qimen', href: '/qimen', label: '奇门遁甲', icon: PCheckerboard, emoji: '🧭', description: '奇门遁甲', category: 'divination' },
+  { id: 'daliuren', href: '/daliuren', label: '大六壬', icon: Telescope, emoji: '📜', description: '大六壬', category: 'divination' },
   { id: 'face', href: '/face', label: '面相', icon: ScanFace, emoji: '👤', description: '面相分析', category: 'divination' },
   { id: 'palm', href: '/palm', label: '手相', icon: Hand, emoji: '🖐️', description: '手相分析', category: 'divination' },
   { id: 'mbti', href: '/mbti', label: 'MBTI', icon: Brain, emoji: '🧩', description: '性格测试', category: 'divination' },
@@ -148,8 +170,8 @@ export function getCustomizerToolItems() {
 }
 
 /** MobileNav / MobileNavCustomizer — all items keyed by id. */
-export function getMobileItemsRecord(): Record<string, { href: string; label: string; icon: LucideIcon }> {
-  const record: Record<string, { href: string; label: string; icon: LucideIcon }> = {};
+export function getMobileItemsRecord(): Record<string, { href: string; label: string; icon: NavIcon }> {
+  const record: Record<string, { href: string; label: string; icon: NavIcon }> = {};
   for (const n of NAV_REGISTRY) {
     record[n.id] = { href: n.href, label: n.label, icon: n.icon };
   }
@@ -157,7 +179,7 @@ export function getMobileItemsRecord(): Record<string, { href: string; label: st
 }
 
 /** MobileNavCustomizer — flat array of { id, label, icon }. */
-export function getMobileItemsList(): { id: string; label: string; icon: LucideIcon }[] {
+export function getMobileItemsList(): { id: string; label: string; icon: NavIcon }[] {
   return NAV_REGISTRY.map(n => ({ id: n.id, label: n.label, icon: n.icon }));
 }
 

@@ -20,6 +20,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@lobehub/icons": "^4.0.2",
     "@mingai/mcp-core": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-virtual": "^3.13.18",
