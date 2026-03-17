@@ -12,128 +12,55 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Orbit,
-    Sparkles,
-    Gem,
-    Dices,
-    HeartHandshake,
-    BotMessageSquare,
-    Brain,
-    Compass,
-    Sun,
-    User,
     Plus,
     X,
-    ScanFace,
-    Hand,
-    CalendarRange,
-    Aperture,
-    Tags,
-    Settings,
     SlidersHorizontal,
-    Bell,
-    CreditCard,
-    MessageCircleHeart,
-    BookOpenText,
-    CircleHelp,
-    type LucideIcon,
-    CircleStar,
-    Scroll,
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
+import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
 
-// 底部导航栏的默认入口
-const DEFAULT_MAIN_ITEMS = ['fortune-hub', 'liuyao', 'chat', 'daily'];
+const ALL_NAV_ITEMS = getMobileItemsRecord();
 
-// 导航项 ID → 功能开关 ID 映射（用户中心子功能）
-const NAV_TO_FEATURE_ID: Record<string, string> = {
-    'user/upgrade': 'upgrade',
-    'user/charts': 'charts',
-    'user/notifications': 'notifications',
-    'user/orders': 'orders',
-    'user/settings/ai': 'ai-personalization',
-    'user/knowledge-base': 'knowledge-base',
-    'user/help': 'help',
+const GRID_COLS_CLASS: Record<number, string> = {
+    0: 'grid-cols-1',
+    1: 'grid-cols-2',
+    2: 'grid-cols-3',
+    3: 'grid-cols-4',
 };
-
-/** 将导航项 ID 转为功能开关 ID */
-const toFeatureId = (navId: string) => NAV_TO_FEATURE_ID[navId] || navId;
-
-// 所有可用的导航项目映射
-const ALL_NAV_ITEMS: Record<string, { href: string; label: string; icon: LucideIcon }> = {
-    'fortune-hub': { href: '/fortune-hub', label: '运势中心', icon: Compass },
-    'bazi': { href: '/bazi', label: '八字', icon: Orbit },
-    'records': { href: '/records', label: '命理记录', icon: Tags },
-    'community': { href: '/community', label: '社区', icon: Aperture },
-    'hepan': { href: '/hepan', label: '八字合盘', icon: HeartHandshake },
-    'ziwei': { href: '/ziwei', label: '紫微斗数', icon: Sparkles },
-    'tarot': { href: '/tarot', label: '塔罗', icon: Gem },
-    'liuyao': { href: '/liuyao', label: '六爻', icon: Dices },
-    'qimen': { href: '/qimen', label: '奇门遁甲', icon: Compass },
-    'face': { href: '/face', label: '面相', icon: ScanFace },
-    'palm': { href: '/palm', label: '手相', icon: Hand },
-    'mbti': { href: '/mbti', label: 'MBTI', icon: Brain },
-    'chat': { href: '/chat', label: 'AI', icon: BotMessageSquare },
-    'daily': { href: '/daily', label: '日运', icon: Sun },
-    'monthly': { href: '/monthly', label: '月运', icon: CalendarRange },
-    'user': { href: '/user', label: '我的', icon: User },
-    'user/settings': { href: '/user/settings', label: '设置', icon: Settings },
-    'user/upgrade': { href: '/user/upgrade', label: '订阅', icon: CircleStar },
-    'user/charts': { href: '/user/charts', label: '命盘', icon: Scroll },
-    'user/notifications': { href: '/user/notifications', label: '通知', icon: Bell },
-    'user/orders': { href: '/user/orders', label: '订单', icon: CreditCard },
-    'user/settings/ai': { href: '/user/settings/ai', label: '个性化', icon: MessageCircleHeart },
-    'user/knowledge-base': { href: '/user/knowledge-base', label: '知识库', icon: BookOpenText },
-    'user/help': { href: '/user/help', label: '帮助', icon: CircleHelp },
-};
-
-// 抽屉中显示的默认顺序
-const DEFAULT_DRAWER_ORDER = [
-    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen',
-    'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-    'user/upgrade', 'user/charts', 'user/notifications', 'user/orders',
-    'user/settings/ai', 'user/knowledge-base', 'user/help'
-];
 
 export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
-    const { config, loading: sidebarConfigLoading } = useSidebarConfigSafe();
-    const { isFeatureEnabled, isLoading: featureLoading } = useFeatureToggles();
-    const isNavLoading = sidebarConfigLoading || featureLoading;
+    const { config, loading: sidebarConfigLoading, refreshing: sidebarConfigRefreshing } = useSidebarConfigSafe();
+    const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
+    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing;
 
     // 根据配置计算底部导航栏项目
     const mainNavItems = useMemo(() => {
-        const items = config.mobileMainItems || DEFAULT_MAIN_ITEMS;
+        const items = config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS];
         return items
-            .filter(id => isFeatureEnabled(toFeatureId(id)))
+            .filter(id => featureLoading ? true : isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-    }, [config.mobileMainItems, isFeatureEnabled]);
+    }, [config.mobileMainItems, featureLoading, isFeatureEnabled]);
 
     // 根据配置计算抽屉中的项目
     const drawerNavItems = useMemo(() => {
-        const order = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
+        const order = config.mobileDrawerOrder ?? [...DEFAULT_MOBILE_DRAWER_ORDER];
         const hidden = new Set(config.hiddenMobileItems || []);
-        const mainSet = new Set(config.mobileMainItems || DEFAULT_MAIN_ITEMS);
-        const orderSet = new Set(order);
+        const mainSet = new Set(config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS]);
 
         // 按顺序排列已有的项目
         const orderedItems = order
-            .filter(id => !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
+            .filter(id => !mainSet.has(id) && !hidden.has(id) && (featureLoading ? true : isFeatureEnabled(toFeatureId(id))))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-
-        // 添加不在 order 中的新项目（追加到末尾）
-        const newItems = Object.entries(ALL_NAV_ITEMS)
-            .filter(([id]) => !orderSet.has(id) && !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
-            .map(([, item]) => item);
-
-        return [...orderedItems, ...newItems];
-    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, isFeatureEnabled]);
+        return orderedItems;
+    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, featureLoading, isFeatureEnabled]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {
@@ -208,6 +135,7 @@ export function MobileNav() {
                         <button
                             onClick={closeDrawer}
                             className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
+                            aria-label="关闭抽屉"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -267,11 +195,7 @@ export function MobileNav() {
                 `}
             >
                 <ul className={`grid px-2 py-1 ${
-                    mainNavItems.length === 0 ? 'grid-cols-1' :
-                    mainNavItems.length === 1 ? 'grid-cols-2' :
-                    mainNavItems.length === 2 ? 'grid-cols-3' :
-                    mainNavItems.length === 3 ? 'grid-cols-4' :
-                    'grid-cols-5'
+                    GRID_COLS_CLASS[mainNavItems.length] ?? 'grid-cols-5'
                 }`}>
                     {mainNavItems.map((item) => {
                         const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -305,6 +229,7 @@ export function MobileNav() {
                                 transition-all duration-200
                                 text-foreground-secondary
                             `}
+                            aria-label="展开更多功能"
                         >
                             <div className="w-6 h-6 rounded-full flex items-center justify-center">
                                 <Plus className="w-5 h-5" />

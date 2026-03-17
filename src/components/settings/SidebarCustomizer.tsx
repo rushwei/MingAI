@@ -27,54 +27,29 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-    Orbit,
-    Sparkles,
-    Gem,
-    Dices,
-    ScanFace,
-    Hand,
-    Sun,
-    CalendarRange,
-    BotMessageSquare,
-    Brain,
-    Compass,
-    HeartHandshake,
-    Aperture,
-    Tags,
-    CalendarCheck,
     Eye,
     EyeOff,
     GripVertical,
     RotateCcw,
     Check,
-    type LucideIcon,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { getCustomizerNavItems, getCustomizerToolItems, type LucideIcon } from '@/lib/navigation/registry';
 
-// 所有可配置的导航项
-const ALL_NAV_ITEMS = [
-    { id: 'fortune-hub', label: '运势中心', icon: Compass },
-    { id: 'bazi', label: '八字', icon: Orbit },
-    { id: 'hepan', label: '八字合盘', icon: HeartHandshake },
-    { id: 'ziwei', label: '紫微斗数', icon: Sparkles },
-    { id: 'tarot', label: '塔罗', icon: Gem },
-    { id: 'liuyao', label: '六爻', icon: Dices },
-    { id: 'qimen', label: '奇门遁甲', icon: Compass },
-    { id: 'face', label: '面相', icon: ScanFace },
-    { id: 'palm', label: '手相', icon: Hand },
-    { id: 'mbti', label: 'MBTI', icon: Brain },
-];
+const TOOL_LABEL_OVERRIDE: Record<string, string> = {
+    daily: '每日运势',
+    monthly: '月度运势',
+    community: '命理社区',
+};
 
-const ALL_TOOL_ITEMS = [
-    { id: 'checkin', label: '签到', icon: CalendarCheck },
-    { id: 'chat', label: 'AI', icon: BotMessageSquare },
-    { id: 'daily', label: '每日运势', icon: Sun },
-    { id: 'monthly', label: '月度运势', icon: CalendarRange },
-    { id: 'records', label: '命理记录', icon: Tags },
-    { id: 'community', label: '命理社区', icon: Aperture },
-];
+const ALL_NAV_ITEMS = getCustomizerNavItems().map(n => ({ id: n.id, label: n.label, icon: n.icon }));
+const ALL_TOOL_ITEMS = getCustomizerToolItems().map(n => ({
+    id: n.id,
+    label: TOOL_LABEL_OVERRIDE[n.id] ?? n.label,
+    icon: n.icon,
+}));
 
 // 可排序项组件
 function SortableItem({
@@ -189,15 +164,20 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
 
     // 排序后的导航项
     const sortedNavItems = useMemo(() => {
+        const navOrder = config.navOrder ?? [];
+        const navOrderIndex = new Map(navOrder.map((id, index) => [id, index]));
+        const fallbackIndex = new Map(ALL_NAV_ITEMS.map((item, index) => [item.id, index]));
+
+        const getIndex = (id: string) => {
+            const explicit = navOrderIndex.get(id);
+            if (explicit !== undefined) return explicit;
+            return fallbackIndex.get(id) ?? Number.MAX_SAFE_INTEGER;
+        };
+
         return [...ALL_NAV_ITEMS]
             .filter(item => isFeatureEnabled(item.id))
             .sort((a, b) => {
-            const orderA = config.navOrder?.indexOf(a.id) ?? -1;
-            const orderB = config.navOrder?.indexOf(b.id) ?? -1;
-            if (orderA === -1 && orderB === -1) return 0;
-            if (orderA === -1) return 1;
-            if (orderB === -1) return -1;
-            return orderA - orderB;
+            return getIndex(a.id) - getIndex(b.id);
         });
     }, [config.navOrder, isFeatureEnabled]);
 
@@ -206,15 +186,20 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
     }, []);
 
     const sortedToolItems = useMemo(() => {
+        const toolOrder = config.toolOrder ?? [];
+        const toolOrderIndex = new Map(toolOrder.map((id, index) => [id, index]));
+        const fallbackIndex = new Map(ALL_TOOL_ITEMS.map((item, index) => [item.id, index]));
+
+        const getIndex = (id: string) => {
+            const explicit = toolOrderIndex.get(id);
+            if (explicit !== undefined) return explicit;
+            return fallbackIndex.get(id) ?? Number.MAX_SAFE_INTEGER;
+        };
+
         return [...ALL_TOOL_ITEMS]
             .filter(item => isFeatureEnabled(item.id))
             .sort((a, b) => {
-            const orderA = config.toolOrder?.indexOf(a.id) ?? -1;
-            const orderB = config.toolOrder?.indexOf(b.id) ?? -1;
-            if (orderA === -1 && orderB === -1) return 0;
-            if (orderA === -1) return 1;
-            if (orderB === -1) return -1;
-            return orderA - orderB;
+            return getIndex(a.id) - getIndex(b.id);
         });
     }, [config.toolOrder, isFeatureEnabled]);
 
@@ -241,7 +226,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         setActiveNavId(null);
         if (!over || active.id === over.id) return;
 
-        const oldOrder = config.navOrder || ALL_NAV_ITEMS.map(i => i.id);
+        const oldOrder = sortedNavItems.map(item => item.id);
         const oldIndex = oldOrder.indexOf(active.id as string);
         const newIndex = oldOrder.indexOf(over.id as string);
 
@@ -258,7 +243,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         setActiveToolId(null);
         if (!over || active.id === over.id) return;
 
-        const oldOrder = config.toolOrder || ALL_TOOL_ITEMS.map(i => i.id);
+        const oldOrder = sortedToolItems.map(item => item.id);
         const oldIndex = oldOrder.indexOf(active.id as string);
         const newIndex = oldOrder.indexOf(over.id as string);
 

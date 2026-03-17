@@ -27,22 +27,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-    Orbit,
-    Sparkles,
-    Gem,
-    Dices,
-    HeartHandshake,
-    BotMessageSquare,
-    Brain,
-    Compass,
-    Sun,
-    User,
-    ScanFace,
-    Hand,
-    CalendarRange,
-    Aperture,
-    Tags,
-    Settings,
     Eye,
     EyeOff,
     GripVertical,
@@ -50,53 +34,14 @@ import {
     Check,
     Plus,
     X,
-    type LucideIcon,
-    CircleStar,
-    Bell,
-    CreditCard,
-    MessageCircleHeart,
-    BookOpenText,
-    CircleQuestionMark,
-    Scroll,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
+import { getMobileItemsList, toFeatureId, type LucideIcon } from '@/lib/navigation/registry';
 
-// 所有可配置的移动端项目
-const ALL_MOBILE_ITEMS = [
-    { id: 'fortune-hub', label: '运势中心', icon: Compass },
-    { id: 'bazi', label: '八字', icon: Orbit },
-    { id: 'records', label: '命理记录', icon: Tags },
-    { id: 'community', label: '社区', icon: Aperture },
-    { id: 'hepan', label: '八字合盘', icon: HeartHandshake },
-    { id: 'ziwei', label: '紫微斗数', icon: Sparkles },
-    { id: 'tarot', label: '塔罗', icon: Gem },
-    { id: 'liuyao', label: '六爻', icon: Dices },
-    { id: 'face', label: '面相', icon: ScanFace },
-    { id: 'palm', label: '手相', icon: Hand },
-    { id: 'mbti', label: 'MBTI', icon: Brain },
-    { id: 'chat', label: 'AI', icon: BotMessageSquare },
-    { id: 'daily', label: '日运', icon: Sun },
-    { id: 'monthly', label: '月运', icon: CalendarRange },
-    { id: 'user', label: '我的', icon: User },
-    { id: 'user/settings', label: '设置', icon: Settings },
-    { id: 'user/upgrade', label: '订阅', icon: CircleStar },
-    { id: 'user/charts', label: '命盘', icon: Scroll },
-    { id: 'user/notifications', label: '通知', icon: Bell },
-    { id: 'user/orders', label: '订单', icon: CreditCard },
-    { id: 'user/settings/ai', label: '个性化', icon: MessageCircleHeart },
-    { id: 'user/knowledge-base', label: '知识库', icon: BookOpenText },
-    { id: 'user/help', label: '帮助中心', icon: CircleQuestionMark },
-];
-
-const DEFAULT_MAIN_ITEMS = ['fortune-hub', 'liuyao', 'chat', 'daily'];
-const DEFAULT_DRAWER_ORDER = [
-    'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot',
-    'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-    'user/upgrade', 'user/charts', 'user/notifications', 'user/orders',
-    'user/settings/ai', 'user/knowledge-base', 'user/help'
-];
+const ALL_MOBILE_ITEMS = getMobileItemsList();
 
 interface MobileNavCustomizerProps {
     userId: string | null;
@@ -120,26 +65,21 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
 
     // 当前底部导航栏项目
     const mainItems = useMemo(() => {
-        return config.mobileMainItems || DEFAULT_MAIN_ITEMS;
+        return config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS];
     }, [config.mobileMainItems]);
 
     // 抽屉中的项目（排除底部导航栏的项目）
     const drawerItems = useMemo(() => {
-        const order = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
+        const order = config.mobileDrawerOrder ?? [...DEFAULT_MOBILE_DRAWER_ORDER];
         const mainSet = new Set(mainItems);
-        const orderSet = new Set(order);
 
         // 按顺序排列已有的项目
         const orderedItems = order
             .filter(id => !mainSet.has(id))
             .map(id => ALL_MOBILE_ITEMS.find(item => item.id === id))
-            .filter((item): item is typeof ALL_MOBILE_ITEMS[0] => !!item && isFeatureEnabled(item.id));
+            .filter((item): item is typeof ALL_MOBILE_ITEMS[0] => !!item && isFeatureEnabled(toFeatureId(item.id)));
 
-        // 添加不在 order 中的新项目（追加到末尾）
-        const newItems = ALL_MOBILE_ITEMS
-            .filter(item => !orderSet.has(item.id) && !mainSet.has(item.id) && isFeatureEnabled(item.id));
-
-        return [...orderedItems, ...newItems];
+        return orderedItems;
     }, [config.mobileDrawerOrder, mainItems, isFeatureEnabled]);
 
     const itemMap = useMemo(() => {
@@ -173,7 +113,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
     const removeFromMain = useCallback((itemId: string) => {
         const newMainItems = mainItems.filter(id => id !== itemId);
         // 确保移除的项目在抽屉顺序中（添加到开头）
-        const currentDrawerOrder = config.mobileDrawerOrder || DEFAULT_DRAWER_ORDER;
+        const currentDrawerOrder = config.mobileDrawerOrder || DEFAULT_MOBILE_DRAWER_ORDER;
         const newDrawerOrder = currentDrawerOrder.includes(itemId)
             ? currentDrawerOrder
             : [itemId, ...currentDrawerOrder];
@@ -225,8 +165,8 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         if (!confirm('确定恢复默认设置？')) return;
         const defaultConfig: SidebarConfig = {
             ...config,
-            mobileMainItems: DEFAULT_MAIN_ITEMS,
-            mobileDrawerOrder: DEFAULT_DRAWER_ORDER,
+            mobileMainItems: [...DEFAULT_MOBILE_MAIN_ITEMS],
+            mobileDrawerOrder: [...DEFAULT_MOBILE_DRAWER_ORDER],
             hiddenMobileItems: [],
         };
         setConfig(defaultConfig);

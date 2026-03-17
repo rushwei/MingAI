@@ -11,32 +11,9 @@ import { useState } from "react";
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from "@/lib/supabase";
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
+import { getFeatureModules } from '@/lib/navigation/registry';
 
-const MODULES: { id: string; label: string }[] = [
-    { id: 'fortune-hub', label: '运势中心' },
-    { id: 'bazi', label: '八字' },
-    { id: 'hepan', label: '八字合盘' },
-    { id: 'ziwei', label: '紫微斗数' },
-    { id: 'tarot', label: '塔罗' },
-    { id: 'liuyao', label: '六爻' },
-    { id: 'face', label: '面相' },
-    { id: 'palm', label: '手相' },
-    { id: 'mbti', label: 'MBTI' },
-    { id: 'chat', label: 'AI 对话' },
-    { id: 'daily', label: '日运' },
-    { id: 'monthly', label: '月运' },
-    { id: 'records', label: '命理记录' },
-    { id: 'community', label: '社区' },
-    { id: 'knowledge-base', label: '知识库' },
-    { id: 'mcp-service', label: 'MCP 服务' },
-    { id: 'checkin', label: '签到' },
-    { id: 'orders', label: '订单' },
-    { id: 'charts', label: '我的命盘' },
-    { id: 'ai-personalization', label: '个性化' },
-    { id: 'notifications', label: '消息通知' },
-    { id: 'upgrade', label: '订阅' },
-    { id: 'help', label: '帮助' },
-];
+const MODULES = getFeatureModules();
 
 export function FeatureTogglePanel() {
     const { isFeatureEnabled, isLoading, refresh } = useFeatureToggles();
@@ -75,7 +52,16 @@ export function FeatureTogglePanel() {
                 return;
             }
 
-            await refresh();
+            window.dispatchEvent(
+                new CustomEvent('mingai:api-write', {
+                    detail: {
+                        pathname: '/api/feature-toggles',
+                        method: 'POST',
+                        at: Date.now(),
+                    },
+                })
+            );
+            await refresh(true, true);
         } catch (err) {
             console.error("[feature-toggles] Update failed:", err);
             setError("网络错误，请重试");

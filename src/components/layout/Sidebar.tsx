@@ -13,23 +13,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
-    Orbit,
-    Sparkles,
-    Gem,
-    Dices,
-    ScanFace,
-    Hand,
-    Sun,
-    CalendarRange,
     PanelLeft,
     LogIn,
-    BotMessageSquare,
-    Brain,
-    Compass,
-    HeartHandshake,
-    // Github,
-    Aperture,
-    Tags,
 } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -38,107 +23,21 @@ import { useSidebarSafe } from '@/components/layout/SidebarContext';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { getSidebarNavItems, getSidebarToolItems } from '@/lib/navigation/registry';
 
-// 导航项配置
-const navItems = [
-    {
-        href: '/fortune-hub',
-        label: '运势中心',
-        icon: Compass,
-        available: true
-    },
-    {
-        href: '/bazi',
-        label: '八字',
-        icon: Orbit,
-        available: true,
-        emoji: '🔮',
-        description: '四柱八字精批'
-    },
-    {
-        href: '/hepan',
-        label: '八字合盘',
-        icon: HeartHandshake,
-        available: true,
-        emoji: '💑',
-        description: '八字合盘'
-    },
-    {
-        href: '/ziwei',
-        label: '紫微斗数',
-        icon: Sparkles,
-        available: true,
-        emoji: '⭐',
-        description: '紫微命盘'
-    },
-    {
-        href: '/tarot',
-        label: '塔罗',
-        icon: Gem,
-        available: true,
-        emoji: '🃏',
-        description: '塔罗占卜'
-    },
-    {
-        href: '/liuyao',
-        label: '六爻',
-        icon: Dices,
-        available: true,
-        emoji: '☯️',
-        description: '六爻占卜'
-    },
-    {
-        href: '/qimen',
-        label: '奇门遁甲',
-        icon: Compass,
-        available: true,
-        emoji: '🧭',
-        description: '奇门遁甲'
-    },
-    {
-        href: '/face',
-        label: '面相',
-        icon: ScanFace,
-        available: true,
-        emoji: '👤',
-        description: '面相分析'
-    },
-    {
-        href: '/palm',
-        label: '手相',
-        icon: Hand,
-        available: true,
-        emoji: '🖐️',
-        description: '手相分析'
-    },
-    {
-        href: '/mbti',
-        label: 'MBTI',
-        icon: Brain,
-        available: true,
-        emoji: '🧩',
-        description: '性格测试'
-    },
-];
-
-// 工具项配置 - 使用不同图标区分每日/每月
-const toolItems = [
-    { href: '/chat', label: 'AI', icon: BotMessageSquare, available: true },
-    { href: '/daily', label: '日运', icon: Sun, available: true },
-    { href: '/monthly', label: '月运', icon: CalendarRange, available: true },
-    { href: '/records', label: '命理记录', icon: Tags, available: true },
-    { href: '/community', label: '社区', icon: Aperture, available: true },
-];
+// Derive from registry once at module level
+const navItems = getSidebarNavItems().map(n => ({ ...n, available: true }));
+const toolItems = getSidebarToolItems().map(n => ({ ...n, available: true }));
 
 export function Sidebar() {
     const pathname = usePathname();
     const { collapsed, setCollapsed } = useSidebarSafe();
-    const { config: sidebarConfig, loading: sidebarConfigLoading } = useSidebarConfigSafe();
+    const { config: sidebarConfig, loading: sidebarConfigLoading, refreshing: sidebarConfigRefreshing } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const { user } = useSessionSafe();
-    const { isFeatureEnabled, isLoading: featureLoading } = useFeatureToggles();
+    const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const isNavLoading = sidebarConfigLoading || featureLoading;
+    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing;
 
     // 切换折叠状态
     const toggleCollapsed = useCallback((newState: boolean) => {
@@ -148,30 +47,24 @@ export function Sidebar() {
 
     // 根据配置过滤并排序导航项
     const filteredNavItems = useMemo(() => navItems
-        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
+        .filter(item => featureLoading ? true : isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
         .sort((a, b) => {
             const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
             const orderB = sidebarConfig.navOrder?.indexOf(b.href.replace('/', '')) ?? -1;
-            if (orderA === -1 && orderB === -1) return 0;
-            if (orderA === -1) return 1;
-            if (orderB === -1) return -1;
             return orderA - orderB;
-        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
+        }), [featureLoading, sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
 
     const filteredToolItems = useMemo(() => toolItems
-        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
+        .filter(item => featureLoading ? true : isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
         .sort((a, b) => {
             const idA = a.href.replace('/user/', '').replace('/', '');
             const idB = b.href.replace('/user/', '').replace('/', '');
             const orderA = sidebarConfig.toolOrder?.indexOf(idA) ?? -1;
             const orderB = sidebarConfig.toolOrder?.indexOf(idB) ?? -1;
-            if (orderA === -1 && orderB === -1) return 0;
-            if (orderA === -1) return 1;
-            if (orderB === -1) return -1;
             return orderA - orderB;
-        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
+        }), [featureLoading, sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
 
     if (isNavLoading) {
         return (
@@ -186,11 +79,11 @@ export function Sidebar() {
                 <div className={`flex items-center h-16 px-4 border-b border-border ${collapsed ? 'justify-center' : 'justify-between'}`}>
                     <Link href="/" className="flex items-center gap-2 min-w-0">
                         <Image
-                            src="/Logo.png"
+                            src="/Logo.svg"
                             alt="MingAI Logo"
                             width={28}
                             height={28}
-                            className="rounded-lg flex-shrink-0"
+                            className="rounded-lg flex-shrink-0 dark:invert"
                         />
                         {!collapsed && (
                             <span className="font-bold text-base text-foreground whitespace-nowrap">
@@ -236,11 +129,11 @@ export function Sidebar() {
                                 className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isHoveringLogo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Image
-                                    src="/Logo.png"
+                                    src="/Logo.svg"
                                     alt="MingAI Logo"
                                     width={28}
                                     height={28}
-                                    className="rounded-lg"
+                                    className="rounded-lg dark:invert"
                                 />
                             </Link>
                             <button
@@ -258,11 +151,11 @@ export function Sidebar() {
                         <>
                             <Link href="/" className="flex items-center gap-2 min-w-0">
                                 <Image
-                                    src="/Logo.png"
+                                    src="/Logo.svg"
                                     alt="MingAI Logo"
                                     width={28}
                                     height={28}
-                                    className="rounded-lg flex-shrink-0"
+                                    className="rounded-lg flex-shrink-0 dark:invert"
                                 />
                                 <span className={`font-bold text-base text-foreground whitespace-nowrap transition-opacity duration-300 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
                                     MingAI
