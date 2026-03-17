@@ -114,20 +114,20 @@ export function createInterpretHandler<T extends InterpretInput>(
     request: NextRequest,
     body: Record<string, unknown>,
   ): Promise<Response> {
-    // 1. Auth
-    const authResult = await requireBearerUser(request);
-    if ('error' in authResult) {
-      return jsonError(authResult.error.message, authResult.error.status, { success: false });
-    }
-    const { user } = authResult;
-
-    // Parse input
+    // Parse input first (fast fail for invalid params)
     const parsed = parseInput(body);
     if (parsed && typeof parsed === 'object' && 'error' in parsed && 'status' in parsed) {
       const err = parsed as { error: string; status: number };
       return jsonError(err.error, err.status, { success: false });
     }
     const input = parsed as T;
+
+    // 1. Auth
+    const authResult = await requireBearerUser(request);
+    if ('error' in authResult) {
+      return jsonError(authResult.error.message, authResult.error.status, { success: false });
+    }
+    const { user } = authResult;
 
     // 2. Credits + membership
     const authInfo = await getUserAuthInfo(user.id);
