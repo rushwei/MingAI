@@ -90,12 +90,6 @@ function calculateBranchRelations(targetBranch: string, natalBranches: string[],
     const matchingNatal = natalBranches.filter(b => sanHe.branches.includes(b) && b !== targetBranch);
     const uniqueMatching = [...new Set(matchingNatal)];
     if (uniqueMatching.length >= 2) {
-      const matchingLabels = natalBranches
-        .filter((b, idx) => sanHe.branches.includes(b) && b !== targetBranch)
-        .map((_, idx2) => {
-          const realIdx = natalBranches.findIndex((b, i) => sanHe.branches.includes(b) && b !== targetBranch && i >= idx2);
-          return natalLabels[realIdx] || '';
-        });
       const involvedLabels = natalBranches
         .map((b, i) => (sanHe.branches.includes(b) && b !== targetBranch) ? natalLabels[i] : null)
         .filter(Boolean);
@@ -304,11 +298,10 @@ export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutp
   // 出生年(公历)用于计算流年
   const birthSolarYear = solar.getYear();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const list = daYunList
-    .filter((dy: any) => dy.getGanZhi())
+    .filter((dy) => dy.getGanZhi())
     .slice(0, 10)
-    .map((dy: any) => {
+    .map((dy) => {
       const ganZhi = dy.getGanZhi();
       const stem = ganZhi.slice(0, 1);
       const branch = ganZhi.slice(1, 2);

@@ -14,7 +14,8 @@ import {
   sortYaosDescending,
 } from './liuyao-core.js';
 import { STEM_ELEMENTS } from './utils.js';
-import { getToolRegistryEntry, type ToolFormatterKey } from './tool-registry.js';
+
+// Runtime formatter bindings live in tool-registry.ts; this module only keeps formatter implementations.
 
 /**
  * 格式化八字结果为 Markdown
@@ -690,34 +691,6 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
 /**
  * 根据工具名格式化结果
  */
-const markdownFormatters: Record<ToolFormatterKey, (result: unknown) => string> = {
-  bazi: (result) => formatBaziAsMarkdown(result as BaziOutput),
-  baziPillarsResolve: (result) => formatBaziPillarsResolveAsMarkdown(result as BaziPillarsResolveOutput),
-  ziwei: (result) => formatZiweiAsMarkdown(result as ZiweiOutput),
-  ziweiHoroscope: (result) => formatZiweiHoroscopeAsMarkdown(result as ZiweiHoroscopeOutput),
-  ziweiFlyingStar: (result) => formatZiweiFlyingStarAsMarkdown(result as ZiweiFlyingStarOutput),
-  liuyao: (result) => formatLiuyaoAsMarkdown(result as LiuyaoOutput),
-  tarot: (result) => formatTarotAsMarkdown(result as TarotOutput),
-  almanac: (result) => formatDailyFortuneAsMarkdown(result as FortuneOutput),
-  baziDayun: (result) => formatDayunAsMarkdown(result as DayunOutput),
-  qimen: (result) => formatQimenAsMarkdown(result as QimenOutput),
-};
-
-export function hasMarkdownFormatter(toolName: string): boolean {
-  const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
-  return !!(formatterKey && markdownFormatters[formatterKey]);
-}
-
-export function formatAsMarkdown(toolName: string, result: unknown): string {
-  const formatterKey = getToolRegistryEntry(toolName)?.formatterKey;
-  const formatter = formatterKey ? markdownFormatters[formatterKey] : undefined;
-  if (!formatter) {
-    return JSON.stringify(result, null, 2);
-  }
-
-  return formatter(result);
-}
-
 // 辅助函数：格式化星曜标签（名称+亮度+四化+自化）
 function formatStarLabel(s: { name: string; brightness?: string; mutagen?: string; selfMutagen?: string; oppositeMutagen?: string }): string {
   let label = s.name;

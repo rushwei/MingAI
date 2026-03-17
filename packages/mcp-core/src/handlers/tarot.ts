@@ -43,14 +43,6 @@ const MAJOR_ARCANA: TarotCard[] = [
   { name: 'The World', nameChinese: '世界', number: 21, keywords: ['完成', '整合', '成就'], reversedKeywords: ['目标未竟', '缺乏圆满', '困于循环'], suit: 'major', element: '土', astrologicalCorrespondence: '土星' },
 ];
 
-// 花色元素对应
-const SUIT_ELEMENTS: Record<string, string> = {
-  wands: '火',
-  cups: '水',
-  swords: '风',
-  pentacles: '土',
-};
-
 // ===== 小阿卡纳：权杖 (Wands / 火) =====
 const WANDS: TarotCard[] = [
   { name: 'Ace of Wands', nameChinese: '权杖一', keywords: ['创造力', '意志力', '灵感'], reversedKeywords: ['缺乏热情', '精力不足', '无聊倦怠'], suit: 'wands', element: '火' },

@@ -11,6 +11,8 @@ export interface DaliurenInput {
   hour: number;
   /** 分钟 0-59 */
   minute?: number;
+  /** IANA 时区 */
+  timezone?: string;
   /** 占事 */
   question?: string;
   /** 出生年（用于计算本命和行年） */

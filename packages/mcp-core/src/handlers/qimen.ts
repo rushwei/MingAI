@@ -5,7 +5,8 @@
 import { createRequire } from 'module';
 import { Solar } from 'lunar-javascript';
 import type { QimenInput, QimenOutput, QimenPalaceInfo } from '../types.js';
-import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, getKongWang } from '../utils.js';
+import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, YI_MA_MAP } from '../constants/ganzhi.js';
+import { getKongWang } from '../utils.js';
 
 const require = createRequire(import.meta.url);
 const { TheArtOfBecomingInvisible } = require('taobi');
@@ -40,14 +41,6 @@ const OPPOSITE_PALACE: Record<number, number> = { 0: 8, 8: 0, 1: 7, 7: 1, 2: 6, 
 const BRANCH_TO_PALACE: Record<string, number> = {
   '子': 0, '丑': 7, '寅': 7, '卯': 2, '辰': 3, '巳': 3,
   '午': 8, '未': 1, '申': 1, '酉': 6, '戌': 5, '亥': 5,
-};
-
-// 驿马：日支三合局 → 马星地支
-const YI_MA_MAP: Record<string, string> = {
-  '寅': '申', '午': '申', '戌': '申',
-  '申': '寅', '子': '寅', '辰': '寅',
-  '巳': '亥', '酉': '亥', '丑': '亥',
-  '亥': '巳', '卯': '巳', '未': '巳',
 };
 
 // 入墓：天干→墓库地支
@@ -125,7 +118,12 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
 
   // 调用 taobi 排盘
   const date = new Date(year, month - 1, day, hour, minute);
-  const t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
+  let t;
+  try {
+    t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
+  } catch (err) {
+    throw new Error(`奇门排盘失败: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // 基本信息
   const round = t.round as number;

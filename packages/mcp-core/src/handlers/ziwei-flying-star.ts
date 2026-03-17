@@ -2,7 +2,6 @@
  * 紫微斗数飞星分析处理器
  */
 
-import type { Mutagen } from 'iztro';
 import type {
   ZiweiFlyingStarInput,
   ZiweiFlyingStarOutput,
@@ -11,9 +10,7 @@ import type {
   MutagedPlaceInfo,
   SurroundedPalaceInfo,
 } from '../types.js';
-import { createAstrolabe, MUTAGEN_NAMES } from './ziwei-shared.js';
-
-const MUTAGEN_ORDER = MUTAGEN_NAMES;
+import { createAstrolabe, MUTAGEN_NAMES, type MutagenName } from './ziwei-shared.js';
 
 function processQuery(
   astrolabe: ReturnType<typeof createAstrolabe>,
@@ -24,14 +21,14 @@ function processQuery(
     case 'fliesTo': {
       const palace = astrolabe.palace(query.from);
       if (!palace) throw new Error(`宫位 "${query.from}" 不存在`);
-      const mutagens = (query.mutagens || []) as Mutagen[];
+      const mutagens = (query.mutagens || []) as MutagenName[];
       const result = palace.fliesTo(query.to, mutagens);
       return { queryIndex: idx, type: 'fliesTo', result };
     }
     case 'selfMutaged': {
       const palace = astrolabe.palace(query.palace);
       if (!palace) throw new Error(`宫位 "${query.palace}" 不存在`);
-      const mutagens = (query.mutagens || MUTAGEN_ORDER) as Mutagen[];
+      const mutagens = (query.mutagens || MUTAGEN_NAMES) as MutagenName[];
       const result = palace.selfMutaged(mutagens);
       return { queryIndex: idx, type: 'selfMutaged', result };
     }
@@ -39,7 +36,7 @@ function processQuery(
       const palace = astrolabe.palace(query.palace);
       if (!palace) throw new Error(`宫位 "${query.palace}" 不存在`);
       const places = palace.mutagedPlaces();
-      const result: MutagedPlaceInfo[] = MUTAGEN_ORDER.map((m, i) => ({
+      const result: MutagedPlaceInfo[] = MUTAGEN_NAMES.map((m, i) => ({
         mutagen: m,
         targetPalace: places[i]?.name ?? null,
       }));

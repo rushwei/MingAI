@@ -62,12 +62,31 @@ import {
   GU_LUAN,
   SI_FEI_RI,
   SAN_QI,
-  NA_YIN_TABLE,
 } from './data/shensha-data.js';
 
 function addUnique(target: string[], value: string): void {
   if (value && !target.includes(value)) {
     target.push(value);
+  }
+}
+
+function checkDayPillarShenSha(
+  dayStem: string,
+  dayBranch: string,
+  monthBranch: string,
+  names: string[],
+  options?: { includeFull?: boolean },
+): void {
+  const dayPillar = `${dayStem}${dayBranch}`;
+  if (KUI_GANG.includes(dayPillar)) addUnique(names, '魁罡');
+  if (YIN_CHA_YANG_CUO.includes(dayPillar)) addUnique(names, '阴差阳错');
+  if (SHI_E_DA_BAI.includes(dayPillar)) addUnique(names, '十恶大败');
+  if (options?.includeFull) {
+    if (BA_ZHUAN.includes(dayPillar)) addUnique(names, '八专');
+    if (JIN_SHEN.includes(dayPillar)) addUnique(names, '金神');
+    if (GU_LUAN.includes(dayPillar)) addUnique(names, '孤鸾煞');
+    const siFeiList = SI_FEI_RI[monthBranch];
+    if (siFeiList && siFeiList.includes(dayPillar)) addUnique(names, '四废');
   }
 }
 
@@ -161,15 +180,7 @@ export function calculateBranchShenSha(
   }
 
   if (positionHint === 'day') {
-    const dayPillar = `${dayStem}${dayBranch}`;
-    if (KUI_GANG.includes(dayPillar)) addUnique(names, '魁罡');
-    if (YIN_CHA_YANG_CUO.includes(dayPillar)) addUnique(names, '阴差阳错');
-    if (SHI_E_DA_BAI.includes(dayPillar)) addUnique(names, '十恶大败');
-    if (BA_ZHUAN.includes(dayPillar)) addUnique(names, '八专');
-    if (JIN_SHEN.includes(dayPillar)) addUnique(names, '金神');
-    if (GU_LUAN.includes(dayPillar)) addUnique(names, '孤鸾煞');
-    const siFeiList = SI_FEI_RI[monthBranch];
-    if (siFeiList && siFeiList.includes(dayPillar)) addUnique(names, '四废');
+    checkDayPillarShenSha(dayStem, dayBranch, monthBranch, names, { includeFull: true });
   }
 
   // 三奇（检查三柱天干连续出现）
@@ -190,10 +201,7 @@ export function calculateBranchShenSha(
 
   // 位置无关场景（如六爻逐爻）给出轻量全局命中提示
   if (!positionHint) {
-    const dayPillar = `${dayStem}${dayBranch}`;
-    if (KUI_GANG.includes(dayPillar)) addUnique(names, '魁罡');
-    if (YIN_CHA_YANG_CUO.includes(dayPillar)) addUnique(names, '阴差阳错');
-    if (SHI_E_DA_BAI.includes(dayPillar)) addUnique(names, '十恶大败');
+    checkDayPillarShenSha(dayStem, dayBranch, monthBranch, names);
   }
 
   return names;
@@ -201,14 +209,8 @@ export function calculateBranchShenSha(
 
 export function calculateGlobalShenSha(context: ShenShaContext): string[] {
   const result: string[] = [];
-  const dayPillar = `${context.dayStem}${context.dayBranch}`;
 
-  if (KUI_GANG.includes(dayPillar)) addUnique(result, '魁罡');
-  if (YIN_CHA_YANG_CUO.includes(dayPillar)) addUnique(result, '阴差阳错');
-  if (SHI_E_DA_BAI.includes(dayPillar)) addUnique(result, '十恶大败');
-  if (BA_ZHUAN.includes(dayPillar)) addUnique(result, '八专');
-  if (JIN_SHEN.includes(dayPillar)) addUnique(result, '金神');
-  if (GU_LUAN.includes(dayPillar)) addUnique(result, '孤鸾煞');
+  checkDayPillarShenSha(context.dayStem, context.dayBranch, context.monthBranch, result, { includeFull: true });
 
   const allBranches = [context.yearBranch, context.monthBranch, context.dayBranch, context.hourBranch];
   if ((allBranches.includes('戌') && allBranches.includes('亥'))) {
