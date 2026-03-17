@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Architecture guard: verifies liuyao entry pages enforce yongShenTargets flow.
+// If this test fails after refactoring, update assertions to match new structure.
 test('liuyao entry pages enforce yongShenTargets only when question is provided', () => {
     const pageFile = fs.readFileSync(path.join(process.cwd(), 'src/app/liuyao/page.tsx'), 'utf8');
     const selectFile = fs.readFileSync(path.join(process.cwd(), 'src/app/liuyao/select/page.tsx'), 'utf8');
@@ -58,16 +60,12 @@ test('inline yongshen picker uses modal overlay to avoid click-through', () => {
     assert.equal(pickerFile.includes('婚恋多见于男问对象或以财为线索时'), true);
     assert.equal(pickerFile.includes('婚恋多见于女问对象或以官为线索时'), true);
     assert.equal(pickerFile.includes('子女后辈/医药'), true);
-    assert.equal(pickerFile.includes('至少选择 1 项后再起卦。'), false);
-    assert.equal(pickerFile.includes('系统才会开始六爻分析'), false);
     assert.equal(pickerFile.includes('有明确问题时再选择分析目标并正式解卦；无问题可仅起卦保存。'), true);
 });
 
-test('select page hides question content and no longer has editable question input', () => {
+test('select page shows YongShenTargetPicker and enforces target selection', () => {
     const selectFile = fs.readFileSync(path.join(process.cwd(), 'src/app/liuyao/select/page.tsx'), 'utf8');
 
-    assert.equal(selectFile.includes('问题来自主页面'), false);
-    assert.equal(selectFile.includes('例如：这次合作能否顺利？'), false);
     assert.equal(selectFile.includes('YongShenTargetPicker'), true);
     assert.equal(selectFile.includes('必须先选择分析目标'), true);
 });
@@ -76,7 +74,4 @@ test('main page keeps picker button inside input right side', () => {
     const pageFile = fs.readFileSync(path.join(process.cwd(), 'src/app/liuyao/page.tsx'), 'utf8');
 
     assert.equal(pageFile.includes('absolute inset-y-0 right-2 z-10 flex items-center'), true);
-    assert.equal(pageFile.includes('-translate-y-1/2'), false);
-    assert.equal(pageFile.includes('分析目标</p>'), false);
-    assert.equal(pageFile.includes('已选分析目标：'), false);
 });

@@ -1,3 +1,5 @@
+// Architecture guard: ensures chat bootstrap module boundaries are maintained.
+// If this test fails after refactoring, update assertions to match new structure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

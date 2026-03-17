@@ -1,0 +1,162 @@
+/**
+ * Regression tests for the membership -> credits -> rate-limit chain.
+ *
+ * Validates:
+ * - Membership expiry downgrades to free
+ * - Credits deduction returns null on failure
+ * - getUserAuthInfo returns correct hasCredits flag
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
+
+test('isMembershipExpired returns false for free users regardless of expiresAt', () => {
+    const { isMembershipExpired } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    assert.equal(isMembershipExpired({ membership: 'free', expiresAt: null }), false);
+    assert.equal(isMembershipExpired({ membership: 'free', expiresAt: new Date('2020-01-01') }), false);
+});
+
+test('isMembershipExpired returns true for expired plus/pro', () => {
+    const { isMembershipExpired } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const pastDate = new Date(Date.now() - 86400_000);
+    assert.equal(isMembershipExpired({ membership: 'plus', expiresAt: pastDate }), true);
+    assert.equal(isMembershipExpired({ membership: 'pro', expiresAt: pastDate }), true);
+});
+
+test('isMembershipExpired returns false for active plus/pro', () => {
+    const { isMembershipExpired } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const futureDate = new Date(Date.now() + 86400_000);
+    assert.equal(isMembershipExpired({ membership: 'plus', expiresAt: futureDate }), false);
+    assert.equal(isMembershipExpired({ membership: 'pro', expiresAt: futureDate }), false);
+});
+
+test('isMembershipExpired returns false for plus/pro with null expiresAt (lifetime)', () => {
+    const { isMembershipExpired } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    assert.equal(isMembershipExpired({ membership: 'plus', expiresAt: null }), false);
+    assert.equal(isMembershipExpired({ membership: 'pro', expiresAt: null }), false);
+});
+
+test('buildMembershipInfo downgrades expired pro to free', () => {
+    const { buildMembershipInfo } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const info = buildMembershipInfo({
+        membership: 'pro',
+        membership_expires_at: new Date(Date.now() - 86400_000).toISOString(),
+        ai_chat_count: 50,
+    });
+
+    assert.equal(info.type, 'free');
+    assert.equal(info.isActive, false);
+    assert.equal(info.aiChatCount, 50);
+});
+
+test('buildMembershipInfo returns defaults for null source', () => {
+    const { buildMembershipInfo } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const info = buildMembershipInfo(null);
+    assert.equal(info.type, 'free');
+    assert.equal(info.isActive, true);
+    assert.equal(info.aiChatCount, 3);
+});
+
+test('getUserAuthInfo returns null when DB query fails', async () => {
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const creditsModule = require('../lib/user/credits') as typeof import('../lib/user/credits');
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+
+    supabaseServerModule.getSystemAdminClient = () => ({
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    single: async () => ({ data: null, error: { message: 'connection refused' } }),
+                }),
+            }),
+        }),
+    });
+
+    try {
+        const result = await creditsModule.getUserAuthInfo('user-1');
+        assert.equal(result, null);
+    } finally {
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+    }
+});
+
+test('getUserAuthInfo returns hasCredits=false when credits are 0', async () => {
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const creditsPath = require.resolve('../lib/user/credits');
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+
+    supabaseServerModule.getSystemAdminClient = () => ({
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    single: async () => ({
+                        data: {
+                            ai_chat_count: 0,
+                            membership: 'free',
+                            last_credit_restore_at: null,
+                            membership_expires_at: null,
+                        },
+                        error: null,
+                    }),
+                }),
+            }),
+        }),
+    });
+
+    try {
+        delete require.cache[creditsPath];
+        const { getUserAuthInfo } = require('../lib/user/credits') as typeof import('../lib/user/credits');
+        const result = await getUserAuthInfo('user-1');
+        assert.ok(result);
+        assert.equal(result.hasCredits, false);
+        assert.equal(result.credits, 0);
+        assert.equal(result.effectiveMembership, 'free');
+    } finally {
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[creditsPath];
+    }
+});
+
+test('useCredit returns null when RPC fails', async () => {
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const creditsPath = require.resolve('../lib/user/credits');
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+
+    supabaseServerModule.getSystemAdminClient = () => ({
+        rpc: async () => ({ data: null, error: { message: 'rpc error' } }),
+    });
+
+    try {
+        delete require.cache[creditsPath];
+        const { useCredit } = require('../lib/user/credits') as typeof import('../lib/user/credits');
+        const result = await useCredit('user-1');
+        assert.equal(result, null);
+    } finally {
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        delete require.cache[creditsPath];
+    }
+});
+
+test('getPlanConfig returns correct limits for each tier', () => {
+    const { getPlanConfig } = require('../lib/user/membership') as typeof import('../lib/user/membership');
+
+    const free = getPlanConfig('free');
+    assert.equal(free.creditLimit, 3);
+    assert.equal(free.restorePeriod, 'daily');
+
+    const plus = getPlanConfig('plus');
+    assert.equal(plus.creditLimit, 50);
+    assert.equal(plus.restorePeriod, 'daily');
+
+    const pro = getPlanConfig('pro');
+    assert.equal(pro.creditLimit, 200);
+    assert.equal(pro.restorePeriod, 'hourly');
+});

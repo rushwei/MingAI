@@ -1,3 +1,5 @@
+// Architecture guard: ensures liuyao route imports from shared mcp-core, not local duplicates.
+// If this test fails after refactoring, update assertions to match new import paths.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
