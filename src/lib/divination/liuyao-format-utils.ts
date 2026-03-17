@@ -11,11 +11,17 @@ import type {
     ShenSystemByYongShen,
     YongShenGroup,
     LiuYaoFullAnalysis,
+    Hexagram,
+    Yao,
+    LiuQin,
 } from '@/lib/divination/liuyao';
 import {
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
+    performFullAnalysis,
 } from '@/lib/divination/liuyao';
+import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
+import { getHexagramText } from '@/lib/divination/hexagram-texts';
 
 // 从 mcp-core 导入并 re-export 共享常量
 export {
@@ -27,7 +33,14 @@ export {
     sortYaosDescending,
 } from '@mingai/mcp-core/liuyao-core';
 
-import { traditionalYaoName } from '@mingai/mcp-core/liuyao-core';
+import {
+    traditionalYaoName,
+    YONG_SHEN_STATUS_LABELS,
+    YAO_POSITION_NAMES,
+    formatGanZhiTime,
+    formatGuaLevelLines,
+    sortYaosDescending,
+} from '@mingai/mcp-core/liuyao-core';
 
 // ── 函数 ──
 
@@ -139,4 +152,153 @@ export function formatShenSystemParts(system: ShenSystemByYongShen | undefined):
     if (system?.jiShen) parts.push(`忌神=${system.jiShen.liuQin}（${system.jiShen.wuXing}）`);
     if (system?.chouShen) parts.push(`仇神=${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
     return parts;
+}
+
+// ── buildTraditionalInfo ──
+
+/**
+ * 构建传统六爻分析信息文本，用于 AI 解卦 prompt。
+ *
+ * 将排盘数据、用神分析、伏神、卦级分析、旬空等整合为一段格式化文本。
+ */
+export function buildTraditionalInfo(
+    yaos: Yao[] | undefined,
+    hexagramCode: string,
+    changedCode: string | undefined,
+    question: string,
+    date: Date,
+    yongShenTargets: LiuQin[],
+    hexagram: Hexagram,
+    changedHexagram?: Hexagram,
+): string {
+    if (!yaos || yaos.length !== 6) return '';
+
+    const analysis = performFullAnalysis(yaos, hexagramCode, changedCode, question, date, { yongShenTargets });
+
+    const {
+        ganZhiTime,
+        kongWangByPillar,
+        kongWang,
+        fullYaos,
+        yongShen,
+        fuShen,
+        shenSystemByYongShen,
+        globalShenSha,
+        timeRecommendations,
+        liuChongGuaInfo,
+        liuHeGuaInfo,
+        chongHeTransition,
+        guaFanFuYin,
+        sanHeAnalysis,
+        warnings,
+    } = analysis;
+
+    const palace = findPalace(hexagramCode);
+    const shiYing = getShiYingPosition(hexagramCode);
+    const changedPalace = changedCode ? findPalace(changedCode) : undefined;
+    const hexText = getHexagramText(hexagram.name);
+    const changedHexText = changedHexagram ? getHexagramText(changedHexagram.name) : undefined;
+    const yongShenMarkers = buildYongShenMarkers(yongShen);
+
+    // 各爻详细信息（上爻→初爻）
+    const yaoByPosition = new Map(fullYaos.map(y => [y.position, y] as const));
+    const sortedYaos = sortYaosDescending(fullYaos);
+    const yaoDetails = sortedYaos.map(y => formatYaoDetailLine(y, { yongShenMarkers })).join('\n');
+
+    const shenSystemMap = buildShenSystemMap(shenSystemByYongShen);
+    const yongShenInfo = yongShen.map((group) => {
+        const main = group.selected;
+        const statusLabel = YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus;
+        const candidates = group.candidates.length > 0
+            ? `\n候选：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${traditionalYaoName(c.position, yaoByPosition.get(c.position)?.type ?? 1)}` : ''}${c.naJia ? `（${c.naJia}）` : ''}${c.evidence.length > 0 ? `：${c.evidence.join('、')}` : ''}`).join('、')}`
+            : '';
+        const system = shenSystemMap.get(group.targetLiuQin);
+        const systemParts = formatShenSystemParts(system);
+        const systemText = systemParts.length > 0 ? `\n神系：${systemParts.join('；')}` : '';
+        const recs = timeRecommendations.filter(rec => rec.targetLiuQin === group.targetLiuQin);
+        const recText = recs.length > 0
+            ? `\n应期线索：${recs.map(rec => `${rec.trigger}：${rec.description}`).join('；')}`
+            : '';
+        const selectionText = group.selectionNote ? `\n取用说明：${group.selectionNote}` : '';
+        const mainEvidence = main.evidence.length > 0 ? `\n依据：${main.evidence.join('、')}` : '';
+        return `- 目标${group.targetLiuQin}（${statusLabel}）\n  主用神：${main.liuQin}${main.naJia ? `（${main.naJia}）` : ''}${main.position ? ` @${traditionalYaoName(main.position, yaoByPosition.get(main.position)?.type ?? 1)}` : ''} ${main.element} ${main.strengthLabel} ${main.movementLabel}${mainEvidence}${candidates}${selectionText}${systemText}${recText}`;
+    }).join('\n');
+
+    let fuShenInfo = '';
+    if (fuShen && fuShen.length > 0) {
+        const fuShenLines = fuShen.map(fs => {
+            const posName = YAO_POSITION_NAMES[fs.feiShenPosition - 1];
+            return `- ${fs.liuQin}伏于${posName}${fs.feiShenLiuQin ? `（${fs.feiShenLiuQin}）` : ''}下，纳甲${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`;
+        });
+        fuShenInfo = `\n伏神分析：\n${fuShenLines.join('\n')}`;
+    }
+
+    // 变卦信息
+    const changedLines = fullYaos.filter(y => y.isChanging).map(y => y.position);
+    let changedHexagramInfo: string;
+    if (changedHexagram && changedLines.length > 0) {
+        const changedPalaceName = changedPalace?.name || '未知';
+        const changedEl = changedHexagram.element || '';
+        const changedLineNames = changedLines.map(l => {
+            const yao = yaoByPosition.get(l);
+            return yao ? traditionalYaoName(l, yao.type) : YAO_POSITION_NAMES[l - 1];
+        }).join('、');
+        const parts = [
+            `变卦：${changedHexagram.name}（${changedPalaceName}宫·${changedEl}）`,
+            `变爻：${changedLineNames}`,
+        ];
+        if (changedHexText) {
+            parts.push(`变卦卦辞：${changedHexText.gua}`);
+            parts.push(`变卦象辞：${changedHexText.xiang}`);
+        }
+        if (hexText?.yao) {
+            for (const pos of changedLines) {
+                const yaoCi = hexText.yao[pos - 1];
+                if (yaoCi) {
+                    const yao = yaoByPosition.get(pos);
+                    parts.push(`${traditionalYaoName(pos, yao?.type ?? 1)}爻辞：${yaoCi.text}`);
+                }
+            }
+        }
+        changedHexagramInfo = parts.join('\n');
+    } else {
+        changedHexagramInfo = '无变爻';
+    }
+
+    // 卦级分析
+    const guaLevelParts = formatGuaLevelLines({
+        liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha,
+    });
+
+    // 四柱旬空
+    const kongWangLines = formatKongWangLines(kongWangByPillar, kongWang);
+
+    return [
+        '【卦象信息】',
+        `本卦：${hexagram.name}（${palace?.name || '未知'}宫·${hexagram.element}）`,
+        `上卦：${hexagram.upperTrigram}（${hexagram.nature}）`,
+        `下卦：${hexagram.lowerTrigram}`,
+        hexText ? `卦辞：${hexText.gua}` : '',
+        hexText ? `象辞：${hexText.xiang}` : '',
+        changedHexagramInfo,
+        '',
+        '【起卦时间】',
+        formatGanZhiTime(ganZhiTime),
+        ...kongWangLines,
+        `世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻`,
+        '',
+        guaLevelParts.length > 0 ? `【卦级分析】\n${guaLevelParts.join('\n')}` : '',
+        '',
+        '【六爻排盘】',
+        yaoDetails,
+        '',
+        '【用神分析】',
+        yongShenInfo,
+        fuShenInfo,
+        '',
+        warnings && warnings.length > 0 ? `【风险提示】\n${warnings.join('；')}` : '',
+        timeRecommendations.length > 0
+            ? `【应期参考】\n${timeRecommendations.map(r => `${r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要'}（${r.targetLiuQin} ${r.trigger}）：${r.description}`).join('\n')}`
+            : '',
+    ].filter(Boolean).join('\n');
 }

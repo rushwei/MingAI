@@ -16,6 +16,7 @@ import {
     yaosTpCode,
 } from '@/lib/divination/liuyao';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
+import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 
 interface LiuyaoRequest {
     action: 'interpret' | 'save' | 'history' | 'update';

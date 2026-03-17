@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const chatComposerPath = resolve(process.cwd(), 'src/components/chat/ChatComposer.tsx');
+const chatComposerPath = resolve(process.cwd(), 'src/components/chat/composer/AttachmentBar.tsx');
 const chatRoutePath = resolve(process.cwd(), 'src/app/api/chat/route.ts');
 const previewRoutePath = resolve(process.cwd(), 'src/app/api/chat/preview/route.ts');
 const promptContextPath = resolve(process.cwd(), 'src/lib/server/chat/prompt-context.ts');
@@ -22,7 +22,7 @@ test('chat knowledge-base UI and metadata should stay gated behind paid membersh
 
   assert.match(
     chatComposerSource,
-    /\(\(canUseKnowledgeBase && promptKnowledgeBases\.length > 0\) \|\| dreamMode\)/u,
+    /canUseKnowledgeBase && promptKnowledgeBases\.length > 0/u,
     'chat composer should only render prompt knowledge-base chips when membership allows it',
   );
   assert.match(
