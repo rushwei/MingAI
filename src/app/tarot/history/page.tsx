@@ -12,29 +12,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-import { TAROT_SPREADS, type DrawnCard } from '@/lib/divination/tarot';
-import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-
-interface TarotReading {
-    id: string;
-    spread_id: string;
-    question: string | null;
-    cards: DrawnCard[];
-    conversation_id?: string | null;
-    conversation?: { source_data?: Record<string, unknown> } | null;
-    created_at: string;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 export default function TarotHistoryPage() {
     const router = useRouter();
-    const [readings, setReadings] = useState<TarotReading[]>([]);
+    const [readings, setReadings] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<TarotReading | null>(null);
+    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
 
     const loadReadings = useCallback(async () => {
         setLoading(true);
@@ -44,18 +38,7 @@ export default function TarotHistoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('tarot_readings')
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
-            console.error('加载历史记录失败:', error);
-        } else {
-            setReadings(data || []);
-        }
+        setReadings(await loadHistorySummaries('tarot'));
         setLoading(false);
     }, [router]);
 
@@ -67,31 +50,12 @@ export default function TarotHistoryPage() {
     }, [loadReadings]);
 
     const handleDelete = async (id: string) => {
-        const target = readings.find(r => r.id === id);
-        const { error } = await supabase
-            .from('tarot_readings')
-            .delete()
-            .eq('id', id);
-
-        if (!error) {
-            if (target?.conversation_id) {
-                const { error: conversationError } = await supabase
-                    .from('conversations')
-                    .delete()
-                    .eq('id', target.conversation_id);
-                if (conversationError) {
-                    console.error('删除对话记录失败:', conversationError);
-                }
-            }
+        const success = await deleteHistorySummary('tarot', id);
+        if (success) {
             setReadings(prev => prev.filter(r => r.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['tarot_reading'] } }));
         }
         setDeleteConfirmId(null);
-    };
-
-    const getSpreadName = (spreadId: string): string => {
-        const spread = TAROT_SPREADS.find(s => s.id === spreadId);
-        return spread?.name || spreadId;
     };
 
     const formatDate = (dateStr: string) => {
@@ -110,23 +74,15 @@ export default function TarotHistoryPage() {
         const query = searchQuery.toLowerCase();
         return (
             (r.question?.toLowerCase().includes(query)) ||
-            getSpreadName(r.spread_id).toLowerCase().includes(query)
+            r.title.toLowerCase().includes(query) ||
+            (r.badges || []).join(' ').toLowerCase().includes(query)
         );
     });
 
-    const handleView = (reading: TarotReading) => {
-        const spread = TAROT_SPREADS.find(s => s.id === reading.spread_id);
-        const sessionData = {
-            spread,
-            spreadId: reading.spread_id,
-            cards: reading.cards,
-            question: reading.question || '',
-            readingId: reading.id,
-            createdAt: reading.created_at,
-            conversationId: reading.conversation_id || null,
-        };
-        writeSessionJSON('tarot_result', sessionData);
-        router.push(`/tarot/result?from=history&t=${reading.id}`);
+    const handleView = async (reading: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('tarot', reading.id);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, reading.id));
     };
 
     return (
@@ -214,53 +170,47 @@ export default function TarotHistoryPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredReadings.map(reading => {
-                            const sourceData = reading.conversation?.source_data;
-                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                            const modelName = modelId ? getModelName(modelId) : null;
-                            const spreadName = getSpreadName(reading.spread_id);
-                            
                             return (
                                 <div
                                     key={reading.id}
                                     className="group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 cursor-pointer flex flex-col"
-                                    onClick={() => handleView(reading)}
+                                    onClick={() => void handleView(reading)}
                                 >
                                     {/* 顶部标签 */}
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                             <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-500/10 text-purple-500 border border-purple-500/10">
-                                                {spreadName}
+                                                {reading.title}
                                             </span>
-                                            {modelName && (
+                                            {reading.modelName && (
                                                 <span className="px-2 py-0.5 text-[10px] rounded-md bg-background text-foreground-secondary border border-border">
-                                                    {modelName}
+                                                    {reading.modelName}
                                                 </span>
                                             )}
                                         </div>
                                         <span className="text-xs text-foreground-tertiary font-mono">
-                                            {formatDate(reading.created_at)}
+                                            {formatDate(reading.createdAt)}
                                         </span>
                                     </div>
 
                                     {/* 牌面预览 - 作为主要内容 */}
                                     <div className="mb-3">
                                         <div className="flex flex-wrap gap-1.5">
-                                            {reading.cards.slice(0, 3).map((card, i) => (
+                                            {(reading.badges || []).slice(0, 3).map((badge, i) => (
                                                 <div
                                                     key={i}
                                                     className={`px-2 py-1 text-xs rounded-md border ${
-                                                        card.orientation === 'reversed'
+                                                        badge.includes('(逆)')
                                                             ? 'bg-rose-500/5 border-rose-500/20 text-rose-500'
                                                             : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500'
                                                     }`}
                                                 >
-                                                    {card.card.nameChinese}
-                                                    {card.orientation === 'reversed' && ' (逆)'}
+                                                    {badge}
                                                 </div>
                                             ))}
-                                            {reading.cards.length > 3 && (
+                                            {(reading.badges || []).length > 3 && (
                                                 <span className="px-2 py-1 text-xs rounded-md bg-background border border-border text-foreground-secondary">
-                                                    +{reading.cards.length - 3}
+                                                    +{(reading.badges || []).length - 3}
                                                 </span>
                                             )}
                                         </div>
@@ -352,7 +302,7 @@ export default function TarotHistoryPage() {
                         setKbModalOpen(false);
                         setKbTarget(null);
                     }}
-                    sourceTitle={kbTarget.question || `塔罗 - ${getSpreadName(kbTarget.spread_id)}`}
+                    sourceTitle={kbTarget.question || `塔罗 - ${kbTarget.title}`}
                     sourceType="tarot_reading"
                     sourceId={kbTarget.id}
                 />

@@ -12,26 +12,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Compass } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-
-interface QimenChart {
-    id: string;
-    question: string | null;
-    dun_type: 'yang' | 'yin';
-    ju_number: number;
-    chart_data: Record<string, unknown>;
-    conversation_id?: string | null;
-    conversation?: { source_data?: Record<string, unknown> } | null;
-    created_at: string;
-}
-
-function getDunLabel(dunType: string, juNumber: number): string {
-    const dunText = dunType === 'yang' ? '阳遁' : '阴遁';
-    const juMap: Record<number, string> = { 1:'一',2:'二',3:'三',4:'四',5:'五',6:'六',7:'七',8:'八',9:'九' };
-    return `${dunText}${juMap[juNumber] || juNumber}局`;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 function formatDate(dateStr: string) {
     const date = new Date(dateStr);
@@ -43,26 +31,18 @@ function formatDate(dateStr: string) {
 
 export default function QimenHistoryPage() {
     const router = useRouter();
-    const [charts, setCharts] = useState<QimenChart[]>([]);
+    const [charts, setCharts] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<QimenChart | null>(null);
+    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
 
     const loadCharts = useCallback(async () => {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) { router.push('/qimen'); return; }
-
-        const response = await fetch('/api/qimen', { credentials: 'include' });
-        const payload = await response.json().catch(() => null) as {
-            data?: { charts?: QimenChart[] };
-            error?: string;
-        } | null;
-
-        if (!response.ok) console.error('加载历史记录失败:', payload?.error || 'unknown');
-        else setCharts(payload?.data?.charts || []);
+        setCharts(await loadHistorySummaries('qimen'));
         setLoading(false);
     }, [router]);
 
@@ -72,11 +52,8 @@ export default function QimenHistoryPage() {
     }, [loadCharts]);
 
     const handleDelete = async (id: string) => {
-        const response = await fetch(`/api/qimen?id=${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            credentials: 'include',
-        });
-        if (response.ok) {
+        const success = await deleteHistorySummary('qimen', id);
+        if (success) {
             setCharts(prev => prev.filter(c => c.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['qimen_chart'] } }));
         }
@@ -86,18 +63,13 @@ export default function QimenHistoryPage() {
     const filteredCharts = charts.filter(c => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
-        return (c.question?.toLowerCase().includes(q) || getDunLabel(c.dun_type, c.ju_number).includes(q));
+        return (c.question?.toLowerCase().includes(q) || c.title.toLowerCase().includes(q));
     });
 
-    const handleView = (chart: QimenChart) => {
-        writeSessionJSON('qimen_result', {
-            ...(chart.chart_data as object),
-            question: chart.question,
-            createdAt: chart.created_at,
-            chartId: chart.id,
-            conversationId: chart.conversation_id || null,
-        });
-        router.push('/qimen/result');
+    const handleView = async (chart: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('qimen', chart.id);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, chart.id));
     };
 
     return (
@@ -164,25 +136,22 @@ export default function QimenHistoryPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredCharts.map(chart => {
-                            const sourceData = chart.conversation?.source_data;
-                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                            const modelName = modelId ? getModelName(modelId) : null;
                             return (
                                 <div
                                     key={chart.id}
                                     className="group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 cursor-pointer flex flex-col"
-                                    onClick={() => handleView(chart)}
+                                    onClick={() => void handleView(chart)}
                                 >
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/10">
-                                            {getDunLabel(chart.dun_type, chart.ju_number)}
+                                            {chart.title}
                                         </span>
-                                        <span className="text-xs text-foreground-tertiary font-mono">{formatDate(chart.created_at)}</span>
+                                        <span className="text-xs text-foreground-tertiary font-mono">{formatDate(chart.createdAt)}</span>
                                     </div>
-                                    {modelName && (
+                                    {chart.modelName && (
                                         <div className="mb-3">
                                             <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block">
-                                                {modelName}
+                                                {chart.modelName}
                                             </span>
                                         </div>
                                     )}

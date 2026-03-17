@@ -12,28 +12,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, Hand, BookOpenText } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-import { PALM_ANALYSIS_TYPES } from '@/lib/divination/palm';
-import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-
-interface PalmReading {
-    id: string;
-    analysis_type: string;
-    hand_type: string;
-    conversation_id?: string | null;
-    conversation?: { source_data?: Record<string, unknown> } | null;
-    created_at: string;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 export default function PalmHistoryPage() {
     const router = useRouter();
-    const [readings, setReadings] = useState<PalmReading[]>([]);
+    const [readings, setReadings] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<PalmReading | null>(null);
+    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
 
     const loadReadings = useCallback(async () => {
         setLoading(true);
@@ -43,18 +38,7 @@ export default function PalmHistoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('palm_readings')
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
-            console.error('加载历史记录失败:', error);
-        } else {
-            setReadings(data || []);
-        }
+        setReadings(await loadHistorySummaries('palm'));
         setLoading(false);
     }, [router]);
 
@@ -66,37 +50,12 @@ export default function PalmHistoryPage() {
     }, [loadReadings]);
 
     const handleDelete = async (id: string) => {
-        const target = readings.find(r => r.id === id);
-        const { error } = await supabase
-            .from('palm_readings')
-            .delete()
-            .eq('id', id);
-
-        if (!error) {
-            if (target?.conversation_id) {
-                const { error: conversationError } = await supabase
-                    .from('conversations')
-                    .delete()
-                    .eq('id', target.conversation_id);
-                if (conversationError) {
-                    console.error('删除对话记录失败:', conversationError);
-                }
-            }
+        const success = await deleteHistorySummary('palm', id);
+        if (success) {
             setReadings(prev => prev.filter(r => r.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['palm_reading'] } }));
         }
         setDeleteConfirmId(null);
-    };
-
-    const getAnalysisTypeName = (typeId: string): string => {
-        const type = PALM_ANALYSIS_TYPES.find(t => t.id === typeId);
-        return type?.name || typeId;
-    };
-
-    const getHandTypeName = (handType: string): string => {
-        if (handType === 'left') return '左手';
-        if (handType === 'right') return '右手';
-        return handType;
     };
 
     const formatDate = (dateStr: string) => {
@@ -113,23 +72,16 @@ export default function PalmHistoryPage() {
     const filteredReadings = readings.filter(r => {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
-        return (
-            getAnalysisTypeName(r.analysis_type).toLowerCase().includes(query) ||
-            getHandTypeName(r.hand_type).toLowerCase().includes(query)
-        );
+        return [r.title, ...(r.badges || [])]
+            .join(' ')
+            .toLowerCase()
+            .includes(query);
     });
 
-    const handleView = (reading: PalmReading) => {
-        const sessionData = {
-            readingId: reading.id,
-            analysisType: reading.analysis_type,
-            handType: reading.hand_type,
-            createdAt: reading.created_at,
-            conversationId: reading.conversation_id || null,
-        };
-
-        writeSessionJSON('palm_result', sessionData);
-        router.push('/palm/result');
+    const handleView = async (reading: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('palm', reading.id);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, reading.id));
     };
 
     return (
@@ -198,38 +150,37 @@ export default function PalmHistoryPage() {
                 ) : (
                     <div className="space-y-3">
                         {filteredReadings.map(reading => {
-                            const sourceData = reading.conversation?.source_data;
-                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                            const modelName = modelId ? getModelName(modelId) : null;
                             return (
                                 <div
                                     key={reading.id}
                                     className="bg-background-secondary rounded-xl p-4 border border-border hover:border-amber-500/30 transition-colors cursor-pointer"
-                                    onClick={() => handleView(reading)}
+                                    onClick={() => void handleView(reading)}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-500">
-                                                    {getHandTypeName(reading.hand_type)}
+                                                    {reading.badges?.[0] || reading.title}
                                                 </span>
-                                                <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/10 text-orange-500">
-                                                    {getAnalysisTypeName(reading.analysis_type)}
-                                                </span>
+                                                {reading.badges?.[1] && (
+                                                    <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/10 text-orange-500">
+                                                        {reading.badges[1]}
+                                                    </span>
+                                                )}
                                                 <div className="flex items-center gap-2 ml-auto">
                                                     <span className="flex items-center gap-1 text-xs text-foreground-secondary">
                                                         <Calendar className="w-3 h-3" />
-                                                        {formatDate(reading.created_at)}
+                                                        {formatDate(reading.createdAt)}
                                                     </span>
-                                                    {modelName && (
+                                                    {reading.modelName && (
                                                         <span className="text-xs text-foreground-secondary px-2 py-0.5 rounded bg-background">
-                                                            {modelName}
+                                                            {reading.modelName}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                             <p className="text-sm font-medium">
-                                                {getHandTypeName(reading.hand_type)}{getAnalysisTypeName(reading.analysis_type)}
+                                                {[...(reading.badges || []), reading.title].filter(Boolean).join(' ')}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -299,7 +250,7 @@ export default function PalmHistoryPage() {
                         setKbModalOpen(false);
                         setKbTarget(null);
                     }}
-                    sourceTitle={`${getHandTypeName(kbTarget.hand_type)}${getAnalysisTypeName(kbTarget.analysis_type)}`}
+                    sourceTitle={[...(kbTarget.badges || []), kbTarget.title].filter(Boolean).join(' ')}
                     sourceType="palm_reading"
                     sourceId={kbTarget.id}
                 />

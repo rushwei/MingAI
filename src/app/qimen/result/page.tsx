@@ -24,9 +24,9 @@ import { supabase } from '@/lib/auth';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import type { ChatMessage } from '@/types';
 import type { QimenOutput } from '@/lib/divination/qimen';
+import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 /** 五行旺衰图例 */
 const PHASE_LEGEND = [
@@ -133,13 +133,9 @@ export default function QimenResultPage() {
         const loadAnalysis = async () => {
             let resolvedId = result.conversationId;
             if (!resolvedId && result.chartId) {
-                const { data } = await supabase
-                    .from('qimen_charts')
-                    .select('conversation_id')
-                    .eq('id', result.chartId)
-                    .maybeSingle();
-                resolvedId = data?.conversation_id || undefined;
+                resolvedId = (await resolveHistoryConversationId('qimen', result.chartId, 'qimen_result')) || undefined;
                 if (resolvedId) {
+                    setResult(prev => prev ? { ...prev, conversationId: resolvedId } : prev);
                     updateSessionJSON('qimen_result', (prev) => ({
                         ...(prev || {}),
                         conversationId: resolvedId,
@@ -148,22 +144,14 @@ export default function QimenResultPage() {
             }
             if (!resolvedId) return;
 
-            const { data, error: fetchError } = await supabase
-                .from('conversations')
-                .select('messages, source_data')
-                .eq('id', resolvedId)
-                .maybeSingle();
+            const snapshot = await loadConversationAnalysisSnapshot(resolvedId);
+            if (!snapshot) return;
 
-            if (fetchError || !data) return;
-
-            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
-            const messages = (data.messages as ChatMessage[]) || [];
-            const { analysis, reasoning } = extractAnalysisFromConversation(messages, sourceData);
-            if (analysis) {
-                setInterpretation(analysis);
+            if (snapshot.analysis) {
+                setInterpretation(snapshot.analysis);
             }
-            if (reasoning) {
-                setInterpretationReasoning(reasoning);
+            if (snapshot.reasoning) {
+                setInterpretationReasoning(snapshot.reasoning);
             }
         };
 
@@ -533,8 +521,9 @@ export default function QimenResultPage() {
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
             {result.chartId && (
                 <AddToKnowledgeBaseModal
-                    isOpen={showKbModal}
+                    open={showKbModal}
                     onClose={() => setShowKbModal(false)}
+                    sourceTitle={result.question || '奇门遁甲排盘'}
                     sourceType="qimen_chart"
                     sourceId={result.chartId}
                 />

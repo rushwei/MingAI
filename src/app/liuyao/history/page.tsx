@@ -12,31 +12,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Dices } from 'lucide-react';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
-import { findHexagram } from '@/lib/divination/liuyao';
-import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-
-interface LiuyaoDivination {
-    id: string;
-    question: string;
-    hexagram_code: string;
-    changed_hexagram_code: string | null;
-    changed_lines: number[] | null;
-    yongshen_targets: string[] | null;
-    conversation_id?: string | null;
-    conversation?: { source_data?: Record<string, unknown> } | null;
-    created_at: string;
-}
+import {
+    applyHistoryRestorePayload,
+    deleteHistorySummary,
+    loadHistoryRestore,
+    loadHistorySummaries,
+} from '@/lib/history/client';
+import type { HistorySummaryItem } from '@/lib/history/registry';
 
 export default function LiuyaoHistoryPage() {
     const router = useRouter();
-    const [divinations, setDivinations] = useState<LiuyaoDivination[]>([]);
+    const [divinations, setDivinations] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<LiuyaoDivination | null>(null);
+    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
 
     const loadDivinations = useCallback(async () => {
         setLoading(true);
@@ -46,18 +38,7 @@ export default function LiuyaoHistoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('liuyao_divinations')
-            .select('*, conversation:conversations(source_data)')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-        if (error) {
-            console.error('加载历史记录失败:', error);
-        } else {
-            setDivinations(data || []);
-        }
+        setDivinations(await loadHistorySummaries('liuyao'));
         setLoading(false);
     }, [router]);
 
@@ -69,35 +50,12 @@ export default function LiuyaoHistoryPage() {
     }, [loadDivinations]);
 
     const handleDelete = async (id: string) => {
-        const target = divinations.find(d => d.id === id);
-        const { error } = await supabase
-            .from('liuyao_divinations')
-            .delete()
-            .eq('id', id);
-
-        if (!error) {
-            if (target?.conversation_id) {
-                const { error: conversationError } = await supabase
-                    .from('conversations')
-                    .delete()
-                    .eq('id', target.conversation_id);
-                if (conversationError) {
-                    console.error('删除对话记录失败:', conversationError);
-                }
-            }
+        const success = await deleteHistorySummary('liuyao', id);
+        if (success) {
             setDivinations(prev => prev.filter(d => d.id !== id));
             window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['liuyao_divination'] } }));
         }
         setDeleteConfirmId(null);
-    };
-
-    const getHexagramName = (code: string): string => {
-        try {
-            const hexagram = findHexagram(code);
-            return hexagram?.name || code;
-        } catch {
-            return code;
-        }
     };
 
     const formatDate = (dateStr: string) => {
@@ -115,43 +73,16 @@ export default function LiuyaoHistoryPage() {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
         return (
-            d.question.toLowerCase().includes(query) ||
-            getHexagramName(d.hexagram_code).toLowerCase().includes(query)
+            (d.question || '').toLowerCase().includes(query) ||
+            d.title.toLowerCase().includes(query) ||
+            (d.changedTitle || '').toLowerCase().includes(query)
         );
     });
 
-    const handleView = (div: LiuyaoDivination) => {
-        const hexagramCode = div.hexagram_code || '';
-        const changedLines = div.changed_lines || [];
-        const yaos = hexagramCode.split('').map((char, idx) => ({
-            type: parseInt(char, 10) as 0 | 1,
-            change: changedLines.includes(idx + 1) ? 'changing' : 'stable' as const,
-            position: idx + 1,
-        }));
-
-        const hexagram = findHexagram(hexagramCode);
-        const changedHexagram = div.changed_hexagram_code
-            ? findHexagram(div.changed_hexagram_code)
-            : undefined;
-
-        const sessionData = {
-            question: div.question,
-            yaos,
-            hexagram,
-            changedHexagram,
-            changedLines,
-            yongShenTargets: Array.isArray(div.yongshen_targets)
-                ? div.yongshen_targets.filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
-                    ['父母', '兄弟', '子孙', '妻财', '官鬼'].includes(item)
-                )
-                : [],
-            divinationId: div.id,
-            createdAt: div.created_at,
-            conversationId: div.conversation_id || null,
-        };
-
-        writeSessionJSON('liuyao_result', sessionData);
-        router.push('/liuyao/result');
+    const handleView = async (div: HistorySummaryItem) => {
+        const payload = await loadHistoryRestore('liuyao', div.id);
+        if (!payload) return;
+        router.push(applyHistoryRestorePayload(payload, div.id));
     };
 
     return (
@@ -240,45 +171,42 @@ export default function LiuyaoHistoryPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredDivinations.map(div => {
-                            const sourceData = div.conversation?.source_data;
-                            const modelId = typeof sourceData?.model_id === 'string' ? sourceData.model_id : null;
-                            const modelName = modelId ? getModelName(modelId) : null;
                             return (
                                 <div
                                     key={div.id}
                                     className="group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 cursor-pointer flex flex-col"
-                                    onClick={() => handleView(div)}
+                                    onClick={() => void handleView(div)}
                                 >
                                     {/* 顶部标签 */}
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                             <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/10">
-                                                {getHexagramName(div.hexagram_code)}
+                                                {div.title}
                                             </span>
-                                            {div.changed_hexagram_code && (
+                                            {div.changedTitle && (
                                                 <>
                                                     <span className="text-[10px] text-foreground-tertiary">变</span>
                                                     <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/10">
-                                                        {getHexagramName(div.changed_hexagram_code)}
+                                                        {div.changedTitle}
                                                     </span>
                                                 </>
                                             )}
                                         </div>
                                         <span className="text-xs text-foreground-tertiary font-mono">
-                                            {formatDate(div.created_at)}
+                                            {formatDate(div.createdAt)}
                                         </span>
                                     </div>
 
                                     {/* 变爻信息 - 作为主要内容 */}
                                     <div className="mb-3">
-                                        {div.changed_lines && div.changed_lines.length > 0 && (
+                                        {div.metric && (
                                             <p className="text-xs text-foreground-secondary bg-background/50 px-2 py-1 rounded-md inline-block">
-                                                变爻：{div.changed_lines.map(l => `第${l}爻`).join('、')}
+                                                {div.metric}
                                             </p>
                                         )}
-                                        {modelName && (
+                                        {div.modelName && (
                                             <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block ml-2">
-                                                {modelName}
+                                                {div.modelName}
                                             </span>
                                         )}
                                     </div>
@@ -369,7 +297,7 @@ export default function LiuyaoHistoryPage() {
                         setKbModalOpen(false);
                         setKbTarget(null);
                     }}
-                    sourceTitle={kbTarget.question || '六爻占卜'}
+                    sourceTitle={kbTarget.question || [kbTarget.title, kbTarget.changedTitle].filter(Boolean).join(' 变 ')}
                     sourceType="liuyao_divination"
                     sourceId={kbTarget.id}
                 />

@@ -20,14 +20,14 @@ import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { readSessionJSON } from '@/lib/cache';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
+import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 function MBTIResultContent() {
     const router = useRouter();
@@ -133,12 +133,7 @@ function MBTIResultContent() {
             if (!resolvedConversationId) {
                 const readingId = (result as unknown as { readingId?: string }).readingId;
                 if (readingId) {
-                    const { data } = await supabase
-                        .from('mbti_readings')
-                        .select('conversation_id')
-                        .eq('id', readingId)
-                        .single();
-                    resolvedConversationId = data?.conversation_id || null;
+                    resolvedConversationId = await resolveHistoryConversationId('mbti', readingId, 'mbti_result');
                     if (resolvedConversationId) {
                         setConversationId(resolvedConversationId);
                     }
@@ -147,29 +142,19 @@ function MBTIResultContent() {
 
             if (!resolvedConversationId) return;
 
-            const { data, error } = await supabase
-                .from('conversations')
-                .select('messages, source_data')
-                .eq('id', resolvedConversationId)
-                .single();
+            const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
+            if (!snapshot) return;
 
-            if (error || !data) return;
-
-            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
-            const messages = (data.messages as ChatMessage[]) || [];
-            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
-            if (analysis) {
-                setAiAnalysis(analysis);
+            if (snapshot.analysis) {
+                setAiAnalysis(snapshot.analysis);
             }
-            if (reasoning) {
-                setAnalysisReasoning(reasoning);
+            if (snapshot.reasoning) {
+                setAnalysisReasoning(snapshot.reasoning);
             }
-            if (modelId) {
-                setSelectedModel(modelId);
+            if (snapshot.modelId) {
+                setSelectedModel(snapshot.modelId);
             }
-            if (typeof sourceData?.reasoning === 'boolean') {
-                setReasoningEnabled(sourceData.reasoning);
-            }
+            setReasoningEnabled(snapshot.reasoningEnabled);
         };
 
         void loadAnalysis();

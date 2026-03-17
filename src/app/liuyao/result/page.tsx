@@ -33,8 +33,6 @@ import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import type { ChatMessage } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
@@ -54,6 +52,8 @@ import {
     buildShenSystemMap,
     formatShenSystemParts,
 } from '@/lib/divination/liuyao-format-utils';
+import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 type LiuyaoQuestionSession = {
     question: string;
@@ -415,54 +415,30 @@ export default function ResultPage() {
     useEffect(() => {
         if (!result || interpretation) return;
 
-        const persistConversationId = (id: string | null) => {
-            if (!id) return;
-            updateSessionJSON('liuyao_result', (prev) => ({
-                ...(prev || {}),
-                conversationId: id,
-            }));
-        };
-
         const loadAnalysis = async () => {
             let resolvedConversationId = conversationId;
             if (!resolvedConversationId && divinationId) {
-                const { data } = await supabase
-                    .from('liuyao_divinations')
-                    .select('conversation_id')
-                    .eq('id', divinationId)
-                    .single();
-                resolvedConversationId = data?.conversation_id || null;
+                resolvedConversationId = await resolveHistoryConversationId('liuyao', divinationId, 'liuyao_result');
                 if (resolvedConversationId) {
                     setConversationId(resolvedConversationId);
-                    persistConversationId(resolvedConversationId);
                 }
             }
 
             if (!resolvedConversationId) return;
 
-            const { data, error } = await supabase
-                .from('conversations')
-                .select('messages, source_data')
-                .eq('id', resolvedConversationId)
-                .single();
+            const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
+            if (!snapshot) return;
 
-            if (error || !data) return;
-
-            const sourceData = (data.source_data || undefined) as Record<string, unknown> | undefined;
-            const messages = (data.messages as ChatMessage[]) || [];
-            const { analysis, reasoning, modelId } = extractAnalysisFromConversation(messages, sourceData);
-            if (analysis) {
-                setInterpretation(analysis);
+            if (snapshot.analysis) {
+                setInterpretation(snapshot.analysis);
             }
-            if (reasoning) {
-                setInterpretationReasoning(reasoning);
+            if (snapshot.reasoning) {
+                setInterpretationReasoning(snapshot.reasoning);
             }
-            if (modelId) {
-                setSelectedModel(modelId);
+            if (snapshot.modelId) {
+                setSelectedModel(snapshot.modelId);
             }
-            if (typeof sourceData?.reasoning === 'boolean') {
-                setReasoningEnabled(sourceData.reasoning);
-            }
+            setReasoningEnabled(snapshot.reasoningEnabled);
         };
 
         void loadAnalysis();

@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Calendar, Layers, ChevronRight, Gem } from 'lucide-react';
@@ -22,7 +22,25 @@ const HistoryDrawer = dynamic(
 export default function TarotPage() {
     const router = useRouter();
     const [question, setQuestion] = useState('');
-    const [dailyCard] = useState<DrawnCard | null>(() => getDailyCard());
+    const [dailyCard, setDailyCard] = useState<DrawnCard | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void getDailyCard().then((card) => {
+            if (!cancelled) {
+                setDailyCard(card);
+            }
+        }).catch(() => {
+            if (!cancelled) {
+                setDailyCard(null);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const handleSelectSpread = (spread: TarotSpread) => {
         const params = new URLSearchParams();
