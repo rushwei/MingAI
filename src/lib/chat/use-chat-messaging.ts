@@ -49,8 +49,8 @@ export function useChatMessaging({
     state,
     userId,
     user,
-    membership: _membership,
-    credits: _credits,
+    membership: _membership, // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future credit checks
+    credits: _credits, // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future credit checks
     refreshBootstrap,
     markBootstrapCreditsExhausted,
     showToast,

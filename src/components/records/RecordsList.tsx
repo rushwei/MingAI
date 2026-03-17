@@ -16,7 +16,6 @@ import {
     BookOpenText,
     ChevronLeft,
     ChevronRight,
-    Plus,
 } from 'lucide-react';
 import { MingRecord, RECORD_CATEGORIES } from '@/lib/records';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';

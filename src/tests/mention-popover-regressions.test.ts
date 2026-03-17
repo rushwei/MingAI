@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const mentionPopoverPath = resolve(process.cwd(), 'src/components/chat/MentionPopover.tsx');
 const mentionConstantsPath = resolve(process.cwd(), 'src/components/chat/mention/mention-constants.tsx');
 
 test('MentionPopover module should keep qimen and daliuren icons available', async () => {

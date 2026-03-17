@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+/* eslint-disable @typescript-eslint/no-unused-vars -- mock parameters must match Supabase client signature */
+
 test('conversation-delete module should not export unsafe unlink helper', async () => {
   const moduleExports = await import('../lib/chat/conversation-delete');
   assert.equal('unlinkConversationFromHistoryRecords' in moduleExports, false);

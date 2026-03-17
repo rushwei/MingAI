@@ -7,6 +7,7 @@ import { DEFAULT_SIDEBAR_CONFIG, normalizeSidebarConfig } from '@/lib/user/setti
 
 const sidebarPath = resolve(process.cwd(), 'src/components/layout/Sidebar.tsx');
 const mobileNavPath = resolve(process.cwd(), 'src/components/layout/MobileNav.tsx');
+const mobileCustomizerPath = resolve(process.cwd(), 'src/components/settings/MobileNavCustomizer.tsx');
 const sidebarConfigContextPath = resolve(process.cwd(), 'src/components/layout/SidebarConfigContext.tsx');
 const appSettingsPath = resolve(process.cwd(), 'src/lib/app-settings.ts');
 

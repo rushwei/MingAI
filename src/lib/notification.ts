@@ -48,7 +48,11 @@ export async function getUnreadCount(
             });
 
             if (result.error) {
-                console.error('获取未读数量失败:', result.error.message);
+                // 认证相关错误（session 未就绪或过期）静默处理，避免控制台噪音
+                const msg = result.error.message ?? '';
+                if (!msg.includes('登录') && !msg.includes('认证')) {
+                    console.error('获取未读数量失败:', msg);
+                }
                 return 0;
             }
 
