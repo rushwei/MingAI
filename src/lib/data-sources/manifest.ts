@@ -1,22 +1,7 @@
 import type { DataSourceProvider } from '@/lib/data-sources/types';
+import type { DataSourceType } from '@/lib/data-sources/contracts';
 
-export const DATA_SOURCE_TYPES = [
-    'bazi_chart',
-    'ziwei_chart',
-    'tarot_reading',
-    'liuyao_divination',
-    'mbti_reading',
-    'hepan_chart',
-    'face_reading',
-    'palm_reading',
-    'ming_record',
-    'daily_fortune',
-    'monthly_fortune',
-    'qimen_chart',
-    'daliuren_divination',
-] as const;
-
-export type DataSourceType = typeof DATA_SOURCE_TYPES[number];
+export { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/contracts';
 
 type DataSourceLoader = () => Promise<DataSourceProvider>;
 

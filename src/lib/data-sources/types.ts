@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { DataSourceType } from '@/lib/data-sources/manifest';
+import type { DataSourceType } from '@/lib/data-sources/contracts';
 
-export type { DataSourceType } from '@/lib/data-sources/manifest';
+export type { DataSourceType } from '@/lib/data-sources/contracts';
 
 export interface DataSourceSummary {
     id: string;

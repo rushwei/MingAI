@@ -75,6 +75,7 @@ export interface Trigram {
 export interface CoinTossResult {
     coins: [boolean, boolean, boolean];
     heads: number;
+    sum: number;
     yaoType: YaoType;
     isChanging: boolean;
 }
@@ -122,25 +123,30 @@ export function tossCoin(): boolean {
     return Math.random() < 0.5;
 }
 
-export function tossThreeCoins(): CoinTossResult {
-    const coins: [boolean, boolean, boolean] = [tossCoin(), tossCoin(), tossCoin()];
+export function resolveCoinTossResult(coins: [boolean, boolean, boolean]): CoinTossResult {
     const heads = coins.filter(Boolean).length;
-    let yaoType: YaoType = 1;
+    const sum = heads + 6;
+    let yaoType: YaoType = 0;
     let isChanging = false;
 
     if (heads === 3) {
         yaoType = 1;
         isChanging = true;
     } else if (heads === 2) {
-        yaoType = 1;
-    } else if (heads === 1) {
         yaoType = 0;
+    } else if (heads === 1) {
+        yaoType = 1;
     } else {
         yaoType = 0;
         isChanging = true;
     }
 
-    return { coins, heads, yaoType, isChanging };
+    return { coins, heads, sum, yaoType, isChanging };
+}
+
+export function tossThreeCoins(): CoinTossResult {
+    const coins: [boolean, boolean, boolean] = [tossCoin(), tossCoin(), tossCoin()];
+    return resolveCoinTossResult(coins);
 }
 
 export function divine(): { yaos: Yao[]; results: CoinTossResult[] } {

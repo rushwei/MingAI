@@ -4,6 +4,8 @@
  * 78张韦特塔罗牌完整数据，包含22张大阿卡纳和56张小阿卡纳
  */
 
+import { handleTarotDraw, type TarotCardResult } from '@mingai/mcp-core/tarot';
+
 // 牌的类型
 export type TarotSuit = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';
 
@@ -355,33 +357,144 @@ export const TAROT_SPREADS: TarotSpread[] = [
 
 // ===== 工具函数 =====
 
+type TarotDrawOptions = {
+    seed?: string;
+    seedScope?: string;
+    question?: string;
+    timezone?: string;
+};
+
+function buildMeaningText(
+    orientation: 'upright' | 'reversed',
+    keywords: string[],
+    reversedKeywords?: string[]
+): string {
+    if (orientation === 'upright') {
+        return `正位：${keywords.join('、')}`;
+    }
+    if (reversedKeywords && reversedKeywords.length > 0) {
+        return `逆位：${reversedKeywords.join('、')}`;
+    }
+    return `逆位：需要反思${keywords.join('、')}相关的问题`;
+}
+
+function resolveTarotCardBase(name: string): TarotCard | undefined {
+    return TAROT_CARDS.find(card => card.name === name);
+}
+
+function resolveTarotCardImage(name: string): string {
+    return resolveTarotCardBase(name)?.image || TAROT_CARDS[0]?.image || '';
+}
+
+function resolveDateKey(date: Date, timeZone: string): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const values: Record<string, string> = {};
+    for (const part of parts) {
+        if (part.type !== 'literal') {
+            values[part.type] = part.value;
+        }
+    }
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
+function resolveLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function createEphemeralSeed(): string {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+        return globalThis.crypto.randomUUID();
+    }
+
+    if (typeof globalThis.crypto?.getRandomValues === 'function') {
+        const values = new Uint32Array(2);
+        globalThis.crypto.getRandomValues(values);
+        return `rng-${values[0].toString(36)}-${values[1].toString(36)}`;
+    }
+
+    return `rng-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function resolveDrawSeed(seed?: string): string {
+    return seed ?? createEphemeralSeed();
+}
+
+function mapCoreCardToDrawn(card: TarotCardResult, position?: string): DrawnCard {
+    const base = resolveTarotCardBase(card.card.name);
+    const uprightMeaning = buildMeaningText('upright', card.card.keywords, card.reversedKeywords);
+    const reversedMeaning = buildMeaningText('reversed', card.card.keywords, card.reversedKeywords);
+    const number = base?.number ?? card.number ?? 0;
+
+    return {
+        card: {
+            id: base?.id ?? number,
+            name: card.card.name,
+            nameChinese: card.card.nameChinese,
+            suit: base?.suit ?? 'major',
+            number,
+            image: resolveTarotCardImage(card.card.name),
+            keywords: card.card.keywords,
+            uprightMeaning,
+            reversedMeaning,
+            element: card.element ?? base?.element,
+            zodiac: card.astrologicalCorrespondence ?? base?.zodiac,
+        },
+        orientation: card.orientation,
+        position,
+    };
+}
+
 /**
  * 随机抽取塔罗牌
  */
-export function drawCards(count: number = 1, allowReversed: boolean = true): DrawnCard[] {
-    const shuffled = [...TAROT_CARDS].sort(() => Math.random() - 0.5);
-    const drawn = shuffled.slice(0, count);
-
-    return drawn.map(card => ({
-        card,
-        orientation: allowReversed && Math.random() > 0.5 ? 'reversed' : 'upright',
-    }));
+export async function drawCards(
+    count: number = 1,
+    allowReversed: boolean = true,
+    options: TarotDrawOptions = {}
+): Promise<DrawnCard[]> {
+    const safeCount = Math.max(1, Math.min(10, count));
+    const spreadType = safeCount <= 1 ? 'single' : 'celtic-cross';
+    const output = await handleTarotDraw({
+        spreadType,
+        allowReversed,
+        seed: resolveDrawSeed(options.seed),
+        seedScope: options.seedScope,
+        question: options.question,
+    });
+    return output.cards.slice(0, safeCount).map(card => mapCoreCardToDrawn(card));
 }
 
 /**
  * 根据牌阵抽牌
  */
-export function drawForSpread(spreadId: string, allowReversed: boolean = true): { spread: TarotSpread; cards: DrawnCard[] } | null {
+export async function drawForSpread(
+    spreadId: string,
+    allowReversed: boolean = true,
+    options: TarotDrawOptions = {}
+): Promise<{ spread: TarotSpread; cards: DrawnCard[] } | null> {
     const spread = TAROT_SPREADS.find(s => s.id === spreadId);
     if (!spread) return null;
 
-    const drawnCards = drawCards(spread.cardCount, allowReversed);
+    const output = await handleTarotDraw({
+        spreadType: spreadId,
+        allowReversed,
+        seed: resolveDrawSeed(options.seed),
+        seedScope: options.seedScope,
+        question: options.question,
+    });
 
-    // 添加位置信息
-    const cardsWithPositions = drawnCards.map((drawn, index) => ({
-        ...drawn,
-        position: spread.positions[index]?.meaning,
-    }));
+    const cardsWithPositions = output.cards.map((card, index) =>
+        mapCoreCardToDrawn(card, spread.positions[index]?.meaning)
+    );
 
     return { spread, cards: cardsWithPositions };
 }
@@ -389,15 +502,31 @@ export function drawForSpread(spreadId: string, allowReversed: boolean = true): 
 /**
  * 每日一牌（基于日期固定）
  */
-export function getDailyCard(date: Date = new Date()): DrawnCard {
-    const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-    const cardIndex = seed % TAROT_CARDS.length;
-    const isReversed = (seed % 7) > 3;
+export async function getDailyCard(
+    date: Date = new Date(),
+    options: TarotDrawOptions = {}
+): Promise<DrawnCard> {
+    let seed: string;
+    if (!options.timezone) {
+        seed = resolveLocalDateKey(date);
+    } else {
+        try {
+            seed = resolveDateKey(date, options.timezone);
+        } catch (error) {
+            if (error instanceof RangeError) {
+                throw new Error('timezone 无效');
+            }
+            throw error;
+        }
+    }
 
-    return {
-        card: TAROT_CARDS[cardIndex],
-        orientation: isReversed ? 'reversed' : 'upright',
-    };
+    const output = await handleTarotDraw({
+        spreadType: 'single',
+        allowReversed: true,
+        seed,
+        seedScope: options.seedScope,
+    });
+    return mapCoreCardToDrawn(output.cards[0]);
 }
 
 /**

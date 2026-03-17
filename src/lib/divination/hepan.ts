@@ -5,6 +5,7 @@
  */
 
 import { getConflictTriggers } from '@/lib/communication-templates';
+import { Solar } from 'lunar-javascript';
 import { TIAN_GAN, DI_ZHI, STEM_ELEMENTS, BRANCH_ELEMENTS } from '@/lib/divination/bazi';
 
 // 合盘类型
@@ -122,18 +123,6 @@ const ZHI_CHONG: Record<string, string> = {
 };
 
 /**
- * 计算年柱
- */
-function getYearPillar(year: number): { gan: string; zhi: string } {
-    const ganIndex = (year - 4) % 10;
-    const zhiIndex = (year - 4) % 12;
-    return {
-        gan: TIAN_GAN[ganIndex],
-        zhi: DI_ZHI[zhiIndex],
-    };
-}
-
-/**
  * 简化版月柱计算
  */
 function getMonthPillar(year: number, month: number): { gan: string; zhi: string } {
@@ -148,43 +137,23 @@ function getMonthPillar(year: number, month: number): { gan: string; zhi: string
 }
 
 /**
- * 简化版日柱计算
- */
-function getDayPillar(year: number, month: number, day: number): { gan: string; zhi: string } {
-    // 使用一个简化公式
-    const baseDate = new Date(1900, 0, 1);
-    const targetDate = new Date(year, month - 1, day);
-    const diffDays = Math.floor((targetDate.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
-    const ganIndex = (diffDays + 10) % 10;
-    const zhiIndex = diffDays % 12;
-    return {
-        gan: TIAN_GAN[ganIndex],
-        zhi: DI_ZHI[zhiIndex],
-    };
-}
-
-/**
- * 简化版时柱计算
- */
-function getHourPillar(dayGan: string, hour: number): { gan: string; zhi: string } {
-    const zhiIndex = Math.floor((hour + 1) / 2) % 12;
-    const dayGanIndex = (TIAN_GAN as readonly string[]).indexOf(dayGan);
-    const hourGanStart = (dayGanIndex % 5) * 2;
-    const ganIndex = (hourGanStart + zhiIndex) % 10;
-    return {
-        gan: TIAN_GAN[ganIndex],
-        zhi: DI_ZHI[zhiIndex],
-    };
-}
-
-/**
  * 计算八字
  */
 export function calculateBaZi(birth: BirthInfo): BaZiInfo {
-    const yearPillar = getYearPillar(birth.year);
-    const monthPillar = getMonthPillar(birth.year, birth.month);
-    const dayPillar = getDayPillar(birth.year, birth.month, birth.day);
-    const hourPillar = getHourPillar(dayPillar.gan, birth.hour);
+    const solar = Solar.fromYmdHms(
+        birth.year,
+        birth.month,
+        birth.day,
+        birth.hour,
+        0,
+        0,
+    );
+    const eightChar = solar.getLunar().getEightChar();
+
+    const yearPillar = { gan: eightChar.getYearGan(), zhi: eightChar.getYearZhi() };
+    const monthPillar = { gan: eightChar.getMonthGan(), zhi: eightChar.getMonthZhi() };
+    const dayPillar = { gan: eightChar.getDayGan(), zhi: eightChar.getDayZhi() };
+    const hourPillar = { gan: eightChar.getTimeGan(), zhi: eightChar.getTimeZhi() };
 
     // 统计五行
     const wuxingCount: Record<WuXing, number> = { '金': 0, '木': 0, '水': 0, '火': 0, '土': 0 };

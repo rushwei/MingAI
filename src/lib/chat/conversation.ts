@@ -5,6 +5,7 @@
  */
 
 import { hydrateConversationMessages } from '@/lib/ai/ai-analysis-query';
+import { normalizeConversationSourceType } from '@/lib/source-contracts';
 import type { AIPersonality, ChatMessage, Conversation } from '@/types';
 
 export interface ConversationWithContext extends Conversation {
@@ -40,6 +41,8 @@ type ConversationContextResponse = {
 };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const CONVERSATION_PAGE_SIZE = 100;
+const CONVERSATION_MAX_PAGES = 50;
 
 const normalizePersonality = (value?: string | null): AIPersonality => {
     if (
@@ -69,7 +72,7 @@ function toConversation(row: ConversationApiRow): Conversation {
         messages: hydrateConversationMessages(row.messages || [], row.source_data || undefined),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-        sourceType: row.source_type || 'chat',
+        sourceType: normalizeConversationSourceType(row.source_type),
         sourceData: row.source_data || undefined,
         isArchived: row.is_archived ?? false,
         archivedKbIds: row.archived_kb_ids ?? [],
@@ -112,18 +115,33 @@ export async function createConversation(params: {
 
 export async function loadConversations(userId: string): Promise<Conversation[]> {
     void userId;
+    const rows: ConversationApiRow[] = [];
+    let offset = 0;
 
-    const response = await fetch('/api/conversations?limit=50', {
-        credentials: 'include',
-    });
+    for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
+        const response = await fetch(`/api/conversations?limit=${CONVERSATION_PAGE_SIZE}&offset=${offset}`, {
+            credentials: 'include',
+        });
 
-    if (!response.ok) {
-        console.error('[conversation] 加载对话列表失败');
-        return [];
+        if (!response.ok) {
+            console.error('[conversation] 加载对话列表失败');
+            return [];
+        }
+
+        const payload = await parseJson<{
+            conversations?: ConversationApiRow[];
+            pagination?: { hasMore?: boolean; nextOffset?: number | null };
+        }>(response);
+
+        rows.push(...(payload?.conversations || []));
+        if (payload?.pagination?.hasMore !== true || payload.pagination.nextOffset == null) {
+            break;
+        }
+
+        offset = payload.pagination.nextOffset;
     }
 
-    const payload = await parseJson<{ conversations?: ConversationApiRow[] }>(response);
-    return (payload?.conversations || []).map(toConversation);
+    return rows.map(toConversation);
 }
 
 export async function loadConversation(conversationId: string): Promise<Conversation | null> {

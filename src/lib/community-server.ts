@@ -14,7 +14,7 @@ type UserLookupResult = {
     error: { message?: string } | null;
 };
 
-type CommunityLookupClient = {
+export type CommunityLookupClient = {
     from(table: 'users'): {
         select(columns: 'id, nickname, avatar_url'): {
             in(column: 'id', values: string[]): Promise<UserLookupResult>;
@@ -24,6 +24,10 @@ type CommunityLookupClient = {
         };
     };
 };
+
+export function asCommunityLookupClient(client: unknown): CommunityLookupClient {
+    return client as CommunityLookupClient;
+}
 
 const DEFAULT_COMMUNITY_AUTHOR_NAME = '命理爱好者';
 
