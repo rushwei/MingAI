@@ -3,7 +3,7 @@
  */
 
 import { tools } from './tools.js';
-import { getToolRegistryEntry, toolRegistry } from './tool-registry.js';
+import { getToolRegistryEntry } from './tool-registry.js';
 import {
   handleBaziCalculate,
   handleBaziPillarsResolve,

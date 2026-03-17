@@ -64,13 +64,8 @@ test('qimen and daliuren history pages should restore through the shared history
 
   assert.match(
     qimenSource,
-    /loadHistorySummaries\('qimen'/u,
-    'qimen history page should load list data through the shared history client',
-  );
-  assert.match(
-    qimenSource,
-    /deleteHistorySummary\('qimen'/u,
-    'qimen history page should delete through the shared history delete contract',
+    /<HistoryPageTemplate[\s\S]*sourceType="qimen"/u,
+    'qimen history page should use HistoryPageTemplate with qimen sourceType',
   );
   assert.doesNotMatch(
     qimenSource,
@@ -80,13 +75,14 @@ test('qimen and daliuren history pages should restore through the shared history
 
   assert.match(
     daliurenSource,
-    /loadHistorySummaries\('daliuren'/u,
-    'daliuren history page should load list data through the shared history client',
+    /<HistoryPageTemplate[\s\S]*sourceType="daliuren"/u,
+    'daliuren history page should use HistoryPageTemplate with daliuren sourceType',
   );
-  assert.match(
+  assert.doesNotMatch(
     daliurenSource,
-    /deleteHistorySummary\('daliuren'/u,
-    'daliuren history page should delete through the shared history delete contract',
+    /fetch\('\/api\/daliuren'/u,
+    'daliuren history page should not call the dedicated daliuren history route directly',
+  );
   );
   assert.doesNotMatch(
     daliurenSource,

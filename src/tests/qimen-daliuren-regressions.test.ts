@@ -29,8 +29,13 @@ test('daliuren history and result pages should preserve conversationId so saved 
 
   assert.match(
     historySource,
-    /loadHistoryRestore\('daliuren',\s*record\.id,\s*defaultTimeZone\)/u,
-    'history page should restore daliuren records through the shared restore payload contract',
+    /<HistoryPageTemplate[\s\S]*sourceType="daliuren"/u,
+    'history page should use HistoryPageTemplate with daliuren sourceType',
+  );
+  assert.match(
+    historySource,
+    /restoreTimezone=\{defaultTimeZone\}/u,
+    'history page should pass timezone to HistoryPageTemplate for restore',
   );
   assert.match(
     resultSource,

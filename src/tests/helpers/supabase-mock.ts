@@ -71,7 +71,7 @@ export function createMockSupabaseClient(config: MockSupabaseConfig = {}) {
             // Default: return a no-op chain
             return createChainableQuery({ data: null, error: null });
         },
-        rpc: async (fn: string, args?: Record<string, unknown>) => {
+        rpc: async (fn: string) => {
             const rpcConfig = config.rpc?.[fn];
             return {
                 data: rpcConfig?.data ?? null,

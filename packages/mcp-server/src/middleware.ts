@@ -12,7 +12,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import { getSupabaseClient } from './supabase.js';
-import { getCachedKey, setCachedKey, invalidateCachedKey } from './key-cache.js';
+import { getCachedKey, setCachedKey } from './key-cache.js';
 
 // 扩展 Express Request 类型
 export interface McpAuthInfo {

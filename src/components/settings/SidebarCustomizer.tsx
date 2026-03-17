@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
     DndContext,
     closestCenter,
@@ -34,6 +34,7 @@ import {
     Check,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getCustomizerNavItems, getCustomizerToolItems, type NavIcon } from '@/lib/navigation/registry';
@@ -150,6 +151,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
     const [saved, setSaved] = useState(false);
     const [activeNavId, setActiveNavId] = useState<string | null>(null);
     const [activeToolId, setActiveToolId] = useState<string | null>(null);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -207,7 +209,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         return new Map(ALL_TOOL_ITEMS.map(item => [item.id, item]));
     }, []);
 
-    const handleSave = async (newConfig: SidebarConfig) => {
+    const handleSave = useCallback(async (newConfig: SidebarConfig) => {
         if (!userId) return;
         setSaving(true);
         try {
@@ -219,7 +221,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         } finally {
             setSaving(false);
         }
-    };
+    }, [userId, saveConfig]);
 
     const handleNavDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -275,21 +277,20 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
         handleSave(newConfig);
     };
 
-    const handleReset = async () => {
-        if (!confirm('确定恢复默认设置？')) return;
+    const handleReset = useCallback(async () => {
         const defaultConfig: SidebarConfig = {
             hiddenNavItems: [],
             hiddenToolItems: [],
             navOrder: ALL_NAV_ITEMS.map(i => i.id),
             toolOrder: ALL_TOOL_ITEMS.map(i => i.id),
-            // 保留移动端配置不变
             mobileMainItems: config.mobileMainItems,
             mobileDrawerOrder: config.mobileDrawerOrder,
             hiddenMobileItems: config.hiddenMobileItems,
         };
         setConfig(defaultConfig);
         await handleSave(defaultConfig);
-    };
+        setShowResetConfirm(false);
+    }, [config, setConfig, handleSave]);
 
     const handleNavDragStart = (event: DragStartEvent) => {
         setActiveNavId(event.active.id as string);
@@ -342,7 +343,7 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                     {saving && <SoundWaveLoader variant="inline" />}
                     {saved && <Check className="w-4 h-4 text-green-500" />}
                     <button
-                        onClick={handleReset}
+                        onClick={() => setShowResetConfirm(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-foreground-secondary hover:bg-background-secondary transition-colors"
                     >
                         <RotateCcw className="w-4 h-4" />
@@ -416,6 +417,16 @@ export function SidebarCustomizer({ userId }: SidebarCustomizerProps) {
                     </DragOverlay>
                 </DndContext>
             </div>
+
+            <ConfirmDialog
+                isOpen={showResetConfirm}
+                onClose={() => setShowResetConfirm(false)}
+                onConfirm={handleReset}
+                title="恢复默认设置"
+                description="确定恢复侧边栏为默认设置？当前的自定义排序和隐藏配置将被重置。"
+                confirmText="恢复默认"
+                variant="warning"
+            />
         </div>
     );
 }

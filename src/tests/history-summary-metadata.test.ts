@@ -48,7 +48,7 @@ test('liuyao history page should render the shared changed-line summary', async 
 
   assert.match(
     source,
-    /div\.metric/u,
+    /item\.metric/u,
     'liuyao history page should render the changed-line summary provided by HistorySummaryItem.metric',
   );
 });
