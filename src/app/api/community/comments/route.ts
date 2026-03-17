@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { loadSingleCommunityAuthorProfile } from '@/lib/community-server';
+import { asCommunityLookupClient, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
 import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { hasNonEmptyStrings } from '@/lib/validation';
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         }
 
         const serviceClient = getSystemAdminClient();
-        const authorProfile = await loadSingleCommunityAuthorProfile(supabase, user.id);
+        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(supabase), user.id);
 
         // 创建评论
         const commentResult = await withRetry(async () => {

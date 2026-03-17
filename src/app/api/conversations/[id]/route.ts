@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { loadAllConversationMessages, loadConversationMessagePage, replaceConversationMessages } from '@/lib/server/conversation-messages';
+import { deleteConversationGraph } from '@/lib/chat/conversation-delete';
 import type { ChatMessage } from '@/types';
 
 type ConversationPatchBody = {
@@ -11,6 +12,21 @@ type ConversationPatchBody = {
     ziweiChartId?: string | null;
 };
 
+type ConversationDetailRow = {
+    id: string;
+    user_id: string;
+    bazi_chart_id?: string | null;
+    ziwei_chart_id?: string | null;
+    personality?: string | null;
+    title?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    source_type?: string | null;
+    source_data?: unknown;
+    is_archived?: boolean | null;
+    archived_kb_ids?: unknown;
+};
+
 const CONVERSATION_DETAIL_SELECT = [
     'id',
     'user_id',
@@ -18,7 +34,6 @@ const CONVERSATION_DETAIL_SELECT = [
     'ziwei_chart_id',
     'personality',
     'title',
-    'messages',
     'created_at',
     'updated_at',
     'source_type',
@@ -26,6 +41,10 @@ const CONVERSATION_DETAIL_SELECT = [
     'is_archived',
     'archived_kb_ids',
 ].join(', ');
+
+function isConversationDetailRow(value: unknown): value is ConversationDetailRow {
+    return !!value && typeof value === 'object' && !Array.isArray(value) && !('error' in value);
+}
 
 export async function GET(
     request: NextRequest,
@@ -51,20 +70,22 @@ export async function GET(
         console.error('[conversations] failed to load conversation:', error);
         return jsonError('加载对话失败', 500);
     }
-    if (!data) {
+    if (!data || !isConversationDetailRow(data)) {
         return jsonError('对话不存在', 404);
     }
+
+    const conversationRow: ConversationDetailRow = data;
 
     const paginationRequested = Number.isFinite(messageLimit) && messageLimit > 0;
     const messageResult = paginationRequested
         ? await loadConversationMessagePage(auth.supabase, id, {
             limit: messageLimit,
             offset: messageOffset,
-        }, Array.isArray(data.messages) ? data.messages : [])
-        : await loadAllConversationMessages(auth.supabase, id, Array.isArray(data.messages) ? data.messages : []);
+        })
+        : await loadAllConversationMessages(auth.supabase, id);
 
     const conversation = {
-        ...data,
+        ...conversationRow,
         messages: messageResult.messages,
     };
 
@@ -83,8 +104,8 @@ export async function GET(
     }
 
     const context: { baziName?: string; ziweiName?: string } = {};
-    const baziChartId = typeof data.bazi_chart_id === 'string' ? data.bazi_chart_id : null;
-    const ziweiChartId = typeof data.ziwei_chart_id === 'string' ? data.ziwei_chart_id : null;
+    const baziChartId = typeof conversationRow.bazi_chart_id === 'string' ? conversationRow.bazi_chart_id : null;
+    const ziweiChartId = typeof conversationRow.ziwei_chart_id === 'string' ? conversationRow.ziwei_chart_id : null;
 
     const [baziResult, ziweiResult] = await Promise.all([
         baziChartId
@@ -139,7 +160,6 @@ export async function PATCH(
     if (body.title !== undefined) updatePayload.title = body.title;
     const shouldSyncMessages = body.messages !== undefined;
     const nextMessages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
-    if (shouldSyncMessages) updatePayload.messages = nextMessages;
     if (body.personality !== undefined) updatePayload.personality = body.personality;
     if (body.baziChartId !== undefined) updatePayload.bazi_chart_id = body.baziChartId;
     if (body.ziweiChartId !== undefined) updatePayload.ziwei_chart_id = body.ziweiChartId;
@@ -179,14 +199,13 @@ export async function DELETE(
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
     const { id } = await params;
-    const { error } = await auth.supabase
-        .from('conversations')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', auth.user.id);
-
-    if (error) {
-        console.error('[conversations] failed to delete conversation:', error);
+    const result = await deleteConversationGraph(
+        auth.supabase as never,
+        auth.user.id,
+        id,
+    );
+    if (result.error) {
+        console.error('[conversations] failed to delete conversation:', result.error);
         return jsonError('删除对话失败', 500);
     }
 

@@ -10,6 +10,7 @@ import { callAI } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizePlainTitle } from '@/lib/title-utils';
+import { requireBearerUser, jsonError } from '@/lib/api-utils';
 import type { ChatMessage } from '@/types';
 
 // 速率限制配置：每分钟每 IP 最多 10 次
@@ -29,6 +30,12 @@ const TITLE_SYSTEM_PROMPT = `你是一个对话标题生成器。
 
 export async function POST(request: NextRequest) {
     try {
+        // 鉴权：必须登录才能生成标题
+        const authResult = await requireBearerUser(request);
+        if ('error' in authResult) {
+            return jsonError(authResult.error.message, authResult.error.status);
+        }
+
         // 分布式速率限制检查
         const clientIP = getClientIP(request);
         const rateLimit = await checkRateLimit(clientIP, '/api/chat/title', RATE_LIMIT_CONFIG);

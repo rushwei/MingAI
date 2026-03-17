@@ -6,24 +6,17 @@
 
 import { NextRequest } from 'next/server';
 import { PostCategory, PostFilters, CommunityPost } from '@/lib/community';
-import { loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
+import { asCommunityLookupClient, loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
 import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { parsePagination } from '@/lib/pagination';
 import { hasNonEmptyStrings } from '@/lib/validation';
+import { quotePostgrestString } from '@/lib/utils/postgrest';
 
 type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
     user_id: string;
     anonymous_name: string | null;
 };
-
-function quotePostgrestString(value: string): string {
-    const sanitized = value
-        .replace(/\u0000/g, '')
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
-    return `"${sanitized}"`;
-}
 
 function toPublicPost(
     post: CommunityPostRow,
@@ -101,7 +94,7 @@ export async function GET(request: NextRequest) {
         }
 
         const authorMap = await loadCommunityAuthorProfileMap(
-            serviceClient,
+            asCommunityLookupClient(serviceClient),
             (result.data || []).map((post: CommunityPostRow) => post.user_id),
         );
         const safePosts = (result.data || []).map((post: CommunityPostRow) =>
@@ -132,7 +125,7 @@ export async function POST(request: NextRequest) {
             return jsonError('标题和内容不能为空', 400);
         }
 
-        const authorProfile = await loadSingleCommunityAuthorProfile(supabase, user.id);
+        const authorProfile = await loadSingleCommunityAuthorProfile(asCommunityLookupClient(supabase), user.id);
 
         // 创建帖子
         const { data: post, error: postError } = await supabase

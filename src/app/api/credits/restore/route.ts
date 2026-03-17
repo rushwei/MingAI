@@ -1,30 +1,31 @@
 /**
  * 积分恢复 Cron Job API
- * 
+ *
  * Vercel Cron 配置：在 vercel.json 中添加
  * {
  *   "crons": [{
  *     "path": "/api/credits/restore?period=daily",
  *     "schedule": "0 0 * * *"
  *   }, {
- *     "path": "/api/credits/restore?period=hourly", 
+ *     "path": "/api/credits/restore?period=hourly",
  *     "schedule": "0 * * * *"
  *   }]
  * }
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { restoreAllCredits } from '@/lib/user/credits';
+import { jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     // 验证 Cron 密钥（可选，增加安全性）
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
-        return NextResponse.json({ error: 'Cron secret not configured' }, { status: 500 });
+        return jsonError('Cron secret not configured', 500);
     }
     if (authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return jsonError('Unauthorized', 401);
     }
 
     // 获取恢复周期参数
@@ -32,16 +33,13 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') as 'daily' | 'hourly';
 
     if (!period || !['daily', 'hourly'].includes(period)) {
-        return NextResponse.json(
-            { error: 'Invalid period. Use "daily" or "hourly"' },
-            { status: 400 }
-        );
+        return jsonError('Invalid period. Use "daily" or "hourly"', 400);
     }
 
     try {
         const result = await restoreAllCredits(period);
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             period,
             ...result,
@@ -49,10 +47,7 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('[cron] Credit restore failed:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+        return jsonError('Internal server error', 500);
     }
 }
 

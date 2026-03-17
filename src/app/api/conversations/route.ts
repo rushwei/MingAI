@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
-    const limit = Math.min(Math.max(Number(searchParams.get('limit') || 50), 1), 100);
+    const limit = Math.min(Math.max(Number.parseInt(searchParams.get('limit') || '100', 10) || 100, 1), 100);
+    const offset = Math.max(Number.parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
     const sourceType = searchParams.get('sourceType');
     const baziChartId = searchParams.get('baziChartId');
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
         .select(CONVERSATION_LIST_SELECT)
         .eq('user_id', auth.user.id)
         .order('updated_at', { ascending: false })
-        .limit(limit);
+        .range(offset, offset + limit);
 
     if (!includeArchived) {
         query = query.eq('is_archived', false);
@@ -51,7 +52,17 @@ export async function GET(request: NextRequest) {
         return jsonError('加载对话列表失败', 500);
     }
 
-    return jsonOk({ conversations: data ?? [] });
+    const rows = data ?? [];
+    const hasMore = rows.length > limit;
+    const conversations = hasMore ? rows.slice(0, limit) : rows;
+
+    return jsonOk({
+        conversations,
+        pagination: {
+            hasMore,
+            nextOffset: hasMore ? offset + limit : null,
+        },
+    });
 }
 
 export async function POST(request: NextRequest) {
@@ -81,7 +92,6 @@ export async function POST(request: NextRequest) {
             title: body.title || '新对话',
             bazi_chart_id: body.baziChartId ?? null,
             ziwei_chart_id: body.ziweiChartId ?? null,
-            messages: initialMessages,
         })
         .select('id')
         .single();

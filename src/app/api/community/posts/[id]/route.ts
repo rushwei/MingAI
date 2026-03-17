@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { CommunityPost, CommunityComment } from '@/lib/community';
-import { loadCommunityAuthorProfileMap } from '@/lib/community-server';
+import { asCommunityLookupClient, loadCommunityAuthorProfileMap } from '@/lib/community-server';
 import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 
@@ -100,7 +100,7 @@ export async function GET(
             console.error('获取评论失败:', commentsError);
         }
 
-        const authorMap = await loadCommunityAuthorProfileMap(serviceClient, [
+        const authorMap = await loadCommunityAuthorProfileMap(asCommunityLookupClient(serviceClient), [
             post.user_id,
             ...((commentsData || []).map((comment: CommunityCommentRow) => comment.user_id)),
         ]);
@@ -220,7 +220,7 @@ export async function PUT(
             return jsonError('更新帖子失败', 500);
         }
 
-        const authorMap = await loadCommunityAuthorProfileMap(auth.supabase, [user.id]);
+        const authorMap = await loadCommunityAuthorProfileMap(asCommunityLookupClient(auth.supabase), [user.id]);
         return jsonOk(
             toPublicPost(data as CommunityPostRow, authorMap.get(user.id) || { name: '命理爱好者', avatarUrl: null }),
         );
