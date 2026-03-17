@@ -128,7 +128,7 @@ test('replaceConversationMessages should no-op safely when rpc is unavailable', 
 test('chat message list only uses model in tooltip', () => {
     const fs = require('node:fs');
     const path = require('node:path');
-    const filePath = path.join(process.cwd(), 'src/components/chat/ChatMessageList.tsx');
+    const filePath = path.join(process.cwd(), 'src/components/chat/ChatMessageItem.tsx');
     const content = fs.readFileSync(filePath, 'utf8');
     const matches = content.match(/message\.model &&/g) || [];
     assert.equal(matches.length, 1);

@@ -24,7 +24,7 @@ test('user settings route should return normalized settings bundle for the curre
                   custom_instructions: 'keep calm',
                   user_profile: { career: 'engineer' },
                   prompt_kb_ids: ['kb-2', 'kb-1'],
-                  sidebar_config: { hiddenNavItems: ['community'] },
+                  sidebar_config: { hiddenNavItems: ['qimen'] },
                 },
                 error: null,
               }),
@@ -46,5 +46,5 @@ test('user settings route should return normalized settings bundle for the curre
   assert.equal(response.status, 200);
   assert.equal(payload.settings.expressionStyle, 'gentle');
   assert.deepEqual(payload.settings.promptKbIds, ['kb-2', 'kb-1']);
-  assert.deepEqual(payload.settings.sidebarConfig.hiddenNavItems, ['community']);
+  assert.deepEqual(payload.settings.sidebarConfig.hiddenNavItems, ['qimen']);
 });

@@ -6,12 +6,9 @@ import { resolve } from 'node:path';
 import { DEFAULT_SIDEBAR_CONFIG, normalizeSidebarConfig } from '@/lib/user/settings';
 
 const sidebarPath = resolve(process.cwd(), 'src/components/layout/Sidebar.tsx');
-const sidebarCustomizerPath = resolve(process.cwd(), 'src/components/settings/SidebarCustomizer.tsx');
 const mobileNavPath = resolve(process.cwd(), 'src/components/layout/MobileNav.tsx');
-const mobileCustomizerPath = resolve(process.cwd(), 'src/components/settings/MobileNavCustomizer.tsx');
 const sidebarConfigContextPath = resolve(process.cwd(), 'src/components/layout/SidebarConfigContext.tsx');
 const appSettingsPath = resolve(process.cwd(), 'src/lib/app-settings.ts');
-const featureTogglePanelPath = resolve(process.cwd(), 'src/components/admin/FeatureTogglePanel.tsx');
 
 test('sidebar config defaults should include qimen and daliuren for new users', () => {
   assert.ok(DEFAULT_SIDEBAR_CONFIG.navOrder.includes('qimen'));
@@ -37,20 +34,27 @@ test('normalizeSidebarConfig should not auto-append missing items', () => {
   assert.equal(normalized.mobileDrawerOrder.includes('daliuren'), false);
 });
 
-test('desktop and mobile navigation surfaces should expose daliuren consistently', async () => {
-  const [sidebarSource, sidebarCustomizerSource, mobileNavSource, mobileCustomizerSource, appSettingsSource] = await Promise.all([
+test('navigation registry should expose daliuren and qimen consistently', async () => {
+  const { getSidebarNavItems, getMobileItemsList } = await import('@/lib/navigation/registry');
+
+  const sidebarIds = getSidebarNavItems().map(n => n.id);
+  assert.ok(sidebarIds.includes('daliuren'), 'sidebar nav should include daliuren');
+  assert.ok(sidebarIds.includes('qimen'), 'sidebar nav should include qimen');
+
+  const mobileIds = getMobileItemsList().map(n => n.id);
+  assert.ok(mobileIds.includes('daliuren'), 'mobile items should include daliuren');
+  assert.ok(mobileIds.includes('qimen'), 'mobile items should include qimen');
+
+  // Sidebar and MobileNav should import from registry
+  const [sidebarSource, mobileNavSource] = await Promise.all([
     readFile(sidebarPath, 'utf-8'),
-    readFile(sidebarCustomizerPath, 'utf-8'),
     readFile(mobileNavPath, 'utf-8'),
-    readFile(mobileCustomizerPath, 'utf-8'),
-    readFile(appSettingsPath, 'utf-8'),
   ]);
 
-  assert.match(sidebarSource, /href:\s*'\/daliuren'/u);
-  assert.match(sidebarCustomizerSource, /id:\s*'daliuren'/u);
-  assert.match(mobileNavSource, /'daliuren':\s*\{\s*href:\s*'\/daliuren'/u);
-  assert.match(mobileCustomizerSource, /id:\s*'qimen'/u);
-  assert.match(mobileCustomizerSource, /id:\s*'daliuren'/u);
+  assert.match(sidebarSource, /from\s+['"]@\/lib\/navigation\/registry['"]/u);
+  assert.match(mobileNavSource, /from\s+['"]@\/lib\/navigation\/registry['"]/u);
+
+  const appSettingsSource = await readFile(appSettingsPath, 'utf-8');
   assert.match(appSettingsSource, /'daliuren'/u);
 });
 
@@ -69,8 +73,10 @@ test('sidebar config context should normalize cached config before using it', as
 });
 
 test('admin feature panel should expose qimen and daliuren toggles', async () => {
-  const source = await readFile(featureTogglePanelPath, 'utf-8');
+  const { getFeatureModules } = await import('@/lib/navigation/registry');
+  const modules = getFeatureModules();
+  const ids = modules.map(m => m.id);
 
-  assert.match(source, /id:\s*'qimen'/u);
-  assert.match(source, /id:\s*'daliuren'/u);
+  assert.ok(ids.includes('qimen'), 'getFeatureModules should include qimen');
+  assert.ok(ids.includes('daliuren'), 'getFeatureModules should include daliuren');
 });

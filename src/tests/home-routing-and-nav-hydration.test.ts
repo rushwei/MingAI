@@ -36,7 +36,7 @@ test('sidebar should avoid rendering fail-open entries before feature toggles an
     'sidebar should read feature toggle loading state'
   );
   assert.ok(
-    source.includes('const isNavLoading = sidebarConfigLoading || featureLoading'),
+    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing'),
     'sidebar should combine config and feature loading state'
   );
   assert.ok(
@@ -57,7 +57,7 @@ test('mobile nav should avoid rendering fail-open entries before feature toggles
     'mobile nav should read feature toggle loading state'
   );
   assert.ok(
-    source.includes('const isNavLoading = sidebarConfigLoading || featureLoading'),
+    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing'),
     'mobile nav should combine config and feature loading state'
   );
   assert.ok(
