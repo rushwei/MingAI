@@ -84,6 +84,11 @@ export async function GET(
         })
         : await loadAllConversationMessages(auth.supabase, id);
 
+    if (messageResult.error) {
+        console.error('[conversations] failed to load conversation messages:', messageResult.error);
+        return jsonError('加载对话失败', 500);
+    }
+
     const conversation = {
         ...conversationRow,
         messages: messageResult.messages,

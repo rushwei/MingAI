@@ -161,7 +161,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                         {messages.length > 20 ? (
                             <div className="flex-1 px-4 py-4 relative">
                                 <VirtualizedChatMessageList
-                                    messages={messages} isLoading={isLoading}
+                                    messages={messages} isLoading={isLoading || isSendingToList}
                                     onEditMessage={onEditMessage} onRegenerateResponse={onRegenerateResponse}
                                     onSwitchVersion={onSwitchVersion}
                                     onArchiveMessage={activeConversationId ? onArchiveMessage : undefined}
@@ -171,7 +171,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                         ) : (
                             <div ref={messageScrollContainerRef} onScroll={onMessageListScroll} className="flex-1 overflow-y-auto px-4 py-4 relative">
                                 <ChatMessageList
-                                    messages={messages} isLoading={isLoading} messagesEndRef={messagesEndRef}
+                                    messages={messages} isLoading={isLoading || isSendingToList} messagesEndRef={messagesEndRef}
                                     onEditMessage={onEditMessage} onRegenerateResponse={onRegenerateResponse}
                                     onSwitchVersion={onSwitchVersion}
                                     onArchiveMessage={activeConversationId ? onArchiveMessage : undefined}

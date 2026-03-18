@@ -4,11 +4,12 @@
 import { useCallback, useEffect } from 'react';
 import type { ChatMessage, Conversation, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
-import { createConversation, renameConversation } from '@/lib/chat/conversation';
+import { createConversation, deleteConversation, renameConversation } from '@/lib/chat/conversation';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import { supabase } from '@/lib/auth';
+import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import type { ChatStateReturn } from '@/lib/chat/use-chat-state';
 
 // AI 生成对话标题
@@ -292,10 +293,38 @@ export function useChatMessaging({
                 dreamInfo,
             };
             const newMessages = [...messages, userMessage];
-            setMessages(newMessages);
+            const assistantMessageId = (Date.now() + 1).toString();
+            const initialAssistantMessage: ChatMessage = {
+                id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel,
+                modelName: resolveClientModelName(selectedModel, selectedModel),
+                chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined,
+            };
+            const optimisticMessages = [...newMessages, initialAssistantMessage];
+            setMessages(optimisticMessages);
             setInputValue('');
             setMentions([]);
-            await saveMessages(conversationId, newMessages, isNewConversation ? (draftTitle || undefined) : undefined);
+            const sessionPromise = supabase.auth.getSession();
+            const saveSucceeded = await saveMessages(conversationId, newMessages, isNewConversation ? (draftTitle || undefined) : undefined);
+            if (!saveSucceeded) {
+                if (isNewConversation) {
+                    await deleteConversation(conversationId);
+                    if (activeConversationIdRef.current === conversationId) {
+                        activeConversationIdRef.current = null;
+                        conversationValidatedRef.current = false;
+                        setActiveConversationId(null);
+                        setMessages([]);
+                        router.replace('/chat');
+                    }
+                    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+                    setPendingSidebarTitle(null);
+                    setHasLoadedConversations(true);
+                    void refreshConversationList(userId);
+                } else if (conversationId === activeConversationIdRef.current) {
+                    setMessages(messages);
+                }
+                showToast('error', '保存对话失败，请重试');
+                return;
+            }
 
             if (isNewConversation && draftTitle) {
                 const createdConversationId = conversationId;
@@ -312,14 +341,7 @@ export function useChatMessaging({
                 })();
             }
 
-            const assistantMessageId = (Date.now() + 1).toString();
-            const initialAssistantMessage: ChatMessage = {
-                id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel,
-                chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined,
-            };
-            if (conversationId === activeConversationIdRef.current) setMessages([...newMessages, initialAssistantMessage]);
-
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await sessionPromise;
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
@@ -394,7 +416,15 @@ export function useChatMessaging({
         if (isTargetActive()) setMessages(newMessages);
 
         const assistantMessageId = (Date.now() + 1).toString();
-        const initialAssistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel, chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined };
+        const initialAssistantMessage: ChatMessage = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            createdAt: new Date().toISOString(),
+            model: selectedModel,
+            modelName: resolveClientModelName(selectedModel, selectedModel),
+            chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined,
+        };
         if (isTargetActive()) setMessages([...newMessages, initialAssistantMessage]);
 
         try {
@@ -458,7 +488,14 @@ export function useChatMessaging({
         }
 
         const assistantMessageId = (Date.now() + 1).toString();
-        const initialAssistantMessage: ChatMessage = { id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel };
+        const initialAssistantMessage: ChatMessage = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            createdAt: new Date().toISOString(),
+            model: selectedModel,
+            modelName: resolveClientModelName(selectedModel, selectedModel),
+        };
         if (isTargetActive()) setMessages([...updatedPreviousMessages, initialAssistantMessage]);
 
         try {

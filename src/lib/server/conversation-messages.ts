@@ -17,6 +17,15 @@ type MessagePageOptions = {
 
 type ConversationMessageSyncError = { message?: string; code?: string };
 
+function toSyncError(error: unknown): ConversationMessageSyncError | null {
+    if (!error) return null;
+    const e = error as Record<string, unknown>;
+    return {
+        message: typeof e.message === 'string' ? e.message : undefined,
+        code: typeof e.code === 'string' ? e.code : undefined,
+    };
+}
+
 function isConversationMessageInfraMissing(error: ConversationMessageSyncError | null | undefined) {
     const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
     return text.includes('replace_conversation_messages')
@@ -64,7 +73,7 @@ async function replaceConversationMessagesByTable(
     const table = supabase.from('conversation_messages');
     const deleteResult = await table.delete().eq('conversation_id', conversationId);
     if (deleteResult.error) {
-        return { error: deleteResult.error as ConversationMessageSyncError };
+        return { error: toSyncError(deleteResult.error) };
     }
 
     const rows = mapConversationMessagesForInsert(conversationId, messages);
@@ -73,7 +82,7 @@ async function replaceConversationMessagesByTable(
     }
 
     const insertResult = await table.insert(rows);
-    return { error: insertResult.error as ConversationMessageSyncError | null };
+    return { error: toSyncError(insertResult.error) };
 }
 
 export async function replaceConversationMessages(
@@ -90,11 +99,11 @@ export async function replaceConversationMessages(
         p_messages: messages,
     });
 
-    if (isConversationMessageInfraMissing(error as ConversationMessageSyncError | null)) {
+    if (isConversationMessageInfraMissing(toSyncError(error))) {
         return await replaceConversationMessagesByTable(supabase, conversationId, messages);
     }
 
-    return { error: error as ConversationMessageSyncError | null };
+    return { error: toSyncError(error) };
 }
 
 export async function loadAllConversationMessages(

@@ -10,7 +10,7 @@
 import { memo, useState, useMemo, useCallback, useRef } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource, Mention } from '@/types';
-import { getModelName } from '@/lib/ai/ai-config';
+import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import { formatMentionsForDisplay } from '@/lib/format-mentions';
 import { extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens } from '@/lib/mention-tokens';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -469,6 +469,8 @@ function AIMessageActions({
     onArchiveMessage,
     setHoveredAction,
 }: AIMessageActionsProps) {
+    const resolvedModelName = message.modelName || resolveClientModelName(message.model || '', message.model || '');
+
     return (
         <div className="flex gap-1 mt-2">
             <button
@@ -499,8 +501,8 @@ function AIMessageActions({
                     {hoveredAction === `regen-${message.id}` && (
                         <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
                             <div>重试...</div>
-                            {message.model && (
-                                <div className="opacity-70">已使用 {getModelName(message.model || '')}</div>
+                            {resolvedModelName && (
+                                <div className="opacity-70">已使用 {resolvedModelName}</div>
                             )}
                         </span>
                     )}
