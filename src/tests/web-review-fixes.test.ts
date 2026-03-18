@@ -135,6 +135,76 @@ test('notifications launch route should honor selected template content for site
   assert.equal(insertedNotifications[0]?.content, '限时特惠！六爻高级分析开放，活动截止至 本周日，抓紧时间！');
 });
 
+test('notifications launch route should preserve absolute links instead of forcing them into the current site path', async (t) => {
+  const apiUtils = require('../lib/api-utils') as any;
+
+  const originalRequireAdminContext = apiUtils.requireAdminContext;
+  const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+  const insertedNotifications: Array<{ link?: string }> = [];
+
+  apiUtils.requireAdminContext = async () => ({
+    user: { id: 'admin-1' },
+    supabase: {},
+  });
+  apiUtils.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'feature_subscriptions') {
+        return {
+          select: () => ({
+            eq: async () => ({
+              data: [{ user_id: 'user-1', notify_site: true }],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === 'user_settings') {
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [{ user_id: 'user-1', notifications_enabled: true, notify_site: true }],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === 'notifications') {
+        return {
+          insert: async (payload: Record<string, unknown>) => {
+            insertedNotifications.push(payload);
+            return { error: null };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    },
+  });
+
+  t.after(() => {
+    apiUtils.requireAdminContext = originalRequireAdminContext;
+    apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+  });
+
+  const { POST } = await import('../app/api/notifications/launch/route');
+  const request = new NextRequest('http://localhost/api/notifications/launch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      featureKey: 'liuyao',
+      featureUrl: 'https://docs.example.com/features/liuyao?ref=launch',
+    }),
+  });
+
+  const response = await POST(request);
+  assert.equal(response.status, 200);
+  assert.equal(insertedNotifications.length, 1);
+  assert.equal(insertedNotifications[0]?.link, 'https://docs.example.com/features/liuyao?ref=launch');
+});
+
 test('record detail flows should guard failed responses and use shared confirm dialog instead of browser confirm', async () => {
   const source = await readFile(recordDetailPath, 'utf-8');
 

@@ -11,6 +11,7 @@ import type {
     AIReasoningEffort,
     AIReasoningEffortFormat,
     AIRoutingMode,
+    AITransport,
     AIUsageType,
 } from '@/types';
 import {
@@ -19,6 +20,7 @@ import {
     getModelUsageType,
     isManagedSourceKey,
     sortModelSources,
+    type ManagedAISourceKey,
 } from '@/lib/ai/source-runtime';
 
 function hasEnvVar(envVarName: string): boolean {
@@ -124,8 +126,6 @@ type AdminModelRow = {
     bindings?: AdminBindingRow[];
 };
 
-type ManagedGatewayKey = 'newapi' | 'octopus';
-
 function normalizeCustomParameters(input: unknown): Record<string, unknown> | null {
     if (input == null) {
         return null;
@@ -148,11 +148,13 @@ type AdminModelSource = {
     isActive: boolean;
     isEnabled: boolean;
     priority: number;
-    transport: string;
+    transport: AITransport;
     maxContextTokens: null;
     maxOutputTokens: null;
     notes: string | null;
 };
+
+type PendingAdminModelSource = Omit<AdminModelSource, 'isActive'>;
 
 function pickGateway(input: AdminBindingRow['gateway']): AdminGatewayRow | null {
     if (Array.isArray(input)) {
@@ -164,7 +166,7 @@ function pickGateway(input: AdminBindingRow['gateway']): AdminGatewayRow | null 
 function resolvePrimaryGatewayKey(
     primaryGatewayKey: unknown,
     routingMode: AIRoutingMode,
-): ManagedGatewayKey | null {
+): ManagedAISourceKey | null {
     if (typeof primaryGatewayKey === 'string' && primaryGatewayKey.length > 0) {
         return isManagedSourceKey(primaryGatewayKey) ? primaryGatewayKey : null;
     }
@@ -197,7 +199,7 @@ function mapModelSources(model: AdminModelRow) {
     });
 
     const mappedSources = (model.bindings || [])
-        .map((binding) => {
+        .map((binding): PendingAdminModelSource | null => {
             const gateway = pickGateway(binding.gateway);
             if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
                 return null;
@@ -205,23 +207,22 @@ function mapModelSources(model: AdminModelRow) {
 
             return {
                 id: binding.id,
-                sourceKey: gateway.gateway_key || '',
-                sourceName: gateway.display_name || gateway.gateway_key || '',
+                sourceKey: gateway.gateway_key,
+                sourceName: gateway.display_name || gateway.gateway_key,
                 apiUrl: buildManagedApiUrl(gateway.base_url, usageType),
                 apiKeyEnvVar: gateway.api_key_env_var || '',
                 hasApiKey: hasEnvVar(gateway.api_key_env_var || ''),
                 modelIdOverride: binding.model_id_override,
                 reasoningModelId: binding.reasoning_model_id,
-                isActive: false,
                 isEnabled: binding.is_enabled !== false && gateway.is_enabled !== false,
                 priority: binding.priority ?? 0,
-                transport: gateway.transport || DEFAULT_AI_TRANSPORT,
+                transport: (gateway.transport as AITransport) || DEFAULT_AI_TRANSPORT,
                 maxContextTokens: null,
                 maxOutputTokens: null,
                 notes: binding.notes ?? gateway.notes ?? null,
-            } satisfies AdminModelSource;
+            };
         })
-        .filter((source): source is AdminModelSource => source !== null);
+        .filter((source): source is PendingAdminModelSource => source !== null);
 
     const sortedSources = sortModelSources(mappedSources);
     let activeAssigned = false;

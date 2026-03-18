@@ -366,8 +366,8 @@ export interface AIModelSourceConfig {
     sourceName: string;
     apiUrl: string;
     apiKeyEnvVar: string;
-    modelIdOverride?: string;
-    reasoningModelId?: string;
+    modelIdOverride?: string | null;
+    reasoningModelId?: string | null;
     transport?: AITransport;
     priority?: number;
     isActive?: boolean;

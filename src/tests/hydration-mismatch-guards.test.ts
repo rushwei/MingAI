@@ -23,9 +23,12 @@ test('daliuren page should defer date/time defaults to client effect', async () 
   const source = await readFile(daliurenPagePath, 'utf-8');
 
   assert.equal(/useState\(\(\)\s*=>[\s\S]*new Date/u.test(source), false);
-  assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setDate\(/u);
+  assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setYear\(/u);
+  assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setMonth\(/u);
+  assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setDay\(/u);
   assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setHour\(/u);
   assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setMinute\(/u);
+  assert.match(source, /useEffect\(\(\)\s*=>[\s\S]*setLocalTimeZone\(/u);
 });
 
 test('FeatureGate should guard initial render to avoid hydration mismatch', async () => {

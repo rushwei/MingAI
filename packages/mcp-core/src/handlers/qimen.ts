@@ -9,6 +9,8 @@ import { TIAN_GAN, DI_ZHI, GAN_WUXING, YI_MA_MAP } from '../constants/ganzhi.js'
 import { getKongWang } from '../utils.js';
 import { DEFAULT_DIVINATION_TIMEZONE, getTimeZoneOffsetMinutes } from '../timezone-utils.js';
 
+export type { QimenInput, QimenOutput } from '../types.js';
+
 const require = createRequire(import.meta.url);
 const { TheArtOfBecomingInvisible } = require('taobi');
 

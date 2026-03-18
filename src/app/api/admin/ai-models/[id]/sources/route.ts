@@ -7,6 +7,7 @@
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 import { clearModelCache } from '@/lib/server/ai-config';
+import type { AITransport } from '@/types';
 import {
     buildManagedApiUrl,
     DEFAULT_AI_TRANSPORT,
@@ -51,16 +52,18 @@ type BindingSourceResponse = {
     apiUrl: string;
     apiKeyEnvVar: string;
     hasApiKey: boolean;
-    transport: string;
+    transport: AITransport;
     modelIdOverride: string | null;
     reasoningModelId: string | null;
     isActive: boolean;
     isEnabled: boolean;
     priority: number;
+    notes: string | null;
     maxContextTokens: null;
     maxOutputTokens: null;
-    notes: string | null;
 };
+
+type PendingBindingSourceResponse = Omit<BindingSourceResponse, 'isActive'>;
 
 function pickGateway(input: BindingRow['gateway']): GatewayRow | null {
     if (Array.isArray(input)) {
@@ -91,7 +94,7 @@ async function getModelUsageMeta(supabase: ReturnType<typeof getSystemAdminClien
 
 function mapBindingSources(bindings: BindingRow[], usageType: 'chat' | 'vision' | 'embedding' | 'rerank') {
     const mappedSources = bindings
-        .map((binding) => {
+        .map((binding): PendingBindingSourceResponse | null => {
             const gateway = pickGateway(binding.gateway);
             if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
                 return null;
@@ -99,23 +102,22 @@ function mapBindingSources(bindings: BindingRow[], usageType: 'chat' | 'vision' 
 
             return {
                 id: binding.id,
-                sourceKey: gateway.gateway_key || '',
-                sourceName: gateway.display_name || gateway.gateway_key || '',
+                sourceKey: gateway.gateway_key,
+                sourceName: gateway.display_name || gateway.gateway_key,
                 apiUrl: buildManagedApiUrl(gateway.base_url, usageType),
                 apiKeyEnvVar: gateway.api_key_env_var || '',
                 hasApiKey: hasEnvVar(gateway.api_key_env_var || ''),
-                transport: gateway.transport || DEFAULT_AI_TRANSPORT,
+                transport: (gateway.transport as AITransport) || DEFAULT_AI_TRANSPORT,
                 modelIdOverride: binding.model_id_override,
                 reasoningModelId: binding.reasoning_model_id,
-                isActive: false,
                 isEnabled: binding.is_enabled !== false && gateway.is_enabled !== false,
                 priority: binding.priority ?? 0,
                 maxContextTokens: null,
                 maxOutputTokens: null,
                 notes: binding.notes ?? gateway.notes ?? null,
-            } satisfies BindingSourceResponse;
+            };
         })
-        .filter((source): source is BindingSourceResponse => source !== null);
+        .filter((source): source is PendingBindingSourceResponse => source !== null);
 
     const sortedSources = sortModelSources(mappedSources);
     let activeAssigned = false;

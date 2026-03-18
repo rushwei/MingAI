@@ -7,10 +7,11 @@ import type {
 } from '@/types';
 
 export const MANAGED_AI_SOURCE_KEYS = ['newapi', 'octopus'] as const;
+export type ManagedAISourceKey = (typeof MANAGED_AI_SOURCE_KEYS)[number];
 export const DEFAULT_AI_TRANSPORT: AITransport = 'openai_compatible';
 
-export function isManagedSourceKey(sourceKey: string | null | undefined): boolean {
-  return !!sourceKey && MANAGED_AI_SOURCE_KEYS.includes(sourceKey as (typeof MANAGED_AI_SOURCE_KEYS)[number]);
+export function isManagedSourceKey(sourceKey: string | null | undefined): sourceKey is ManagedAISourceKey {
+  return !!sourceKey && MANAGED_AI_SOURCE_KEYS.includes(sourceKey as ManagedAISourceKey);
 }
 
 export function getModelUsageType(model: Pick<AIModelConfig, 'usageType' | 'supportsVision'>): AIUsageType {

@@ -59,7 +59,7 @@ test('generateEmbedding should use unified embedding model sources and fall back
     await serverConfigModule.getModelConfigAsync('text-embedding-v4'),
   ];
 
-  global.fetch = async (input: string | URL) => {
+  global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     urls.push(String(input));
     if (String(input).includes('newapi')) {
       return new Response('embedding failure', { status: 503 });
@@ -67,7 +67,7 @@ test('generateEmbedding should use unified embedding model sources and fall back
     return Response.json({
       data: [{ embedding: [0.1, 0.2, 0.3] }],
     });
-  };
+  }) as typeof fetch;
 
   t.after(() => {
     serverConfigModule.getModelConfigAsync = originalGetModelConfigAsync;
@@ -141,7 +141,7 @@ test('callReranker should use unified rerank model sources and fall back to octo
     await serverConfigModule.getModelConfigAsync('qwen3-rerank'),
   ];
 
-  global.fetch = async (input: string | URL) => {
+  global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     urls.push(String(input));
     if (String(input).includes('newapi')) {
       return new Response('rerank failure', { status: 500 });
@@ -152,7 +152,7 @@ test('callReranker should use unified rerank model sources and fall back to octo
         { index: 0, relevance_score: 0.65 },
       ],
     });
-  };
+  }) as typeof fetch;
 
   t.after(() => {
     serverConfigModule.getModelConfigAsync = originalGetModelConfigAsync;

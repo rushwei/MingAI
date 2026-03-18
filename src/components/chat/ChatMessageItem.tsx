@@ -11,7 +11,10 @@ import { memo, useState, useMemo, useCallback, useRef } from 'react';
 import { Pencil, Check, X, RefreshCw, Copy, ChevronLeft, ChevronRight, FileText, BookOpenText, Globe } from 'lucide-react';
 import type { AIMessageMetadata, ChatMessage, InjectedSource, Mention } from '@/types';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
+import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 import { formatMentionsForDisplay } from '@/lib/format-mentions';
+import { getVisibleSourcePanelState } from '@/lib/chat/feature-normalization';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens } from '@/lib/mention-tokens';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
@@ -424,15 +427,28 @@ function SourcePanelSection({
     expandedSources,
     setExpandedSources,
 }: SourcePanelSectionProps) {
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
+    const { isFeatureEnabled } = useFeatureToggles();
+    const enabledDataSourceTypes = useMemo(
+        () => getEnabledDataSourceTypes(isFeatureEnabled),
+        [isFeatureEnabled],
+    );
+
     // 延迟到回复结束后再展示“参考了 n 个来源”，避免一开始就出现
     if (isCurrentStreaming) return null;
 
     const meta = message.metadata as AIMessageMetadata | undefined;
-    const sources = (meta?.sources || []) as InjectedSource[];
-    if (!sources.length && !meta?.kbSearchEnabled) return null;
+    const { visibleSources, showKnowledgeBaseMiss } = useMemo(
+        () => getVisibleSourcePanelState(meta, {
+            knowledgeBaseEnabled,
+            enabledDataSourceTypes,
+        }),
+        [enabledDataSourceTypes, knowledgeBaseEnabled, meta],
+    );
+    if (!visibleSources.length && !showKnowledgeBaseMiss) return null;
 
     const isExpanded = !!expandedSources[message.id];
-    if (sources.length === 0 && !isCurrentStreaming) {
+    if (showKnowledgeBaseMiss && !isCurrentStreaming) {
         return (
             <div className="mt-2 border-t border-border/50 pt-2 px-2 text-xs text-foreground-secondary">
                 本次未命中知识库
@@ -441,7 +457,7 @@ function SourcePanelSection({
     }
     return (
         <SourcePanel
-            sources={sources}
+            sources={visibleSources as InjectedSource[]}
             isExpanded={isExpanded}
             onToggle={() => setExpandedSources(prev => ({ ...prev, [message.id]: !isExpanded }))}
         />

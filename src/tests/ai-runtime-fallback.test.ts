@@ -51,7 +51,7 @@ test('callAI should fall back from primary source to backup source', async (t) =
     ],
   });
 
-  global.fetch = async (input: string | URL) => {
+  global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     urls.push(String(input));
     if (String(input).includes('newapi')) {
       return new Response('upstream failure', { status: 502 });
@@ -59,7 +59,7 @@ test('callAI should fall back from primary source to backup source', async (t) =
     return Response.json({
       choices: [{ message: { content: 'backup-success' } }],
     });
-  };
+  }) as typeof fetch;
 
   t.after(() => {
     serverConfigModule.getModelConfigAsync = originalGetModelConfigAsync;
@@ -128,12 +128,12 @@ test('callAI should honor fixed octopus routing mode', async (t) => {
     ],
   });
 
-  global.fetch = async (input: string | URL) => {
+  global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     urls.push(String(input));
     return Response.json({
       choices: [{ message: { content: 'octopus-only' } }],
     });
-  };
+  }) as typeof fetch;
 
   t.after(() => {
     serverConfigModule.getModelConfigAsync = originalGetModelConfigAsync;

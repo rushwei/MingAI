@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import {
     buildChatMessageChartInfo,
     buildChatRequestChartIds,
+    getVisibleSourcePanelState,
     sanitizeChatMentions,
     sanitizeSelectedCharts,
 } from '../lib/chat/feature-normalization';
@@ -18,6 +19,7 @@ const ordersPagePath = resolve(process.cwd(), 'src/app/user/orders/page.tsx');
 const dailyPagePath = resolve(process.cwd(), 'src/app/daily/page.tsx');
 const monthlyPagePath = resolve(process.cwd(), 'src/app/monthly/page.tsx');
 const sourceBadgePath = resolve(process.cwd(), 'src/components/chat/SourceBadge.tsx');
+const chatMessageItemPath = resolve(process.cwd(), 'src/components/chat/ChatMessageItem.tsx');
 
 test('chat feature normalization should drop disabled mentions and chart payloads', () => {
     const mentions = sanitizeChatMentions(
@@ -97,15 +99,88 @@ test('chat feature normalization should drop disabled mentions and chart payload
             ziweiName: '紫微',
         }
     );
+
+    assert.deepEqual(
+        getVisibleSourcePanelState(
+            {
+                sources: [
+                    {
+                        type: 'knowledge_base',
+                        id: 'kb-1',
+                        name: '知识库',
+                        preview: 'kb',
+                        tokens: 10,
+                        truncated: false,
+                    },
+                    {
+                        type: 'mention',
+                        sourceType: 'hepan_chart',
+                        id: 'hepan-1',
+                        name: '合盘',
+                        preview: 'hepan',
+                        tokens: 20,
+                        truncated: false,
+                    },
+                ],
+                kbSearchEnabled: true,
+            },
+            {
+                knowledgeBaseEnabled: false,
+                enabledDataSourceTypes: ['bazi_chart'],
+            }
+        ),
+        {
+            visibleSources: [],
+            showKnowledgeBaseMiss: false,
+        }
+    );
+
+    assert.deepEqual(
+        getVisibleSourcePanelState(
+            {
+                sources: [
+                    {
+                        type: 'mention',
+                        sourceType: 'bazi_chart',
+                        id: 'bazi-1',
+                        name: '八字命盘',
+                        preview: 'bazi',
+                        tokens: 16,
+                        truncated: false,
+                    },
+                ],
+                kbSearchEnabled: true,
+            },
+            {
+                knowledgeBaseEnabled: false,
+                enabledDataSourceTypes: ['bazi_chart'],
+            }
+        ),
+        {
+            visibleSources: [
+                {
+                    type: 'mention',
+                    sourceType: 'bazi_chart',
+                    id: 'bazi-1',
+                    name: '八字命盘',
+                    preview: 'bazi',
+                    tokens: 16,
+                    truncated: false,
+                },
+            ],
+            showKnowledgeBaseMiss: false,
+        }
+    );
 });
 
 test('chat UI and request flow should guard disabled mention entry points and stale feature payloads', async () => {
-    const [composerToolbarSource, chatMessagingSource, chatStateSource, chatPageSource, sourceBadgeSource] = await Promise.all([
+    const [composerToolbarSource, chatMessagingSource, chatStateSource, chatPageSource, sourceBadgeSource, chatMessageItemSource] = await Promise.all([
         readFile(composerToolbarPath, 'utf-8'),
         readFile(chatMessagingPath, 'utf-8'),
         readFile(chatStatePath, 'utf-8'),
         readFile(chatPagePath, 'utf-8'),
         readFile(sourceBadgePath, 'utf-8'),
+        readFile(chatMessageItemPath, 'utf-8'),
     ]);
 
     assert.match(composerToolbarSource, /canMentionAnything/u);
@@ -118,6 +193,7 @@ test('chat UI and request flow should guard disabled mention entry points and st
     assert.match(chatStateSource, /sanitizeSelectedCharts/u);
     assert.match(sourceBadgeSource, /getDataSourceFeatureId/u);
     assert.match(sourceBadgeSource, /isFeatureEnabled\(getDataSourceFeatureId\(type\)\)/u);
+    assert.match(chatMessageItemSource, /getVisibleSourcePanelState/u);
 
     assert.match(chatPageSource, /const aiPersonalizationEnabled = isFeatureEnabled\('ai-personalization'\)/u);
     assert.match(chatPageSource, /\[aiPersonalizationEnabled,[^\]]*knowledgeBaseEnabled/u);

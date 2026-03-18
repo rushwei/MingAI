@@ -113,22 +113,21 @@ function buildSourcesForModel(row: DBModelRow): AIModelSourceConfig[] {
   });
 
   const mappedSources = (row.bindings || [])
-    .map((binding) => {
+    .map((binding): AIModelSourceConfig | null => {
       const gateway = pickGateway(binding.gateway);
       if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
         return null;
       }
 
       return {
-        sourceKey: gateway.gateway_key || '',
-        sourceName: gateway.display_name || gateway.gateway_key || '',
+        sourceKey: gateway.gateway_key,
+        sourceName: gateway.display_name || gateway.gateway_key,
         apiUrl: buildManagedApiUrl(gateway.base_url, usageType),
         apiKeyEnvVar: gateway.api_key_env_var || '',
         modelIdOverride: binding.model_id_override || row.model_key,
         reasoningModelId: binding.reasoning_model_id || undefined,
         transport: (gateway.transport as AIModelConfig['transport']) || DEFAULT_AI_TRANSPORT,
         priority: binding.priority ?? undefined,
-        isActive: false,
         isEnabled: binding.is_enabled !== false && gateway.is_enabled !== false,
       };
     })

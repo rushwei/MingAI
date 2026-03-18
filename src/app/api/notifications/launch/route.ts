@@ -50,13 +50,16 @@ export async function POST(request: NextRequest) {
         const notificationTitle = messagePayload?.title || `${featureName}功能已上线！`;
         const notificationContent = messagePayload?.content || `您订阅的${featureName}功能现已正式上线，快来体验吧！`;
         const requestOrigin = request.nextUrl.origin;
-        let siteLink = featureUrl;
+        const normalizedFeatureUrl = featureUrl.trim();
+        let siteLink = normalizedFeatureUrl;
 
-        try {
-            const resolved = new URL(featureUrl, requestOrigin);
-            siteLink = `${resolved.pathname}${resolved.search}${resolved.hash}`;
-        } catch {
-            siteLink = `/${featureUrl.replace(/^\/+/, '')}`;
+        if (!/^https?:\/\//iu.test(normalizedFeatureUrl)) {
+            try {
+                const resolved = new URL(normalizedFeatureUrl, requestOrigin);
+                siteLink = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+            } catch {
+                siteLink = `/${normalizedFeatureUrl.replace(/^\/+/, '')}`;
+            }
         }
 
         // 获取所有订阅者

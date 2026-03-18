@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
@@ -25,19 +25,26 @@ function getNow() {
     };
 }
 
+const DEFAULT_FORM_TIME = {
+    year: 2000,
+    month: 1,
+    day: 1,
+    hour: 0,
+    minute: 0,
+};
+
 export default function DaliurenPage() {
     const router = useRouter();
     const { showToast } = useToast();
-    const now = getNow();
-    const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     const [question, setQuestion] = useState('');
     const [timeMode, setTimeMode] = useState<TimeMode>('now');
-    const [year, setYear] = useState(now.year);
-    const [month, setMonth] = useState(now.month);
-    const [day, setDay] = useState(now.day);
-    const [hour, setHour] = useState(now.hour);
-    const [minute, setMinute] = useState(now.minute);
+    const [localTimeZone, setLocalTimeZone] = useState('Asia/Shanghai');
+    const [year, setYear] = useState(DEFAULT_FORM_TIME.year);
+    const [month, setMonth] = useState(DEFAULT_FORM_TIME.month);
+    const [day, setDay] = useState(DEFAULT_FORM_TIME.day);
+    const [hour, setHour] = useState(DEFAULT_FORM_TIME.hour);
+    const [minute, setMinute] = useState(DEFAULT_FORM_TIME.minute);
 
     // 高级设置
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -45,6 +52,17 @@ export default function DaliurenPage() {
     const [gender, setGender] = useState<'male' | 'female' | ''>('');
 
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const now = getNow();
+        setYear(now.year);
+        setMonth(now.month);
+        setDay(now.day);
+        setHour(now.hour);
+        setMinute(now.minute);
+        setLocalTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai');
+    }, []);
+
     const handleStartDivination = async () => {
         const useTime = timeMode === 'now' ? getNow() : { year, month, day, hour, minute };
         if (!useTime.year || !useTime.month || !useTime.day) {
