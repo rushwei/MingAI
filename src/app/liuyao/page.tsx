@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, Sparkles, Dices, Grid3X3 } from 'lucide-react';
+import { Coins, Sparkles, Grid3X3 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
@@ -110,27 +110,15 @@ export default function LiuyaoPage() {
 
     return (
         <div className="min-h-screen bg-background md:pb-12">
-            {/* 顶部 Hero 区域 - 移动端隐藏 */}
-            <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
-                <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
-                <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                    <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-amber-500/10">
-                        <Dices className="w-12 h-12 text-amber-500" />
-                    </div>
-                    <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-                        六爻占卜
-                    </h1>
-                    <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
-                        源自《易经》的古老智慧，为您指点迷津。
-                        <br className="hidden sm:block" />
-                        心诚则灵，预测事物发展趋势。
-                    </p>
-                </div>
+            {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
+            <div className="hidden md:block text-center py-8">
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">六爻占卜</h1>
+                <p className="text-foreground-secondary mt-2">源自《易经》的古老智慧，心诚则灵</p>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-20">
+            <div className="max-w-4xl mx-auto px-4">
                 {/* 问题输入 */}
-                <div className="sm:mt-0 mt-16 sm:mb-10 mb-4 text-center max-w-2xl mx-auto">
+                <div className="sm:mb-10 mb-4 text-center max-w-2xl mx-auto">
                     <label className="block text-sm font-medium text-foreground-secondary mb-3">
                         心中默念您的问题（选填）
                     </label>

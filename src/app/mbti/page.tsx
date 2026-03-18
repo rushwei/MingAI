@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Brain, Play, Eye } from 'lucide-react';
+import { Play, Eye } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/divination/mbti';
@@ -26,24 +26,17 @@ function MBTIPageContent() {
 
     return (
         <div className="min-h-screen bg-background md:pb-12">
-            {/* 顶部 Hero 区域 */}
-            <div className="relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
-                <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
-                <div className="max-w-4xl mx-auto px-4 pt-16 pb-8 text-center relative z-10">
-                    <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-blue-500/10">
-                        <Brain className="w-12 h-12 text-blue-500" />
-                    </div>
-                    <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-                        MBTI 性格测试
-                    </h1>
-                    <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
-                        探索你的性格类型，发现你与生俱来的天赋与倾向。
-                        <br className="hidden sm:block" />
-                        只需几分钟，即可获得深入的性格分析报告。
-                    </p>
+            {/* 页面标题 */}
+            <div className="text-center pt-8 md:pt-12 pb-6">
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+                    MBTI 性格测试
+                </h1>
+                <p className="text-foreground-secondary mt-2 max-w-md mx-auto">
+                    探索你的性格类型，发现你与生俱来的天赋与倾向
+                </p>
 
-                    {/* 开始按钮 - 突出显示 */}
-                    <div className="mt-8">
+                    {/* 开始按钮 */}
+                    <div className="mt-6">
                         <button
                             onClick={() => router.push('/mbti/test')}
                             disabled={questions.length === 0}
@@ -69,7 +62,6 @@ function MBTIPageContent() {
                             共 {questions.length || 93} 道题目 · 约需 10-15 分钟
                         </p>
                     </div>
-                </div>
             </div>
 
             <div className="max-w-5xl mx-auto px-4 py-12">

@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Calendar, Layers, ChevronRight, Gem } from 'lucide-react';
+import { Calendar, Layers, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
 import { TAROT_SPREADS, getDailyCard, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
@@ -53,25 +53,13 @@ export default function TarotPage() {
     return (
         <>
             <div className="md:min-h-screen bg-background md:pb-12">
-                {/* 顶部 Hero 区域 - 移动端隐藏 */}
-                <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
-                    <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
-                    <div className="max-w-4xl mx-auto px-4 py-16 text-center relative z-10">
-                        <div className="inline-flex items-center justify-center p-4 rounded-2xl mb-6 shadow-lg shadow-purple-500/10">
-                            <Gem className="w-12 h-12 text-purple-500" />
-                        </div>
-                        <h1 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-                            塔罗占卜
-                        </h1>
-                        <p className="text-lg text-foreground-secondary max-w-2xl mx-auto leading-relaxed">
-                            聆听内心的声音，探索命运的指引。
-                            <br className="hidden sm:block" />
-                            通过塔罗牌阵，洞察过去、现在与未来。
-                        </p>
-                    </div>
+                {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
+                <div className="hidden md:block text-center py-8">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-foreground">塔罗占卜</h1>
+                    <p className="text-foreground-secondary mt-2">聆听内心的声音，探索命运的指引</p>
                 </div>
 
-                <div className="max-w-4xl mx-auto px-4 -mt-8 relative z-20 md:mt-0 mt-4">
+                <div className="max-w-4xl mx-auto px-4 mt-4">
                     {/* 每日一牌 - 卡片样式增强 */}
                     {dailyCard && (
                         <div className="bg-background rounded-2xl p-4 md:p-6 shadow-xl border border-border/50 md:mb-10 mb-6 overflow-hidden relative group">
