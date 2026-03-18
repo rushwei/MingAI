@@ -14,6 +14,14 @@ interface StatsRecord {
     tokensUsed?: number;
 }
 
+type RecordAiModelCallParams = {
+    p_model_key: string;
+    p_source_key: string | null;
+    p_success: boolean;
+    p_tokens_used: number;
+    p_response_time_ms: number;
+};
+
 export function recordAIStats(record: StatsRecord): void {
     void writeStats(record).catch(err => {
         console.error('[ai-stats] Failed to record stats:', err);
@@ -25,19 +33,20 @@ export async function recordAIStatsAsync(record: StatsRecord): Promise<void> {
 }
 
 async function writeStats(record: StatsRecord): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = getSystemAdminClient() as any;
+    const supabase = getSystemAdminClient();
     if (!supabase || typeof supabase.rpc !== 'function') {
         return;
     }
 
-    const { error } = await supabase.rpc('record_ai_model_call', {
+    const params: RecordAiModelCallParams = {
         p_model_key: record.modelKey,
         p_source_key: record.sourceKey || null,
         p_success: record.success,
         p_tokens_used: record.tokensUsed || 0,
         p_response_time_ms: record.responseTimeMs || 0,
-    });
+    };
+
+    const { error } = await supabase.rpc('record_ai_model_call', params);
 
     if (error) {
         console.error('[ai-stats] RPC error:', error);

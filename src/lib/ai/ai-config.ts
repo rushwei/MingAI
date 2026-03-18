@@ -213,7 +213,10 @@ export function buildModels(): AIModelConfig[] {
 let _models: AIModelConfig[] | null = null;
 
 /**
- * 异步获取模型配置（共享层仅返回环境变量配置）
+ * 获取模型配置（异步签名，实际同步）
+ *
+ * 保留 async 签名以兼容服务端 ai-config 的异步覆盖。
+ * 共享层仅返回环境变量配置，无 I/O。
  */
 export async function getModelsAsync(): Promise<AIModelConfig[]> {
     return getModels();
@@ -259,7 +262,9 @@ export function getModelConfig(modelId: string): AIModelConfig | undefined {
 }
 
 /**
- * 异步获取模型配置（共享层仅返回环境变量配置）
+ * 获取模型配置（异步签名，实际同步）
+ *
+ * 保留 async 签名以兼容服务端 ai-config 的异步覆盖。
  */
 export async function getModelConfigAsync(modelId: string): Promise<AIModelConfig | undefined> {
     return getModelConfig(modelId);

@@ -5,6 +5,27 @@ import { getModelConfigAsync } from "@/lib/server/ai-config";
 
 type ModelTier = "free" | "plus" | "pro" | "none";
 
+/** 默认 vendor -> tier 映射（当数据库未配置 requiredTier 时的回退） */
+const VENDOR_DEFAULT_TIER: Record<string, ModelTier> = {
+    deepai: "pro",
+    gemini: "plus",
+    qwen: "plus",
+    moonshot: "free",
+    "qwen-vl": "plus",
+    "gemini-vl": "plus",
+};
+
+/** DeepSeek 模型 ID -> tier 映射 */
+const DEEPSEEK_MODEL_TIER: Record<string, ModelTier> = {
+    "deepseek-v3.2": "free",
+    "deepseek-pro": "plus",
+};
+
+/** GLM 模型 ID -> tier 映射 */
+const GLM_MODEL_TIER: Record<string, ModelTier> = {
+    "glm-4.6": "free",
+};
+
 /**
  * 获取模型所需等级（优先使用数据库配置）
  */
@@ -14,40 +35,16 @@ function getModelTier(model: AIModelConfig): ModelTier {
         return model.requiredTier;
     }
 
-    // 回退到硬编码逻辑（兼容环境变量配置）
-    if (model.vendor === "deepai") {
-        return "pro";
-    }
-
+    // 回退到集中配置的 vendor 映射
     if (model.vendor === "deepseek") {
-        if (model.id === "deepseek-v3.2") return "free";
-        if (model.id === "deepseek-pro") return "plus";
-        return "none";
-    }
-
-    if (model.vendor === "gemini") {
-        return "plus";
+        return DEEPSEEK_MODEL_TIER[model.id] ?? "none";
     }
 
     if (model.vendor === "glm") {
-        if (model.id === "glm-4.6") return "free";
-        return "plus";
+        return GLM_MODEL_TIER[model.id] ?? "plus";
     }
 
-    if (model.vendor === "qwen") {
-        return "plus";
-    }
-
-    if (model.vendor === "moonshot") {
-        return "free";
-    }
-
-    // Vision models require Plus
-    if (model.vendor === "qwen-vl" || model.vendor === "gemini-vl") {
-        return "plus";
-    }
-
-    return "none";
+    return VENDOR_DEFAULT_TIER[model.vendor] ?? "none";
 }
 
 /**

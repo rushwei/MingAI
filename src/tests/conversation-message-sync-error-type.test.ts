@@ -15,7 +15,7 @@ test('replaceConversationMessages should type rpc errors with message/code field
   );
   assert.match(
     source,
-    /rpc\?: \(fn: string, args: Record<string, unknown>\) => Promise<\{ error: ConversationMessageSyncError \| null \}>;/u,
-    'replaceConversationMessages should keep rpc error typing aligned with call sites that read error.message',
+    /replaceConversationMessages[\s\S]*Promise<\{ error: ConversationMessageSyncError \| null \}>/u,
+    'replaceConversationMessages should return typed error with message/code fields',
   );
 });

@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { getPaymentsPaused, setPaymentsPaused } from "@/lib/app-settings";
-import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
+import { jsonError, jsonOk, requireAdminUser, requireUserContext } from "@/lib/api-utils";
 import { createMemoryCache } from "@/lib/cache";
 
 const CACHE_TTL_MS = 30_000;
 const pausedCache = createMemoryCache<boolean>(CACHE_TTL_MS);
 
 export async function GET(request: NextRequest) {
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+
     const perfEnabled = new URL(request.url).searchParams.get('perf') === '1';
     const perfStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const cached = pausedCache.get('status');

@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
 import type { DataSourceType } from '@/lib/data-sources/types';
-import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const { searchParams } = new URL(request.url);
     const kbId = searchParams.get('kbId');
@@ -93,8 +94,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const body = await request.json() as {
         kbId?: string;

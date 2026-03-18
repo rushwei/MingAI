@@ -6,7 +6,8 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useReducer, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { X, Lock, User, ArrowLeft, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
@@ -33,135 +34,206 @@ interface AuthModalProps {
     onSuccess?: () => void;
 }
 
+// --- useReducer state & actions ---
+interface AuthState {
+    mode: AuthMode;
+    loginMethod: LoginMethod;
+    emailPrefix: string;
+    emailSuffix: string;
+    password: string;
+    confirmPassword: string;
+    showPassword: boolean;
+    showConfirmPassword: boolean;
+    nickname: string;
+    verificationCode: string;
+    loading: boolean;
+    sendingCode: boolean;
+    error: string;
+    success: string;
+    countdown: number;
+}
+
+type AuthAction =
+    | { type: 'SET_FIELD'; field: keyof AuthState; value: AuthState[keyof AuthState] }
+    | { type: 'RESET_FORM' }
+    | { type: 'SWITCH_MODE'; mode: AuthMode }
+    | { type: 'TICK_COUNTDOWN' };
+
+const initialAuthState: AuthState = {
+    mode: 'login',
+    loginMethod: 'password',
+    emailPrefix: '',
+    emailSuffix: '@qq.com',
+    password: '',
+    confirmPassword: '',
+    showPassword: false,
+    showConfirmPassword: false,
+    nickname: '',
+    verificationCode: '',
+    loading: false,
+    sendingCode: false,
+    error: '',
+    success: '',
+    countdown: 0,
+};
+
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+    switch (action.type) {
+        case 'SET_FIELD':
+            return { ...state, [action.field]: action.value };
+        case 'RESET_FORM':
+            return {
+                ...state,
+                emailPrefix: '',
+                password: '',
+                confirmPassword: '',
+                showPassword: false,
+                showConfirmPassword: false,
+                nickname: '',
+                verificationCode: '',
+                error: '',
+                success: '',
+                countdown: 0,
+            };
+        case 'SWITCH_MODE': {
+            const reset: Partial<AuthState> = {
+                emailPrefix: '',
+                password: '',
+                confirmPassword: '',
+                showPassword: false,
+                showConfirmPassword: false,
+                nickname: '',
+                verificationCode: '',
+                error: '',
+                success: '',
+                countdown: 0,
+                mode: action.mode,
+            };
+            if (action.mode === 'login') {
+                reset.loginMethod = 'password';
+            }
+            return { ...state, ...reset };
+        }
+        case 'TICK_COUNTDOWN':
+            return { ...state, countdown: Math.max(0, state.countdown - 1) };
+        default:
+            return state;
+    }
+}
+
+const EMAIL_SUFFIXES = [
+    '@qq.com',
+    '@163.com',
+    '@126.com',
+    '@gmail.com',
+    '@outlook.com',
+    '@icloud.com',
+    '@foxmail.com',
+];
+
 export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
-    const [mode, setMode] = useState<AuthMode>('login');
-    const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
-    const [emailPrefix, setEmailPrefix] = useState('');
-    const [emailSuffix, setEmailSuffix] = useState('@qq.com');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [nickname, setNickname] = useState('');
-    const [verificationCode, setVerificationCode] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [sendingCode, setSendingCode] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [countdown, setCountdown] = useState(0);
+    const router = useRouter();
+    const [state, dispatch] = useReducer(authReducer, initialAuthState);
     const verifyingRef = useRef(false);
 
-    // 常用邮箱后缀
-    const emailSuffixes = [
-        '@qq.com',
-        '@163.com',
-        '@126.com',
-        '@gmail.com',
-        '@outlook.com',
-        '@icloud.com',
-        '@foxmail.com',
-    ];
+    const {
+        mode, loginMethod, emailPrefix, emailSuffix,
+        password, confirmPassword, showPassword, showConfirmPassword,
+        nickname, verificationCode, loading, sendingCode,
+        error, success, countdown,
+    } = state;
 
-    // 完整邮箱地址
+    const setField = useCallback(<K extends keyof AuthState>(field: K, value: AuthState[K]) => {
+        dispatch({ type: 'SET_FIELD', field, value });
+    }, []);
+
     const email = emailPrefix + emailSuffix;
 
     // 倒计时效果
     useEffect(() => {
         if (countdown > 0) {
-            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            const timer = setTimeout(() => dispatch({ type: 'TICK_COUNTDOWN' }), 1000);
             return () => clearTimeout(timer);
         }
     }, [countdown]);
 
-    // 重置表单
-    const resetForm = useCallback(() => {
-        setEmailPrefix('');
-        setPassword('');
-        setConfirmPassword('');
-        setShowPassword(false);
-        setShowConfirmPassword(false);
-        setNickname('');
-        setVerificationCode('');
-        setError('');
-        setSuccess('');
-        setCountdown(0);
+    const switchMode = useCallback((newMode: AuthMode) => {
+        dispatch({ type: 'SWITCH_MODE', mode: newMode });
     }, []);
 
-    // 切换模式
-    const switchMode = useCallback((newMode: AuthMode) => {
-        resetForm();
-        setMode(newMode);
-        if (newMode === 'login') {
-            setLoginMethod('password');
-        }
-    }, [resetForm]);
-
     if (!isOpen) return null;
+
+    // 认证成功后的统一处理
+    const completeAuth = () => {
+        onSuccess?.();
+        onClose();
+        router.refresh();
+    };
 
     // 发送验证码
     const handleSendOTP = async (type: 'signup' | 'magiclink') => {
         if (!emailPrefix) {
-            setError('请输入邮箱地址');
+            setField('error', '请输入邮箱地址');
             return;
         }
 
-        setError('');
-        setLoading(true);
+        setField('error', '');
+        setField('loading', true);
 
         try {
             const result = await sendOTP(email, type);
             if (result.success) {
-                setCountdown(60);
+                setField('countdown', 60);
                 if (type === 'signup') {
-                    setMode('verify-register');
-                    setSuccess('验证码已发送到您的邮箱');
+                    setField('mode', 'verify-register');
+                    setField('success', '验证码已发送到您的邮箱');
                 } else {
-                    setMode('verify-login');
-                    setSuccess('登录验证码已发送到您的邮箱');
+                    setField('mode', 'verify-login');
+                    setField('success', '登录验证码已发送到您的邮箱');
                 }
             } else {
-                setError(result.error?.message || '发送失败');
+                setField('error', result.error?.message || '发送失败');
             }
         } catch {
-            setError('发送失败，请重试');
+            setField('error', '发送失败，请重试');
         } finally {
-            setLoading(false);
+            setField('loading', false);
         }
     };
 
     // 注册时发送验证码（不切换模式）
     const handleSendRegisterCode = async () => {
         if (!emailPrefix) {
-            setError('请输入邮箱地址');
+            setField('error', '请输入邮箱地址');
             return;
         }
 
         const { isValid } = validatePasswordStrength(password);
         if (!isValid) {
-            setError('请先设置符合要求的密码');
+            setField('error', '请先设置符合要求的密码');
             return;
         }
 
         if (password !== confirmPassword) {
-            setError('两次输入的密码不一致');
+            setField('error', '两次输入的密码不一致');
             return;
         }
 
-        setError('');
-        setSendingCode(true);
+        setField('error', '');
+        setField('sendingCode', true);
 
         try {
             const result = await sendOTP(email, 'signup');
             if (result.success) {
-                setCountdown(60);
-                setSuccess('验证码已发送到您的邮箱');
+                setField('countdown', 60);
+                setField('success', '验证码已发送到您的邮箱');
             } else {
-                setError(result.error?.message || '发送失败');
+                setField('error', result.error?.message || '发送失败');
             }
         } catch {
-            setError('发送失败，请重试');
+            setField('error', '发送失败，请重试');
         } finally {
-            setSendingCode(false);
+            setField('sendingCode', false);
         }
     };
 
@@ -170,20 +242,20 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         if (countdown > 0) return;
 
         if (mode === 'verify-reset') {
-            setError('');
-            setLoading(true);
+            setField('error', '');
+            setField('loading', true);
             try {
                 const result = await sendOTP(email, 'recovery');
                 if (result.success) {
-                    setCountdown(60);
-                    setSuccess('验证码已发送到您的邮箱');
+                    setField('countdown', 60);
+                    setField('success', '验证码已发送到您的邮箱');
                 } else {
-                    setError(result.error?.message || '发送失败');
+                    setField('error', result.error?.message || '发送失败');
                 }
             } catch {
-                setError('发送失败，请重试');
+                setField('error', '发送失败，请重试');
             } finally {
-                setLoading(false);
+                setField('loading', false);
             }
             return;
         }
@@ -197,21 +269,20 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         if (verifyingRef.current) return;
         const codeToVerify = code || verificationCode;
         if (!codeToVerify || codeToVerify.length !== 6) {
-            setError('请输入6位验证码');
+            setField('error', '请输入6位验证码');
             return;
         }
 
-        // 重置密码流程：先进入设置密码界面，提交时再校验验证码，避免自动登录
         if (mode === 'verify-reset') {
-            setError('');
-            setVerificationCode(codeToVerify);
-            setMode('reset-password');
-            setSuccess('验证成功！请设置新密码');
+            setField('error', '');
+            setField('verificationCode', codeToVerify);
+            setField('mode', 'reset-password');
+            setField('success', '验证成功！请设置新密码');
             return;
         }
 
-        setError('');
-        setLoading(true);
+        setField('error', '');
+        setField('loading', true);
         verifyingRef.current = true;
         const currentMode = mode;
 
@@ -219,164 +290,164 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
             const verifyType = currentMode === 'verify-register' ? 'signup' : 'magiclink';
             const result = await verifyOTP(email, codeToVerify, verifyType);
             if (result.success) {
-                // 如果是注册验证，进入设置密码步骤
                 if (currentMode === 'verify-register') {
-                    setMode('set-password');
-                    setSuccess('验证成功！请设置您的密码');
-                    setVerificationCode('');
+                    setField('mode', 'set-password');
+                    setField('success', '验证成功！请设置您的密码');
+                    setField('verificationCode', '');
                 } else {
-                    // 登录验证成功
-                    onSuccess?.();
-                    onClose();
-                    window.location.reload();
+                    completeAuth();
                 }
             } else {
-                setError(result.error?.message || '验证失败');
+                setField('error', result.error?.message || '验证失败');
             }
         } catch {
-            setError('验证失败，请重试');
+            setField('error', '验证失败，请重试');
         } finally {
-            setLoading(false);
+            setField('loading', false);
             verifyingRef.current = false;
         }
     };
 
-    // 提交处理
+    // --- 拆分后的独立提交处理函数 ---
+
+    const handleLogin = async () => {
+        if (loginMethod === 'password') {
+            const result = await signInWithEmailProtected(email, password);
+            if (result.success) {
+                completeAuth();
+            } else {
+                setField('error', result.error?.message || '登录失败');
+            }
+        } else {
+            await handleSendOTP('magiclink');
+        }
+    };
+
+    const handleRegister = async () => {
+        if (!verificationCode || verificationCode.length !== 6) {
+            setField('error', '请输入6位验证码');
+            setField('loading', false);
+            return;
+        }
+
+        const { isValid } = validatePasswordStrength(password);
+        if (!isValid) {
+            setField('error', '密码不符合强度要求');
+            setField('loading', false);
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setField('error', '两次输入的密码不一致');
+            setField('loading', false);
+            return;
+        }
+
+        const verifyResult = await verifyOTP(email, verificationCode);
+        if (verifyResult.success) {
+            const { error: updateError } = await supabase.auth.updateUser({
+                password: password,
+                data: { nickname: nickname || '命理爱好者' },
+            });
+
+            if (updateError) {
+                setField('error', '设置密码失败：' + updateError.message);
+            } else {
+                await recordLoginAttempt(email, true);
+                setField('success', '注册成功！');
+                completeAuth();
+            }
+        } else {
+            setField('error', verifyResult.error?.message || '验证码验证失败');
+        }
+    };
+
+    const handleSetPassword = async () => {
+        const { isValid } = validatePasswordStrength(password);
+        if (!isValid) {
+            setField('error', '密码不符合强度要求');
+            setField('loading', false);
+            return;
+        }
+
+        const { error: updateError } = await supabase.auth.updateUser({
+            password: password,
+            data: { nickname: nickname || '命理爱好者' },
+        });
+
+        if (updateError) {
+            setField('error', '设置密码失败：' + updateError.message);
+        } else {
+            completeAuth();
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        setField('error', '');
+        const result = await sendOTP(email, 'recovery');
+        if (result.success) {
+            setField('countdown', 60);
+            setField('mode', 'verify-reset');
+            setField('success', '验证码已发送到您的邮箱');
+        } else {
+            setField('error', result.error?.message || '发送失败');
+        }
+    };
+
+    const handleResetPassword = async () => {
+        const { isValid } = validatePasswordStrength(password);
+        if (!isValid) {
+            setField('error', '密码不符合强度要求');
+            setField('loading', false);
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setField('error', '两次输入的密码不一致');
+            setField('loading', false);
+            return;
+        }
+
+        if (!verificationCode || verificationCode.length !== 6) {
+            setField('error', '请输入6位验证码');
+            setField('loading', false);
+            return;
+        }
+
+        const resetResult = await resetPasswordWithOTP(email, verificationCode, password);
+        if (!resetResult.success) {
+            setField('error', resetResult.error?.message || '验证码已过期或无效');
+            setField('loading', false);
+            return;
+        }
+
+        setField('success', '密码重置成功！请使用新密码登录');
+        dispatch({ type: 'SWITCH_MODE', mode: 'login' });
+    };
+
+    // 提交处理 - 路由到对应的独立处理函数
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setSuccess('');
-        setLoading(true);
+        setField('error', '');
+        setField('success', '');
+        setField('loading', true);
 
         try {
-            if (mode === 'login') {
-                if (loginMethod === 'password') {
-                    const result = await signInWithEmailProtected(email, password);
-                    if (result.success) {
-                        onSuccess?.();
-                        onClose();
-                        window.location.reload();
-                    } else {
-                        setError(result.error?.message || '登录失败');
-                    }
-                } else {
-                    // OTP 登录：发送验证码
-                    await handleSendOTP('magiclink');
-                }
-            } else if (mode === 'register') {
-                // 注册流程：验证码 + 注册登录
-                if (!verificationCode || verificationCode.length !== 6) {
-                    setError('请输入6位验证码');
-                    setLoading(false);
-                    return;
-                }
-
-                const { isValid } = validatePasswordStrength(password);
-                if (!isValid) {
-                    setError('密码不符合强度要求');
-                    setLoading(false);
-                    return;
-                }
-
-                if (password !== confirmPassword) {
-                    setError('两次输入的密码不一致');
-                    setLoading(false);
-                    return;
-                }
-
-                // 验证码验证并完成注册
-                const verifyResult = await verifyOTP(email, verificationCode);
-                if (verifyResult.success) {
-                    // 设置密码和昵称
-                    const { error: updateError } = await supabase.auth.updateUser({
-                        password: password,
-                        data: { nickname: nickname || '命理爱好者' },
-                    });
-
-                    if (updateError) {
-                        setError('设置密码失败：' + updateError.message);
-                    } else {
-                        // 记录注册成功
-                        await recordLoginAttempt(email, true);
-                        setSuccess('注册成功！');
-                        onSuccess?.();
-                        onClose();
-                        window.location.reload();
-                    }
-                } else {
-                    setError(verifyResult.error?.message || '验证码验证失败');
-                }
-            } else if (mode === 'set-password') {
-                // 设置密码
-                const { isValid } = validatePasswordStrength(password);
-                if (!isValid) {
-                    setError('密码不符合强度要求');
-                    setLoading(false);
-                    return;
-                }
-
-                // 更新密码和昵称
-                const { error: updateError } = await supabase.auth.updateUser({
-                    password: password,
-                    data: { nickname: nickname || '命理爱好者' },
-                });
-
-                if (updateError) {
-                    setError('设置密码失败：' + updateError.message);
-                } else {
-                    onSuccess?.();
-                    onClose();
-                    window.location.reload();
-                }
-            } else if (mode === 'forgot') {
-                // 发送重置密码验证码
-                setError('');
-                const result = await sendOTP(email, 'recovery');
-                if (result.success) {
-                    setCountdown(60);
-                    setMode('verify-reset');
-                    setSuccess('验证码已发送到您的邮箱');
-                } else {
-                    setError(result.error?.message || '发送失败');
-                }
-            } else if (mode === 'reset-password') {
-                // 设置新密码
-                const { isValid } = validatePasswordStrength(password);
-                if (!isValid) {
-                    setError('密码不符合强度要求');
-                    setLoading(false);
-                    return;
-                }
-
-                if (password !== confirmPassword) {
-                    setError('两次输入的密码不一致');
-                    setLoading(false);
-                    return;
-                }
-
-                if (!verificationCode || verificationCode.length !== 6) {
-                    setError('请输入6位验证码');
-                    setLoading(false);
-                    return;
-                }
-
-                const resetResult = await resetPasswordWithOTP(email, verificationCode, password);
-                if (!resetResult.success) {
-                    setError(resetResult.error?.message || '验证码已过期或无效');
-                    setLoading(false);
-                    return;
-                }
-
-                setSuccess('密码重置成功！请使用新密码登录');
-                resetForm();
-                setMode('login');
-            } else if (mode === 'verify-register' || mode === 'verify-login' || mode === 'verify-reset') {
-                await handleVerifyOTP();
+            switch (mode) {
+                case 'login': await handleLogin(); break;
+                case 'register': await handleRegister(); break;
+                case 'set-password': await handleSetPassword(); break;
+                case 'forgot': await handleForgotPassword(); break;
+                case 'reset-password': await handleResetPassword(); break;
+                case 'verify-register':
+                case 'verify-login':
+                case 'verify-reset':
+                    await handleVerifyOTP(); break;
             }
         } catch {
-            setError('操作失败，请重试');
+            setField('error', '操作失败，请重试');
         } finally {
-            setLoading(false);
+            setField('loading', false);
         }
     };
 
@@ -425,7 +496,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
             {/* 背景遮罩 */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -473,16 +544,16 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                     {mode === 'login' && (
                         <LoginForm
                             loginMethod={loginMethod}
-                            onLoginMethodChange={setLoginMethod}
+                            onLoginMethodChange={(v) => setField('loginMethod', v)}
                             emailPrefix={emailPrefix}
-                            onEmailPrefixChange={setEmailPrefix}
+                            onEmailPrefixChange={(v) => setField('emailPrefix', v)}
                             emailSuffix={emailSuffix}
-                            onEmailSuffixChange={setEmailSuffix}
-                            emailSuffixes={emailSuffixes}
+                            onEmailSuffixChange={(v) => setField('emailSuffix', v)}
+                            emailSuffixes={EMAIL_SUFFIXES}
                             password={password}
-                            onPasswordChange={setPassword}
+                            onPasswordChange={(v) => setField('password', v)}
                             showPassword={showPassword}
-                            onToggleShowPassword={() => setShowPassword(!showPassword)}
+                            onToggleShowPassword={() => setField('showPassword', !showPassword)}
                             onForgotPassword={() => switchMode('forgot')}
                         />
                     )}
@@ -499,7 +570,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                 </label>
                                 <VerificationCodeInput
                                     value={verificationCode}
-                                    onChange={setVerificationCode}
+                                    onChange={(v) => setField('verificationCode', v)}
                                     onComplete={handleVerifyOTP}
                                     length={6}
                                     disabled={loading}
@@ -530,7 +601,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     <input
                                         type="text"
                                         value={nickname}
-                                        onChange={(e) => setNickname(e.target.value)}
+                                        onChange={(e) => setField('nickname', e.target.value)}
                                         placeholder="输入您的昵称"
                                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
                                     />
@@ -547,7 +618,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     <input
                                         type="password"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => setField('password', e.target.value)}
                                         placeholder="设置登录密码"
                                         required
                                         minLength={8}
@@ -571,7 +642,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => setField('password', e.target.value)}
                                         placeholder="设置新密码"
                                         required
                                         minLength={8}
@@ -579,7 +650,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
+                                        onClick={() => setField('showPassword', !showPassword)}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
                                     >
                                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -597,7 +668,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     <input
                                         type={showConfirmPassword ? 'text' : 'password'}
                                         value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        onChange={(e) => setField('confirmPassword', e.target.value)}
                                         placeholder="再次输入新密码"
                                         required
                                         minLength={8}
@@ -608,7 +679,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        onClick={() => setField('showConfirmPassword', !showConfirmPassword)}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
                                     >
                                         {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -625,22 +696,22 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                     {mode === 'register' && (
                         <RegisterForm
                             nickname={nickname}
-                            onNicknameChange={setNickname}
+                            onNicknameChange={(v) => setField('nickname', v)}
                             emailPrefix={emailPrefix}
-                            onEmailPrefixChange={setEmailPrefix}
+                            onEmailPrefixChange={(v) => setField('emailPrefix', v)}
                             emailSuffix={emailSuffix}
-                            onEmailSuffixChange={setEmailSuffix}
-                            emailSuffixes={emailSuffixes}
+                            onEmailSuffixChange={(v) => setField('emailSuffix', v)}
+                            emailSuffixes={EMAIL_SUFFIXES}
                             password={password}
-                            onPasswordChange={setPassword}
+                            onPasswordChange={(v) => setField('password', v)}
                             confirmPassword={confirmPassword}
-                            onConfirmPasswordChange={setConfirmPassword}
+                            onConfirmPasswordChange={(v) => setField('confirmPassword', v)}
                             showPassword={showPassword}
-                            onToggleShowPassword={() => setShowPassword(!showPassword)}
+                            onToggleShowPassword={() => setField('showPassword', !showPassword)}
                             showConfirmPassword={showConfirmPassword}
-                            onToggleShowConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
+                            onToggleShowConfirmPassword={() => setField('showConfirmPassword', !showConfirmPassword)}
                             verificationCode={verificationCode}
-                            onVerificationCodeChange={setVerificationCode}
+                            onVerificationCodeChange={(v) => setField('verificationCode', v)}
                             onSendCode={handleSendRegisterCode}
                             sendingCode={sendingCode}
                             countdown={countdown}
@@ -658,7 +729,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                     <input
                                         type="text"
                                         value={emailPrefix}
-                                        onChange={(e) => setEmailPrefix(e.target.value)}
+                                        onChange={(e) => setField('emailPrefix', e.target.value)}
                                         placeholder="邮箱前缀"
                                         required
                                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors"
@@ -666,10 +737,10 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                                 </div>
                                 <select
                                     value={emailSuffix}
-                                    onChange={(e) => setEmailSuffix(e.target.value)}
+                                    onChange={(e) => setField('emailSuffix', e.target.value)}
                                     className="px-3 py-3 rounded-xl bg-background-secondary border border-border focus:border-accent focus:outline-none transition-colors text-sm"
                                 >
-                                    {emailSuffixes.map(suffix => (
+                                    {EMAIL_SUFFIXES.map(suffix => (
                                         <option key={suffix} value={suffix}>{suffix}</option>
                                     ))}
                                 </select>

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { ingestFileAsService, backfillVectorsAsService } from '@/lib/knowledge-base/ingest';
 import { triggerVectorIndexCreation } from '@/lib/knowledge-base/vector-index';
-import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 function isAllowedFile(file: File) {
     if (file.type.startsWith('text/')) return true;
@@ -13,8 +13,9 @@ function isAllowedFile(file: File) {
 }
 
 export async function POST(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const membership = await getEffectiveMembershipType(user.id);
     if (membership === 'free') {

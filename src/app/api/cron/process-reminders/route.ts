@@ -4,15 +4,9 @@
  * 由 GitHub Actions 定期调用（每小时一次）
  * 处理 scheduled_reminders 表中到期的提醒
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { processScheduledReminders, scheduleAllUsersReminders } from '@/lib/reminders';
-
-interface CronResponse {
-    success: boolean;
-    processed?: number;
-    scheduled?: number;
-    error?: string;
-}
+import { jsonError, jsonOk } from '@/lib/api-utils';
 
 /**
  * 验证 Cron 请求
@@ -39,13 +33,10 @@ function validateCronRequest(request: NextRequest): boolean {
 }
 
 // GET - 处理到期提醒
-export async function GET(request: NextRequest): Promise<NextResponse<CronResponse>> {
+export async function GET(request: NextRequest) {
     // 验证请求来源
     if (!validateCronRequest(request)) {
-        return NextResponse.json(
-            { success: false, error: 'Unauthorized' },
-            { status: 401 }
-        );
+        return jsonError('Unauthorized', 401);
     }
 
     try {
@@ -57,17 +48,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<CronRespon
 
         console.log(`[cron/process-reminders] 处理了 ${processed} 条提醒，调度了 ${scheduled} 条新提醒`);
 
-        return NextResponse.json({
+        return jsonOk({
             success: true,
             processed,
             scheduled,
         });
     } catch (error) {
         console.error('[cron/process-reminders] 处理失败:', error);
-        return NextResponse.json(
-            { success: false, error: '处理提醒失败' },
-            { status: 500 }
-        );
+        return jsonError('处理提醒失败', 500);
     }
 }
 

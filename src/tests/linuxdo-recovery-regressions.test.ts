@@ -296,6 +296,10 @@ test('linuxdo callback should recover missing provider bindings via admin user l
   apiUtilsModule.getAuthAdminClient = () => ({
     auth: {
       admin: {
+        getUserById: async () => ({
+          data: { user: null },
+          error: { message: 'not found' },
+        }),
         listUsers: async () => {
           listUsersCalls += 1;
           return {

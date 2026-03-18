@@ -143,30 +143,47 @@ async function findExistingLinuxDoAuthUser(
   authAdminClient: AdminAuthClient,
   linuxdoUser: LinuxDoUser,
 ): Promise<AdminAuthUser | null> {
-  if (!canListLinuxDoAuthUsers(authAdminClient)) {
+  if (!canSyncLinuxDoAuthUser(authAdminClient)) {
     return null;
   }
 
-  const perPage = 200;
+  // Optimized: query profiles table by linuxdo_sub metadata instead of full listUsers scan
+  const serviceClient = getSystemAdminClient();
+  const { data: profile } = await serviceClient
+    .from('user_oauth_providers')
+    .select('user_id')
+    .eq('provider', 'linuxdo')
+    .eq('provider_user_id', linuxdoUser.sub)
+    .maybeSingle();
 
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await authAdminClient.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      console.error('[linuxdo-callback] Auth user lookup failed:', error);
-      return null;
+  if (profile) {
+    const { data, error } = await authAdminClient.auth.admin.getUserById(profile.user_id);
+    if (!error && data.user) {
+      return data.user as AdminAuthUser;
     }
+  }
 
-    const users = data.users as AdminAuthUser[];
-    const matchedUser = users.find((user) => {
-      const metadata = user.user_metadata ?? {};
-      return metadata.linuxdo_sub === linuxdoUser.sub || user.email === linuxdoUser.email;
-    });
-    if (matchedUser) {
-      return matchedUser;
-    }
-
-    if (users.length < perPage) {
-      break;
+  // Fallback: try by email via auth admin
+  if (canListLinuxDoAuthUsers(authAdminClient)) {
+    const perPage = 200;
+    for (let page = 1; page <= 100; page += 1) {
+      const { data, error } = await authAdminClient.auth.admin.listUsers({ page, perPage });
+      if (error) {
+        console.error('[linuxdo-callback] Auth user lookup failed:', error);
+        return null;
+      }
+      const users = data.users as AdminAuthUser[];
+      const matchedUser = users.find(
+        (user) =>
+          user.email === linuxdoUser.email
+          || user.user_metadata?.linuxdo_sub === linuxdoUser.sub,
+      );
+      if (matchedUser) {
+        return matchedUser;
+      }
+      if (users.length < perPage) {
+        break;
+      }
     }
   }
 

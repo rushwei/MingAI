@@ -1,34 +1,10 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import type { ArchivedSource, ArchivedSourceType, KnowledgeBase, KnowledgeBaseInput } from '@/lib/knowledge-base/types';
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { createKbClient } from '@/lib/knowledge-base/client';
 
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        getSupabaseUrl(),
-        getSupabaseAnonKey(),
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        for (const { name, value, options } of cookiesToSet) {
-                            cookieStore.set(name, value, options);
-                        }
-                    } catch {
-                        // 只读 cookies 上下文无法写入时忽略
-                    }
-                },
-            },
-        }
-    );
-}
+import { createKbClient } from '@/lib/knowledge-base/client';
 
 export async function createKnowledgeBase(userId: string, data: KnowledgeBaseInput): Promise<KnowledgeBase> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.id !== userId) {
         throw new Error('Not authenticated');
@@ -50,7 +26,7 @@ export async function createKnowledgeBase(userId: string, data: KnowledgeBaseInp
 }
 
 export async function deleteKnowledgeBase(kbId: string): Promise<void> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -64,7 +40,7 @@ export async function deleteKnowledgeBase(kbId: string): Promise<void> {
 }
 
 export async function updateKnowledgeBase(kbId: string, data: Partial<KnowledgeBaseInput>): Promise<KnowledgeBase> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -86,7 +62,7 @@ export async function updateKnowledgeBase(kbId: string, data: Partial<KnowledgeB
 }
 
 export async function getKnowledgeBases(userId: string): Promise<KnowledgeBase[]> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.id !== userId) return [];
 
@@ -101,7 +77,7 @@ export async function getKnowledgeBases(userId: string): Promise<KnowledgeBase[]
 }
 
 export async function getKnowledgeBase(kbId: string): Promise<KnowledgeBase | null> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
@@ -122,7 +98,7 @@ export async function archiveSource(params: {
     sourceId: string;
     kbId: string;
 }): Promise<ArchivedSource> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.id !== params.userId) {
         throw new Error('Not authenticated');
@@ -146,7 +122,7 @@ export async function archiveSource(params: {
 }
 
 export async function unarchiveSource(archivedSourceId: string): Promise<void> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -160,7 +136,7 @@ export async function unarchiveSource(archivedSourceId: string): Promise<void> {
 }
 
 export async function getArchivedSources(userId: string, kbId?: string): Promise<ArchivedSource[]> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.id !== userId) return [];
 
@@ -182,7 +158,7 @@ export async function isSourceArchived(
     sourceId: string,
     kbId?: string
 ): Promise<boolean> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 

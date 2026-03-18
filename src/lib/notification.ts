@@ -192,9 +192,6 @@ export async function deleteNotifications(notificationIds: string[]): Promise<bo
 }
 
 /**
- * 获取功能所有订阅者（服务端用于批量通知）
- */
-/**
  * 功能名称映射
  */
 export const FEATURE_NAMES: Record<string, string> = {

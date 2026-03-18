@@ -100,7 +100,7 @@ test('activation-keys get returns standardized auth error', async (t) => {
 
     assert.equal(response.status, 401);
     assert.equal(payload.error, '请先登录');
-    assert.equal('success' in payload, false);
+    assert.equal(payload.success, false);
 });
 
 test('activation-keys activate rejects non-string keyCode with 400', async (t) => {

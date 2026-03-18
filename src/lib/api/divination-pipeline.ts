@@ -12,7 +12,7 @@
  */
 
 import { type NextRequest } from 'next/server';
-import { jsonError, requireBearerUser } from '@/lib/api-utils';
+import { jsonError, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
@@ -69,14 +69,6 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
     conversationId: string | null,
   ) => Promise<void>;
 }
-
-// ─── SSE response headers ───
-
-const SSE_HEADERS = {
-  'Content-Type': 'text/event-stream',
-  'Cache-Control': 'no-cache',
-  'Connection': 'keep-alive',
-} as const;
 
 // ─── Factory ───
 

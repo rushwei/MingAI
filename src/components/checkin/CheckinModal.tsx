@@ -16,7 +16,7 @@ import {
     Calendar,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { CalendarModal } from '@/components/checkin/CalendarModal';
 

@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
 type KnowledgeBaseSummary = { id: string; name: string; description: string | null };

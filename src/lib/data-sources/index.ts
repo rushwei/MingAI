@@ -21,15 +21,20 @@ export async function getUserDataSourcesWithErrors(userId: string, ctx?: DataSou
     const errors: Array<{ type: DataSourceType; message: string }> = [];
     const loaded = await Promise.all(DATA_SOURCE_TYPES.map(async (type) => await getProvider(type)));
 
-    const lists = await Promise.all(loaded.map(async (provider) => {
-        try {
-            return await provider.list(userId, ctx);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'unknown error';
-            errors.push({ type: provider.type, message });
-            return [];
-        }
+    const settled = await Promise.allSettled(loaded.map(async (provider) => {
+        return await provider.list(userId, ctx);
     }));
+
+    const lists: DataSourceSummary[][] = [];
+    for (let i = 0; i < settled.length; i++) {
+        const result = settled[i];
+        if (result.status === 'fulfilled') {
+            lists.push(result.value);
+        } else {
+            const message = result.reason instanceof Error ? result.reason.message : 'unknown error';
+            errors.push({ type: loaded[i].type, message });
+        }
+    }
 
     const results = lists.flat();
     results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

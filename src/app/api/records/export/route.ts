@@ -4,12 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, jsonError } from '@/lib/api-utils';
+import { requireUserContext, jsonError } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) return jsonError('请先登录', 401);
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         // 获取所有记录和小记
         const [recordsResult, notesResult] = await Promise.all([

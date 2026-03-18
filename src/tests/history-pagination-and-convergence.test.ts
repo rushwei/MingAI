@@ -83,10 +83,4 @@ test('qimen and daliuren history pages should restore through the shared history
     /fetch\('\/api\/daliuren'/u,
     'daliuren history page should not call the dedicated daliuren history route directly',
   );
-  );
-  assert.doesNotMatch(
-    daliurenSource,
-    /fetch\('\/api\/daliuren'/u,
-    'daliuren history page should not call the dedicated daliuren history route directly',
-  );
 });

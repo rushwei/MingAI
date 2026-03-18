@@ -1,7 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import { resolveTokenMembership } from '@/lib/user/membership-server';
 import { createClient } from '@supabase/supabase-js';
+import { createKbClient } from '@/lib/knowledge-base/client';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
 
 export const EMBEDDING_MODELS = {
@@ -37,27 +36,7 @@ async function createSupabaseClient(accessToken?: string) {
             }
         );
     }
-    const cookieStore = await cookies();
-    return createServerClient(
-        getSupabaseUrl(),
-        getSupabaseAnonKey(),
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        for (const { name, value, options } of cookiesToSet) {
-                            cookieStore.set(name, value, options);
-                        }
-                    } catch {
-                        // 只读 cookies 上下文无法写入时忽略
-                    }
-                },
-            },
-        }
-    );
+    return createKbClient();
 }
 
 export function getEmbeddingConfig(): EmbeddingConfig {
@@ -82,19 +61,8 @@ export function getEmbeddingDimension(): number {
     return getEmbeddingConfig().dimension;
 }
 
-async function getCurrentUserMembership(): Promise<'free' | 'plus' | 'pro'> {
-    const supabase = await createSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return 'free';
-
-    const membership = await getEffectiveMembershipType(user.id);
-    if (membership === 'pro') return 'pro';
-    if (membership === 'plus') return 'plus';
-    return 'free';
-}
-
 export async function hasVectorCapability(): Promise<boolean> {
-    const membership = await getCurrentUserMembership();
+    const membership = await resolveTokenMembership();
     if (membership !== 'pro') return false;
 
     const config = getEmbeddingConfig();
@@ -119,7 +87,8 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
             default:
                 throw new Error(`Unknown embedding provider: ${config.provider}`);
         }
-    } catch {
+    } catch (err) {
+        console.warn('[embedding] generateEmbedding failed:', err);
         return null;
     }
 }

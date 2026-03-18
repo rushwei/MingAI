@@ -202,11 +202,17 @@ export function jsonError<TExtra extends Record<string, unknown> = Record<string
     extra?: TExtra
 ) {
     const body = extra
-        ? ({ error: message, ...extra } as { error: string } & TExtra)
-        : ({ error: message } as { error: string } & TExtra);
+        ? ({ success: false, error: message, ...extra } as { success: false; error: string } & TExtra)
+        : ({ success: false, error: message } as { success: false; error: string } & TExtra);
     return NextResponse.json(body, { status });
 }
 
 export function jsonOk<TPayload>(payload: TPayload, status = 200) {
     return NextResponse.json(payload, { status });
 }
+
+export const SSE_HEADERS = {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+} as const;

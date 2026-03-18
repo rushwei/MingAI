@@ -9,7 +9,7 @@ import { NextRequest } from 'next/server';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
@@ -59,12 +59,6 @@ const PERSONALITY_PROMPT = `你是一位专业的命理分析师，擅长通过�
 - 每个特质单独成段并有具体说明
 - 语言温暖亲切，富有洞察力
 - 总字数控制在500-800字`;
-
-const SSE_HEADERS = {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-} as const;
 
 export async function POST(request: NextRequest) {
     let creditDeducted = false;

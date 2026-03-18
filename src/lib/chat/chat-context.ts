@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { countTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';

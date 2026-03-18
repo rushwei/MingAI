@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/auth";
 import { useFeatureToggles } from "@/lib/hooks/useFeatureToggles";
 import { getFeatureModules } from '@/lib/navigation/registry';
 

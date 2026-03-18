@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { X, Key, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 
 interface KeyActivationModalProps {

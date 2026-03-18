@@ -1,307 +1,88 @@
 /**
- * 六爻历史记录页面
- *
- * 'use client' 标记说明：
- * - 使用 React hooks (useState, useEffect, useCallback)
- * - 使用 useRouter 进行客户端导航
+ * 六爻历史记录页面 - 使用 HistoryPageTemplate
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Calendar, Trash2, Search, MessageSquare, BookOpenText, Dices } from 'lucide-react';
-import { supabase } from '@/lib/auth';
-import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-import {
-    applyHistoryRestorePayload,
-    deleteHistorySummary,
-    loadHistoryRestore,
-    loadHistorySummaries,
-} from '@/lib/history/client';
+import { Dices, Calendar } from 'lucide-react';
+import { HistoryPageTemplate, type CardActions } from '@/components/history/HistoryPageTemplate';
 import type { HistorySummaryItem } from '@/lib/history/registry';
 
-export default function LiuyaoHistoryPage() {
-    const router = useRouter();
-    const [divinations, setDivinations] = useState<HistorySummaryItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [kbModalOpen, setKbModalOpen] = useState(false);
-    const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
-
-    const loadDivinations = useCallback(async () => {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-            router.push('/liuyao');
-            return;
-        }
-
-        setDivinations(await loadHistorySummaries('liuyao'));
-        setLoading(false);
-    }, [router]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            void loadDivinations();
-        }, 0);
-        return () => clearTimeout(timer);
-    }, [loadDivinations]);
-
-    const handleDelete = async (id: string) => {
-        const success = await deleteHistorySummary('liuyao', id);
-        if (success) {
-            setDivinations(prev => prev.filter(d => d.id !== id));
-            window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: ['liuyao_divination'] } }));
-        }
-        setDeleteConfirmId(null);
-    };
-
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
-    const filteredDivinations = divinations.filter(d => {
-        if (!searchQuery.trim()) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-            (d.question || '').toLowerCase().includes(query) ||
-            d.title.toLowerCase().includes(query) ||
-            (d.changedTitle || '').toLowerCase().includes(query)
-        );
-    });
-
-    const handleView = async (div: HistorySummaryItem) => {
-        const payload = await loadHistoryRestore('liuyao', div.id);
-        if (!payload) return;
-        router.push(applyHistoryRestorePayload(payload, div.id));
-    };
-
+function LiuyaoCard({ item, actions }: { item: HistorySummaryItem; actions: CardActions }) {
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-6xl mx-auto px-4 py-4 md:py-8">
-                {/* 头部 - 仅桌面端显示 */}
-                <div className="hidden md:flex items-center justify-between gap-4 mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Dices className="w-6 h-6 text-emerald-500" />
-                            六爻起卦历史
-                        </h1>
-                        <p className="text-foreground-secondary text-sm mt-1">
-                            易经六十四卦，指引人生方向
-                        </p>
-                    </div>
+        <div
+            className="group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 cursor-pointer flex flex-col"
+            onClick={actions.onView}
+        >
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/10">
+                        {item.title}
+                    </span>
+                    {item.changedTitle && (
+                        <>
+                            <span className="text-[10px] text-foreground-tertiary">变</span>
+                            <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/10">
+                                {item.changedTitle}
+                            </span>
+                        </>
+                    )}
                 </div>
-
-                {/* 搜索框 */}
-                <div className="flex items-center gap-3 mb-6 bg-background-secondary/50 p-2 rounded-2xl border border-border">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="搜索问题或卦名..."
-                            className="w-full pl-9 pr-4 py-2 rounded-xl bg-background border-none focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm placeholder:text-foreground-tertiary"
-                        />
-                    </div>
-                </div>
-
-                {/* 列表 */}
-                {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {/* 骨架屏 - 模拟历史记录卡片 */}
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-background-secondary rounded-2xl p-5 border border-border">
-                                {/* 顶部标签骨架 */}
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-6 w-16 rounded-lg bg-foreground/10 animate-pulse" />
-                                        <div className="h-3 w-4 rounded bg-foreground/5 animate-pulse" />
-                                        <div className="h-6 w-16 rounded-lg bg-foreground/10 animate-pulse" />
-                                    </div>
-                                    <div className="h-4 w-24 rounded bg-foreground/5 animate-pulse" />
-                                </div>
-                                {/* 变爻信息骨架 */}
-                                <div className="mb-3">
-                                    <div className="h-5 w-32 rounded-md bg-foreground/5 animate-pulse" />
-                                </div>
-                                {/* 问题骨架 */}
-                                <div className="space-y-1.5 mb-3">
-                                    <div className="h-3 w-full rounded bg-foreground/5 animate-pulse" />
-                                    <div className="h-3 w-2/3 rounded bg-foreground/5 animate-pulse" />
-                                </div>
-                                {/* 底部操作栏骨架 */}
-                                <div className="pt-3 mt-4 border-t border-border flex items-center justify-between">
-                                    <div className="h-3 w-16 rounded bg-foreground/5 animate-pulse" />
-                                    <div className="flex gap-1">
-                                        <div className="w-7 h-7 rounded-lg bg-foreground/5 animate-pulse" />
-                                        <div className="w-7 h-7 rounded-lg bg-foreground/5 animate-pulse" />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : filteredDivinations.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-background-secondary/30 rounded-3xl border border-border border-dashed">
-                        <div className="w-16 h-16 rounded-full bg-background-secondary flex items-center justify-center mb-4">
-                            <MessageSquare className="w-8 h-8 text-foreground-tertiary" />
-                        </div>
-                        <h3 className="text-lg font-medium mb-1">
-                            {searchQuery ? '未找到匹配的记录' : '暂无历史记录'}
-                        </h3>
-                        <p className="text-sm text-foreground-secondary mb-6 text-center max-w-xs">
-                            {searchQuery ? '换个关键词试试看' : '每一次起卦都是与天地的感应，现在的空白也许是为了更好的开始'}
-                        </p>
-                        <Link
-                            href="/liuyao"
-                            className="px-6 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 font-medium text-sm"
-                        >
-                            开始起卦
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredDivinations.map(div => {
-                            return (
-                                <div
-                                    key={div.id}
-                                    className="group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 cursor-pointer flex flex-col"
-                                    onClick={() => void handleView(div)}
-                                >
-                                    {/* 顶部标签 */}
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/10">
-                                                {div.title}
-                                            </span>
-                                            {div.changedTitle && (
-                                                <>
-                                                    <span className="text-[10px] text-foreground-tertiary">变</span>
-                                                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/10">
-                                                        {div.changedTitle}
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                        <span className="text-xs text-foreground-tertiary font-mono">
-                                            {formatDate(div.createdAt)}
-                                        </span>
-                                    </div>
-
-                                    {/* 变爻信息 - 作为主要内容 */}
-                                    <div className="mb-3">
-                                        {div.metric && (
-                                            <p className="text-xs text-foreground-secondary bg-background/50 px-2 py-1 rounded-md inline-block">
-                                                {div.metric}
-                                            </p>
-                                        )}
-                                        {div.modelName && (
-                                            <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block ml-2">
-                                                {div.modelName}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* 问题 - 放在下方，字体小 */}
-                                    <div className="flex-1">
-                                        {div.question && (
-                                            <p className="text-xs text-foreground-secondary line-clamp-2">
-                                                {div.question}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* 底部操作栏 - 默认隐藏，hover显示 */}
-                                    <div className="pt-3 mt-4 border-t border-border flex items-center justify-between opacity-60 group-hover:opacity-100 transition-opacity">
-                                        <div className="text-xs text-foreground-secondary flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            查看详情
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setKbTarget(div);
-                                                    setKbModalOpen(true);
-                                                }}
-                                                className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors"
-                                                title="加入知识库"
-                                            >
-                                                <BookOpenText className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setDeleteConfirmId(div.id);
-                                                }}
-                                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors"
-                                                title="删除"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                <span className="text-xs text-foreground-tertiary font-mono">{actions.formatDate(item.createdAt)}</span>
+            </div>
+            <div className="mb-3">
+                {item.metric && <p className="text-xs text-foreground-secondary bg-background/50 px-2 py-1 rounded-md inline-block">{item.metric}</p>}
+                {item.modelName && (
+                    <span className="text-[10px] text-foreground-secondary px-2 py-0.5 rounded-md bg-background border border-border inline-block ml-2">{item.modelName}</span>
                 )}
             </div>
-
-            {/* 删除确认弹窗 */}
-            {deleteConfirmId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)} />
-                    <div className="relative bg-background rounded-2xl border border-border shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
-                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 mx-auto text-red-500">
-                            <Trash2 className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2 text-center">确认删除</h3>
-                        <p className="text-foreground-secondary mb-6 text-center text-sm">
-                            确定要删除这条起卦记录吗？此操作无法撤销。
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <button
-                                onClick={() => setDeleteConfirmId(null)}
-                                className="px-5 py-2.5 rounded-xl border border-border hover:bg-background-secondary transition-colors text-sm font-medium"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={() => handleDelete(deleteConfirmId)}
-                                className="px-5 py-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium shadow-lg shadow-red-500/20"
-                            >
-                                确认删除
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {kbTarget && (
-                <AddToKnowledgeBaseModal
-                    open={kbModalOpen}
-                    onClose={() => {
-                        setKbModalOpen(false);
-                        setKbTarget(null);
-                    }}
-                    sourceTitle={kbTarget.question || [kbTarget.title, kbTarget.changedTitle].filter(Boolean).join(' 变 ')}
-                    sourceType="liuyao_divination"
-                    sourceId={kbTarget.id}
-                />
-            )}
+            <div className="flex-1">
+                {item.question && <p className="text-xs text-foreground-secondary line-clamp-2">{item.question}</p>}
+            </div>
+            <div className="pt-3 mt-4 border-t border-border flex items-center justify-between opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="text-xs text-foreground-secondary flex items-center gap-1"><Calendar className="w-3 h-3" />查看详情</div>
+                <CardActionButtons actions={actions} />
+            </div>
         </div>
+    );
+}
+
+function CardActionButtons({ actions }: { actions: CardActions }) {
+    return (
+        <div className="flex items-center gap-1">
+            <button type="button" onClick={e => { e.stopPropagation(); actions.onAddToKb(); }}
+                className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors" title="加入知识库">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </button>
+            <button type="button" onClick={e => { e.stopPropagation(); actions.onDelete(); }}
+                className="p-1.5 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors" title="删除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+        </div>
+    );
+}
+
+export default function LiuyaoHistoryPage() {
+    return (
+        <HistoryPageTemplate
+            sourceType="liuyao"
+            title="六爻起卦历史"
+            subtitle="易经六十四卦，指引人生方向"
+            icon={Dices}
+            iconColor="text-emerald-500"
+            searchPlaceholder="搜索问题或卦名..."
+            emptyActionLabel="开始起卦"
+            deleteMessage="确定要删除这条起卦记录吗？此操作无法撤销。"
+            kbSourceType="liuyao_divination"
+            themeColor="emerald-500"
+            invalidateTypes={['liuyao_divination']}
+            kbTitleFn={item => item.question || [item.title, item.changedTitle].filter(Boolean).join(' 变 ')}
+            filterFn={(item, query) => {
+                const q = query.toLowerCase();
+                return (item.question || '').toLowerCase().includes(q)
+                    || item.title.toLowerCase().includes(q)
+                    || (item.changedTitle || '').toLowerCase().includes(q);
+            }}
+            renderCard={(item, actions) => <LiuyaoCard item={item} actions={actions} />}
+        />
     );
 }

@@ -32,3 +32,20 @@ export async function getEffectiveMembershipType(userId: string): Promise<Member
         return "free";
     }
 }
+
+/**
+ * 通过 access token 解析当前用户的有效会员等级
+ * 统一入口，避免各模块重复实现 token -> userId -> membership 链路
+ */
+export async function resolveTokenMembership(accessToken?: string): Promise<MembershipType> {
+    if (!accessToken) return 'free';
+    try {
+        const { createAuthedClient } = await import('@/lib/api-utils');
+        const supabase = createAuthedClient(accessToken);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return 'free';
+        return await getEffectiveMembershipType(user.id);
+    } catch {
+        return 'free';
+    }
+}

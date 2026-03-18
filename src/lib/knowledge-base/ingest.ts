@@ -1,12 +1,10 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import type { ChatMessage } from '@/types';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { getProvider } from '@/lib/data-sources';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
 import type { IngestResult } from '@/lib/knowledge-base/types';
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { createKbClient } from '@/lib/knowledge-base/client';
 
 interface ChunkConfig {
     maxChunkSize: number;
@@ -38,36 +36,12 @@ interface IngestResultWithVectors extends IngestResult {
     alreadyExists?: number;
 }
 
-async function createSupabaseClient() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        getSupabaseUrl(),
-        getSupabaseAnonKey(),
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        for (const { name, value, options } of cookiesToSet) {
-                            cookieStore.set(name, value, options);
-                        }
-                    } catch {
-                        // 只读 cookies 上下文无法写入时忽略
-                    }
-                },
-            },
-        }
-    );
-}
-
 export async function ingestConversation(
     kbId: string,
     conversationId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -109,7 +83,7 @@ export async function ingestRecord(
     recordId: string,
     options?: IngestOptions
 ): Promise<IngestResult> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -148,7 +122,7 @@ export async function ingestRecord(
 }
 
 export async function ingestFile(_kbId: string, _file: File, _options?: IngestOptions): Promise<IngestResult> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -456,11 +430,13 @@ function formatMessagePair(pair: { user: ChatMessage; assistant: ChatMessage }):
     return [`用户：${pair.user.content}`, `AI：${pair.assistant.content}`].join('\n\n');
 }
 
-export async function upsertEntries(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
-    const supabase = await createSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+type SupabaseClientLike = ReturnType<typeof getSystemAdminClient>;
 
+async function upsertEntriesWithClient(
+    supabase: SupabaseClientLike,
+    kbId: string,
+    chunks: ChunkData[]
+): Promise<IngestResult> {
     if (chunks.length > 0) {
         const { sourceType, sourceId } = chunks[0];
         const sameSource = chunks.every(c => c.sourceType === sourceType && c.sourceId === sourceId);
@@ -502,55 +478,22 @@ export async function upsertEntries(kbId: string, chunks: ChunkData[]): Promise<
     };
 }
 
+export async function upsertEntries(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
+    const supabase = await createKbClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    return upsertEntriesWithClient(supabase, kbId, chunks);
+}
+
 export async function upsertEntriesAsService(kbId: string, chunks: ChunkData[]): Promise<IngestResult> {
-    const supabase = getSystemAdminClient();
-
-    if (chunks.length > 0) {
-        const { sourceType, sourceId } = chunks[0];
-        const sameSource = chunks.every(c => c.sourceType === sourceType && c.sourceId === sourceId);
-        const contiguous = sameSource && chunks.every((c, i) => c.chunkIndex === i);
-        if (contiguous) {
-            const { error: cleanupError } = await supabase
-                .from('knowledge_entries')
-                .delete()
-                .eq('kb_id', kbId)
-                .eq('source_type', sourceType)
-                .eq('source_id', sourceId)
-                .gte('chunk_index', chunks.length);
-            if (cleanupError) throw cleanupError;
-        }
-    }
-
-    const entries = chunks.map(chunk => ({
-        kb_id: kbId,
-        content: chunk.content,
-        content_vector: null,
-        source_type: chunk.sourceType,
-        source_id: chunk.sourceId,
-        chunk_index: chunk.chunkIndex,
-        metadata: chunk.metadata
-    }));
-
-    const { data, error } = await supabase
-        .from('knowledge_entries')
-        .upsert(entries, {
-            onConflict: 'kb_id,source_type,source_id,chunk_index'
-        })
-        .select('id');
-
-    if (error) throw error;
-
-    return {
-        entriesCreated: (data || []).length,
-        chunks: chunks.length
-    };
+    return upsertEntriesWithClient(getSystemAdminClient(), kbId, chunks);
 }
 
 export async function backfillVectors(
     kbId: string,
     batchSize: number = 100
 ): Promise<IngestResultWithVectors> {
-    const supabase = await createSupabaseClient();
+    const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 

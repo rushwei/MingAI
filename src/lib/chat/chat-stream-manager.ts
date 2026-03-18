@@ -170,7 +170,7 @@ function buildAssistantFromTask(task: ChatStreamTaskInternal, contentOverride?: 
         reasoning: task.reasoning || undefined,
         reasoningStartTime: task.reasoningStartTime,
         reasoningDuration,
-        metadata: task.metadata as unknown as Record<string, unknown>,
+        metadata: task.metadata,
     };
 }
 

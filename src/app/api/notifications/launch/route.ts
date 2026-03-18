@@ -131,43 +131,61 @@ export async function POST(request: NextRequest) {
             errors.push(`缺少邮箱的订阅用户数: ${missingEmailCount}`);
         }
 
-        // 批量处理
-        for (const subscriber of subscribers) {
-            const settings = settingsMap.get(subscriber.user_id);
-            const notificationsEnabled = settings?.notifications_enabled ?? true;
-            const allowEmail = notificationsEnabled && (settings?.notify_email ?? true);
-            const allowSite = notificationsEnabled && (settings?.notify_site ?? true);
+        // 批量并发处理
+        const results = await Promise.allSettled(
+            subscribers.map(async (subscriber) => {
+                const settings = settingsMap.get(subscriber.user_id);
+                const notificationsEnabled = settings?.notifications_enabled ?? true;
+                const allowEmail = notificationsEnabled && (settings?.notify_email ?? true);
+                const allowSite = notificationsEnabled && (settings?.notify_site ?? true);
 
-            // 发送站内通知
-            if (subscriber.notify_site && allowSite) {
-                const { error } = await supabaseAdmin
-                    .from('notifications')
-                    .insert({
-                        user_id: subscriber.user_id,
-                        type: 'feature_launch',
-                        title: `${featureName}功能已上线！`,
-                        content: `您订阅的${featureName}功能现已正式上线，快来体验吧！`,
-                        link: siteLink,
-                    });
+                let sentEmail = false;
+                let sentSite = false;
+                const subErrors: string[] = [];
 
-                if (error) {
-                    errors.push(`站内通知失败 (${subscriber.user_id}): ${error.message}`);
-                } else {
-                    notificationsSent++;
-                }
-            }
+                // 发送站内通知
+                if (subscriber.notify_site && allowSite) {
+                    const { error } = await supabaseAdmin
+                        .from('notifications')
+                        .insert({
+                            user_id: subscriber.user_id,
+                            type: 'feature_launch',
+                            title: `${featureName}功能已上线！`,
+                            content: `您订阅的${featureName}功能现已正式上线，快来体验吧！`,
+                            link: siteLink,
+                        });
 
-            // 发送邮件通知
-            if (subscriber.notify_email && allowEmail) {
-                const email = userEmailMap.get(subscriber.user_id);
-                if (email) {
-                    const result = await sendFeatureLaunchEmail(email, featureName, emailUrl);
-                    if (result.success) {
-                        emailsSent++;
+                    if (error) {
+                        subErrors.push(`站内通知失败 (${subscriber.user_id}): ${error.message}`);
                     } else {
-                        errors.push(`邮件发送失败 (${email}): ${result.error}`);
+                        sentSite = true;
                     }
                 }
+
+                // 发送邮件通知
+                if (subscriber.notify_email && allowEmail) {
+                    const email = userEmailMap.get(subscriber.user_id);
+                    if (email) {
+                        const result = await sendFeatureLaunchEmail(email, featureName, emailUrl);
+                        if (result.success) {
+                            sentEmail = true;
+                        } else {
+                            subErrors.push(`邮件发送失败 (${email}): ${result.error}`);
+                        }
+                    }
+                }
+
+                return { sentEmail, sentSite, errors: subErrors };
+            })
+        );
+
+        for (const result of results) {
+            if (result.status === 'fulfilled') {
+                if (result.value.sentEmail) emailsSent++;
+                if (result.value.sentSite) notificationsSent++;
+                errors.push(...result.value.errors);
+            } else {
+                errors.push(`处理失败: ${result.reason}`);
             }
         }
 

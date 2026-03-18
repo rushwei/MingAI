@@ -229,12 +229,14 @@ export async function processScheduledReminders(): Promise<number> {
             continue;
         }
 
+        let claimed = false;
         try {
             // 检查用户是否仍然订阅
             const subscribed = await isSubscribed(reminder.user_id, reminder.reminder_type);
             if (!subscribed) {
                 // 已占用后发现用户取消订阅，标记为已发送避免重复处理
                 await markReminderSent(reminder.id, claimToken);
+                claimed = false; // successfully marked, no need to release
                 continue;
             }
 
@@ -244,13 +246,20 @@ export async function processScheduledReminders(): Promise<number> {
                 const marked = await markReminderSent(reminder.id, claimToken);
                 if (marked) {
                     processed++;
+                    claimed = false;
+                } else {
+                    claimed = true;
                 }
             } else {
-                await releaseReminderClaim(reminder.id, claimToken);
+                claimed = true;
             }
         } catch (err) {
             console.error(`[reminders] 处理提醒 ${reminder.id} 失败:`, err);
-            await releaseReminderClaim(reminder.id, claimToken);
+            claimed = true;
+        } finally {
+            if (claimed) {
+                await releaseReminderClaim(reminder.id, claimToken);
+            }
         }
     }
 

@@ -6,14 +6,13 @@
  */
 
 import { NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) {
-            return jsonError('请先登录', 401);
-        }
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
@@ -58,10 +57,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) {
-            return jsonError('请先登录', 401);
-        }
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         const body = await request.json();
 
@@ -94,10 +92,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
-        const { supabase, user } = await getAuthContext(request);
-        if (!user) {
-            return jsonError('请先登录', 401);
-        }
+        const auth = await requireUserContext(request);
+        if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+        const { supabase, user } = auth;
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');

@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
-import { getAuthContext, jsonError, jsonOk } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const service = getSystemAdminClient();
     const { data, error } = await service
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { user } = await getAuthContext(request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const body = await request.json() as { name?: string; description?: string; weight?: 'low' | 'normal' | 'high' };
     if (!body.name) return jsonError('name 不能为空', 400);

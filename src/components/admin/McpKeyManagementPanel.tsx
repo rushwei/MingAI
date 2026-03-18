@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Ban, Key, Users, Activity } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 
 interface McpKeyRow {
     id: string;

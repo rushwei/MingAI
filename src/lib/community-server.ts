@@ -3,6 +3,37 @@ export type CommunityAuthorProfile = {
     avatarUrl: string | null;
 };
 
+import type { CommunityPost } from '@/lib/community';
+
+export type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
+    user_id: string;
+    anonymous_name: string | null;
+};
+
+export function toPublicPost(
+    post: CommunityPostRow,
+    authorProfile: { name: string; avatarUrl: string | null },
+): CommunityPost {
+    return {
+        id: post.id,
+        author_name: authorProfile.name,
+        author_avatar_url: authorProfile.avatarUrl,
+        title: post.title,
+        content: post.content,
+        category: post.category,
+        tags: post.tags,
+        view_count: post.view_count,
+        upvote_count: post.upvote_count,
+        downvote_count: post.downvote_count,
+        comment_count: post.comment_count,
+        is_pinned: post.is_pinned,
+        is_featured: post.is_featured,
+        is_deleted: post.is_deleted,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+    };
+}
+
 type UserProfileRow = {
     id: string;
     nickname: string | null;

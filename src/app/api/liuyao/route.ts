@@ -4,7 +4,7 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
 import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -73,12 +73,6 @@ function parseQuestionInput(value: unknown): { question: string; error?: string 
     if (typeof value !== 'string') return { question: '', error: '问题格式错误' };
     return { question: value };
 }
-
-const SSE_HEADERS = {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-} as const;
 
 const LIUYAO_SYSTEM_PROMPT = `你是一位精通《周易》的资深易学大师，深谙野鹤老人《增删卜易》、王洪绪《卜筮正宗》之精髓。
 

@@ -176,6 +176,26 @@ async function handleExistingRow(
 
 // 内存速率限制（开发环境备用）
 const memoryLimits = new Map<string, { count: number; resetAt: number }>();
+const MEMORY_LIMITS_MAX_SIZE = 1024;
+
+function pruneMemoryLimits(now: number): void {
+    // Evict expired entries
+    for (const [key, record] of memoryLimits.entries()) {
+        if (now > record.resetAt) {
+            memoryLimits.delete(key);
+        }
+    }
+    // LRU eviction if still over limit
+    if (memoryLimits.size > MEMORY_LIMITS_MAX_SIZE) {
+        const overflow = memoryLimits.size - MEMORY_LIMITS_MAX_SIZE;
+        const keys = memoryLimits.keys();
+        for (let i = 0; i < overflow; i++) {
+            const next = keys.next();
+            if (next.done) break;
+            memoryLimits.delete(next.value);
+        }
+    }
+}
 
 function memoryRateLimit(
     identifier: string,
@@ -184,6 +204,7 @@ function memoryRateLimit(
 ): RateLimitResult {
     const key = `${endpoint}:${identifier}`;
     const now = Date.now();
+    pruneMemoryLimits(now);
     const record = memoryLimits.get(key);
 
     if (!record || now > record.resetAt) {

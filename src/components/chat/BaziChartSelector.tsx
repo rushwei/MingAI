@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Search, Orbit, Star, Check } from 'lucide-react';
-import { getUserCharts } from '@/lib/user/charts';
+import { getUserCharts } from '@/lib/user-charts';
 
 interface ChartItem {
     id: string;

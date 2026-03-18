@@ -1,4 +1,6 @@
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
+import 'server-only';
+
+import { resolveTokenMembership } from '@/lib/user/membership-server';
 import { callReranker } from '@/lib/knowledge-base/reranker';
 import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from '@/lib/knowledge-base/embedding-config';
 import type { RankedResult, SearchCandidate, SearchOptions } from '@/lib/knowledge-base/types';
@@ -38,14 +40,6 @@ function deduplicateResults(results: SearchCandidate[]): SearchCandidate[] {
     }
 
     return Array.from(seen.values()).sort((a, b) => b.score - a.score);
-}
-
-async function getCurrentUserMembership(accessToken?: string): Promise<'free' | 'plus' | 'pro'> {
-    if (!accessToken) return 'free';
-    const supabase = createAuthedClient(accessToken);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return 'free';
-    return await getEffectiveMembershipType(user.id);
 }
 
 function getWeightMultiplier(weight?: string | null): number {
@@ -287,7 +281,7 @@ export async function rerankCandidates(
 }
 
 export async function searchKnowledge(query: string, options: SearchOptions = {}): Promise<SearchCandidate[] | RankedResult[]> {
-    const membership = options.membershipType ?? await getCurrentUserMembership(options.accessToken);
+    const membership = options.membershipType ?? await resolveTokenMembership(options.accessToken);
     if (membership === 'free') return [];
     const candidates = await searchCandidates(query, {
         ...options,

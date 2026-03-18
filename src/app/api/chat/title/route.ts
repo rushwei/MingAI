@@ -10,7 +10,7 @@ import { callAI } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizePlainTitle } from '@/lib/title-utils';
-import { requireBearerUser, jsonError } from '@/lib/api-utils';
+import { requireBearerUser, jsonError, jsonOk } from '@/lib/api-utils';
 import type { ChatMessage } from '@/types';
 
 // 速率限制配置：每分钟每 IP 最多 10 次
@@ -63,12 +63,12 @@ export async function POST(request: NextRequest) {
         const { messages } = body as { messages: ChatMessage[] };
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            return NextResponse.json({ title: '新对话' });
+            return jsonOk({ title: '新对话' });
         }
 
         const firstUserMessage = messages.find(m => m.role === 'user');
         if (!firstUserMessage) {
-            return NextResponse.json({ title: '新对话' });
+            return jsonOk({ title: '新对话' });
         }
 
         const titleMessage: ChatMessage = {
@@ -88,18 +88,12 @@ export async function POST(request: NextRequest) {
         const sanitized = sanitizePlainTitle(content || '');
         const title = sanitized.slice(0, 20) || firstUserMessage.content.slice(0, 15);
 
-        return NextResponse.json(
+        return jsonOk(
             { title },
-            {
-                headers: {
-                    'X-RateLimit-Limit': String(RATE_LIMIT_CONFIG.maxRequests),
-                    'X-RateLimit-Remaining': String(rateLimit.remaining),
-                    'X-RateLimit-Reset': String(Math.floor(rateLimit.resetAt.getTime() / 1000)),
-                }
-            }
+            200,
         );
     } catch (error) {
         console.error('Title generation error:', error);
-        return NextResponse.json({ title: '新对话' });
+        return jsonOk({ title: '新对话' });
     }
 }

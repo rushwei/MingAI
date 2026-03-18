@@ -57,21 +57,14 @@ async function replaceConversationMessagesByTable(
     conversationId: string,
     messages: ChatMessage[]
 ): Promise<{ error: ConversationMessageSyncError | null }> {
-    const from = (supabase as unknown as {
-        from?: (table: string) => {
-            delete: () => { eq: (column: string, value: string) => Promise<{ error: ConversationMessageSyncError | null }> };
-            insert: (value: unknown) => Promise<{ error: ConversationMessageSyncError | null }>;
-        };
-    }).from;
-
-    if (typeof from !== 'function') {
+    if (typeof supabase.from !== 'function') {
         return { error: null };
     }
 
-    const table = from('conversation_messages');
+    const table = supabase.from('conversation_messages');
     const deleteResult = await table.delete().eq('conversation_id', conversationId);
     if (deleteResult.error) {
-        return { error: deleteResult.error };
+        return { error: deleteResult.error as ConversationMessageSyncError };
     }
 
     const rows = mapConversationMessagesForInsert(conversationId, messages);
@@ -80,7 +73,7 @@ async function replaceConversationMessagesByTable(
     }
 
     const insertResult = await table.insert(rows);
-    return { error: insertResult.error };
+    return { error: insertResult.error as ConversationMessageSyncError | null };
 }
 
 export async function replaceConversationMessages(
@@ -88,24 +81,20 @@ export async function replaceConversationMessages(
     conversationId: string,
     messages: ChatMessage[]
 ) : Promise<{ error: ConversationMessageSyncError | null }> {
-    const rpc = (supabase as unknown as {
-        rpc?: (fn: string, args: Record<string, unknown>) => Promise<{ error: ConversationMessageSyncError | null }>;
-    }).rpc;
-
-    if (typeof rpc !== 'function') {
+    if (typeof supabase.rpc !== 'function') {
         return await replaceConversationMessagesByTable(supabase, conversationId, messages);
     }
 
-    const { error } = await rpc('replace_conversation_messages', {
+    const { error } = await supabase.rpc('replace_conversation_messages', {
         p_conversation_id: conversationId,
         p_messages: messages,
     });
 
-    if (isConversationMessageInfraMissing(error || undefined)) {
+    if (isConversationMessageInfraMissing(error as ConversationMessageSyncError | null)) {
         return await replaceConversationMessagesByTable(supabase, conversationId, messages);
     }
 
-    return { error };
+    return { error: error as ConversationMessageSyncError | null };
 }
 
 export async function loadAllConversationMessages(

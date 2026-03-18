@@ -21,7 +21,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/auth';
 import {
     XAxis,
     YAxis,

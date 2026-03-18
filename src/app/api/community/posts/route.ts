@@ -5,42 +5,13 @@
  */
 
 import { NextRequest } from 'next/server';
-import { PostCategory, PostFilters, CommunityPost } from '@/lib/community';
-import { asCommunityLookupClient, loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile } from '@/lib/community-server';
+import { PostCategory, PostFilters } from '@/lib/community';
+import { asCommunityLookupClient, loadCommunityAuthorProfileMap, loadSingleCommunityAuthorProfile, toPublicPost, type CommunityPostRow } from '@/lib/community-server';
 import { jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 import { parsePagination } from '@/lib/pagination';
 import { hasNonEmptyStrings } from '@/lib/validation';
 import { quotePostgrestString } from '@/lib/utils/postgrest';
-
-type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
-    user_id: string;
-    anonymous_name: string | null;
-};
-
-function toPublicPost(
-    post: CommunityPostRow,
-    authorProfile: { name: string; avatarUrl: string | null },
-): CommunityPost {
-    return {
-        id: post.id,
-        author_name: authorProfile.name,
-        author_avatar_url: authorProfile.avatarUrl,
-        title: post.title,
-        content: post.content,
-        category: post.category,
-        tags: post.tags,
-        view_count: post.view_count,
-        upvote_count: post.upvote_count,
-        downvote_count: post.downvote_count,
-        comment_count: post.comment_count,
-        is_pinned: post.is_pinned,
-        is_featured: post.is_featured,
-        is_deleted: post.is_deleted,
-        created_at: post.created_at,
-        updated_at: post.updated_at,
-    };
-}
 
 export async function GET(request: NextRequest) {
     try {

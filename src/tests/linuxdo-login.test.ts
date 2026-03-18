@@ -551,6 +551,10 @@ test('linuxdo callback should recover existing deterministic linuxdo account whe
   apiUtilsModule.getAuthAdminClient = () => ({
     auth: {
       admin: {
+        getUserById: async () => ({
+          data: { user: null },
+          error: { message: 'not found' },
+        }),
         listUsers: async () => ({
           data: {
             users: [

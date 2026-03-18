@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
         const query = formData.get('query') as string | null;
         const file = formData.get('file') as File | null;
 
+        // 文件大小限制 10MB
+        if (file && file.size > 10 * 1024 * 1024) {
+            return jsonError('文件大小不能超过 10MB', 400, { success: false });
+        }
+
         // 验证 mode 参数
         if (!mode || !['file', 'web', 'all'].includes(mode)) {
             return jsonError('无效的 mode 参数', 400, { success: false });

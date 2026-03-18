@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
-import { getAuthContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const { user } = await getAuthContext(_request);
-    if (!user) return jsonError('请先登录', 401);
+    const auth = await requireUserContext(_request);
+    if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const { user } = auth;
 
     const { id } = await params;
 
