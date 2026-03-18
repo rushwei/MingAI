@@ -48,12 +48,12 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/Logo.svg",
+        url: "/favicon.svg",
         type: "image/svg+xml",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/Logo-dark.svg",
+        url: "/favicon-dark.svg",
         type: "image/svg+xml",
         media: "(prefers-color-scheme: dark)",
       },
