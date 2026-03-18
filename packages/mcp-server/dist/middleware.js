@@ -95,28 +95,32 @@ async function authMiddleware(req, res, next) {
     if (!apiKey) {
         return res.status(401).json({ error: 'Missing API key' });
     }
-    // 命中缓存时仍需回源复验，确保撤销/重置后的 key 立即失效。
+    // Stale-while-revalidate: 缓存命中时立即放行，后台异步回源验证。
+    // 若回源发现 key 已撤销，下次请求将被拒绝。
     const cached = getCachedKey(apiKey);
     try {
-        let activeKey = cached
-            ? await queryActiveKey(apiKey)
-            : null;
-        if (cached && !activeKey) {
-            invalidateCachedKey(apiKey);
-            return res.status(401).json({ error: 'Invalid API key' });
-        }
-        if (!activeKey) {
-            activeKey = await queryActiveKey(apiKey);
-        }
-        if (!activeKey) {
-            return res.status(401).json({ error: 'Invalid API key' });
-        }
-        if (cached
-            && cached.userId === activeKey.user_id
-            && cached.keyId === activeKey.id) {
+        if (cached) {
+            // 快速路径：信任缓存，立即放行
             req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
             void touchLastUsedAt(cached.keyId);
+            // 后台异步回源验证（不阻塞当前请求）
+            void queryActiveKey(apiKey).then(activeKey => {
+                if (!activeKey) {
+                    invalidateCachedKey(apiKey);
+                }
+                else if (activeKey.user_id !== cached.userId || activeKey.id !== cached.keyId) {
+                    // key 关联的用户变了，更新缓存
+                    setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });
+                }
+            }).catch(() => {
+                // 回源失败不影响当前请求，下次重试
+            });
             return next();
+        }
+        // 缓存未命中：同步查询 DB
+        const activeKey = await queryActiveKey(apiKey);
+        if (!activeKey) {
+            return res.status(401).json({ error: 'Invalid API key' });
         }
         setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });
         req.mcpAuth = { userId: activeKey.user_id, keyId: activeKey.id };

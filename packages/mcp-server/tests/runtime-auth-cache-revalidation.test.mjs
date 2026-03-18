@@ -67,7 +67,7 @@ async function stopProcess(childProcess) {
   }
 }
 
-test('dist auth middleware should revalidate cached key and reject revoked key immediately', async () => {
+test('dist auth middleware should revalidate cached key and reject revoked key after background check', async () => {
   let verifyCalls = 0;
 
   const fakeSupabase = createServer(async (req, res) => {
@@ -169,6 +169,8 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
       'first request should pass auth and fail later with initialize validation error'
     );
 
+    // Stale-while-revalidate: 第二次请求信任缓存立即放行，
+    // 后台异步回源发现 key 已撤销并失效缓存。
     const secondResponse = await fetch(requestUrl, {
       method: 'POST',
       headers,
@@ -177,10 +179,25 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
 
     assert.equal(
       secondResponse.status,
-      401,
-      `second request should be rejected after backend revocation; stderr: ${stderr}`
+      400,
+      'second request should still pass auth (stale-while-revalidate fast path)'
     );
-    assert.ok(verifyCalls >= 2, 'cached key path should still revalidate via RPC');
+
+    // 等待后台异步回源完成并失效缓存
+    await wait(500);
+
+    const thirdResponse = await fetch(requestUrl, {
+      method: 'POST',
+      headers,
+      body: '{}',
+    });
+
+    assert.equal(
+      thirdResponse.status,
+      401,
+      `third request should be rejected after background revalidation invalidated cache; stderr: ${stderr}`
+    );
+    assert.ok(verifyCalls >= 2, 'cached key path should trigger background revalidation via RPC');
   } finally {
     await stopProcess(mcpProcess);
     await closeServer(fakeSupabase);

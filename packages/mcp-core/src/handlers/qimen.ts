@@ -121,7 +121,10 @@ function assertValidTimeZone(timeZone: string): void {
 
 // ===== 主处理函数 =====
 
-export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutput> {
+// 注意：此函数不使用 async，因为 taobi 库依赖 process.env.TZ 来正确解析 Date 对象。
+// 在 TZ 变异区间内绝对不能有 await，否则并发请求会看到错误的时区。
+// 移除 async 关键字可以防止未来误加 await。
+export function handleQimenCalculate(input: QimenInput): Promise<QimenOutput> {
   const { year, month, day, hour, minute = 0 } = input;
   const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
   const juMethod = input.juMethod || 'chaibu';
@@ -130,11 +133,11 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
   const followOption = zhiFuJiGong === 'ji_wugong' ? 0 : 1;
   assertValidTimeZone(timezone);
 
+  // WARNING: process.env.TZ 全局变异区间 —— 此区间内禁止 await！
+  // taobi 库内部使用 Date 的 UTC 时间戳，zonedWallClockToSystemDate 无法替代。
   const previousTimeZone = process.env.TZ;
   process.env.TZ = timezone;
   try {
-
-    // 调用 taobi 排盘
     const date = new Date(year, month - 1, day, hour, minute);
     let t;
     try {
@@ -298,42 +301,42 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
     });
   }
 
-    return {
-      dateInfo: {
-        solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-        lunarDate,
-        solarTerm,
-        solarTermRange,
+  return Promise.resolve({
+    dateInfo: {
+      solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      lunarDate,
+      solarTerm,
+      solarTermRange,
+    },
+    siZhu: {
+      year: `${yearGan}${yearZhi}`,
+      month: `${monthGan}${monthZhi}`,
+      day: `${dayGan}${dayZhi}`,
+      hour: `${hourGan}${hourZhi}`,
+    },
+    dunType,
+    juNumber,
+    yuan,
+    xunShou,
+    zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
+    zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
+    palaces,
+    kongWang: {
+      dayKong: {
+        branches: [...dayKong.kongZhi],
+        palaces: dayKongPalaces.map(p => p + 1),
       },
-      siZhu: {
-        year: `${yearGan}${yearZhi}`,
-        month: `${monthGan}${monthZhi}`,
-        day: `${dayGan}${dayZhi}`,
-        hour: `${hourGan}${hourZhi}`,
+      hourKong: {
+        branches: [...hourKong.kongZhi],
+        palaces: hourKongPalaces.map(p => p + 1),
       },
-      dunType,
-      juNumber,
-      yuan,
-      xunShou,
-      zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
-      zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
-      palaces,
-      kongWang: {
-        dayKong: {
-          branches: [...dayKong.kongZhi],
-          palaces: dayKongPalaces.map(p => p + 1),
-        },
-        hourKong: {
-          branches: [...hourKong.kongZhi],
-          palaces: hourKongPalaces.map(p => p + 1),
-        },
-      },
-      yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
-      globalFormations,
-      panType: '转盘',
-      juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
-      question: input.question,
-    };
+    },
+    yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
+    globalFormations,
+    panType: '转盘',
+    juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
+    question: input.question,
+  });
   } finally {
     if (previousTimeZone == null) {
       delete process.env.TZ;
