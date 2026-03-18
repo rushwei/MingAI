@@ -27,7 +27,6 @@ const palmPagePath = resolve(process.cwd(), 'src/app/palm/page.tsx');
 const palmResultPagePath = resolve(process.cwd(), 'src/app/palm/result/page.tsx');
 const communityPostDetailPath = resolve(process.cwd(), 'src/app/community/[postId]/page.tsx');
 const keyManagementPanelPath = resolve(process.cwd(), 'src/components/admin/KeyManagementPanel.tsx');
-const aiSourcePanelPath = resolve(process.cwd(), 'src/components/admin/AISourcePanel.tsx');
 const recordsPagePath = resolve(process.cwd(), 'src/app/records/page.tsx');
 const userChartsPagePath = resolve(process.cwd(), 'src/app/user/charts/page.tsx');
 const userKnowledgeBasePagePath = resolve(process.cwd(), 'src/app/user/knowledge-base/page.tsx');
@@ -59,25 +58,13 @@ test('notification launch panel should submit the selected template payload inst
   assert.match(source, /templateVars/u);
 });
 
-test('notifications launch route should honor selected template content for site notifications and email payloads', async (t) => {
+test('notifications launch route should honor selected template content for site notifications', async (t) => {
   const apiUtils = require('../lib/api-utils') as any;
-  const emailModule = require('../lib/email') as any;
 
   const originalRequireAdminContext = apiUtils.requireAdminContext;
   const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
-  const originalSendFeatureLaunchEmail = emailModule.sendFeatureLaunchEmail;
 
   const insertedNotifications: Array<{ title?: string; content?: string }> = [];
-  const emailCalls: Array<{
-    to: string;
-    featureName: string;
-    featureUrl: string;
-    options?: {
-      title?: string;
-      content?: string;
-      ctaLabel?: string;
-    };
-  }> = [];
 
   apiUtils.requireAdminContext = async () => ({
     user: { id: 'admin-1' },
@@ -89,7 +76,7 @@ test('notifications launch route should honor selected template content for site
         return {
           select: () => ({
             eq: async () => ({
-              data: [{ user_id: 'user-1', notify_email: true, notify_site: true }],
+              data: [{ user_id: 'user-1', notify_site: true }],
               error: null,
             }),
           }),
@@ -100,7 +87,7 @@ test('notifications launch route should honor selected template content for site
         return {
           select: () => ({
             in: async () => ({
-              data: [{ user_id: 'user-1', notifications_enabled: true, notify_email: true, notify_site: true }],
+              data: [{ user_id: 'user-1', notifications_enabled: true, notify_site: true }],
               error: null,
             }),
           }),
@@ -118,25 +105,11 @@ test('notifications launch route should honor selected template content for site
 
       throw new Error(`Unexpected table: ${table}`);
     },
-    rpc: async () => ({
-      data: [{ user_id: 'user-1', email: 'user@example.com' }],
-      error: null,
-    }),
   });
-  emailModule.sendFeatureLaunchEmail = async (
-    to: string,
-    featureName: string,
-    featureUrl: string,
-    options?: Record<string, unknown>,
-  ) => {
-    emailCalls.push({ to, featureName, featureUrl, options });
-    return { success: true };
-  };
 
   t.after(() => {
     apiUtils.requireAdminContext = originalRequireAdminContext;
     apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
-    emailModule.sendFeatureLaunchEmail = originalSendFeatureLaunchEmail;
   });
 
   const { POST } = await import('../app/api/notifications/launch/route');
@@ -160,11 +133,6 @@ test('notifications launch route should honor selected template content for site
   assert.equal(insertedNotifications.length, 1);
   assert.equal(insertedNotifications[0]?.title, '🔥 限时优惠：限时五折');
   assert.equal(insertedNotifications[0]?.content, '限时特惠！六爻高级分析开放，活动截止至 本周日，抓紧时间！');
-  assert.equal(emailCalls.length, 1);
-  const firstEmailCall = emailCalls[0];
-  assert.ok(firstEmailCall?.options);
-  assert.equal(firstEmailCall.options.title, '🔥 限时优惠：限时五折');
-  assert.equal(firstEmailCall.options.content, '限时特惠！六爻高级分析开放，活动截止至 本周日，抓紧时间！');
 });
 
 test('record detail flows should guard failed responses and use shared confirm dialog instead of browser confirm', async () => {
@@ -187,7 +155,7 @@ test('history restore payload should use a fresh timestamp query instead of the 
       detailPath: '/tarot/result',
       useTimestamp: true,
       sessionData: {},
-    }, 'history-1');
+    });
 
     assert.equal(target, '/tarot/result?from=history&t=1700000000000');
   } finally {
@@ -258,7 +226,6 @@ test('remaining destructive web actions should use shared confirm dialogs instea
   const sources = await Promise.all([
     readFile(communityPostDetailPath, 'utf-8'),
     readFile(keyManagementPanelPath, 'utf-8'),
-    readFile(aiSourcePanelPath, 'utf-8'),
     readFile(recordsPagePath, 'utf-8'),
     readFile(userChartsPagePath, 'utf-8'),
     readFile(userKnowledgeBasePagePath, 'utf-8'),

@@ -207,8 +207,8 @@ export function jsonError<TExtra extends Record<string, unknown> = Record<string
     return NextResponse.json(body, { status });
 }
 
-export function jsonOk<TPayload>(payload: TPayload, status = 200) {
-    return NextResponse.json(payload, { status });
+export function jsonOk<TPayload>(payload: TPayload, status = 200, headers?: Record<string, string>) {
+    return NextResponse.json(payload, { status, headers });
 }
 
 export const SSE_HEADERS = {

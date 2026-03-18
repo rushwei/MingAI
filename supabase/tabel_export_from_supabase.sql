@@ -16,37 +16,33 @@ CREATE TABLE public.activation_keys (
   CONSTRAINT activation_keys_used_by_fkey FOREIGN KEY (used_by) REFERENCES auth.users(id),
   CONSTRAINT activation_keys_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
-CREATE TABLE public.ai_model_sources (
+CREATE TABLE public.ai_gateways (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  gateway_key text NOT NULL UNIQUE CHECK (gateway_key = ANY (ARRAY['newapi'::text, 'octopus'::text])),
+  display_name text NOT NULL,
+  base_url text NOT NULL DEFAULT ''::text,
+  api_key_env_var text NOT NULL,
+  transport text NOT NULL DEFAULT 'openai_compatible'::text CHECK (transport = 'openai_compatible'::text),
+  is_enabled boolean NOT NULL DEFAULT true,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT ai_gateways_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.ai_model_gateway_bindings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   model_id uuid NOT NULL,
-  source_key text NOT NULL,
-  source_name text NOT NULL,
-  api_url text NOT NULL,
-  api_key_env_var text NOT NULL,
+  gateway_id uuid NOT NULL,
   model_id_override text,
   reasoning_model_id text,
-  is_active boolean DEFAULT false,
-  is_enabled boolean DEFAULT true,
-  priority integer DEFAULT 0,
-  max_context_tokens integer,
-  max_output_tokens integer,
+  is_enabled boolean NOT NULL DEFAULT true,
+  priority integer NOT NULL DEFAULT 0,
   notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_model_sources_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_model_sources_model_id_fkey FOREIGN KEY (model_id) REFERENCES public.ai_models(id)
-);
-CREATE TABLE public.ai_model_stats (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  model_key text NOT NULL,
-  source_key text,
-  date date NOT NULL DEFAULT CURRENT_DATE,
-  call_count integer DEFAULT 0,
-  success_count integer DEFAULT 0,
-  error_count integer DEFAULT 0,
-  total_tokens_used bigint DEFAULT 0,
-  total_response_time_ms bigint DEFAULT 0,
-  CONSTRAINT ai_model_stats_pkey PRIMARY KEY (id)
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT ai_model_gateway_bindings_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_model_gateway_bindings_model_id_fkey FOREIGN KEY (model_id) REFERENCES public.ai_models(id),
+  CONSTRAINT ai_model_gateway_bindings_gateway_id_fkey FOREIGN KEY (gateway_id) REFERENCES public.ai_gateways(id)
 );
 CREATE TABLE public.ai_models (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -65,6 +61,14 @@ CREATE TABLE public.ai_models (
   description text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  usage_type text NOT NULL DEFAULT 'chat'::text CHECK (usage_type = ANY (ARRAY['chat'::text, 'vision'::text, 'embedding'::text, 'rerank'::text])),
+  routing_mode text NOT NULL DEFAULT 'auto'::text CHECK (routing_mode = ANY (ARRAY['auto'::text, 'newapi'::text, 'octopus'::text])),
+  default_top_p numeric DEFAULT 1,
+  default_presence_penalty numeric DEFAULT 0,
+  default_frequency_penalty numeric DEFAULT 0,
+  default_reasoning_effort text CHECK (default_reasoning_effort IS NULL OR (default_reasoning_effort = ANY (ARRAY['minimal'::text, 'low'::text, 'medium'::text, 'high'::text]))),
+  reasoning_effort_format text CHECK (reasoning_effort_format IS NULL OR (reasoning_effort_format = ANY (ARRAY['reasoning_object'::text, 'reasoning_effort'::text]))),
+  custom_parameters jsonb,
   CONSTRAINT ai_models_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.annual_reports (
@@ -179,7 +183,7 @@ CREATE TABLE public.conversations (
   messages jsonb DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALI),
+  source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALID),
   source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),

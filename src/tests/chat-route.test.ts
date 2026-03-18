@@ -43,6 +43,7 @@ function setupRouteMocks(
     const originalUseCredit = creditsModule.useCredit;
     const originalAddCredits = creditsModule.addCredits;
     const originalGetModelConfigAsync = aiConfigServerModule.getModelConfigAsync;
+    const originalGetDefaultModelConfigAsync = aiConfigServerModule.getDefaultModelConfigAsync;
     const originalIsModelAllowedForMembership = aiAccessModule.isModelAllowedForMembership;
     const originalIsReasoningAllowedForMembership = aiAccessModule.isReasoningAllowedForMembership;
     const originalGetEffectiveMembershipType = membershipServerModule.getEffectiveMembershipType;
@@ -68,14 +69,16 @@ function setupRouteMocks(
         return 1;
     };
 
-    aiConfigServerModule.getModelConfigAsync = async () => ({
+    const mockModelConfig = {
         id: 'deepseek-chat',
         modelKey: 'deepseek-chat',
         vendor: 'deepseek',
         supportsReasoning: true,
         supportsVision: false,
         requiredTier: 'free',
-    });
+    };
+    aiConfigServerModule.getModelConfigAsync = async () => mockModelConfig;
+    aiConfigServerModule.getDefaultModelConfigAsync = async () => mockModelConfig;
     aiAccessModule.isModelAllowedForMembership = () => true;
     aiAccessModule.isReasoningAllowedForMembership = () => true;
     membershipServerModule.getEffectiveMembershipType = async () => 'free';
@@ -139,6 +142,7 @@ function setupRouteMocks(
         creditsModule.useCredit = originalUseCredit;
         creditsModule.addCredits = originalAddCredits;
         aiConfigServerModule.getModelConfigAsync = originalGetModelConfigAsync;
+        aiConfigServerModule.getDefaultModelConfigAsync = originalGetDefaultModelConfigAsync;
         aiAccessModule.isModelAllowedForMembership = originalIsModelAllowedForMembership;
         aiAccessModule.isReasoningAllowedForMembership = originalIsReasoningAllowedForMembership;
         membershipServerModule.getEffectiveMembershipType = originalGetEffectiveMembershipType;

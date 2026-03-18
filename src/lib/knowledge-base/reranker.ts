@@ -1,18 +1,22 @@
 import type { RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
+import { DEFAULT_RERANK_MODEL_ID } from '@/lib/ai/ai-config';
+import { getModelConfigAsync, getModelsByUsageTypeAsync } from '@/lib/server/ai-config';
+import { applySourceToModel, getOrderedModelSources } from '@/lib/ai/source-runtime';
+import type { AIModelConfig } from '@/types';
 
-export interface RerankerConfig {
-    provider: 'qwen' | 'local';
-    model: string;
-    apiKey?: string;
-    endpoint?: string;
+async function resolveRerankerModelConfig(): Promise<AIModelConfig | null> {
+    const configuredId = process.env.KNOWLEDGE_BASE_RERANK_MODEL_ID || DEFAULT_RERANK_MODEL_ID;
+    const direct = await getModelConfigAsync(configuredId);
+    if (direct) {
+        return direct;
+    }
+
+    const usageModels = await getModelsByUsageTypeAsync('rerank');
+    return usageModels[0] || null;
 }
 
-function getRerankerConfig(): RerankerConfig {
-    const provider = 'qwen';
-    const model = process.env.QWEN_RERANK_MODEL_ID || 'qwen3-rerank';
-    const apiKey = process.env.QWEN_RERANK_API_KEY;
-    const endpoint = process.env.QWEN_RERANK_API_URL;
-    return { provider, model, apiKey, endpoint };
+function fallbackRanking(candidates: SearchCandidate[], topK: number): RankedResult[] {
+    return candidates.slice(0, topK).map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 }
 
 export async function callReranker(
@@ -20,47 +24,49 @@ export async function callReranker(
     candidates: SearchCandidate[],
     topK: number
 ): Promise<RankedResult[]> {
-    const config = getRerankerConfig();
-    if (config.provider === 'qwen') {
-        return await callQwenReranker(query, candidates, topK, config);
-    }
-    return candidates.slice(0, topK).map((c, i) => ({ ...c, rank: i + 1 }));
-}
-
-async function callQwenReranker(
-    query: string,
-    candidates: SearchCandidate[],
-    topK: number,
-    config: RerankerConfig
-): Promise<RankedResult[]> {
-    if (!config.apiKey || !config.endpoint) {
-        return candidates.slice(0, topK).map((c, i) => ({ ...c, rank: i + 1 }));
+    const modelConfig = await resolveRerankerModelConfig();
+    if (!modelConfig) {
+        return fallbackRanking(candidates, topK);
     }
 
-    const response = await fetch(config.endpoint, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: config.model,
-            query,
-            documents: candidates.map(c => c.content),
-            top_n: topK
-        })
-    });
+    const sources = getOrderedModelSources(modelConfig);
+    for (const source of sources) {
+        const runtimeConfig = applySourceToModel(modelConfig, source);
+        const apiKey = process.env[runtimeConfig.apiKeyEnvVar];
+        if (!apiKey || !runtimeConfig.apiUrl) {
+            continue;
+        }
 
-    if (!response.ok) {
-        return candidates.slice(0, topK).map((c, i) => ({ ...c, rank: i + 1 }));
+        const response = await fetch(runtimeConfig.apiUrl, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: runtimeConfig.modelId,
+                query,
+                documents: candidates.map((candidate) => candidate.content),
+                top_n: topK
+            })
+        });
+
+        if (!response.ok) {
+            continue;
+        }
+
+        const data = await response.json() as { results?: Array<{ index: number; relevance_score: number }> };
+        const results = data.results || [];
+        if (results.length === 0) {
+            continue;
+        }
+
+        return results.map((result, index) => ({
+            ...candidates[result.index],
+            score: result.relevance_score,
+            rank: index + 1
+        }));
     }
 
-    const data = await response.json() as { results?: Array<{ index: number; relevance_score: number }> };
-    const results = data.results || [];
-
-    return results.map((r, i) => ({
-        ...candidates[r.index],
-        score: r.relevance_score,
-        rank: i + 1
-    }));
+    return fallbackRanking(candidates, topK);
 }

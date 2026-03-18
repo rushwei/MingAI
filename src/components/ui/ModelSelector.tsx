@@ -11,9 +11,10 @@ import { useMemo, useEffect, useState } from 'react';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { ChevronDown, Lightbulb } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { Zhipu, DeepSeek, Gemini, Qwen, Claude, Kimi } from '@lobehub/icons';
+import { getVendorIcon } from '@/lib/ai/vendor-config';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { registerClientModelNames } from '@/lib/ai/model-name-cache';
 import type { AIVendor } from '@/types';
-import { DEFAULT_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
 import { supabase } from '@/lib/auth';
 import type { MembershipType } from '@/lib/user/membership';
 
@@ -27,17 +28,6 @@ interface ClientModelConfig {
     blockedReason?: string | null;
     reasoningAllowed?: boolean;
 }
-
-const VENDOR_ICONS: Record<AIVendor, React.ReactNode> = {
-    deepseek: <DeepSeek.Color size={18} />,
-    glm: <Zhipu.Color size={18} />,
-    gemini: <Gemini.Color size={18} />,
-    qwen: <Qwen.Color size={18} />,
-    deepai: <Claude.Color size={18} />,
-    moonshot: <Kimi.Color size={18} />,
-    'qwen-vl': <Qwen.Color size={18} />,
-    'gemini-vl': <Gemini.Color size={18} />,
-};
 
 interface ModelSelectorProps {
     selectedModel?: string;
@@ -80,10 +70,23 @@ export function ModelSelector({
         if (!onModelChange) return;
         let isMounted = true;
         const loadModels = async () => {
+            const cacheKey = userId
+                ? `mingai.models.${userId}.${membershipType}`
+                : 'mingai.models.guest';
+            const cached = refreshNonce === 0
+                ? readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000)
+                : null;
+            const hasWarmCache = !!(cached && cached.length > 0);
+
             try {
                 if (!isMounted) return;
-                setModelsLoading(true);
+                setModelsLoading(!hasWarmCache);
                 setModelsError(null);
+
+                if (hasWarmCache && cached) {
+                    setModels(cached);
+                    registerClientModelNames(cached);
+                }
 
                 const { data: { session } } = await supabase.auth.getSession();
                 const resolvedUserId = userId || session?.user?.id || null;
@@ -95,19 +98,6 @@ export function ModelSelector({
                     headers['x-membership-type'] = membershipType;
                 }
 
-                const cacheKey = resolvedUserId
-                    ? `mingai.models.${resolvedUserId}.${membershipType}`
-                    : 'mingai.models.guest';
-
-                const cached = refreshNonce === 0
-                    ? readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000)
-                    : null;
-                if (cached && cached.length > 0) {
-                    setModels(cached);
-                    setModelsLoading(false);
-                    return;
-                }
-
                 const response = await fetch('/api/models', { headers });
                 const data = await response.json();
                 if (!response.ok) {
@@ -115,7 +105,11 @@ export function ModelSelector({
                 }
                 if (isMounted && data.models && data.models.length > 0) {
                     setModels(data.models);
-                    writeLocalCache(cacheKey, data.models);
+                    registerClientModelNames(data.models);
+                    const effectiveCacheKey = resolvedUserId
+                        ? `mingai.models.${resolvedUserId}.${membershipType}`
+                        : cacheKey;
+                    writeLocalCache(effectiveCacheKey, data.models);
                 }
             } catch (err) {
                 console.error('Failed to load models:', err);
@@ -156,23 +150,6 @@ export function ModelSelector({
         }
         return config;
     }, [selectedModel, models]);
-
-    const modelsByVendor = useMemo(() => {
-        const grouped: Record<AIVendor, ClientModelConfig[]> = {
-            deepseek: [],
-            glm: [],
-            moonshot: [],
-            qwen: [],
-            gemini: [],
-            deepai: [],
-            'qwen-vl': [],
-            'gemini-vl': [],
-        };
-        models.forEach(model => {
-            grouped[model.vendor].push(model);
-        });
-        return grouped;
-    }, [models]);
 
     const modelSelectorDisabled = disabled || modelsLoading || models.length === 0;
 
@@ -228,9 +205,9 @@ export function ModelSelector({
                         {modelsLoading ? (
                             <SoundWaveLoader variant="inline" />
                         ) : (
-                            VENDOR_ICONS[currentModelConfig.vendor]
+                            getVendorIcon(currentModelConfig.vendor)
                         )}
-                        <span className={`${compact ? 'max-w-[96px]' : 'max-w-[120px]'} truncate`}>
+                        <span className={`${compact ? 'max-w-[96px]' : 'max-w-[125px]'} truncate`}>
                             {modelsLoading
                                 ? '模型加载中...'
                                 : models.length === 0
@@ -246,38 +223,27 @@ export function ModelSelector({
                                 onClick={() => setModelDropdownOpen(false)}
                             />
                             <div className="absolute bottom-full left-0 mb-2 w-56 max-h-80 overflow-y-auto bg-background border border-border rounded-lg shadow-lg z-20">
-                                {(Object.keys(modelsByVendor) as AIVendor[]).map((vendor) => {
-                                    const vendorModels = modelsByVendor[vendor];
-                                    if (vendorModels.length === 0) return null;
+                                {models.map((model) => {
+                                    const isAllowed = model.allowed !== false;
                                     return (
-                                        <div key={vendor}>
-                                            <div className="px-3 py-1.5 text-xs font-medium text-foreground-secondary bg-background-secondary/50 sticky top-0">
-                                                {VENDOR_NAMES[vendor]}
+                                        <button
+                                            key={model.id}
+                                            type="button"
+                                            onClick={() => {
+                                                onModelChange(model.id);
+                                                setModelDropdownOpen(false);
+                                            }}
+                                            className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${isAllowed ? 'hover:bg-background-secondary' : 'opacity-50 cursor-not-allowed'} ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
+                                            disabled={!isAllowed}
+                                        >
+                                            {getVendorIcon(model.vendor)}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium truncate">{model.name}</div>
                                             </div>
-                                            {vendorModels.map((model) => {
-                                                const isAllowed = model.allowed !== false;
-                                                return (
-                                                    <button
-                                                        key={model.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            onModelChange(model.id);
-                                                            setModelDropdownOpen(false);
-                                                        }}
-                                                        className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${isAllowed ? 'hover:bg-background-secondary' : 'opacity-50 cursor-not-allowed'} ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
-                                                        disabled={!isAllowed}
-                                                    >
-                                                        {VENDOR_ICONS[model.vendor]}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium truncate">{model.name}</div>
-                                                        </div>
-                                                        {!isAllowed && model.blockedReason && (
-                                                            <span className="text-xs text-amber-600 whitespace-nowrap">{model.blockedReason}</span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                            {!isAllowed && model.blockedReason && (
+                                                <span className="text-xs text-amber-600 whitespace-nowrap">{model.blockedReason}</span>
+                                            )}
+                                        </button>
                                     );
                                 })}
                             </div>

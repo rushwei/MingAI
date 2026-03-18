@@ -9,9 +9,10 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ChevronDown, Eye, Lightbulb } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { Qwen, Gemini } from '@lobehub/icons';
+import { getVendorIcon } from '@/lib/ai/vendor-config';
+import { registerClientModelNames } from '@/lib/ai/model-name-cache';
 import type { AIVendor } from '@/types';
-import { DEFAULT_VISION_MODEL_ID, VENDOR_NAMES } from '@/lib/ai/ai-config';
+import { DEFAULT_VISION_MODEL_ID, getVendorName } from '@/lib/ai/ai-config';
 import { supabase } from '@/lib/auth';
 
 interface VisionModelConfig {
@@ -24,11 +25,6 @@ interface VisionModelConfig {
     blockedReason?: string | null;
     reasoningAllowed?: boolean;
 }
-
-const VISION_VENDOR_ICONS: Record<string, React.ReactNode> = {
-    'qwen-vl': <Qwen.Color size={18} />,
-    'gemini-vl': <Gemini.Color size={18} />,
-};
 
 interface VisionModelSelectorProps {
     selectedModel?: string;
@@ -80,6 +76,7 @@ export function VisionModelSelector({
                         m.vendor === 'qwen-vl' || m.vendor === 'gemini-vl'
                     );
                     setModels(visionModels);
+                    registerClientModelNames(visionModels);
                 }
             } catch (err) {
                 console.error('Failed to load vision models:', err);
@@ -155,7 +152,7 @@ export function VisionModelSelector({
                         {loading ? (
                             <SoundWaveLoader variant="inline" />
                         ) : currentModel ? (
-                            VISION_VENDOR_ICONS[currentModel.vendor] || <Eye className="w-4 h-4" />
+                            getVendorIcon(currentModel.vendor)
                         ) : (
                             <Eye className="w-4 h-4" />
                         )}
@@ -195,11 +192,11 @@ export function VisionModelSelector({
                                                 } ${selectedModel === model.id ? 'bg-accent/10 text-accent' : ''}`}
                                             disabled={!isAllowed}
                                         >
-                                            {VISION_VENDOR_ICONS[model.vendor] || <Eye className="w-4 h-4" />}
+                                            {getVendorIcon(model.vendor)}
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-medium truncate">{model.name}</div>
                                                 <div className="text-xs text-foreground-secondary">
-                                                    {VENDOR_NAMES[model.vendor] || model.vendor}
+                                                    {getVendorName(model.vendor)}
                                                 </div>
                                             </div>
                                             {!isAllowed && model.blockedReason && (
@@ -243,4 +240,3 @@ export function VisionModelSelector({
         </div>
     );
 }
-

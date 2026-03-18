@@ -16,7 +16,7 @@ import { jsonError, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { callAIWithReasoning, callAIStream, readAIStream, callAIVision } from '@/lib/ai/ai';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import type { AIModelConfig } from '@/types';
 import type { AIPersonality } from '@/types';
@@ -180,16 +180,15 @@ export function createInterpretHandler<T extends InterpretInput>(
   // ── Vision (non-stream) ──
   async function handleVisionCall(
     input: T, userId: string, resolvedModelId: string,
-    modelConfig: AIModelConfig, reasoningEnabled: boolean,
+    _modelConfig: AIModelConfig, reasoningEnabled: boolean,
     systemPrompt: string, userPrompt: string,
   ): Promise<Response> {
-    const { getProvider } = await import('@/lib/ai/providers');
     const visionOpts = buildVisionOptions!(input);
-    const provider = getProvider(modelConfig);
-    const analysisResult = await provider.chat(
+    const analysisResult = await callAIVision(
       [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      modelConfig,
+      personality,
+      resolvedModelId,
+      `\n\n${systemPrompt}\n\n`,
       { reasoning: reasoningEnabled, temperature: 0.7, ...visionOpts },
     );
 

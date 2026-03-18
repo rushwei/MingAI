@@ -7,39 +7,42 @@
 import type { AIModelConfig, AIVendor } from '@/types';
 import type { AIProvider } from './base';
 import { deepseekProvider, glmProvider, qwenProvider, deepaiProvider, moonshotProvider } from './openai-compatible';
-import { geminiNativeProvider } from './gemini-native';
 import { OpenAICompatibleProvider } from './openai-compatible';
-import { qwenVlProvider, geminiVlProvider } from './vision-provider';
+import { qwenVlProvider, geminiVlProvider, VisionProvider } from './vision-provider';
+import { getModelUsageType } from '@/lib/ai/source-runtime';
 
 // Provider 注册表（按供应商）
-const providers: Record<AIVendor, AIProvider> = {
+const providers: Record<string, AIProvider> = {
+    openai: new OpenAICompatibleProvider('openai'),
+    anthropic: new OpenAICompatibleProvider('anthropic'),
+    google: new OpenAICompatibleProvider('google'),
     deepseek: deepseekProvider,
     glm: glmProvider,
-    gemini: geminiNativeProvider,
+    gemini: new OpenAICompatibleProvider('gemini'),
     qwen: qwenProvider,
     deepai: deepaiProvider,
     moonshot: moonshotProvider,
     'qwen-vl': qwenVlProvider,
     'gemini-vl': geminiVlProvider,
+    xai: new OpenAICompatibleProvider('xai'),
+    minimax: new OpenAICompatibleProvider('minimax'),
 };
 
-// Gemini Pro 使用 OpenAI 兼容格式（非原生）
-const geminiProProvider = new OpenAICompatibleProvider('gemini');
+const genericOpenAICompatibleProvider = new OpenAICompatibleProvider('openai');
+const genericVisionProvider = new VisionProvider('openai');
 
 /**
  * 根据模型配置获取合适的 Provider
  */
 export function getProvider(config: AIModelConfig): AIProvider {
-    // Gemini Pro 系列使用 OpenAI 兼容 API
-    if (config.vendor === 'gemini' && config.id.includes('pro')) {
-        return geminiProProvider;
+    const usageType = getModelUsageType(config);
+    if (usageType === 'vision') {
+        const provider = providers[config.vendor];
+        return provider || genericVisionProvider;
     }
 
     const provider = providers[config.vendor];
-    if (!provider) {
-        throw new Error(`Unknown vendor: ${config.vendor}`);
-    }
-    return provider;
+    return provider || genericOpenAICompatibleProvider;
 }
 
 /**
@@ -47,14 +50,10 @@ export function getProvider(config: AIModelConfig): AIProvider {
  */
 export function getProviderByVendor(vendor: AIVendor): AIProvider {
     const provider = providers[vendor];
-    if (!provider) {
-        throw new Error(`Unknown vendor: ${vendor}`);
-    }
-    return provider;
+    return provider || genericOpenAICompatibleProvider;
 }
 
 // 导出类型和工具函数
 export type { AIProvider, AIProviderOptions, AIStreamChunk } from './base';
 export { createMockStream, getApiKey } from './base';
 export type { VisionProviderOptions } from './vision-provider';
-

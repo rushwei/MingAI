@@ -2,7 +2,7 @@ import 'server-only';
 
 import { resolveTokenMembership } from '@/lib/user/membership-server';
 import { callReranker } from '@/lib/knowledge-base/reranker';
-import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimension } from '@/lib/knowledge-base/embedding-config';
+import { checkVectorIndexExists, generateEmbedding, getEmbeddingDimensionAsync } from '@/lib/knowledge-base/embedding-config';
 import type { RankedResult, SearchCandidate, SearchOptions } from '@/lib/knowledge-base/types';
 import { getSystemAdminClient, createAuthedClient } from '@/lib/api-utils';
 
@@ -247,7 +247,7 @@ async function searchByVector(
     limit: number,
     accessToken?: string
 ): Promise<SearchCandidate[]> {
-    const dim = getEmbeddingDimension();
+    const dim = await getEmbeddingDimensionAsync();
     const indexExists = await checkVectorIndexExists(dim, accessToken);
     if (!indexExists) return [];
 

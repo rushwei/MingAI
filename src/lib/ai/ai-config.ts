@@ -1,212 +1,149 @@
 /**
  * AI 模型配置
  *
- * 客户端/共享层仅使用环境变量配置
- * 支持数组格式的 MODEL_ID 和 MODEL_NAME
+ * 共享层不直接定义模型目录；模型本身应由数据库/后台维护。
+ * 这里仅提供默认模型 ID、统一网关回退来源拼装，以及可选的环境变量回退模型。
  */
 
-import type { AIModelConfig, AIVendor } from '@/types';
+import type { AIModelConfig, AIModelSourceConfig, AIVendor } from '@/types';
+import { buildManagedApiUrl, DEFAULT_AI_TRANSPORT, getModelUsageType } from './source-runtime';
 
-// ===== 环境变量解析工具 =====
+type GatewaySourceEnv = {
+  sourceKey: 'newapi' | 'octopus';
+  sourceName: string;
+  baseUrlEnvVar: 'NEWAPI_BASE_URL' | 'OCTOPUS_BASE_URL';
+  apiKeyEnvVar: 'NEWAPI_API_KEY' | 'OCTOPUS_API_KEY';
+  priority: number;
+  isActive: boolean;
+};
 
-/**
- * 解析可能是数组格式的环境变量
- */
-function parseEnvArray(value: string | undefined): string[] {
-    if (!value) return [];
-    // 尝试解析 JSON 数组格式
-    if (value.startsWith('[')) {
-        try {
-            return JSON.parse(value);
-        } catch {
-            return [value];
-        }
+const GATEWAY_SOURCES: GatewaySourceEnv[] = [
+  {
+    sourceKey: 'newapi',
+    sourceName: 'NewAPI',
+    baseUrlEnvVar: 'NEWAPI_BASE_URL',
+    apiKeyEnvVar: 'NEWAPI_API_KEY',
+    priority: 1,
+    isActive: true,
+  },
+  {
+    sourceKey: 'octopus',
+    sourceName: 'Octopus',
+    baseUrlEnvVar: 'OCTOPUS_BASE_URL',
+    apiKeyEnvVar: 'OCTOPUS_API_KEY',
+    priority: 2,
+    isActive: false,
+  },
+];
+
+export function buildGatewaySourcesForModel(model: AIModelConfig): AIModelSourceConfig[] {
+  const usageType = getModelUsageType(model);
+  return GATEWAY_SOURCES.flatMap((gateway) => {
+    const baseUrl = process.env[gateway.baseUrlEnvVar]?.trim();
+    if (!baseUrl) {
+      return [];
     }
-    return [value];
+
+    return [{
+      sourceKey: gateway.sourceKey,
+      sourceName: gateway.sourceName,
+      apiUrl: buildManagedApiUrl(baseUrl, usageType),
+      apiKeyEnvVar: gateway.apiKeyEnvVar,
+      modelIdOverride: model.modelId || model.id,
+      reasoningModelId: model.reasoningModelId || (model.supportsReasoning ? model.modelId || model.id : undefined),
+      transport: DEFAULT_AI_TRANSPORT,
+      priority: gateway.priority,
+      isActive: gateway.isActive,
+      isEnabled: true,
+    }];
+  });
+}
+
+export function attachGatewaySources(model: AIModelConfig): AIModelConfig {
+  const sources = buildGatewaySourcesForModel(model);
+  const primary = sources[0];
+  if (!primary) {
+    return {
+      ...model,
+      sources: [],
+      transport: model.transport || DEFAULT_AI_TRANSPORT,
+    };
+  }
+
+  return {
+    ...model,
+    modelId: primary.modelIdOverride || model.modelId,
+    apiUrl: primary.apiUrl,
+    apiKeyEnvVar: primary.apiKeyEnvVar,
+    reasoningModelId: primary.reasoningModelId || model.reasoningModelId,
+    sourceKey: primary.sourceKey,
+    transport: primary.transport || DEFAULT_AI_TRANSPORT,
+    sources,
+  };
+}
+
+type EnvFallbackModel = Partial<AIModelConfig> & Pick<AIModelConfig, 'id' | 'vendor'>;
+
+function normalizeEnvFallbackModel(input: EnvFallbackModel): AIModelConfig | null {
+  if (!input.id || !input.vendor) {
+    return null;
+  }
+
+  const usageType = input.usageType ?? (input.supportsVision ? 'vision' : 'chat');
+  const normalized: AIModelConfig = {
+    id: input.id,
+    name: input.name || input.id,
+    vendor: input.vendor as AIVendor,
+    usageType,
+    modelId: input.modelId || input.id,
+    apiUrl: input.apiUrl || '',
+    apiKeyEnvVar: input.apiKeyEnvVar || '',
+    supportsReasoning: input.supportsReasoning ?? false,
+    reasoningModelId: input.reasoningModelId,
+    isReasoningDefault: input.isReasoningDefault ?? false,
+    supportsVision: input.supportsVision ?? usageType === 'vision',
+    defaultTemperature: input.defaultTemperature,
+    defaultTopP: input.defaultTopP,
+    defaultPresencePenalty: input.defaultPresencePenalty,
+    defaultFrequencyPenalty: input.defaultFrequencyPenalty,
+    defaultMaxTokens: input.defaultMaxTokens,
+    defaultReasoningEffort: input.defaultReasoningEffort,
+    reasoningEffortFormat: input.reasoningEffortFormat,
+    customParameters: input.customParameters,
+    requiredTier: input.requiredTier,
+    reasoningRequiredTier: input.reasoningRequiredTier,
+    sourceKey: input.sourceKey,
+    transport: input.transport || DEFAULT_AI_TRANSPORT,
+    sources: input.sources || [],
+  };
+
+  return attachGatewaySources(normalized);
+}
+
+function parseEnvFallbackModels(): AIModelConfig[] {
+  const raw = process.env.MINGAI_FALLBACK_MODELS_JSON?.trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((entry) => normalizeEnvFallbackModel(entry as EnvFallbackModel))
+      .filter((entry): entry is AIModelConfig => entry !== null);
+  } catch (error) {
+    console.warn('[ai-config] Failed to parse MINGAI_FALLBACK_MODELS_JSON:', error);
+    return [];
+  }
 }
 
 // ===== 动态生成模型配置 =====
 
 export function buildModels(): AIModelConfig[] {
-    const models: AIModelConfig[] = [];
-
-    // ===== DeepSeek 普通版 =====
-    if (process.env.DEEPSEEK_MODEL_ID) {
-        models.push({
-            id: 'deepseek-v3.2',
-            name: process.env.DEEPSEEK_MODEL_NAME || 'DeepSeek V3.2',
-            vendor: 'deepseek',
-            modelId: process.env.DEEPSEEK_MODEL_ID,
-            apiUrl: process.env.DEEPSEEK_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
-            apiKeyEnvVar: 'DEEPSEEK_API_KEY',
-            supportsReasoning: false,
-            defaultMaxTokens: 4000,
-        });
-    }
-
-    // ===== DeepSeek Pro（支持推理模式切换）=====
-    const deepseekProIds = parseEnvArray(process.env.DEEPSEEK_PRO_MODEL_ID);
-    const deepseekProNames = parseEnvArray(process.env.DEEPSEEK_PRO_MODEL_NAME);
-    if (deepseekProIds.length > 0) {
-        // 第一个是普通模型，第二个是 Reasoner
-        models.push({
-            id: 'deepseek-pro',
-            name: deepseekProNames[0] || 'DeepSeek Pro',
-            vendor: 'deepseek',
-            modelId: deepseekProIds[0],
-            apiUrl: process.env.DEEPSEEK_PRO_API_URL || 'https://api.deepseek.com/chat/completions',
-            apiKeyEnvVar: 'DEEPSEEK_PRO_API_KEY',
-            supportsReasoning: deepseekProIds.length > 1,
-            reasoningModelId: deepseekProIds[1],
-            defaultMaxTokens: 8000,
-        });
-    }
-
-    // ===== GLM 普通版（支持思考模式）=====
-    if (process.env.GLM_MODEL_ID) {
-        models.push({
-            id: 'glm-4.6',
-            name: process.env.GLM_MODEL_NAME || 'GLM-4.6',
-            vendor: 'glm',
-            modelId: process.env.GLM_MODEL_ID,
-            apiUrl: process.env.GLM_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
-            apiKeyEnvVar: 'GLM_API_KEY',
-            supportsReasoning: true,  // 支持思考模式
-            defaultMaxTokens: 4000,
-        });
-    }
-
-
-    // ===== GLM Pro（支持思考模式）=====
-    if (process.env.GLM_PRO_MODEL_ID) {
-        models.push({
-            id: 'glm-4.7',
-            name: process.env.GLM_PRO_MODEL_NAME || 'GLM-4.7',
-            vendor: 'glm',
-            modelId: process.env.GLM_PRO_MODEL_ID,
-            apiUrl: process.env.GLM_PRO_API_URL || 'https://api.siliconflow.cn/v1/chat/completions',
-            apiKeyEnvVar: 'GLM_PRO_API_KEY',
-            supportsReasoning: true,  // 支持思考模式，可开启/关闭
-            defaultMaxTokens: 8000,
-        });
-    }
-
-    // ===== Gemini 普通版 =====
-    if (process.env.GEMINI_MODEL_ID) {
-        models.push({
-            id: 'gemini-3',
-            name: process.env.GEMINI_MODEL_NAME || 'Gemini 3',
-            vendor: 'gemini',
-            modelId: process.env.GEMINI_MODEL_ID,
-            apiUrl: process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1beta',
-            apiKeyEnvVar: 'GEMINI_API_KEY',
-            supportsReasoning: false,
-            defaultMaxTokens: 4000,
-        });
-    }
-
-    // ===== Gemini Pro（默认开启推理）=====
-    const geminiProIds = parseEnvArray(process.env.GEMINI_PRO_MODEL_ID);
-    const geminiProNames = parseEnvArray(process.env.GEMINI_PRO_MODEL_NAME);
-    geminiProIds.forEach((modelId, index) => {
-        const name = geminiProNames[index] || `Gemini Pro ${index + 1}`;
-        models.push({
-            id: `gemini-pro-${index}`,
-            name,
-            vendor: 'gemini',
-            modelId,
-            apiUrl: process.env.GEMINI_PRO_API_URL || 'https://api2.qiandao.mom/v1/chat/completions',
-            apiKeyEnvVar: 'GEMINI_PRO_API_KEY',
-            supportsReasoning: true,
-            isReasoningDefault: true,  // 默认开启推理
-            defaultMaxTokens: 8000,
-        });
-    });
-
-    // ===== Qwen（默认开启推理）=====
-    if (process.env.QWEN_MODEL_ID) {
-        models.push({
-            id: 'qwen-3-max',
-            name: process.env.QWEN_MODEL_NAME || 'Qwen 3 Max',
-            vendor: 'qwen',
-            modelId: process.env.QWEN_MODEL_ID,
-            apiUrl: process.env.QWEN_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-            apiKeyEnvVar: 'QWEN_API_KEY',
-            supportsReasoning: true,
-            isReasoningDefault: true,  // 默认开启推理
-            defaultMaxTokens: 8000,
-        });
-    }
-
-    // ===== DeepAI（默认开启推理）=====
-    const deepaiIds = parseEnvArray(process.env.DEEPAI_MODEL_ID);
-    const deepaiNames = parseEnvArray(process.env.DEEPAI_MODEL_NAME);
-    deepaiIds.forEach((modelId, index) => {
-        const name = deepaiNames[index] || `DeepAI ${index + 1}`;
-        models.push({
-            id: `deepai-${modelId}`,
-            name,
-            vendor: 'deepai',
-            modelId,
-            apiUrl: process.env.DEEPAI_API_URL || 'https://mingai-deepai.zeabur.app/v1/chat/completions',
-            apiKeyEnvVar: 'DEEPAI_API_KEY',
-            supportsReasoning: true,
-            isReasoningDefault: true,  // 默认开启推理
-            defaultMaxTokens: 10000
-        });
-    });
-
-    // ===== Qwen VL 视觉模型（支持推理开关）=====
-    const qwenVlNames = parseEnvArray(process.env.QWEN_VL_MODEL_NAME);
-    if (process.env.QWEN_VL_MODEL_ID) {
-        models.push({
-            id: 'qwen-vl-plus',
-            name: qwenVlNames[0] || 'Qwen 3 Plus',
-            vendor: 'qwen-vl',
-            modelId: process.env.QWEN_VL_MODEL_ID,
-            apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-            apiKeyEnvVar: 'QWEN_VL_API_KEY',
-            supportsReasoning: true,
-            supportsVision: true,
-            defaultMaxTokens: 8000,
-        });
-        // 支持推理开关 - 使用相同模型ID但区分推理模式
-        if (qwenVlNames.length > 1) {
-            models.push({
-                id: 'qwen-vl-plus-reasoner',
-                name: qwenVlNames[1] || 'Qwen 3 Plus Reasoner',
-                vendor: 'qwen-vl',
-                modelId: process.env.QWEN_VL_MODEL_ID,
-                apiUrl: process.env.QWEN_VL_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-                apiKeyEnvVar: 'QWEN_VL_API_KEY',
-                supportsReasoning: true,
-                isReasoningDefault: true,
-                supportsVision: true,
-                defaultMaxTokens: 8000,
-            });
-        }
-    }
-
-    // ===== Gemini VL 视觉模型（仅推理）=====
-    const geminiVlIds = parseEnvArray(process.env.GEMINI_VL_MODEL_ID);
-    const geminiVlNames = parseEnvArray(process.env.GEMINI_VL_MODEL_NAME);
-    geminiVlIds.forEach((modelId, index) => {
-        const name = geminiVlNames[index] || `Gemini VL ${index + 1}`;
-        models.push({
-            id: `gemini-vl-${index}`,
-            name,
-            vendor: 'gemini-vl',
-            modelId,
-            apiUrl: process.env.GEMINI_VL_API_URL || 'https://api2.qiandao.mom/v1/chat/completions',
-            apiKeyEnvVar: 'GEMINI_VL_API_KEY',
-            supportsReasoning: true,
-            isReasoningDefault: true,
-            supportsVision: true,
-            defaultMaxTokens: 8000,
-        });
-    });
-
-    return models;
+  return parseEnvFallbackModels();
 }
 
 // 懒加载模型配置（环境变量）
@@ -216,124 +153,85 @@ let _models: AIModelConfig[] | null = null;
  * 获取模型配置（异步签名，实际同步）
  *
  * 保留 async 签名以兼容服务端 ai-config 的异步覆盖。
- * 共享层仅返回环境变量配置，无 I/O。
  */
 export async function getModelsAsync(): Promise<AIModelConfig[]> {
-    return getModels();
+  return getModels();
 }
 
 /**
- * 同步获取模型配置
- * 使用环境变量配置
+ * 同步获取环境变量回退模型配置
  */
 export function getModels(): AIModelConfig[] {
-    if (_models === null) {
-        _models = buildModels();
-    }
-    return _models;
+  if (_models === null) {
+    _models = buildModels();
+  }
+  return _models;
 }
 
-/**
- * 清除模型配置缓存
- * 在管理员修改配置后调用
- */
 export function clearModelCache(): void {
-    _models = null;
-    _visionModels = null;
-    console.info('[ai-config] Model cache cleared');
+  _models = null;
+  _visionModels = null;
+  console.info('[ai-config] Model cache cleared');
 }
 
-// 为兼容性保留（复用 lazy singleton 避免重复构建）
 export const AI_MODELS = getModels();
 
-// ===== 工具函数 =====
-
-/**
- * 获取模型配置
- */
 export function getModelConfig(modelId: string): AIModelConfig | undefined {
-    const models = getModels();
-    const direct = models.find(m => m.id === modelId);
-    if (direct) return direct;
-    if (modelId === 'deepseek-chat' || modelId === 'deepseek') {
-        return models.find(m => m.id === 'deepseek-v3.2');
-    }
-    return undefined;
+  const models = getModels();
+  return models.find((model) => model.id === modelId);
 }
 
-/**
- * 获取模型配置（异步签名，实际同步）
- *
- * 保留 async 签名以兼容服务端 ai-config 的异步覆盖。
- */
 export async function getModelConfigAsync(modelId: string): Promise<AIModelConfig | undefined> {
-    return getModelConfig(modelId);
+  return getModelConfig(modelId);
 }
 
-/**
- * 获取所有模型 ID 列表
- */
 export function getAllModelIds(): string[] {
-    return getModels().map(m => m.id);
+  return getModels().map((model) => model.id);
 }
 
-/**
- * 按供应商获取模型列表
- */
 export function getModelsByVendor(vendor: AIVendor): AIModelConfig[] {
-    return getModels().filter(m => m.vendor === vendor);
+  return getModels().filter((model) => model.vendor === vendor);
 }
 
-/**
- * 获取供应商列表
- */
 export function getAllVendors(): AIVendor[] {
-    return [...new Set(getModels().map(m => m.vendor))];
+  return [...new Set(getModels().map((model) => model.vendor))];
 }
 
-/**
- * 默认模型
- */
-export const DEFAULT_MODEL_ID = 'deepseek-v3.2';
+export const DEFAULT_MODEL_ID = '';
+export const DEFAULT_VISION_MODEL_ID = '';
+export const DEFAULT_EMBEDDING_MODEL_ID = process.env.KNOWLEDGE_BASE_EMBEDDING_MODEL_ID || 'text-embedding-v4';
+export const DEFAULT_RERANK_MODEL_ID = process.env.KNOWLEDGE_BASE_RERANK_MODEL_ID || 'qwen3-rerank';
 
-/**
- * 模型名称映射（用于 UI 显示和消息记录）
- */
 export function getModelName(modelId: string): string {
-    const model = getModelConfig(modelId);
-    return model?.name || modelId;
+  const model = getModelConfig(modelId);
+  return model?.name || modelId;
 }
 
-/**
- * 供应商显示名称
- */
-export const VENDOR_NAMES: Record<AIVendor, string> = {
-    deepseek: 'DeepSeek',
-    glm: 'GLM',
-    gemini: 'Gemini',
-    qwen: 'Qwen',
-    deepai: 'DeepAI',
-    moonshot: 'Moonshot',
-    'qwen-vl': 'Qwen 视觉模型',
-    'gemini-vl': 'Gemini 视觉模型',
+export const VENDOR_NAMES: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+  deepseek: 'DeepSeek',
+  glm: 'GLM',
+  gemini: 'Gemini',
+  qwen: 'Qwen',
+  moonshot: 'Moonshot',
+  xai: 'xAI',
+  minimax: 'MiniMax',
 };
 
-// ===== 视觉模型工具函数 =====
-
-// memo 缓存（跟随 _models 生命周期，clearModelCache 时自动失效）
-let _visionModels: AIModelConfig[] | null = null;
-
-/**
- * 获取所有视觉模型
- */
-export function getVisionModels(): AIModelConfig[] {
-    if (_visionModels === null) {
-        _visionModels = getModels().filter(m => m.supportsVision);
-    }
-    return _visionModels;
+export function getVendorName(vendor: string): string {
+  return VENDOR_NAMES[vendor] ?? vendor;
 }
 
-/**
- * 默认视觉模型 ID
- */
-export const DEFAULT_VISION_MODEL_ID = 'qwen-vl-plus';
+/** 管理后台 vendor 下拉预设（从 VENDOR_NAMES 派生） */
+export const VENDOR_PRESETS = Object.keys(VENDOR_NAMES) as readonly string[];
+
+let _visionModels: AIModelConfig[] | null = null;
+
+export function getVisionModels(): AIModelConfig[] {
+  if (_visionModels === null) {
+    _visionModels = getModels().filter((model) => getModelUsageType(model) === 'vision');
+  }
+  return _visionModels;
+}

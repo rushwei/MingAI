@@ -5,7 +5,7 @@ import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
 import { buildPreviewPromptContext, type PreviewRequestBody } from '@/lib/chat/preview-context';
 import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
-import { getModelConfigAsync } from '@/lib/server/ai-config';
+import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 
 function getAccessTokenForKnowledgeBase(request: NextRequest): string | null {
@@ -33,7 +33,9 @@ export async function POST(request: NextRequest) {
         const requestedModelId = typeof body.model === 'string' && body.model.trim()
             ? body.model.trim()
             : DEFAULT_MODEL_ID;
-        const modelConfig = await getModelConfigAsync(requestedModelId);
+        const modelConfig = requestedModelId
+            ? await getModelConfigAsync(requestedModelId)
+            : await getDefaultModelConfigAsync('chat');
         if (!modelConfig) {
             return jsonError('无效的模型', 400);
         }
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
         const previewContext = await buildPreviewPromptContext({
             auth,
             body,
-            requestedModelId,
+            requestedModelId: modelConfig.id,
             reasoningEnabled,
             membershipType,
             knowledgeBaseFeatureEnabled,

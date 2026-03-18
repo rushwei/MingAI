@@ -6,12 +6,12 @@
  * - 保护 API 密钥不暴露给客户端
  */
 
-import type { AIPersonality, AIPersonalityConfig } from '@/types';
+import type { AIPersonality, AIPersonalityConfig, AIModelConfig } from '@/types';
 import { getProvider, createMockStream } from './providers';
 import type { AIRequestMessage } from '@/lib/ai/providers/base';
 import { DEFAULT_MODEL_ID } from './ai-config';
-import { getModelConfigAsync } from '@/lib/server/ai-config';
-import { recordAIStatsAsync } from './ai-stats';
+import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
+import { applySourceToModel, getOrderedModelSources } from './source-runtime';
 
 // ===== 时间辅助函数 =====
 
@@ -248,6 +248,8 @@ export interface AICallOptions {
     reasoning?: boolean;  // 开启推理模式
     temperature?: number;
     maxTokens?: number;
+    imageBase64?: string;
+    imageMimeType?: string;
     // 覆盖默认人格提示词（用于各模块自定义系统提示）
     systemPromptOverride?: string;
 }
@@ -255,6 +257,58 @@ export interface AICallOptions {
 export interface AICallResult {
     content: string;
     reasoning?: string;
+}
+
+async function runWithSourceFallback<T>(
+    config: AIModelConfig,
+    run: (runtimeConfig: AIModelConfig) => Promise<T>
+): Promise<T> {
+    const sources = getOrderedModelSources(config);
+    if (sources.length === 0) {
+        throw new Error(`No AI sources configured for model: ${config.id}`);
+    }
+
+    let lastError: unknown = null;
+
+    for (const source of sources) {
+        const runtimeConfig = applySourceToModel(config, source);
+        const provider = getProvider(runtimeConfig);
+
+        if (!provider.isAvailable(runtimeConfig)) {
+            continue;
+        }
+
+        try {
+            const result = await run(runtimeConfig);
+            return result;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError ?? new Error(`No available AI sources for model: ${config.id}`);
+}
+
+function buildSystemPrompt(
+    personality: AIPersonality,
+    chartContext: string,
+    options?: AICallOptions
+): string {
+    const personalityConfig = AI_PERSONALITIES[personality];
+    return getCurrentTimePrefix()
+        + (options?.systemPromptOverride ?? personalityConfig.systemPrompt)
+        + chartContext;
+}
+
+async function resolveModelConfigForCall(
+    modelId: string | undefined,
+    usageType: 'chat' | 'vision'
+): Promise<AIModelConfig | undefined> {
+    const requestedModelId = modelId?.trim() || '';
+    if (requestedModelId) {
+        return await getModelConfigAsync(requestedModelId);
+    }
+    return await getDefaultModelConfigAsync(usageType);
 }
 
 /**
@@ -267,51 +321,23 @@ export async function callAI(
     chartContext: string = '',
     options?: AICallOptions
 ): Promise<string> {
-    const config = await getModelConfigAsync(modelId);
+    const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
         console.error(`Unknown model: ${modelId}`);
         return generateMockResponse(personality);
     }
-
-    const personalityConfig = AI_PERSONALITIES[personality];
-    // 最终系统提示词 = 时间前缀 +（自定义系统提示 or 人格默认提示）+ 命盘上下文
-    const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
-
-    const startTime = Date.now();
+    const systemPrompt = buildSystemPrompt(personality, chartContext, options);
     try {
-        const provider = getProvider(config);
-
-        if (!provider.isAvailable(config)) {
-            return generateMockResponse(personality);
-        }
-
-        // DeepAI 默认开启推理
-        const useReasoning = config.isReasoningDefault || options?.reasoning;
-
-        const result = await provider.chat(messages, systemPrompt, config, {
-            reasoning: useReasoning,
-            temperature: options?.temperature,
-            maxTokens: options?.maxTokens,
+        return await runWithSourceFallback(config, async (runtimeConfig) => {
+            const provider = getProvider(runtimeConfig);
+            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+            return await provider.chat(messages, systemPrompt, runtimeConfig, {
+                reasoning: useReasoning,
+                temperature: options?.temperature,
+                maxTokens: options?.maxTokens,
+            });
         });
-
-        // 记录成功统计（使用 config.id 而非请求参数，避免别名碎片化）
-        await recordAIStatsAsync({
-            modelKey: config.id,
-            sourceKey: config.sourceKey,
-            success: true,
-            responseTimeMs: Date.now() - startTime,
-        });
-
-        return result;
     } catch (error) {
-        // 记录失败统计
-        await recordAIStatsAsync({
-            modelKey: config.id,
-            sourceKey: config.sourceKey,
-            success: false,
-            responseTimeMs: Date.now() - startTime,
-        });
-
         console.error('AI API 调用失败，使用模拟响应:', error);
         return generateMockResponse(personality);
     }
@@ -327,53 +353,57 @@ export async function callAIStream(
     modelId: string = DEFAULT_MODEL_ID,
     options?: AICallOptions
 ): Promise<ReadableStream<Uint8Array>> {
-    const config = await getModelConfigAsync(modelId);
+    const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
         console.error(`Unknown model: ${modelId}`);
         return createMockStream(generateMockResponse(personality));
     }
-
-    const personalityConfig = AI_PERSONALITIES[personality];
-    // 流式调用同样使用统一拼接规则，保证提示词一致
-    const systemPrompt = getCurrentTimePrefix() + (options?.systemPromptOverride ?? personalityConfig.systemPrompt) + chartContext;
-
-    const startTime = Date.now();
+    const systemPrompt = buildSystemPrompt(personality, chartContext, options);
     try {
-        const provider = getProvider(config);
-
-        if (!provider.isAvailable(config)) {
-            return createMockStream(generateMockResponse(personality));
-        }
-
-        // DeepAI 默认开启推理
-        const useReasoning = config.isReasoningDefault || options?.reasoning;
-
-        const stream = await provider.chatStream(messages, systemPrompt, config, {
-            reasoning: useReasoning,
-            temperature: options?.temperature,
-            maxTokens: options?.maxTokens,
+        return await runWithSourceFallback(config, async (runtimeConfig) => {
+            const provider = getProvider(runtimeConfig);
+            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+            return await provider.chatStream(messages, systemPrompt, runtimeConfig, {
+                reasoning: useReasoning,
+                temperature: options?.temperature,
+                maxTokens: options?.maxTokens,
+            });
         });
-
-        // 记录成功统计（流式请求在获取到流时记录成功，使用 config.id）
-        await recordAIStatsAsync({
-            modelKey: config.id,
-            sourceKey: config.sourceKey,
-            success: true,
-            responseTimeMs: Date.now() - startTime,
-        });
-
-        return stream;
     } catch (error) {
-        // 记录失败统计
-        await recordAIStatsAsync({
-            modelKey: config.id,
-            sourceKey: config.sourceKey,
-            success: false,
-            responseTimeMs: Date.now() - startTime,
-        });
-
         console.error('AI 流式调用失败，使用模拟响应:', error);
         return createMockStream(generateMockResponse(personality));
+    }
+}
+
+export async function callAIVision(
+    messages: AIRequestMessage[],
+    personality: AIPersonality = 'general',
+    modelId: string = DEFAULT_MODEL_ID,
+    chartContext: string = '',
+    options?: AICallOptions
+): Promise<string> {
+    const config = await resolveModelConfigForCall(modelId, 'vision');
+    if (!config) {
+        console.error(`Unknown model: ${modelId}`);
+        return generateMockResponse(personality);
+    }
+    const systemPrompt = buildSystemPrompt(personality, chartContext, options);
+
+    try {
+        return await runWithSourceFallback(config, async (runtimeConfig) => {
+            const provider = getProvider(runtimeConfig);
+            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+            return await provider.chat(messages, systemPrompt, runtimeConfig, {
+                reasoning: useReasoning,
+                temperature: options?.temperature,
+                maxTokens: options?.maxTokens,
+                imageBase64: options?.imageBase64,
+                imageMimeType: options?.imageMimeType,
+            });
+        });
+    } catch (error) {
+        console.error('AI 视觉调用失败，使用模拟响应:', error);
+        return generateMockResponse(personality);
     }
 }
 
@@ -424,7 +454,7 @@ export async function callAIWithReasoning(
     chartContext: string = '',
     options?: AICallOptions
 ): Promise<AICallResult> {
-    const config = await getModelConfigAsync(modelId);
+    const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
         return { content: generateMockResponse(personality) };
     }

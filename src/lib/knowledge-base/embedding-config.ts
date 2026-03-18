@@ -2,10 +2,14 @@ import { resolveTokenMembership } from '@/lib/user/membership-server';
 import { createClient } from '@supabase/supabase-js';
 import { createKbClient } from '@/lib/knowledge-base/client';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { DEFAULT_EMBEDDING_MODEL_ID } from '@/lib/ai/ai-config';
+import { getModelConfigAsync, getModelsByUsageTypeAsync } from '@/lib/server/ai-config';
+import { applySourceToModel, getOrderedModelSources } from '@/lib/ai/source-runtime';
+import type { AIModelConfig } from '@/types';
 
 export const EMBEDDING_MODELS = {
-    'text-embedding-v4': { dimension: 1024, provider: 'qwen' },
-    'text-embedding-v3': { dimension: 1024, provider: 'qwen' },
+    'text-embedding-v4': { dimension: 1024, provider: 'gateway' },
+    'text-embedding-v3': { dimension: 1024, provider: 'gateway' },
     'bge-large-zh-v1.5': { dimension: 1024, provider: 'local' },
     'bge-m3': { dimension: 1024, provider: 'local' }
 } as const;
@@ -15,12 +19,11 @@ export type EmbeddingModel = keyof typeof EMBEDDING_MODELS;
 interface EmbeddingConfig {
     model: EmbeddingModel;
     dimension: number;
-    provider: 'qwen' | 'local';
-    apiKey?: string;
-    endpoint?: string;
+    provider: 'gateway' | 'local';
+    modelConfig: AIModelConfig | null;
 }
 
-const DEFAULT_MODEL: EmbeddingModel = 'text-embedding-v4';
+const DEFAULT_MODEL: EmbeddingModel = DEFAULT_EMBEDDING_MODEL_ID as EmbeddingModel;
 
 async function createSupabaseClient(accessToken?: string) {
     if (accessToken) {
@@ -39,34 +42,54 @@ async function createSupabaseClient(accessToken?: string) {
     return createKbClient();
 }
 
-export function getEmbeddingConfig(): EmbeddingConfig {
-    const rawModel = (process.env.QWEN_EMBEDDING_MODEL || DEFAULT_MODEL) as string;
-    const model = ((rawModel in EMBEDDING_MODELS ? rawModel : DEFAULT_MODEL) as EmbeddingModel);
-    const modelConfig = EMBEDDING_MODELS[model] || EMBEDDING_MODELS[DEFAULT_MODEL];
+function getEmbeddingMetadata(modelId: string): { model: EmbeddingModel; dimension: number; provider: 'gateway' | 'local' } {
+    const normalized = ((modelId in EMBEDDING_MODELS ? modelId : DEFAULT_MODEL) as EmbeddingModel);
+    const modelConfig = EMBEDDING_MODELS[normalized] || EMBEDDING_MODELS[DEFAULT_MODEL];
 
     return {
-        model,
+        model: normalized,
         dimension: modelConfig.dimension,
-        provider: modelConfig.provider,
-        apiKey: modelConfig.provider === 'qwen'
-            ? process.env.QWEN_EMBEDDING_API_KEY
-            : undefined,
-        endpoint: modelConfig.provider === 'qwen'
-            ? (process.env.QWEN_EMBEDDING_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings')
-            : undefined
+        provider: modelConfig.provider
     };
 }
 
+async function resolveEmbeddingModelConfig(): Promise<AIModelConfig | null> {
+    const configuredId = process.env.KNOWLEDGE_BASE_EMBEDDING_MODEL_ID || DEFAULT_MODEL;
+    const direct = await getModelConfigAsync(configuredId);
+    if (direct) {
+        return direct;
+    }
+
+    const usageModels = await getModelsByUsageTypeAsync('embedding');
+    return usageModels[0] || null;
+}
+
+async function getEmbeddingConfig(): Promise<EmbeddingConfig> {
+    const modelConfig = await resolveEmbeddingModelConfig();
+    const metadata = getEmbeddingMetadata(modelConfig?.id || DEFAULT_MODEL);
+
+    return {
+        ...metadata,
+        modelConfig,
+    };
+}
+
+export async function getEmbeddingDimensionAsync(): Promise<number> {
+    const config = await getEmbeddingConfig();
+    return config.dimension;
+}
+
 export function getEmbeddingDimension(): number {
-    return getEmbeddingConfig().dimension;
+    const configuredId = process.env.KNOWLEDGE_BASE_EMBEDDING_MODEL_ID || DEFAULT_MODEL;
+    return getEmbeddingMetadata(configuredId).dimension;
 }
 
 export async function hasVectorCapability(): Promise<boolean> {
     const membership = await resolveTokenMembership();
     if (membership !== 'pro') return false;
 
-    const config = getEmbeddingConfig();
-    return await checkVectorIndexExists(config.dimension);
+    const dim = await getEmbeddingDimensionAsync();
+    return await checkVectorIndexExists(dim);
 }
 
 export async function checkVectorIndexExists(dim: number, accessToken?: string): Promise<boolean> {
@@ -75,15 +98,51 @@ export async function checkVectorIndexExists(dim: number, accessToken?: string):
     return data === true;
 }
 
+async function callGatewayEmbedding(text: string, modelConfig: AIModelConfig): Promise<number[] | null> {
+    const sources = getOrderedModelSources(modelConfig);
+
+    for (const source of sources) {
+        const runtimeConfig = applySourceToModel(modelConfig, source);
+        const apiKey = process.env[runtimeConfig.apiKeyEnvVar];
+        if (!apiKey || !runtimeConfig.apiUrl) {
+            continue;
+        }
+
+        const response = await fetch(runtimeConfig.apiUrl, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: runtimeConfig.modelId,
+                input: text
+            })
+        });
+
+        if (!response.ok) {
+            continue;
+        }
+
+        const data = await response.json() as { data?: Array<{ embedding: number[] }> };
+        const embedding = data.data?.[0]?.embedding;
+        if (embedding) {
+            return embedding;
+        }
+    }
+
+    return null;
+}
+
 export async function generateEmbedding(text: string): Promise<number[] | null> {
-    const config = getEmbeddingConfig();
+    const config = await getEmbeddingConfig();
 
     try {
         switch (config.provider) {
-            case 'qwen':
-                return await callQwenEmbedding(text, config);
+            case 'gateway':
+                return config.modelConfig ? await callGatewayEmbedding(text, config.modelConfig) : null;
             case 'local':
-                return await callLocalEmbedding(text, config);
+                return await callLocalEmbedding(text, config.model);
             default:
                 throw new Error(`Unknown embedding provider: ${config.provider}`);
         }
@@ -98,13 +157,13 @@ export async function generateEmbeddings(texts: string[]): Promise<{
     model: string;
     dimension: number;
 }> {
-    const config = getEmbeddingConfig();
+    const config = await getEmbeddingConfig();
     const vectors: Array<number[] | null> = [];
 
     const batchSize = 100;
     for (let i = 0; i < texts.length; i += batchSize) {
         const batch = texts.slice(i, i + batchSize);
-        const batchVectors = await Promise.all(batch.map(t => generateEmbedding(t)));
+        const batchVectors = await Promise.all(batch.map((text) => generateEmbedding(text)));
         vectors.push(...batchVectors);
     }
 
@@ -115,32 +174,8 @@ export async function generateEmbeddings(texts: string[]): Promise<{
     };
 }
 
-async function callQwenEmbedding(text: string, config: EmbeddingConfig): Promise<number[] | null> {
-    const apiKey = config.apiKey || process.env.QWEN_EMBEDDING_API_KEY;
-    if (!apiKey) return null;
-
-    const endpoint = config.endpoint || process.env.QWEN_EMBEDDING_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings';
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: config.model,
-            input: text
-        })
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json() as { data?: Array<{ embedding: number[] }> };
-    const embedding = data.data?.[0]?.embedding;
-    if (!embedding) return null;
-    return embedding;
-}
-
-async function callLocalEmbedding(_text: string, _config: EmbeddingConfig): Promise<number[] | null> {
+async function callLocalEmbedding(_text: string, _model: EmbeddingModel): Promise<number[] | null> {
     void _text;
-    void _config;
+    void _model;
     return null;
 }

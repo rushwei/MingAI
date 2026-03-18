@@ -6,7 +6,12 @@
 
 import type { AIModelConfig, AIVendor } from '@/types';
 import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
-import { toOpenAIMessages, createMockStream, getApiKey } from './base';
+import {
+    toOpenAIMessages,
+    createMockStream,
+    getApiKey,
+    buildGenerationConfigPayload,
+} from './base';
 
 /**
  * 检查是否是 NVIDIA API
@@ -98,9 +103,8 @@ export class OpenAICompatibleProvider implements AIProvider {
                     { role: 'system', content: systemPrompt },
                     ...toOpenAIMessages(messages),
                 ],
-                temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 ...buildThinkingParam(config.vendor, config.apiUrl, options?.reasoning),
+                ...buildGenerationConfigPayload(config, options),
             }),
         });
 
@@ -149,10 +153,9 @@ export class OpenAICompatibleProvider implements AIProvider {
                     { role: 'system', content: systemPrompt },
                     ...toOpenAIMessages(messages),
                 ],
-                temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 stream: true,
                 ...buildThinkingParam(config.vendor, config.apiUrl, options?.reasoning),
+                ...buildGenerationConfigPayload(config, options),
             }),
         });
 

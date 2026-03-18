@@ -1,20 +1,88 @@
 /**
- * 单个 AI 模型来源管理 API
+ * 单个 AI 模型网关绑定管理 API
  *
- * PATCH: 更新来源设置
- * DELETE: 删除来源
- * POST: 激活该来源（设为活跃）
+ * PATCH: 更新绑定设置
+ * DELETE: 删除绑定
+ * POST: 提升该绑定为首选来源
  */
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 import { clearModelCache } from '@/lib/server/ai-config';
+import { isManagedSourceKey } from '@/lib/ai/source-runtime';
 
 type RouteContext = {
     params: Promise<{ id: string; sourceId: string }>;
 };
 
+type BindingIdentityRow = {
+    id: string;
+    is_enabled: boolean;
+    gateway?: { gateway_key: string | null; is_enabled?: boolean | null } | Array<{ gateway_key: string | null; is_enabled?: boolean | null }> | null;
+};
+
+function pickGateway(input: BindingIdentityRow['gateway']) {
+    if (Array.isArray(input)) {
+        return input[0] ?? null;
+    }
+    return input ?? null;
+}
+
+async function getBindingIdentity(
+    supabase: ReturnType<typeof getSystemAdminClient>,
+    modelId: string,
+    sourceId: string,
+): Promise<BindingIdentityRow | null> {
+    const { data: binding } = await supabase
+        .from('ai_model_gateway_bindings')
+        .select(`
+            id,
+            is_enabled,
+            gateway:ai_gateways (
+                gateway_key,
+                is_enabled
+            )
+        `)
+        .eq('id', sourceId)
+        .eq('model_id', modelId)
+        .single();
+
+    return (binding as BindingIdentityRow | null) || null;
+}
+
+async function promoteBinding(
+    supabase: ReturnType<typeof getSystemAdminClient>,
+    modelId: string,
+    sourceId: string,
+) {
+    const { data: bindings, error } = await supabase
+        .from('ai_model_gateway_bindings')
+        .select('id')
+        .eq('model_id', modelId)
+        .order('priority', { ascending: true });
+
+    if (error || !bindings) {
+        throw error ?? new Error('failed to load bindings');
+    }
+
+    const orderedIds = [
+        sourceId,
+        ...bindings.map((binding: { id: string }) => binding.id).filter((id: string) => id !== sourceId),
+    ];
+
+    for (const [index, id] of orderedIds.entries()) {
+        const { error: updateError } = await supabase
+            .from('ai_model_gateway_bindings')
+            .update({ priority: index })
+            .eq('id', id)
+            .eq('model_id', modelId);
+
+        if (updateError) {
+            throw updateError;
+        }
+    }
+}
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
-    // 验证管理员权限
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
         return jsonError(authResult.error.message, authResult.error.status);
@@ -25,57 +93,43 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     try {
         const body = await request.json();
-        const updateData: Record<string, unknown> = {};
+        const binding = await getBindingIdentity(supabase, modelId, sourceId);
+        if (!binding) {
+            return jsonError('来源不存在', 404);
+        }
 
-        // 仅更新提供的字段
-        if (body.sourceName !== undefined) updateData.source_name = body.sourceName;
-        if (body.apiUrl !== undefined) updateData.api_url = body.apiUrl;
-        if (body.apiKeyEnvVar !== undefined) updateData.api_key_env_var = body.apiKeyEnvVar;
+        const gateway = pickGateway(binding.gateway);
+        if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
+            return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
+        }
+
+        const updateData: Record<string, unknown> = {};
         if (body.modelIdOverride !== undefined) updateData.model_id_override = body.modelIdOverride;
         if (body.reasoningModelId !== undefined) updateData.reasoning_model_id = body.reasoningModelId;
         if (body.isEnabled !== undefined) updateData.is_enabled = body.isEnabled;
         if (body.priority !== undefined) updateData.priority = body.priority;
-        if (body.maxContextTokens !== undefined) updateData.max_context_tokens = body.maxContextTokens;
-        if (body.maxOutputTokens !== undefined) updateData.max_output_tokens = body.maxOutputTokens;
         if (body.notes !== undefined) updateData.notes = body.notes;
 
-        // 如果要设置为活跃来源
-        if (body.isActive === true) {
-            // 先取消其他来源的活跃状态
-            await supabase
-                .from('ai_model_sources')
-                .update({ is_active: false })
+        if (Object.keys(updateData).length > 0) {
+            const { error } = await supabase
+                .from('ai_model_gateway_bindings')
+                .update(updateData)
+                .eq('id', sourceId)
                 .eq('model_id', modelId);
-            updateData.is_active = true;
-        } else if (body.isActive === false) {
-            updateData.is_active = false;
+
+            if (error) {
+                console.error('[ai-models] Failed to update binding:', error);
+                return jsonError('更新来源失败', 500);
+            }
         }
 
-        if (Object.keys(updateData).length === 0) {
-            return jsonError('没有提供要更新的字段', 400);
+        if (body.isActive === true) {
+            await promoteBinding(supabase, modelId, sourceId);
         }
 
-        const { data: source, error } = await supabase
-            .from('ai_model_sources')
-            .update(updateData)
-            .eq('id', sourceId)
-            .eq('model_id', modelId)
-            .select()
-            .single();
-
-        if (error) {
-            console.error('[ai-models] Failed to update source:', error);
-            return jsonError('更新来源失败', 500);
-        }
-
-        if (!source) {
-            return jsonError('来源不存在', 404);
-        }
-
-        // 清除配置缓存
         clearModelCache();
 
-        return jsonOk({ success: true, source });
+        return jsonOk({ success: true });
     } catch (e) {
         console.error('[ai-models] Invalid request body:', e);
         return jsonError('请求格式错误', 400);
@@ -83,7 +137,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-    // 验证管理员权限
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
         return jsonError(authResult.error.message, authResult.error.status);
@@ -91,63 +144,34 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     const { id: modelId, sourceId } = await context.params;
     const supabase = getSystemAdminClient();
+    const binding = await getBindingIdentity(supabase, modelId, sourceId);
 
-    // 检查是否是最后一个来源
-    const { count } = await supabase
-        .from('ai_model_sources')
-        .select('*', { count: 'exact', head: true })
-        .eq('model_id', modelId);
-
-    if (count === 1) {
-        return jsonError('无法删除最后一个来源，请先添加新来源', 400);
+    if (!binding) {
+        return jsonError('来源不存在', 404);
     }
 
-    // 检查是否是活跃来源
-    const { data: sourceToDelete } = await supabase
-        .from('ai_model_sources')
-        .select('is_active')
-        .eq('id', sourceId)
-        .single();
+    const gateway = pickGateway(binding.gateway);
+    if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
+        return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
+    }
 
     const { error } = await supabase
-        .from('ai_model_sources')
+        .from('ai_model_gateway_bindings')
         .delete()
         .eq('id', sourceId)
         .eq('model_id', modelId);
 
     if (error) {
-        console.error('[ai-models] Failed to delete source:', error);
+        console.error('[ai-models] Failed to delete binding:', error);
         return jsonError('删除来源失败', 500);
     }
 
-    // 如果删除的是活跃来源，自动激活优先级最高的来源
-    if (sourceToDelete?.is_active) {
-        const { data: nextSource } = await supabase
-            .from('ai_model_sources')
-            .select('id')
-            .eq('model_id', modelId)
-            .eq('is_enabled', true)
-            .order('priority', { ascending: true })
-            .limit(1)
-            .single();
-
-        if (nextSource) {
-            await supabase
-                .from('ai_model_sources')
-                .update({ is_active: true })
-                .eq('id', nextSource.id);
-        }
-    }
-
-    // 清除配置缓存
     clearModelCache();
 
     return jsonOk({ success: true });
 }
 
-// POST: 激活该来源
 export async function POST(request: NextRequest, context: RouteContext) {
-    // 验证管理员权限
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
         return jsonError(authResult.error.message, authResult.error.status);
@@ -155,41 +179,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { id: modelId, sourceId } = await context.params;
     const supabase = getSystemAdminClient();
+    const binding = await getBindingIdentity(supabase, modelId, sourceId);
 
-    // 检查来源是否存在且启用
-    const { data: source } = await supabase
-        .from('ai_model_sources')
-        .select('is_enabled')
-        .eq('id', sourceId)
-        .eq('model_id', modelId)
-        .single();
-
-    if (!source) {
+    if (!binding) {
         return jsonError('来源不存在', 404);
     }
 
-    if (!source.is_enabled) {
+    const gateway = pickGateway(binding.gateway);
+    if (!gateway || !isManagedSourceKey(gateway.gateway_key)) {
+        return jsonError('仅支持 NewAPI 和 Octopus 来源', 400);
+    }
+
+    if (!binding.is_enabled || gateway.is_enabled === false) {
         return jsonError('无法激活已禁用的来源', 400);
     }
 
-    // 取消其他来源的活跃状态
-    await supabase
-        .from('ai_model_sources')
-        .update({ is_active: false })
-        .eq('model_id', modelId);
-
-    // 激活指定来源
-    const { error } = await supabase
-        .from('ai_model_sources')
-        .update({ is_active: true })
-        .eq('id', sourceId);
-
-    if (error) {
-        console.error('[ai-models] Failed to activate source:', error);
+    try {
+        await promoteBinding(supabase, modelId, sourceId);
+    } catch (error) {
+        console.error('[ai-models] Failed to activate binding:', error);
         return jsonError('激活来源失败', 500);
     }
 
-    // 清除配置缓存
     clearModelCache();
 
     return jsonOk({ success: true, message: '来源已激活' });

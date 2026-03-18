@@ -214,6 +214,7 @@ export interface ChatMessage {
     // 提及信息（仅用户消息）- 用于渲染高亮与复用输入框颜色
     mentions?: Mention[];
     model?: string;                   // 使用的模型（仅AI消息）
+    modelName?: string;               // 使用的模型名称（仅AI消息）
     reasoning?: string;               // 推理/思考过程（仅AI消息）
     reasoningStartTime?: number;      // 推理开始时间戳（ms）（仅AI消息，流式时使用）
     reasoningDuration?: number;       // 推理用时（秒）（仅AI消息，流式结束后设置）
@@ -284,6 +285,8 @@ export const ANONYMOUS_DISPLAY_NAME = '用户';
  * };
  * ```
  */
+// extends Record<string, unknown> 是必要的：ChatMessage.metadata 类型为 Record<string, unknown>，
+// 需要 AIMessageMetadata 可赋值给该类型。已知属性仍受类型检查保护。
 export interface AIMessageMetadata extends Record<string, unknown> {
     /** 注入的数据源列表（知识库、数据源、@提及） */
     sources: InjectedSource[];
@@ -328,13 +331,56 @@ export interface Conversation {
 // ===== AI 模型相关类型 =====
 
 /** AI 供应商 */
-export type AIVendor = 'deepseek' | 'glm' | 'gemini' | 'qwen' | 'deepai' | 'qwen-vl' | 'gemini-vl' | 'moonshot';
+export type KnownAIVendor =
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'deepseek'
+    | 'glm'
+    | 'gemini'
+    | 'qwen'
+    | 'moonshot'
+    | 'xai'
+    | 'minimax';
+
+export type AIVendor = KnownAIVendor | (string & {});
+
+/** AI 模型用途 */
+export type AIUsageType = 'chat' | 'vision' | 'embedding' | 'rerank';
+
+/** AI 来源传输协议 */
+export type AITransport = 'openai_compatible';
+
+/** AI 来源路由模式 */
+export type AIRoutingMode = 'auto' | 'newapi' | 'octopus';
+
+/** AI 推理努力等级 */
+export type AIReasoningEffort = 'minimal' | 'low' | 'medium' | 'high';
+
+/** AI 推理努力参数序列化方式 */
+export type AIReasoningEffortFormat = 'reasoning_object' | 'reasoning_effort';
+
+/** AI 模型来源 */
+export interface AIModelSourceConfig {
+    sourceKey: string;
+    sourceName: string;
+    apiUrl: string;
+    apiKeyEnvVar: string;
+    modelIdOverride?: string;
+    reasoningModelId?: string;
+    transport?: AITransport;
+    priority?: number;
+    isActive?: boolean;
+    isEnabled?: boolean;
+}
 
 /** AI 模型配置 */
 export interface AIModelConfig {
     id: string;                  // 唯一 ID: deepseek-v3, deepseek-pro, etc
     name: string;                // 显示名称
     vendor: AIVendor;            // 供应商
+    usageType?: AIUsageType;     // 模型用途
+    routingMode?: AIRoutingMode; // 来源路由模式
     modelId: string;             // API 模型 ID
     apiUrl: string;              // API 端点
     apiKeyEnvVar: string;        // API Key 环境变量名
@@ -346,12 +392,20 @@ export interface AIModelConfig {
     supportsVision?: boolean;    // 是否支持图像输入
     // 默认参数
     defaultTemperature?: number;
+    defaultTopP?: number;
+    defaultPresencePenalty?: number;
+    defaultFrequencyPenalty?: number;
     defaultMaxTokens?: number;
+    defaultReasoningEffort?: AIReasoningEffort;
+    reasoningEffortFormat?: AIReasoningEffortFormat;
+    customParameters?: Record<string, unknown> | null;
     // 访问控制（从数据库获取）
     requiredTier?: 'free' | 'plus' | 'pro';  // 基础访问所需等级
     reasoningRequiredTier?: 'free' | 'plus' | 'pro';  // 推理模式所需等级
     // 来源信息（用于统计）
     sourceKey?: string;  // 当前活跃来源 key
+    transport?: AITransport; // 来源传输协议
+    sources?: AIModelSourceConfig[]; // 运行时可用来源列表（已排序）
 }
 
 // ===== 每日运势相关类型 =====

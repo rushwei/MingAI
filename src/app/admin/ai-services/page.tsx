@@ -3,19 +3,17 @@
  * 仅管理员可访问
  *
  * 功能:
- * - 模型管理（启用/禁用、参数配置）
- * - 来源管理（多来源切换）
- * - 使用统计
+ * - 模型管理（含来源与故障转移）
+ * - 网关管理
  */
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bot, GitBranch, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Bot, GitBranch } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { AIModelPanel } from '@/components/admin/AIModelPanel';
-import { AISourcePanel } from '@/components/admin/AISourcePanel';
-import { AIStatsPanel } from '@/components/admin/AIStatsPanel';
+import { AIGatewayPanel } from '@/components/admin/AIGatewayPanel';
 import { loadAdminClientAccessState } from '@/lib/admin/client';
 
 type AdminState = {
@@ -24,12 +22,11 @@ type AdminState = {
     isAdmin: boolean;
 };
 
-type TabType = 'models' | 'sources' | 'stats';
+type TabType = 'models' | 'gateways';
 
 const TABS = [
     { id: 'models' as const, label: '模型管理', icon: Bot },
-    { id: 'sources' as const, label: '来源管理', icon: GitBranch },
-    { id: 'stats' as const, label: '使用统计', icon: BarChart3 },
+    { id: 'gateways' as const, label: '网关管理', icon: GitBranch },
 ];
 
 export default function AdminAIServicesPage() {
@@ -112,8 +109,7 @@ export default function AdminAIServicesPage() {
             {/* 内容区 */}
             <div className="bg-background rounded-2xl border border-border p-6">
                 {activeTab === 'models' && <AIModelPanel />}
-                {activeTab === 'sources' && <AISourcePanel />}
-                {activeTab === 'stats' && <AIStatsPanel />}
+                {activeTab === 'gateways' && <AIGatewayPanel />}
             </div>
         </div>
     );

@@ -4,7 +4,12 @@
  * 定义统一的 Provider 接口，所有模型实现都需要遵循此接口
  */
 
-import type { ChatMessage, AIModelConfig, AIVendor } from '@/types';
+import type {
+    ChatMessage,
+    AIModelConfig,
+    AIReasoningEffort,
+    AIVendor,
+} from '@/types';
 
 // AI 请求只需要最小消息结构，避免强制依赖存储/展示字段。
 export type AIRequestMessage = Pick<ChatMessage, 'role' | 'content' | 'model' | 'reasoning'>;
@@ -16,6 +21,9 @@ export interface AIProviderOptions {
     temperature?: number;
     maxTokens?: number;
     reasoning?: boolean;  // 开启推理模式
+    reasoningEffort?: AIReasoningEffort;
+    imageBase64?: string;
+    imageMimeType?: string;
 }
 
 /**
@@ -131,4 +139,44 @@ export function createMockStream(content: string, reasoning?: string): ReadableS
  */
 export function getApiKey(envVar: string): string | undefined {
     return process.env[envVar];
+}
+
+function normalizeCustomParameters(
+    input: AIModelConfig['customParameters'],
+): Record<string, unknown> {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return {};
+    }
+    return input;
+}
+
+export function buildGenerationConfigPayload(
+    config: AIModelConfig,
+    options?: AIProviderOptions,
+): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+        temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
+    };
+
+    if (typeof config.defaultTopP === 'number' && Number.isFinite(config.defaultTopP)) {
+        payload.top_p = config.defaultTopP;
+    }
+    const resolvedMaxTokens = options?.maxTokens ?? config.defaultMaxTokens;
+    if (typeof resolvedMaxTokens === 'number' && Number.isFinite(resolvedMaxTokens) && resolvedMaxTokens > 0) {
+        payload.max_tokens = resolvedMaxTokens;
+    }
+
+    const resolvedReasoningEffort = options?.reasoningEffort ?? config.defaultReasoningEffort;
+    if (options?.reasoning && resolvedReasoningEffort) {
+        if (config.reasoningEffortFormat === 'reasoning_effort') {
+            payload.reasoning_effort = resolvedReasoningEffort;
+        } else if (config.reasoningEffortFormat === 'reasoning_object') {
+            payload.reasoning = { effort: resolvedReasoningEffort };
+        }
+    }
+
+    return {
+        ...payload,
+        ...normalizeCustomParameters(config.customParameters),
+    };
 }

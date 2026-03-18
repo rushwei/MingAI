@@ -11,6 +11,7 @@ import type { MembershipType } from '@/lib/user/membership';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { getModelAccessForMembershipAsync } from '@/lib/ai/ai-access';
 import { getAuthContext, jsonOk } from '@/lib/api-utils';
+import { getModelUsageType, isUserSelectableUsageType } from '@/lib/ai/source-runtime';
 
 async function resolveMembership(request: NextRequest): Promise<MembershipType> {
     const { user } = await getAuthContext(request);
@@ -22,7 +23,7 @@ async function resolveMembership(request: NextRequest): Promise<MembershipType> 
 
 export async function GET(request: NextRequest) {
     // 从数据库获取模型配置（带缓存）
-    const models = await getModelsAsync();
+    const models = (await getModelsAsync()).filter((model) => isUserSelectableUsageType(getModelUsageType(model)));
     const membership = await resolveMembership(request);
 
     // 返回模型配置（不包含敏感信息）

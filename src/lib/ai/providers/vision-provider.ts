@@ -7,7 +7,7 @@
 
 import type { AIModelConfig, AIVendor } from '@/types';
 import type { AIProvider, AIProviderOptions, AIRequestMessage } from './base';
-import { createMockStream, getApiKey } from './base';
+import { buildGenerationConfigPayload, createMockStream, getApiKey } from './base';
 
 /** 图像内容格式 */
 interface ImageContent {
@@ -120,9 +120,8 @@ export class VisionProvider implements AIProvider {
                     { role: 'system', content: systemPrompt },
                     ...visionMessages,
                 ],
-                temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 ...extraParams,
+                ...buildGenerationConfigPayload(config, options),
             }),
         });
 
@@ -171,10 +170,9 @@ export class VisionProvider implements AIProvider {
                     { role: 'system', content: systemPrompt },
                     ...visionMessages,
                 ],
-                temperature: options?.temperature ?? config.defaultTemperature ?? 0.7,
-                max_tokens: options?.maxTokens ?? config.defaultMaxTokens ?? 4000,
                 stream: true,
                 ...extraParams,
+                ...buildGenerationConfigPayload(config, options),
             }),
         });
 

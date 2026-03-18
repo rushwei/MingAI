@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
-import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
@@ -143,7 +142,6 @@ export default function AISettingsPage() {
                             ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
                         },
                         body: JSON.stringify({
-                            model: DEFAULT_MODEL_ID,
                             reasoning: false,
                             expressionStyle,
                             customInstructions,
@@ -504,7 +502,7 @@ export default function AISettingsPage() {
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 text-xs font-medium"
                                                 >
                                                     <BookOpenText className="w-3 h-3" />
-                                                    <span className="max-w-[120px] truncate">{kb.name}</span>
+                                                    <span className="max-w-[130px] truncate">{kb.name}</span>
                                                 </span>
                                             ))}
                                         </div>

@@ -1,7 +1,8 @@
 import type { AIModelConfig } from "@/types";
 import type { MembershipType } from "@/lib/user/membership";
 import { getModelConfig } from "@/lib/ai/ai-config";
-import { getModelConfigAsync } from "@/lib/server/ai-config";
+import { getDefaultModelConfigAsync, getModelConfigAsync } from "@/lib/server/ai-config";
+import { getModelUsageType, isUserSelectableUsageType } from "@/lib/ai/source-runtime";
 
 type ModelTier = "free" | "plus" | "pro" | "none";
 
@@ -134,12 +135,18 @@ export function resolveModelAccess(
     membership: MembershipType,
     reasoning?: boolean,
     options?: ResolveModelAccessOptions
-):
+): 
     | { modelId: string; modelConfig: AIModelConfig; reasoningEnabled: boolean }
     | { error: string; status: number } {
     const requestedModelId = modelId?.trim() ? modelId.trim() : defaultModelId;
+    if (!requestedModelId) {
+        return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
+    }
     const modelConfig = getModelConfig(requestedModelId);
     if (!modelConfig) {
+        return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
+    }
+    if (!isUserSelectableUsageType(getModelUsageType(modelConfig))) {
         return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
     }
 
@@ -173,9 +180,15 @@ export async function resolveModelAccessAsync(
     | { modelId: string; modelConfig: AIModelConfig; reasoningEnabled: boolean }
     | { error: string; status: number }
 > {
-    const requestedModelId = modelId?.trim() ? modelId.trim() : defaultModelId;
-    const modelConfig = await getModelConfigAsync(requestedModelId);
+    const requestedModelId = modelId?.trim() || defaultModelId?.trim() || '';
+    const fallbackUsageType = options?.requireVision ? 'vision' : 'chat';
+    const modelConfig = requestedModelId
+        ? await getModelConfigAsync(requestedModelId)
+        : await getDefaultModelConfigAsync(fallbackUsageType);
     if (!modelConfig) {
+        return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
+    }
+    if (!isUserSelectableUsageType(getModelUsageType(modelConfig))) {
         return { error: options?.invalidModelMessage ?? "模型不可用", status: 400 };
     }
 
@@ -189,7 +202,7 @@ export async function resolveModelAccessAsync(
 
     const reasoningAllowed = isReasoningAllowedForMembership(modelConfig, membership);
     return {
-        modelId: requestedModelId,
+        modelId: modelConfig.id,
         modelConfig,
         reasoningEnabled: reasoningAllowed ? !!reasoning : false,
     };

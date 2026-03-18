@@ -7,13 +7,33 @@
 import { NextRequest } from 'next/server';
 import { requireAdminUser, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
 import { clearModelCache } from '@/lib/server/ai-config';
+import type {
+    AIReasoningEffort,
+    AIReasoningEffortFormat,
+    AIRoutingMode,
+    AIUsageType,
+} from '@/types';
+
+const VALID_USAGE_TYPES: AIUsageType[] = ['chat', 'vision', 'embedding', 'rerank'];
+const VALID_ROUTING_MODES: AIRoutingMode[] = ['auto', 'newapi', 'octopus'];
+const VALID_REASONING_EFFORTS: AIReasoningEffort[] = ['minimal', 'low', 'medium', 'high'];
+const VALID_REASONING_EFFORT_FORMATS: AIReasoningEffortFormat[] = ['reasoning_object', 'reasoning_effort'];
+
+function normalizeCustomParameters(input: unknown): Record<string, unknown> | null {
+    if (input == null) {
+        return null;
+    }
+    if (typeof input !== 'object' || Array.isArray(input)) {
+        throw new Error('customParameters 必须为 JSON 对象');
+    }
+    return input as Record<string, unknown>;
+}
 
 type RouteContext = {
     params: Promise<{ id: string }>;
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-    // 验证管理员权限
     const authResult = await requireAdminUser(request);
     if ('error' in authResult) {
         return jsonError(authResult.error.message, authResult.error.status);
@@ -27,8 +47,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const updateData: Record<string, unknown> = {};
 
         // 仅更新提供的字段
+        if (body.modelKey !== undefined) updateData.model_key = body.modelKey;
         if (body.displayName !== undefined) updateData.display_name = body.displayName;
         if (body.vendor !== undefined) updateData.vendor = body.vendor;
+        if (body.usageType !== undefined) {
+            if (!VALID_USAGE_TYPES.includes(body.usageType)) {
+                return jsonError('无效的 usageType 值', 400);
+            }
+            updateData.usage_type = body.usageType;
+        }
+        if (body.routingMode !== undefined) {
+            if (!VALID_ROUTING_MODES.includes(body.routingMode)) {
+                return jsonError('无效的 routingMode 值', 400);
+            }
+            updateData.routing_mode = body.routingMode;
+        }
         if (body.isEnabled !== undefined) updateData.is_enabled = body.isEnabled;
         if (body.sortOrder !== undefined) updateData.sort_order = body.sortOrder;
         if (body.requiredTier !== undefined) {
@@ -38,7 +71,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             }
             updateData.required_tier = body.requiredTier;
         }
-        if (body.supportsReasoning !== undefined) updateData.supports_reasoning = body.supportsReasoning;
+        if (body.supportsReasoning !== undefined) {
+            updateData.supports_reasoning = body.supportsReasoning;
+            if (body.supportsReasoning === false) {
+                updateData.default_reasoning_effort = null;
+                updateData.reasoning_effort_format = null;
+            }
+        }
         if (body.reasoningRequiredTier !== undefined) {
             const validTiers = ['free', 'plus', 'pro'];
             if (!validTiers.includes(body.reasoningRequiredTier)) {
@@ -49,7 +88,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (body.isReasoningDefault !== undefined) updateData.is_reasoning_default = body.isReasoningDefault;
         if (body.supportsVision !== undefined) updateData.supports_vision = body.supportsVision;
         if (body.defaultTemperature !== undefined) updateData.default_temperature = body.defaultTemperature;
+        if (body.defaultTopP !== undefined) updateData.default_top_p = body.defaultTopP;
+        if (body.defaultPresencePenalty !== undefined) updateData.default_presence_penalty = body.defaultPresencePenalty;
+        if (body.defaultFrequencyPenalty !== undefined) updateData.default_frequency_penalty = body.defaultFrequencyPenalty;
         if (body.defaultMaxTokens !== undefined) updateData.default_max_tokens = body.defaultMaxTokens;
+        if (body.defaultReasoningEffort !== undefined) {
+            if (body.defaultReasoningEffort !== null && !VALID_REASONING_EFFORTS.includes(body.defaultReasoningEffort)) {
+                return jsonError('无效的 defaultReasoningEffort 值', 400);
+            }
+            updateData.default_reasoning_effort = body.defaultReasoningEffort;
+        }
+        if (body.reasoningEffortFormat !== undefined) {
+            if (body.reasoningEffortFormat !== null && !VALID_REASONING_EFFORT_FORMATS.includes(body.reasoningEffortFormat)) {
+                return jsonError('无效的 reasoningEffortFormat 值', 400);
+            }
+            updateData.reasoning_effort_format = body.reasoningEffortFormat;
+        }
+        if (body.customParameters !== undefined) {
+            try {
+                updateData.custom_parameters = normalizeCustomParameters(body.customParameters);
+            } catch (error) {
+                return jsonError(error instanceof Error ? error.message : '自定义参数格式错误', 400);
+            }
+        }
         if (body.description !== undefined) updateData.description = body.description;
 
         if (Object.keys(updateData).length === 0) {
@@ -64,6 +125,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             .single();
 
         if (error) {
+            if (error.code === '23505') {
+                return jsonError('模型标识已存在', 409);
+            }
             console.error('[ai-models] Failed to update model:', error);
             return jsonError('更新模型失败', 500);
         }

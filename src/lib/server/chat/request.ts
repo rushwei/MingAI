@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { NextRequest } from 'next/server';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getModelConfigAsync } from '@/lib/server/ai-config';
+import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
 import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
 import { getAuthContext, getSystemAdminClient, jsonError, requireUserContext } from '@/lib/api-utils';
@@ -136,8 +136,10 @@ export async function resolveChatRequest(
     }
   }
 
-  const requestedModelId = body.model || DEFAULT_MODEL_ID;
-  const modelConfig = await getModelConfigAsync(requestedModelId);
+  const requestedModelId = body.model?.trim() || DEFAULT_MODEL_ID;
+  const modelConfig = requestedModelId
+    ? await getModelConfigAsync(requestedModelId)
+    : await getDefaultModelConfigAsync('chat');
   if (!modelConfig) {
     return jsonError('无效的模型', 400);
   }
@@ -178,7 +180,7 @@ export async function resolveChatRequest(
     userId,
     canSkipCredit,
     accessTokenForKB,
-    requestedModelId,
+    requestedModelId: modelConfig.id,
     membershipType,
     reasoningEnabled,
     creditDeducted,
