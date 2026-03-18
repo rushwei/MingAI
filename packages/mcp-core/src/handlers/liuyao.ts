@@ -213,6 +213,9 @@ function divineByNumber(numbers: number[]): { yaos: YaoInput[]; hexagramCode: st
   if (numbers.length < 2 || numbers.length > 3) {
     throw new Error('数字起卦需要提供2或3个数字');
   }
+  if (!numbers.every((value) => Number.isInteger(value) && value > 0)) {
+    throw new Error('数字起卦的 numbers 必须是正整数');
+  }
 
   let upperNum: number;
   let lowerNum: number;
@@ -352,15 +355,12 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput): Promise<LiuyaoOut
     throw new Error('date 为必填项，请提供占卜日期时间（格式：YYYY-MM-DDTHH:MM 或 YYYY-MM-DD HH:MM:SS）');
   }
   const trimmedDate = date.trim();
-  const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
   const DATE_TIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d{1,3})?([zZ]|[+-]\d{2}:\d{2})?$/;
-  if (!DATE_ONLY_RE.test(trimmedDate) && !DATE_TIME_RE.test(trimmedDate)) {
-    throw new Error('date 格式无效，请使用 YYYY-MM-DD、YYYY-MM-DDTHH:MM[:SS] 或带时区偏移的 ISO 时间');
+  if (!DATE_TIME_RE.test(trimmedDate)) {
+    throw new Error('date 格式无效，必须包含时间，请使用 YYYY-MM-DDTHH:MM[:SS] 或带时区偏移的 ISO 时间');
   }
 
-  const normalizedDateInput = DATE_ONLY_RE.test(trimmedDate)
-    ? `${trimmedDate}T00:00:00`
-    : trimmedDate.replace(' ', 'T');
+  const normalizedDateInput = trimmedDate.replace(' ', 'T');
 
   const analysisDate = new Date(normalizedDateInput);
   if (isNaN(analysisDate.getTime())) {

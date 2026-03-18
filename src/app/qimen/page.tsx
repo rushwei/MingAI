@@ -35,6 +35,7 @@ export default function QimenPage() {
     const router = useRouter();
     const { showToast } = useToast();
     const now = getNow();
+    const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     const [question, setQuestion] = useState('');
     const [timeMode, setTimeMode] = useState<TimeMode>('now');
@@ -70,6 +71,7 @@ export default function QimenPage() {
                 body: JSON.stringify({
                     action: 'calculate',
                     ...useTime,
+                    timezone: localTimeZone,
                     question,
                     panType,
                     juMethod,

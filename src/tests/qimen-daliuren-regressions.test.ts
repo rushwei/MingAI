@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const qimenWrapperPath = resolve(process.cwd(), 'src/lib/divination/qimen.ts');
+const qimenPagePath = resolve(process.cwd(), 'src/app/qimen/page.tsx');
+const qimenRoutePath = resolve(process.cwd(), 'src/app/api/qimen/route.ts');
 const qimenResultPath = resolve(process.cwd(), 'src/app/qimen/result/page.tsx');
 const daliurenHistoryPath = resolve(process.cwd(), 'src/app/daliuren/history/page.tsx');
 const daliurenResultPath = resolve(process.cwd(), 'src/app/daliuren/result/page.tsx');
@@ -18,6 +20,35 @@ test('qimen wrapper should forward zhiFuJiGong to mcp-core using canonical core 
     source,
     /ji_wugong|ji_liuyi/u,
     'wrapper should map the web-layer option to the core qimen enum values instead of dropping it',
+  );
+});
+
+test('qimen page, wrapper, and route should preserve timezone when calculating a chart', async () => {
+  const [pageSource, wrapperSource, routeSource] = await Promise.all([
+    readFile(qimenPagePath, 'utf-8'),
+    readFile(qimenWrapperPath, 'utf-8'),
+    readFile(qimenRoutePath, 'utf-8'),
+  ]);
+
+  assert.match(
+    pageSource,
+    /timezone:\s*localTimeZone/u,
+    'qimen page should submit the browser timezone with the chart request',
+  );
+  assert.match(
+    wrapperSource,
+    /timezone:\s*input\.timezone/u,
+    'qimen wrapper should forward timezone into the mcp-core input',
+  );
+  assert.match(
+    routeSource,
+    /const \{ year, month, day, hour, minute, timezone/u,
+    'qimen route should read timezone from the request body',
+  );
+  assert.match(
+    routeSource,
+    /year,\s*month,\s*day,\s*hour,\s*minute,\s*timezone,\s*question/u,
+    'qimen route should pass timezone through to the qimen calculation wrapper',
   );
 });
 

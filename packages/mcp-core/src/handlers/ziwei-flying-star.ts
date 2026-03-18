@@ -10,10 +10,10 @@ import type {
   MutagedPlaceInfo,
   SurroundedPalaceInfo,
 } from '../types.js';
-import { createAstrolabe, MUTAGEN_NAMES, type MutagenName } from './ziwei-shared.js';
+import { createAstrolabeWithTrueSolar, MUTAGEN_NAMES, type MutagenName } from './ziwei-shared.js';
 
 function processQuery(
-  astrolabe: ReturnType<typeof createAstrolabe>,
+  astrolabe: ReturnType<typeof createAstrolabeWithTrueSolar>['astrolabe'],
   query: FlyingStarQuery,
   idx: number,
 ): FlyingStarResult {
@@ -63,7 +63,7 @@ export async function handleZiweiFlyingStar(input: ZiweiFlyingStarInput): Promis
     throw new Error('queries 不能为空');
   }
 
-  const astrolabe = createAstrolabe(input);
+  const { astrolabe } = createAstrolabeWithTrueSolar(input);
   const results = input.queries.map((q, i) => processQuery(astrolabe, q, i));
 
   return { results };

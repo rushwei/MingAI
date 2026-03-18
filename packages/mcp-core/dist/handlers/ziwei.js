@@ -25,9 +25,9 @@ const SMALL_LIMIT_START = {
 const SCHOLAR_STAR_NAMES = ['博士', '力士', '青龙', '小耗', '将军', '奏书', '飞廉', '喜神', '病符', '大耗', '伏兵', '官府'];
 // 阳年天干：甲丙戊庚壬
 const YANG_STEMS = new Set(['甲', '丙', '戊', '庚', '壬']);
-/** 计算命主星（按命宫地支查表） */
-function getLifeMasterStar(soulPalaceBranch) {
-    return LIFE_MASTER_STAR_TABLE[soulPalaceBranch];
+/** 计算命主星（按出生年地支查表） */
+function getLifeMasterStar(yearBranch) {
+    return LIFE_MASTER_STAR_TABLE[yearBranch];
 }
 /** 计算身主星 */
 function getBodyMasterStar(yearBranch) {
@@ -184,8 +184,7 @@ export async function handleZiweiCalculate(input) {
     }
     // 命主星 & 身主星
     const yearStem = yearPillar.length >= 2 ? yearPillar[0] : '';
-    const soulBranch = astrolabe.earthlyBranchOfSoulPalace || '';
-    const lifeMasterStar = soulBranch ? getLifeMasterStar(soulBranch) : undefined;
+    const lifeMasterStar = birthYearBranch ? getLifeMasterStar(birthYearBranch) : undefined;
     const bodyMasterStar = birthYearBranch ? getBodyMasterStar(birthYearBranch) : undefined;
     // 小限
     const smallLimit = birthYearBranch

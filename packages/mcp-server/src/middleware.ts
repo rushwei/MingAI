@@ -12,7 +12,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import { getSupabaseClient } from './supabase.js';
-import { getCachedKey, setCachedKey } from './key-cache.js';
+import { getCachedKey, invalidateCachedKey, setCachedKey } from './key-cache.js';
 
 // 扩展 Express Request 类型
 export interface McpAuthInfo {
@@ -129,20 +129,35 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: 'Missing API key' });
   }
 
-  // 查缓存：TTL 已缩短至 60 秒，有效期内信任缓存避免回源
+  // 命中缓存时仍需回源复验，确保撤销/重置后的 key 立即失效。
   const cached = getCachedKey(apiKey);
 
-  if (cached) {
-    req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
-    void touchLastUsedAt(cached.keyId);
-    return next();
-  }
-
   try {
-    const activeKey = await queryActiveKey(apiKey);
+    let activeKey = cached
+      ? await queryActiveKey(apiKey)
+      : null;
+
+    if (cached && !activeKey) {
+      invalidateCachedKey(apiKey);
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    if (!activeKey) {
+      activeKey = await queryActiveKey(apiKey);
+    }
 
     if (!activeKey) {
       return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    if (
+      cached
+      && cached.userId === activeKey.user_id
+      && cached.keyId === activeKey.id
+    ) {
+      req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
+      void touchLastUsedAt(cached.keyId);
+      return next();
     }
 
     setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });

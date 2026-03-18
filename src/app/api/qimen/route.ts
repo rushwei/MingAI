@@ -17,6 +17,7 @@ interface QimenRequest {
     day?: number;
     hour?: number;
     minute?: number;
+    timezone?: string;
     question?: string;
     panType?: 'zhuan' | 'fei';
     juMethod?: 'chaibu' | 'maoshan';
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
 
         switch (action) {
             case 'calculate': {
-                const { year, month, day, hour, minute, question, panType, juMethod, zhiFuJiGong } = body;
+                const { year, month, day, hour, minute, timezone, question, panType, juMethod, zhiFuJiGong } = body;
                 if (!year || !month || !day || hour == null || minute == null) {
                     return jsonError('请提供完整的日期时间', 400, { success: false });
                 }
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
                     return jsonError(authResult.error.message, authResult.error.status, { success: false });
                 }
                 const result = await handleQimenCalculate({
-                    year, month, day, hour, minute, question,
+                    year, month, day, hour, minute, timezone, question,
                     panType: panType || 'zhuan',
                     juMethod: juMethod || 'chaibu',
                     zhiFuJiGong: zhiFuJiGong || 'jiLiuYi',
@@ -211,6 +212,9 @@ export async function POST(request: NextRequest) {
         }
     } catch (error) {
         console.error('[qimen] API 错误:', error);
+        if (error instanceof Error && /(timezone|日期无效|格式无效)/u.test(error.message)) {
+            return jsonError(error.message, 400, { success: false });
+        }
         return jsonError('服务器错误', 500, { success: false });
     }
 }

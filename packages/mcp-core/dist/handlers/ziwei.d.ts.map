@@ -1,1 +1,1 @@
-{"version":3,"file":"ziwei.d.ts","sourceRoot":"","sources":["../../src/handlers/ziwei.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,OAAO,KAAK,EAAE,UAAU,EAAE,WAAW,EAAmG,MAAM,aAAa,CAAC;AAuH5J,wBAAsB,oBAAoB,CAAC,KAAK,EAAE,UAAU,GAAG,OAAO,CAAC,WAAW,CAAC,CAyJlF"}
+{"version":3,"file":"ziwei.d.ts","sourceRoot":"","sources":["../../src/handlers/ziwei.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,OAAO,KAAK,EAAE,UAAU,EAAE,WAAW,EAAmG,MAAM,aAAa,CAAC;AAuH5J,wBAAsB,oBAAoB,CAAC,KAAK,EAAE,UAAU,GAAG,OAAO,CAAC,WAAW,CAAC,CAwJlF"}

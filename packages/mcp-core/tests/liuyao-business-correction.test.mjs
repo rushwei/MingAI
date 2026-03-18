@@ -26,7 +26,7 @@ test('mcp liuyao uses fixed najia for 天风姤 and should not treat second yao 
     yongShenTargets: ['妻财'],
     method: 'select',
     hexagramName: '天风姤',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   const naJiaList = result.fullYaos.map((yao) => yao.naJia);
@@ -41,7 +41,7 @@ test('mcp liuyao should reject empty question instead of producing formal interp
       yongShenTargets: [],
       method: 'select',
       hexagramName: '乾为天',
-      date: '2026-02-10',
+      date: '2026-02-10T12:00:00',
     }),
     /请先明确问题后再解卦/u
   );

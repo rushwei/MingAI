@@ -27,12 +27,25 @@ function setCachedFortune(date, dayMaster, data) {
     }
     fortuneCache.set(key, { data, expire: Date.now() + FORTUNE_CACHE_TTL });
 }
+function parseFortuneDate(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new Error('date 格式无效，请使用 YYYY-MM-DD');
+    }
+    const [y, m, d] = date.split('-').map(Number);
+    const targetDate = new Date(y, m - 1, d);
+    if (Number.isNaN(targetDate.getTime()) ||
+        targetDate.getFullYear() !== y ||
+        targetDate.getMonth() !== m - 1 ||
+        targetDate.getDate() !== d) {
+        throw new Error('date 日期无效，请检查日期是否存在');
+    }
+    return targetDate;
+}
 export async function handleDailyFortune(input) {
     // 解析日期为本地时间，避免 UTC 偏移
     let targetDate;
     if (input.date) {
-        const [y, m, d] = input.date.split('-').map(Number);
-        targetDate = new Date(y, m - 1, d);
+        targetDate = parseFortuneDate(input.date);
     }
     else {
         targetDate = new Date();

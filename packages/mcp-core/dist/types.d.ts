@@ -227,6 +227,7 @@ export interface DecadalInfo {
 }
 export interface ZiweiHoroscopeInput extends BirthTimeInput {
     gender: Gender;
+    longitude?: number;
     targetDate?: string;
     targetTimeIndex?: number;
 }
@@ -266,6 +267,7 @@ export interface ZiweiHoroscopeOutput {
 }
 export interface ZiweiFlyingStarInput extends BirthTimeInput {
     gender: Gender;
+    longitude?: number;
     queries: FlyingStarQuery[];
 }
 export type FlyingStarQuery = {
@@ -707,6 +709,7 @@ export interface QimenInput {
     day: number;
     hour: number;
     minute?: number;
+    timezone?: string;
     question?: string;
     panType?: 'zhuan';
     juMethod?: 'chaibu' | 'maoshan';

@@ -3,6 +3,7 @@
  */
 
 import { astro } from 'iztro';
+import { LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo, DiZhi } from '../types.js';
 
 export const MUTAGEN_NAMES = ['禄', '权', '科', '忌'] as const;
@@ -230,8 +231,31 @@ export function createAstrolabe(input: BirthTimeInput & { gender: Gender }): Ast
     if (birthDay > maxSolarDay) {
       throw new Error(`birthDay 必须是 1-${maxSolarDay} 之间的整数`);
     }
-  } else if (birthDay > 30) {
-    throw new Error('birthDay 必须是 1-30 之间的整数');
+  } else {
+    if (birthDay > 30) {
+      throw new Error('birthDay 必须是 1-30 之间的整数');
+    }
+
+    const leapMonth = LunarYear.fromYear(birthYear).getLeapMonth();
+    if (isLeapMonth && leapMonth !== birthMonth) {
+      throw new Error(`农历闰月无效：${birthYear}年没有闰${birthMonth}月，请检查该年是否有闰月。`);
+    }
+
+    const lunarMonth = isLeapMonth ? -Math.abs(birthMonth) : birthMonth;
+    let lunarMonthInfo: ReturnType<typeof LunarMonth.fromYm>;
+    try {
+      lunarMonthInfo = LunarMonth.fromYm(birthYear, lunarMonth);
+    } catch {
+      throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
+    }
+    if (!lunarMonthInfo) {
+      throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
+    }
+
+    const dayCount = lunarMonthInfo.getDayCount();
+    if (birthDay > dayCount) {
+      throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月只有${dayCount}天，请输入 1-${dayCount} 之间的日期。`);
+    }
   }
   if (!Number.isInteger(birthHour) || birthHour < 0 || birthHour > 23) {
     throw new Error('birthHour 必须是 0-23 之间的整数');
@@ -274,8 +298,10 @@ export function createAstrolabeWithTrueSolar(
     birthHour,
     birthMinute = 0,
     calendarType = 'solar',
-    isLeapMonth = false,
   } = input;
+  if (calendarType === 'lunar') {
+    throw new Error('longitude 仅支持 calendarType=solar；农历输入请先换算为公历后再使用真太阳时校正');
+  }
 
   const resolvedDateTime = resolveTrueSolarDateTime(
     { birthYear, birthMonth, birthDay, birthHour, birthMinute },
@@ -286,13 +312,6 @@ export function createAstrolabeWithTrueSolar(
   const dateStr = `${resolvedDateTime.year}-${resolvedDateTime.month}-${resolvedDateTime.day}`;
   const genderStr = gender === 'male' ? '男' : '女';
 
-  // 使用真太阳时的时辰索引排盘
-  if (calendarType === 'lunar') {
-    return {
-      astrolabe: astro.byLunar(dateStr, trueSolarTimeInfo.trueTimeIndex, genderStr, isLeapMonth, true, 'zh-CN'),
-      trueSolarTimeInfo,
-    };
-  }
   return {
     astrolabe: astro.bySolar(dateStr, trueSolarTimeInfo.trueTimeIndex, genderStr, true, 'zh-CN'),
     trueSolarTimeInfo,

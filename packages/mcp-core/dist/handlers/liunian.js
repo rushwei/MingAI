@@ -207,16 +207,13 @@ function calculateXiaoYun(hourStem, hourBranch, gender, yearStem, dayStem, start
 }
 export async function handleDayunCalculate(input) {
     const { gender, birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, } = input;
-    let solar;
     let lunar;
     if (calendarType === 'lunar') {
         const lunarMonth = isLeapMonth ? -Math.abs(birthMonth) : birthMonth;
         lunar = Lunar.fromYmdHms(birthYear, lunarMonth, birthDay, birthHour, birthMinute, 0);
-        solar = lunar.getSolar();
     }
     else {
-        solar = Solar.fromYmdHms(birthYear, birthMonth, birthDay, birthHour, birthMinute, 0);
-        lunar = solar.getLunar();
+        lunar = Solar.fromYmdHms(birthYear, birthMonth, birthDay, birthHour, birthMinute, 0).getLunar();
     }
     const eightChar = lunar.getEightChar();
     const dayStem = eightChar.getDayGan();
@@ -242,12 +239,8 @@ export async function handleDayunCalculate(input) {
     };
     const genderNum = gender === 'male' ? 1 : 0;
     const yun = eightChar.getYun(genderNum);
-    const daYunList = yun.getDaYun();
-    // 出生年(公历)用于计算流年
-    const birthSolarYear = solar.getYear();
+    const daYunList = yun.getDaYun().filter((dy) => dy.getGanZhi()).slice(0, 10);
     const list = daYunList
-        .filter((dy) => dy.getGanZhi())
-        .slice(0, 10)
         .map((dy) => {
         const ganZhi = dy.getGanZhi();
         const stem = ganZhi.slice(0, 1);
@@ -300,7 +293,7 @@ export async function handleDayunCalculate(input) {
         };
     });
     // 小运计算
-    const firstDaYunStartAge = list.length > 0 ? (list[0].startYear - birthSolarYear) : 1;
+    const firstDaYunStartAge = daYunList.length > 0 ? daYunList[0].getStartAge() : 1;
     const xiaoYun = calculateXiaoYun(hourStem, hourBranch, gender, yearStem, dayStem, firstDaYunStartAge);
     return { xiaoYun, list };
 }

@@ -9,7 +9,12 @@ test('mcp local should return both structuredContent and content when outputSche
 
   assert.match(
     source,
-    /if \(tool\?\.outputSchema\)[\s\S]*return \{[\s\S]*structuredContent:\s*result,[\s\S]*content:\s*humanReadableContent,[\s\S]*\};/,
-    'tools with outputSchema should include content alongside structuredContent'
+    /from '@mingai\/mcp-core\/transport'/u,
+    'local entrypoint should delegate transport payload policy to the shared mcp-core adapter'
+  );
+  assert.match(
+    source,
+    /buildToolSuccessPayload/u,
+    'tools with outputSchema should include structuredContent and content through the shared transport adapter'
   );
 });

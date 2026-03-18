@@ -11,8 +11,8 @@ test('middleware should export all required middleware functions', async () => {
   const source = await readFile(middlewarePath, 'utf-8');
 
   assert.ok(
-    source.includes('export async function authMiddleware'),
-    'should export authMiddleware'
+    source.includes('export function dualAuthMiddleware'),
+    'should export dualAuthMiddleware as the public auth entrypoint'
   );
   assert.ok(
     source.includes('export function rateLimitMiddleware'),
@@ -25,6 +25,10 @@ test('middleware should export all required middleware functions', async () => {
   assert.ok(
     source.includes('export function sseConnectionLimitMiddleware'),
     'should export sseConnectionLimitMiddleware'
+  );
+  assert.ok(
+    source.includes('async function authMiddleware'),
+    'should keep authMiddleware internal behind dualAuthMiddleware'
   );
 });
 

@@ -1,7 +1,7 @@
 /**
  * 紫微斗数运限处理器
  */
-import { createAstrolabe, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
+import { createAstrolabeWithTrueSolar, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
 /** 流昌/流曲查表：年干 → [流昌地支, 流曲地支] */
 const FLOW_CHANG_QU_TABLE = {
     '甲': ['巳', '酉'], '乙': ['午', '申'], '丙': ['申', '午'],
@@ -101,7 +101,7 @@ function mapPeriod(item) {
     };
 }
 export async function handleZiweiHoroscope(input) {
-    const astrolabe = createAstrolabe(input);
+    const { astrolabe } = createAstrolabeWithTrueSolar(input);
     const { targetDate, targetTimeIndex } = input;
     const horoscope = astrolabe.horoscope(targetDate, targetTimeIndex);
     // 流年星曜：from flow year stem + branch

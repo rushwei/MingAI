@@ -5,6 +5,7 @@ import { createRequire } from 'module';
 import { Solar } from 'lunar-javascript';
 import { TIAN_GAN, DI_ZHI, GAN_WUXING, YI_MA_MAP } from '../constants/ganzhi.js';
 import { getKongWang } from '../utils.js';
+import { DEFAULT_DIVINATION_TIMEZONE, getTimeZoneOffsetMinutes } from '../timezone-utils.js';
 const require = createRequire(import.meta.url);
 const { TheArtOfBecomingInvisible } = require('taobi');
 // ===== 常量 =====
@@ -92,188 +93,213 @@ function getXunShou(dayStem, dayBranch) {
     const startZhiIdx = (zhiIdx - ganIdx + 12) % 12;
     return `甲${DI_ZHI[startZhiIdx]}`;
 }
+function assertValidTimeZone(timeZone) {
+    try {
+        getTimeZoneOffsetMinutes(timeZone, new Date());
+    }
+    catch (error) {
+        if (error instanceof RangeError) {
+            throw new Error('timezone 无效');
+        }
+        throw error;
+    }
+}
 // ===== 主处理函数 =====
 export async function handleQimenCalculate(input) {
     const { year, month, day, hour, minute = 0 } = input;
+    const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
     const juMethod = input.juMethod || 'chaibu';
     const zhiFuJiGong = input.zhiFuJiGong || 'ji_liuyi';
     const elementsOption = juMethod === 'maoshan' ? 2 : 1;
     const followOption = zhiFuJiGong === 'ji_wugong' ? 0 : 1;
-    // 调用 taobi 排盘
-    const date = new Date(year, month - 1, day, hour, minute);
-    let t;
+    assertValidTimeZone(timezone);
+    const previousTimeZone = process.env.TZ;
+    process.env.TZ = timezone;
     try {
-        t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
-    }
-    catch (err) {
-        throw new Error(`奇门排盘失败: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    // 基本信息
-    const round = t.round;
-    const dunType = round > 0 ? 'yang' : 'yin';
-    const juNumber = Math.abs(round);
-    // 四柱
-    const yearGan = t.year.cs(true);
-    const yearZhi = t.year.tb(true);
-    const monthGan = t.month.cs(true);
-    const monthZhi = t.month.tb(true);
-    const dayGan = t.date.cs(true);
-    const dayZhi = t.date.tb(true);
-    const hourGan = t.hour.cs(true);
-    const hourZhi = t.hour.tb(true);
-    // 节气
-    const solarTerm = t.getSolarTerms(true);
-    // 节气时间范围
-    const during = t.during;
-    let solarTermRange;
-    if (during && during.length >= 2) {
-        // 找到当前节气的起止时间
-        const solarTermNames = [
-            '小寒', '大寒', '立春', '雨水', '惊蛰', '春分',
-            '清明', '谷雨', '立夏', '小满', '芒种', '夏至',
-            '小暑', '大暑', '立秋', '处暑', '白露', '秋分',
-            '寒露', '霜降', '立冬', '小雪', '大雪', '冬至',
-        ];
-        const termIdx = solarTermNames.indexOf(solarTerm);
-        if (termIdx >= 0 && termIdx < during.length - 1) {
-            const start = during[termIdx];
-            const end = during[termIdx + 1];
-            solarTermRange = `${formatDateStr(start)} ~ ${formatDateStr(end)}`;
+        // 调用 taobi 排盘
+        const date = new Date(year, month - 1, day, hour, minute);
+        let t;
+        try {
+            t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
         }
-    }
-    // 旬首（奇门遁甲以时柱旬首为准）
-    const xunShou = getXunShou(hourGan, hourZhi);
-    // 三元（从 taobi 获取）
-    const elementsArr = t.ELEMENTS;
-    const yuanIdx = elementsArr ? elementsArr[elementsOption] : 0;
-    const yuan = YUAN_NAMES[yuanIdx] || '上元';
-    // 值符值使
-    const zhiFuStar = t.getSymbol(true);
-    const mandateIdx = t.mandate; // 值使门所在宫位index
-    // 值符所在宫位：找到值符星当前在哪个宫
-    let zhiFuPalace = 0;
-    for (let i = 0; i < 9; i++) {
-        const p = t.acquired[i];
-        const stars = p.getStar(true);
-        if (stars && stars.includes(zhiFuStar)) {
-            zhiFuPalace = i;
-            break;
+        catch (err) {
+            throw new Error(`奇门排盘失败: ${err instanceof Error ? err.message : String(err)}`);
         }
-    }
-    // 值使门名：从 mandate 索引获取
-    const zhiShiGate = DOOR_NAMES[mandateIdx] || '';
-    // 月支季节
-    const season = getSeason(monthZhi);
-    // 空亡计算
-    const dayKong = getKongWang(dayGan, dayZhi);
-    const hourKong = getKongWang(hourGan, hourZhi);
-    const dayKongPalaces = dayKong.kongZhi.map(b => BRANCH_TO_PALACE[b]).filter(p => p !== undefined);
-    const hourKongPalaces = hourKong.kongZhi.map(b => BRANCH_TO_PALACE[b]).filter(p => p !== undefined);
-    // 驿马
-    const yiMaBranch = YI_MA_MAP[dayZhi] || '';
-    const yiMaPalace = BRANCH_TO_PALACE[yiMaBranch] ?? -1;
-    // 农历日期
-    const solar = Solar.fromYmd(year, month, day);
-    const lunar = solar.getLunar();
-    const lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
-    // 构建九宫数据
-    const palaces = [];
-    const globalFormations = [];
-    for (let i = 0; i < 9; i++) {
-        const p = t.acquired[i];
-        const earthStems = p.getECS(true);
-        const heavenStems = p.getHCS(true);
-        const stars = p.getStar(true);
-        const door = p.getDoor(true);
-        const deity = p.getDivinity(true);
-        const earthStem = earthStems?.[0] || '';
-        const heavenStem = heavenStems?.[0] || '';
-        const starName = Array.isArray(stars) ? stars[0] || '' : (stars || '');
-        const palaceName = PALACE_NAMES[i];
-        // 格局判断
-        const formations = [];
-        if (heavenStem && earthStem && i !== 4) {
-            formations.push(...getFormations(heavenStem, earthStem));
+        // 基本信息
+        const round = t.round;
+        const dunType = round > 0 ? 'yang' : 'yin';
+        const juNumber = Math.abs(round);
+        // 四柱
+        const yearGan = t.year.cs(true);
+        const yearZhi = t.year.tb(true);
+        const monthGan = t.month.cs(true);
+        const monthZhi = t.month.tb(true);
+        const dayGan = t.date.cs(true);
+        const dayZhi = t.date.tb(true);
+        const hourGan = t.hour.cs(true);
+        const hourZhi = t.hour.tb(true);
+        // 节气
+        const solarTerm = t.getSolarTerms(true);
+        // 节气时间范围
+        const during = t.during;
+        let solarTermRange;
+        if (during && during.length >= 2) {
+            // 找到当前节气的起止时间
+            const solarTermNames = [
+                '小寒', '大寒', '立春', '雨水', '惊蛰', '春分',
+                '清明', '谷雨', '立夏', '小满', '芒种', '夏至',
+                '小暑', '大暑', '立秋', '处暑', '白露', '秋分',
+                '寒露', '霜降', '立冬', '小雪', '大雪', '冬至',
+            ];
+            const termIdx = solarTermNames.indexOf(solarTerm);
+            if (termIdx >= 0 && termIdx < during.length - 1) {
+                const start = during[termIdx];
+                const end = during[termIdx + 1];
+                solarTermRange = `${formatDateStr(start)} ~ ${formatDateStr(end)}`;
+            }
         }
-        // 伏吟判断：天盘星回到原始宫位
-        if (starName && STAR_ORIGINAL_PALACE[starName] === i) {
-            formations.push('伏吟');
+        // 旬首（奇门遁甲以时柱旬首为准）
+        const xunShou = getXunShou(hourGan, hourZhi);
+        // 三元（从 taobi 获取）
+        const elementsArr = t.ELEMENTS;
+        const yuanIdx = elementsArr ? elementsArr[elementsOption] : 0;
+        const yuan = YUAN_NAMES[yuanIdx] || '上元';
+        // 值符值使
+        const zhiFuStar = t.getSymbol(true);
+        const mandateIdx = t.mandate; // 值使门所在宫位index
+        // 值符所在宫位：找到值符星当前在哪个宫
+        let zhiFuPalace = 0;
+        for (let i = 0; i < 9; i++) {
+            const p = t.acquired[i];
+            const stars = p.getStar(true);
+            if (stars && stars.includes(zhiFuStar)) {
+                zhiFuPalace = i;
+                break;
+            }
         }
-        // 反吟判断：天盘星到对冲宫位
-        if (starName && OPPOSITE_PALACE[STAR_ORIGINAL_PALACE[starName]] === i) {
-            formations.push('反吟');
-        }
-        // 旺衰
-        const stemElement = GAN_WUXING[heavenStem] || '';
-        const stemWangShuai = stemElement ? getWangShuai(stemElement, season) : undefined;
-        const elementState = getWangShuai(PALACE_ELEMENTS[i], season);
-        // 空亡
-        const isKongWang = dayKongPalaces.includes(i);
+        // 值使门名：从 mandate 索引获取
+        const zhiShiGate = DOOR_NAMES[mandateIdx] || '';
+        // 月支季节
+        const season = getSeason(monthZhi);
+        // 空亡计算
+        const dayKong = getKongWang(dayGan, dayZhi);
+        const hourKong = getKongWang(hourGan, hourZhi);
+        const dayKongPalaces = dayKong.kongZhi.map(b => BRANCH_TO_PALACE[b]).filter(p => p !== undefined);
+        const hourKongPalaces = hourKong.kongZhi.map(b => BRANCH_TO_PALACE[b]).filter(p => p !== undefined);
         // 驿马
-        const isYiMa = yiMaPalace === i;
-        // 入墓
-        const muBranch = RU_MU_MAP[heavenStem];
-        const muPalace = muBranch ? BRANCH_TO_PALACE[muBranch] : undefined;
-        const isRuMu = muPalace === i;
-        if (formations.length > 0) {
-            globalFormations.push(...formations.map(f => `${palaceName}宫: ${f}`));
+        const yiMaBranch = YI_MA_MAP[dayZhi] || '';
+        const yiMaPalace = BRANCH_TO_PALACE[yiMaBranch] ?? -1;
+        // 农历日期
+        const solar = Solar.fromYmd(year, month, day);
+        const lunar = solar.getLunar();
+        const lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+        // 构建九宫数据
+        const palaces = [];
+        const globalFormations = [];
+        for (let i = 0; i < 9; i++) {
+            const p = t.acquired[i];
+            const earthStems = p.getECS(true);
+            const heavenStems = p.getHCS(true);
+            const stars = p.getStar(true);
+            const door = p.getDoor(true);
+            const deity = p.getDivinity(true);
+            const earthStem = earthStems?.[0] || '';
+            const heavenStem = heavenStems?.[0] || '';
+            const starName = Array.isArray(stars) ? stars[0] || '' : (stars || '');
+            const palaceName = PALACE_NAMES[i];
+            // 格局判断
+            const formations = [];
+            if (heavenStem && earthStem && i !== 4) {
+                formations.push(...getFormations(heavenStem, earthStem));
+            }
+            // 伏吟判断：天盘星回到原始宫位
+            if (starName && STAR_ORIGINAL_PALACE[starName] === i) {
+                formations.push('伏吟');
+            }
+            // 反吟判断：天盘星到对冲宫位
+            if (starName && OPPOSITE_PALACE[STAR_ORIGINAL_PALACE[starName]] === i) {
+                formations.push('反吟');
+            }
+            // 旺衰
+            const stemElement = GAN_WUXING[heavenStem] || '';
+            const stemWangShuai = stemElement ? getWangShuai(stemElement, season) : undefined;
+            const elementState = getWangShuai(PALACE_ELEMENTS[i], season);
+            // 空亡
+            const isKongWang = dayKongPalaces.includes(i);
+            // 驿马
+            const isYiMa = yiMaPalace === i;
+            // 入墓
+            const muBranch = RU_MU_MAP[heavenStem];
+            const muPalace = muBranch ? BRANCH_TO_PALACE[muBranch] : undefined;
+            const isRuMu = muPalace === i;
+            if (formations.length > 0) {
+                globalFormations.push(...formations.map(f => `${palaceName}宫: ${f}`));
+            }
+            palaces.push({
+                palaceIndex: i + 1,
+                palaceName,
+                direction: PALACE_DIRECTIONS[i],
+                element: PALACE_ELEMENTS[i],
+                earthStem,
+                heavenStem,
+                star: starName,
+                starElement: STAR_ELEMENTS[starName] || '',
+                gate: door || '',
+                gateElement: DOOR_ELEMENTS[door] || '',
+                deity: deity || '',
+                formations,
+                stemWangShuai,
+                elementState,
+                isKongWang,
+                isYiMa,
+                isRuMu,
+            });
         }
-        palaces.push({
-            palaceIndex: i + 1,
-            palaceName,
-            direction: PALACE_DIRECTIONS[i],
-            element: PALACE_ELEMENTS[i],
-            earthStem,
-            heavenStem,
-            star: starName,
-            starElement: STAR_ELEMENTS[starName] || '',
-            gate: door || '',
-            gateElement: DOOR_ELEMENTS[door] || '',
-            deity: deity || '',
-            formations,
-            stemWangShuai,
-            elementState,
-            isKongWang,
-            isYiMa,
-            isRuMu,
-        });
+        return {
+            dateInfo: {
+                solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                lunarDate,
+                solarTerm,
+                solarTermRange,
+            },
+            siZhu: {
+                year: `${yearGan}${yearZhi}`,
+                month: `${monthGan}${monthZhi}`,
+                day: `${dayGan}${dayZhi}`,
+                hour: `${hourGan}${hourZhi}`,
+            },
+            dunType,
+            juNumber,
+            yuan,
+            xunShou,
+            zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
+            zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
+            palaces,
+            kongWang: {
+                dayKong: {
+                    branches: [...dayKong.kongZhi],
+                    palaces: dayKongPalaces.map(p => p + 1),
+                },
+                hourKong: {
+                    branches: [...hourKong.kongZhi],
+                    palaces: hourKongPalaces.map(p => p + 1),
+                },
+            },
+            yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
+            globalFormations,
+            panType: '转盘',
+            juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
+            question: input.question,
+        };
     }
-    return {
-        dateInfo: {
-            solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-            lunarDate,
-            solarTerm,
-            solarTermRange,
-        },
-        siZhu: {
-            year: `${yearGan}${yearZhi}`,
-            month: `${monthGan}${monthZhi}`,
-            day: `${dayGan}${dayZhi}`,
-            hour: `${hourGan}${hourZhi}`,
-        },
-        dunType,
-        juNumber,
-        yuan,
-        xunShou,
-        zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
-        zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
-        palaces,
-        kongWang: {
-            dayKong: {
-                branches: [...dayKong.kongZhi],
-                palaces: dayKongPalaces.map(p => p + 1),
-            },
-            hourKong: {
-                branches: [...hourKong.kongZhi],
-                palaces: hourKongPalaces.map(p => p + 1),
-            },
-        },
-        yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
-        globalFormations,
-        panType: '转盘',
-        juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
-        question: input.question,
-    };
+    finally {
+        if (previousTimeZone == null) {
+            delete process.env.TZ;
+        }
+        else {
+            process.env.TZ = previousTimeZone;
+        }
+    }
 }
 function formatDateStr(d) {
     const y = d.getFullYear();

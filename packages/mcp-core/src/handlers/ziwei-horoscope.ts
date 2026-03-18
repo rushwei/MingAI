@@ -3,7 +3,7 @@
  */
 
 import type { ZiweiHoroscopeInput, ZiweiHoroscopeOutput, HoroscopePeriodInfo, TransitStarEntry, YearlyDecStarInfo, DiZhi } from '../types.js';
-import { createAstrolabe, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
+import { createAstrolabeWithTrueSolar, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
 
 /** 流昌/流曲查表：年干 → [流昌地支, 流曲地支] */
 const FLOW_CHANG_QU_TABLE: Record<string, [string, string]> = {
@@ -133,7 +133,7 @@ function mapPeriod(item: {
 }
 
 export async function handleZiweiHoroscope(input: ZiweiHoroscopeInput): Promise<ZiweiHoroscopeOutput> {
-  const astrolabe = createAstrolabe(input);
+  const { astrolabe } = createAstrolabeWithTrueSolar(input);
 
   const { targetDate, targetTimeIndex } = input;
   const horoscope = astrolabe.horoscope(targetDate, targetTimeIndex);

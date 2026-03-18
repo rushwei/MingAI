@@ -156,6 +156,9 @@ export async function POST(request: NextRequest) {
         }
     } catch (error) {
         console.error('[daliuren] 路由错误:', error);
+        if (error instanceof Error && /(timezone|日期无效|格式无效|闰月|农历)/u.test(error.message)) {
+            return jsonError(error.message, 400, { success: false });
+        }
         return jsonError('服务器内部错误', 500, { success: false });
     }
 }

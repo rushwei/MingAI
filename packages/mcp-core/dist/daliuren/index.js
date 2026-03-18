@@ -3,35 +3,17 @@
  * 核心算法使用 liuren-ts-lib，补充课体细分、十二长生、五行旺衰等
  */
 import { getLiuRenByDate } from 'liuren-ts-lib';
-import { getTimeZoneOffsetMinutes, zonedTimeToUtc } from '../timezone-utils.js';
+import { DEFAULT_DIVINATION_TIMEZONE, zonedWallClockToSystemDate } from '../timezone-utils.js';
 import { DI_ZHI, ZHI_WUXING, YUE_JIANG_NAMES, TIAN_JIANG_SHORT, getChangSheng, getWangShuai, getTaoHua, classifyKeTi, generateKeName, calcBenMingXingNian, } from './supplements.js';
 /**
  * 大六壬排盘主函数
  */
 export function handleDaliurenCalculate(input) {
-    const { date, hour, minute = 0, question, birthYear, gender, timezone } = input;
+    const { date, hour, minute = 0, question, birthYear, gender } = input;
+    const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
     // 1. 构造 Date 对象
     const [y, m, d] = date.split('-').map(Number);
-    let dateObj;
-    if (timezone) {
-        try {
-            const utcDate = zonedTimeToUtc({ year: y, month: m, day: d, hour, minute }, timezone);
-            const targetOffset = getTimeZoneOffsetMinutes(timezone, utcDate);
-            const serverOffset = -utcDate.getTimezoneOffset();
-            dateObj = new Date(utcDate.getTime() + (targetOffset - serverOffset) * 60000);
-        }
-        catch (error) {
-            if (error instanceof Error && error.message.includes('timezone')) {
-                dateObj = new Date(y, m - 1, d, hour, minute, 0);
-            }
-            else {
-                throw error;
-            }
-        }
-    }
-    else {
-        dateObj = new Date(y, m - 1, d, hour, minute, 0);
-    }
+    const dateObj = zonedWallClockToSystemDate({ year: y, month: m, day: d, hour, minute }, timezone);
     // 2. 调用 liuren-ts-lib 核心排盘
     const raw = getLiuRenByDate(dateObj);
     // 3. 解析基础信息

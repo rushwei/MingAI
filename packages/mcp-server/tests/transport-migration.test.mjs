@@ -43,8 +43,16 @@ test('mcp server entry should provide root and metadata compatibility routes', a
     'should provide root protected-resource metadata compatibility'
   );
   assert.ok(
-    source.includes("app.get('/', originValidationMiddleware"),
-    'should mount root path as MCP compatibility alias'
+    source.includes("app.post(['/', '/mcp']"),
+    'should mount root and /mcp as POST aliases for MCP requests'
+  );
+  assert.ok(
+    source.includes("app.get(['/', '/mcp']"),
+    'should mount root and /mcp as GET aliases for MCP requests'
+  );
+  assert.ok(
+    source.includes("app.delete(['/', '/mcp']"),
+    'should mount root and /mcp as DELETE aliases for MCP requests'
   );
 });
 

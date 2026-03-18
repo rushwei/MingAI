@@ -19,6 +19,7 @@ export interface QimenInput {
     day: number;
     hour: number;
     minute: number;
+    timezone?: string;
     question?: string;
     panType: 'zhuan' | 'fei';
     juMethod: 'chaibu' | 'maoshan';
@@ -118,6 +119,7 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
         day: input.day,
         hour: input.hour,
         minute: input.minute,
+        timezone: input.timezone,
         question: input.question,
         juMethod: input.juMethod,
         zhiFuJiGong: input.zhiFuJiGong === 'jiWuGong' ? 'ji_wugong' : 'ji_liuyi',

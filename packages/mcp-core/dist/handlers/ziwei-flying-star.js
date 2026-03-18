@@ -1,7 +1,7 @@
 /**
  * 紫微斗数飞星分析处理器
  */
-import { createAstrolabe, MUTAGEN_NAMES } from './ziwei-shared.js';
+import { createAstrolabeWithTrueSolar, MUTAGEN_NAMES } from './ziwei-shared.js';
 function processQuery(astrolabe, query, idx) {
     switch (query.type) {
         case 'fliesTo': {
@@ -51,7 +51,7 @@ export async function handleZiweiFlyingStar(input) {
     if (!input.queries || !Array.isArray(input.queries) || input.queries.length === 0) {
         throw new Error('queries 不能为空');
     }
-    const astrolabe = createAstrolabe(input);
+    const { astrolabe } = createAstrolabeWithTrueSolar(input);
     const results = input.queries.map((q, i) => processQuery(astrolabe, q, i));
     return { results };
 }

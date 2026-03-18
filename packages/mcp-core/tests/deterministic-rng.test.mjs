@@ -44,7 +44,7 @@ test('liuyao(auto) should be deterministic with identical seed', async () => {
     question: '这周项目顺利吗',
     yongShenTargets: ['官鬼'],
     method: 'auto',
-    date: '2026-02-11',
+    date: '2026-02-11T09:00:00',
     seed,
   };
 

@@ -263,6 +263,7 @@ export interface DecadalInfo {
 
 export interface ZiweiHoroscopeInput extends BirthTimeInput {
   gender: Gender;
+  longitude?: number;
   targetDate?: string;
   targetTimeIndex?: number;
 }
@@ -307,6 +308,7 @@ export interface ZiweiHoroscopeOutput {
 
 export interface ZiweiFlyingStarInput extends BirthTimeInput {
   gender: Gender;
+  longitude?: number;
   queries: FlyingStarQuery[];
 }
 
@@ -347,7 +349,7 @@ export interface LiuyaoInput {
   hexagramName?: string;
   changedHexagramName?: string;
   numbers?: number[];
-  date: string;  // 占卜日期时间，支持 YYYY-MM-DD、YYYY-MM-DDTHH:MM[:SS]、YYYY-MM-DD HH:MM[:SS] 及带时区偏移的 ISO 时间
+  date: string;  // 占卜日期时间，必须包含时间；支持 YYYY-MM-DDTHH:MM[:SS]、YYYY-MM-DD HH:MM[:SS] 及带时区偏移的 ISO 时间
   seed?: string;
   seedScope?: string;
   responseFormat?: ResponseFormat;
@@ -749,6 +751,7 @@ export interface QimenInput {
   day: number;
   hour: number;
   minute?: number;
+  timezone?: string;
   question?: string;
   panType?: 'zhuan';
   juMethod?: 'chaibu' | 'maoshan';

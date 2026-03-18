@@ -10,7 +10,7 @@ test('liuyao rejects missing yongShenTargets when question is provided', async (
         question: '近期事业如何',
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /yongShenTargets|分析目标|请选择/u,
   );
@@ -24,7 +24,7 @@ test('liuyao rejects empty yongShenTargets when question is provided', async () 
         yongShenTargets: [],
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /yongShenTargets|分析目标|请选择|请先判断并填写/u,
   );
@@ -38,7 +38,7 @@ test('liuyao rejects empty question with explicit empty yongShenTargets', async 
         yongShenTargets: [],
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /请先明确问题后再解卦/u,
   );
@@ -51,7 +51,7 @@ test('liuyao rejects omitted yongShenTargets even when question is empty', async
         question: '',
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /请先明确问题后再解卦/u,
   );
@@ -65,7 +65,7 @@ test('liuyao rejects non-array yongShenTargets even when question is empty', asy
         yongShenTargets: null,
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /请先明确问题后再解卦/u,
   );
@@ -79,7 +79,7 @@ test('liuyao rejects non-string question to avoid contract bypass', async () => 
         yongShenTargets: [],
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /请先明确问题后再解卦/u,
   );
@@ -93,7 +93,7 @@ test('liuyao rejects illegal yongShenTargets values', async () => {
         yongShenTargets: ['官鬼', '无效目标'],
         method: 'select',
         hexagramName: '天火同人',
-        date: '2026-02-10',
+        date: '2026-02-10T12:00:00',
       }),
     /yongShenTargets|非法|无效/u,
   );
@@ -105,7 +105,7 @@ test('liuyao accepts explicit multiple targets in strict mode', async () => {
     yongShenTargets: ['官鬼', '父母'],
     method: 'select',
     hexagramName: '天火同人',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   assert.ok(Array.isArray(result.yongShen));

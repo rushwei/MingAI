@@ -7,6 +7,7 @@ import { Solar } from 'lunar-javascript';
 import type { QimenInput, QimenOutput, QimenPalaceInfo } from '../types.js';
 import { TIAN_GAN, DI_ZHI, GAN_WUXING, YI_MA_MAP } from '../constants/ganzhi.js';
 import { getKongWang } from '../utils.js';
+import { DEFAULT_DIVINATION_TIMEZONE, getTimeZoneOffsetMinutes } from '../timezone-utils.js';
 
 const require = createRequire(import.meta.url);
 const { TheArtOfBecomingInvisible } = require('taobi');
@@ -107,23 +108,40 @@ function getXunShou(dayStem: string, dayBranch: string): string {
   return `甲${DI_ZHI[startZhiIdx]}`;
 }
 
+function assertValidTimeZone(timeZone: string): void {
+  try {
+    getTimeZoneOffsetMinutes(timeZone, new Date());
+  } catch (error) {
+    if (error instanceof RangeError) {
+      throw new Error('timezone 无效');
+    }
+    throw error;
+  }
+}
+
 // ===== 主处理函数 =====
 
 export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutput> {
   const { year, month, day, hour, minute = 0 } = input;
+  const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
   const juMethod = input.juMethod || 'chaibu';
   const zhiFuJiGong = input.zhiFuJiGong || 'ji_liuyi';
   const elementsOption = juMethod === 'maoshan' ? 2 : 1;
   const followOption = zhiFuJiGong === 'ji_wugong' ? 0 : 1;
+  assertValidTimeZone(timezone);
 
-  // 调用 taobi 排盘
-  const date = new Date(year, month - 1, day, hour, minute);
-  let t;
+  const previousTimeZone = process.env.TZ;
+  process.env.TZ = timezone;
   try {
-    t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
-  } catch (err) {
-    throw new Error(`奇门排盘失败: ${err instanceof Error ? err.message : String(err)}`);
-  }
+
+    // 调用 taobi 排盘
+    const date = new Date(year, month - 1, day, hour, minute);
+    let t;
+    try {
+      t = new TheArtOfBecomingInvisible(date, null, null, followOption, { elements: elementsOption });
+    } catch (err) {
+      throw new Error(`奇门排盘失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
   // 基本信息
   const round = t.round as number;
@@ -280,42 +298,49 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
     });
   }
 
-  return {
-    dateInfo: {
-      solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      lunarDate,
-      solarTerm,
-      solarTermRange,
-    },
-    siZhu: {
-      year: `${yearGan}${yearZhi}`,
-      month: `${monthGan}${monthZhi}`,
-      day: `${dayGan}${dayZhi}`,
-      hour: `${hourGan}${hourZhi}`,
-    },
-    dunType,
-    juNumber,
-    yuan,
-    xunShou,
-    zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
-    zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
-    palaces,
-    kongWang: {
-      dayKong: {
-        branches: [...dayKong.kongZhi],
-        palaces: dayKongPalaces.map(p => p + 1),
+    return {
+      dateInfo: {
+        solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        lunarDate,
+        solarTerm,
+        solarTermRange,
       },
-      hourKong: {
-        branches: [...hourKong.kongZhi],
-        palaces: hourKongPalaces.map(p => p + 1),
+      siZhu: {
+        year: `${yearGan}${yearZhi}`,
+        month: `${monthGan}${monthZhi}`,
+        day: `${dayGan}${dayZhi}`,
+        hour: `${hourGan}${hourZhi}`,
       },
-    },
-    yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
-    globalFormations,
-    panType: '转盘',
-    juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
-    question: input.question,
-  };
+      dunType,
+      juNumber,
+      yuan,
+      xunShou,
+      zhiFu: { star: zhiFuStar, palace: zhiFuPalace + 1 },
+      zhiShi: { gate: zhiShiGate, palace: mandateIdx + 1 },
+      palaces,
+      kongWang: {
+        dayKong: {
+          branches: [...dayKong.kongZhi],
+          palaces: dayKongPalaces.map(p => p + 1),
+        },
+        hourKong: {
+          branches: [...hourKong.kongZhi],
+          palaces: hourKongPalaces.map(p => p + 1),
+        },
+      },
+      yiMa: { branch: yiMaBranch, palace: yiMaPalace >= 0 ? yiMaPalace + 1 : 0 },
+      globalFormations,
+      panType: '转盘',
+      juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
+      question: input.question,
+    };
+  } finally {
+    if (previousTimeZone == null) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = previousTimeZone;
+    }
+  }
 }
 
 function formatDateStr(d: Date): string {

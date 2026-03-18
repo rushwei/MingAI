@@ -1,3 +1,4 @@
+export const DEFAULT_DIVINATION_TIMEZONE = 'Asia/Shanghai';
 export function getTimeZoneOffsetMinutes(timeZone, date) {
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone,
@@ -33,4 +34,10 @@ export function zonedTimeToUtc(input, timeZone) {
         throw error;
     }
     return new Date(utcGuess.getTime() - offsetMinutes * 60000);
+}
+export function zonedWallClockToSystemDate(input, timeZone) {
+    const utcDate = zonedTimeToUtc(input, timeZone);
+    const targetOffset = getTimeZoneOffsetMinutes(timeZone, utcDate);
+    const serverOffset = -utcDate.getTimezoneOffset();
+    return new Date(utcDate.getTime() + (targetOffset - serverOffset) * 60000);
 }

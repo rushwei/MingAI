@@ -573,7 +573,7 @@ export const toolDefinitions = [
                 },
                 longitude: {
                     type: 'number',
-                    description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。提供后自动计算真太阳时校正时辰',
+                    description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
                 },
                 responseFormat: {
                     type: 'string',
@@ -727,7 +727,7 @@ export const toolDefinitions = [
                 douJun: { type: 'string', description: '子年斗君地支' },
                 trueSolarTimeInfo: {
                     type: 'object',
-                    description: '真太阳时校正信息（仅在提供 longitude 时返回）',
+                    description: '真太阳时校正信息（仅在提供 longitude 且 calendarType=solar 时返回）',
                     properties: {
                         clockTime: { type: 'string', description: '钟表时间 (HH:MM)' },
                         trueSolarTime: { type: 'string', description: '真太阳时 (HH:MM)' },
@@ -737,7 +737,7 @@ export const toolDefinitions = [
                         dayOffset: { type: 'number', description: '跨日偏移（-1/0/1）' },
                     },
                 },
-                lifeMasterStar: { type: 'string', description: '命主星（由出生时辰地支决定）' },
+                lifeMasterStar: { type: 'string', description: '命主星（由出生年地支决定）' },
                 bodyMasterStar: { type: 'string', description: '身主星（由出生年地支决定）' },
                 smallLimit: {
                     type: 'array',
@@ -784,6 +784,10 @@ export const toolDefinitions = [
                 birthMinute: { type: 'number', description: '出生分 (0-59)，默认 0' },
                 calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar' },
                 isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
+                longitude: {
+                    type: 'number',
+                    description: '出生地经度（东经为正，如北京 116.4）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
+                },
                 targetDate: { type: 'string', description: '目标日期 (YYYY-MM-DD)，默认今天' },
                 targetTimeIndex: { type: 'number', description: '目标时辰索引 (0-12)，默认当前时辰' },
                 responseFormat: {
@@ -855,6 +859,10 @@ export const toolDefinitions = [
                 birthMinute: { type: 'number', description: '出生分 (0-59)，默认 0' },
                 calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar' },
                 isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
+                longitude: {
+                    type: 'number',
+                    description: '出生地经度（东经为正，如北京 116.4）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
+                },
                 queries: {
                     type: 'array',
                     description: '查询列表',
@@ -943,7 +951,7 @@ export const toolDefinitions = [
                     items: { type: 'number' },
                     minItems: 2,
                     maxItems: 3,
-                    description: '数字起卦所用数字（仅 method=number 时需要）。2个数字：上卦=num1%8, 下卦=num2%8, 动爻=(num1+num2)%6；3个数字：上卦=num1%8, 下卦=num2%8, 动爻=num3%6',
+                    description: '数字起卦所用数字（仅 method=number 时需要），必须为正整数。2个数字：上卦=num1%8, 下卦=num2%8, 动爻=(num1+num2)%6；3个数字：上卦=num1%8, 下卦=num2%8, 动爻=num3%6',
                 },
                 hexagramName: {
                     type: 'string',
@@ -966,8 +974,8 @@ export const toolDefinitions = [
             },
             required: ['question', 'yongShenTargets', 'date'],
             examples: [
-                { question: '本月事业运势如何？', yongShenTargets: ['官鬼'], method: 'auto' },
-                { question: '财运怎么样？', yongShenTargets: ['妻财'], hexagramName: '天火同人' },
+                { question: '本月事业运势如何？', yongShenTargets: ['官鬼'], method: 'auto', date: '2026-02-10T09:30:00' },
+                { question: '财运怎么样？', yongShenTargets: ['妻财'], hexagramName: '天火同人', date: '2026-02-10 14:00:00' },
             ],
         },
         outputSchema: {
@@ -1601,6 +1609,7 @@ export const toolDefinitions = [
                 day: { type: 'number', description: '日 (1-31)' },
                 hour: { type: 'number', description: '时 (0-23)' },
                 minute: { type: 'number', description: '分 (0-59)，默认 0' },
+                timezone: { type: 'string', description: 'IANA 时区，默认 Asia/Shanghai。用于将输入的年月日时分解释为调用方本地时刻' },
                 question: { type: 'string', description: '占问事项（可选）' },
                 panType: { type: 'string', enum: ['zhuan'], description: '盘式：zhuan=转盘（默认）' },
                 juMethod: { type: 'string', enum: ['chaibu', 'maoshan'], description: '定局法：chaibu=拆补法（默认），maoshan=茅山法' },
@@ -1614,7 +1623,7 @@ export const toolDefinitions = [
             },
             required: ['year', 'month', 'day', 'hour'],
             examples: [
-                { year: 2026, month: 3, day: 15, hour: 16, minute: 51, question: '事业发展如何？' },
+                { year: 2026, month: 3, day: 15, hour: 16, minute: 51, timezone: 'Asia/Shanghai', question: '事业发展如何？' },
             ],
         },
         outputSchema: {
@@ -1686,15 +1695,122 @@ export const toolDefinitions = [
                 date: { type: 'string', description: '公历日期 YYYY-MM-DD' },
                 hour: { type: 'number', description: '时辰 0-23' },
                 minute: { type: 'number', description: '分钟 0-59，默认 0' },
+                timezone: { type: 'string', description: 'IANA 时区，默认 Asia/Shanghai。用于将输入的日期时刻解释为调用方本地时区时间' },
                 question: { type: 'string', description: '占事（可选）' },
                 birthYear: { type: 'number', description: '出生年（可选，用于计算本命和行年）' },
                 gender: { type: 'string', enum: ['male', 'female'], description: '性别（可选，用于计算行年）' },
             },
             required: ['date', 'hour'],
             examples: [
-                { date: '2026-03-15', hour: 16, minute: 53, question: '今日运势如何' },
-                { date: '2026-03-15', hour: 16, birthYear: 1990, gender: 'male' },
+                { date: '2026-03-15', hour: 16, minute: 53, timezone: 'Asia/Shanghai', question: '今日运势如何' },
+                { date: '2026-03-15', hour: 16, timezone: 'Asia/Shanghai', birthYear: 1990, gender: 'male' },
             ],
+        },
+        outputSchema: {
+            type: 'object',
+            properties: {
+                dateInfo: {
+                    type: 'object',
+                    description: '日期与基础信息',
+                    properties: {
+                        solarDate: { type: 'string', description: '公历日期时间' },
+                        lunarDate: { type: 'string', description: '农历日期' },
+                        bazi: { type: 'string', description: '四柱八字' },
+                        ganZhi: {
+                            type: 'object',
+                            properties: {
+                                year: { type: 'string' },
+                                month: { type: 'string' },
+                                day: { type: 'string' },
+                                hour: { type: 'string' },
+                            },
+                        },
+                        yueJiang: { type: 'string', description: '月将地支' },
+                        yueJiangName: { type: 'string', description: '月将名' },
+                        xun: { type: 'string', description: '旬' },
+                        kongWang: { type: 'array', items: { type: 'string' }, description: '空亡' },
+                        yiMa: { type: 'string', description: '驿马' },
+                        dingMa: { type: 'string', description: '丁马' },
+                        tianMa: { type: 'string', description: '天马' },
+                        diurnal: { type: 'boolean', description: '昼夜标记' },
+                    },
+                },
+                tianDiPan: {
+                    type: 'object',
+                    properties: {
+                        diPan: { type: 'object', description: '地盘' },
+                        tianPan: { type: 'object', description: '天盘' },
+                        tianJiang: { type: 'object', description: '天将' },
+                    },
+                },
+                siKe: {
+                    type: 'object',
+                    properties: {
+                        yiKe: { type: 'array', items: { type: 'string' } },
+                        erKe: { type: 'array', items: { type: 'string' } },
+                        sanKe: { type: 'array', items: { type: 'string' } },
+                        siKe: { type: 'array', items: { type: 'string' } },
+                    },
+                },
+                sanChuan: {
+                    type: 'object',
+                    properties: {
+                        chu: { type: 'array', items: { type: 'string' } },
+                        zhong: { type: 'array', items: { type: 'string' } },
+                        mo: { type: 'array', items: { type: 'string' } },
+                        method: { type: 'string', description: '取传方法' },
+                    },
+                },
+                keTi: {
+                    type: 'object',
+                    properties: {
+                        method: { type: 'string', description: '课体大类' },
+                        subTypes: { type: 'array', items: { type: 'string' } },
+                        extraTypes: { type: 'array', items: { type: 'string' } },
+                    },
+                },
+                keName: { type: 'string', description: '课名' },
+                shenSha: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string' },
+                            value: { type: 'string' },
+                            description: { type: 'string' },
+                        },
+                    },
+                },
+                gongInfos: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            diZhi: { type: 'string' },
+                            tianZhi: { type: 'string' },
+                            tianJiang: { type: 'string' },
+                            tianJiangShort: { type: 'string' },
+                            dunGan: { type: 'string' },
+                            changSheng: { type: 'string' },
+                            wuXing: { type: 'string' },
+                            wangShuai: { type: 'string' },
+                            jianChu: { type: 'string' },
+                        },
+                    },
+                },
+                dunGan: { type: 'object', description: '遁干表' },
+                jianChu: { type: 'object', description: '建除表' },
+                yinYangGuiRen: {
+                    type: 'object',
+                    properties: {
+                        yangGuiRen: { type: 'object' },
+                        yinGuiRen: { type: 'object' },
+                    },
+                },
+                benMing: { type: 'string', description: '本命干支' },
+                xingNian: { type: 'string', description: '行年干支' },
+                question: { type: 'string', description: '占事' },
+            },
         },
         annotations: {
             readOnlyHint: true,

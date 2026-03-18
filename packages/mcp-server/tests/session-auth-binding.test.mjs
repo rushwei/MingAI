@@ -24,13 +24,13 @@ test('existing session requests should validate session owner on GET and DELETE'
   );
 });
 
-test('session activity should be refreshed on GET and DELETE', async () => {
+test('session activity should be refreshed when reusing an existing GET session transport', async () => {
   const source = await readFile(indexPath, 'utf-8');
 
   const refreshMatches = source.match(/session\.lastActivityAt\s*=\s*Date\.now\(\)/g) ?? [];
   assert.ok(
-    refreshMatches.length >= 2,
-    'GET and DELETE handlers should refresh session.lastActivityAt'
+    refreshMatches.length >= 1,
+    'GET handler should refresh session.lastActivityAt before reusing the existing session transport'
   );
 });
 

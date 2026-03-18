@@ -129,6 +129,7 @@ test('dist auth middleware should revalidate cached key and reject revoked key i
     cwd: mcpCwd,
     env: {
       ...process.env,
+      NODE_OPTIONS: '',
       NODE_ENV: 'test',
       PORT: String(mcpPort),
       MCP_HOST: '127.0.0.1',

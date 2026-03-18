@@ -14,7 +14,7 @@ import type {
   DaliurenShenSha,
   GongInfo,
 } from './types.js';
-import { getTimeZoneOffsetMinutes, zonedTimeToUtc } from '../timezone-utils.js';
+import { DEFAULT_DIVINATION_TIMEZONE, zonedWallClockToSystemDate } from '../timezone-utils.js';
 import {
   DI_ZHI,
   ZHI_WUXING,
@@ -32,27 +32,12 @@ import {
  * 大六壬排盘主函数
  */
 export function handleDaliurenCalculate(input: DaliurenInput): DaliurenOutput {
-  const { date, hour, minute = 0, question, birthYear, gender, timezone } = input;
+  const { date, hour, minute = 0, question, birthYear, gender } = input;
+  const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
 
   // 1. 构造 Date 对象
   const [y, m, d] = date.split('-').map(Number);
-  let dateObj: Date;
-  if (timezone) {
-    try {
-      const utcDate = zonedTimeToUtc({ year: y, month: m, day: d, hour, minute }, timezone);
-      const targetOffset = getTimeZoneOffsetMinutes(timezone, utcDate);
-      const serverOffset = -utcDate.getTimezoneOffset();
-      dateObj = new Date(utcDate.getTime() + (targetOffset - serverOffset) * 60000);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('timezone')) {
-        dateObj = new Date(y, m - 1, d, hour, minute, 0);
-      } else {
-        throw error;
-      }
-    }
-  } else {
-    dateObj = new Date(y, m - 1, d, hour, minute, 0);
-  }
+  const dateObj = zonedWallClockToSystemDate({ year: y, month: m, day: d, hour, minute }, timezone);
 
   // 2. 调用 liuren-ts-lib 核心排盘
   const raw = getLiuRenByDate(dateObj);

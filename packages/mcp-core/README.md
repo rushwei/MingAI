@@ -40,6 +40,7 @@ const ziwei = await handleToolCall('ziwei_calculate', {
 const liuyao = await handleToolCall('liuyao', {
   question: '事业发展如何',
   yongShenTargets: ['官鬼'],
+  date: '2026-03-18T10:30:00',
 });
 ```
 
@@ -56,6 +57,8 @@ const liuyao = await handleToolCall('liuyao', {
 | `liuyao` | 六爻排卦分析 |
 | `tarot` | 塔罗抽牌 |
 | `almanac` | 黄历查询 |
+| `qimen_calculate` | 奇门遁甲排盘 |
+| `daliuren` | 大六壬排盘 |
 
 ## API
 
@@ -107,7 +110,7 @@ import { tools, handleToolCall, formatAsMarkdown } from '@mingai/mcp-core';
 - ✨ 新增数字起卦（2数法/3数法）
 
 **紫微斗数 (ziwei_calculate + ziwei_horoscope):**
-- ✨ 新增命主星（时辰查表）、身主星（年支查表）
+- ✨ 新增命主星（年支查表）、身主星（年支查表）
 - ✨ 新增小限（三合局起始宫，男顺女逆，12年循环）
 - ✨ 新增博士十二星（禄存起始，阳男阴女/阴男阳女方向）
 - ✨ 新增流年星曜（流禄/流羊/流陀/流昌/流曲）
@@ -130,4 +133,3 @@ import { tools, handleToolCall, formatAsMarkdown } from '@mingai/mcp-core';
 **六爻增强：**
 - ✨ `liuyao` 的 `date` 字段现为必填，且必须包含时间部分（格式：`YYYY-MM-DDTHH:MM` 或 `YYYY-MM-DD HH:MM:SS`），时辰影响时柱与空亡计算
 - 🗑️ 移除 `seed` 输入参数，改为基于日期时辰自动生成确定性随机序列（相同日期时辰可复现）
-

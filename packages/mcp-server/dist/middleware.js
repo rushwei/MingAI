@@ -9,7 +9,7 @@
  *   → sseConnectionLimitMiddleware（仅 GET）
  */
 import { getSupabaseClient } from './supabase.js';
-import { getCachedKey, setCachedKey } from './key-cache.js';
+import { getCachedKey, invalidateCachedKey, setCachedKey } from './key-cache.js';
 // ─── Origin 校验中间件（P0 — DNS rebinding 防护）───
 export function originValidationMiddleware(req, res, next) {
     const origin = req.headers.origin;
@@ -95,17 +95,28 @@ async function authMiddleware(req, res, next) {
     if (!apiKey) {
         return res.status(401).json({ error: 'Missing API key' });
     }
-    // 查缓存：TTL 已缩短至 60 秒，有效期内信任缓存避免回源
+    // 命中缓存时仍需回源复验，确保撤销/重置后的 key 立即失效。
     const cached = getCachedKey(apiKey);
-    if (cached) {
-        req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
-        void touchLastUsedAt(cached.keyId);
-        return next();
-    }
     try {
-        const activeKey = await queryActiveKey(apiKey);
+        let activeKey = cached
+            ? await queryActiveKey(apiKey)
+            : null;
+        if (cached && !activeKey) {
+            invalidateCachedKey(apiKey);
+            return res.status(401).json({ error: 'Invalid API key' });
+        }
+        if (!activeKey) {
+            activeKey = await queryActiveKey(apiKey);
+        }
         if (!activeKey) {
             return res.status(401).json({ error: 'Invalid API key' });
+        }
+        if (cached
+            && cached.userId === activeKey.user_id
+            && cached.keyId === activeKey.id) {
+            req.mcpAuth = { userId: cached.userId, keyId: cached.keyId };
+            void touchLastUsedAt(cached.keyId);
+            return next();
         }
         setCachedKey(apiKey, { userId: activeKey.user_id, keyId: activeKey.id });
         req.mcpAuth = { userId: activeKey.user_id, keyId: activeKey.id };

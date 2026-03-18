@@ -44,7 +44,7 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
     method: 'select',
     hexagramName: '天火同人',
     changedHexagramName: '天山遯',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
     yongShenTargets: ['官鬼', '父母'],
   });
 
@@ -110,7 +110,14 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
 });
 
 test('liuyao can identify hidden_moving and day_break in sampled cases', async () => {
-  const dates = ['2026-02-10', '2026-03-10', '2026-04-10', '2026-05-10', '2026-06-10', '2026-07-10'];
+  const dates = [
+    '2026-02-10T12:00:00',
+    '2026-03-10T12:00:00',
+    '2026-04-10T12:00:00',
+    '2026-05-10T12:00:00',
+    '2026-06-10T12:00:00',
+    '2026-07-10T12:00:00',
+  ];
   const hexagrams = ['天火同人', '地天泰', '泽雷随', '火天大有', '坎为水', '离为火'];
 
   const seen = new Set();
@@ -152,7 +159,7 @@ test('liuyao relation uses 伏吟 when changed branch stays the same', async () 
     method: 'select',
     hexagramName: '乾为天',
     changedHexagramName: '水雷屯',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   const target = result.fullYaos.find((yao) => yao.position === 2);
@@ -167,7 +174,7 @@ test('liuyao uses 伏神 fallback when target liuqin is absent in main hexagram'
     yongShenTargets: ['官鬼'],
     method: 'select',
     hexagramName: '火水未济',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
@@ -221,7 +228,7 @@ test('liuyao time recommendations prioritize出伏提示 over generic favorable 
     yongShenTargets: ['官鬼'],
     method: 'select',
     hexagramName: '火水未济',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
@@ -292,7 +299,7 @@ test('liuyao should not emit generic favorable timing for unresolved fuShen fall
     yongShenTargets: ['官鬼'],
     method: 'select',
     hexagramName: '火水未济',
-    date: '2026-02-10',
+    date: '2026-02-10T12:00:00',
   });
 
   const group = result.yongShen.find((item) => item.targetLiuQin === '官鬼');
