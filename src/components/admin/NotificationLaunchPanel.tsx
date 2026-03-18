@@ -107,9 +107,11 @@ export function NotificationLaunchPanel() {
 
             if (stats) {
                 const detailLines = [
-                    `📊 站内信：${stats.notifications} (候选 ${stats.siteEligible ?? 0})`,
-                    `📧 邮件：${stats.emails} (候选 ${stats.emailEligible ?? 0})`,
+                    `📊 站内通知：${stats.notifications} / ${stats.siteEligible ?? 0} 位目标用户`,
                 ];
+                if (stats.siteSkipped) {
+                    detailLines.push(`⏭️ 跳过（用户关闭通知）：${stats.siteSkipped}`);
+                }
                 if (Array.isArray(stats.errors) && stats.errors.length > 0) {
                     detailLines.push(...stats.errors);
                 }
