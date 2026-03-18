@@ -81,6 +81,33 @@ test('payment-status post returns admin auth error from helper', async (t) => {
     assert.equal(payload.error, '无权限操作');
 });
 
+test('payment-status get should stay publicly readable for global payment pause state', async (t) => {
+    const appSettingsModule = require('../lib/app-settings') as any;
+    const apiUtilsModule = require('../lib/api-utils') as any;
+    const originalGetPaymentsPaused = appSettingsModule.getPaymentsPaused;
+    const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+    let authTouched = false;
+    appSettingsModule.getPaymentsPaused = async () => true;
+    apiUtilsModule.requireUserContext = async () => {
+        authTouched = true;
+        return { error: { message: '请先登录', status: 401 } };
+    };
+
+    t.after(() => {
+        appSettingsModule.getPaymentsPaused = originalGetPaymentsPaused;
+        apiUtilsModule.requireUserContext = originalRequireUserContext;
+    });
+
+    const { GET } = await import('../app/api/payment-status/route');
+    const response = await GET(new NextRequest('http://localhost/api/payment-status'));
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.paused, true);
+    assert.equal(authTouched, false);
+});
+
 test('activation-keys get returns standardized auth error', async (t) => {
     const apiUtils = require('../lib/api-utils') as any;
     const originalRequireAdminUser = apiUtils.requireAdminUser;
