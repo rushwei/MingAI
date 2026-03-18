@@ -12,4 +12,5 @@ export declare function getKongWang(dayGan: string, dayZhi: string): {
     xun: string;
     kongZhi: [string, string];
 };
+export declare function getDiShi(dayStem: string, branch: string): string;
 //# sourceMappingURL=utils.d.ts.map

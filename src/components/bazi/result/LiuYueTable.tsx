@@ -15,8 +15,8 @@ export function LiuYueTable({
             <div className="flex sm:gap-1.5 gap-1 min-w-max sm:pb-2">
                 {liuYue.map((ly, index) => {
                     const isSelected = ly.month === selectedMonth;
-                    const gan = ly.ganZhi[0];
-                    const zhi = ly.ganZhi[1];
+                    const gan = ly.gan;
+                    const zhi = ly.zhi;
                     const ganElement = getStemElement(gan);
                     const zhiElement = getBranchElement(zhi);
 

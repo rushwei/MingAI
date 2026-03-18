@@ -187,6 +187,20 @@ test('ziwei_horoscope and ziwei_flying_star should expose longitude in the publi
   assert.equal(typeof flyingStarTool.inputSchema?.properties?.longitude, 'object');
 });
 
+test('qimen_calculate output schema should expose the extended palace metadata returned at runtime', () => {
+  const tool = mcpCore.tools.find((item) => item.name === 'qimen_calculate');
+  assert.ok(tool, 'qimen_calculate tool missing');
+
+  const palaceProps = tool.outputSchema?.properties?.palaces?.items?.properties;
+
+  assert.equal(palaceProps?.starElement?.type, 'string');
+  assert.equal(palaceProps?.gateElement?.type, 'string');
+  assert.equal(palaceProps?.stemWangShuai?.type, 'string');
+  assert.equal(palaceProps?.elementState?.type, 'string');
+  assert.equal(tool.outputSchema?.properties?.panType?.type, 'string');
+  assert.equal(tool.outputSchema?.properties?.juMethod?.type, 'string');
+});
+
 test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge', async () => {
   const result = await mcpCore.handleDayunCalculate({
     gender: 'male',
@@ -199,6 +213,48 @@ test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge
   });
 
   assert.ok(result.xiaoYun.some((item) => item.age === 8), 'xiaoYun should include the age right before first daYun.startAge');
+  assert.equal(result.startAge, 9, 'dayun output should expose first daYun.startAge for downstream adapters');
+  assert.equal(result.list[0]?.startAge, 9, 'each dayun entry should expose its own startAge');
+  assert.equal(result.list[0]?.liunianList[0]?.age, 9, 'liunian entries should expose derived age for web adapters');
+});
+
+test('bazi_dayun output schema should expose full liunian payload fields for downstream consumers', () => {
+  const tool = mcpCore.tools.find((item) => item.name === 'bazi_dayun');
+  assert.ok(tool, 'bazi_dayun tool missing');
+
+  const liunianProps = tool.outputSchema?.properties?.list?.items?.properties?.liunianList?.items?.properties;
+
+  assert.equal(liunianProps?.gan?.type, 'string');
+  assert.equal(liunianProps?.zhi?.type, 'string');
+  assert.equal(liunianProps?.hiddenStems?.type, 'array');
+  assert.equal(liunianProps?.diShi?.type, 'string');
+  assert.equal(liunianProps?.shenSha?.type, 'array');
+});
+
+test('ziwei_calculate should expose structured four pillars for direct consumers', async () => {
+  const result = await mcpCore.handleZiweiCalculate({
+    gender: 'male',
+    birthYear: 1990,
+    birthMonth: 1,
+    birthDay: 1,
+    birthHour: 12,
+    birthMinute: 0,
+    calendarType: 'solar',
+  });
+
+  assert.equal(typeof result.fourPillars.year?.gan, 'string');
+  assert.equal(typeof result.fourPillars.year?.zhi, 'string');
+  assert.equal(result.fourPillars.year.gan + result.fourPillars.year.zhi, '己巳');
+});
+
+test('ziwei_calculate output schema should expose structured four pillars for adapters', () => {
+  const tool = mcpCore.tools.find((item) => item.name === 'ziwei_calculate');
+  assert.ok(tool, 'ziwei_calculate tool missing');
+
+  const yearProps = tool.outputSchema?.properties?.fourPillars?.properties?.year?.properties;
+
+  assert.equal(yearProps?.gan?.type, 'string');
+  assert.equal(yearProps?.zhi?.type, 'string');
 });
 
 test('README should stay aligned with the current mcp-core tool surface and liuyao contract', async () => {

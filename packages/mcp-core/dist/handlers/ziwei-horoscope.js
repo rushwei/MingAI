@@ -92,21 +92,30 @@ function computeTransitStars(flowYearStem, flowYearBranch, palaces) {
 }
 function mapPeriod(item) {
     return {
-        index: item.index,
-        name: item.name,
-        heavenlyStem: item.heavenlyStem,
-        earthlyBranch: item.earthlyBranch,
-        palaceNames: item.palaceNames,
-        mutagen: item.mutagen,
+        index: item.index ?? 0,
+        name: item.name ?? '',
+        heavenlyStem: item.heavenlyStem ?? '',
+        earthlyBranch: item.earthlyBranch ?? '',
+        palaceNames: item.palaceNames ?? [],
+        mutagen: item.mutagen ?? [],
     };
 }
-export async function handleZiweiHoroscope(input) {
-    const { astrolabe } = createAstrolabeWithTrueSolar(input);
-    const { targetDate, targetTimeIndex } = input;
+function resolveTargetDateLabel(targetDate) {
+    if (typeof targetDate === 'string' && targetDate) {
+        return targetDate;
+    }
+    if (targetDate instanceof Date) {
+        return targetDate.toISOString().slice(0, 10);
+    }
+    return new Date().toISOString().slice(0, 10);
+}
+export function calculateZiweiHoroscopeDataWithAstrolabe(astrolabe, options = {}) {
+    const { targetDate, targetTimeIndex } = options;
     const horoscope = astrolabe.horoscope(targetDate, targetTimeIndex);
+    const targetDateLabel = resolveTargetDateLabel(targetDate);
     // 流年星曜：from flow year stem + branch
-    const flowYearStem = horoscope.yearly.heavenlyStem;
-    const flowYearBranch = horoscope.yearly.earthlyBranch;
+    const flowYearStem = horoscope.yearly?.heavenlyStem ?? '';
+    const flowYearBranch = horoscope.yearly?.earthlyBranch ?? '';
     const palaceList = astrolabe.palaces.map(p => ({
         name: p.name,
         earthlyBranch: p.earthlyBranch,
@@ -117,7 +126,7 @@ export async function handleZiweiHoroscope(input) {
     // P2: 岁前十二星 & 将前十二星
     const yearlyData = horoscope.yearly;
     let yearlyDecStar;
-    if (yearlyData.yearlyDecStar) {
+    if (yearlyData?.yearlyDecStar) {
         const { jiangqian12, suiqian12 } = yearlyData.yearlyDecStar;
         if ((jiangqian12 && jiangqian12.length > 0) || (suiqian12 && suiqian12.length > 0)) {
             yearlyDecStar = {
@@ -132,14 +141,24 @@ export async function handleZiweiHoroscope(input) {
         soul: astrolabe.soul || '',
         body: astrolabe.body || '',
         fiveElement: astrolabe.fiveElementsClass || '',
-        targetDate: targetDate || new Date().toISOString().slice(0, 10),
-        decadal: mapPeriod(horoscope.decadal),
-        age: { ...mapPeriod(horoscope.age), nominalAge: horoscope.age.nominalAge },
-        yearly: mapPeriod(horoscope.yearly),
-        monthly: mapPeriod(horoscope.monthly),
-        daily: mapPeriod(horoscope.daily),
-        hourly: mapPeriod(horoscope.hourly),
+        targetDate: targetDateLabel,
+        decadal: mapPeriod(horoscope.decadal ?? {}),
+        age: { ...mapPeriod(horoscope.age ?? {}), nominalAge: horoscope.age?.nominalAge ?? 0 },
+        yearly: mapPeriod(horoscope.yearly ?? {}),
+        monthly: mapPeriod(horoscope.monthly ?? {}),
+        daily: mapPeriod(horoscope.daily ?? {}),
+        hourly: mapPeriod(horoscope.hourly ?? {}),
         transitStars,
         yearlyDecStar,
     };
+}
+export function calculateZiweiHoroscopeData(input) {
+    const { astrolabe } = createAstrolabeWithTrueSolar(input);
+    return calculateZiweiHoroscopeDataWithAstrolabe(astrolabe, {
+        targetDate: input.targetDate,
+        targetTimeIndex: input.targetTimeIndex,
+    });
+}
+export async function handleZiweiHoroscope(input) {
+    return calculateZiweiHoroscopeData(input);
 }

@@ -1,6 +1,5 @@
 import { Calendar, TrendingUp } from 'lucide-react';
-import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo, type ShenShaInfo } from '@/lib/divination/bazi';
-import type { Gender } from '@/types';
+import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo } from '@/lib/divination/bazi';
 import { DaYunTable } from '@/components/bazi/result/DaYunTable';
 import { LiuNianTable } from '@/components/bazi/result/LiuNianTable';
 import { LiuYueTable } from '@/components/bazi/result/LiuYueTable';
@@ -11,7 +10,6 @@ import { DiZhiRelations } from '@/components/bazi/result/DiZhiRelations';
 export function ProfessionalSection({
     baziResult,
     proData,
-    gender,
     isUnknownTime = false,
     selectedDaYunIndex,
     onSelectDaYun,
@@ -25,11 +23,9 @@ export function ProfessionalSection({
     selectedLiuRiDate,
     onSelectLiuRi,
     activeLiuYue,
-    shenSha,
 }: {
     baziResult: ReturnType<typeof calculateBazi>;
     proData: ReturnType<typeof calculateProfessionalData>;
-    gender: Gender;
     isUnknownTime?: boolean;
     selectedDaYunIndex: number;
     onSelectDaYun: (index: number) => void;
@@ -43,7 +39,6 @@ export function ProfessionalSection({
     selectedLiuRiDate: string;
     onSelectLiuRi: (date: string) => void;
     activeLiuYue: LiuYueInfo | null;
-    shenSha?: ShenShaInfo;
 }) {
     // 获取当前选中的运势信息
     const activeDaYun: DaYunInfo | undefined = proData.daYun[selectedDaYunIndex];
@@ -56,10 +51,7 @@ export function ProfessionalSection({
                 <h2 className="text-base font-semibold mb-3">四柱详解</h2>
                 <ProfessionalTable
                     baziResult={baziResult}
-                    proData={proData}
-                    gender={gender}
                     isUnknownTime={isUnknownTime}
-                    pillarShenSha={shenSha?.pillarShenSha}
                     // 运势信息
                     activeDaYun={activeDaYun}
                     activeLiuNian={activeLiuNian}
@@ -130,10 +122,7 @@ export function ProfessionalSection({
 
             {/* 地支关系 */}
             <DiZhiRelations
-                yearBranch={baziResult.fourPillars.year.branch}
-                monthBranch={baziResult.fourPillars.month.branch}
-                dayBranch={baziResult.fourPillars.day.branch}
-                hourBranch={baziResult.fourPillars.hour.branch}
+                relations={baziResult.relations || []}
                 isUnknownTime={isUnknownTime}
             />
         </div>

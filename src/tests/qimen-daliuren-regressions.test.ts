@@ -7,6 +7,8 @@ const qimenWrapperPath = resolve(process.cwd(), 'src/lib/divination/qimen.ts');
 const qimenPagePath = resolve(process.cwd(), 'src/app/qimen/page.tsx');
 const qimenRoutePath = resolve(process.cwd(), 'src/app/api/qimen/route.ts');
 const qimenResultPath = resolve(process.cwd(), 'src/app/qimen/result/page.tsx');
+const qimenGridPath = resolve(process.cwd(), 'src/components/qimen/QimenGrid.tsx');
+const qimenDataSourcePath = resolve(process.cwd(), 'src/lib/data-sources/qimen.ts');
 const daliurenHistoryPath = resolve(process.cwd(), 'src/app/daliuren/history/page.tsx');
 const daliurenResultPath = resolve(process.cwd(), 'src/app/daliuren/result/page.tsx');
 const daliurenPagePath = resolve(process.cwd(), 'src/app/daliuren/page.tsx');
@@ -20,6 +22,29 @@ test('qimen wrapper should forward zhiFuJiGong to mcp-core using canonical core 
     source,
     /ji_wugong|ji_liuyi/u,
     'wrapper should map the web-layer option to the core qimen enum values instead of dropping it',
+  );
+});
+
+test('qimen web wrapper and route should not advertise unsupported feipan input', async () => {
+  const [wrapperSource, routeSource] = await Promise.all([
+    readFile(qimenWrapperPath, 'utf-8'),
+    readFile(qimenRoutePath, 'utf-8'),
+  ]);
+
+  assert.doesNotMatch(
+    wrapperSource,
+    /panType:\s*'zhuan'\s*\|\s*'fei'/u,
+    'qimen wrapper should not claim to support feipan before core exposes that capability',
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /panType\?:\s*'zhuan'\s*\|\s*'fei'/u,
+    'qimen route should not advertise feipan input while runtime only supports zhuan',
+  );
+  assert.match(
+    routeSource,
+    /panType\s*&&\s*panType\s*!==\s*'zhuan'/u,
+    'qimen route should reject unsupported panType values explicitly instead of silently ignoring them',
   );
 });
 
@@ -49,6 +74,41 @@ test('qimen page, wrapper, and route should preserve timezone when calculating a
     routeSource,
     /year,\s*month,\s*day,\s*hour,\s*minute,\s*timezone,\s*question/u,
     'qimen route should pass timezone through to the qimen calculation wrapper',
+  );
+  assert.match(
+    wrapperSource,
+    /elementState:\s*p\.elementState/u,
+    'qimen wrapper should expose palace elementState directly from core instead of dropping it',
+  );
+});
+
+test('qimen web surfaces should not reference hiddenStem fields that core does not expose', async () => {
+  const [wrapperSource, routeSource, gridSource, dataSource] = await Promise.all([
+    readFile(qimenWrapperPath, 'utf-8'),
+    readFile(qimenRoutePath, 'utf-8'),
+    readFile(qimenGridPath, 'utf-8'),
+    readFile(qimenDataSourcePath, 'utf-8'),
+  ]);
+
+  assert.doesNotMatch(
+    wrapperSource,
+    /hiddenStem/u,
+    'qimen wrapper should not declare hiddenStem in the web contract when core does not return it',
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /hiddenStem|暗干/u,
+    'qimen analysis prompt should not mention hiddenStem data that the chart payload never contains',
+  );
+  assert.doesNotMatch(
+    gridSource,
+    /hiddenStem|暗干/u,
+    'qimen grid should not render hiddenStem placeholders when core does not provide that field',
+  );
+  assert.doesNotMatch(
+    dataSource,
+    /hiddenStem|暗干/u,
+    'qimen data-source formatting should stay aligned with the shared core chart contract',
   );
 });
 

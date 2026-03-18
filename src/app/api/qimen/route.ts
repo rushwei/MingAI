@@ -19,7 +19,7 @@ interface QimenRequest {
     minute?: number;
     timezone?: string;
     question?: string;
-    panType?: 'zhuan' | 'fei';
+    panType?: 'zhuan';
     juMethod?: 'chaibu' | 'maoshan';
     zhiFuJiGong?: 'jiLiuYi' | 'jiWuGong';
     chartData?: QimenOutput;
@@ -59,7 +59,7 @@ function buildChartInfoText(chart: QimenOutput): string {
         const markerStr = markers.length > 0 ? ` [${markers.join(',')}]` : '';
         const patternStr = p.patterns.length > 0 ? ` 格局：${p.patterns.join('、')}` : '';
         lines.push(
-            `${p.palaceName}：地盘${p.earthStem} 天盘${p.heavenStem} ${p.star} ${p.gate} ${p.god}${p.hiddenStem ? ` 暗干${p.hiddenStem}` : ''}${patternStr}${markerStr}`
+            `${p.palaceName}：地盘${p.earthStem} 天盘${p.heavenStem} ${p.star} ${p.gate} ${p.god}${patternStr}${markerStr}`
         );
     }
     lines.push('');
@@ -163,6 +163,9 @@ export async function POST(request: NextRequest) {
                 const { year, month, day, hour, minute, timezone, question, panType, juMethod, zhiFuJiGong } = body;
                 if (!year || !month || !day || hour == null || minute == null) {
                     return jsonError('请提供完整的日期时间', 400, { success: false });
+                }
+                if (panType && panType !== 'zhuan') {
+                    return jsonError('当前仅支持转盘', 400, { success: false });
                 }
                 const authResult = await requireBearerUser(request);
                 if ('error' in authResult) {

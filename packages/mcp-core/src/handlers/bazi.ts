@@ -4,8 +4,12 @@
 
 import { Solar, Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 import type {
+  BaziFiveElementsStats,
+  BaziLiuRiInfo,
+  BaziLiuYueInfo,
   BaziInput,
   BaziOutput,
+  BaziShenShaOutput,
   HiddenStemInfo,
   PillarInfo,
   PillarKongWangInfo,
@@ -18,10 +22,11 @@ import type {
   TrueSolarTimeInfo,
 } from '../types.js';
 import {
-  GAN_WUXING,
-  getStemYinYang,
   calculateTenGod,
+  getDiShi as getDiShiCore,
   getKongWang,
+  STEM_ELEMENTS,
+  ZHI_WUXING,
 } from '../utils.js';
 import { calculatePillarShenSha as calculateSharedPillarShenSha } from '../shensha.js';
 import { resolveTrueSolarDateTime } from './ziwei-shared.js';
@@ -31,8 +36,6 @@ import {
   DI_ZHI,
   HIDDEN_STEM_DETAILS,
   NA_YIN_TABLE,
-  DI_SHI_ORDER,
-  CHANG_SHENG_START,
   LIU_HE,
   LIU_HE_HUA,
   SAN_HE,
@@ -45,6 +48,31 @@ import {
   DE_XIU,
   TIAN_DE_HE,
   YUE_DE_HE,
+  TIAN_YI_GUI_REN,
+  TAI_JI_GUI_REN,
+  YANG_REN,
+  WEN_CHANG,
+  LU_SHEN,
+  TIAN_CHU,
+  GUO_YIN,
+  CI_GUAN,
+  FU_XING,
+  LIU_XIA,
+  HONG_YAN,
+  FEI_REN,
+  YI_MA,
+  TAO_HUA,
+  HUA_GAI,
+  JIE_SHA,
+  WANG_SHEN,
+  GU_CHEN,
+  GUA_SU,
+  JIANG_XING,
+  HONG_LUAN,
+  TIAN_XI,
+  DIAO_KE,
+  SANG_MEN,
+  ZAI_SHA,
 } from '../data/shensha-data.js';
 
 type PillarShenShaByPosition = {
@@ -54,9 +82,17 @@ type PillarShenShaByPosition = {
   hour: string[];
 };
 
+type FortuneRuntimeContext = {
+  dayStem: string;
+  dayBranch: string;
+  yearBranch: string;
+};
+
 export function getNaYin(stem: string, branch: string): string {
   return NA_YIN_TABLE[`${stem}${branch}`] || '';
 }
+
+export const getDiShi = getDiShiCore;
 
 /** 从纳音字符串提取五行（最后一个字：金/木/水/火/土） */
 export function getNaYinElement(nayin: string): string {
@@ -65,21 +101,39 @@ export function getNaYinElement(nayin: string): string {
   return ['金', '木', '水', '火', '土'].includes(last) ? last : '';
 }
 
-export function getDiShi(dayStem: string, branch: string): string {
-  const element = GAN_WUXING[dayStem];
-  if (!element) return '';
+export function calculateBaziFiveElementsStats(
+  fourPillars: BaziOutput['fourPillars'],
+): BaziFiveElementsStats {
+  const stats: BaziFiveElementsStats = { 金: 0, 木: 0, 水: 0, 火: 0, 土: 0 };
+  const hiddenStemWeights = [0.6, 0.3, 0.1];
+  const pillars = [fourPillars.year, fourPillars.month, fourPillars.day, fourPillars.hour];
 
-  const startBranch = CHANG_SHENG_START[element];
-  const startIdx = DI_ZHI.indexOf(startBranch as (typeof DI_ZHI)[number]);
-  const branchIdx = DI_ZHI.indexOf(branch as (typeof DI_ZHI)[number]);
-  if (startIdx < 0 || branchIdx < 0) return '';
+  for (const pillar of pillars) {
+    const stemElement = STEM_ELEMENTS[pillar.stem];
+    if (stemElement && stemElement in stats) {
+      stats[stemElement as keyof BaziFiveElementsStats] += 1;
+    }
 
-  const isYang = getStemYinYang(dayStem) === 'yang';
-  const offset = isYang
-    ? (branchIdx - startIdx + 12) % 12
-    : (startIdx - branchIdx + 12) % 12;
+    const branchElement = ZHI_WUXING[pillar.branch];
+    if (branchElement && branchElement in stats) {
+      stats[branchElement as keyof BaziFiveElementsStats] += 1;
+    }
 
-  return DI_SHI_ORDER[offset];
+    for (let i = 0; i < pillar.hiddenStems.length; i++) {
+      const hiddenStem = pillar.hiddenStems[i]?.stem;
+      const hiddenElement = hiddenStem ? STEM_ELEMENTS[hiddenStem] : '';
+      const weight = hiddenStemWeights[i] ?? 0.1;
+      if (hiddenElement && hiddenElement in stats) {
+        stats[hiddenElement as keyof BaziFiveElementsStats] += weight;
+      }
+    }
+  }
+
+  for (const key of Object.keys(stats) as Array<keyof BaziFiveElementsStats>) {
+    stats[key] = Math.round(stats[key] * 10) / 10;
+  }
+
+  return stats;
 }
 
 export function buildHiddenStems(branch: string, dayStem: string): HiddenStemInfo[] {
@@ -104,7 +158,7 @@ function createPillar(stem: string, branch: string, dayStem: string): PillarInfo
     tenGod: calculateTenGod(dayStem, stem),
     hiddenStems: buildHiddenStems(branch, dayStem),
     naYin: getNaYin(stem, branch),
-    diShi: getDiShi(dayStem, branch),
+    diShi: getDiShiCore(dayStem, branch),
     shenSha: [],
     kongWang: { isKong: false },
   };
@@ -429,7 +483,7 @@ function analyzePillarRelations(yearBranch: string, monthBranch: string, dayBran
   return relations;
 }
 
-function calculatePillarShenSha(params: {
+export function calculateBaziPillarShenSha(params: {
   yearStem: string;
   yearBranch: string;
   monthStem: string;
@@ -491,6 +545,176 @@ function calculatePillarShenSha(params: {
   return shenSha;
 }
 
+export function calculateBaziFortuneShenSha(params: {
+  targetBranch: string;
+  dayStem: string;
+  dayBranch: string;
+  yearBranch: string;
+}): string[] {
+  const { targetBranch, dayStem, dayBranch, yearBranch } = params;
+  const names: string[] = [];
+
+  const addUnique = (name: string) => {
+    if (name && !names.includes(name)) {
+      names.push(name);
+    }
+  };
+
+  // 日干查
+  if ((TIAN_YI_GUI_REN[dayStem] || []).includes(targetBranch)) addUnique('天乙贵人');
+  if ((TAI_JI_GUI_REN[dayStem] || []).includes(targetBranch)) addUnique('太极贵人');
+  if (LU_SHEN[dayStem] === targetBranch) addUnique('禄神');
+  if (YANG_REN[dayStem] === targetBranch) addUnique('羊刃');
+  if (WEN_CHANG[dayStem] === targetBranch) addUnique('文昌');
+  if (JIN_YU[dayStem] === targetBranch) addUnique('金舆');
+  if (TIAN_CHU[dayStem] === targetBranch) addUnique('天厨');
+  if (GUO_YIN[dayStem] === targetBranch) addUnique('国印');
+  if (CI_GUAN[dayStem] === targetBranch) addUnique('词馆');
+  if (LIU_XIA[dayStem] === targetBranch) addUnique('流霞');
+  if (HONG_YAN[dayStem] === targetBranch) addUnique('红艳');
+  if (FEI_REN[dayStem] === targetBranch) addUnique('飞刃');
+  if (FU_XING[dayStem] === targetBranch) addUnique('福星');
+
+  // 日支查
+  if (YI_MA[dayBranch] === targetBranch) addUnique('驿马');
+  if (TAO_HUA[dayBranch] === targetBranch) addUnique('桃花');
+  if (HUA_GAI[dayBranch] === targetBranch) addUnique('华盖');
+  if (JIE_SHA[dayBranch] === targetBranch) addUnique('劫煞');
+  if (WANG_SHEN[dayBranch] === targetBranch) addUnique('亡神');
+
+  // 年支查
+  if (GU_CHEN[yearBranch] === targetBranch) addUnique('孤辰');
+  if (GUA_SU[yearBranch] === targetBranch) addUnique('寡宿');
+  if (JIANG_XING[yearBranch] === targetBranch) addUnique('将星');
+  if (HONG_LUAN[yearBranch] === targetBranch) addUnique('红鸾');
+  if (TIAN_XI[yearBranch] === targetBranch) addUnique('天喜');
+  if (DIAO_KE[yearBranch] === targetBranch) addUnique('吊客');
+  if (SANG_MEN[yearBranch] === targetBranch) addUnique('丧门');
+  if (ZAI_SHA[yearBranch] === targetBranch) addUnique('灾煞');
+
+  return names;
+}
+
+export function calculateBaziLiuYueData(year: number, context?: FortuneRuntimeContext): BaziLiuYueInfo[] {
+  const jieQiConfig = [
+    { month: 2, jieQi: '立春' },
+    { month: 3, jieQi: '惊蛰' },
+    { month: 4, jieQi: '清明' },
+    { month: 5, jieQi: '立夏' },
+    { month: 6, jieQi: '芒种' },
+    { month: 7, jieQi: '小暑' },
+    { month: 8, jieQi: '立秋' },
+    { month: 9, jieQi: '白露' },
+    { month: 10, jieQi: '寒露' },
+    { month: 11, jieQi: '立冬' },
+    { month: 12, jieQi: '大雪' },
+    { month: 1, jieQi: '小寒' },
+  ] as const;
+
+  const liuYue: BaziLiuYueInfo[] = [];
+  const jieQiTable = Solar.fromYmd(year, 6, 15).getLunar().getJieQiTable();
+  const nextYearJieQiTable = Solar.fromYmd(year + 1, 6, 15).getLunar().getJieQiTable();
+
+  const formatYmd = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const toDate = (solar: Solar) => new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
+
+  for (let i = 0; i < 12; i++) {
+    const config = jieQiConfig[i];
+    const segmentYear = config.month === 1 ? year + 1 : year;
+    const startTable = segmentYear === year ? jieQiTable : nextYearJieQiTable;
+    const startSolar = startTable[config.jieQi] || Solar.fromYmd(segmentYear, config.month, 15);
+
+    const nextConfig = jieQiConfig[(i + 1) % 12];
+    const nextSegmentYear = config.month === 1
+      ? year + 1
+      : (nextConfig.month === 1 ? year + 1 : year);
+    const nextTable = nextSegmentYear === year ? jieQiTable : nextYearJieQiTable;
+    const nextStartSolar = nextTable[nextConfig.jieQi] || Solar.fromYmd(nextSegmentYear, nextConfig.month, 15);
+
+    const startDate = toDate(startSolar);
+    const endDate = new Date(toDate(nextStartSolar).getTime() - 24 * 60 * 60 * 1000);
+    const monthLunar = startSolar.getLunar();
+
+    const ganZhi = monthLunar.getMonthInGanZhiExact();
+    const gan = ganZhi[0] || '';
+    const zhi = ganZhi[1] || '';
+    const hiddenStems = context ? buildHiddenStems(zhi, context.dayStem) : undefined;
+
+    liuYue.push({
+      month: i + 1,
+      ganZhi,
+      jieQi: config.jieQi,
+      startDate: formatYmd(startDate),
+      endDate: formatYmd(endDate),
+      gan: gan || undefined,
+      zhi: zhi || undefined,
+      tenGod: context && gan ? calculateTenGod(context.dayStem, gan) : undefined,
+      hiddenStems,
+      naYin: gan && zhi ? getNaYin(gan, zhi) : undefined,
+      diShi: context && zhi ? getDiShi(context.dayStem, zhi) : undefined,
+      shenSha: context && zhi
+        ? calculateBaziFortuneShenSha({
+            targetBranch: zhi,
+            dayStem: context.dayStem,
+            dayBranch: context.dayBranch,
+            yearBranch: context.yearBranch,
+          })
+        : undefined,
+    });
+  }
+
+  return liuYue;
+}
+
+export function calculateBaziLiuRiData(startDate: string, endDate: string, context?: FortuneRuntimeContext): BaziLiuRiInfo[] {
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const end = new Date(ey, em - 1, ed);
+  const days: BaziLiuRiInfo[] = [];
+
+  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth() + 1;
+    const day = cursor.getDate();
+    const solar = Solar.fromYmd(year, month, day);
+    const lunar = solar.getLunar();
+    const ganZhi = lunar.getDayInGanZhi();
+
+    const gan = ganZhi[0] || '';
+    const zhi = ganZhi[1] || '';
+    const hiddenStems = context ? buildHiddenStems(zhi, context.dayStem) : undefined;
+
+    days.push({
+      date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      day,
+      ganZhi,
+      gan,
+      zhi,
+      tenGod: context && gan ? calculateTenGod(context.dayStem, gan) : undefined,
+      hiddenStems,
+      naYin: gan && zhi ? getNaYin(gan, zhi) : undefined,
+      diShi: context && zhi ? getDiShi(context.dayStem, zhi) : undefined,
+      shenSha: context && zhi
+        ? calculateBaziFortuneShenSha({
+            targetBranch: zhi,
+            dayStem: context.dayStem,
+            dayBranch: context.dayBranch,
+            yearBranch: context.yearBranch,
+          })
+        : undefined,
+    });
+  }
+
+  return days;
+}
+
 function validateLunarDateInput(params: {
   birthYear: number;
   birthMonth: number;
@@ -545,9 +769,12 @@ function validateLunarDateInput(params: {
   };
 }
 
-export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput> {
+function resolveBaziCalendarContext(input: BaziInput): {
+  solar: ReturnType<typeof Solar.fromYmdHms>;
+  lunar: ReturnType<typeof Lunar.fromYmdHms>;
+  trueSolarTimeInfo?: TrueSolarTimeInfo;
+} {
   const {
-    gender,
     birthYear,
     birthMonth,
     birthDay,
@@ -555,17 +782,15 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     birthMinute = 0,
     calendarType = 'solar',
     isLeapMonth = false,
-    birthPlace,
     longitude,
   } = input;
 
-  // 真太阳时校正（仅公历 + 提供经度时生效）
   let trueSolarTimeInfo: TrueSolarTimeInfo | undefined;
   let effectiveYear = birthYear;
   let effectiveMonth = birthMonth;
+  let effectiveDay = birthDay;
   let effectiveHour = birthHour;
   let effectiveMinute = birthMinute;
-  let effectiveDay = birthDay;
 
   if (longitude != null && calendarType !== 'lunar') {
     if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
@@ -583,8 +808,6 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     effectiveMinute = resolvedDateTime.minute;
   }
 
-  let solar: ReturnType<typeof Solar.fromYmdHms>;
-  let lunar: ReturnType<typeof Lunar.fromYmdHms>;
   if (calendarType === 'lunar') {
     const prepared = validateLunarDateInput({
       birthYear,
@@ -594,19 +817,34 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
       birthMinute,
       isLeapMonth,
     });
-    solar = prepared.solar;
-    lunar = prepared.lunar;
-  } else {
-    solar = Solar.fromYmdHms(
-      effectiveYear,
-      effectiveMonth,
-      effectiveDay,
-      effectiveHour,
-      effectiveMinute,
-      0
-    );
-    lunar = solar.getLunar();
+    return {
+      solar: prepared.solar,
+      lunar: prepared.lunar,
+      trueSolarTimeInfo,
+    };
   }
+
+  const solar = Solar.fromYmdHms(
+    effectiveYear,
+    effectiveMonth,
+    effectiveDay,
+    effectiveHour,
+    effectiveMinute,
+    0,
+  );
+  return {
+    solar,
+    lunar: solar.getLunar(),
+    trueSolarTimeInfo,
+  };
+}
+
+export function calculateBaziData(input: BaziInput): BaziOutput {
+  const {
+    gender,
+    birthPlace,
+  } = input;
+  const { lunar, trueSolarTimeInfo } = resolveBaziCalendarContext(input);
 
   const eightChar = lunar.getEightChar();
   const yearStem = eightChar.getYearGan();
@@ -621,7 +859,7 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
   const kongWang = getKongWang(dayStem, dayBranch);
   const yearNaYin = getNaYin(yearStem, yearBranch);
   const yearNaYinElement = getNaYinElement(yearNaYin);
-  const pillarShenSha = calculatePillarShenSha({
+  const pillarShenSha = calculateBaziPillarShenSha({
     yearStem,
     yearBranch,
     monthStem,
@@ -682,4 +920,46 @@ export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput>
     mingGong: mingGong || undefined,
     trueSolarTimeInfo,
   };
+}
+
+export function calculateBaziShenShaData(input: BaziInput): BaziShenShaOutput {
+  const coreBazi = calculateBaziData(input);
+  const { lunar } = resolveBaziCalendarContext(input);
+  const pillarShenSha = calculateBaziPillarShenSha({
+    yearStem: coreBazi.fourPillars.year.stem,
+    yearBranch: coreBazi.fourPillars.year.branch,
+    monthStem: coreBazi.fourPillars.month.stem,
+    monthBranch: coreBazi.fourPillars.month.branch,
+    dayStem: coreBazi.fourPillars.day.stem,
+    dayBranch: coreBazi.fourPillars.day.branch,
+    hourStem: coreBazi.fourPillars.hour.stem,
+    hourBranch: coreBazi.fourPillars.hour.branch,
+    kongWang: {
+      xun: coreBazi.kongWang.xun,
+      kongZhi: [...coreBazi.kongWang.kongZhi] as [string, string],
+    },
+    yearNaYinElement: getNaYinElement(coreBazi.fourPillars.year.naYin || ''),
+  });
+
+  let jiShen: string[] = [];
+  let xiongSha: string[] = [];
+  let dayYi: string[] = [];
+  let dayJi: string[] = [];
+
+  try { jiShen = lunar.getDayJiShen() || []; } catch { /* ignore */ }
+  try { xiongSha = lunar.getDayXiongSha() || []; } catch { /* ignore */ }
+  try { dayYi = lunar.getDayYi() || []; } catch { /* ignore */ }
+  try { dayJi = lunar.getDayJi() || []; } catch { /* ignore */ }
+
+  return {
+    jiShen,
+    xiongSha,
+    dayYi,
+    dayJi,
+    pillarShenSha,
+  };
+}
+
+export async function handleBaziCalculate(input: BaziInput): Promise<BaziOutput> {
+  return calculateBaziData(input);
 }

@@ -8,5 +8,6 @@
  * - 小运排列
  */
 import type { DayunInput, DayunOutput } from '../types.js';
+export declare function calculateDayunData(input: DayunInput): DayunOutput;
 export declare function handleDayunCalculate(input: DayunInput): Promise<DayunOutput>;
 //# sourceMappingURL=liunian.d.ts.map

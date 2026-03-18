@@ -242,7 +242,46 @@ function calculateXiaoYun(
   return xiaoYun;
 }
 
-export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutput> {
+function formatStartAgeDetail(
+  birthYear: number,
+  birthMonth: number,
+  birthDay: number,
+  birthHour: number,
+  birthMinute: number,
+  defaultStartAge: number,
+  startSolar: Solar | null | undefined,
+): string {
+  if (!startSolar) {
+    return `${defaultStartAge}岁起运`;
+  }
+
+  try {
+    const birthDate = new Date(
+      birthYear,
+      birthMonth - 1,
+      birthDay,
+      birthHour,
+      birthMinute,
+    );
+    const qiyunDate = new Date(
+      startSolar.getYear(),
+      startSolar.getMonth() - 1,
+      startSolar.getDay(),
+      startSolar.getHour(),
+      startSolar.getMinute(),
+    );
+    const diffDays = Math.floor((qiyunDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+    const years = Math.floor(diffDays / 365);
+    const remainingDays = diffDays % 365;
+    const months = Math.floor(remainingDays / 30);
+    const days = remainingDays % 30;
+    return `${years}年${months}月${days}天起运`;
+  } catch {
+    return `${defaultStartAge}岁起运`;
+  }
+}
+
+export function calculateDayunData(input: DayunInput): DayunOutput {
   const {
     gender,
     birthYear,
@@ -331,9 +370,15 @@ export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutp
 
         liunianList.push({
           year: lnYear,
+          age: dy.getStartAge() + i,
           ganZhi: lnGanZhi,
+          gan: lnStem,
+          zhi: lnBranch,
           tenGod: lnTenGod,
           nayin: lnNayin,
+          hiddenStems: buildHiddenStems(lnBranch, dayStem),
+          diShi: getDiShi(dayStem, lnBranch),
+          shenSha: calculateBranchShenSha(shenShaContext, lnBranch),
           branchRelations: lnBranchRelations,
           taiSui,
         });
@@ -341,6 +386,7 @@ export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutp
 
       return {
         startYear,
+        startAge: dy.getStartAge(),
         ganZhi,
         stem,
         branch,
@@ -358,6 +404,20 @@ export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutp
   // 小运计算
   const firstDaYunStartAge = daYunList.length > 0 ? daYunList[0].getStartAge() : 1;
   const xiaoYun = calculateXiaoYun(hourStem, hourBranch, gender, yearStem, dayStem, firstDaYunStartAge);
+  const startAge = daYunList.length > 0 ? daYunList[0].getStartAge() : yun.getStartYear();
+  const startAgeDetail = formatStartAgeDetail(
+    birthYear,
+    birthMonth,
+    birthDay,
+    birthHour,
+    birthMinute,
+    startAge,
+    yun.getStartSolar(),
+  );
 
-  return { xiaoYun, list };
+  return { startAge, startAgeDetail, xiaoYun, list };
+}
+
+export async function handleDayunCalculate(input: DayunInput): Promise<DayunOutput> {
+  return calculateDayunData(input);
 }

@@ -207,10 +207,10 @@ ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
 - **真太阳时**: ${trueSolarTimeInfo.trueSolarTime}（经度 ${trueSolarTimeInfo.longitude}°，校正 ${trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${trueSolarTimeInfo.correctionMinutes} 分钟）` : ''}
 
 ## 四柱
-- 年柱: ${fourPillars.year}
-- 月柱: ${fourPillars.month}
-- 日柱: ${fourPillars.day}
-- 时柱: ${fourPillars.hour}
+- 年柱: ${fourPillars.year.gan}${fourPillars.year.zhi}
+- 月柱: ${fourPillars.month.gan}${fourPillars.month.zhi}
+- 日柱: ${fourPillars.day.gan}${fourPillars.day.zhi}
+- 时柱: ${fourPillars.hour.gan}${fourPillars.hour.zhi}
 
 ## 十二宫位
 
@@ -581,6 +581,11 @@ ${almanac.avoid.map((s) => `- ${s}`).join('\n')}
  */
 export function formatDayunAsMarkdown(result: DayunOutput): string {
   let md = `# 大运流年
+
+## 起运信息
+
+- 起运年龄：${result.startAge}岁
+- 起运详情：${result.startAgeDetail}
 
 ## 大运列表
 

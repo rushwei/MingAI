@@ -104,16 +104,11 @@ function PalaceCell({
                     {palace.heavenStem}
                 </span>
             </div>
-            {/* 八门 + 暗干 */}
+            {/* 八门 */}
             <div className="flex items-center justify-between">
                 <span className="text-xs md:text-sm text-foreground-secondary">
                     {palace.gate}
                 </span>
-                {palace.hiddenStem && (
-                    <span className="text-[10px] md:text-xs text-foreground-tertiary">
-                        {palace.hiddenStem}
-                    </span>
-                )}
             </div>
             {/* 空亡/驿马标记 */}
             {(palace.isEmpty || palace.isHorseStar) && (

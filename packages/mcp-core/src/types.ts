@@ -97,6 +97,55 @@ export interface BaziOutput {
   trueSolarTimeInfo?: TrueSolarTimeInfo;
 }
 
+export interface BaziFiveElementsStats {
+  金: number;
+  木: number;
+  水: number;
+  火: number;
+  土: number;
+}
+
+export interface BaziShenShaOutput {
+  jiShen: string[];
+  xiongSha: string[];
+  dayYi: string[];
+  dayJi: string[];
+  pillarShenSha: {
+    year: string[];
+    month: string[];
+    day: string[];
+    hour: string[];
+  };
+}
+
+export interface BaziLiuYueInfo {
+  month: number;
+  ganZhi: string;
+  jieQi: string;
+  startDate: string;
+  endDate: string;
+  gan?: string;
+  zhi?: string;
+  tenGod?: string;
+  hiddenStems?: HiddenStemInfo[];
+  naYin?: string;
+  diShi?: string;
+  shenSha?: string[];
+}
+
+export interface BaziLiuRiInfo {
+  date: string;
+  day: number;
+  ganZhi: string;
+  gan: string;
+  zhi: string;
+  tenGod?: string;
+  hiddenStems?: HiddenStemInfo[];
+  naYin?: string;
+  diShi?: string;
+  shenSha?: string[];
+}
+
 export interface PillarInfo {
   stem: string;
   branch: string;
@@ -168,14 +217,19 @@ export interface ScholarStarEntry {
   palaceName: string;
 }
 
+export interface GanZhiPair {
+  gan: string;
+  zhi: string;
+}
+
 export interface ZiweiOutput {
   solarDate: string;
   lunarDate: string;
   fourPillars: {
-    year: string;
-    month: string;
-    day: string;
-    hour: string;
+    year: GanZhiPair;
+    month: GanZhiPair;
+    day: GanZhiPair;
+    hour: GanZhiPair;
   };
   soul: string;
   body: string;
@@ -712,9 +766,15 @@ export interface BranchRelation {
 
 export interface LiunianInfo {
   year: number;
+  age: number;
   ganZhi: string;
+  gan: string;
+  zhi: string;
   tenGod: string;
   nayin: string;
+  hiddenStems: HiddenStemInfo[];
+  diShi: string;
+  shenSha: string[];
   branchRelations: BranchRelation[];
   taiSui: string[];
 }
@@ -726,9 +786,12 @@ export interface XiaoyunInfo {
 }
 
 export interface DayunOutput {
+  startAge: number;
+  startAgeDetail: string;
   xiaoYun: XiaoyunInfo[];
   list: Array<{
     startYear: number;
+    startAge: number;
     ganZhi: string;
     stem: string;
     branch: string;

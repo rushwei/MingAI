@@ -10,23 +10,15 @@
 import { useState } from 'react';
 import {
     calculateBazi,
-    calculateProfessionalData,
-    calculateTenGod,
-    getNaYin,
-    getDiShi,
-    calculateFortuneShenSha,
     getElementColor,
-    getKongWang,
     STEM_ELEMENTS,
     BRANCH_ELEMENTS,
-    HIDDEN_STEMS,
-    type PillarShenSha,
     type DaYunInfo,
     type LiuNianInfo,
     type LiuYueInfo,
     type LiuRiInfo,
 } from '@/lib/divination/bazi';
-import type { Gender, HeavenlyStem, EarthlyBranch, TenGod } from '@/types';
+import type { EarthlyBranch, HeavenlyStem, HiddenStemDetail } from '@/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // 神煞吉凶分类
@@ -66,9 +58,8 @@ interface FortuneColumn {
     label: string;
     stem: string;
     branch: string;
-    shiShen?: TenGod | string;
-    hiddenStems: HeavenlyStem[];
-    shiShenZhi: string[];
+    shiShen?: string;
+    hiddenStems: HiddenStemDetail[];
     naYin: string;
     diShi: string;
     shenSha: string[];
@@ -77,10 +68,7 @@ interface FortuneColumn {
 
 export function ProfessionalTable({
     baziResult,
-    proData,
-    gender,
     isUnknownTime = false,
-    pillarShenSha,
     // 运势信息 - 新增
     activeDaYun,
     activeLiuNian,
@@ -88,10 +76,7 @@ export function ProfessionalTable({
     activeLiuRi,
 }: {
     baziResult: ReturnType<typeof calculateBazi>;
-    proData: ReturnType<typeof calculateProfessionalData>;
-    gender: Gender;
     isUnknownTime?: boolean;
-    pillarShenSha?: PillarShenSha;
     // 运势信息 - 新增
     activeDaYun?: DaYunInfo;
     activeLiuNian?: LiuNianInfo;
@@ -99,115 +84,79 @@ export function ProfessionalTable({
     activeLiuRi?: LiuRiInfo;
 }) {
     const [shenShaExpanded, setShenShaExpanded] = useState(false);
-
-    // 获取日主及相关支
-    const dayStem = baziResult.fourPillars.day.stem as HeavenlyStem;
-    const dayBranch = baziResult.fourPillars.day.branch as EarthlyBranch;
-    const yearBranch = baziResult.fourPillars.year.branch as EarthlyBranch;
-
-    // 计算空亡
-    const kongWang = getKongWang(dayStem, dayBranch);
+    const kongWang = baziResult.kongWang;
 
     // 构建运势柱列表（左侧列）
     const fortuneColumns: FortuneColumn[] = [];
 
     if (activeLiuRi) {
-        const shiShen = calculateTenGod(dayStem, activeLiuRi.gan as HeavenlyStem);
-        const branch = activeLiuRi.zhi as EarthlyBranch;
-        const hiddenStems = HIDDEN_STEMS[branch] || [];
-        const shiShenZhi = hiddenStems.map(s => calculateTenGod(dayStem, s));
-        const ganZhi = activeLiuRi.gan + activeLiuRi.zhi;
-
         fortuneColumns.push({
             key: 'liuRi',
             label: '流日',
             stem: activeLiuRi.gan,
             branch: activeLiuRi.zhi,
-            shiShen,
-            hiddenStems,
-            shiShenZhi,
-            naYin: getNaYin(ganZhi),
-            diShi: getDiShi(dayStem, branch),
-            shenSha: calculateFortuneShenSha(branch, dayStem, dayBranch, yearBranch),
+            shiShen: activeLiuRi.tenGod,
+            hiddenStems: activeLiuRi.hiddenStems,
+            naYin: activeLiuRi.naYin,
+            diShi: activeLiuRi.diShi,
+            shenSha: activeLiuRi.shenSha,
             active: true,
         });
     }
 
     if (activeLiuYue) {
-        // LiuYueInfo 只有 ganZhi，需要拆分
-        const gan = activeLiuYue.ganZhi.charAt(0);
-        const zhi = activeLiuYue.ganZhi.charAt(1) as EarthlyBranch;
-        const shiShen = calculateTenGod(dayStem, gan as HeavenlyStem);
-        const hiddenStems = HIDDEN_STEMS[zhi] || [];
-        const shiShenZhi = hiddenStems.map(s => calculateTenGod(dayStem, s));
-
         fortuneColumns.push({
             key: 'liuYue',
             label: '流月',
-            stem: gan,
-            branch: zhi,
-            shiShen,
-            hiddenStems,
-            shiShenZhi,
-            naYin: getNaYin(activeLiuYue.ganZhi),
-            diShi: getDiShi(dayStem, zhi),
-            shenSha: calculateFortuneShenSha(zhi, dayStem, dayBranch, yearBranch),
+            stem: activeLiuYue.gan,
+            branch: activeLiuYue.zhi,
+            shiShen: activeLiuYue.tenGod,
+            hiddenStems: activeLiuYue.hiddenStems,
+            naYin: activeLiuYue.naYin,
+            diShi: activeLiuYue.diShi,
+            shenSha: activeLiuYue.shenSha,
             active: true,
         });
     }
 
     if (activeLiuNian) {
-        const shiShen = calculateTenGod(dayStem, activeLiuNian.gan as HeavenlyStem);
-        const branch = activeLiuNian.zhi as EarthlyBranch;
-        const hiddenStems = HIDDEN_STEMS[branch] || [];
-        const shiShenZhi = hiddenStems.map(s => calculateTenGod(dayStem, s));
-        const ganZhi = activeLiuNian.gan + activeLiuNian.zhi;
-
         fortuneColumns.push({
             key: 'liuNian',
             label: '流年',
             stem: activeLiuNian.gan,
             branch: activeLiuNian.zhi,
-            shiShen,
-            hiddenStems,
-            shiShenZhi,
-            naYin: getNaYin(ganZhi),
-            diShi: getDiShi(dayStem, branch),
-            shenSha: calculateFortuneShenSha(branch, dayStem, dayBranch, yearBranch),
+            shiShen: activeLiuNian.tenGod,
+            hiddenStems: activeLiuNian.hiddenStems,
+            naYin: activeLiuNian.naYin,
+            diShi: activeLiuNian.diShi,
+            shenSha: activeLiuNian.shenSha,
             active: true,
         });
     }
 
     if (activeDaYun) {
-        const shiShen = calculateTenGod(dayStem, activeDaYun.gan as HeavenlyStem);
-        const branch = activeDaYun.zhi as EarthlyBranch;
-        const hiddenStems = HIDDEN_STEMS[branch] || [];
-        const shiShenZhi = hiddenStems.map(s => calculateTenGod(dayStem, s));
-        const ganZhi = activeDaYun.gan + activeDaYun.zhi;
-
         fortuneColumns.push({
             key: 'daYun',
             label: '大运',
             stem: activeDaYun.gan,
             branch: activeDaYun.zhi,
-            shiShen,
-            hiddenStems,
-            shiShenZhi,
-            naYin: getNaYin(ganZhi),
-            diShi: getDiShi(dayStem, branch),
-            shenSha: calculateFortuneShenSha(branch, dayStem, dayBranch, yearBranch),
+            shiShen: activeDaYun.tenGod,
+            hiddenStems: activeDaYun.hiddenStems,
+            naYin: activeDaYun.naYin,
+            diShi: activeDaYun.diShi,
+            shenSha: activeDaYun.shenSha,
             active: true,
         });
     }
 
     const columns = [
-        { key: 'year', label: '年柱', pillar: baziResult.fourPillars.year, naYin: proData.naYin.year, diShi: proData.diShi.year, shiShen: proData.shiShenGan.year, shiShenZhi: proData.shiShenZhi.year, hidden: false, shenSha: pillarShenSha?.year || [] },
-        { key: 'month', label: '月柱', pillar: baziResult.fourPillars.month, naYin: proData.naYin.month, diShi: proData.diShi.month, shiShen: proData.shiShenGan.month, shiShenZhi: proData.shiShenZhi.month, hidden: false, shenSha: pillarShenSha?.month || [] },
-        { key: 'day', label: '日柱', pillar: baziResult.fourPillars.day, naYin: proData.naYin.day, diShi: proData.diShi.day, shiShen: gender === 'male' ? '元男' : '元女', shiShenZhi: proData.shiShenZhi.day, hidden: false, shenSha: pillarShenSha?.day || [] },
-        { key: 'hour', label: '时柱', pillar: baziResult.fourPillars.hour, naYin: proData.naYin.hour, diShi: proData.diShi.hour, shiShen: proData.shiShenGan.hour, shiShenZhi: proData.shiShenZhi.hour, hidden: isUnknownTime, shenSha: pillarShenSha?.hour || [] },
+        { key: 'year', label: '年柱', pillar: baziResult.fourPillars.year, shiShen: baziResult.fourPillars.year.tenGod || '', hidden: false },
+        { key: 'month', label: '月柱', pillar: baziResult.fourPillars.month, shiShen: baziResult.fourPillars.month.tenGod || '', hidden: false },
+        { key: 'day', label: '日柱', pillar: baziResult.fourPillars.day, shiShen: baziResult.gender === 'male' ? '元男' : '元女', hidden: false },
+        { key: 'hour', label: '时柱', pillar: baziResult.fourPillars.hour, shiShen: baziResult.fourPillars.hour.tenGod || '', hidden: isUnknownTime },
     ];
 
-    const hasShenSha = columns.some(col => col.shenSha.length > 0)
+    const hasShenSha = columns.some(col => (col.pillar.shenSha || []).length > 0)
         || fortuneColumns.some(col => col.shenSha.length > 0);
     const hasFortuneColumns = fortuneColumns.length > 0;
 
@@ -322,23 +271,22 @@ export function ProfessionalTable({
                         {fortuneColumns.map((col) => (
                             <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center">
                                 <div className="flex flex-col items-center gap-0.5">
-                                    {col.hiddenStems.map((stem, idx) => {
-                                        const element = STEM_ELEMENTS[stem];
-                                        const shiShen = col.shiShenZhi[idx] || '';
-                                        return (
-                                            <div key={idx} className="flex items-center gap-0.5">
-                                                <span
-                                                    className="text-xs font-medium"
-                                                    style={{ color: element ? getElementColor(element) : undefined }}
-                                                >
-                                                    {stem}
-                                                </span>
-                                                <span className="text-xs text-foreground-secondary">
-                                                    {shiShen}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                        {col.hiddenStems.map((stem, idx) => {
+                                            const element = STEM_ELEMENTS[stem.stem as HeavenlyStem];
+                                            return (
+                                                <div key={idx} className="flex items-center gap-0.5">
+                                                    <span
+                                                        className="text-xs font-medium"
+                                                        style={{ color: element ? getElementColor(element) : undefined }}
+                                                    >
+                                                        {stem.stem}
+                                                    </span>
+                                                    <span className="text-xs text-foreground-secondary">
+                                                        {stem.tenGod}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
                                 </div>
                             </td>
                         ))}
@@ -348,19 +296,18 @@ export function ProfessionalTable({
                                     <span className="text-xs">*</span>
                                 ) : (
                                     <div className="flex flex-col items-center gap-0.5">
-                                        {col.pillar.hiddenStems.map((stem, idx) => {
-                                            const element = STEM_ELEMENTS[stem as HeavenlyStem];
-                                            const shiShen = col.shiShenZhi[idx] || '';
+                                        {(col.pillar.hiddenStemDetails || []).map((stem, idx) => {
+                                            const element = STEM_ELEMENTS[stem.stem as HeavenlyStem];
                                             return (
                                                 <div key={idx} className="flex items-center gap-0.5">
                                                     <span
                                                         className="text-xs font-medium"
                                                         style={{ color: element ? getElementColor(element) : undefined }}
                                                     >
-                                                        {stem}
+                                                        {stem.stem}
                                                     </span>
                                                     <span className="text-xs text-foreground-secondary">
-                                                        {shiShen}
+                                                        {stem.tenGod}
                                                     </span>
                                                 </div>
                                             );
@@ -383,7 +330,7 @@ export function ProfessionalTable({
                         {
                             columns.map((col, idx) => (
                                 <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center text-xs ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
-                                    {col.hidden ? '?' : col.diShi}
+                                    {col.hidden ? '?' : (col.pillar.diShi || '-')}
                                 </td>
                             ))
                         }
@@ -398,17 +345,17 @@ export function ProfessionalTable({
                         ))}
                         {columns.map((col, idx) => (
                             <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center text-xs text-foreground-secondary ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
-                                {col.hidden ? '?' : col.naYin}
+                                {col.hidden ? '?' : (col.pillar.naYin || '-')}
                             </td>
                         ))}
                     </tr>
                     {/* 空亡行 */}
                     <tr className="border-b border-border/50">
                         <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-background/90 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-                            title={`${kongWang.xun}空${kongWang.kongBranches.join('')}`}
+                            title={kongWang ? `${kongWang.xun}空${kongWang.kongBranches.join('')}` : undefined}
                         >空亡</td>
                         {fortuneColumns.map((col) => {
-                            const isKong = kongWang.kongBranches.includes(col.branch as EarthlyBranch);
+                            const isKong = Boolean(kongWang?.kongBranches.includes(col.branch as EarthlyBranch));
                             return (
                                 <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs">
                                     {isKong ? (
@@ -420,13 +367,12 @@ export function ProfessionalTable({
                             );
                         })}
                         {columns.map((col, idx) => {
-                            const branch = col.pillar.branch as EarthlyBranch;
                             // 日支不查空亡
-                            const isKong = col.key !== 'day' && kongWang.kongBranches.includes(branch);
+                            const isKong = col.key !== 'day' && Boolean(col.pillar.kongWang?.isKong);
                             return (
                                 <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center text-xs ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
                                     {col.hidden ? '?' : col.key === 'day' ? (
-                                        <span className="text-foreground-secondary/50" title={kongWang.xun}>{kongWang.kongBranches.join('')}</span>
+                                        <span className="text-foreground-secondary/50" title={kongWang?.xun}>{kongWang?.kongBranches.join('') || '-'}</span>
                                     ) : isKong ? (
                                         <span className="text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded">空</span>
                                     ) : (
@@ -484,10 +430,10 @@ export function ProfessionalTable({
                                 <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
                                     {col.hidden ? (
                                         <span className="text-xs">?</span>
-                                    ) : col.shenSha.length > 0 ? (
+                                    ) : (col.pillar.shenSha || []).length > 0 ? (
                                         <div className="flex flex-col items-center gap-0.5">
                                             {/* 默认只显示第一个神煞 */}
-                                            {(shenShaExpanded ? col.shenSha : col.shenSha.slice(0, 1)).map((sha, idx) => {
+                                            {((shenShaExpanded ? col.pillar.shenSha : col.pillar.shenSha?.slice(0, 1)) || []).map((sha, idx) => {
                                                 const style = getShenShaStyle(sha);
                                                 return (
                                                     <span
@@ -499,9 +445,9 @@ export function ProfessionalTable({
                                                 );
                                             })}
                                             {/* 如果未展开且有多个，显示数量提示 */}
-                                            {!shenShaExpanded && col.shenSha.length > 1 && (
+                                            {!shenShaExpanded && (col.pillar.shenSha?.length || 0) > 1 && (
                                                 <span className="text-xs text-foreground-secondary/50">
-                                                    +{col.shenSha.length - 1}
+                                                    +{(col.pillar.shenSha?.length || 0) - 1}
                                                 </span>
                                             )}
                                         </div>

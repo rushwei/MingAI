@@ -443,6 +443,14 @@ export const toolDefinitions = [
         outputSchema: {
             type: 'object',
             properties: {
+                startAge: {
+                    type: 'number',
+                    description: '首步大运起运年龄',
+                },
+                startAgeDetail: {
+                    type: 'string',
+                    description: '精确起运描述（如 8年5月3天起运）',
+                },
                 xiaoYun: {
                     type: 'array',
                     description: '小运列表（起运前每年一步小运）',
@@ -462,6 +470,7 @@ export const toolDefinitions = [
                         type: 'object',
                         properties: {
                             startYear: { type: 'number', description: '起始年份' },
+                            startAge: { type: 'number', description: '该步大运的起运年龄' },
                             ganZhi: { type: 'string', description: '干支' },
                             stem: { type: 'string', description: '天干' },
                             branch: { type: 'string', description: '地支' },
@@ -501,9 +510,26 @@ export const toolDefinitions = [
                                     type: 'object',
                                     properties: {
                                         year: { type: 'number', description: '公历年份' },
+                                        age: { type: 'number', description: '该流年对应年龄' },
                                         ganZhi: { type: 'string', description: '流年干支' },
+                                        gan: { type: 'string', description: '流年天干' },
+                                        zhi: { type: 'string', description: '流年地支' },
                                         tenGod: { type: 'string', description: '流年天干十神（相对日主）' },
                                         nayin: { type: 'string', description: '流年纳音' },
+                                        hiddenStems: {
+                                            type: 'array',
+                                            description: '流年藏干明细',
+                                            items: {
+                                                type: 'object',
+                                                properties: {
+                                                    stem: { type: 'string', description: '藏干天干' },
+                                                    qiType: { type: 'string', enum: ['本气', '中气', '余气'], description: '气性' },
+                                                    tenGod: { type: 'string', description: '相对日主十神' },
+                                                },
+                                            },
+                                        },
+                                        diShi: { type: 'string', description: '流年地势（十二长生）' },
+                                        shenSha: { type: 'array', items: { type: 'string' }, description: '流年神煞' },
                                         branchRelations: {
                                             type: 'array',
                                             description: '流年地支与原局四柱及大运地支的关系',
@@ -598,10 +624,38 @@ export const toolDefinitions = [
                     type: 'object',
                     description: '四柱',
                     properties: {
-                        year: { type: 'string', description: '年柱干支' },
-                        month: { type: 'string', description: '月柱干支' },
-                        day: { type: 'string', description: '日柱干支' },
-                        hour: { type: 'string', description: '时柱干支' },
+                        year: {
+                            type: 'object',
+                            description: '年柱干支',
+                            properties: {
+                                gan: { type: 'string', description: '年柱天干' },
+                                zhi: { type: 'string', description: '年柱地支' },
+                            },
+                        },
+                        month: {
+                            type: 'object',
+                            description: '月柱干支',
+                            properties: {
+                                gan: { type: 'string', description: '月柱天干' },
+                                zhi: { type: 'string', description: '月柱地支' },
+                            },
+                        },
+                        day: {
+                            type: 'object',
+                            description: '日柱干支',
+                            properties: {
+                                gan: { type: 'string', description: '日柱天干' },
+                                zhi: { type: 'string', description: '日柱地支' },
+                            },
+                        },
+                        hour: {
+                            type: 'object',
+                            description: '时柱干支',
+                            properties: {
+                                gan: { type: 'string', description: '时柱天干' },
+                                zhi: { type: 'string', description: '时柱地支' },
+                            },
+                        },
                     },
                 },
                 soul: { type: 'string', description: '命主' },
@@ -1665,9 +1719,13 @@ export const toolDefinitions = [
                             earthStem: { type: 'string', description: '地盘天干' },
                             heavenStem: { type: 'string', description: '天盘天干' },
                             star: { type: 'string', description: '九星' },
+                            starElement: { type: 'string', description: '九星五行' },
                             gate: { type: 'string', description: '八门' },
+                            gateElement: { type: 'string', description: '八门五行' },
                             deity: { type: 'string', description: '八神' },
                             formations: { type: 'array', items: { type: 'string' }, description: '格局' },
+                            stemWangShuai: { type: 'string', description: '天盘天干旺衰' },
+                            elementState: { type: 'string', description: '宫位五行旺衰' },
                             isKongWang: { type: 'boolean', description: '是否空亡' },
                             isYiMa: { type: 'boolean', description: '是否驿马' },
                             isRuMu: { type: 'boolean', description: '是否入墓' },
@@ -1677,6 +1735,9 @@ export const toolDefinitions = [
                 kongWang: { type: 'object', description: '空亡信息' },
                 yiMa: { type: 'object', description: '驿马信息' },
                 globalFormations: { type: 'array', items: { type: 'string' }, description: '全局格局列表' },
+                panType: { type: 'string', description: '盘式标签' },
+                juMethod: { type: 'string', description: '定局法标签' },
+                question: { type: 'string', description: '占问事项（如有）' },
             },
         },
         annotations: {

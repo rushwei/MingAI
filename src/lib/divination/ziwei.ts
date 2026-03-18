@@ -1,16 +1,18 @@
 /**
  * 紫微斗数排盘核心逻辑
- * 
- * 使用 iztro 库进行紫微斗数排盘计算
- * 
- * @see https://github.com/SylarLong/iztro
+ *
+ * web 侧保留展示/交互辅助，但主排盘真源来自 mcp-core。
  */
 
-import { astro } from 'iztro';
+import {
+    calculateZiweiDataWithAstrolabe,
+    calculateZiweiDecadalListWithAstrolabe,
+    calculateZiweiHoroscopeDataWithAstrolabe,
+    createAstrolabeWithTrueSolar,
+} from '@mingai/mcp-core/ziwei';
 import type { Gender, CalendarType } from '@/types';
 
-// 使用 iztro 库返回的类型推断
-type Astrolabe = ReturnType<typeof astro.bySolar>;
+type Astrolabe = ReturnType<typeof createAstrolabeWithTrueSolar>['astrolabe'];
 
 // ===== 类型定义 =====
 
@@ -120,25 +122,6 @@ const MUTAGEN_COLORS: Record<string, string> = {
     '忌': '#2F4F4F', // 暗灰 - 忌讳
 };
 
-// ===== 时辰映射 =====
-
-/**
- * 将小时转换为时辰索引（0-12）
- * 子时(23-1)=0, 丑时(1-3)=1, 寅时(3-5)=2, ...
- */
-function hourToTimeIndex(hour: number): number {
-    // iztro 使用 0-12 的时辰索引
-    // 0: 早子时 (00:00-01:00)
-    // 1: 丑时 (01:00-03:00)
-    // 2: 寅时 (03:00-05:00)
-    // ...
-    // 12: 晚子时 (23:00-24:00)
-
-    if (hour >= 23) return 12; // 晚子时
-    if (hour >= 0 && hour < 1) return 0; // 早子时
-    return Math.floor((hour + 1) / 2);
-}
-
 // ===== 主要导出函数 =====
 
 /**
@@ -148,105 +131,76 @@ function hourToTimeIndex(hour: number): number {
  * @returns 紫微命盘数据
  */
 export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
-    const dateStr = `${formData.birthYear}-${formData.birthMonth}-${formData.birthDay}`;
-    const hourValue = formData.birthHour + (formData.birthMinute || 0) / 60;
-    const timeIndex = hourToTimeIndex(hourValue);
-    const genderStr = formData.gender === 'male' ? '男' : '女';
-
-    let astrolabe: Astrolabe;
-
-    if (formData.calendarType === 'lunar') {
-        // 农历
-        astrolabe = astro.byLunar(
-            dateStr,
-            timeIndex,
-            genderStr,
-            formData.isLeapMonth ?? false, // 使用表单中的闰月设置
-            true,  // fixLeap: 闰月前15天算上月，后15天算下月
-            'zh-CN'
-        );
-    } else {
-        // 阳历
-        astrolabe = astro.bySolar(
-            dateStr,
-            timeIndex,
-            genderStr,
-            true,  // fixLeap: 闰月前15天算上月，后15天算下月
-            'zh-CN'
-        );
-    }
-
-    // 转换宫位数据
-    const palaces: PalaceInfo[] = astrolabe.palaces.map((palace, index) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rawPalace = palace as any;
-        return {
-            name: palace.name,
-            heavenlyStem: palace.heavenlyStem,
-            earthlyBranch: palace.earthlyBranch,
-            majorStars: palace.majorStars.map(star => ({
-                name: star.name,
-                type: 'major' as const,
-                brightness: star.brightness,
-                mutagen: star.mutagen,
-            })),
-            minorStars: palace.minorStars.map(star => ({
-                name: star.name,
-                type: 'minor' as const,
-                brightness: star.brightness,
-                mutagen: star.mutagen,
-            })),
-            adjStars: (rawPalace.adjectiveStars || rawPalace.adjStars || []).map((star: { name: string; brightness?: string; mutagen?: string }) => ({
-                name: star.name,
-                type: 'auxiliary' as const,
-                brightness: star.brightness,
-                mutagen: star.mutagen,
-            })),
-            isBodyPalace: palace.isBodyPalace,
-            decadalIndex: index,
-        };
+    const { output, astrolabe } = calculateZiweiDataWithAstrolabe({
+        gender: formData.gender,
+        birthYear: formData.birthYear,
+        birthMonth: formData.birthMonth,
+        birthDay: formData.birthDay,
+        birthHour: formData.birthHour,
+        birthMinute: formData.birthMinute,
+        calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
+        isLeapMonth: formData.isLeapMonth,
     });
 
-    // 从 iztro 获取四柱信息
-    // chineseDate 格式: "癸未 庚申 戊寅 乙卯" (年 月 日 时)
-    const pillars = (astrolabe.chineseDate || '').split(' ');
-    const yearPillar = pillars[0] || '';
-    const monthPillar = pillars[1] || '';
-    const dayPillar = pillars[2] || '';
-    const hourPillar = pillars[3] || '';
+    const palaces: PalaceInfo[] = output.palaces.map((palace, index) => ({
+        name: palace.name,
+        heavenlyStem: palace.heavenlyStem,
+        earthlyBranch: palace.earthlyBranch,
+        majorStars: palace.majorStars.map(star => ({
+            name: star.name,
+            type: 'major' as const,
+            brightness: star.brightness,
+            mutagen: star.mutagen,
+        })),
+        minorStars: palace.minorStars.map(star => ({
+            name: star.name,
+            type: 'minor' as const,
+            brightness: star.brightness,
+            mutagen: star.mutagen,
+        })),
+        adjStars: (palace.adjStars || []).map((star) => ({
+            name: star.name,
+            type: 'auxiliary' as const,
+            brightness: star.brightness,
+            mutagen: star.mutagen,
+        })),
+        isBodyPalace: palace.isBodyPalace,
+        decadalIndex: palace.index ?? index,
+    }));
 
-    // 从 rawAstrolabe 提取大限数据（用于持久化）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const decadalData: DecadalData[] = (astrolabe.palaces as any[]).map((rawPalace, index) => {
-        const decadal = rawPalace.decadal;
+    const decadalData: DecadalData[] = output.decadalList.map((item) => {
+        const palaceIndex = palaces.findIndex((palace) =>
+            palace.name === item.palace.name && palace.earthlyBranch === item.palace.earthlyBranch
+        );
+
         return {
-            palaceIndex: index,
-            startAge: decadal?.range?.[0] ?? 0,
-            endAge: decadal?.range?.[1] ?? 0,
-            heavenlyStem: decadal?.heavenlyStem ?? palaces[index].heavenlyStem,
-            earthlyBranch: decadal?.earthlyBranch ?? palaces[index].earthlyBranch,
+            palaceIndex: palaceIndex >= 0 ? palaceIndex : 0,
+            startAge: item.startAge,
+            endAge: item.endAge,
+            heavenlyStem: item.heavenlyStem,
+            earthlyBranch: item.palace.earthlyBranch,
         };
     });
 
     return {
-        solarDate: astrolabe.solarDate,
-        lunarDate: astrolabe.lunarDate,
-        time: astrolabe.time,
-        sign: astrolabe.sign,
-        zodiac: astrolabe.zodiac,
+        solarDate: output.solarDate,
+        lunarDate: output.lunarDate,
+        time: output.time || astrolabe.time,
+        sign: output.sign,
+        zodiac: output.zodiac,
 
-        yearStem: yearPillar?.slice?.(0, 1) || '',
-        yearBranch: yearPillar?.slice?.(1, 2) || '',
-        monthStem: monthPillar?.slice?.(0, 1) || '',
-        monthBranch: monthPillar?.slice?.(1, 2) || '',
-        dayStem: dayPillar?.slice?.(0, 1) || '',
-        dayBranch: dayPillar?.slice?.(1, 2) || '',
-        hourStem: hourPillar?.slice?.(0, 1) || '',
-        hourBranch: hourPillar?.slice?.(1, 2) || '',
+        yearStem: output.fourPillars.year.gan,
+        yearBranch: output.fourPillars.year.zhi,
+        monthStem: output.fourPillars.month.gan,
+        monthBranch: output.fourPillars.month.zhi,
+        dayStem: output.fourPillars.day.gan,
+        dayBranch: output.fourPillars.day.zhi,
+        hourStem: output.fourPillars.hour.gan,
+        hourBranch: output.fourPillars.hour.zhi,
 
-        soul: astrolabe.soul,
-        body: astrolabe.body,
-        fiveElement: astrolabe.fiveElementsClass,
+        soul: output.soul,
+        body: output.body,
+        fiveElement: output.fiveElement,
 
         palaces,
         decadalData,
@@ -325,11 +279,8 @@ export interface ZiweiHoroscope {
 
 // ===== 运限计算函数 =====
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type HoroscopeData = Record<string, any>;
-
 /**
- * 获取指定日期的运限信息（使用 iztro horoscope API）
+ * 获取指定日期的运限信息（复用 mcp-core shared horoscope helper）
  * 需要 rawAstrolabe 存在才能计算，已保存的命盘无法使用此功能
  */
 export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiHoroscope | null {
@@ -339,63 +290,61 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
     }
 
     try {
-        const horoscope = chart.rawAstrolabe.horoscope(date) as HoroscopeData;
-        const dec = horoscope.decadal as HoroscopeData | undefined;
-        const yr = horoscope.yearly as HoroscopeData | undefined;
-        const mo = horoscope.monthly as HoroscopeData | undefined;
-        const dy = horoscope.daily as HoroscopeData | undefined;
-
-        // 从宫位的 decadal.range 获取大限起止年龄（HoroscopeItem 本身没有 range）
-        const decPalaceIndex = dec?.index ?? 0;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const decPalaceRaw = (chart.rawAstrolabe!.palaces[decPalaceIndex] as any)?.decadal;
+        const horoscope = calculateZiweiHoroscopeDataWithAstrolabe(chart.rawAstrolabe, {
+            targetDate: date,
+        });
+        const decadalRange = getDecadalList(chart).find((item) => item.index === horoscope.decadal.index);
         const decadal: DecadalInfo = {
-            index: decPalaceIndex,
-            startAge: decPalaceRaw?.range?.[0] ?? 0,
-            endAge: decPalaceRaw?.range?.[1] ?? 0,
+            index: horoscope.decadal.index,
+            startAge: decadalRange?.startAge ?? 0,
+            endAge: decadalRange?.endAge ?? 0,
             palace: {
-                index: decPalaceIndex,
-                name: dec?.name ?? '',
-                heavenlyStem: dec?.heavenlyStem ?? '',
-                earthlyBranch: dec?.earthlyBranch ?? '',
+                index: horoscope.decadal.index,
+                name: horoscope.decadal.name,
+                heavenlyStem: horoscope.decadal.heavenlyStem,
+                earthlyBranch: horoscope.decadal.earthlyBranch,
+                mutagen: horoscope.decadal.mutagen,
             },
-            heavenlyStem: dec?.heavenlyStem ?? '',
+            heavenlyStem: horoscope.decadal.heavenlyStem,
         };
 
         const yearly: FlowPeriodInfo = {
             period: String(date.getFullYear()),
             palace: {
-                index: yr?.index ?? 0,
-                name: yr?.name ?? '',
-                heavenlyStem: yr?.heavenlyStem ?? '',
-                earthlyBranch: yr?.earthlyBranch ?? '',
+                index: horoscope.yearly.index,
+                name: horoscope.yearly.name,
+                heavenlyStem: horoscope.yearly.heavenlyStem,
+                earthlyBranch: horoscope.yearly.earthlyBranch,
+                mutagen: horoscope.yearly.mutagen,
             },
-            heavenlyStem: yr?.heavenlyStem ?? '',
-            earthlyBranch: yr?.earthlyBranch ?? '',
+            heavenlyStem: horoscope.yearly.heavenlyStem,
+            earthlyBranch: horoscope.yearly.earthlyBranch,
         };
 
         const monthly: FlowPeriodInfo = {
             period: String(date.getMonth() + 1),
             palace: {
-                index: mo?.index ?? 0,
-                name: mo?.name ?? '',
-                heavenlyStem: mo?.heavenlyStem ?? '',
-                earthlyBranch: mo?.earthlyBranch ?? '',
+                index: horoscope.monthly.index,
+                name: horoscope.monthly.name,
+                heavenlyStem: horoscope.monthly.heavenlyStem,
+                earthlyBranch: horoscope.monthly.earthlyBranch,
+                mutagen: horoscope.monthly.mutagen,
             },
-            heavenlyStem: mo?.heavenlyStem ?? '',
-            earthlyBranch: mo?.earthlyBranch ?? '',
+            heavenlyStem: horoscope.monthly.heavenlyStem,
+            earthlyBranch: horoscope.monthly.earthlyBranch,
         };
 
         const daily: FlowPeriodInfo = {
-            period: date.toISOString().split('T')[0],
+            period: horoscope.targetDate,
             palace: {
-                index: dy?.index ?? 0,
-                name: dy?.name ?? '',
-                heavenlyStem: dy?.heavenlyStem ?? '',
-                earthlyBranch: dy?.earthlyBranch ?? '',
+                index: horoscope.daily.index,
+                name: horoscope.daily.name,
+                heavenlyStem: horoscope.daily.heavenlyStem,
+                earthlyBranch: horoscope.daily.earthlyBranch,
+                mutagen: horoscope.daily.mutagen,
             },
-            heavenlyStem: dy?.heavenlyStem ?? '',
-            earthlyBranch: dy?.earthlyBranch ?? '',
+            heavenlyStem: horoscope.daily.heavenlyStem,
+            earthlyBranch: horoscope.daily.earthlyBranch,
         };
 
         return { decadal, yearly, monthly, daily };
@@ -406,25 +355,12 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
 }
 
 /**
- * 根据五行局获取大限起始年龄
- * 水二局=2岁, 木三局=3岁, 金四局=4岁, 土五局=5岁, 火六局=6岁
- */
-function getFiveElementStartAge(fiveElement: string): number {
-    if (fiveElement.includes('水二')) return 2;
-    if (fiveElement.includes('木三')) return 3;
-    if (fiveElement.includes('金四')) return 4;
-    if (fiveElement.includes('土五')) return 5;
-    if (fiveElement.includes('火六')) return 6;
-    return 2; // 默认水二局
-}
-
-/**
  * 获取大限列表
  *
- * 优先级：decadalData > rawAstrolabe > 五行局 fallback
+ * 优先级：decadalData > rawAstrolabe
  * - decadalData: 保存时从 rawAstrolabe 提取的精确数据
  * - rawAstrolabe: 实时计算时的原始数据
- * - 五行局 fallback: 最后的降级方案（精度较低）
+ * 缺少完整数据时直接返回空列表，避免使用低精度推算污染结果。
  */
 export function getDecadalList(chart: ZiweiChart): DecadalInfo[] {
     // 优先使用 decadalData（已保存的精确数据）
@@ -450,55 +386,29 @@ export function getDecadalList(chart: ZiweiChart): DecadalInfo[] {
 
     // 其次使用 rawAstrolabe（实时计算）
     if (chart.rawAstrolabe?.palaces) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rawPalaces = chart.rawAstrolabe.palaces as any[];
-
-        const decadalList: DecadalInfo[] = rawPalaces.map((rawPalace, index) => {
-            const decadal = rawPalace.decadal;
-            const palace = chart.palaces[index];
+        const decadalList: DecadalInfo[] = calculateZiweiDecadalListWithAstrolabe(chart.rawAstrolabe).map((item) => {
+            const palaceIndex = chart.palaces.findIndex((palace) =>
+                palace.name === item.palace.name && palace.earthlyBranch === item.palace.earthlyBranch
+            );
+            const palace = chart.palaces[palaceIndex >= 0 ? palaceIndex : 0];
             return {
-                index,
-                startAge: decadal?.range?.[0] ?? 0,
-                endAge: decadal?.range?.[1] ?? 0,
+                index: palaceIndex >= 0 ? palaceIndex : 0,
+                startAge: item.startAge,
+                endAge: item.endAge,
                 palace: {
-                    index,
-                    name: palace.name,
-                    heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
-                    earthlyBranch: decadal?.earthlyBranch ?? palace.earthlyBranch,
+                    index: palaceIndex >= 0 ? palaceIndex : 0,
+                    name: item.palace.name,
+                    heavenlyStem: item.heavenlyStem,
+                    earthlyBranch: item.palace.earthlyBranch,
                 },
-                heavenlyStem: decadal?.heavenlyStem ?? palace.heavenlyStem,
+                heavenlyStem: item.heavenlyStem || palace?.heavenlyStem || '',
             };
         });
 
         return decadalList.sort((a, b) => a.startAge - b.startAge);
     }
 
-    // Fallback: 基于五行局计算（精度较低，无法判断顺逆排）
-    // 大限从命宫所在宫位开始，而非从 palaces[0]（寅宫）开始
-    const startAge = getFiveElementStartAge(chart.fiveElement);
-    const soulPalaceIndex = chart.palaces.findIndex(p => p.name === '命宫');
-    const soulIdx = soulPalaceIndex >= 0 ? soulPalaceIndex : 0;
-
-    const decadalList: DecadalInfo[] = chart.palaces.map((_, i) => {
-        // 默认顺行（无性别/年干信息时无法判断顺逆，按顺行处理）
-        const palaceIndex = (soulIdx + i) % 12;
-        const palace = chart.palaces[palaceIndex];
-        const decadalAge = startAge + i * 10;
-        return {
-            index: palaceIndex,
-            startAge: decadalAge,
-            endAge: decadalAge + 9,
-            palace: {
-                index: palaceIndex,
-                name: palace.name,
-                heavenlyStem: palace.heavenlyStem,
-                earthlyBranch: palace.earthlyBranch,
-            },
-            heavenlyStem: palace.heavenlyStem,
-        };
-    });
-
-    return decadalList.sort((a, b) => a.startAge - b.startAge);
+    return [];
 }
 
 // ===== 三方四正 =====

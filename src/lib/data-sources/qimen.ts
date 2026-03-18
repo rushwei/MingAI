@@ -19,7 +19,6 @@ function formatPalace(p: QimenPalaceInfo): string {
         `${p.palaceName}（${p.direction}·${p.element}）`,
         `  地盘: ${p.earthStem}  天盘: ${p.heavenStem}`,
         `  星: ${p.star}  门: ${p.gate}  神: ${p.god}`,
-        p.hiddenStem ? `  暗干: ${p.hiddenStem}` : '',
         p.patterns.length ? `  格局: ${p.patterns.join('、')}` : '',
         p.isEmpty ? '  [空亡]' : '',
         p.isHorseStar ? '  [驿马]' : '',

@@ -8,15 +8,12 @@ import {
     HIDDEN_STEMS,
     calculateTenGod,
     calculateBazi,
+    calculateShenSha,
     LIU_HE_TABLE,
     LIU_CHONG_TABLE,
     SAN_HE_TABLE,
-    getDiShi,
-    calculateDayMasterChangSheng,
-    analyzeFourPillarsLiuHe,
-    analyzeFourPillarsLiuChong,
-    analyzeFourPillarsSanHe,
 } from '@/lib/divination/bazi';
+import { getDiShi } from '@mingai/mcp-core/utils';
 import type { HeavenlyStem, BaziFormData, TenGod } from '@/types';
 
 // ===== 1. 十神计算 (calculateTenGod) =====
@@ -195,16 +192,6 @@ describe('getDiShi 十二长生', () => {
         assert.equal(getDiShi('壬', '子'), '帝旺');
     });
 
-    it('getDiShi 与 calculateDayMasterChangSheng 对阴干结果一致', () => {
-        // 两个函数对同一天干地支应返回相同的长生阶段
-        // calculateDayMasterChangSheng 使用五行查表，getDiShi 使用天干起始位
-        // 对阳干两者应一致
-        const yangResult = calculateDayMasterChangSheng('甲', '亥');
-        assert.equal(yangResult.stage, getDiShi('甲', '亥'), '甲在亥：两种算法应一致');
-
-        const yangResult2 = calculateDayMasterChangSheng('庚', '巳');
-        assert.equal(yangResult2.stage, getDiShi('庚', '巳'), '庚在巳：两种算法应一致');
-    });
 });
 
 // ===== 5. 地支藏干 (HIDDEN_STEMS) =====
@@ -360,6 +347,30 @@ describe('calculateBazi 集成测试', () => {
     });
 });
 
+describe('calculateShenSha 集成测试', () => {
+    it('shared-core refactor should not leave runtime-only XUN_KONG references in web shensha calculation', () => {
+        const formData: BaziFormData = {
+            name: '测试',
+            gender: 'male',
+            birthYear: 1990,
+            birthMonth: 1,
+            birthDay: 1,
+            birthHour: 12,
+            birthMinute: 0,
+            calendarType: 'solar',
+            isLeapMonth: false,
+        };
+
+        const result = calculateShenSha(formData);
+
+        assert.ok(result);
+        assert.ok(Array.isArray(result.pillarShenSha.year));
+        assert.ok(Array.isArray(result.pillarShenSha.month));
+        assert.ok(Array.isArray(result.pillarShenSha.day));
+        assert.ok(Array.isArray(result.pillarShenSha.hour));
+    });
+});
+
 // ===== 7. 地支关系 =====
 
 describe('地支关系', () => {
@@ -415,31 +426,6 @@ describe('地支关系', () => {
         assert.equal(LIU_HE_TABLE['子'].result, '土');
     });
 
-    it('analyzeFourPillarsLiuChong 检测子午冲', () => {
-        const result = analyzeFourPillarsLiuChong('子', '卯', '午', '酉');
-        assert.ok(result.pairs.length > 0, '应检测到冲');
-        const ziWuChong = result.pairs.find(p =>
-            (p.zhi1 === '子' && p.zhi2 === '午') || (p.zhi1 === '午' && p.zhi2 === '子')
-        );
-        assert.ok(ziWuChong, '应检测到子午冲');
-    });
-
-    it('analyzeFourPillarsSanHe 检测申子辰三合', () => {
-        const result = analyzeFourPillarsSanHe('申', '子', '辰', '午');
-        assert.equal(result.hasFullSanHe, true);
-        assert.equal(result.fullSanHe?.result, '水');
-        assert.equal(result.fullSanHe?.name, '申子辰合水局');
-    });
-
-    it('analyzeFourPillarsLiuHe 检测子丑合', () => {
-        const result = analyzeFourPillarsLiuHe('子', '丑', '寅', '卯');
-        assert.ok(result.pairs.length > 0, '应检测到六合');
-        const ziChouHe = result.pairs.find(p =>
-            (p.zhi1 === '子' && p.zhi2 === '丑') || (p.zhi1 === '丑' && p.zhi2 === '子')
-        );
-        assert.ok(ziChouHe, '应检测到子丑合');
-        assert.equal(ziChouHe!.result, '土');
-    });
 });
 
 // ===== 8. 藏干权重 =====

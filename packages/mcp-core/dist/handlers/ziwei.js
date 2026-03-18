@@ -2,6 +2,8 @@
  * 紫微斗数排盘处理器
  */
 import { createAstrolabeWithTrueSolar, mapStar, MUTAGEN_NAMES, STEM_MUTAGEN_TABLE, computeLiuNianAges, computeDouJun, hourToTimeIndex, DI_ZHI, LUCUN_TABLE } from './ziwei-shared.js';
+export { createAstrolabeWithTrueSolar } from './ziwei-shared.js';
+export { calculateZiweiHoroscopeData, calculateZiweiHoroscopeDataWithAstrolabe } from './ziwei-horoscope.js';
 // ===== 命主星 =====
 const LIFE_MASTER_STAR_TABLE = {
     '子': '贪狼', '丑': '巨门', '寅': '禄存', '卯': '文曲',
@@ -98,8 +100,27 @@ function computeSanFangSiZheng(palaceIdx, palaces) {
         return p?.name ?? '';
     });
 }
-export async function handleZiweiCalculate(input) {
-    const { astrolabe, trueSolarTimeInfo } = createAstrolabeWithTrueSolar(input);
+function parsePillarGanZhi(pillar) {
+    return {
+        gan: pillar.slice(0, 1) || '',
+        zhi: pillar.slice(1, 2) || '',
+    };
+}
+export function calculateZiweiDecadalListWithAstrolabe(astrolabe) {
+    return astrolabe.palaces.map((rawPalace) => {
+        const decadal = rawPalace.decadal;
+        return {
+            startAge: decadal?.range?.[0] ?? 0,
+            endAge: decadal?.range?.[1] ?? 0,
+            heavenlyStem: decadal?.heavenlyStem ?? rawPalace.heavenlyStem,
+            palace: {
+                earthlyBranch: decadal?.earthlyBranch ?? rawPalace.earthlyBranch,
+                name: rawPalace.name,
+            },
+        };
+    }).sort((a, b) => a.startAge - b.startAge);
+}
+function buildZiweiOutput(input, astrolabe, trueSolarTimeInfo) {
     const mutagenSummary = [];
     // 转换宫位数据
     const palaces = astrolabe.palaces.map((palace, idx) => {
@@ -195,26 +216,15 @@ export async function handleZiweiCalculate(input) {
         ? computeScholarStars(yearStem, input.gender, palaces)
         : undefined;
     // 提取大限数据
-    const decadalList = astrolabe.palaces.map((rawPalace, index) => {
-        const decadal = rawPalace.decadal;
-        return {
-            startAge: decadal?.range?.[0] ?? 0,
-            endAge: decadal?.range?.[1] ?? 0,
-            heavenlyStem: decadal?.heavenlyStem ?? palaces[index].heavenlyStem,
-            palace: {
-                earthlyBranch: decadal?.earthlyBranch ?? palaces[index].earthlyBranch,
-                name: palaces[index].name,
-            },
-        };
-    }).sort((a, b) => a.startAge - b.startAge);
+    const decadalList = calculateZiweiDecadalListWithAstrolabe(astrolabe);
     return {
         solarDate: astrolabe.solarDate || '',
         lunarDate: astrolabe.lunarDate || '',
         fourPillars: {
-            year: pillars[0] || '',
-            month: pillars[1] || '',
-            day: pillars[2] || '',
-            hour: pillars[3] || '',
+            year: parsePillarGanZhi(pillars[0] || ''),
+            month: parsePillarGanZhi(pillars[1] || ''),
+            day: parsePillarGanZhi(pillars[2] || ''),
+            hour: parsePillarGanZhi(pillars[3] || ''),
         },
         soul: astrolabe.soul || '',
         body: astrolabe.body || '',
@@ -236,4 +246,17 @@ export async function handleZiweiCalculate(input) {
         smallLimit,
         scholarStars,
     };
+}
+export function calculateZiweiDataWithAstrolabe(input) {
+    const { astrolabe, trueSolarTimeInfo } = createAstrolabeWithTrueSolar(input);
+    return {
+        output: buildZiweiOutput(input, astrolabe, trueSolarTimeInfo),
+        astrolabe,
+    };
+}
+export function calculateZiweiData(input) {
+    return calculateZiweiDataWithAstrolabe(input).output;
+}
+export async function handleZiweiCalculate(input) {
+    return calculateZiweiData(input);
 }

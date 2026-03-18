@@ -14,7 +14,6 @@ import {
     calculateProfessionalData,
     calculateLiuYue,
     calculateLiuRi,
-    calculateShenSha,
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
 import { supabase } from '@/lib/auth';
@@ -220,12 +219,12 @@ function BaziResultContent() {
     const liuYue = useMemo(() => {
         if (selectedLiuNianYear <= 0) return [];
         try {
-            return calculateLiuYue(selectedLiuNianYear);
+            return calculateLiuYue(selectedLiuNianYear, formData);
         } catch (error) {
             console.error('流月计算错误:', error);
             return [];
         }
-    }, [selectedLiuNianYear]);
+    }, [formData, selectedLiuNianYear]);
 
     // useEffect 根据流年变化重置流月选中项
     useEffect(() => {
@@ -244,12 +243,12 @@ function BaziResultContent() {
     const liuRi = useMemo(() => {
         if (!activeLiuYue) return [];
         try {
-            return calculateLiuRi(activeLiuYue.startDate, activeLiuYue.endDate);
+            return calculateLiuRi(activeLiuYue.startDate, activeLiuYue.endDate, formData);
         } catch (error) {
             console.error('流日计算错误:', error);
             return [];
         }
-    }, [activeLiuYue]);
+    }, [activeLiuYue, formData]);
 
     // useEffect 在流月切换时同步默认流日
     useEffect(() => {
@@ -259,17 +258,6 @@ function BaziResultContent() {
         }
         // 不再自动选择流日，保持未选中状态
     }, [activeLiuYue]);
-
-    // 计算神煞
-    const shenSha = useMemo(() => {
-        try {
-            return calculateShenSha(formData);
-        } catch (error) {
-            console.error('神煞计算错误:', error);
-            return null;
-        }
-    }, [formData]);
-
 
     // 保存命盘
     const handleSave = async () => {
@@ -542,7 +530,6 @@ function BaziResultContent() {
                 <ProfessionalSection
                     baziResult={baziResult}
                     proData={proData}
-                    gender={formData.gender}
                     isUnknownTime={isUnknownTime}
                     selectedDaYunIndex={selectedDaYunIndex}
                     onSelectDaYun={handleSelectDaYun}
@@ -556,7 +543,6 @@ function BaziResultContent() {
                     selectedLiuRiDate={selectedLiuRiDate}
                     onSelectLiuRi={handleSelectLiuRi}
                     activeLiuYue={activeLiuYue}
-                    shenSha={shenSha || undefined}
                 />
             )}
 

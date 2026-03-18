@@ -40,8 +40,20 @@ export function calculateTenGod(dayStem, targetStem) {
     };
     return tenGodMap[relation][sameYY ? 0 : 1];
 }
-// 旬空表（从 shensha-data 导入）
-import { XUN_KONG_TABLE } from './data/shensha-data.js';
+// 共享八字规则表（从 shensha-data 导入）
+import { DI_SHI_ORDER, XUN_KONG_TABLE } from './data/shensha-data.js';
+const DI_SHI_START_BRANCH = {
+    '甲': '亥',
+    '乙': '午',
+    '丙': '寅',
+    '丁': '酉',
+    '戊': '寅',
+    '己': '酉',
+    '庚': '巳',
+    '辛': '子',
+    '壬': '申',
+    '癸': '卯',
+};
 // 计算空亡
 export function getKongWang(dayGan, dayZhi) {
     const ganIdx = TIAN_GAN.indexOf(dayGan);
@@ -59,4 +71,17 @@ export function getKongWang(dayGan, dayZhi) {
         xun,
         kongZhi: XUN_KONG_TABLE[xun],
     };
+}
+// 获取十二长生（按日主天干）
+export function getDiShi(dayStem, branch) {
+    const startBranch = DI_SHI_START_BRANCH[dayStem];
+    const startIdx = DI_ZHI.indexOf(startBranch);
+    const branchIdx = DI_ZHI.indexOf(branch);
+    if (startIdx < 0 || branchIdx < 0)
+        return '';
+    const isYang = getStemYinYang(dayStem) === 'yang';
+    const offset = isYang
+        ? (branchIdx - startIdx + 12) % 12
+        : (startIdx - branchIdx + 12) % 12;
+    return DI_SHI_ORDER[offset] || '';
 }

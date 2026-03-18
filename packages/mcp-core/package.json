@@ -26,6 +26,26 @@
       "types": "./dist/data/shensha-data.d.ts",
       "default": "./dist/data/shensha-data.js"
     },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "default": "./dist/utils.js"
+    },
+    "./dayun": {
+      "types": "./dist/handlers/liunian.d.ts",
+      "default": "./dist/handlers/liunian.js"
+    },
+    "./bazi": {
+      "types": "./dist/handlers/bazi.d.ts",
+      "default": "./dist/handlers/bazi.js"
+    },
+    "./ziwei": {
+      "types": "./dist/handlers/ziwei.d.ts",
+      "default": "./dist/handlers/ziwei.js"
+    },
+    "./qimen": {
+      "types": "./dist/handlers/qimen.d.ts",
+      "default": "./dist/handlers/qimen.js"
+    },
     "./daliuren": {
       "types": "./dist/daliuren/index.d.ts",
       "default": "./dist/daliuren/index.js"

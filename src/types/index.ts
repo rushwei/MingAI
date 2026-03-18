@@ -31,6 +31,38 @@ export type FiveElement = '金' | '木' | '水' | '火' | '土';
 /** 十神 */
 export type TenGod = '比肩' | '劫财' | '食神' | '伤官' | '偏财' | '正财' | '七杀' | '正官' | '偏印' | '正印';
 
+export interface BaziRelation {
+    type: '合' | '冲' | '刑' | '害';
+    pillars: ('年支' | '月支' | '日支' | '时支')[];
+    description: string;
+}
+
+export interface BaziTianGanWuHeItem {
+    stemA: string;
+    stemB: string;
+    resultElement: string;
+    positions: ('年支' | '月支' | '日支' | '时支')[];
+}
+
+export interface BaziTianGanChongKeItem {
+    stemA: string;
+    stemB: string;
+    positions: ('年支' | '月支' | '日支' | '时支')[];
+}
+
+export interface BaziDiZhiBanHeItem {
+    branches: [EarthlyBranch, EarthlyBranch];
+    resultElement: string;
+    missingBranch: string;
+    positions: ('年支' | '月支' | '日支' | '时支')[];
+}
+
+export interface BaziDiZhiSanHuiItem {
+    branches: [EarthlyBranch, EarthlyBranch, EarthlyBranch];
+    resultElement: string;
+    positions: ('年支' | '月支' | '日支' | '时支')[];
+}
+
 /** 简化的柱数据（用于四柱输入） */
 export interface PillarData {
     stem: HeavenlyStem | '';      // 天干（空字符串表示未选择）
@@ -38,13 +70,23 @@ export interface PillarData {
 }
 
 /** 柱（年、月、日、时） */
+export interface HiddenStemDetail {
+    stem: HeavenlyStem;
+    tenGod: string;
+}
+
 export interface Pillar {
     stem: HeavenlyStem;      // 天干
     branch: EarthlyBranch;   // 地支
     stemElement: FiveElement; // 天干五行
     branchElement: FiveElement; // 地支五行
     hiddenStems: HeavenlyStem[]; // 地支藏干
+    hiddenStemDetails?: HiddenStemDetail[]; // 含十神的地支藏干
     tenGod?: TenGod;         // 十神（相对于日主）
+    naYin?: string;
+    diShi?: string;
+    shenSha?: string[];
+    kongWang?: { isKong: boolean };
 }
 
 /** 四柱 */
@@ -83,6 +125,12 @@ export interface BaziChart {
     fourPillars: FourPillars;
     dayMaster: HeavenlyStem;  // 日主
     fiveElements: FiveElementsStats; // 五行统计
+    kongWang?: { xun: string; kongBranches: EarthlyBranch[] };
+    relations?: BaziRelation[];
+    tianGanWuHe?: BaziTianGanWuHeItem[];
+    tianGanChongKe?: BaziTianGanChongKeItem[];
+    diZhiBanHe?: BaziDiZhiBanHeItem[];
+    diZhiSanHui?: BaziDiZhiSanHuiItem[];
 
     // 状态
     isUnlocked: boolean;  // 是否已付费解锁深度解读

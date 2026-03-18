@@ -9,7 +9,7 @@ import {
     handleQimenCalculate as coreCalculate,
     type QimenOutput as CoreOutput,
     type QimenInput as CoreInput,
-} from '@mingai/mcp-core';
+} from '@mingai/mcp-core/qimen';
 
 // ── 前端类型定义 ──
 
@@ -21,7 +21,7 @@ export interface QimenInput {
     minute: number;
     timezone?: string;
     question?: string;
-    panType: 'zhuan' | 'fei';
+    panType: 'zhuan';
     juMethod: 'chaibu' | 'maoshan';
     zhiFuJiGong: 'jiLiuYi' | 'jiWuGong';
 }
@@ -36,7 +36,6 @@ export interface QimenPalaceInfo {
     star: string;
     gate: string;
     god: string;
-    hiddenStem?: string;
     patterns: string[];
     isEmpty: boolean;
     isHorseStar: boolean;
@@ -46,6 +45,7 @@ export interface QimenPalaceInfo {
     starElement: string;
     gateElement: string;
     stemWangShuai?: string;
+    elementState?: string;
 }
 
 export interface QimenOutput {
@@ -148,6 +148,7 @@ export async function handleQimenCalculate(input: QimenInput): Promise<QimenOutp
         starElement: p.starElement,
         gateElement: p.gateElement,
         stemWangShuai: p.stemWangShuai,
+        elementState: p.elementState,
     }));
 
     return {
