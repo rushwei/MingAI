@@ -7,53 +7,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
-import { getUnreadCount } from '@/lib/notification';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
+import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 
 interface NotificationBellProps {
     userId: string | null;
 }
 
 export function NotificationBell({ userId }: NotificationBellProps) {
-    const [unreadCount, setUnreadCount] = useState(0);
+    const unreadCount = useNotificationUnreadCount(userId);
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-
-    // 获取未读数量
-    useEffect(() => {
-        if (!userId) {
-            return;
-        }
-
-        const fetchCount = async (options?: { bypassCache?: boolean }) => {
-            const count = await getUnreadCount(userId, options);
-            setUnreadCount(count);
-        };
-
-        fetchCount();
-
-        const timer = window.setInterval(() => {
-            void fetchCount({ bypassCache: true });
-        }, 30_000);
-
-        const handleDbWrite = (event: Event) => {
-            const detail = (event as CustomEvent<{ table?: string }>).detail;
-            if (detail?.table === 'notifications') {
-                void fetchCount({ bypassCache: true });
-            }
-        };
-        const handleNotificationsInvalidate = () => {
-            void fetchCount({ bypassCache: true });
-        };
-        window.addEventListener('mingai:api-write', handleDbWrite);
-        window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
-
-        return () => {
-            window.clearInterval(timer);
-            window.removeEventListener('mingai:api-write', handleDbWrite);
-            window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
-        };
-    }, [userId]);
 
     // 点击外部关闭
     useEffect(() => {
@@ -91,13 +55,9 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                     userId={userId}
                     onClose={() => setIsOpen(false)}
                     onReadCountChange={(change: number) => {
-                        setUnreadCount(prev => {
-                            const next = Math.max(0, prev + change);
-                            window.dispatchEvent(
-                                new CustomEvent('mingai:notifications-unread', { detail: { count: next } })
-                            );
-                            return next;
-                        });
+                        window.dispatchEvent(
+                            new CustomEvent('mingai:notifications-unread', { detail: { delta: change } })
+                        );
                     }}
                 />
             )}

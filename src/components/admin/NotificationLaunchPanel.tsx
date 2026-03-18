@@ -85,7 +85,12 @@ export function NotificationLaunchPanel() {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
-                body: JSON.stringify({ featureKey, featureUrl }),
+                body: JSON.stringify({
+                    featureKey,
+                    featureUrl,
+                    templateId: selectedTemplate?.id ?? null,
+                    templateVars,
+                }),
             });
 
             const data = await response.json();

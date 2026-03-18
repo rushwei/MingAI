@@ -18,6 +18,7 @@ import {
     ChevronUp,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
@@ -53,6 +54,7 @@ export function AISourcePanel() {
     const [addingToModel, setAddingToModel] = useState<string | null>(null);
     const { showToast } = useToast();
     const [updating, setUpdating] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ modelId: string; sourceId: string } | null>(null);
 
     // 新来源表单状态
     const [newSource, setNewSource] = useState({
@@ -137,8 +139,6 @@ export function AISourcePanel() {
 
     // 删除来源
     const deleteSource = async (modelId: string, sourceId: string) => {
-        if (!confirm('确定要删除这个来源吗？')) return;
-
         setUpdating(true);
 
         try {
@@ -159,6 +159,7 @@ export function AISourcePanel() {
             }
 
             await loadModels();
+            setDeleteTarget(null);
         } catch (e) {
             showToast('error', e instanceof Error ? e.message : '删除来源失败');
         } finally {
@@ -315,7 +316,7 @@ export function AISourcePanel() {
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={() => deleteSource(model.id, source.id)}
+                                                        onClick={() => setDeleteTarget({ modelId: model.id, sourceId: source.id })}
                                                         disabled={updating || model.sources.length <= 1}
                                                         className="p-1.5 rounded-lg hover:bg-background-secondary transition-colors disabled:opacity-30"
                                                         title="删除来源"
@@ -429,6 +430,16 @@ export function AISourcePanel() {
                     );
                 })}
             </div>
+            <ConfirmDialog
+                isOpen={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={() => deleteTarget ? deleteSource(deleteTarget.modelId, deleteTarget.sourceId) : undefined}
+                title="确认删除"
+                description="确定要删除这个来源吗？删除后将无法继续作为模型候选来源。"
+                confirmText="确认删除"
+                variant="danger"
+                loading={updating}
+            />
         </div>
     );
 }

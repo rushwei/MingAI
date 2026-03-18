@@ -27,6 +27,8 @@ import {
     NoteMood
 } from '@/lib/records';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 
 // =====================================================
 // 记录表单模态框
@@ -47,6 +49,7 @@ export function RecordFormModal({
     const [tagsInput, setTagsInput] = useState(record?.tags.join(', ') || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const { showToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,24 +64,22 @@ export function RecordFormModal({
         try {
             const tags = tagsInput.split(/[,，]/).map(t => t.trim()).filter(Boolean);
             const data = { title, content, category, event_date: eventDate || null, tags };
+            const response = await fetch(record ? `/api/records/${record.id}` : '/api/records', {
+                method: record ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            const payload = await response.json().catch(() => ({} as { error?: string }));
 
-            if (record) {
-                await fetch(`/api/records/${record.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
-            } else {
-                await fetch('/api/records', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
+            if (!response.ok) {
+                throw new Error(payload.error || '保存失败，请重试');
             }
 
             onSave();
-        } catch {
-            setError('保存失败，请重试');
+        } catch (saveError) {
+            const message = saveError instanceof Error ? saveError.message : '保存失败，请重试';
+            setError(message);
+            showToast('error', message);
         } finally {
             setLoading(false);
         }
@@ -205,6 +206,8 @@ export function DailyNotes({
     const [content, setContent] = useState('');
     const [mood, setMood] = useState<NoteMood>('neutral');
     const [loading, setLoading] = useState(false);
+    const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -212,22 +215,40 @@ export function DailyNotes({
 
         setLoading(true);
         try {
-            await fetch('/api/notes', {
+            const response = await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, mood }),
             });
+            const payload = await response.json().catch(() => ({} as { error?: string }));
+
+            if (!response.ok) {
+                throw new Error(payload.error || '创建小记失败');
+            }
             setContent('');
             onRefresh();
+        } catch (submitError) {
+            showToast('error', submitError instanceof Error ? submitError.message : '创建小记失败');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('确定要删除这条小记吗？')) return;
-        await fetch(`/api/notes?id=${id}`, { method: 'DELETE' });
-        onRefresh();
+        try {
+            const response = await fetch(`/api/notes?id=${id}`, { method: 'DELETE' });
+            const payload = await response.json().catch(() => ({} as { error?: string }));
+
+            if (!response.ok) {
+                throw new Error(payload.error || '删除小记失败');
+            }
+
+            onRefresh();
+        } catch (deleteError) {
+            showToast('error', deleteError instanceof Error ? deleteError.message : '删除小记失败');
+        } finally {
+            setDeleteNoteId(null);
+        }
     };
 
     return (
@@ -330,7 +351,7 @@ export function DailyNotes({
                                                 </p>
                                             </div>
                                             <button
-                                                onClick={() => handleDelete(note.id)}
+                                                onClick={() => setDeleteNoteId(note.id)}
                                                 className="opacity-0 group-hover/item:opacity-100 p-1.5 text-foreground-secondary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all scale-90 hover:scale-100"
                                                 title="删除"
                                             >
@@ -344,6 +365,15 @@ export function DailyNotes({
                     </div>
                 )}
             </div>
+            <ConfirmDialog
+                isOpen={!!deleteNoteId}
+                onClose={() => setDeleteNoteId(null)}
+                onConfirm={() => deleteNoteId ? handleDelete(deleteNoteId) : undefined}
+                title="确认删除"
+                description="确定要删除这条小记吗？此操作无法撤销。"
+                confirmText="确认删除"
+                variant="danger"
+            />
         </div>
     );
 }

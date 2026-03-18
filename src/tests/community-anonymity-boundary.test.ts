@@ -45,12 +45,20 @@ test('community detail routes should not expose raw author ids or anonymous mapp
     resolve(process.cwd(), 'src/app/api/community/posts/[id]/route.ts'),
     'utf-8',
   );
+  const postsRouteSource = await readFile(
+    resolve(process.cwd(), 'src/app/api/community/posts/route.ts'),
+    'utf-8',
+  );
   const commentRouteSource = await readFile(
     resolve(process.cwd(), 'src/app/api/community/comments/[id]/route.ts'),
     'utf-8',
   );
   const communityClientSource = await readFile(
     resolve(process.cwd(), 'src/lib/community.ts'),
+    'utf-8',
+  );
+  const communityServerSource = await readFile(
+    resolve(process.cwd(), 'src/lib/community-server.ts'),
     'utf-8',
   );
 
@@ -89,4 +97,24 @@ test('community detail routes should not expose raw author ids or anonymous mapp
     false,
     'community public client should no longer expose anonymous_name',
   );
+  assert.equal(
+    communityServerSource.includes('anonymous_name'),
+    false,
+    'community server adapters should no longer model anonymous_name after anonymous mode removal',
+  );
+  assert.equal(
+    postsRouteSource.includes('anonymous_name'),
+    false,
+    'community post create route should not keep writing anonymous_name after anonymous mode removal',
+  );
+});
+
+test('community anonymity removal should drop the obsolete post anonymous_name column in a migration', async () => {
+  const migrationSource = await readFile(
+    resolve(process.cwd(), 'supabase/migrations/20260318_drop_community_posts_anonymous_name.sql'),
+    'utf-8',
+  );
+
+  assert.match(migrationSource, /ALTER TABLE public\.community_posts/u);
+  assert.match(migrationSource, /DROP COLUMN IF EXISTS anonymous_name/u);
 });

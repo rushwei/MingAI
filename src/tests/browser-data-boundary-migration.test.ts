@@ -51,7 +51,7 @@ test('browser membership helpers should not write users or orders directly throu
   const source = await readSource('src/lib/user/membership.ts');
 
   assert.equal(
-    /supabase\s*\.\s*from\s*\(/ms.test(source),
+    /supabase\s*\.\s*from\s*\(/m.test(source),
     false,
     'browser membership helpers should use API boundaries instead of direct table access',
   );

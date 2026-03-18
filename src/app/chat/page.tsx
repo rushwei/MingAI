@@ -20,9 +20,7 @@ import { useChatMessaging } from '@/lib/chat/use-chat-messaging';
 import { ChatLayout } from '@/components/chat/ChatLayout';
 import { BaziChartSelector } from '@/components/chat/BaziChartSelector';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { CreditsModal } from '@/components/ui/CreditsModal';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 export default function ChatPage() {
     const router = useRouter();
@@ -73,8 +71,7 @@ export default function ChatPage() {
     const isCreditLocked = !isUnlimited && credits === 0;
 
     return (
-        <FeatureGate featureId="chat">
-        <LoginOverlay message="登录后即可使用 AI 对话功能">
+        <>
             <ChatLayout
                 conversations={state.conversations}
                 activeConversationId={state.activeConversationId}
@@ -156,7 +153,6 @@ export default function ChatPage() {
                 isOpen={state.showCreditsModal}
                 onClose={() => state.setShowCreditsModal(false)}
             />
-        </LoginOverlay>
-        </FeatureGate>
+        </>
     );
 }

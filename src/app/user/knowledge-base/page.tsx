@@ -18,6 +18,7 @@ import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 type KnowledgeBase = {
@@ -91,6 +92,7 @@ export default function KnowledgeBaseManagePage() {
     const [promptKbIds, setPromptKbIds] = useState<string[]>([]);
     const [promptSavingId, setPromptSavingId] = useState<string | null>(null);
     const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const [pendingDeleteKbId, setPendingDeleteKbId] = useState<string | null>(null);
 
     const loadKnowledgeBases = useCallback(async () => {
         setLoading(true);
@@ -274,7 +276,6 @@ export default function KnowledgeBaseManagePage() {
     }, [loadKnowledgeBases, showToast]);
 
     const deleteKb = useCallback(async (kbId: string) => {
-        if (!window.confirm('确定要删除该知识库吗？')) return;
         setDeletingKbId(kbId);
         setError(null);
         try {
@@ -293,6 +294,7 @@ export default function KnowledgeBaseManagePage() {
             if (expandedKbId === kbId) setExpandedKbId(null);
             await loadKnowledgeBases();
             showToast('success', '知识库已删除');
+            setPendingDeleteKbId(null);
         } catch {
             setError('删除知识库失败');
             showToast('error', '删除知识库失败');
@@ -625,7 +627,7 @@ export default function KnowledgeBaseManagePage() {
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => deleteKb(kb.id)}
+                                                    onClick={() => setPendingDeleteKbId(kb.id)}
                                                     disabled={deletingKbId === kb.id}
                                                     className="p-1.5 rounded-lg bg-background border border-border text-foreground-secondary hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 disabled:opacity-50 transition-all"
                                                     title="删除知识库"
@@ -716,6 +718,16 @@ export default function KnowledgeBaseManagePage() {
                 )}
             </div>
         </div>
+        <ConfirmDialog
+            isOpen={!!pendingDeleteKbId}
+            onClose={() => setPendingDeleteKbId(null)}
+            onConfirm={() => pendingDeleteKbId ? deleteKb(pendingDeleteKbId) : undefined}
+            title="确认删除"
+            description="确定要删除该知识库吗？此操作会移除其下的关联内容。"
+            confirmText="确认删除"
+            variant="danger"
+            loading={!!deletingKbId}
+        />
         </FeatureGate>
     );
 }

@@ -15,7 +15,6 @@ import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { supabase } from '@/lib/auth';
 import { writeSessionJSON } from '@/lib/cache';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 export default function LiuyaoPage() {
     const router = useRouter();
@@ -110,7 +109,6 @@ export default function LiuyaoPage() {
     };
 
     return (
-        <FeatureGate featureId="liuyao">
         <div className="min-h-screen bg-background md:pb-12">
             {/* 顶部 Hero 区域 - 移动端隐藏 */}
             <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
@@ -305,6 +303,5 @@ export default function LiuyaoPage() {
             {/* 历史记录抽屉 */}
             <HistoryDrawer type="liuyao" />
         </div>
-        </FeatureGate>
     );
 }

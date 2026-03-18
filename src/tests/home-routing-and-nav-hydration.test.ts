@@ -7,20 +7,17 @@ const homePagePath = resolve(process.cwd(), 'src/app/page.tsx');
 const sidebarPath = resolve(process.cwd(), 'src/components/layout/Sidebar.tsx');
 const mobileNavPath = resolve(process.cwd(), 'src/components/layout/MobileNav.tsx');
 
-test('home page should redirect logged-in users to user center and guests to fortune hub', async () => {
+test('home page should redirect both signed-in users and guests to user center after anonymous mode removal', async () => {
   const source = await readFile(homePagePath, 'utf-8');
 
   assert.ok(
-    source.includes('createRequestSupabaseClient'),
-    'home page should inspect the current server-side session'
-  );
-  assert.ok(
     source.includes("redirect('/user')"),
-    'home page should send signed-in users to /user'
+    'home page should send every visitor to /user'
   );
-  assert.ok(
-    source.includes("redirect('/fortune-hub')"),
-    'home page should still send guests to /fortune-hub'
+  assert.doesNotMatch(
+    source,
+    /redirect\('\/fortune-hub'\)/u,
+    'home page should no longer keep a guest-only fortune hub redirect'
   );
 });
 
@@ -36,12 +33,17 @@ test('sidebar should avoid rendering fail-open entries before feature toggles an
     'sidebar should read feature toggle loading state'
   );
   assert.ok(
-    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing'),
-    'sidebar should combine config and feature loading state'
+    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing'),
+    'sidebar should combine config loading, refresh, and feature loading state'
   );
   assert.ok(
     source.includes('if (isNavLoading)'),
     'sidebar should gate initial navigation render while loading'
+  );
+  assert.doesNotMatch(
+    source,
+    /featureLoading\s*\?\s*true\s*:\s*isFeatureEnabled/u,
+    'sidebar should not fail open while feature toggles are still loading',
   );
 });
 
@@ -57,11 +59,16 @@ test('mobile nav should avoid rendering fail-open entries before feature toggles
     'mobile nav should read feature toggle loading state'
   );
   assert.ok(
-    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing'),
-    'mobile nav should combine config and feature loading state'
+    source.includes('const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing'),
+    'mobile nav should combine config loading, refresh, and feature loading state'
   );
   assert.ok(
     source.includes('if (isNavLoading)'),
     'mobile nav should gate initial navigation render while loading'
+  );
+  assert.doesNotMatch(
+    source,
+    /featureLoading\s*\?\s*true\s*:\s*isFeatureEnabled/u,
+    'mobile nav should not fail open while feature toggles are still loading',
   );
 });

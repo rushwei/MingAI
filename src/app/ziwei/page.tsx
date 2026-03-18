@@ -15,7 +15,6 @@ import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { UnifiedZiweiForm } from '@/components/bazi/form/UnifiedZiweiForm';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
 import { clampDay } from '@/lib/date-utils';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const parseNumber = (value: string | null, fallback: number) => {
     if (value === null || value.trim() === '') {
@@ -229,12 +228,10 @@ function ZiweiPageContent() {
 // 主导出组件 - 使用 Suspense 包装
 export default function ZiweiPage() {
     return (
-        <FeatureGate featureId="ziwei">
         <Suspense fallback={
             <SoundWaveLoader variant="block" text="加载中" />
         }>
             <ZiweiPageContent />
         </Suspense>
-        </FeatureGate>
     );
 }

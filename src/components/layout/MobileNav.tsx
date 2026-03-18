@@ -37,16 +37,16 @@ export function MobileNav() {
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { config, loading: sidebarConfigLoading, refreshing: sidebarConfigRefreshing } = useSidebarConfigSafe();
     const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
-    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing;
+    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing;
 
     // 根据配置计算底部导航栏项目
     const mainNavItems = useMemo(() => {
         const items = config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS];
         return items
-            .filter(id => featureLoading ? true : isFeatureEnabled(toFeatureId(id)))
+            .filter(id => isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-    }, [config.mobileMainItems, featureLoading, isFeatureEnabled]);
+    }, [config.mobileMainItems, isFeatureEnabled]);
 
     // 根据配置计算抽屉中的项目
     const drawerNavItems = useMemo(() => {
@@ -56,11 +56,11 @@ export function MobileNav() {
 
         // 按顺序排列已有的项目
         const orderedItems = order
-            .filter(id => !mainSet.has(id) && !hidden.has(id) && (featureLoading ? true : isFeatureEnabled(toFeatureId(id))))
+            .filter(id => !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
         return orderedItems;
-    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, featureLoading, isFeatureEnabled]);
+    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, isFeatureEnabled]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {

@@ -9,7 +9,7 @@
 
 import { NextRequest } from 'next/server';
 import { sendFeatureLaunchEmail } from '@/lib/email';
-import { FEATURE_NAMES } from '@/lib/notification';
+import { FEATURE_NAMES, fillTemplate, getNotificationTemplate } from '@/lib/notification';
 import { getSystemAdminClient, jsonError, jsonOk, requireAdminContext } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
@@ -25,14 +25,32 @@ export async function POST(request: NextRequest) {
         const body = await request.json() as {
             featureKey?: string;
             featureUrl?: string;
+            templateId?: string | null;
+            templateVars?: Record<string, unknown> | null;
         };
-        const { featureKey, featureUrl } = body;
+        const { featureKey, featureUrl, templateId, templateVars } = body;
 
         if (!featureKey || !featureUrl) {
             return jsonError('缺少必要参数', 400);
         }
 
         const featureName = FEATURE_NAMES[featureKey] || featureKey;
+        const template = typeof templateId === 'string' ? getNotificationTemplate(templateId) : undefined;
+        const resolvedTemplateVars = Object.fromEntries(
+            Object.entries(templateVars || {}).flatMap(([key, value]) => (
+                typeof value === 'string' && value.trim().length > 0
+                    ? [[key, value.trim()]]
+                    : []
+            )),
+        );
+        const messagePayload = template
+            ? fillTemplate(template, {
+                feature_name: featureName,
+                ...resolvedTemplateVars,
+            })
+            : null;
+        const notificationTitle = messagePayload?.title || `${featureName}功能已上线！`;
+        const notificationContent = messagePayload?.content || `您订阅的${featureName}功能现已正式上线，快来体验吧！`;
         const requestOrigin = request.nextUrl.origin;
         let emailUrl = featureUrl;
         let siteLink = featureUrl;
@@ -150,8 +168,8 @@ export async function POST(request: NextRequest) {
                         .insert({
                             user_id: subscriber.user_id,
                             type: 'feature_launch',
-                            title: `${featureName}功能已上线！`,
-                            content: `您订阅的${featureName}功能现已正式上线，快来体验吧！`,
+                            title: notificationTitle,
+                            content: notificationContent,
                             link: siteLink,
                         });
 
@@ -166,7 +184,11 @@ export async function POST(request: NextRequest) {
                 if (subscriber.notify_email && allowEmail) {
                     const email = userEmailMap.get(subscriber.user_id);
                     if (email) {
-                        const result = await sendFeatureLaunchEmail(email, featureName, emailUrl);
+                        const result = await sendFeatureLaunchEmail(email, featureName, emailUrl, {
+                            title: notificationTitle,
+                            content: notificationContent,
+                            ctaLabel: '查看详情',
+                        });
                         if (result.success) {
                             sentEmail = true;
                         } else {

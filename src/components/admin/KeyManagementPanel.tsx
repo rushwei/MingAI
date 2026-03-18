@@ -18,6 +18,7 @@ import {
     Filter
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 
@@ -41,6 +42,7 @@ export function KeyManagementPanel() {
     const [creating, setCreating] = useState(false);
     const { showToast } = useToast();
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
 
     // 创建表单
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -129,8 +131,6 @@ export function KeyManagementPanel() {
     };
 
     const handleDelete = async (keyId: string) => {
-        if (!confirm('确定删除此激活码？')) return;
-
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) return;
@@ -143,9 +143,13 @@ export function KeyManagementPanel() {
             const data = await response.json();
             if (data.success) {
                 setKeys(keys.filter(k => k.id !== keyId));
+                setDeleteKeyId(null);
+            } else {
+                showToast('error', data.error || '删除失败');
             }
         } catch (error) {
             console.error('Failed to delete key:', error);
+            showToast('error', '删除失败');
         }
     };
 
@@ -348,7 +352,7 @@ export function KeyManagementPanel() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => handleDelete(key.id)}
+                                    onClick={() => setDeleteKeyId(key.id)}
                                     className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors"
                                     title="删除"
                                 >
@@ -359,6 +363,15 @@ export function KeyManagementPanel() {
                     ))}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={!!deleteKeyId}
+                onClose={() => setDeleteKeyId(null)}
+                onConfirm={() => deleteKeyId ? handleDelete(deleteKeyId) : undefined}
+                title="确认删除"
+                description="确定删除此激活码吗？此操作无法撤销。"
+                confirmText="确认删除"
+                variant="danger"
+            />
         </div>
     );
 }

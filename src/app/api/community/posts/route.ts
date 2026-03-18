@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
             .from('community_posts')
             .insert({
                 user_id: user.id,
-                anonymous_name: authorProfile.name,
                 title: body.title,
                 content: body.content,
                 category: body.category || 'general',

@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
 async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promise<Response> {
     const { hexagram, changedHexagram, changedLines, yaos, divinationId, modelId, reasoning, stream } = body;
     if (!hexagram) return jsonError('请提供卦象', 400, { success: false });
+    const resolvedHexagram = hexagram;
 
     const parsedQuestion = parseQuestionInput(body.question);
     if (parsedQuestion.error) return jsonError(parsedQuestion.error, 400, { success: false });
@@ -214,7 +215,7 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
     const changedCode = computeChangedCode(yaos, changedLines, Boolean(changedHexagram));
 
     // Build traditional analysis
-    const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, hexagram, changedHexagram);
+    const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, resolvedHexagram, changedHexagram);
 
     const userPrompt = `【求卦问题】${effectiveQuestion}\n\n${traditionalInfo}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`;
 
@@ -226,13 +227,13 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
         const conversationId = await createAIAnalysisConversation({
             userId: user.id, sourceType: 'liuyao',
             sourceData: {
-                hexagram_code: hexagramCode, hexagram_name: hexagram.name,
+                hexagram_code: hexagramCode, hexagram_name: resolvedHexagram.name,
                 changed_hexagram_code: changedCode || null, changed_hexagram_name: changedHexagram?.name,
                 changed_lines: changedLines, question: effectiveQuestion || null,
                 yongshen_targets: parsedTargets.targets, model_id: resolvedModelId,
                 reasoning: reasoningEnabled, reasoning_text: reasoningText || null,
             },
-            title: generateLiuyaoTitle(effectiveQuestion, hexagram.name, changedHexagram?.name),
+            title: generateLiuyaoTitle(effectiveQuestion, resolvedHexagram.name, changedHexagram?.name),
             aiResponse: interpretation,
         });
         if (divinationId) {

@@ -32,10 +32,10 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { CheckinModal } from '@/components/checkin/CheckinModal';
 import { CalendarModal } from '@/components/checkin/CalendarModal';
 import { supabase } from '@/lib/auth';
-import { getUnreadCount } from '@/lib/notification';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { getUserEmailDisplay } from '@/lib/user-email';
@@ -211,9 +211,9 @@ export default function UserPage() {
     const [level, setLevel] = useState<LevelInfo | null>(null);
     const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null);
     const [loading, setLoading] = useState(true);
-    const [unreadCount, setUnreadCount] = useState(0);
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { isFeatureEnabled } = useFeatureToggles();
+    const unreadCount = useNotificationUnreadCount(user?.id ?? null);
     const effectiveUnreadCount = user ? unreadCount : 0;
 
     // 弹窗状态
@@ -412,56 +412,6 @@ export default function UserPage() {
             isMounted = false;
             subscription.unsubscribe();
             window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!user) {
-            return;
-        }
-
-        let isActive = true;
-        const fetchCount = async (options?: { bypassCache?: boolean }) => {
-            const countStart = perfNow();
-            const count = await getUnreadCount(user.id, options);
-            if (isActive) {
-                setUnreadCount(count);
-            }
-            logPerf('notifications:unread', countStart, { count });
-        };
-
-        fetchCount();
-
-        const timer = window.setInterval(() => {
-            void fetchCount({ bypassCache: true });
-        }, 30_000);
-
-        const handleDbWrite = (event: Event) => {
-            const detail = (event as CustomEvent<{ table?: string }>).detail;
-            if (detail?.table === 'notifications') {
-                void fetchCount({ bypassCache: true });
-            }
-        };
-        window.addEventListener('mingai:api-write', handleDbWrite);
-
-        return () => {
-            isActive = false;
-            window.clearInterval(timer);
-            window.removeEventListener('mingai:api-write', handleDbWrite);
-        };
-    }, [user]);
-
-    useEffect(() => {
-        const handleUnreadUpdate = (event: Event) => {
-            const detail = (event as CustomEvent<{ count?: number }>).detail;
-            if (typeof detail?.count === 'number') {
-                setUnreadCount(detail.count);
-            }
-        };
-
-        window.addEventListener('mingai:notifications-unread', handleUnreadUpdate);
-        return () => {
-            window.removeEventListener('mingai:notifications-unread', handleUnreadUpdate);
         };
     }, []);
 

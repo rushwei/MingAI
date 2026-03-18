@@ -25,7 +25,7 @@ function walk(dir: string, files: string[] = []) {
 
 test('page and component layers should not call supabase.from or supabase.rpc directly', () => {
   const offenders: string[] = [];
-  const directBrowserSupabasePattern = /supabase\s*\.\s*(from|rpc)\s*\(/ms;
+  const directBrowserSupabasePattern = /supabase\s*\.\s*(from|rpc)\s*\(/m;
 
   for (const root of ROOTS) {
     for (const file of walk(root)) {

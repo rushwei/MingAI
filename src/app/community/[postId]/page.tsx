@@ -13,6 +13,7 @@ import { CommunityPost, CommunityComment, VoteType } from '@/lib/community';
 import { getCurrentUserProfileBundle, supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PostNavBar, ReportModal, EditPostModal } from '@/components/community/PostActions';
 import { PostDetail } from '@/components/community/PostDetail';
 import { CommentSection } from '@/components/community/CommentSection';
@@ -58,6 +59,7 @@ export default function PostDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment'; id: string } | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [confirmDeleteState, setConfirmDeleteState] = useState<{ type: 'comment' | 'post'; id?: string } | null>(null);
 
     // 加载用户信息
     useEffect(() => {
@@ -315,12 +317,13 @@ export default function PostDetailPage() {
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        if (!confirm('确定要删除这条评论吗？')) return;
-
         const response = await fetch(`/api/community/comments/${commentId}`, { method: 'DELETE' });
         if (response.ok) {
             setComments(prev => removeCommentFromList(prev, commentId));
             setPost(prev => prev ? { ...prev, comment_count: Math.max(0, prev.comment_count - 1) } : null);
+            setConfirmDeleteState(null);
+        } else {
+            showToast('error', '删除评论失败');
         }
     };
 
@@ -335,8 +338,12 @@ export default function PostDetailPage() {
     };
 
     const handleDeletePost = async () => {
-        if (!confirm('确定要删除这个帖子吗？')) return;
-        await fetch(`/api/community/posts/${postId}`, { method: 'DELETE' });
+        const response = await fetch(`/api/community/posts/${postId}`, { method: 'DELETE' });
+        if (!response.ok) {
+            showToast('error', '删除帖子失败');
+            return;
+        }
+        setConfirmDeleteState(null);
         router.push('/community');
     };
 
@@ -381,7 +388,7 @@ export default function PostDetailPage() {
                 post={post}
                 onBack={() => router.push('/community')}
                 onEdit={() => setShowEditModal(true)}
-                onDelete={handleDeletePost}
+                onDelete={() => setConfirmDeleteState({ type: 'post' })}
                 onAdminAction={handleAdminAction}
             />
 
@@ -406,7 +413,7 @@ export default function PostDetailPage() {
                     onReplyToChange={setReplyTo}
                     onSubmitComment={handleComment}
                     onVote={(id, type) => handleVote('comment', id, type)}
-                    onDeleteComment={handleDeleteComment}
+                    onDeleteComment={(id) => setConfirmDeleteState({ type: 'comment', id })}
                     onReportComment={(id) => setReportTarget({ type: 'comment', id })}
                 />
             </main>
@@ -425,6 +432,19 @@ export default function PostDetailPage() {
                     onSave={(updatedPost) => setPost(updatedPost)}
                 />
             )}
+            <ConfirmDialog
+                isOpen={!!confirmDeleteState}
+                onClose={() => setConfirmDeleteState(null)}
+                onConfirm={() => confirmDeleteState?.type === 'comment'
+                    ? handleDeleteComment(confirmDeleteState.id!)
+                    : handleDeletePost()}
+                title="确认删除"
+                description={confirmDeleteState?.type === 'comment'
+                    ? '确定要删除这条评论吗？此操作无法撤销。'
+                    : '确定要删除这个帖子吗？此操作无法撤销。'}
+                confirmText="确认删除"
+                variant="danger"
+            />
         </div>
     );
 }

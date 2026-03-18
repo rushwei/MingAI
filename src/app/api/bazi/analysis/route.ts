@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
             .eq('user_id', user.id)
             .single();
         if (chartError || !chart?.user_id) return jsonError('未找到命盘信息', 404);
+        const resolvedChart = chart;
 
         const authInfo = await getUserAuthInfo(user.id);
         if (!authInfo) return jsonError('获取用户信息失败', 500);
@@ -106,15 +107,15 @@ export async function POST(request: NextRequest) {
 
         const sourceType = type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality';
         const { generateBaziAnalysisTitle } = await import('@/lib/ai/ai-analysis');
-        const title = generateBaziAnalysisTitle(chart.name || '命盘', type);
+        const title = generateBaziAnalysisTitle(resolvedChart.name || '命盘', type);
 
         async function persist(content: string, reasoningText: string | null) {
             return createAIAnalysisConversation({
-                userId: chart.user_id,
+                userId: resolvedChart.user_id,
                 sourceType,
                 sourceData: {
                     chart_id: chartId,
-                    chart_name: chart.name,
+                    chart_name: resolvedChart.name,
                     chart_summary: chartSummary,
                     model_id: resolvedModelId,
                     reasoning: reasoningEnabled,

@@ -28,7 +28,6 @@ import {
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { CommunityPost, PostCategory, POST_CATEGORIES } from '@/lib/community';
 import { supabase } from '@/lib/auth';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 // =====================================================
 // 帖子卡片组件
@@ -172,7 +171,6 @@ export default function CommunityPage() {
     const totalPages = Math.ceil(total / pageSize);
 
     return (
-        <FeatureGate featureId="community">
         <div className="md:min-h-screen bg-background text-foreground">
             {/* Hero Section - 移动端隐藏 */}
             <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
@@ -319,6 +317,5 @@ export default function CommunityPage() {
                 )}
             </div>
         </div>
-        </FeatureGate>
     );
 }

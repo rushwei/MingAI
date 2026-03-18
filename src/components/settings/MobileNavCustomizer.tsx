@@ -36,6 +36,7 @@ import {
     X,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
@@ -53,6 +54,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -162,7 +164,6 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
 
     // 恢复默认设置
     const handleReset = useCallback(async () => {
-        if (!confirm('确定恢复默认设置？')) return;
         const defaultConfig: SidebarConfig = {
             ...config,
             mobileMainItems: [...DEFAULT_MOBILE_MAIN_ITEMS],
@@ -171,6 +172,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
         };
         setConfig(defaultConfig);
         await handleSave(defaultConfig);
+        setShowResetConfirm(false);
     }, [config, setConfig, handleSave]);
 
     if (loading) {
@@ -235,7 +237,7 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
                         </div>
                     )}
                     <button
-                        onClick={handleReset}
+                        onClick={() => setShowResetConfirm(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-foreground-secondary hover:bg-background-secondary transition-colors whitespace-nowrap"
                     >
                         <RotateCcw className="w-4 h-4" />
@@ -264,6 +266,16 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
                 onDragCancel={() => setActiveDrawerId(null)}
                 onToggleHidden={toggleDrawerItem}
                 onAddToMain={addToMain}
+            />
+            <ConfirmDialog
+                isOpen={showResetConfirm}
+                onClose={() => setShowResetConfirm(false)}
+                onConfirm={handleReset}
+                title="恢复默认设置"
+                description="确定恢复默认设置吗？当前移动导航排序和隐藏状态将被重置。"
+                confirmText="恢复默认"
+                variant="warning"
+                loading={saving}
             />
         </div>
     );

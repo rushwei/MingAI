@@ -127,7 +127,6 @@ CREATE TABLE public.community_comments (
 CREATE TABLE public.community_posts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  anonymous_name text NOT NULL DEFAULT '匿名用户'::text,
   title text NOT NULL,
   content text NOT NULL,
   category text DEFAULT 'general'::text,
@@ -180,10 +179,9 @@ CREATE TABLE public.conversations (
   messages jsonb DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  source_type text DEFAULT 'chat'::text,
+  source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALI),
   source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
-  CONSTRAINT conversations_source_type_check CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALID,
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT conversations_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id),
   CONSTRAINT conversations_ziwei_chart_id_fkey FOREIGN KEY (ziwei_chart_id) REFERENCES public.ziwei_charts(id)
@@ -208,6 +206,22 @@ CREATE TABLE public.daily_checkins (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT daily_checkins_pkey PRIMARY KEY (id),
   CONSTRAINT daily_checkins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.daliuren_divinations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  question text,
+  solar_date text NOT NULL,
+  day_ganzhi text NOT NULL,
+  hour_ganzhi text NOT NULL,
+  yue_jiang text NOT NULL,
+  result_data jsonb NOT NULL,
+  settings jsonb,
+  conversation_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT daliuren_divinations_pkey PRIMARY KEY (id),
+  CONSTRAINT daliuren_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT daliuren_divinations_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
 );
 CREATE TABLE public.face_readings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -481,22 +495,6 @@ CREATE TABLE public.scheduled_reminders (
   CONSTRAINT scheduled_reminders_pkey PRIMARY KEY (id),
   CONSTRAINT scheduled_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
-CREATE TABLE public.daliuren_divinations (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  question text,
-  solar_date text NOT NULL,
-  day_ganzhi text NOT NULL,
-  hour_ganzhi text NOT NULL,
-  yue_jiang text NOT NULL,
-  result_data jsonb NOT NULL,
-  settings jsonb,
-  conversation_id uuid,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT daliuren_divinations_pkey PRIMARY KEY (id),
-  CONSTRAINT daliuren_divinations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT daliuren_divinations_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
-);
 CREATE TABLE public.tarot_readings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -526,6 +524,20 @@ CREATE TABLE public.user_levels (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_levels_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_levels_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_oauth_providers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  provider text NOT NULL,
+  provider_user_id text NOT NULL,
+  provider_email text,
+  provider_username text,
+  provider_avatar_url text,
+  provider_metadata jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_oauth_providers_pkey PRIMARY KEY (id),
+  CONSTRAINT user_oauth_providers_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.user_settings (
   user_id uuid NOT NULL,

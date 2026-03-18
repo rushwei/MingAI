@@ -22,8 +22,8 @@ import {
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
-import { getUnreadCount } from '@/lib/notification';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 import { getUserEmailDisplay } from '@/lib/user-email';
 import type { User as SupabaseUser } from '@/lib/auth';
 
@@ -79,9 +79,9 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const [nickname, setNickname] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
-    const [unreadCount, setUnreadCount] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
     const { isPaused: isPaymentPaused } = usePaymentPause();
+    const unreadCount = useNotificationUnreadCount(user.id);
 
     const displayName = nickname || user.email?.split('@')[0] || '用户';
     const handle = getUserEmailDisplay(user) || 'user';
@@ -112,57 +112,6 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
             window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
         };
     }, [user.id]);
-
-    // 实时更新未读通知数
-    useEffect(() => {
-        let isActive = true;
-        const fetchCount = async (options?: { bypassCache?: boolean }) => {
-            const count = await getUnreadCount(user.id, options);
-            if (isActive) {
-                setUnreadCount(count);
-            }
-        };
-
-        fetchCount();
-
-        const timer = window.setInterval(() => {
-            void fetchCount({ bypassCache: true });
-        }, 30_000);
-
-        const handleDbWrite = (event: Event) => {
-            const detail = (event as CustomEvent<{ table?: string }>).detail;
-            if (detail?.table === 'notifications') {
-                void fetchCount({ bypassCache: true });
-            }
-        };
-        const handleNotificationsInvalidate = () => {
-            void fetchCount({ bypassCache: true });
-        };
-        window.addEventListener('mingai:api-write', handleDbWrite);
-        window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
-
-        return () => {
-            isActive = false;
-            window.clearInterval(timer);
-            window.removeEventListener('mingai:api-write', handleDbWrite);
-            window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
-        };
-    }, [user.id]);
-
-    // 通知页面主动同步未读数
-    useEffect(() => {
-        const handleUnreadUpdate = (event: Event) => {
-            const detail = (event as CustomEvent<{ count?: number }>).detail;
-            if (typeof detail?.count === 'number') {
-                setUnreadCount(detail.count);
-            }
-        };
-
-        window.addEventListener('mingai:notifications-unread', handleUnreadUpdate);
-        return () => {
-            window.removeEventListener('mingai:notifications-unread', handleUnreadUpdate);
-        };
-    }, []);
 
     // 点击外部关闭菜单
     useEffect(() => {

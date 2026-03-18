@@ -9,7 +9,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Upload, AlertTriangle, X, ScanFace } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
@@ -18,7 +17,6 @@ import { writeSessionJSON } from '@/lib/cache';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 const HistoryDrawer = dynamic(
     () => import('@/components/layout/HistoryDrawer').then(mod => mod.HistoryDrawer),
@@ -178,8 +176,7 @@ export default function FacePage() {
     };
 
     return (
-        <FeatureGate featureId="face">
-        <LoginOverlay message="登录后体验面相分析">
+        <>
             <div className="min-h-screen bg-background md:pb-12">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden bg-background-secondary/30 border-b border-border/50">
@@ -414,7 +411,6 @@ export default function FacePage() {
                 isOpen={showCreditsModal}
                 onClose={() => setShowCreditsModal(false)}
             />
-        </LoginOverlay>
-        </FeatureGate>
+        </>
     );
 }

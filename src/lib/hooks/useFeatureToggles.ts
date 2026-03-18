@@ -20,6 +20,10 @@ type FeatureTogglesState = {
     refresh: (force?: boolean, showLoading?: boolean) => Promise<void>;
 };
 
+type UseFeatureTogglesOptions = {
+    enabled?: boolean;
+};
+
 type FeatureToggleStoreState = {
     toggles: Record<string, boolean> | null;
     isLoading: boolean;
@@ -179,7 +183,8 @@ export function resetFeatureToggleStoreForTests() {
     featureToggleStoreState = getInitialStoreState();
 }
 
-export function useFeatureToggles(): FeatureTogglesState {
+export function useFeatureToggles(options: UseFeatureTogglesOptions = {}): FeatureTogglesState {
+    const enabled = options.enabled ?? true;
     const [storeState, setStoreState] = useState<FeatureToggleStoreState>(() => getFeatureToggleStoreSnapshot());
 
     const refresh = useCallback(async (force = false, showLoading = false) => {
@@ -189,6 +194,9 @@ export function useFeatureToggles(): FeatureTogglesState {
     useEffect(() => subscribeFeatureToggleStore(setStoreState), []);
 
     useEffect(() => {
+        if (!enabled) {
+            return;
+        }
         seedFeatureToggleStoreFromCache();
         void refreshFeatureToggleStore();
 
@@ -204,7 +212,7 @@ export function useFeatureToggles(): FeatureTogglesState {
             window.removeEventListener('focus', handleWindowRefresh);
             document.removeEventListener('visibilitychange', handleWindowRefresh);
         };
-    }, []);
+    }, [enabled]);
 
     const disabledFeatures = useMemo(
         () => new Set(Object.entries(storeState.toggles || {}).filter(([, value]) => value === true).map(([key]) => key)),
@@ -212,14 +220,14 @@ export function useFeatureToggles(): FeatureTogglesState {
     );
 
     const isFeatureEnabled = useCallback(
-        (featureId: string) => storeState.toggles ? !disabledFeatures.has(featureId) : false,
-        [disabledFeatures, storeState.toggles]
+        (featureId: string) => enabled && storeState.toggles ? !disabledFeatures.has(featureId) : false,
+        [disabledFeatures, enabled, storeState.toggles]
     );
 
     return {
         disabledFeatures,
-        isLoading: storeState.isLoading,
-        isRefreshing: storeState.isRefreshing,
+        isLoading: enabled ? storeState.isLoading : false,
+        isRefreshing: enabled ? storeState.isRefreshing : false,
         isFeatureEnabled,
         refresh,
     };

@@ -106,7 +106,7 @@ export function FeatureTogglePanel() {
                                 className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
                                     enabled ? "bg-emerald-500" : "bg-rose-400"
                                 } ${savingId ? "opacity-60 cursor-not-allowed" : ""}`}
-                                aria-pressed={!enabled}
+                                aria-pressed={enabled}
                                 aria-label={`${label}功能开关`}
                             >
                                 {isSaving ? (

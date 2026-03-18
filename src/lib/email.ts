@@ -27,6 +27,19 @@ export interface EmailResult {
     error?: string;
 }
 
+function escapeHtml(input: string): string {
+    return input
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function formatTextToHtml(input: string): string {
+    return escapeHtml(input).replace(/\n/g, '<br />');
+}
+
 /**
  * 发送邮件
  */
@@ -65,16 +78,24 @@ export async function sendEmail(
 export async function sendFeatureLaunchEmail(
     to: string,
     featureName: string,
-    featureUrl: string
+    featureUrl: string,
+    options?: {
+        title?: string;
+        content?: string;
+        ctaLabel?: string;
+    },
 ): Promise<EmailResult> {
-    const subject = `🎉 ${featureName}功能已上线 - 命AI`;
+    const title = options?.title?.trim() || `${featureName}功能已上线！`;
+    const content = options?.content?.trim() || `您订阅的 ${featureName} 功能现已正式上线！感谢您的耐心等待。`;
+    const ctaLabel = options?.ctaLabel?.trim() || '立即体验';
+    const subject = `${title} - 命AI`;
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${featureName}功能已上线</title>
+    <title>${escapeHtml(title)}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
     <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -86,7 +107,7 @@ export async function sendFeatureLaunchEmail(
                         <td style="padding: 40px 40px 20px; text-align: center;">
                             <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
                             <h1 style="margin: 0; font-size: 28px; color: #1a1a1a; font-weight: 700;">
-                                ${featureName}功能已上线！
+                                ${escapeHtml(title)}
                             </h1>
                         </td>
                     </tr>
@@ -98,10 +119,7 @@ export async function sendFeatureLaunchEmail(
                                 亲爱的用户，
                             </p>
                             <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #4a4a4a;">
-                                您订阅的 <strong style="color: #f59e0b;">${featureName}</strong> 功能现已正式上线！感谢您的耐心等待。
-                            </p>
-                            <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #4a4a4a;">
-                                快来体验全新功能，探索命理的奥秘吧！
+                                ${formatTextToHtml(content)}
                             </p>
                         </td>
                     </tr>
@@ -110,7 +128,7 @@ export async function sendFeatureLaunchEmail(
                     <tr>
                         <td style="padding: 0 40px 40px; text-align: center;">
                             <a href="${featureUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);">
-                                立即体验
+                                ${escapeHtml(ctaLabel)}
                             </a>
                         </td>
                     </tr>

@@ -110,8 +110,9 @@ export async function deleteHistorySummary(type: HistoryType, id: string): Promi
 
 export function applyHistoryRestorePayload(payload: HistoryRestorePayload, id: string) {
   writeSessionJSON(payload.sessionKey, payload.sessionData);
+  void id;
   if (payload.useTimestamp) {
-    return `${payload.detailPath}?from=history&t=${id}`;
+    return `${payload.detailPath}?from=history&t=${Date.now()}`;
   }
   return payload.detailPath;
 }

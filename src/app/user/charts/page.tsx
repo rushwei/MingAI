@@ -14,6 +14,8 @@ import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from '
 import { supabase } from '@/lib/auth';
 import { writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
 
 type ChartType = 'bazi' | 'ziwei';
@@ -167,6 +169,8 @@ export default function ChartsPage() {
     const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
     const [ziweiCharts, setZiweiCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pendingDelete, setPendingDelete] = useState<{ id: string; type: ChartType } | null>(null);
+    const { showToast } = useToast();
 
     useEffect(() => {
         const fetchCharts = async () => {
@@ -207,14 +211,16 @@ export default function ChartsPage() {
     const handleDelete = async (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm('确定要删除这个命盘吗？')) return;
 
         try {
             await deleteUserChart(type, id);
         } catch (error) {
             console.error('删除命盘失败:', error);
+            showToast('error', '删除命盘失败');
             return;
         }
+
+        setPendingDelete(null);
 
         if (type === 'bazi') {
             setBaziCharts(baziCharts.filter(c => c.id !== id));
@@ -284,7 +290,11 @@ export default function ChartsPage() {
                             type="bazi"
                             onCreateLink="/bazi"
                             onCreateText="新建八字"
-                            onDelete={handleDelete}
+                            onDelete={(id, type, e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPendingDelete({ id, type });
+                            }}
                             onSetDefault={handleSetDefault}
                         />
 
@@ -294,12 +304,30 @@ export default function ChartsPage() {
                             type="ziwei"
                             onCreateLink="/ziwei"
                             onCreateText="新建紫微"
-                            onDelete={handleDelete}
+                            onDelete={(id, type, e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPendingDelete({ id, type });
+                            }}
                             onSetDefault={handleSetDefault}
                         />
                     </div>
                 )}
             </div>
+            <ConfirmDialog
+                isOpen={!!pendingDelete}
+                onClose={() => setPendingDelete(null)}
+                onConfirm={() => pendingDelete
+                    ? handleDelete(pendingDelete.id, pendingDelete.type, {
+                        preventDefault() {},
+                        stopPropagation() {},
+                    } as MouseEvent<HTMLButtonElement>)
+                    : undefined}
+                title="确认删除"
+                description="确定要删除这个命盘吗？此操作无法撤销。"
+                confirmText="确认删除"
+                variant="danger"
+            />
         </div>
         </FeatureGate>
     );

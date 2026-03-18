@@ -11,7 +11,6 @@ import { Brain, Play, Eye } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 import { loadQuestions, type MBTIQuestion, PERSONALITY_BASICS } from '@/lib/divination/mbti';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 
 function MBTIPageContent() {
     const router = useRouter();
@@ -119,9 +118,5 @@ function MBTIPageContent() {
 }
 
 export default function MBTIPage() {
-    return (
-        <FeatureGate featureId="mbti">
-            <MBTIPageContent />
-        </FeatureGate>
-    );
+    return <MBTIPageContent />;
 }

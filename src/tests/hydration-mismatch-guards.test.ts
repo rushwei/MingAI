@@ -33,5 +33,8 @@ test('FeatureGate should guard initial render to avoid hydration mismatch', asyn
 
   assert.match(source, /useSyncExternalStore/u);
   assert.match(source, /\(\)\s*=>\s*false/u);
-  assert.match(source, /if\s*\(\s*!\w+\s*\|\|\s*isLoading\s*\)/u);
+  assert.match(source, /sessionLoading/u);
+  assert.match(source, /featureLoading/u);
+  assert.match(source, /const\s+isLoading\s*=\s*sessionLoading\s*\|\|\s*\(isAuthed\s*&&\s*featureLoading\)/u);
+  assert.match(source, /if\s*\(\s*!hydrated\s*\|\|\s*isLoading\s*\)/u);
 });

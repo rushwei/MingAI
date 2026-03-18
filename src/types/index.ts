@@ -236,7 +236,7 @@ export const ANONYMOUS_DISPLAY_NAME = '用户';
  * };
  * ```
  */
-export interface AIMessageMetadata {
+export interface AIMessageMetadata extends Record<string, unknown> {
     /** 注入的数据源列表（知识库、数据源、@提及） */
     sources: InjectedSource[];
     /** 是否启用知识库搜索 */

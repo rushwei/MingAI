@@ -5,9 +5,8 @@ export type CommunityAuthorProfile = {
 
 import type { CommunityPost } from '@/lib/community';
 
-export type CommunityPostRow = Omit<CommunityPost, 'author_name'> & {
+export type CommunityPostRow = Omit<CommunityPost, 'author_name' | 'author_avatar_url'> & {
     user_id: string;
-    anonymous_name: string | null;
 };
 
 export function toPublicPost(

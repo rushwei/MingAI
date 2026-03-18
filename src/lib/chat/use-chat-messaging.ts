@@ -38,9 +38,9 @@ interface UseChatMessagingParams {
     user: { user_metadata?: { nickname?: string } } | null;
     membership: { type: string; isActive: boolean } | null;
     credits: number | null;
-    refreshBootstrap: () => Promise<void>;
+    refreshBootstrap: (targetUserId?: string | null) => Promise<unknown>;
     markBootstrapCreditsExhausted: () => void;
-    showToast: (type: string, message: string) => void;
+    showToast: ReturnType<typeof import('@/components/ui/Toast').useToast>['showToast'];
     router: ReturnType<typeof import('next/navigation').useRouter>;
     searchParams: ReturnType<typeof import('next/navigation').useSearchParams>;
 }

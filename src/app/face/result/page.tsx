@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ScanFace, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { readSessionJSON } from '@/lib/cache';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
@@ -123,50 +122,46 @@ export default function FaceResultPage() {
 
     if (loading) {
         return (
-            <LoginOverlay message="登录后查看分析结果">
-                <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-                    {/* Background Effects Removed */}
-                    <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                        <div className="relative mb-6 mx-auto w-16 h-16 flex items-center justify-center">
-                            <div className="absolute inset-0 bg-purple-500/20 rounded-full animate-ping opacity-75" />
-                            <div className="relative z-10 bg-purple-500/10 p-4 rounded-full border border-purple-500/20">
-                                <ScanFace className="w-8 h-8 text-purple-400" />
-                            </div>
+            <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
+                    <div className="relative mb-6 mx-auto w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-purple-500/20 rounded-full animate-ping opacity-75" />
+                        <div className="relative z-10 bg-purple-500/10 p-4 rounded-full border border-purple-500/20">
+                            <ScanFace className="w-8 h-8 text-purple-400" />
                         </div>
-                        <SoundWaveLoader variant="inline" />
-                        <p className="text-foreground-secondary font-medium">正在解读您的面相...</p>
                     </div>
+                    <SoundWaveLoader variant="inline" />
+                    <p className="text-foreground-secondary font-medium">正在解读您的面相...</p>
                 </div>
-            </LoginOverlay>
+            </div>
         );
     }
 
     if (error || !resultData) {
         return (
-            <LoginOverlay message="登录后查看分析结果">
-                <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-                    {/* Background Effects Removed */}
-                    <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
-                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
-                            <ScanFace className="w-8 h-8 text-purple-400/50" />
-                        </div>
-                        <h3 className="text-xl font-bold text-foreground mb-2">未找到分析结果</h3>
-                        <p className="text-foreground-secondary mb-8 leading-relaxed">{error || '似乎没有找到刚才的分析记录，请尝试重新分析'}</p>
-                        <button
-                            onClick={() => router.push('/face')}
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
-                        >
-                            <ScanFace className="w-5 h-5" />
-                            开始面相分析
-                        </button>
+            <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
+                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
+                        <ScanFace className="w-8 h-8 text-purple-400/50" />
                     </div>
+                    <h3 className="text-xl font-bold text-foreground mb-2">未找到分析结果</h3>
+                    <p className="text-foreground-secondary mb-8 leading-relaxed">{error || '似乎没有找到刚才的分析记录，请尝试重新分析'}</p>
+                    <button
+                        onClick={() => router.push('/face')}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                        <ScanFace className="w-5 h-5" />
+                        开始面相分析
+                    </button>
                 </div>
-            </LoginOverlay>
+            </div>
         );
     }
 
     return (
-        <LoginOverlay message="登录后查看分析结果">
+        <>
             <div className="min-h-screen bg-background relative overflow-x-hidden">
                 {/* Background Effects */}
                 {/* Background Effects Removed */}
@@ -271,6 +266,6 @@ export default function FaceResultPage() {
                     sourceId={resultData.readingId}
                 />
             )}
-        </LoginOverlay>
+        </>
     );
 }

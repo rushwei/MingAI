@@ -1,7 +1,7 @@
 /**
  * 历史页面通用模板
  *
- * 封装: loadHistorySummaries, deleteHistorySummary, 搜索过滤, 删除确认弹窗, KB 模态框
+ * 封装: loadHistorySummariesPage, deleteHistorySummary, 搜索过滤, 删除确认弹窗, KB 模态框
  * 各历史页面只需提供配置即可复用全部逻辑。
  *
  * 'use client' - 需要 useState/useEffect/useRouter
@@ -20,7 +20,7 @@ import {
     applyHistoryRestorePayload,
     deleteHistorySummary,
     loadHistoryRestore,
-    loadHistorySummaries,
+    loadHistorySummariesPage,
 } from '@/lib/history/client';
 import type { HistorySummaryItem, HistoryType } from '@/lib/history/registry';
 
@@ -88,15 +88,54 @@ export interface CardActions {
     formatDate: (dateStr: string) => string;
 }
 
+const HISTORY_THEME_STYLES: Record<string, {
+    cardBorder: string;
+    badge: string;
+}> = {
+    accent: {
+        cardBorder: 'hover:border-accent/30',
+        badge: 'bg-accent/10 text-accent border-accent/10',
+    },
+    'amber-500': {
+        cardBorder: 'hover:border-amber-500/30',
+        badge: 'bg-amber-500/10 text-amber-500 border-amber-500/10',
+    },
+    'indigo-500': {
+        cardBorder: 'hover:border-indigo-500/30',
+        badge: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/10',
+    },
+    'purple-500': {
+        cardBorder: 'hover:border-purple-500/30',
+        badge: 'bg-purple-500/10 text-purple-500 border-purple-500/10',
+    },
+    'emerald-500': {
+        cardBorder: 'hover:border-emerald-500/30',
+        badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10',
+    },
+    'rose-500': {
+        cardBorder: 'hover:border-rose-500/30',
+        badge: 'bg-rose-500/10 text-rose-500 border-rose-500/10',
+    },
+    'cyan-500': {
+        cardBorder: 'hover:border-cyan-500/30',
+        badge: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/10',
+    },
+};
+
+function resolveHistoryTheme(themeColor: string) {
+    return HISTORY_THEME_STYLES[themeColor] || HISTORY_THEME_STYLES.accent;
+}
+
 /* ---------- 默认卡片 (grid 布局) ---------- */
 function DefaultGridCard({ item, actions, themeColor }: { item: HistorySummaryItem; actions: CardActions; themeColor: string }) {
+    const theme = resolveHistoryTheme(themeColor);
     return (
         <div
-            className={`group relative bg-background-secondary rounded-2xl p-5 border border-border hover:border-${themeColor}/30 hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col`}
+            className={`group relative bg-background-secondary rounded-2xl p-5 border border-border ${theme.cardBorder} hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col`}
             onClick={actions.onView}
         >
             <div className="flex items-center justify-between mb-3">
-                <span className={`px-2.5 py-1 text-xs font-medium rounded-lg bg-${themeColor}/10 text-${themeColor} border border-${themeColor}/10`}>
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-lg border ${theme.badge}`}>
                     {item.title}
                 </span>
                 <span className="text-xs text-foreground-tertiary font-mono">
@@ -134,15 +173,16 @@ function DefaultGridCard({ item, actions, themeColor }: { item: HistorySummaryIt
 
 /* ---------- 默认卡片 (list 布局) ---------- */
 function DefaultListCard({ item, actions, themeColor }: { item: HistorySummaryItem; actions: CardActions; themeColor: string }) {
+    const theme = resolveHistoryTheme(themeColor);
     return (
         <div
-            className={`bg-background-secondary rounded-xl p-4 border border-border hover:border-${themeColor}/30 transition-colors cursor-pointer`}
+            className={`bg-background-secondary rounded-xl p-4 border border-border ${theme.cardBorder} transition-colors cursor-pointer`}
             onClick={actions.onView}
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-0.5 text-xs rounded-full bg-${themeColor}/10 text-${themeColor}`}>
+                        <span className={`px-2 py-0.5 text-xs rounded-full border ${theme.badge}`}>
                             {item.badges?.[0] || item.title}
                         </span>
                         <div className="flex items-center gap-2 ml-auto">
@@ -243,9 +283,30 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     const loadItems = useCallback(async () => {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) { router.push(basePath); return; }
-        setItems(await loadHistorySummaries(sourceType));
+        if (!session?.user) {
+            router.push(basePath);
+            return;
+        }
+
+        const firstPage = await loadHistorySummariesPage(sourceType);
+        setItems(firstPage.items);
         setLoading(false);
+
+        if (!firstPage.pagination.hasMore || firstPage.pagination.nextOffset == null) {
+            return;
+        }
+
+        let offset = firstPage.pagination.nextOffset;
+        const bufferedItems = [...firstPage.items];
+        for (let page = 0; page < 49; page += 1) {
+            const nextPage = await loadHistorySummariesPage(sourceType, { offset });
+            bufferedItems.push(...nextPage.items);
+            setItems([...bufferedItems]);
+            if (!nextPage.pagination.hasMore || nextPage.pagination.nextOffset == null) {
+                break;
+            }
+            offset = nextPage.pagination.nextOffset;
+        }
     }, [router, sourceType, basePath]);
 
     useEffect(() => {

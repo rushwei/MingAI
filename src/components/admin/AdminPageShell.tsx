@@ -38,7 +38,16 @@ export function AdminPageShell({ title, tabs, activeTab, onTabChange, children }
     });
 
     useEffect(() => {
-        void loadAdminClientAccessState().then(setState);
+        void loadAdminClientAccessState()
+            .then(setState)
+            .catch((error) => {
+                console.error('[admin-shell] failed to resolve access state:', error);
+                setState({
+                    loading: false,
+                    isAuthed: false,
+                    isAdmin: false,
+                });
+            });
     }, []);
 
     if (state.loading) {

@@ -207,9 +207,11 @@ test('linuxdo callback should sign bound users in with stored auth email and syn
   assert.equal(response.headers.get('location'), 'http://localhost/');
   assert.equal(signInEmail, 'stored-auth@example.com');
   assert.equal(signInPassword, 'rotated-password');
-  assert.equal(updatePayload?.password, 'rotated-password');
+  const updatedUser = updatePayload as Record<string, unknown> | null;
+  assert.ok(updatedUser);
+  assert.equal(updatedUser.password, 'rotated-password');
   assert.equal(
-    (updatePayload?.user_metadata as Record<string, unknown>)?.linuxdo_sub,
+    (updatedUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
     'linuxdo-user-bound',
   );
 });
@@ -389,8 +391,10 @@ test('linuxdo callback should recover missing provider bindings via admin user l
   assert.equal(createUserCalls, 0);
   assert.equal(providerInsertCalls, 1);
   assert.equal(signInEmail, 'stored-auth@example.com');
+  const reboundUser = updatePayload as Record<string, unknown> | null;
+  assert.ok(reboundUser);
   assert.equal(
-    (updatePayload?.user_metadata as Record<string, unknown>)?.linuxdo_sub,
+    (reboundUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
     'linuxdo-user-recover',
   );
 });

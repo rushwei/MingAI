@@ -11,8 +11,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Download } from 'lucide-react';
 import { MingRecord, MingNote, RecordCategory } from '@/lib/records';
 import { supabase } from '@/lib/auth';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
-import { FeatureGate } from '@/components/layout/FeatureGate';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { RecordFilters } from '@/components/records/RecordFilters';
 import { RecordsList } from '@/components/records/RecordsList';
 import {
@@ -47,6 +47,8 @@ export default function RecordsPage() {
     const [kbSelectedId, setKbSelectedId] = useState<string>('');
     const [kbNewName, setKbNewName] = useState('');
     const [kbTargetRecord, setKbTargetRecord] = useState<MingRecord | null>(null);
+    const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     // 检查登录状态
     useEffect(() => {
@@ -218,8 +220,12 @@ export default function RecordsPage() {
     }, [user, loadRecords, loadNotes]);
 
     const handleDelete = async (id: string) => {
-        if (!confirm('确定要删除这条记录吗？')) return;
-        await fetch(`/api/records/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/records/${id}`, { method: 'DELETE' });
+        if (!response.ok) {
+            showToast('error', '删除记录失败');
+            return;
+        }
+        setDeleteRecordId(null);
         loadRecords();
     };
 
@@ -235,9 +241,7 @@ export default function RecordsPage() {
     const totalPages = Math.ceil(total / PAGE_SIZE);
 
     return (
-        <FeatureGate featureId="records">
-        <LoginOverlay message="登录后使用命理记录功能">
-            <div className="min-h-screen bg-background text-foreground">
+        <div className="min-h-screen bg-background text-foreground">
                 {/* 顶部 Hero 区域 - 移动端隐藏 */}
                 <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
                     <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
@@ -312,7 +316,7 @@ export default function RecordsPage() {
                         totalPages={totalPages}
                         onPageChange={setPage}
                         onEdit={(record) => { setEditingRecord(record); setShowRecordForm(true); }}
-                        onDelete={handleDelete}
+                        onDelete={(id) => setDeleteRecordId(id)}
                         onTogglePin={handleTogglePin}
                         onAddToKnowledgeBase={openAddToKb}
                         onCreateNew={() => setShowRecordForm(true)}
@@ -353,9 +357,16 @@ export default function RecordsPage() {
                             onClose={closeKbModal}
                         />
                     )}
+                    <ConfirmDialog
+                        isOpen={!!deleteRecordId}
+                        onClose={() => setDeleteRecordId(null)}
+                        onConfirm={() => deleteRecordId ? handleDelete(deleteRecordId) : undefined}
+                        title="确认删除"
+                        description="确定要删除这条记录吗？此操作无法撤销。"
+                        confirmText="确认删除"
+                        variant="danger"
+                    />
                 </div>
             </div>
-        </LoginOverlay>
-        </FeatureGate>
     );
 }

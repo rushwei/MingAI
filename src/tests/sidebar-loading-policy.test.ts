@@ -7,13 +7,16 @@ const sidebarPath = resolve(process.cwd(), 'src/components/layout/Sidebar.tsx');
 const sidebarConfigContextPath = resolve(process.cwd(), 'src/components/layout/SidebarConfigContext.tsx');
 const featureTogglesPath = resolve(process.cwd(), 'src/lib/hooks/useFeatureToggles.ts');
 
-test('sidebar should not use featureLoading to block initial render', async () => {
+test('sidebar should block first paint until both sidebar config and feature toggles finish loading', async () => {
   const source = await readFile(sidebarPath, 'utf-8');
 
   assert.match(source, /featureLoading/u);
   assert.match(source, /featureRefreshing/u);
-  assert.ok(!/sidebarConfigLoading\s*\|\|\s*featureLoading/u.test(source));
-  assert.match(source, /featureLoading\s*\?\s*true\s*:\s*isFeatureEnabled/u);
+  assert.match(
+    source,
+    /const isNavLoading = sidebarConfigLoading \|\| sidebarConfigRefreshing \|\| featureLoading \|\| featureRefreshing/u,
+  );
+  assert.doesNotMatch(source, /featureLoading\s*\?\s*true\s*:\s*isFeatureEnabled/u);
 });
 
 test('sidebar config context should expose refreshing state', async () => {

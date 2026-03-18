@@ -381,9 +381,11 @@ test('linuxdo callback should create new users through admin api instead of publ
   assert.equal(publicSignUpCalls, 0);
   assert.equal(adminCreateUserCalls, 1);
   assert.equal(signInCalls, 1);
-  assert.equal(createUserPayload?.email_confirm, true);
+  const createdUser = createUserPayload as Record<string, unknown> | null;
+  assert.ok(createdUser);
+  assert.equal(createdUser.email_confirm, true);
   assert.equal(
-    (createUserPayload?.user_metadata as Record<string, unknown>)?.linuxdo_sub,
+    (createdUser.user_metadata as Record<string, unknown>)?.linuxdo_sub,
     'linuxdo-user-2',
   );
 });

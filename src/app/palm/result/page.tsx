@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Hand, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { LoginOverlay } from '@/components/auth/LoginOverlay';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { readSessionJSON } from '@/lib/cache';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
@@ -133,49 +132,45 @@ export default function PalmResultPage() {
 
     if (loading) {
         return (
-            <LoginOverlay message="登录后查看分析结果">
-                <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-                    {/* Background Effects Removed */}
-                    <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                        <div className="relative mb-6 mx-auto w-16 h-16 flex items-center justify-center">
-                            <div className="absolute inset-0 bg-amber-500/20 rounded-full animate-ping opacity-75" />
-                            <div className="relative z-10 bg-amber-500/10 p-4 rounded-full border border-amber-500/20">
-                                <Hand className="w-8 h-8 text-amber-500" />
-                            </div>
+            <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
+                    <div className="relative mb-6 mx-auto w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-amber-500/20 rounded-full animate-ping opacity-75" />
+                        <div className="relative z-10 bg-amber-500/10 p-4 rounded-full border border-amber-500/20">
+                            <Hand className="w-8 h-8 text-amber-500" />
                         </div>
-                        <SoundWaveLoader variant="block" text="正在深度解析您的掌纹" />
                     </div>
+                    <SoundWaveLoader variant="block" text="正在深度解析您的掌纹" />
                 </div>
-            </LoginOverlay>
+            </div>
         );
     }
 
     if (error || !resultData) {
         return (
-            <LoginOverlay message="登录后查看分析结果">
-                <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-                    {/* Background Effects Removed */}
-                    <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
-                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
-                            <Hand className="w-8 h-8 text-amber-500/50" />
-                        </div>
-                        <h3 className="text-xl font-bold text-foreground mb-2">未找到分析结果</h3>
-                        <p className="text-foreground-secondary mb-8 leading-relaxed">{error || '似乎没有找到刚才的分析记录，请尝试重新分析'}</p>
-                        <button
-                            onClick={() => router.push('/palm')}
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
-                        >
-                            <Hand className="w-5 h-5" />
-                            开始手相分析
-                        </button>
+            <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+                {/* Background Effects Removed */}
+                <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
+                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
+                        <Hand className="w-8 h-8 text-amber-500/50" />
                     </div>
+                    <h3 className="text-xl font-bold text-foreground mb-2">未找到分析结果</h3>
+                    <p className="text-foreground-secondary mb-8 leading-relaxed">{error || '似乎没有找到刚才的分析记录，请尝试重新分析'}</p>
+                    <button
+                        onClick={() => router.push('/palm')}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                        <Hand className="w-5 h-5" />
+                        开始手相分析
+                    </button>
                 </div>
-            </LoginOverlay>
+            </div>
         );
     }
 
     return (
-        <LoginOverlay message="登录后查看分析结果">
+        <>
             <div className="min-h-screen bg-background relative overflow-x-hidden">
                 {/* Background Effects */}
                 {/* Background Effects Removed */}
@@ -273,6 +268,6 @@ export default function PalmResultPage() {
                     sourceId={resultData.readingId}
                 />
             )}
-        </LoginOverlay>
+        </>
     );
 }

@@ -11,9 +11,8 @@ import { asCommunityLookupClient, loadCommunityAuthorProfileMap, toPublicPost, t
 import { getAuthContext, jsonError, jsonOk, requireUserContext, getSystemAdminClient } from '@/lib/api-utils';
 import { withRetry } from '@/lib/retry';
 
-type CommunityCommentRow = Omit<CommunityComment, 'author_name' | 'replies'> & {
+type CommunityCommentRow = Omit<CommunityComment, 'author_name' | 'author_avatar_url' | 'replies'> & {
     user_id: string;
-    anonymous_name?: string | null;
     replies?: CommunityCommentRow[];
 };
 

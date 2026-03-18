@@ -17,6 +17,7 @@ import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import type { ChatBootstrapKnowledgeBase } from '@/lib/chat/bootstrap';
+import type { MembershipType } from '@/lib/user/membership';
 
 interface ChatLayoutProps {
     // Sidebar
@@ -56,14 +57,14 @@ interface ChatLayoutProps {
     onInputChange: (value: string) => void;
     disabled: boolean;
     selectedCharts: SelectedCharts;
-    onSelectChart: (type: 'bazi' | 'ziwei') => void;
+    onSelectChart: (type?: 'bazi' | 'ziwei') => void;
     onClearChart: (type: 'bazi' | 'ziwei') => void;
     selectedModel: string;
     onModelChange: (model: string) => void;
     reasoningEnabled: boolean;
     onReasoningChange: (enabled: boolean) => void;
     userId: string | null;
-    membershipType: string;
+    membershipType: MembershipType;
     attachmentState: AttachmentState;
     onAttachmentChange: (state: AttachmentState) => void;
     mentions: Mention[];

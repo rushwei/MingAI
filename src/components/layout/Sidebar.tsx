@@ -37,7 +37,7 @@ export function Sidebar() {
     const { user } = useSessionSafe();
     const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureRefreshing;
+    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing;
 
     // 切换折叠状态
     const toggleCollapsed = useCallback((newState: boolean) => {
@@ -47,16 +47,16 @@ export function Sidebar() {
 
     // 根据配置过滤并排序导航项
     const filteredNavItems = useMemo(() => navItems
-        .filter(item => featureLoading ? true : isFeatureEnabled(item.href.replace('/', '')))
+        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
         .sort((a, b) => {
             const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
             const orderB = sidebarConfig.navOrder?.indexOf(b.href.replace('/', '')) ?? -1;
             return orderA - orderB;
-        }), [featureLoading, sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
+        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
 
     const filteredToolItems = useMemo(() => toolItems
-        .filter(item => featureLoading ? true : isFeatureEnabled(item.href.replace('/', '')))
+        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
         .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
         .sort((a, b) => {
             const idA = a.href.replace('/user/', '').replace('/', '');
@@ -64,7 +64,7 @@ export function Sidebar() {
             const orderA = sidebarConfig.toolOrder?.indexOf(idA) ?? -1;
             const orderB = sidebarConfig.toolOrder?.indexOf(idB) ?? -1;
             return orderA - orderB;
-        }), [featureLoading, sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
+        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
 
     if (isNavLoading) {
         return (

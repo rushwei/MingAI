@@ -21,7 +21,7 @@ test('user charts GET aggregates bazi and ziwei charts through a single user API
   };
   const originalRequireUserContext = apiUtils.requireUserContext;
 
-  apiUtils.requireUserContext = async () => ({
+  apiUtils.requireUserContext = (async () => ({
     user: { id: 'user-1' },
     supabase: {
       from(table: string) {
@@ -98,7 +98,7 @@ test('user charts GET aggregates bazi and ziwei charts through a single user API
         throw new Error(`Unexpected table: ${table}`);
       },
     },
-  });
+  })) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;
@@ -123,7 +123,7 @@ test('user charts PATCH updates default chart through user_settings', async (t) 
   const originalRequireUserContext = apiUtils.requireUserContext;
   const updates: Array<Record<string, unknown>> = [];
 
-  apiUtils.requireUserContext = async () => ({
+  apiUtils.requireUserContext = (async () => ({
     user: { id: 'user-1' },
     supabase: {
       from(table: string) {
@@ -151,7 +151,7 @@ test('user charts PATCH updates default chart through user_settings', async (t) 
         };
       },
     },
-  });
+  })) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;
@@ -181,7 +181,7 @@ test('user charts DELETE removes the requested chart with user scoping', async (
   const originalRequireUserContext = apiUtils.requireUserContext;
   const deleted: Array<{ table: string; id: string; userId: string }> = [];
 
-  apiUtils.requireUserContext = async () => ({
+  apiUtils.requireUserContext = (async () => ({
     user: { id: 'user-1' },
     supabase: {
       from(table: string) {
@@ -207,7 +207,7 @@ test('user charts DELETE removes the requested chart with user scoping', async (
         };
       },
     },
-  });
+  })) as unknown as typeof apiUtils.requireUserContext;
 
   t.after(() => {
     apiUtils.requireUserContext = originalRequireUserContext;

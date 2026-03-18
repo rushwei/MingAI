@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const browserApiPath = resolve(process.cwd(), 'src/lib/browser-api.ts');
+const unreadHookPath = resolve(process.cwd(), 'src/lib/hooks/useNotificationUnreadCount.ts');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
 const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
@@ -21,23 +22,28 @@ test('browser api helper should emit api-write events for successful non-GET wri
   );
 });
 
-test('notification counters should listen to supabase write events for immediate sync', async () => {
-  const [userPage, userMenu, bell] = await Promise.all([
+test('notification counters should centralize supabase write-event sync in the shared unread hook', async () => {
+  const [hookSource, userPage, userMenu, bell] = await Promise.all([
+    readFile(unreadHookPath, 'utf-8'),
     readFile(userPagePath, 'utf-8'),
     readFile(userMenuPath, 'utf-8'),
     readFile(notificationBellPath, 'utf-8'),
   ]);
 
   assert.ok(
-    userPage.includes("window.addEventListener('mingai:api-write'"),
-    'user center should refresh unread count after write event'
+    hookSource.includes("window.addEventListener('mingai:api-write'"),
+    'shared unread hook should refresh unread count after write events'
   );
   assert.ok(
-    userMenu.includes("window.addEventListener('mingai:api-write'"),
-    'user menu should refresh unread count after write event'
+    userPage.includes('useNotificationUnreadCount'),
+    'user center should consume the shared unread hook'
   );
   assert.ok(
-    bell.includes("window.addEventListener('mingai:api-write'"),
-    'notification bell should refresh unread count after write event'
+    userMenu.includes('useNotificationUnreadCount'),
+    'user menu should consume the shared unread hook'
+  );
+  assert.ok(
+    bell.includes('useNotificationUnreadCount'),
+    'notification bell should consume the shared unread hook'
   );
 });

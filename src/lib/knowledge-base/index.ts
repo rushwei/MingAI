@@ -1,8 +1,6 @@
 import type { ArchivedSource, ArchivedSourceType, KnowledgeBase, KnowledgeBaseInput } from '@/lib/knowledge-base/types';
 import { createKbClient } from '@/lib/knowledge-base/client';
 
-import { createKbClient } from '@/lib/knowledge-base/client';
-
 export async function createKnowledgeBase(userId: string, data: KnowledgeBaseInput): Promise<KnowledgeBase> {
     const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
