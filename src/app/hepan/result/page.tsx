@@ -26,6 +26,7 @@ import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
@@ -35,6 +36,7 @@ import { resolveHistoryConversationId } from '@/lib/history/client';
 export default function HepanResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [result, setResult] = useState<HepanResult | null>(null);
     const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -216,7 +218,7 @@ export default function HepanResultPage() {
     useEffect(() => {
         if (!result) return;
         const items = [];
-        if (chartId) {
+        if (knowledgeBaseEnabled && chartId) {
             items.push({
                 id: 'add-to-kb',
                 label: '加入知识库',
@@ -231,7 +233,7 @@ export default function HepanResultPage() {
         });
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [chartId, result, router, setMenuItems, clearMenuItems]);
+    }, [chartId, knowledgeBaseEnabled, result, router, setMenuItems, clearMenuItems]);
 
     if (!result) {
         return (
@@ -260,7 +262,7 @@ export default function HepanResultPage() {
                     >
                         <span className="text-sm font-medium">返回列表</span>
                     </Link>
-                    {!!chartId && (
+                    {knowledgeBaseEnabled && !!chartId && (
                         <button
                             type="button"
                             onClick={() => setKbModalOpen(true)}
@@ -443,7 +445,7 @@ export default function HepanResultPage() {
                 </div>
             </div>
 
-            {chartId && (
+            {knowledgeBaseEnabled && chartId && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={() => setKbModalOpen(false)}

@@ -190,11 +190,15 @@ export async function buildChatPromptContext(
   const lastUserMessage = [...body.messages].reverse().find((message) => message.role === 'user');
   const rawUserContent = lastUserMessage?.content || '';
   const userQuestionForSearch = extractUserQuestion(rawUserContent);
+  const canUsePromptKnowledgeBase = knowledgeBaseFeatureEnabled && membershipType !== 'free';
   const mergedMentions = mergeMentions(rawUserContent, body.mentions);
+  const effectiveMentions = canUsePromptKnowledgeBase
+    ? mergedMentions
+    : mergedMentions.filter((mention) => mention.type !== 'knowledge_base');
 
   const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
   const [resolvedMentions, userSettings] = await Promise.all([
-    userId ? resolveMentionsForPrompt(mergedMentions, userId, supabase, mentionBudget) : [],
+    userId ? resolveMentionsForPrompt(effectiveMentions, userId, supabase, mentionBudget) : [],
     userId ? loadUserSettingsContext(supabase, userId) : {
       expressionStyle: 'direct' as const,
       userProfile: {},
@@ -209,7 +213,7 @@ export async function buildChatPromptContext(
     userProfile: body.userProfile,
   });
 
-  const promptKnowledgeBases = userId && knowledgeBaseFeatureEnabled && membershipType !== 'free' && effectiveUserSettings.promptKbIds.length > 0
+  const promptKnowledgeBases = userId && canUsePromptKnowledgeBase && effectiveUserSettings.promptKbIds.length > 0
     ? await (async () => {
       const { data: kbRows } = await supabase
         .from('knowledge_bases')
@@ -228,7 +232,7 @@ export async function buildChatPromptContext(
     })()
     : [];
 
-  const knowledgeHits = userId && knowledgeBaseFeatureEnabled
+  const knowledgeHits = userId && canUsePromptKnowledgeBase
     ? await buildKnowledgeHits(
       userQuestionForSearch,
       userId,

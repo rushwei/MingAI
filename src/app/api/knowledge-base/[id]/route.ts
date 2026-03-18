@@ -1,7 +1,10 @@
 import { NextRequest } from 'next/server';
 import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const featureError = await ensureFeatureRouteEnabled('knowledge-base');
+    if (featureError) return featureError;
     const auth = await requireUserContext(_request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
@@ -21,6 +24,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const featureError = await ensureFeatureRouteEnabled('knowledge-base');
+    if (featureError) return featureError;
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;
@@ -47,6 +52,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const featureError = await ensureFeatureRouteEnabled('knowledge-base');
+    if (featureError) return featureError;
     const auth = await requireUserContext(_request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;

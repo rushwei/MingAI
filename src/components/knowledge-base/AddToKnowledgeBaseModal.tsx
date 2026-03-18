@@ -12,6 +12,7 @@ import { X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
 type KnowledgeBaseSummary = { id: string; name: string; description: string | null };
 
@@ -39,6 +40,7 @@ export function AddToKnowledgeBaseModal({
     const [kbSelectedId, setKbSelectedId] = useState<string>('');
     const [kbNewName, setKbNewName] = useState('');
     const { showToast } = useToast();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
 
     const getAccessToken = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -74,9 +76,9 @@ export function AddToKnowledgeBaseModal({
     }, [getAccessToken, kbSelectedId]);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open || !knowledgeBaseEnabled) return;
         void loadKnowledgeBases();
-    }, [loadKnowledgeBases, open]);
+    }, [knowledgeBaseEnabled, loadKnowledgeBases, open]);
 
     const handleCreateKnowledgeBase = useCallback(async () => {
         const name = kbNewName.trim();
@@ -154,7 +156,7 @@ export function AddToKnowledgeBaseModal({
         }
     }, [getAccessToken, kbSelectedId, onClose, onSuccess, showToast, sourceId, sourceMeta, sourceType]);
 
-    if (!open) return null;
+    if (!open || !knowledgeBaseEnabled) return null;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">

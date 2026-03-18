@@ -7,26 +7,36 @@
  */
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpenText } from 'lucide-react';
 import type { Mention } from '@/types';
 import {
     type DataSourceSummary, type DataSourceLoadError, type KnowledgeBaseSummary,
     type ViewModel, type MentionPopoverState, type Level,
-    DATA_SUBCATEGORY_MAP, DATA_SUBCATEGORY_DIVIDE,
     TYPE_LABELS, TYPE_ICONS,
     HEPAN_TYPE_LABELS, HEPAN_TYPE_ICONS,
     FOLDER_ICON, KB_ICON, CHEVRON_ICON,
     getHepanSubtype, shouldShowHint,
     normalizeQuery, getQueryHint,
 } from '@/components/chat/mention/mention-constants';
+import {
+    getBackNavigationState,
+    getInitialMentionNavigationState,
+} from '@/components/chat/mention/mention-navigation';
+import {
+    getVisibleDataSubcategories,
+    getVisibleDataTypesForSubcategory,
+} from '@/components/chat/mention/mention-visibility';
+import { DATA_SUBCATEGORY_MAP, DATA_SUBCATEGORY_DIVIDE } from '@/components/chat/mention/mention-data-catalog';
 import { MentionHeader } from '@/components/chat/mention/MentionHeader';
 import { MentionItemList } from '@/components/chat/mention/MentionItemList';
+import type { DataSourceType } from '@/lib/data-sources/types';
 
 interface MentionPopoverProps {
     query: string;
     dataSources: DataSourceSummary[];
     knowledgeBases: KnowledgeBaseSummary[];
+    enabledDataSourceTypes: DataSourceType[];
     loadError?: string | null;
     dataSourceErrors?: DataSourceLoadError[];
     loading?: boolean;
@@ -36,10 +46,14 @@ interface MentionPopoverProps {
     onClose: () => void;
 }
 
-export function MentionPopover({ query, dataSources, knowledgeBases, loadError = null, dataSourceErrors = [], loading = false, defaultCategory, knowledgeBaseLocked = false, onSelect, onClose }: MentionPopoverProps) {
-    const [state, setState] = useState<MentionPopoverState>({ level: 'category', activeIndex: 0 });
+export function MentionPopover({ query, dataSources, knowledgeBases, enabledDataSourceTypes, loadError = null, dataSourceErrors = [], loading = false, defaultCategory, knowledgeBaseLocked = false, onSelect, onClose }: MentionPopoverProps) {
+    const [state, setState] = useState<MentionPopoverState>(() => getInitialMentionNavigationState({ defaultCategory, knowledgeBaseLocked }));
     const normalizedQuery = useMemo(() => normalizeQuery(query), [query]);
     const queryHint = useMemo(() => getQueryHint(query), [query]);
+    const visibleSubcategories = useMemo(
+        () => getVisibleDataSubcategories(enabledDataSourceTypes),
+        [enabledDataSourceTypes]
+    );
 
     const effectiveState = useMemo<MentionPopoverState>(() => {
         if (!queryHint || normalizedQuery) return state;
@@ -54,39 +68,16 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
 
     const activeLevel: Level = normalizedQuery ? 'search' : effectiveState.level;
 
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            if (defaultCategory === 'knowledge') {
-                setState({ level: 'item', selectedCategory: 'knowledge', activeIndex: 0 });
-            } else if (defaultCategory === 'data') {
-                setState({ level: 'subcategory', selectedCategory: 'data', activeIndex: 0 });
-            }
-        }, 0);
-        return () => window.clearTimeout(timer);
-    }, [defaultCategory]);
-
     // ---- Navigation ----
 
-    const goBack = () => {
-        setState(prev => {
-            if (prev.level === 'item' && prev.selectedCategory === 'data' && prev.selectedSubcategory) {
-                if (prev.selectedType) {
-                    return { level: 'type', selectedCategory: 'data', selectedSubcategory: prev.selectedSubcategory, activeIndex: 0 };
-                }
-                return { level: 'subcategory', selectedCategory: 'data', activeIndex: 0 };
-            }
-            if (prev.level === 'type') {
-                return { level: 'subcategory', selectedCategory: 'data', activeIndex: 0 };
-            }
-            if (prev.level === 'subcategory') {
-                return { level: 'category', activeIndex: 0 };
-            }
-            if (prev.level === 'item' && prev.selectedCategory === 'knowledge') {
-                return { level: 'category', activeIndex: 0 };
-            }
-            return prev;
-        });
-    };
+    const goBack = useCallback(() => {
+        const nextState = getBackNavigationState(state, { knowledgeBaseLocked });
+        if (!nextState) {
+            onClose();
+            return;
+        }
+        setState(nextState);
+    }, [knowledgeBaseLocked, onClose, state]);
 
     // ---- Filtered data ----
 
@@ -158,10 +149,9 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
         }
 
         if (activeLevel === 'subcategory' && effectiveState.selectedCategory === 'data') {
-            const subs = Object.keys(DATA_SUBCATEGORY_MAP);
             return {
                 title: '@数据',
-                items: subs.map((s) => ({ key: s, label: s, icon: FOLDER_ICON })),
+                items: visibleSubcategories.map((s) => ({ key: s, label: s, icon: FOLDER_ICON })),
             };
         }
 
@@ -176,7 +166,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 }));
                 return { title: `@数据 / ${sub}`, items };
             }
-            const allowed = DATA_SUBCATEGORY_MAP[sub] || [];
+            const allowed = getVisibleDataTypesForSubcategory(sub, enabledDataSourceTypes);
             return {
                 title: `@数据 / ${sub}`,
                 items: allowed.map((t) => ({
@@ -221,7 +211,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
                 ? [{ key: 'kb-locked', label: '知识库 (Plus+)', hint: '仅限 Plus 以上会员使用', icon: KB_ICON, disabled: true }]
                 : filteredKnowledgeBases.map((kb) => ({ key: kb.id, label: kb.name, hint: kb.description || '知识库', icon: CHEVRON_ICON, raw: kb })),
         };
-    }, [activeLevel, dataSourceErrors.length, effectiveState.selectedCategory, effectiveState.selectedSubcategory, effectiveState.selectedType, filteredDataSources, filteredKnowledgeBases, hepanTypeCounts, knowledgeBaseLocked, typeCounts]);
+    }, [activeLevel, dataSourceErrors.length, effectiveState.selectedCategory, effectiveState.selectedSubcategory, effectiveState.selectedType, enabledDataSourceTypes, filteredDataSources, filteredKnowledgeBases, hepanTypeCounts, knowledgeBaseLocked, typeCounts, visibleSubcategories]);
 
     // ---- Keyboard navigation ----
 
@@ -337,7 +327,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, loadError =
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [activeLevel, knowledgeBaseLocked, onClose, onSelect, effectiveState.activeIndex, effectiveState.selectedCategory, effectiveState.selectedSubcategory, view.items]);
+    }, [activeLevel, goBack, knowledgeBaseLocked, onClose, onSelect, effectiveState.activeIndex, effectiveState.selectedCategory, effectiveState.selectedSubcategory, view.items]);
 
     return (
         <div className="absolute bottom-full mb-2 z-40 left-2 right-2 md:left-0 md:right-auto md:w-[240px] md:max-w-[calc(100vw-2rem)]">

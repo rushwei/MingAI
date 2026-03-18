@@ -22,6 +22,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { readSessionJSON } from '@/lib/cache';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
@@ -33,6 +34,7 @@ function MBTIResultContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const viewType = searchParams.get('type');
     const isViewMode = searchParams.get('view') === 'true';
 
@@ -231,7 +233,7 @@ function MBTIResultContent() {
     useEffect(() => {
         if (!result) return;
         const items = [];
-        if (readingId) {
+        if (knowledgeBaseEnabled && readingId) {
             items.push({
                 id: 'add-to-kb',
                 label: '加入知识库',
@@ -248,7 +250,7 @@ function MBTIResultContent() {
         }
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [readingId, isTestMode, result, router, setMenuItems, clearMenuItems]);
+    }, [knowledgeBaseEnabled, readingId, isTestMode, result, router, setMenuItems, clearMenuItems]);
 
     if (!result) {
         return (
@@ -278,7 +280,7 @@ function MBTIResultContent() {
                 {/* 结果卡片 */}
                 <PersonalityCard result={result} showDimensions={!!isTestMode} />
 
-                {!!readingId && (
+                {knowledgeBaseEnabled && !!readingId && (
                     <div className="mt-4 flex justify-center">
                         <button
                             type="button"
@@ -433,7 +435,7 @@ function MBTIResultContent() {
                 onClose={() => setShowCreditsModal(false)}
             />
 
-            {readingId && (
+            {knowledgeBaseEnabled && readingId && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={() => setKbModalOpen(false)}

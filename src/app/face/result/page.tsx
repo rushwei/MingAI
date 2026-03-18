@@ -13,6 +13,7 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { readSessionJSON } from '@/lib/cache';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
@@ -29,6 +30,7 @@ interface FaceResultData {
 export default function FaceResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [loading, setLoading] = useState(true);
     const [resultData, setResultData] = useState<FaceResultData | null>(null);
     const [analysis, setAnalysis] = useState<string>('');
@@ -38,7 +40,7 @@ export default function FaceResultPage() {
     // 设置移动端 Header 菜单项
     useEffect(() => {
         const items = [];
-        if (resultData?.readingId) {
+        if (knowledgeBaseEnabled && resultData?.readingId) {
             items.push({
                 id: 'add-to-kb',
                 label: '加入知识库',
@@ -61,7 +63,7 @@ export default function FaceResultPage() {
         });
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [resultData?.readingId, resultData?.conversationId, router, setMenuItems, clearMenuItems]);
+    }, [knowledgeBaseEnabled, resultData?.readingId, resultData?.conversationId, router, setMenuItems, clearMenuItems]);
 
     useEffect(() => {
         const loadResult = async () => {
@@ -228,7 +230,7 @@ export default function FaceResultPage() {
 
                     {/* 操作按钮 */}
                     <div className="flex flex-wrap gap-4 justify-center">
-                        {!!resultData.readingId && (
+                        {knowledgeBaseEnabled && !!resultData.readingId && (
                             <button
                                 type="button"
                                 onClick={() => setKbModalOpen(true)}
@@ -257,7 +259,7 @@ export default function FaceResultPage() {
                 </div>
             </div>
 
-            {resultData.readingId && (
+            {knowledgeBaseEnabled && resultData.readingId && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={() => setKbModalOpen(false)}

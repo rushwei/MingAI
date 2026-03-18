@@ -15,6 +15,7 @@ import {
     MessageSquare, User, Eye, Zap, Layers
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { FeatureGate } from '@/components/layout/FeatureGate';
 import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
@@ -36,6 +37,14 @@ const LAYER_LABELS: Record<string, string> = {
 };
 
 export default function AISettingsPage() {
+    return (
+        <FeatureGate featureId="ai-personalization">
+            <AISettingsContent />
+        </FeatureGate>
+    );
+}
+
+function AISettingsContent() {
     const router = useRouter();
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
     const [loading, setLoading] = useState(true);

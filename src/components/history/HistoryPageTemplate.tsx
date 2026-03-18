@@ -15,6 +15,7 @@ import { Calendar, Trash2, Search, BookOpenText, MessageSquare } from 'lucide-re
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/auth';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { ConfirmDeleteModal } from '@/components/common/ConfirmDeleteModal';
 import {
     applyHistoryRestorePayload,
@@ -85,6 +86,7 @@ export interface CardActions {
     onView: () => void;
     onDelete: () => void;
     onAddToKb: () => void;
+    canAddToKnowledgeBase: boolean;
     formatDate: (dateStr: string) => string;
 }
 
@@ -157,10 +159,12 @@ function DefaultGridCard({ item, actions, themeColor }: { item: HistorySummaryIt
                     <Calendar className="w-3 h-3" />查看详情
                 </div>
                 <div className="flex items-center gap-1">
-                    <button type="button" onClick={e => { e.stopPropagation(); actions.onAddToKb(); }}
-                        className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors" title="加入知识库">
-                        <BookOpenText className="w-4 h-4" />
-                    </button>
+                    {actions.canAddToKnowledgeBase && (
+                        <button type="button" onClick={e => { e.stopPropagation(); actions.onAddToKb(); }}
+                            className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors" title="加入知识库">
+                            <BookOpenText className="w-4 h-4" />
+                        </button>
+                    )}
                     <button type="button" onClick={e => { e.stopPropagation(); actions.onDelete(); }}
                         className="p-1.5 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors" title="删除">
                         <Trash2 className="w-4 h-4" />
@@ -197,10 +201,12 @@ function DefaultListCard({ item, actions, themeColor }: { item: HistorySummaryIt
                     <p className="text-sm font-medium">{item.title}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button type="button" onClick={e => { e.stopPropagation(); actions.onAddToKb(); }}
-                        className="p-2 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors" title="加入知识库">
-                        <BookOpenText className="w-4 h-4" />
-                    </button>
+                    {actions.canAddToKnowledgeBase && (
+                        <button type="button" onClick={e => { e.stopPropagation(); actions.onAddToKb(); }}
+                            className="p-2 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors" title="加入知识库">
+                            <BookOpenText className="w-4 h-4" />
+                        </button>
+                    )}
                     <button type="button" onClick={e => { e.stopPropagation(); actions.onDelete(); }}
                         className="p-2 rounded-lg hover:bg-red-500/10 text-foreground-secondary hover:text-red-500 transition-colors" title="删除">
                         <Trash2 className="w-4 h-4" />
@@ -272,6 +278,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     } = config;
 
     const router = useRouter();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [items, setItems] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -299,13 +306,18 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
         let offset = firstPage.pagination.nextOffset;
         const bufferedItems = [...firstPage.items];
         for (let page = 0; page < 49; page += 1) {
-            const nextPage = await loadHistorySummariesPage(sourceType, { offset });
-            bufferedItems.push(...nextPage.items);
-            setItems([...bufferedItems]);
-            if (!nextPage.pagination.hasMore || nextPage.pagination.nextOffset == null) {
+            try {
+                const nextPage = await loadHistorySummariesPage(sourceType, { offset });
+                bufferedItems.push(...nextPage.items);
+                setItems([...bufferedItems]);
+                if (!nextPage.pagination.hasMore || nextPage.pagination.nextOffset == null) {
+                    break;
+                }
+                offset = nextPage.pagination.nextOffset;
+            } catch {
+                // 后续分页加载失败时中断，保留已加载的数据
                 break;
             }
-            offset = nextPage.pagination.nextOffset;
         }
     }, [router, sourceType, basePath]);
 
@@ -328,7 +340,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     const handleView = async (item: HistorySummaryItem) => {
         const payload = await loadHistoryRestore(sourceType, item.id, restoreTimezone);
         if (!payload) return;
-        router.push(applyHistoryRestorePayload(payload, item.id));
+        router.push(applyHistoryRestorePayload(payload));
     };
 
     const defaultFilter = (item: HistorySummaryItem, query: string) => {
@@ -346,7 +358,12 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     const makeActions = (item: HistorySummaryItem): CardActions => ({
         onView: () => void handleView(item),
         onDelete: () => setDeleteConfirmId(item.id),
-        onAddToKb: () => { setKbTarget(item); setKbModalOpen(true); },
+        onAddToKb: () => {
+            if (!knowledgeBaseEnabled) return;
+            setKbTarget(item);
+            setKbModalOpen(true);
+        },
+        canAddToKnowledgeBase: knowledgeBaseEnabled,
         formatDate,
     });
 
@@ -414,7 +431,7 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
             <ConfirmDeleteModal open={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)}
                 onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)} message={deleteMessage} />
 
-            {kbTarget && (
+            {knowledgeBaseEnabled && kbTarget && (
                 <AddToKnowledgeBaseModal open={kbModalOpen}
                     onClose={() => { setKbModalOpen(false); setKbTarget(null); }}
                     sourceTitle={kbTitleFn ? kbTitleFn(kbTarget) : kbTarget.question || kbTarget.title}

@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 
 interface NotificationBellProps {
@@ -15,7 +16,11 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ userId }: NotificationBellProps) {
-    const unreadCount = useNotificationUnreadCount(userId);
+    const { isFeatureEnabled } = useFeatureToggles({ enabled: !!userId });
+    const notificationsFeatureEnabled = isFeatureEnabled('notifications');
+    const unreadCount = useNotificationUnreadCount(userId, {
+        enabled: notificationsFeatureEnabled,
+    });
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +36,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    if (!userId) {
+    if (!userId || !notificationsFeatureEnabled) {
         return null;
     }
 

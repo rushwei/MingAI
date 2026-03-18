@@ -70,6 +70,14 @@ async function getAccessToken() {
 }
 
 export default function KnowledgeBaseManagePage() {
+    return (
+        <FeatureGate featureId="knowledge-base">
+            <KnowledgeBaseManageContent />
+        </FeatureGate>
+    );
+}
+
+function KnowledgeBaseManageContent() {
     const { showToast } = useToast();
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -378,9 +386,9 @@ export default function KnowledgeBaseManagePage() {
     }, [expandedKbId, loadArchives, showToast, uploadFile, uploadKbId]);
 
     return (
-        <FeatureGate featureId="knowledge-base">
-        <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
+        <>
+            <div className="min-h-screen bg-background">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
                 {/* 桌面端 Header */}
                 <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
                     <div>
@@ -716,18 +724,18 @@ export default function KnowledgeBaseManagePage() {
                         </p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
-        <ConfirmDialog
-            isOpen={!!pendingDeleteKbId}
-            onClose={() => setPendingDeleteKbId(null)}
-            onConfirm={() => pendingDeleteKbId ? deleteKb(pendingDeleteKbId) : undefined}
-            title="确认删除"
-            description="确定要删除该知识库吗？此操作会移除其下的关联内容。"
-            confirmText="确认删除"
-            variant="danger"
-            loading={!!deletingKbId}
-        />
-        </FeatureGate>
+            <ConfirmDialog
+                isOpen={!!pendingDeleteKbId}
+                onClose={() => setPendingDeleteKbId(null)}
+                onConfirm={() => pendingDeleteKbId ? deleteKb(pendingDeleteKbId) : undefined}
+                title="确认删除"
+                description="确定要删除该知识库吗？此操作会移除其下的关联内容。"
+                confirmText="确认删除"
+                variant="danger"
+                loading={!!deletingKbId}
+            />
+        </>
     );
 }

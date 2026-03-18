@@ -23,6 +23,7 @@ import { SubscriptionPlans } from '@/components/membership/SubscriptionPlans';
 import { CreditProgressBar } from '@/components/membership/CreditProgressBar';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { FeatureGate } from '@/components/layout/FeatureGate';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 interface PurchaseLinks {
     plus?: string;
@@ -40,6 +41,7 @@ export default function UpgradePage() {
 
 function UpgradeContent() {
     const { user, loading: sessionLoading } = useSessionSafe();
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -48,6 +50,8 @@ function UpgradeContent() {
     const [level, setLevel] = useState<{ level: number } | null>(null);
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const { showToast } = useToast();
+    const checkinFeatureEnabled = !featureToggleLoading && isFeatureEnabled('checkin');
+    const effectiveLevel = checkinFeatureEnabled ? level : null;
 
     const refreshMembership = async (userId: string) => {
         const info = await getMembershipInfo(userId);
@@ -80,19 +84,6 @@ function UpgradeContent() {
             if (sessionLoading) return;
             if (user) {
                 await refreshMembership(user.id);
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.access_token) {
-                        const res = await fetch('/api/checkin?action=status', {
-                            headers: { Authorization: `Bearer ${session.access_token}` },
-                        });
-                        const data = await res.json();
-                        if (data.success && data.data?.level?.level) {
-                            setLevel({ level: data.data.level.level });
-                        }
-                    }
-                } catch {
-                }
             } else {
                 setMembership(null);
                 setLevel(null);
@@ -102,6 +93,40 @@ function UpgradeContent() {
         };
         void init();
     }, [sessionLoading, user]);
+
+    useEffect(() => {
+        if (sessionLoading) {
+            return;
+        }
+        if (!user || !checkinFeatureEnabled) {
+            return;
+        }
+
+        let isActive = true;
+
+        const loadCheckinLevel = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token || !isActive) {
+                    return;
+                }
+                const res = await fetch('/api/checkin?action=status', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (isActive && data.success && data.data?.level?.level) {
+                    setLevel({ level: data.data.level.level });
+                }
+            } catch {
+            }
+        };
+
+        void loadCheckinLevel();
+
+        return () => {
+            isActive = false;
+        };
+    }, [checkinFeatureEnabled, sessionLoading, user]);
 
     const handleSelectPlan = (plan: PricingPlan) => {
         if (!user) {
@@ -220,7 +245,7 @@ function UpgradeContent() {
                             credits={membership.aiChatCount}
                             membershipType={membership.type}
                             lastRestoreAt={membership.lastCreditRestoreAt}
-                            extraLimit={Math.max(0, (level?.level || 1) - 1)}
+                            extraLimit={Math.max(0, (effectiveLevel?.level || 1) - 1)}
                         />
                     </div>
                 )}

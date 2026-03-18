@@ -1,7 +1,7 @@
 /**
  * 消息发送、流式响应、中止、重试逻辑 hook
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { ChatMessage, Conversation, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
 import { createConversation, deleteConversation, renameConversation } from '@/lib/chat/conversation';
@@ -11,6 +11,13 @@ import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import { supabase } from '@/lib/auth';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import type { ChatStateReturn } from '@/lib/chat/use-chat-state';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
+import {
+    buildChatMessageChartInfo,
+    buildChatRequestChartIds,
+    sanitizeChatMentions,
+} from '@/lib/chat/feature-normalization';
 
 // AI 生成对话标题
 async function generateAITitle(messages: ChatMessage[]): Promise<string> {
@@ -84,6 +91,35 @@ export function useChatMessaging({
         refreshConversationList,
         saveMessages,
     } = state;
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles({ enabled: !!userId });
+    const knowledgeBaseEnabled = !featureToggleLoading && isFeatureEnabled('knowledge-base');
+    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
+    const ziweiFeatureEnabled = !featureToggleLoading && isFeatureEnabled('ziwei');
+    const enabledDataSourceTypes = useMemo(
+        () => (featureToggleLoading ? [] : getEnabledDataSourceTypes(isFeatureEnabled)),
+        [featureToggleLoading, isFeatureEnabled]
+    );
+    const sanitizeOutgoingMentions = useCallback(
+        (rawMentions: Mention[] | undefined) => sanitizeChatMentions(rawMentions, {
+            knowledgeBaseEnabled,
+            enabledDataSourceTypes,
+        }),
+        [enabledDataSourceTypes, knowledgeBaseEnabled]
+    );
+    const chatChartIds = useMemo(
+        () => buildChatRequestChartIds(selectedCharts, {
+            baziEnabled: baziFeatureEnabled,
+            ziweiEnabled: ziweiFeatureEnabled,
+        }),
+        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
+    );
+    const chatChartInfo = useMemo(
+        () => buildChatMessageChartInfo(selectedCharts, {
+            baziEnabled: baziFeatureEnabled,
+            ziweiEnabled: ziweiFeatureEnabled,
+        }),
+        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
+    );
 
     const markCreditsExhausted = useCallback((message?: string) => {
         markBootstrapCreditsExhausted();
@@ -211,10 +247,10 @@ export function useChatMessaging({
     }, [refreshBootstrap, refreshConversationList]);
 
     const handleArchiveMessage = useCallback((message: ChatMessage) => {
-        if (!activeConversationId) return;
+        if (!activeConversationId || !knowledgeBaseEnabled) return;
         setKbTargetMessage(message);
         setKbModalOpen(true);
-    }, [activeConversationId, setKbTargetMessage, setKbModalOpen]);
+    }, [activeConversationId, knowledgeBaseEnabled, setKbTargetMessage, setKbModalOpen]);
 
     const closeKbModal = useCallback(() => {
         setKbModalOpen(false);
@@ -234,7 +270,7 @@ export function useChatMessaging({
         if (dreamMode && dreamContextLoading) return;
         setIsSendingToList(true);
 
-        const messageMentions = mentions;
+        const messageMentions = sanitizeOutgoingMentions(mentions);
         const isNewConversation = !activeConversationId;
         const draftTitle = isNewConversation ? buildDraftTitle(trimmedInput) : null;
         let conversationId = activeConversationId;
@@ -250,8 +286,8 @@ export function useChatMessaging({
                     userId,
                     personality: 'general',
                     title: draftTitle || '新对话',
-                    baziChartId: selectedCharts.bazi?.id,
-                    ziweiChartId: selectedCharts.ziwei?.id,
+                    baziChartId: chatChartIds?.baziId,
+                    ziweiChartId: chatChartIds?.ziweiId,
                 });
                 if (newId) {
                     conversationId = newId;
@@ -264,7 +300,7 @@ export function useChatMessaging({
                     const nowIso = new Date().toISOString();
                     setConversations(prev => {
                         const nextConversation: Conversation = {
-                            id: newId, userId, baziChartId: selectedCharts.bazi?.id, ziweiChartId: selectedCharts.ziwei?.id,
+                            id: newId, userId, baziChartId: chatChartIds?.baziId, ziweiChartId: chatChartIds?.ziweiId,
                             personality: 'general', title: draftTitle || '新对话', messages: [],
                             createdAt: nowIso, updatedAt: nowIso, sourceType: 'chat', sourceData: {},
                             isArchived: false, archivedKbIds: [],
@@ -297,7 +333,7 @@ export function useChatMessaging({
             const initialAssistantMessage: ChatMessage = {
                 id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel,
                 modelName: resolveClientModelName(selectedModel, selectedModel),
-                chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined,
+                chartInfo: chatChartInfo,
             };
             const optimisticMessages = [...newMessages, initialAssistantMessage];
             setMessages(optimisticMessages);
@@ -367,7 +403,7 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId, requestHeaders: headers,
-                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: { baziId: selectedCharts.bazi?.id, ziweiId: selectedCharts.ziwei?.id, baziAnalysisMode: selectedCharts.bazi?.analysisMode }, reasoning: reasoningEnabled, difyContext, mentions: messageMentions, dreamMode },
+                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, difyContext, mentions: messageMentions, dreamMode },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage,
             });
             if (!startResult.ok) {
@@ -410,7 +446,7 @@ export function useChatMessaging({
             if (existingVersions[idx] && !existingVersions[idx].subsequentMessages) existingVersions[idx] = { ...existingVersions[idx], subsequentMessages };
         }
 
-        const messageMentions = Array.isArray(nextMentions) ? nextMentions : (originalMessage.mentions ?? []);
+        const messageMentions = sanitizeOutgoingMentions(Array.isArray(nextMentions) ? nextMentions : (originalMessage.mentions ?? []));
         const updatedUserMessage: ChatMessage = { ...originalMessage, content: newContent, mentions: messageMentions.length ? [...messageMentions] : undefined, versions: existingVersions, currentVersionIndex: existingVersions.length - 1 };
         const newMessages = [...previousMessages, updatedUserMessage];
         if (isTargetActive()) setMessages(newMessages);
@@ -423,7 +459,7 @@ export function useChatMessaging({
             createdAt: new Date().toISOString(),
             model: selectedModel,
             modelName: resolveClientModelName(selectedModel, selectedModel),
-            chartInfo: (selectedCharts.bazi?.name || selectedCharts.ziwei?.name) ? { baziName: selectedCharts.bazi?.name, ziweiName: selectedCharts.ziwei?.name } : undefined,
+            chartInfo: chatChartInfo,
         };
         if (isTargetActive()) setMessages([...newMessages, initialAssistantMessage]);
 
@@ -441,7 +477,7 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: { baziId: selectedCharts.bazi?.id, ziweiId: selectedCharts.ziwei?.id, baziAnalysisMode: selectedCharts.bazi?.analysisMode }, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
+                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
             });
             if (!startResult.ok) {
@@ -471,7 +507,7 @@ export function useChatMessaging({
 
         const userMessageIndex = [...previousMessages].reverse().findIndex(msg => msg.role === 'user');
         const lastUserMessage = userMessageIndex >= 0 ? previousMessages[previousMessages.length - 1 - userMessageIndex] : undefined;
-        const messageMentions = lastUserMessage?.mentions ?? [];
+        const messageMentions = sanitizeOutgoingMentions(lastUserMessage?.mentions ?? []);
 
         let updatedPreviousMessages = previousMessages;
         let existingVersions: NonNullable<ChatMessage['versions']> = [];
@@ -483,7 +519,12 @@ export function useChatMessaging({
                 const currentVersionIdx = lastUserMessage.currentVersionIndex ?? existingVersions.length - 1;
                 if (existingVersions[currentVersionIdx] && !existingVersions[currentVersionIdx].subsequentMessages) existingVersions[currentVersionIdx] = { ...existingVersions[currentVersionIdx], subsequentMessages };
             }
-            const updatedUserMessage: ChatMessage = { ...lastUserMessage, versions: existingVersions, currentVersionIndex: existingVersions.length - 1 };
+            const updatedUserMessage: ChatMessage = {
+                ...lastUserMessage,
+                mentions: messageMentions.length ? [...messageMentions] : undefined,
+                versions: existingVersions,
+                currentVersionIndex: existingVersions.length - 1,
+            };
             updatedPreviousMessages = previousMessages.map(m => m.id === lastUserMessage.id ? updatedUserMessage : m);
         }
 
@@ -505,16 +546,21 @@ export function useChatMessaging({
 
             const onBeforeSave = lastUserMessage
                 ? (finalMessages: ChatMessage[], assistantContent: string): ChatMessage[] => {
-                    const newVersion = { userContent: lastUserMessage.content, mentions: lastUserMessage.mentions ? [...lastUserMessage.mentions] : undefined, aiContent: assistantContent || '抱歉，我暂时无法回答这个问题。', createdAt: new Date().toISOString() };
+                    const newVersion = { userContent: lastUserMessage.content, mentions: messageMentions.length ? [...messageMentions] : undefined, aiContent: assistantContent || '抱歉，我暂时无法回答这个问题。', createdAt: new Date().toISOString() };
                     const updatedVersions = [...existingVersions, newVersion];
-                    const finalUserMessage: ChatMessage = { ...lastUserMessage, versions: updatedVersions, currentVersionIndex: updatedVersions.length - 1 };
+                    const finalUserMessage: ChatMessage = {
+                        ...lastUserMessage,
+                        mentions: messageMentions.length ? [...messageMentions] : undefined,
+                        versions: updatedVersions,
+                        currentVersionIndex: updatedVersions.length - 1,
+                    };
                     return finalMessages.map(msg => msg.id === lastUserMessage.id ? finalUserMessage : msg);
                 }
                 : undefined;
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: previousMessages, personality: 'general', stream: true, model: selectedModel, chartIds: { baziId: selectedCharts.bazi?.id, ziweiId: selectedCharts.ziwei?.id, baziAnalysisMode: selectedCharts.bazi?.analysisMode }, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
+                requestBody: { messages: updatedPreviousMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
                 baseMessages: updatedPreviousMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
             });
             if (!startResult.ok) {
@@ -537,7 +583,7 @@ export function useChatMessaging({
             if (!message.versions || versionIndex < 0 || versionIndex >= message.versions.length) return prev;
             const version = message.versions[versionIndex];
             const previousMessages = prev.slice(0, messageIndex);
-            const versionMentions = version.mentions ?? message.mentions;
+            const versionMentions = sanitizeOutgoingMentions(version.mentions ?? message.mentions);
             const updatedUserMessage: ChatMessage = { ...message, content: version.userContent, mentions: versionMentions ? [...versionMentions] : undefined, currentVersionIndex: versionIndex };
             const aiMessage: ChatMessage = { id: `ai-version-${versionIndex}-${Date.now()}`, role: 'assistant', content: version.aiContent, createdAt: version.createdAt };
             let newMessages = [...previousMessages, updatedUserMessage, aiMessage];
@@ -545,7 +591,7 @@ export function useChatMessaging({
             if (userId && activeConversationId) void saveMessages(activeConversationId, newMessages);
             return newMessages;
         });
-    }, [userId, activeConversationId, saveMessages, setMessages]);
+    }, [activeConversationId, sanitizeOutgoingMentions, saveMessages, setMessages, userId]);
 
     return {
         scrollToBottom,

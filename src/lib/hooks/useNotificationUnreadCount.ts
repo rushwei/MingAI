@@ -118,15 +118,23 @@ function getUnreadSnapshot(userId: string | null) {
     return unreadState.userId === userId ? unreadState.unreadCount : 0;
 }
 
-export function useNotificationUnreadCount(userId: string | null) {
+type UseNotificationUnreadCountOptions = {
+    enabled?: boolean;
+};
+
+export function useNotificationUnreadCount(
+    userId: string | null,
+    options: UseNotificationUnreadCountOptions = {},
+) {
+    const enabled = options.enabled ?? true;
     const unreadCount = useSyncExternalStore(
         subscribeUnreadState,
-        () => getUnreadSnapshot(userId),
+        () => (enabled ? getUnreadSnapshot(userId) : 0),
         () => 0,
     );
 
     useEffect(() => {
-        if (!userId) {
+        if (!userId || !enabled) {
             return;
         }
         activeSubscribers += 1;
@@ -143,7 +151,7 @@ export function useNotificationUnreadCount(userId: string | null) {
                 setUnreadState({ userId: null, unreadCount: 0 });
             }
         };
-    }, [userId]);
+    }, [enabled, userId]);
 
     return unreadCount;
 }

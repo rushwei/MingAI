@@ -207,13 +207,10 @@ async function buildSharedPreviewContext({
     accessTokenForKB,
     sharedPromptContextBuilder,
 }: PreviewBuilderOptions): Promise<PreviewContextResult> {
-    const messagePayload = getMessagePayload(body.messages);
-    const requestMentions = getRequestMentions(body.mentions);
-    const settings = await loadNormalizedUserSettings(auth);
-    const promptKbIds = Array.from(new Set(settings.promptKbIds));
-    const promptKnowledgeBases = await loadPromptKnowledgeBases(auth, promptKbIds);
+  const messagePayload = getMessagePayload(body.messages);
+  const requestMentions = getRequestMentions(body.mentions);
 
-    const sharedContext = await sharedPromptContextBuilder({
+  const sharedContext = await sharedPromptContextBuilder({
         body: {
             messages: messagePayload,
             chartIds: body.chartIds,
@@ -232,11 +229,11 @@ async function buildSharedPreviewContext({
         creditDeducted: false,
     });
 
-    const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
-    const contextTotal = getModelContextInfo(requestedModelId, reasoningEnabled).maxContext;
-    const previewText = sharedContext.systemPrompt.slice(0, PREVIEW_TEXT_LIMIT);
+  const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
+  const contextTotal = getModelContextInfo(requestedModelId, reasoningEnabled).maxContext;
+  const previewText = sharedContext.systemPrompt.slice(0, PREVIEW_TEXT_LIMIT);
 
-    return {
+  return {
         diagnostics: sharedContext.metadata.promptDiagnostics.layers as Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>,
         totalTokens: sharedContext.metadata.promptDiagnostics.totalTokens,
         budgetTotal: sharedContext.metadata.promptDiagnostics.budgetTotal,
@@ -244,9 +241,9 @@ async function buildSharedPreviewContext({
         historyTokens,
         contextTotal,
         remainingContext: Math.max(0, contextTotal - historyTokens),
-        promptKnowledgeBases: knowledgeBaseFeatureEnabled && membershipType !== 'free' ? promptKnowledgeBases : [],
+        promptKnowledgeBases: knowledgeBaseFeatureEnabled && membershipType !== 'free' ? sharedContext.promptKnowledgeBases : [],
         preview: sharedContext.systemPrompt.length > PREVIEW_TEXT_LIMIT ? `${previewText}...` : previewText,
-    };
+  };
 }
 
 async function buildOverridePreviewContext({
@@ -267,12 +264,16 @@ async function buildOverridePreviewContext({
 
     const parsedMentions = parseMentions(rawUserContent);
     const requestMentions = getRequestMentions(body.mentions);
+    const canUsePromptKnowledgeBase = knowledgeBaseFeatureEnabled && membershipType !== 'free';
     const mergedMentions = [...requestMentions, ...parsedMentions]
         .filter((mention) => mention && mention.type && mention.name)
         .slice(0, 20);
+    const effectiveMentions = canUsePromptKnowledgeBase
+        ? mergedMentions
+        : mergedMentions.filter((mention) => mention.type !== 'knowledge_base');
 
     const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
-    const resolvedMentions = await Promise.all(mergedMentions.map(async (mention) => {
+    const resolvedMentions = await Promise.all(effectiveMentions.map(async (mention) => {
         const resolvedContent = await resolveMention(mention, auth.user.id, {
             client: auth.supabase,
             maxTokens: mentionBudget,
@@ -282,9 +283,12 @@ async function buildOverridePreviewContext({
 
     const baseSettings = await loadNormalizedUserSettings(auth);
     const userSettings = mergeUserSettings(baseSettings, body);
-    const promptKbIds = Array.from(new Set(userSettings.promptKbIds));
-    const promptKnowledgeBases = await loadPromptKnowledgeBases(auth, promptKbIds);
-    const canUsePromptKnowledgeBase = knowledgeBaseFeatureEnabled && membershipType !== 'free';
+    const promptKbIds = canUsePromptKnowledgeBase
+        ? Array.from(new Set(userSettings.promptKbIds))
+        : [];
+    const promptKnowledgeBases = canUsePromptKnowledgeBase
+        ? await loadPromptKnowledgeBases(auth, promptKbIds)
+        : [];
     const knowledgeHits = canUsePromptKnowledgeBase
         ? await buildKnowledgeHits(auth, userQuestionForSearch, accessTokenForKB, promptKbIds)
         : [];

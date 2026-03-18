@@ -3,7 +3,7 @@
  *
  * 管理对话列表、当前对话、加载状态、侧边栏状态等
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ChatMessage, Conversation, Mention } from '@/types';
 import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -16,6 +16,8 @@ import {
 } from '@/lib/chat/conversation';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import type { AttachmentState } from '@/types';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { sanitizeSelectedCharts } from '@/lib/chat/feature-normalization';
 
 export interface ChatStateReturn {
     // Conversation list
@@ -122,6 +124,10 @@ export function useChatState({
     router: ReturnType<typeof import('next/navigation').useRouter>;
     searchParams: ReturnType<typeof import('next/navigation').useSearchParams>;
 }): ChatStateReturn {
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
+    const ziweiFeatureEnabled = !featureToggleLoading && isFeatureEnabled('ziwei');
+
     // Conversation list state
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
@@ -177,6 +183,13 @@ export function useChatState({
     // Streaming state
     const [streamingConversationIds, setStreamingConversationIds] = useState<Set<string>>(new Set());
     const isLoading = activeConversationId ? streamingConversationIds.has(activeConversationId) : false;
+    const visibleSelectedCharts = useMemo(
+        () => sanitizeSelectedCharts(selectedCharts, {
+            baziEnabled: baziFeatureEnabled,
+            ziweiEnabled: ziweiFeatureEnabled,
+        }),
+        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
+    );
 
     // Sync refs
     useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
@@ -299,8 +312,11 @@ export function useChatState({
         if (chartInfo?.ziweiName) {
             newChartSelection.ziwei = { id: '', name: chartInfo.ziweiName, info: '(历史)' };
         }
-        setSelectedCharts(newChartSelection);
-    }, [router, searchParams]);
+        setSelectedCharts(sanitizeSelectedCharts(newChartSelection, {
+            baziEnabled: baziFeatureEnabled,
+            ziweiEnabled: ziweiFeatureEnabled,
+        }));
+    }, [baziFeatureEnabled, router, searchParams, ziweiFeatureEnabled]);
 
     // New chat
     const handleNewChat = useCallback(async () => {
@@ -372,7 +388,7 @@ export function useChatState({
         isSendingToList, setIsSendingToList,
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
         chartSelectorOpen, setChartSelectorOpen,
-        selectedCharts, setSelectedCharts,
+        selectedCharts: visibleSelectedCharts, setSelectedCharts,
         chartFocusType, setChartFocusType,
         selectedModel, setSelectedModel,
         reasoningEnabled, setReasoningEnabled,

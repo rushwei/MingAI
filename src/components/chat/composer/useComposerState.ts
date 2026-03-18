@@ -5,7 +5,7 @@
  * 按职责分组导出给各子组件使用。
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import type { Mention, MentionType, PromptLayerDiagnostic } from '@/types';
+import type { Mention, PromptLayerDiagnostic } from '@/types';
 import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -13,16 +13,19 @@ import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { supabase } from '@/lib/auth';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
+import type { DataSourceType } from '@/lib/data-sources/types';
+import { filterMentionsByFeature } from '@/lib/data-sources/catalog';
+import { buildChatRequestChartIds, sanitizeSelectedCharts } from '@/lib/chat/feature-normalization';
 
 export type DataSourceSummary = {
     id: string;
-    type: MentionType;
+    type: DataSourceType;
     name: string;
     preview: string;
     createdAt: string;
 };
 
-export type DataSourceLoadError = { type: MentionType; message: string };
+export type DataSourceLoadError = { type: DataSourceType; message: string };
 
 export type KnowledgeBaseSummary = {
     id: string;
@@ -46,6 +49,9 @@ export interface UseComposerStateOptions {
     dreamMode?: boolean;
     knowledgeBaseEnabled?: boolean;
     promptKnowledgeBases?: KnowledgeBaseSummary[];
+    enabledDataSourceTypes?: readonly DataSourceType[];
+    baziEnabled?: boolean;
+    ziweiEnabled?: boolean;
 }
 
 export function useComposerState(opts: UseComposerStateOptions) {
@@ -62,6 +68,9 @@ export function useComposerState(opts: UseComposerStateOptions) {
         dreamMode = false,
         knowledgeBaseEnabled = true,
         promptKnowledgeBases = [],
+        enabledDataSourceTypes = [],
+        baziEnabled = true,
+        ziweiEnabled = true,
     } = opts;
 
     // --- Refs ---
@@ -102,9 +111,15 @@ export function useComposerState(opts: UseComposerStateOptions) {
     const canUseWeb = membershipType !== 'free';
     const canUseBoth = membershipType === 'pro';
     const canUseKnowledgeBase = membershipType !== 'free' && knowledgeBaseEnabled;
+    const canMentionDataSources = enabledDataSourceTypes.length > 0;
+    const canMentionAnything = canMentionDataSources || canUseKnowledgeBase;
 
-    const hasBazi = selectedCharts?.bazi;
-    const hasZiwei = selectedCharts?.ziwei;
+    const availableCharts = useMemo(
+        () => sanitizeSelectedCharts(selectedCharts, { baziEnabled, ziweiEnabled }),
+        [baziEnabled, selectedCharts, ziweiEnabled]
+    );
+    const hasBazi = availableCharts.bazi;
+    const hasZiwei = availableCharts.ziwei;
 
     const promptUsageProgress = promptPreviewBudget > 0
         ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
@@ -120,8 +135,8 @@ export function useComposerState(opts: UseComposerStateOptions) {
     const promptUsageLabel = `提示词 ${promptProgressPercent}%`;
 
     const previewMentions = useMemo(
-        () => (canUseKnowledgeBase ? mentions : mentions.filter(m => m.type !== 'knowledge_base')),
-        [canUseKnowledgeBase, mentions]
+        () => filterMentionsByFeature(mentions, { knowledgeBaseEnabled: canUseKnowledgeBase, enabledDataSourceTypes }),
+        [canUseKnowledgeBase, enabledDataSourceTypes, mentions]
     );
     const canRequestPreview = shouldRequestChatPreview({ userId, isLoading, isSendingToList });
     const promptKbIdSet = useMemo(() => new Set(promptKnowledgeBases.map(kb => kb.id)), [promptKnowledgeBases]);
@@ -144,8 +159,8 @@ export function useComposerState(opts: UseComposerStateOptions) {
         }
         if (layerId === 'chart_context') {
             const parts: string[] = [];
-            if (selectedCharts?.bazi?.name) parts.push(`八字·${selectedCharts.bazi.name}`);
-            if (selectedCharts?.ziwei?.name) parts.push(`紫微·${selectedCharts.ziwei.name}`);
+            if (availableCharts.bazi?.name) parts.push(`八字·${availableCharts.bazi.name}`);
+            if (availableCharts.ziwei?.name) parts.push(`紫微·${availableCharts.ziwei.name}`);
             return parts.length > 0 ? `命盘·${parts.join(' / ')}` : '命盘';
         }
         if (layerId === 'base_rules') return '通用准则';
@@ -157,7 +172,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         if (layerId === 'dream_bazi') return '解梦·命盘信息';
         if (layerId === 'dream_fortune') return '解梦·今日运势';
         return layerId;
-    }, [mentionMap, kbNameMap, selectedCharts]);
+    }, [availableCharts, kbNameMap, mentionMap]);
 
     const readMentionCache = useCallback(<T,>(key: string): T | null => {
         return readLocalCache<T>(key, MENTION_CACHE_TTL_MS);
@@ -169,6 +184,14 @@ export function useComposerState(opts: UseComposerStateOptions) {
 
     const refreshMentionData = useCallback(async (fresh = false) => {
         if (!userId) return;
+        if (!canMentionAnything) {
+            setMentionDataSources([]);
+            setMentionKnowledgeBases([]);
+            setMentionDataSourceErrors([]);
+            setMentionLoadError(null);
+            setMentionLoading(false);
+            return;
+        }
         const dataKey = `mingai.data_sources.${userId}.v1`;
         const kbKey = `mingai.knowledge_bases.${userId}.v1`;
         try {
@@ -177,9 +200,11 @@ export function useComposerState(opts: UseComposerStateOptions) {
             const accessToken = session?.access_token;
 
             const [dsResp, kbResp] = await Promise.all([
-                fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`, {
-                    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
-                }),
+                canMentionDataSources
+                    ? fetch(`/api/data-sources?limit=50${fresh ? '&fresh=1' : ''}`, {
+                        headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
+                    })
+                    : Promise.resolve(null),
                 canUseKnowledgeBase
                     ? fetch('/api/knowledge-base', {
                         headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined
@@ -189,15 +214,18 @@ export function useComposerState(opts: UseComposerStateOptions) {
 
             setMentionLoadError(null);
 
-            if (dsResp.ok) {
+            if (dsResp?.ok) {
                 const ds = await dsResp.json() as { items?: DataSourceSummary[]; errors?: DataSourceLoadError[] };
                 const items = ds.items || [];
                 const errors = ds.errors || [];
                 setMentionDataSources(items);
                 setMentionDataSourceErrors(errors);
                 writeMentionCache(dataKey, { items, errors });
-            } else {
+            } else if (dsResp) {
                 setMentionLoadError('数据加载失败');
+            } else {
+                setMentionDataSources([]);
+                setMentionDataSourceErrors([]);
             }
 
             if (kbResp && kbResp.ok) {
@@ -215,7 +243,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         } finally {
             setMentionLoading(false);
         }
-    }, [canUseKnowledgeBase, userId, writeMentionCache]);
+    }, [canMentionAnything, canMentionDataSources, canUseKnowledgeBase, userId, writeMentionCache]);
 
     // --- Effects ---
     // Prompt preview fetch
@@ -242,11 +270,10 @@ export function useComposerState(opts: UseComposerStateOptions) {
         const loadPreview = async () => {
             setPromptPreviewLoading(true);
             try {
-                const chartIds = (hasBazi || hasZiwei) ? {
-                    baziId: hasBazi?.id,
-                    ziweiId: hasZiwei?.id,
-                    baziAnalysisMode: hasBazi?.analysisMode
-                } : undefined;
+                const chartIds = buildChatRequestChartIds(availableCharts, {
+                    baziEnabled,
+                    ziweiEnabled,
+                });
 
                 const resp = await fetch('/api/chat/preview', {
                     method: 'POST',
@@ -286,7 +313,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         return () => {
             abortController.abort();
         };
-    }, [canRequestPreview, selectedModel, reasoningEnabled, userId, previewMentions, contextMessages, hasBazi, hasZiwei, dreamMode]);
+    }, [availableCharts, baziEnabled, canRequestPreview, contextMessages, dreamMode, previewMentions, reasoningEnabled, selectedModel, userId, ziweiEnabled]);
 
     // Close diagnostics when no data
     useEffect(() => {
@@ -303,11 +330,14 @@ export function useComposerState(opts: UseComposerStateOptions) {
         const kbKey = `mingai.knowledge_bases.${userId}.v1`;
 
         const cachedDs = readMentionCache<{ items: DataSourceSummary[]; errors?: DataSourceLoadError[] }>(dataKey);
-        if (cachedDs?.items) {
+        if (canMentionDataSources && cachedDs?.items) {
             queueMicrotask(() => {
                 setMentionDataSources(cachedDs.items);
                 setMentionDataSourceErrors(cachedDs.errors || []);
             });
+        } else if (!canMentionDataSources) {
+            setMentionDataSources([]);
+            setMentionDataSourceErrors([]);
         }
 
         if (canUseKnowledgeBase) {
@@ -333,7 +363,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
             cancelled = true;
             window.removeEventListener('mingai:data-index:invalidate', onInvalidate as EventListener);
         };
-    }, [canUseKnowledgeBase, readMentionCache, refreshMentionData, userId]);
+    }, [canMentionDataSources, canUseKnowledgeBase, readMentionCache, refreshMentionData, userId]);
 
     return {
         // Refs
@@ -364,6 +394,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         promptPreviewUserTokens, setPromptPreviewUserTokens,
         // Derived
         canUseWeb, canUseBoth, canUseKnowledgeBase,
+        canMentionAnything,
         hasBazi, hasZiwei,
         promptUsageProgress, contextProgress,
         promptProgressPercent, contextProgressPercent,

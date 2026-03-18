@@ -165,6 +165,14 @@ function ChartList({
 }
 
 export default function ChartsPage() {
+    return (
+        <FeatureGate featureId="charts">
+            <ChartsContent />
+        </FeatureGate>
+    );
+}
+
+function ChartsContent() {
     const router = useRouter();
     const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
     const [ziweiCharts, setZiweiCharts] = useState<ChartItem[]>([]);
@@ -208,10 +216,7 @@ export default function ChartsPage() {
         fetchCharts();
     }, [router]);
 
-    const handleDelete = async (id: string, type: ChartType, e: MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+    const handleDelete = async (id: string, type: ChartType) => {
         try {
             await deleteUserChart(type, id);
         } catch (error) {
@@ -251,7 +256,6 @@ export default function ChartsPage() {
     };
 
     return (
-        <FeatureGate featureId="charts">
         <div className="md:min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-6 animate-fade-in">
                 {/* 桌面端头部 */}
@@ -318,10 +322,7 @@ export default function ChartsPage() {
                 isOpen={!!pendingDelete}
                 onClose={() => setPendingDelete(null)}
                 onConfirm={() => pendingDelete
-                    ? handleDelete(pendingDelete.id, pendingDelete.type, {
-                        preventDefault() {},
-                        stopPropagation() {},
-                    } as MouseEvent<HTMLButtonElement>)
+                    ? handleDelete(pendingDelete.id, pendingDelete.type)
                     : undefined}
                 title="确认删除"
                 description="确定要删除这个命盘吗？此操作无法撤销。"
@@ -329,6 +330,5 @@ export default function ChartsPage() {
                 variant="danger"
             />
         </div>
-        </FeatureGate>
     );
 }

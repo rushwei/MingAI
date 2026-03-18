@@ -35,6 +35,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
@@ -63,6 +64,7 @@ type LiuyaoQuestionSession = {
 export default function ResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [result, setResult] = useState<DivinationResult | null>(null);
     const [divinationId, setDivinationId] = useState<string | null>(null); // 保存的起卦记录 ID
     const [conversationId, setConversationId] = useState<string | null>(null);
@@ -388,7 +390,7 @@ export default function ResultPage() {
             icon: <RotateCw className="w-4 h-4" />,
             onClick: () => router.push('/liuyao'),
         });
-        if (divinationId) {
+        if (knowledgeBaseEnabled && divinationId) {
             items.push({
                 id: 'add-to-kb',
                 label: '加入知识库',
@@ -410,7 +412,7 @@ export default function ResultPage() {
         });
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [divinationId, showTraditional, router, setMenuItems, clearMenuItems]);
+    }, [divinationId, knowledgeBaseEnabled, showTraditional, router, setMenuItems, clearMenuItems]);
 
     useEffect(() => {
         if (!result || interpretation) return;
@@ -594,7 +596,7 @@ export default function ResultPage() {
                             <RotateCw className="w-3.5 h-3.5" />
                             重新起卦
                         </Link>
-                        {!!divinationId && (
+                        {knowledgeBaseEnabled && !!divinationId && (
                             <button
                                 type="button"
                                 onClick={() => setKbModalOpen(true)}
@@ -797,7 +799,7 @@ export default function ResultPage() {
                 </div>
             </div>
 
-            {divinationId && (
+            {knowledgeBaseEnabled && divinationId && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={() => setKbModalOpen(false)}

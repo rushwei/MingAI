@@ -3,18 +3,23 @@ import { NextRequest } from 'next/server';
 import { getProvider } from '@/lib/data-sources';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
+import { getDataSourceFeatureId } from '@/lib/data-sources/catalog';
+import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ type: string; id: string }> }
 ) {
+    const { type, id } = await params;
+    const featureError = await ensureFeatureRouteEnabled(getDataSourceFeatureId(type as DataSourceType));
+    if (featureError) return featureError;
+
     const auth = await requireUserContext(_request);
     if ('error' in auth) {
         return jsonError(auth.error.message, auth.error.status);
     }
     const user = auth.user;
 
-    const { type, id } = await params;
     try {
         const accessToken = await getAccessToken(_request);
         const authed = accessToken ? createAuthedClient(accessToken) : undefined;

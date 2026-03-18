@@ -14,7 +14,7 @@ import type {
     ViewItem, ViewModel, Level, MentionPopoverState,
     DataSourceSummary, KnowledgeBaseSummary,
 } from '@/components/chat/mention/mention-constants';
-import { DATA_SUBCATEGORY_DIVIDE } from '@/components/chat/mention/mention-constants';
+import { DATA_SUBCATEGORY_DIVIDE } from '@/components/chat/mention/mention-data-catalog';
 
 interface MentionItemListProps {
     view: ViewModel;

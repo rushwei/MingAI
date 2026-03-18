@@ -13,6 +13,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { Orbit, Gem, Dices, Brain, HeartHandshake } from 'lucide-react';
 import type { Conversation, ConversationSourceType } from '@/types';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { ConversationGroup } from '@/components/chat/sidebar/ConversationGroup';
 
 interface ConversationSidebarProps {
@@ -76,6 +77,7 @@ export function ConversationSidebar({
     onToggle,
     hasLoaded = true,
 }: ConversationSidebarProps) {
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
     const [actionConv, setActionConv] = useState<Conversation | null>(null);
@@ -426,14 +428,16 @@ export function ConversationSidebar({
                                             <span>重命名</span>
                                         </button>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={openArchive}
-                                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-background-secondary transition-colors text-sm flex items-center gap-2"
-                                    >
-                                        <Archive className="w-4 h-4 text-foreground-secondary" />
-                                        <span>{actionConv.isArchived ? '已归档' : '归档'}</span>
-                                    </button>
+                                    {knowledgeBaseEnabled && (
+                                        <button
+                                            type="button"
+                                            onClick={openArchive}
+                                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-background-secondary transition-colors text-sm flex items-center gap-2"
+                                        >
+                                            <Archive className="w-4 h-4 text-foreground-secondary" />
+                                            <span>{actionConv.isArchived ? '已归档' : '归档'}</span>
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={openDeleteView}
@@ -504,7 +508,7 @@ export function ConversationSidebar({
                 </div>
             )}
 
-            {archiveTarget && (
+            {knowledgeBaseEnabled && archiveTarget && (
                 <AddToKnowledgeBaseModal
                     open={true}
                     onClose={() => setArchiveTarget(null)}

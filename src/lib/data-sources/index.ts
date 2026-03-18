@@ -17,9 +17,13 @@ export type UserDataSourcesResult = {
     errors: Array<{ type: DataSourceType; message: string }>;
 };
 
-export async function getUserDataSourcesWithErrors(userId: string, ctx?: DataSourceQueryContext): Promise<UserDataSourcesResult> {
+export async function getUserDataSourcesWithErrors(
+    userId: string,
+    ctx?: DataSourceQueryContext,
+    types: readonly DataSourceType[] = DATA_SOURCE_TYPES
+): Promise<UserDataSourcesResult> {
     const errors: Array<{ type: DataSourceType; message: string }> = [];
-    const loaded = await Promise.all(DATA_SOURCE_TYPES.map(async (type) => await getProvider(type)));
+    const loaded = await Promise.all(types.map(async (type) => await getProvider(type)));
 
     const settled = await Promise.allSettled(loaded.map(async (provider) => {
         return await provider.list(userId, ctx);

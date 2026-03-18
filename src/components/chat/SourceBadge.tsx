@@ -8,15 +8,32 @@
 
 import Link from 'next/link';
 import { BookOpenText, AtSign, FileText } from 'lucide-react';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { getDataSourceFeatureId } from '@/lib/data-sources/catalog';
+import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/contracts';
 import type { InjectedSource } from '@/types';
 
-function getSourceHref(source: InjectedSource): string {
+function isDataSourceType(value: string): value is DataSourceType {
+    return DATA_SOURCE_TYPES.includes(value as DataSourceType);
+}
+
+function getSourceHref(
+    source: InjectedSource,
+    options: {
+        knowledgeBaseEnabled: boolean;
+        isFeatureEnabled: (featureId: string) => boolean;
+    }
+): string {
     if (source.type === 'knowledge_base') {
+        if (!options.knowledgeBaseEnabled) return '#';
         return `/api/knowledge-base/${source.id}`;
     }
     if (source.type === 'mention' || source.type === 'data_source') {
         const type = source.sourceType || '';
         if (!type) return '#';
+        if (!isDataSourceType(type)) return '#';
+        if (!options.isFeatureEnabled(getDataSourceFeatureId(type))) return '#';
         return `/api/data-sources/${encodeURIComponent(type)}/${encodeURIComponent(source.id)}`;
     }
     return '#';
@@ -29,15 +46,19 @@ function getSourceIcon(type: InjectedSource['type']) {
 }
 
 export function SourceBadge({ source }: { source: InjectedSource }) {
-    const href = getSourceHref(source);
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
+    const { isFeatureEnabled } = useFeatureToggles();
+    const href = getSourceHref(source, { knowledgeBaseEnabled, isFeatureEnabled });
     const icon = getSourceIcon(source.type);
+    const isInteractive = href !== '#';
 
     return (
         <Link
             href={href}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent/10 hover:bg-accent/20"
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${isInteractive ? 'bg-accent/10 hover:bg-accent/20' : 'bg-accent/5 text-foreground-secondary cursor-default pointer-events-none'}`}
             title={source.preview}
-            target={href.startsWith('/api/') ? '_blank' : undefined}
+            target={isInteractive && href.startsWith('/api/') ? '_blank' : undefined}
+            aria-disabled={!isInteractive}
         >
             {icon}
             <span className="max-w-[200px] truncate">{source.name}</span>

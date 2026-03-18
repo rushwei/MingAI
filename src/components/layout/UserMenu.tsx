@@ -23,6 +23,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { signOut, getUserProfile } from '@/lib/auth';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 import { getUserEmailDisplay } from '@/lib/user-email';
 import type { User as SupabaseUser } from '@/lib/auth';
@@ -81,7 +82,13 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
     const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const { isPaused: isPaymentPaused } = usePaymentPause();
-    const unreadCount = useNotificationUnreadCount(user.id);
+    const { isFeatureEnabled } = useFeatureToggles({ enabled: !collapsed });
+    const notificationsFeatureEnabled = isFeatureEnabled('notifications');
+    const upgradeFeatureEnabled = isFeatureEnabled('upgrade');
+    const chartsFeatureEnabled = isFeatureEnabled('charts');
+    const unreadCount = useNotificationUnreadCount(user.id, {
+        enabled: !collapsed && notificationsFeatureEnabled,
+    });
 
     const displayName = nickname || user.email?.split('@')[0] || '用户';
     const handle = getUserEmailDisplay(user) || 'user';
@@ -203,7 +210,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <User className="w-4.5 h-4.5 text-foreground-secondary" />
                             <span>我的</span>
                         </Link>
-                        {isPaymentPaused ? null : (
+                        {isPaymentPaused || !upgradeFeatureEnabled ? null : (
                             <Link
                                 href="/user/upgrade"
                                 onClick={() => setIsMenuOpen(false)}
@@ -213,27 +220,31 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                                 <span>订阅</span>
                             </Link>
                         )}
-                        <Link
-                            href="/user/notifications"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <Bell className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>消息</span>
-                            {unreadCount > 0 && (
-                                <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
-                                    {unreadCount > 99 ? '99+' : unreadCount}
-                                </span>
-                            )}
-                        </Link>
-                        <Link
-                            href="/user/charts"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
-                        >
-                            <Scroll className="w-4.5 h-4.5 text-foreground-secondary" />
-                            <span>命盘</span>
-                        </Link>
+                        {notificationsFeatureEnabled && (
+                            <Link
+                                href="/user/notifications"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                            >
+                                <Bell className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <span>消息</span>
+                                {unreadCount > 0 && (
+                                    <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
+                                )}
+                            </Link>
+                        )}
+                        {chartsFeatureEnabled && (
+                            <Link
+                                href="/user/charts"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                            >
+                                <Scroll className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <span>命盘</span>
+                            </Link>
+                        )}
                         <Link
                             href="/user/settings"
                             onClick={() => setIsMenuOpen(false)}

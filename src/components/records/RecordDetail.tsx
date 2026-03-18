@@ -29,6 +29,7 @@ import {
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
 // =====================================================
 // 记录表单模态框
@@ -531,6 +532,10 @@ export function KnowledgeBaseModal({
     onIngest,
     onClose,
 }: KnowledgeBaseModalProps) {
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
+
+    if (!knowledgeBaseEnabled) return null;
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-background/95 backdrop-blur-xl rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">

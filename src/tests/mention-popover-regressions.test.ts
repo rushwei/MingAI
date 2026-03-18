@@ -4,21 +4,18 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const mentionConstantsPath = resolve(process.cwd(), 'src/components/chat/mention/mention-constants.tsx');
+const iconCatalogPath = resolve(process.cwd(), 'src/lib/data-sources/icon-catalog.ts');
 
-test('MentionPopover module should keep qimen and daliuren icons available', async () => {
+test('MentionPopover module should reuse the shared data-source nav icon catalog', async () => {
   const source = await readFile(mentionConstantsPath, 'utf-8');
-  const importMatches = source.match(/from 'lucide-react';/g) || [];
 
-  assert.ok(importMatches.length >= 1, 'mention-constants should import from lucide-react');
-  assert.match(source, /BookOpen/u, 'mention-constants should import the daliuren icon');
-  assert.match(source, /Compass/u, 'mention-constants should import the qimen icon');
+  assert.match(source, /getDataSourceNavIcon/u, 'mention-constants should resolve icons through the shared nav icon catalog');
+  assert.match(source, /renderDataSourceNavIcon/u, 'mention-constants should funnel data-source icons through the nav icon helper');
 });
 
-test('MentionPopover constants should expose qimen and daliuren labels and icons', async () => {
-  const source = await readFile(mentionConstantsPath, 'utf-8');
+test('MentionPopover icon catalog should resolve icons through navigation registry lookups', async () => {
+  const source = await readFile(iconCatalogPath, 'utf-8');
 
-  assert.match(source, /qimen_chart:\s*'奇门遁甲'/u);
-  assert.match(source, /daliuren_divination:\s*'大六壬'/u);
-  assert.match(source, /qimen_chart:\s*<Compass className="w-4 h-4"\s*\/>/u);
-  assert.match(source, /daliuren_divination:\s*<BookOpen className="w-4 h-4"\s*\/>/u);
+  assert.match(source, /getNavItemById/u, 'icon-catalog should read icons from the navigation registry');
+  assert.match(source, /getDataSourceNavId\(type\)/u, 'icon-catalog should resolve the sidebar nav id from the shared data-source catalog first');
 });

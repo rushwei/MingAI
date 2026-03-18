@@ -31,6 +31,9 @@ export default function ChatPage() {
     const { isFeatureEnabled } = useFeatureToggles();
     const { user, loading: sessionLoading } = useSessionSafe();
     const knowledgeBaseEnabled = isFeatureEnabled('knowledge-base');
+    const aiPersonalizationEnabled = isFeatureEnabled('ai-personalization');
+    const baziEnabled = isFeatureEnabled('bazi');
+    const ziweiEnabled = isFeatureEnabled('ziwei');
 
     const {
         userId, credits, membership, promptKnowledgeBases,
@@ -38,6 +41,12 @@ export default function ChatPage() {
     } = useChatBootstrap({ user, sessionLoading, knowledgeBaseEnabled });
 
     const state = useChatState({ userId, sessionLoading, bootstrapLoading, router, searchParams });
+    const {
+        chartSelectorOpen,
+        setChartSelectorOpen,
+        chartFocusType,
+        setChartFocusType,
+    } = state;
 
     const messaging = useChatMessaging({
         state, userId, user, membership, credits,
@@ -48,7 +57,7 @@ export default function ChatPage() {
     // Mobile header menu items
     useEffect(() => {
         const menuItems = [];
-        if (isFeatureEnabled('ai-personalization')) {
+        if (aiPersonalizationEnabled) {
             menuItems.push({
                 id: 'ai-settings', label: '个性化',
                 icon: <MessageCircleHeart className="w-4 h-4" />,
@@ -64,8 +73,21 @@ export default function ChatPage() {
         }
         setMenuItems(menuItems);
         return () => clearMenuItems();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [knowledgeBaseEnabled, membership?.type]);
+    }, [aiPersonalizationEnabled, clearMenuItems, knowledgeBaseEnabled, membership?.type, router, setMenuItems]);
+
+    useEffect(() => {
+        if (chartSelectorOpen && !baziEnabled && !ziweiEnabled) {
+            setChartSelectorOpen(false);
+            setChartFocusType(undefined);
+            return;
+        }
+        if (chartFocusType === 'bazi' && !baziEnabled) {
+            setChartFocusType(ziweiEnabled ? 'ziwei' : undefined);
+        }
+        if (chartFocusType === 'ziwei' && !ziweiEnabled) {
+            setChartFocusType(baziEnabled ? 'bazi' : undefined);
+        }
+    }, [baziEnabled, chartFocusType, chartSelectorOpen, setChartFocusType, setChartSelectorOpen, ziweiEnabled]);
 
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
@@ -97,14 +119,20 @@ export default function ChatPage() {
                 onEditMessage={messaging.handleEditMessage}
                 onRegenerateResponse={messaging.handleRegenerateResponse}
                 onSwitchVersion={messaging.handleSwitchVersion}
-                onArchiveMessage={state.activeConversationId ? messaging.handleArchiveMessage : undefined}
+                onArchiveMessage={state.activeConversationId && knowledgeBaseEnabled ? messaging.handleArchiveMessage : undefined}
                 onSend={messaging.handleSend}
                 onStop={messaging.handleStop}
                 inputValue={state.inputValue}
                 onInputChange={state.setInputValue}
                 disabled={isCreditLocked}
                 selectedCharts={state.selectedCharts}
-                onSelectChart={(type) => { state.setChartFocusType(type); state.setChartSelectorOpen(true); }}
+                onSelectChart={(type) => {
+                    if (type === 'bazi' && !baziEnabled) return;
+                    if (type === 'ziwei' && !ziweiEnabled) return;
+                    if (!type && !baziEnabled && !ziweiEnabled) return;
+                    setChartFocusType(type);
+                    setChartSelectorOpen(true);
+                }}
                 onClearChart={(type) => { const next = { ...state.selectedCharts }; delete next[type]; state.setSelectedCharts(next); }}
                 selectedModel={state.selectedModel}
                 onModelChange={state.setSelectedModel}
@@ -122,7 +150,7 @@ export default function ChatPage() {
                 dreamContext={state.dreamContext}
                 dreamContextLoading={state.dreamContextLoading}
                 knowledgeBaseEnabled={knowledgeBaseEnabled}
-                aiPersonalizationEnabled={isFeatureEnabled('ai-personalization')}
+                aiPersonalizationEnabled={aiPersonalizationEnabled}
                 isPaymentPaused={isPaymentPaused}
                 isCreditLocked={isCreditLocked}
             >
@@ -138,14 +166,14 @@ export default function ChatPage() {
                 )}
             </ChatLayout>
 
-            {userId && state.chartSelectorOpen && (
+            {userId && chartSelectorOpen && (baziEnabled || ziweiEnabled) && (
                 <BaziChartSelector
-                    isOpen={state.chartSelectorOpen}
-                    onClose={() => { state.setChartSelectorOpen(false); state.setChartFocusType(undefined); }}
+                    isOpen={chartSelectorOpen}
+                    onClose={() => { setChartSelectorOpen(false); setChartFocusType(undefined); }}
                     onSelect={(charts) => state.setSelectedCharts(charts)}
                     userId={userId}
                     currentSelection={state.selectedCharts}
-                    focusType={state.chartFocusType}
+                    focusType={chartFocusType}
                 />
             )}
 

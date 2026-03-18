@@ -37,6 +37,7 @@ import { getBranchElement, getElementColor, getStemElement } from '@/lib/divinat
 import type { BaziChart, FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { loadUserChartBundle } from '@/lib/user/charts-client';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const scoreItems = [
     { key: 'overall', label: '综合运势', icon: Star, color: 'text-amber-500' },
@@ -65,6 +66,8 @@ function parseDateParam(dateStr: string | null): Date {
 
 function DailyPageContent() {
     const searchParams = useSearchParams();
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
     const [selectedDate, setSelectedDate] = useState(() => parseDateParam(searchParams.get('date')));
     const [baziChart, setBaziChart] = useState<BaziChart | null>(null);
     const [loading, setLoading] = useState(true);
@@ -118,13 +121,18 @@ function DailyPageContent() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
-                await loadUserCharts(session.user.id);
+                if (baziFeatureEnabled) {
+                    await loadUserCharts(session.user.id);
+                } else {
+                    setBaziChart(null);
+                    setLoading(false);
+                }
             } else {
                 setLoading(false);
             }
         };
         init();
-    }, [loadUserCharts]);
+    }, [baziFeatureEnabled, loadUserCharts]);
 
     // 当 URL 参数变化时同步日期
     useEffect(() => {
@@ -290,7 +298,7 @@ function DailyPageContent() {
                 </header> */}
 
                 {/* 命盘选择器弹窗 */}
-                {userId && (
+                {baziFeatureEnabled && userId && (
                     <ChartPickerModal
                         isOpen={showChartSelector}
                         onClose={() => setShowChartSelector(false)}
@@ -340,7 +348,7 @@ function DailyPageContent() {
                                 onGoToday={goToToday}
                                 isToday={isToday}
                                 chartName={baziChart?.name}
-                                onChartSelect={() => setShowChartSelector(true)}
+                                onChartSelect={baziFeatureEnabled ? () => setShowChartSelector(true) : undefined}
                                 isPersonalized={isPersonalized}
                                 dayStem={fortune.dayStem}
                                 dayBranch={fortune.dayBranch}

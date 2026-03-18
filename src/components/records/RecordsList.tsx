@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { MingRecord, RECORD_CATEGORIES } from '@/lib/records';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
 // =====================================================
 // 记录卡片组件
@@ -28,13 +29,15 @@ function RecordCard({
     onEdit,
     onDelete,
     onTogglePin,
-    onAddToKnowledgeBase
+    onAddToKnowledgeBase,
+    showKnowledgeBaseAction,
 }: {
     record: MingRecord;
     onEdit: () => void;
     onDelete: () => void;
     onTogglePin: () => void;
     onAddToKnowledgeBase: () => void;
+    showKnowledgeBaseAction: boolean;
 }) {
     const categoryInfo = RECORD_CATEGORIES.find(c => c.value === record.category);
 
@@ -112,13 +115,15 @@ function RecordCard({
                     >
                         <Pin className="w-4 h-4" />
                     </button>
-                    <button
-                        onClick={onAddToKnowledgeBase}
-                        className="p-2 text-foreground-secondary hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                        title="加入知识库"
-                    >
-                        <BookOpenText className="w-4 h-4" />
-                    </button>
+                    {showKnowledgeBaseAction && (
+                        <button
+                            onClick={onAddToKnowledgeBase}
+                            className="p-2 text-foreground-secondary hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            title="加入知识库"
+                        >
+                            <BookOpenText className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
                         onClick={onEdit}
                         className="p-2 text-foreground-secondary hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
@@ -167,6 +172,8 @@ export function RecordsList({
     onAddToKnowledgeBase,
     onCreateNew,
 }: RecordsListProps) {
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
+
     if (loading) {
         return <SoundWaveLoader variant="block" text="加载记录中" />;
     }
@@ -202,6 +209,7 @@ export function RecordsList({
                         onDelete={() => onDelete(record.id)}
                         onTogglePin={() => onTogglePin(record.id)}
                         onAddToKnowledgeBase={() => onAddToKnowledgeBase(record)}
+                        showKnowledgeBaseAction={knowledgeBaseEnabled}
                     />
                 ))}
             </div>

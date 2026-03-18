@@ -16,6 +16,9 @@ import { useToast } from '@/components/ui/Toast';
 import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
 import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 import { updateCurrentUserSettings } from '@/lib/user/settings';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { filterDataSourceItemsByFeature, getDataSourceFeatureId, getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
+import { sanitizeChatMentions } from '@/lib/chat/feature-normalization';
 import { useComposerState, type KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
 import { MentionManager } from '@/components/chat/composer/MentionManager';
 import { AttachmentBar } from '@/components/chat/composer/AttachmentBar';
@@ -92,12 +95,22 @@ export function ChatComposer({
     knowledgeBaseEnabled = true,
 }: ChatComposerProps) {
     const { showToast } = useToast();
+    const { isFeatureEnabled } = useFeatureToggles();
+    const canUseBaziChart = isFeatureEnabled('bazi');
+    const canUseZiweiChart = isFeatureEnabled('ziwei');
+    const enabledMentionDataSourceTypes = useMemo(
+        () => getEnabledDataSourceTypes(isFeatureEnabled),
+        [isFeatureEnabled]
+    );
 
     const state = useComposerState({
         userId, membershipType, selectedModel, reasoningEnabled,
         selectedCharts, mentions, contextMessages,
         isLoading, isSendingToList, dreamMode,
         knowledgeBaseEnabled, promptKnowledgeBases,
+        enabledDataSourceTypes: enabledMentionDataSourceTypes,
+        baziEnabled: canUseBaziChart,
+        ziweiEnabled: canUseZiweiChart,
     });
 
     const {
@@ -117,12 +130,48 @@ export function ChatComposer({
         promptProgressPercent, contextProgressPercent,
         hasPromptDiagnostics, displayLayers, displayUserMessageTokens,
         promptUsageLabel, promptPreviewLoading,
+        canMentionAnything,
         promptKbIdSet,
         formatLayerLabel, refreshMentionData,
     } = state;
 
     const hasFile = !!attachmentState?.file;
     const hasWebSearch = !!attachmentState?.webSearchEnabled;
+    const filteredMentionDataSources = useMemo(
+        () => filterDataSourceItemsByFeature(mentionDataSources, isFeatureEnabled),
+        [isFeatureEnabled, mentionDataSources]
+    );
+    const filteredMentionDataSourceErrors = useMemo(
+        () => filterDataSourceItemsByFeature(mentionDataSourceErrors, isFeatureEnabled),
+        [isFeatureEnabled, mentionDataSourceErrors]
+    );
+    const normalizedMentions = useMemo(
+        () => sanitizeChatMentions(mentions, {
+            knowledgeBaseEnabled: canUseKnowledgeBase,
+            enabledDataSourceTypes: enabledMentionDataSourceTypes,
+        }),
+        [canUseKnowledgeBase, enabledMentionDataSourceTypes, mentions]
+    );
+
+    useEffect(() => {
+        if (!onMentionsChange) return;
+        if (normalizedMentions.length !== mentions.length) {
+            onMentionsChange(normalizedMentions);
+            return;
+        }
+        for (let i = 0; i < mentions.length; i += 1) {
+            const current = mentions[i];
+            const normalized = normalizedMentions[i];
+            if (!normalized
+                || current.type !== normalized.type
+                || current.id !== normalized.id
+                || current.name !== normalized.name
+                || current.preview !== normalized.preview) {
+                onMentionsChange(normalizedMentions);
+                return;
+            }
+        }
+    }, [mentions, normalizedMentions, onMentionsChange]);
 
     // --- Event handlers ---
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,6 +304,12 @@ export function ChatComposer({
             }
         }
         const atIndex = findLastAtOutsideTokens(value, tokens);
+        if (!canMentionAnything) {
+            setMentionOpen(false);
+            setMentionQuery('');
+            setMentionStartIndex(null);
+            return;
+        }
         if (atIndex >= 0) {
             const prev = atIndex > 0 ? value[atIndex - 1] : '';
             const isEmailLike = !!prev && /[A-Za-z0-9._-]/.test(prev);
@@ -276,6 +331,10 @@ export function ChatComposer({
         if (!onMentionsChange) return;
         if (mention.type === 'knowledge_base' && !canUseKnowledgeBase) {
             showToast('info', '知识库仅限 Plus 以上会员使用');
+            return;
+        }
+        if (mention.type !== 'knowledge_base' && !isFeatureEnabled(getDataSourceFeatureId(mention.type))) {
+            showToast('info', '该数据来源已关闭');
             return;
         }
         const isDuplicate = mentions.some(m => m.id === mention.id && m.type === mention.type);
@@ -322,10 +381,11 @@ export function ChatComposer({
                     mentionOpen={mentionOpen}
                     setMentionOpen={setMentionOpen}
                     mentionQuery={mentionQuery}
-                    mentionDataSources={mentionDataSources}
+                    mentionDataSources={filteredMentionDataSources}
                     mentionKnowledgeBases={mentionKnowledgeBases}
+                    enabledDataSourceTypes={enabledMentionDataSourceTypes}
                     mentionLoadError={mentionLoadError}
-                    mentionDataSourceErrors={mentionDataSourceErrors}
+                    mentionDataSourceErrors={filteredMentionDataSourceErrors}
                     mentionLoading={mentionLoading}
                     mentionDefaultCategory={mentionDefaultCategory}
                     setMentionDefaultCategory={setMentionDefaultCategory}
@@ -410,6 +470,9 @@ export function ChatComposer({
                         dreamMode={dreamMode}
                         onDreamModeChange={onDreamModeChange}
                         userId={userId}
+                        canUseBaziChart={canUseBaziChart}
+                        canUseZiweiChart={canUseZiweiChart}
+                        canMentionAnything={canMentionAnything}
                         knowledgeBaseEnabled={knowledgeBaseEnabled}
                         canUseKnowledgeBase={canUseKnowledgeBase}
                         handleKnowledgeBaseOpen={handleKnowledgeBaseOpen}

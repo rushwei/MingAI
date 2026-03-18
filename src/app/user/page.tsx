@@ -212,9 +212,14 @@ export default function UserPage() {
     const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const { isPaused: isPaymentPaused } = usePaymentPause();
-    const { isFeatureEnabled } = useFeatureToggles();
-    const unreadCount = useNotificationUnreadCount(user?.id ?? null);
-    const effectiveUnreadCount = user ? unreadCount : 0;
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const checkinFeatureEnabled = !featureToggleLoading && isFeatureEnabled('checkin');
+    const notificationsFeatureEnabled = !featureToggleLoading && isFeatureEnabled('notifications');
+    const upgradeFeatureEnabled = !featureToggleLoading && isFeatureEnabled('upgrade');
+    const unreadCount = useNotificationUnreadCount(user?.id ?? null, {
+        enabled: notificationsFeatureEnabled,
+    });
+    const effectiveUnreadCount = user && notificationsFeatureEnabled ? unreadCount : 0;
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -264,50 +269,6 @@ export default function UserPage() {
                     }
                 }
 
-                // 获取用户等级信息
-                try {
-                    const levelStart = perfNow();
-                    const token = accessToken
-                        || (await supabase.auth.getSession()).data.session?.access_token;
-                    if (token && isMounted) {
-                        const levelUrl = getPerfEnabled()
-                            ? '/api/checkin?action=status&perf=1'
-                            : '/api/checkin?action=status';
-                        const levelRes = await fetch(levelUrl, {
-                            headers: { Authorization: `Bearer ${token}` },
-                        });
-                        const levelData = await levelRes.json();
-                        if (levelData.success && isMounted) {
-                            const resolvedLevel = levelData.data?.level || {
-                                level: 1,
-                                experience: 0,
-                                totalExperience: 0,
-                                title: '初学者',
-                            };
-                            setLevel(resolvedLevel);
-                            writeLevelCache(currentUser.id, resolvedLevel);
-                            // 保存签到状态
-                            if (levelData.data?.status) {
-                                setCheckinStatus({
-                                    todayCheckedIn: levelData.data.status.todayCheckedIn,
-                                    streakDays: levelData.data.status.streakDays,
-                                });
-                            }
-                        }
-                    }
-                    logPerf('level', levelStart);
-                } catch (levelError) {
-                    console.error('Error loading level:', levelError);
-                    // 出错时也设置默认等级
-                    if (isMounted) {
-                        setLevel({
-                            level: 1,
-                            experience: 0,
-                            totalExperience: 0,
-                            title: '初学者',
-                        });
-                    }
-                }
                 logPerf('total', totalStart);
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -360,6 +321,8 @@ export default function UserPage() {
                 lastUserId = null;
                 setProfile(null);
                 setMembership(null);
+                setLevel(null);
+                setCheckinStatus(null);
             }
         };
 
@@ -414,6 +377,72 @@ export default function UserPage() {
             window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
         };
     }, []);
+
+    useEffect(() => {
+        if (featureToggleLoading) {
+            return;
+        }
+
+        if (!user?.id || !checkinFeatureEnabled) {
+            return;
+        }
+
+        let isActive = true;
+
+        const loadCheckinStatus = async () => {
+            const levelStart = perfNow();
+            try {
+                const token = (await supabase.auth.getSession()).data.session?.access_token;
+                if (!token || !isActive) {
+                    return;
+                }
+                const levelUrl = getPerfEnabled()
+                    ? '/api/checkin?action=status&perf=1'
+                    : '/api/checkin?action=status';
+                const levelRes = await fetch(levelUrl, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const levelData = await levelRes.json();
+                if (!isActive) {
+                    return;
+                }
+                if (levelData.success) {
+                    const resolvedLevel = levelData.data?.level || {
+                        level: 1,
+                        experience: 0,
+                        totalExperience: 0,
+                        title: '初学者',
+                    };
+                    setLevel(resolvedLevel);
+                    writeLevelCache(user.id, resolvedLevel);
+                    setCheckinStatus(levelData.data?.status
+                        ? {
+                            todayCheckedIn: levelData.data.status.todayCheckedIn,
+                            streakDays: levelData.data.status.streakDays,
+                        }
+                        : null);
+                }
+                logPerf('level', levelStart);
+            } catch (levelError) {
+                console.error('Error loading level:', levelError);
+                if (isActive) {
+                    setLevel({
+                        level: 1,
+                        experience: 0,
+                        totalExperience: 0,
+                        title: '初学者',
+                    });
+                    setCheckinStatus(null);
+                }
+            }
+        };
+
+        void loadCheckinStatus();
+
+        return () => {
+            isActive = false;
+        };
+    }, [checkinFeatureEnabled, featureToggleLoading, user?.id]);
 
     // 退出登录状态
     const [signingOut, setSigningOut] = useState(false);
@@ -547,7 +576,7 @@ export default function UserPage() {
                     </div>
                     {isMembershipLoading ? (
                         <Skeleton className="h-7 w-16 rounded-xl flex-shrink-0" />
-                    ) : (
+                    ) : upgradeFeatureEnabled && !isPaymentPaused ? (
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
@@ -562,11 +591,22 @@ export default function UserPage() {
                                 }`}>
                             {membershipLabel}
                         </button>
+                    ) : (
+                        <span
+                            className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
+                                ? 'bg-purple-500/10 text-purple-500'
+                                : membership?.type === 'plus'
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-gray-500/10 text-gray-500'
+                                }`}
+                        >
+                            {membershipLabel}
+                        </span>
                     )}
                 </Link>
 
                 {/* 经验进度条（签到功能关闭时隐藏） */}
-                {isFeatureEnabled('checkin') && level && (
+                {checkinFeatureEnabled && level && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -595,7 +635,7 @@ export default function UserPage() {
                         </div>
                     </div>
                 )}
-                {isFeatureEnabled('checkin') && !level && isLevelLoading && (
+                {checkinFeatureEnabled && !level && isLevelLoading && (
                     <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -612,7 +652,7 @@ export default function UserPage() {
                 {isMembershipLoading && (
                     <Skeleton className="h-11 w-full rounded-xl mt-4" />
                 )}
-                {!isMembershipLoading && membership?.type === 'free' && !isPaymentPaused && (
+                {!isMembershipLoading && membership?.type === 'free' && !isPaymentPaused && upgradeFeatureEnabled && (
                     <Link
                         href="/user/upgrade"
                         className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
@@ -739,16 +779,20 @@ export default function UserPage() {
             </button>
 
             {/* 弹窗 */}
-            <CheckinModal
-                isOpen={showCheckinModal}
-                onClose={() => setShowCheckinModal(false)}
-                onCheckinSuccess={() => setCheckinStatus(prev => prev ? { ...prev, todayCheckedIn: true } : { todayCheckedIn: true, streakDays: 1 })}
-            />
+            {checkinFeatureEnabled && (
+                <CheckinModal
+                    isOpen={showCheckinModal}
+                    onClose={() => setShowCheckinModal(false)}
+                    onCheckinSuccess={() => setCheckinStatus(prev => prev ? { ...prev, todayCheckedIn: true } : { todayCheckedIn: true, streakDays: 1 })}
+                />
+            )}
 
-            <CalendarModal
-                isOpen={showCalendarModal}
-                onClose={() => setShowCalendarModal(false)}
-            />
+            {checkinFeatureEnabled && (
+                <CalendarModal
+                    isOpen={showCalendarModal}
+                    onClose={() => setShowCalendarModal(false)}
+                />
+            )}
 
         </div >
     );

@@ -3,6 +3,7 @@ import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { ingestFileAsService, backfillVectorsAsService } from '@/lib/knowledge-base/ingest';
 import { triggerVectorIndexCreation } from '@/lib/knowledge-base/vector-index';
 import { requireUserContext, jsonError, jsonOk, getSystemAdminClient } from '@/lib/api-utils';
+import { ensureFeatureRouteEnabled } from '@/lib/feature-gate-utils';
 
 function isAllowedFile(file: File) {
     if (file.type.startsWith('text/')) return true;
@@ -13,6 +14,8 @@ function isAllowedFile(file: File) {
 }
 
 export async function POST(request: NextRequest) {
+    const featureError = await ensureFeatureRouteEnabled('knowledge-base');
+    if (featureError) return featureError;
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
     const { user } = auth;

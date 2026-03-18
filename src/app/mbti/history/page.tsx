@@ -16,6 +16,7 @@ import { writeSessionJSON } from '@/lib/cache';
 import { PERSONALITY_BASICS, type MBTIType } from '@/lib/divination/mbti';
 import { getModelName } from '@/lib/ai/ai-config';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
 interface MBTIReading {
     id: string;
@@ -34,6 +35,7 @@ interface MBTIReading {
 
 export default function MBTIHistoryPage() {
     const router = useRouter();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [readings, setReadings] = useState<MBTIReading[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -260,18 +262,20 @@ export default function MBTIHistoryPage() {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setKbTarget(reading);
-                                                    setKbModalOpen(true);
-                                                }}
-                                                className="p-2 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors"
-                                                title="加入知识库"
-                                            >
-                                                <BookOpenText className="w-4 h-4" />
-                                            </button>
+                                            {knowledgeBaseEnabled && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setKbTarget(reading);
+                                                        setKbModalOpen(true);
+                                                    }}
+                                                    className="p-2 rounded-lg hover:bg-emerald-500/10 text-foreground-secondary hover:text-emerald-500 transition-colors"
+                                                    title="加入知识库"
+                                                >
+                                                    <BookOpenText className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={(event) => {
@@ -319,7 +323,7 @@ export default function MBTIHistoryPage() {
                 </div>
             )}
 
-            {kbTarget && (
+            {knowledgeBaseEnabled && kbTarget && (
                 <AddToKnowledgeBaseModal
                     open={kbModalOpen}
                     onClose={() => {

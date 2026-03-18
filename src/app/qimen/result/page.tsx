@@ -18,6 +18,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { supabase } from '@/lib/auth';
@@ -47,6 +48,7 @@ interface QimenSessionData extends QimenOutput {
 export default function QimenResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [result, setResult] = useState<QimenSessionData | null>(null);
     const [user, setUser] = useState<{ id: string } | null | undefined>(undefined);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
@@ -348,7 +350,7 @@ export default function QimenResultPage() {
                 <div className="relative bg-white/[0.02] border border-white/10 rounded-xl p-3 md:p-4 mb-4">
                     {/* 操作按钮 */}
                     <div className="absolute top-2 right-2 flex items-center gap-1">
-                        {result.chartId && (
+                        {knowledgeBaseEnabled && result.chartId && (
                             <button
                                 onClick={() => setShowKbModal(true)}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
@@ -519,7 +521,7 @@ export default function QimenResultPage() {
 
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
-            {result.chartId && (
+            {knowledgeBaseEnabled && result.chartId && (
                 <AddToKnowledgeBaseModal
                     open={showKbModal}
                     onClose={() => setShowKbModal(false)}

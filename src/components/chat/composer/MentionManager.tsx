@@ -12,6 +12,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { Mention } from '@/types';
 import { MentionPopover } from '@/components/chat/MentionPopover';
 import type { DataSourceSummary, DataSourceLoadError, KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
+import type { DataSourceType } from '@/lib/data-sources/types';
 
 interface MentionManagerProps {
     userId?: string | null;
@@ -21,6 +22,7 @@ interface MentionManagerProps {
     mentionQuery: string;
     mentionDataSources: DataSourceSummary[];
     mentionKnowledgeBases: KnowledgeBaseSummary[];
+    enabledDataSourceTypes: DataSourceType[];
     mentionLoadError: string | null;
     mentionDataSourceErrors: DataSourceLoadError[];
     mentionLoading: boolean;
@@ -41,6 +43,7 @@ export function MentionManager({
     mentionOpen, setMentionOpen,
     mentionQuery,
     mentionDataSources, mentionKnowledgeBases,
+    enabledDataSourceTypes,
     mentionLoadError, mentionDataSourceErrors,
     mentionLoading, mentionDefaultCategory, setMentionDefaultCategory,
     canUseKnowledgeBase, handleSelectMention,
@@ -145,6 +148,7 @@ export function MentionManager({
                         query={mentionQuery}
                         dataSources={mentionDataSources}
                         knowledgeBases={mentionKnowledgeBases}
+                        enabledDataSourceTypes={enabledDataSourceTypes}
                         loadError={mentionLoadError}
                         dataSourceErrors={mentionDataSourceErrors}
                         loading={mentionLoading}

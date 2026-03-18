@@ -17,6 +17,7 @@ import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { SourcePanel } from '@/components/chat/SourcePanel';
 import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
 export interface ChatMessageItemProps {
     message: ChatMessage;
@@ -469,6 +470,7 @@ function AIMessageActions({
     onArchiveMessage,
     setHoveredAction,
 }: AIMessageActionsProps) {
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const resolvedModelName = message.modelName || resolveClientModelName(message.model || '', message.model || '');
 
     return (
@@ -508,7 +510,7 @@ function AIMessageActions({
                     )}
                 </button>
             )}
-            {!!onArchiveMessage && (
+            {knowledgeBaseEnabled && !!onArchiveMessage && (
                 <button
                     onClick={() => onArchiveMessage(message)}
                     onMouseEnter={() => setHoveredAction(`archive-${message.id}`)}

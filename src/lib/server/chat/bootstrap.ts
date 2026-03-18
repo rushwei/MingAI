@@ -30,23 +30,31 @@ export async function buildChatBootstrap(
   userId: string,
 ): Promise<ChatBootstrapData> {
   const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
-  const [{ data: membershipRow }, { data: settingsRow }] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
-      .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('user_settings')
-      .select('prompt_kb_ids')
-      .eq('user_id', userId)
-      .maybeSingle(),
-  ]);
+  const { data: membershipRow } = await supabase
+    .from('users')
+    .select('id, membership, membership_expires_at, ai_chat_count, last_credit_restore_at')
+    .eq('id', userId)
+    .maybeSingle();
 
   const membership = buildMembershipInfo((membershipRow ?? null) as MembershipInfoSource | null);
+
+  if (membership?.type === 'free' || !knowledgeBaseFeatureEnabled) {
+    return {
+      userId,
+      membership,
+      promptKnowledgeBaseIds: [],
+      promptKnowledgeBases: [],
+    };
+  }
+
+  const { data: settingsRow } = await supabase
+    .from('user_settings')
+    .select('prompt_kb_ids')
+    .eq('user_id', userId)
+    .maybeSingle();
   const promptKbIds = toPromptKnowledgeBaseIds((settingsRow as PromptSettingsRow | null)?.prompt_kb_ids);
 
-  if (membership?.type === 'free' || !knowledgeBaseFeatureEnabled || promptKbIds.length === 0) {
+  if (promptKbIds.length === 0) {
     return {
       userId,
       membership,

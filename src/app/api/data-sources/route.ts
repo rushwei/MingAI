@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
 import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
 import { createMemoryCache } from '@/lib/cache';
+import { getFeatureToggles } from '@/lib/app-settings';
+import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 
 const CACHE_TTL_MS = 15_000;
 const cache = createMemoryCache<{ status: number; payload: unknown }>(CACHE_TTL_MS);
@@ -24,7 +26,9 @@ export async function GET(request: NextRequest) {
         })();
         const fresh = url.searchParams.get('fresh') === '1';
 
-        const cacheKey = `${user.id}:${limit}`;
+        const toggles = await getFeatureToggles();
+        const enabledTypes = getEnabledDataSourceTypes((featureId) => toggles[featureId] !== true);
+        const cacheKey = `${user.id}:${limit}:${enabledTypes.join(',')}`;
         const cached = cache.get(cacheKey);
         if (!fresh && cached) {
             return jsonOk(cached.payload as Record<string, unknown>, cached.status);
@@ -33,7 +37,7 @@ export async function GET(request: NextRequest) {
         const accessToken = await getAccessToken(request);
         const authed = accessToken ? createAuthedClient(accessToken) : undefined;
 
-        const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit });
+        const result = await getUserDataSourcesWithErrors(user.id, { client: authed, limit }, enabledTypes);
         const status = result.errors.length ? 206 : 200;
         cache.set(cacheKey, { status, payload: result });
         return jsonOk(result as unknown as Record<string, unknown>, status);

@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Search, Orbit, Star, Check } from 'lucide-react';
 import { getUserCharts } from '@/lib/user-charts';
+import { getNavItemById } from '@/lib/navigation/registry';
 
 interface ChartItem {
     id: string;
@@ -48,6 +49,8 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
 
     const baziSectionRef = useRef<HTMLDivElement>(null);
     const ziweiSectionRef = useRef<HTMLDivElement>(null);
+    const BaziNavIcon = getNavItemById('bazi')?.icon ?? Orbit;
+    const ZiweiNavIcon = getNavItemById('ziwei')?.icon ?? Star;
 
     // 滚动到指定类型
     useEffect(() => {
@@ -170,11 +173,9 @@ export function BaziChartSelector({ isOpen, onClose, onSelect, userId, currentSe
             >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${chart.type === 'bazi' ? 'bg-orange-500/10' : 'bg-purple-500/10'
                     }`}>
-                    {chart.type === 'bazi' ? (
-                        <Orbit className="w-4 h-4 text-orange-500" />
-                    ) : (
-                        <Star className="w-4 h-4 text-purple-500" />
-                    )}
+                    {chart.type === 'bazi'
+                        ? <BaziNavIcon className="w-4 h-4 text-orange-500" />
+                        : <ZiweiNavIcon className="w-4 h-4 text-purple-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{chart.name}</div>

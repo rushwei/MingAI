@@ -24,10 +24,13 @@ import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFo
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 import type { BaziChart, FortuneLevel } from '@/types';
 import { loadUserChartBundle } from '@/lib/user/charts-client';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 
 function MonthlyPageContent() {
+    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
+    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
@@ -80,13 +83,18 @@ function MonthlyPageContent() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
-                await loadUserCharts(session.user.id);
+                if (baziFeatureEnabled) {
+                    await loadUserCharts(session.user.id);
+                } else {
+                    setBaziChart(null);
+                    setLoading(false);
+                }
             } else {
                 setLoading(false);
             }
         };
         init();
-    }, [loadUserCharts]);
+    }, [baziFeatureEnabled, loadUserCharts]);
 
     // 计算月度运势
     const fortune = useMemo((): MonthlyFortune | null => {
@@ -253,7 +261,7 @@ function MonthlyPageContent() {
 
             <div className="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-6 relative z-20">
                 {/* 非个性化时的提示卡片 */}
-                {!isPersonalized && (
+                {!isPersonalized && baziFeatureEnabled && (
                     <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-amber-500/10 rounded-lg">
@@ -529,7 +537,7 @@ function MonthlyPageContent() {
             </div>
 
             {/* 命盘选择器弹窗 */}
-            {userId && (
+            {baziFeatureEnabled && userId && (
                 <ChartPickerModal
                     isOpen={showChartSelector}
                     onClose={() => setShowChartSelector(false)}

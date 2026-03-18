@@ -26,6 +26,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
+import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
@@ -38,6 +39,7 @@ function TarotResultContent() {
     const searchParams = useSearchParams();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const { showToast } = useToast();
+    const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const historyTimestamp = searchParams.get('t');
     const spreadId = searchParams.get('spreadId');
     const questionParam = searchParams.get('question');
@@ -366,7 +368,7 @@ function TarotResultContent() {
     // 设置移动端 Header 菜单项
     useEffect(() => {
         const items = [];
-        if (readingId) {
+        if (knowledgeBaseEnabled && readingId) {
             items.push({
                 id: 'add-to-kb',
                 label: '加入知识库',
@@ -384,7 +386,7 @@ function TarotResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [readingId, isShuffling, selectedSpread, setMenuItems, clearMenuItems]);
+    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, setMenuItems, clearMenuItems]);
 
     if (isLoading) {
         return (
@@ -428,7 +430,7 @@ function TarotResultContent() {
                     </button>
 
                     <div className="flex items-center gap-2">
-                        {!!readingId && (
+                        {knowledgeBaseEnabled && !!readingId && (
                             <button
                                 onClick={() => setKbModalOpen(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
@@ -692,7 +694,7 @@ function TarotResultContent() {
                 )
                 }
 
-                {readingId && (
+                {knowledgeBaseEnabled && readingId && (
                     <AddToKnowledgeBaseModal
                         open={kbModalOpen}
                         onClose={() => setKbModalOpen(false)}

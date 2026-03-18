@@ -28,6 +28,14 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function OrdersPage() {
+    return (
+        <FeatureGate featureId="orders">
+            <OrdersPageContent />
+        </FeatureGate>
+    );
+}
+
+function OrdersPageContent() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -125,7 +133,6 @@ export default function OrdersPage() {
     };
 
     return (
-        <FeatureGate featureId="orders">
         <div className="min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
                 {/* 桌面端头部 */}
@@ -201,6 +208,5 @@ export default function OrdersPage() {
                 )}
             </div>
         </div>
-        </FeatureGate>
     );
 }

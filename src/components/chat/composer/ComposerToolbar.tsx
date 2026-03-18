@@ -13,6 +13,7 @@ import type { MembershipType } from '@/lib/user/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { PromptPreview } from '@/components/chat/composer/PromptPreview';
 import type { PromptLayerDiagnostic } from '@/types';
+import { getNavItemById } from '@/lib/navigation/registry';
 
 interface ComposerToolbarProps {
     // Menu
@@ -35,6 +36,8 @@ interface ComposerToolbarProps {
     dreamMode: boolean;
     onDreamModeChange?: (enabled: boolean) => void;
     userId?: string | null;
+    canUseBaziChart: boolean;
+    canUseZiweiChart: boolean;
     // Knowledge base
     knowledgeBaseEnabled: boolean;
     canUseKnowledgeBase: boolean;
@@ -43,6 +46,7 @@ interface ComposerToolbarProps {
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     inputValue: string;
     onInputChange: (value: string) => void;
+    canMentionAnything: boolean;
     setMentionOpen: (open: boolean) => void;
     setMentionQuery: (query: string) => void;
     setMentionStartIndex: (index: number | null) => void;
@@ -77,9 +81,9 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         fileInputRef, hasFile, handleFileChange,
         hasWebSearch, canUseWeb, handleWebToggle,
         hasBazi, hasZiwei, onSelectChart, onClearChart,
-        dreamMode, onDreamModeChange, userId,
+        dreamMode, onDreamModeChange, userId, canUseBaziChart, canUseZiweiChart,
         knowledgeBaseEnabled, canUseKnowledgeBase, handleKnowledgeBaseOpen,
-        textareaRef, inputValue, onInputChange,
+        textareaRef, inputValue, onInputChange, canMentionAnything,
         setMentionOpen, setMentionQuery, setMentionStartIndex,
         promptPreviewLoading, hasPromptDiagnostics, promptDiagnosticsOpen,
         setPromptDiagnosticsOpen, contextProgressPercent, promptProgressPercent,
@@ -87,6 +91,8 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange, membershipType,
         disabled, isLoading, isSendingToList, dreamContextLoading, handleButtonClick,
     } = props;
+    const BaziNavIcon = getNavItemById('bazi')?.icon ?? Orbit;
+    const ZiweiNavIcon = getNavItemById('ziwei')?.icon ?? Sparkles;
 
     return (
         <div className="flex items-center justify-between border-border/50">
@@ -149,7 +155,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                         <span>{!canUseWeb ? '搜索 (Plus+)' : '搜索'}</span>
                                     </button>
                                 </div>
-                                {onSelectChart && (
+                                {onSelectChart && canUseBaziChart && (
                                     <div className={`flex items-center w-full rounded-lg transition-all ${hasBazi
                                         ? 'bg-orange-500/10 text-orange-600'
                                         : dreamMode
@@ -162,14 +168,14 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                                 if (dreamMode) return;
                                                 onSelectChart('bazi');
                                                 setMenuOpen(false);
-                                            }}
-                                            className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
-                                            disabled={disabled || dreamMode}
-                                        >
-                                            <Orbit className="w-4.5 h-4.5" />
-                                            <span className="truncate flex flex-col items-start text-left">
-                                                <span className="truncate w-full">{hasBazi?.name || '八字命盘'}</span>
-                                                {hasBazi?.analysisMode && (
+                                        }}
+                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
+                                        disabled={disabled || dreamMode}
+                                    >
+                                        <BaziNavIcon className="w-4.5 h-4.5" />
+                                        <span className="truncate flex flex-col items-start text-left">
+                                            <span className="truncate w-full">{hasBazi?.name || '八字命盘'}</span>
+                                            {hasBazi?.analysisMode && (
                                                     <span className="text-[11px] opacity-70">
                                                         {hasBazi.analysisMode === 'mangpai' ? '盲派分析' : '传统分析'}
                                                     </span>
@@ -191,7 +197,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                         )}
                                     </div>
                                 )}
-                                {onSelectChart && (
+                                {onSelectChart && canUseZiweiChart && (
                                     <div className={`flex items-center w-full rounded-lg transition-all ${hasZiwei
                                         ? 'bg-purple-500/10 text-purple-600'
                                         : dreamMode
@@ -204,13 +210,13 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                                 if (dreamMode) return;
                                                 onSelectChart('ziwei');
                                                 setMenuOpen(false);
-                                            }}
-                                            className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
-                                            disabled={disabled || dreamMode}
-                                        >
-                                            <Sparkles className="w-4.5 h-4.5" />
-                                            <span className="truncate">{hasZiwei?.name || '紫微命盘'}</span>
-                                        </button>
+                                        }}
+                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
+                                        disabled={disabled || dreamMode}
+                                    >
+                                        <ZiweiNavIcon className="w-4.5 h-4.5" />
+                                        <span className="truncate">{hasZiwei?.name || '紫微命盘'}</span>
+                                    </button>
                                         {hasZiwei && !disabled && (
                                             <button
                                                 type="button"
@@ -260,7 +266,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                         </button>
                                     </div>
                                 )}
-                                {!!userId && (
+                                {!!userId && canMentionAnything && (
                                     <button
                                         type="button"
                                         onClick={() => {
