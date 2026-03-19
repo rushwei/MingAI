@@ -153,6 +153,59 @@ test('daliuren page and history page should preserve timezone when restoring a c
   );
 });
 
+test('qimen and daliuren pages should use SoundWaveLoader for visible loading states instead of legacy spinners', async () => {
+  const [qimenPageSource, qimenResultSource, daliurenPageSource, daliurenResultSource] = await Promise.all([
+    readFile(qimenPagePath, 'utf-8'),
+    readFile(qimenResultPath, 'utf-8'),
+    readFile(daliurenPagePath, 'utf-8'),
+    readFile(daliurenResultPath, 'utf-8'),
+  ]);
+
+  assert.match(
+    qimenPageSource,
+    /SoundWaveLoader/u,
+    'qimen entry page should use SoundWaveLoader for the chart creation button',
+  );
+  assert.doesNotMatch(
+    qimenPageSource,
+    /Loader2/u,
+    'qimen entry page should not keep the old Loader2 spinner for chart creation',
+  );
+
+  assert.match(
+    daliurenPageSource,
+    /SoundWaveLoader/u,
+    'daliuren entry page should use SoundWaveLoader for the chart creation button',
+  );
+  assert.doesNotMatch(
+    daliurenPageSource,
+    /Loader2/u,
+    'daliuren entry page should not keep the old Loader2 spinner for chart creation',
+  );
+
+  assert.match(
+    qimenResultSource,
+    /SoundWaveLoader/u,
+    'qimen result page should use SoundWaveLoader for result and AI interpretation loading states',
+  );
+  assert.doesNotMatch(
+    qimenResultSource,
+    /Loader2|animate-spin/u,
+    'qimen result page should remove legacy spinner-based loading affordances',
+  );
+
+  assert.match(
+    daliurenResultSource,
+    /SoundWaveLoader/u,
+    'daliuren result page should use SoundWaveLoader for result and AI interpretation loading states',
+  );
+  assert.doesNotMatch(
+    daliurenResultSource,
+    /animate-spin/u,
+    'daliuren result page should remove legacy spinner-based loading affordances',
+  );
+});
+
 test('HistoryDrawer should continue supporting qimen and daliuren restores', async () => {
   const source = await readFile(historyDrawerPath, 'utf-8');
 

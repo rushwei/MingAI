@@ -109,6 +109,7 @@ export default function ChatPage() {
                 sidebarCollapsed={state.sidebarCollapsed}
                 onSidebarCollapse={state.setSidebarCollapsed}
                 conversationsLoading={state.conversationsLoading}
+                conversationLoading={state.conversationLoading}
                 hasLoadedConversations={state.hasLoadedConversations}
                 messages={state.messages}
                 isLoading={state.isLoading}

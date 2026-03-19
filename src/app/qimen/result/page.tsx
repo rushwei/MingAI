@@ -10,10 +10,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, Loader2, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
+import { Sparkles, RotateCw, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
@@ -307,10 +308,7 @@ export default function QimenResultPage() {
     if (!result) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center animate-fade-in">
-                    <Loader2 className="w-12 h-12 animate-spin text-indigo-500 mx-auto mb-4" />
-                    <p className="text-foreground-secondary text-lg">正在排盘...</p>
-                </div>
+                <SoundWaveLoader variant="block" text="正在排盘..." className="animate-fade-in" />
             </div>
         );
     }
@@ -448,7 +446,7 @@ export default function QimenResultPage() {
                                     className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
                                     title="重新分析"
                                 >
-                                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                    {isLoading ? <SoundWaveLoader variant="inline" /> : <RefreshCw className="w-4 h-4" />}
                                 </button>
                             )}
                         </div>
@@ -464,7 +462,7 @@ export default function QimenResultPage() {
                         <div>
                             {streaming.isStreaming && !streaming.content && !streaming.reasoning && !interpretation ? (
                                 <div className="flex items-center gap-2 py-6 justify-center text-foreground-secondary">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <SoundWaveLoader variant="inline" />
                                     <span className="text-sm">正在解读天机...</span>
                                 </div>
                             ) : (
@@ -510,8 +508,8 @@ export default function QimenResultPage() {
                                     disabled={isLoading}
                                     className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                                 >
-                                    <Sparkles className="w-4 h-4" />
-                                    获取 AI 深度解读
+                                    {isLoading ? <SoundWaveLoader variant="inline" /> : <Sparkles className="w-4 h-4" />}
+                                    <span>{isLoading ? '正在解读天机...' : '获取 AI 深度解读'}</span>
                                 </button>
                             )}
                         </div>

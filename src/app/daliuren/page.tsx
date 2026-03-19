@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { FeatureGate } from '@/components/layout/FeatureGate';
@@ -223,8 +224,8 @@ export default function DaliurenPage() {
                         >
                             {isLoading ? (
                                 <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    起课中...
+                                    <SoundWaveLoader variant="inline" />
+                                    <span>起课中...</span>
                                 </>
                             ) : '起课'}
                         </button>

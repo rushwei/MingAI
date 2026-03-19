@@ -9,7 +9,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { supabase } from '@/lib/auth';
@@ -259,8 +260,8 @@ export default function QimenPage() {
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                排盘中...
+                                <SoundWaveLoader variant="inline" />
+                                <span>排盘中...</span>
                             </>
                         ) : '起课'}
                     </button>

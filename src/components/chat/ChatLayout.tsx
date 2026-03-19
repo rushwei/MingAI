@@ -16,6 +16,7 @@ import { VirtualizedChatMessageList } from '@/components/chat/VirtualizedChatMes
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { ChatHeader } from '@/components/chat/ChatHeader';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { ChatBootstrapKnowledgeBase } from '@/lib/chat/bootstrap';
 import type { MembershipType } from '@/lib/user/membership';
 
@@ -35,6 +36,7 @@ interface ChatLayoutProps {
     sidebarCollapsed: boolean;
     onSidebarCollapse: (collapsed: boolean) => void;
     conversationsLoading: boolean;
+    conversationLoading: boolean;
     hasLoadedConversations: boolean;
 
     // Messages
@@ -90,7 +92,7 @@ export function ChatLayout(props: ChatLayoutProps) {
         conversations, activeConversationId, pendingSidebarTitle, generatingTitleConversationIds,
         onSelectConversation, onNewChat, onDeleteConversation, onRenameConversation,
         sidebarOpen, onSidebarClose, onSidebarToggle, sidebarCollapsed, onSidebarCollapse,
-        conversationsLoading, hasLoadedConversations,
+        conversationsLoading, conversationLoading, hasLoadedConversations,
         messages, isLoading, isSendingToList,
         messagesEndRef, messageScrollContainerRef, onMessageListScroll,
         onEditMessage, onRegenerateResponse, onSwitchVersion, onArchiveMessage,
@@ -146,7 +148,9 @@ export function ChatLayout(props: ChatLayoutProps) {
                     aiPersonalizationEnabled={aiPersonalizationEnabled}
                 />
 
-                {messages.length === 0 ? (
+                {conversationLoading ? (
+                    <SoundWaveLoader variant="block" text="加载中..." />
+                ) : messages.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
                         <p className="text-xl text-foreground-secondary mb-8 animate-fade-in-up">今天运势如何？</p>
                         {isCreditLocked && (

@@ -207,7 +207,7 @@ export function ModelSelector({
                         ) : (
                             getVendorIcon(currentModelConfig.vendor)
                         )}
-                        <span className={`${compact ? 'max-w-[96px]' : 'max-w-[125px]'} truncate`}>
+                        <span className={`${compact ? 'max-w-[104px]' : 'max-w-[125px]'} truncate`}>
                             {modelsLoading
                                 ? '模型加载中...'
                                 : models.length === 0

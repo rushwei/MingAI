@@ -24,6 +24,7 @@ export interface ChatStateReturn {
     conversations: Conversation[];
     setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
     conversationsLoading: boolean;
+    conversationLoading: boolean;
     hasLoadedConversations: boolean;
     setHasLoadedConversations: React.Dispatch<React.SetStateAction<boolean>>;
     pendingSidebarTitle: string | null;
@@ -135,6 +136,7 @@ export function useChatState({
     const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
     const [titleGeneratingConversationIds, setTitleGeneratingConversationIds] = useState<Set<string>>(new Set());
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [conversationLoading, setConversationLoading] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(() => false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
         typeof window !== 'undefined' && window.innerWidth >= 1024
@@ -206,6 +208,7 @@ export function useChatState({
         if (currentActiveConversationId && !list.find(c => c.id === currentActiveConversationId)) {
             activeConversationIdRef.current = null;
             setActiveConversationId(null);
+            setConversationLoading(false);
             setMessages([]);
         }
     }, [userId]);
@@ -232,6 +235,7 @@ export function useChatState({
                 setMessages([]);
                 activeConversationIdRef.current = null;
                 conversationSelectRequestRef.current += 1;
+                setConversationLoading(false);
                 setActiveConversationId(null);
                 setConversationsLoading(false);
                 setHasLoadedConversations(false);
@@ -276,10 +280,13 @@ export function useChatState({
 
         const runningMessages = chatStreamManager.getTaskMessages(id);
         if (runningMessages) {
+            setConversationLoading(false);
             setMessages(runningMessages);
         } else {
             const cachedConversation = conversationsRef.current.find(conv => conv.id === id);
-            setMessages(cachedConversation?.messages || []);
+            const cachedMessages = cachedConversation?.messages || [];
+            setConversationLoading(cachedMessages.length === 0);
+            setMessages(cachedMessages);
         }
 
         if (options?.updateUrl !== false && searchParams.get('id') !== id) {
@@ -288,8 +295,10 @@ export function useChatState({
 
         const conv = await loadConversation(id);
         if (requestId !== conversationSelectRequestRef.current) return;
+        setConversationLoading(false);
         if (!conv) {
             activeConversationIdRef.current = null;
+            setConversationLoading(false);
             setActiveConversationId(null);
             setMessages([]);
             conversationValidatedRef.current = false;
@@ -323,6 +332,7 @@ export function useChatState({
         shouldAutoScrollRef.current = true;
         conversationSelectRequestRef.current += 1;
         activeConversationIdRef.current = null;
+        setConversationLoading(false);
         setActiveConversationId(null);
         setMessages([]);
         setSelectedCharts({});
@@ -347,6 +357,7 @@ export function useChatState({
         if (activeConversationIdRef.current === id) {
             activeConversationIdRef.current = null;
             setActiveConversationId(null);
+            setConversationLoading(false);
             setMessages([]);
         }
         const success = await deleteConversation(id);
@@ -374,7 +385,7 @@ export function useChatState({
 
     return {
         conversations, setConversations,
-        conversationsLoading, hasLoadedConversations, setHasLoadedConversations,
+        conversationsLoading, conversationLoading, hasLoadedConversations, setHasLoadedConversations,
         pendingSidebarTitle, setPendingSidebarTitle,
         titleGeneratingConversationIds, setTitleGeneratingConversationIds,
         activeConversationId, setActiveConversationId,

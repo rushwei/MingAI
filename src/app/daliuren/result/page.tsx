@@ -12,6 +12,7 @@ import { readSessionJSON } from '@/lib/cache';
 import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useStreamingResponse } from '@/lib/hooks/useStreamingResponse';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
@@ -149,10 +150,7 @@ export default function DaliurenResultPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
-                    <p className="text-sm text-foreground-secondary">正在起课...</p>
-                </div>
+                <SoundWaveLoader variant="block" text="正在起课..." />
             </div>
         );
     }
@@ -303,7 +301,7 @@ export default function DaliurenResultPage() {
 
                     {streaming.isStreaming && (
                         <div className="flex items-center justify-center gap-2 mt-3 text-sm text-foreground-secondary">
-                            <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                            <SoundWaveLoader variant="inline" />
                             正在解读中...
                         </div>
                     )}
