@@ -4,7 +4,7 @@
  * 六爻占卜的核心数据结构，用于计算六亲、世应等
  */
 
-import { TRIGRAM_NA_JIA, type WuXing } from '@mingai/mcp-core/liuyao-core';
+import { TRIGRAM_NA_JIA, type WuXing } from '@mingai/core/liuyao-core';
 import { BRANCH_ELEMENTS } from '@/lib/divination/bazi';
 
 // 八宫名称

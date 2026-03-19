@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "pnpm -C packages/mcp-core build && pnpm -C packages/mcp-local build && pnpm -C packages/mcp-server build && NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/*.test.ts packages/mcp-core/tests/*.test.mjs packages/mcp-local/tests/*.test.mjs packages/mcp-server/tests/*.test.mjs",
-    "build:mcp-core": "pnpm -C packages/mcp-core build"
+    "test": "pnpm -C packages/core build && pnpm -C packages/mcp build && pnpm -C packages/mcp-server build && NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/*.test.ts packages/core/tests/*.test.mjs packages/mcp/tests/*.test.mjs packages/mcp-server/tests/*.test.mjs",
+    "build:core": "pnpm -C packages/core build"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
@@ -19,7 +19,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@lobehub/icons": "^4.0.2",
-    "@mingai/mcp-core": "workspace:*",
+    "@mingai/core": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",

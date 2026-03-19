@@ -4,14 +4,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
-const packageJsonPath = resolve(root, 'packages/mcp-core/package.json');
+const packageJsonPath = resolve(root, 'packages/core/package.json');
 const webBaziPath = resolve(root, 'src/lib/divination/bazi.ts');
 const diZhiRelationsPath = resolve(root, 'src/components/bazi/result/DiZhiRelations.tsx');
 const professionalTablePath = resolve(root, 'src/components/bazi/result/ProfessionalTable.tsx');
 const liuYueTablePath = resolve(root, 'src/components/bazi/result/LiuYueTable.tsx');
 const baziResultPagePath = resolve(root, 'src/app/bazi/result/page.tsx');
 
-test('mcp-core exposes browser-safe shared bazi utilities via a dedicated subpath export', () => {
+test('core exposes browser-safe shared bazi utilities via a dedicated subpath export', () => {
     const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
         exports?: Record<string, unknown>;
     };
@@ -19,11 +19,11 @@ test('mcp-core exposes browser-safe shared bazi utilities via a dedicated subpat
     assert.equal(
         typeof pkg.exports?.['./utils'],
         'object',
-        'shared bazi helpers should be reachable through @mingai/mcp-core/utils',
+        'shared bazi helpers should be reachable through @mingai/core/utils',
     );
 });
 
-test('mcp-core exposes browser-safe shared dayun calculation via a dedicated subpath export', () => {
+test('core exposes browser-safe shared dayun calculation via a dedicated subpath export', () => {
     const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
         exports?: Record<string, unknown>;
     };
@@ -31,11 +31,11 @@ test('mcp-core exposes browser-safe shared dayun calculation via a dedicated sub
     assert.equal(
         typeof pkg.exports?.['./dayun'],
         'object',
-        'shared dayun calculation should be reachable through @mingai/mcp-core/dayun',
+        'shared dayun calculation should be reachable through @mingai/core/dayun',
     );
 });
 
-test('mcp-core exposes browser-safe shared bazi calculation via a dedicated subpath export', () => {
+test('core exposes browser-safe shared bazi calculation via a dedicated subpath export', () => {
     const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
         exports?: Record<string, unknown>;
     };
@@ -43,12 +43,12 @@ test('mcp-core exposes browser-safe shared bazi calculation via a dedicated subp
     assert.equal(
         typeof pkg.exports?.['./bazi'],
         'object',
-        'shared bazi calculation should be reachable through @mingai/mcp-core/bazi',
+        'shared bazi calculation should be reachable through @mingai/core/bazi',
     );
 });
 
 test('shared bazi module exposes fortune shensha helper for web adapters', async () => {
-    const sharedBazi = await import('@mingai/mcp-core/bazi');
+    const sharedBazi = await import('@mingai/core/bazi');
 
     assert.equal(
         typeof sharedBazi.calculateBaziFortuneShenSha,
@@ -77,48 +77,48 @@ test('shared bazi module exposes fortune shensha helper for web adapters', async
     );
 });
 
-test('web bazi module imports shared primitive rules from mcp-core instead of redefining them locally', () => {
+test('web bazi module imports shared primitive rules from core instead of redefining them locally', () => {
     const source = readFileSync(webBaziPath, 'utf8');
 
     assert.match(
         source,
-        /from '@mingai\/mcp-core\/utils'/u,
-        'web bazi should reuse shared ganzhi helpers from @mingai/mcp-core/utils',
+        /from '@mingai\/core\/utils'/u,
+        'web bazi should reuse shared ganzhi helpers from @mingai/core/utils',
     );
     assert.match(
         source,
-        /from '@mingai\/mcp-core\/data\/shensha-data'/u,
-        'web bazi should reuse shared static rule tables from @mingai/mcp-core/data/shensha-data',
+        /from '@mingai\/core\/data\/shensha-data'/u,
+        'web bazi should reuse shared static rule tables from @mingai/core/data/shensha-data',
     );
     assert.match(
         source,
-        /from '@mingai\/mcp-core\/dayun'/u,
-        'web bazi should reuse shared dayun calculation from @mingai/mcp-core/dayun',
+        /from '@mingai\/core\/dayun'/u,
+        'web bazi should reuse shared dayun calculation from @mingai/core/dayun',
     );
     assert.match(
         source,
-        /from '@mingai\/mcp-core\/bazi'/u,
-        'web bazi should reuse shared bazi calculation from @mingai/mcp-core/bazi',
+        /from '@mingai\/core\/bazi'/u,
+        'web bazi should reuse shared bazi calculation from @mingai/core/bazi',
     );
     assert.match(
         source,
         /calculateBaziLiuYueData/u,
-        'web bazi should reuse shared bazi liuyue helpers from @mingai/mcp-core/bazi',
+        'web bazi should reuse shared bazi liuyue helpers from @mingai/core/bazi',
     );
     assert.match(
         source,
         /calculateBaziLiuRiData/u,
-        'web bazi should reuse shared bazi liuri helpers from @mingai/mcp-core/bazi',
+        'web bazi should reuse shared bazi liuri helpers from @mingai/core/bazi',
     );
     assert.match(
         source,
         /calculateBaziFiveElementsStats/u,
-        'web bazi should reuse shared bazi five-element aggregation from @mingai/mcp-core/bazi',
+        'web bazi should reuse shared bazi five-element aggregation from @mingai/core/bazi',
     );
     assert.match(
         source,
         /calculateBaziShenShaData/u,
-        'web bazi should reuse shared full shensha payload helpers from @mingai/mcp-core/bazi',
+        'web bazi should reuse shared full shensha payload helpers from @mingai/core/bazi',
     );
     assert.doesNotMatch(
         source,
@@ -233,7 +233,7 @@ test('bazi result page passes natal context into liuyue and liuri calculation so
 });
 
 test('shared bazi utils keep classical day-stem dishi rules for yin stems', async () => {
-    const sharedUtils = await import('@mingai/mcp-core/utils');
+    const sharedUtils = await import('@mingai/core/utils');
 
     assert.equal(
         typeof sharedUtils.getDiShi,

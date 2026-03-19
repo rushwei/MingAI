@@ -13,7 +13,7 @@ import {
     LIU_CHONG_TABLE,
     SAN_HE_TABLE,
 } from '@/lib/divination/bazi';
-import { getDiShi } from '@mingai/mcp-core/utils';
+import { getDiShi } from '@mingai/core/utils';
 import type { HeavenlyStem, BaziFormData, TenGod } from '@/types';
 
 // ===== 1. 十神计算 (calculateTenGod) =====

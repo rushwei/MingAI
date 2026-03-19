@@ -1,15 +1,15 @@
 /**
  * 奇门遁甲薄封装层
  *
- * 从 @mingai/mcp-core 导入核心排盘逻辑，
- * 将 mcp-core 输出转换为前端所需的数据结构。
+ * 从 @mingai/core 导入核心排盘逻辑，
+ * 将 core 输出转换为前端所需的数据结构。
  */
 
 import {
     handleQimenCalculate as coreCalculate,
     type QimenOutput as CoreOutput,
     type QimenInput as CoreInput,
-} from '@mingai/mcp-core/qimen';
+} from '@mingai/core/qimen';
 
 // ── 前端类型定义 ──
 

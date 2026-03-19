@@ -14,22 +14,22 @@ import {
     calculateBaziLiuRiData,
     calculateBaziLiuYueData,
     calculateBaziShenShaData,
-} from '@mingai/mcp-core/bazi';
-import { calculateDayunData } from '@mingai/mcp-core/dayun';
+} from '@mingai/core/bazi';
+import { calculateDayunData } from '@mingai/core/dayun';
 import {
     TIAN_GAN as CORE_TIAN_GAN,
     DI_ZHI as CORE_DI_ZHI,
     STEM_ELEMENTS as CORE_STEM_ELEMENTS,
     ZHI_WUXING as CORE_BRANCH_ELEMENTS,
     calculateTenGod as calculateTenGodCore,
-} from '@mingai/mcp-core/utils';
+} from '@mingai/core/utils';
 import {
     HIDDEN_STEM_DETAILS,
     LIU_CHONG as CORE_LIU_CHONG,
     LIU_HE as CORE_LIU_HE,
     LIU_HE_HUA,
     SAN_HE as CORE_SAN_HE,
-} from '@mingai/mcp-core/data/shensha-data';
+} from '@mingai/core/data/shensha-data';
 import type {
     BaziFormData,
     BaziChart,
@@ -530,7 +530,7 @@ export function calculateProfessionalData(
         isLeapMonth: formData.isLeapMonth,
     });
 
-    // 处理大运数据 - web 保留现有展示结构，但数据来源切到 mcp-core
+    // 处理大运数据 - web 保留现有展示结构，但数据来源切到 core
     const daYun: DaYunInfo[] = coreDayun.list.map((dy) => ({
         startYear: dy.startYear,
         startAge: dy.startAge,

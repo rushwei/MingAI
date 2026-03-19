@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleBaziCalculate } from '../../packages/mcp-core/src/handlers/bazi';
-import { handleZiweiCalculate } from '../../packages/mcp-core/src/handlers/ziwei';
-import { calculateTrueSolarTime } from '../../packages/mcp-core/src/handlers/ziwei-shared';
+import { handleBaziCalculate } from '../../packages/core/src/handlers/bazi';
+import { handleZiweiCalculate } from '../../packages/core/src/handlers/ziwei';
+import { calculateTrueSolarTime } from '../../packages/core/src/handlers/ziwei-shared';
 
 test('calculateTrueSolarTime should normalize rounded minutes instead of returning impossible :60 values', () => {
   const info = calculateTrueSolarTime(

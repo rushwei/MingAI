@@ -18,7 +18,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
 import type { ChatMessage } from '@/types';
-import type { DaliurenOutput } from '@mingai/mcp-core/daliuren';
+import type { DaliurenOutput } from '@mingai/core/daliuren';
 import { supabase } from '@/lib/auth';
 import { loadConversation } from '@/lib/chat/conversation';
 

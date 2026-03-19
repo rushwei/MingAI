@@ -4,7 +4,7 @@
  * 78张韦特塔罗牌完整数据，包含22张大阿卡纳和56张小阿卡纳
  */
 
-import { handleTarotDraw, type TarotCardResult } from '@mingai/mcp-core/tarot';
+import { handleTarotDraw, type TarotCardResult } from '@mingai/core/tarot';
 
 // 牌的类型
 export type TarotSuit = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';

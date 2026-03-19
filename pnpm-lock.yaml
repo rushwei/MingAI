@@ -32,9 +32,9 @@ importers:
       '@lobehub/icons':
         specifier: ^4.0.2
         version: 4.0.2(@lobehub/ui@4.12.0)(@types/react@19.2.7)(antd@6.1.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@mingai/mcp-core':
+      '@mingai/core':
         specifier: workspace:*
-        version: link:packages/mcp-core
+        version: link:packages/core
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -56,9 +56,6 @@ importers:
       iztro:
         specifier: ^2.5.4
         version: 2.5.4
-      liuren-ts-lib:
-        specifier: ^1.9.0
-        version: 1.9.0
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
@@ -86,9 +83,6 @@ importers:
       resend:
         specifier: ^6.7.0
         version: 6.7.0
-      tyme4ts:
-        specifier: ^1.4.4
-        version: 1.4.4
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4
@@ -115,7 +109,7 @@ importers:
         specifier: ^5
         version: 5.9.3
 
-  packages/mcp-core:
+  packages/core:
     dependencies:
       iztro:
         specifier: ^2.5.4
@@ -140,11 +134,11 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
-  packages/mcp-local:
+  packages/mcp:
     dependencies:
-      '@mingai/mcp-core':
+      '@mingai/core':
         specifier: workspace:*
-        version: link:../mcp-core
+        version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: 1.25.3
         version: 1.25.3(hono@4.11.7)(zod@4.3.4)
@@ -155,14 +149,14 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@mingai/mcp-core':
+      '@mingai/core':
         specifier: workspace:*
-        version: link:../mcp-core
+        version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: 1.25.3
         version: 1.25.3(hono@4.11.7)(zod@4.3.4)
       '@supabase/supabase-js':
-        specifier: ^2.49.4
+        specifier: ^2.89.0
         version: 2.89.0
       dotenv:
         specifier: ^17.2.3

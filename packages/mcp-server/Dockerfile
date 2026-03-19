@@ -9,14 +9,14 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 # 复制所有 packages
-COPY packages/mcp-core ./packages/mcp-core
+COPY packages/core ./packages/core
 COPY packages/mcp-server ./packages/mcp-server
 
 # 安装依赖（包括 devDependencies 用于构建）
 RUN pnpm install --frozen-lockfile
 
-# 构建 mcp-core
-WORKDIR /app/packages/mcp-core
+# 构建 core
+WORKDIR /app/packages/core
 RUN pnpm build
 
 # 构建 mcp-server

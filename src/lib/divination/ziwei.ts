@@ -1,7 +1,7 @@
 /**
  * 紫微斗数排盘核心逻辑
  *
- * web 侧保留展示/交互辅助，但主排盘真源来自 mcp-core。
+ * web 侧保留展示/交互辅助，但主排盘真源来自 core。
  */
 
 import {
@@ -9,7 +9,7 @@ import {
     calculateZiweiDecadalListWithAstrolabe,
     calculateZiweiHoroscopeDataWithAstrolabe,
     createAstrolabeWithTrueSolar,
-} from '@mingai/mcp-core/ziwei';
+} from '@mingai/core/ziwei';
 import type { Gender, CalendarType } from '@/types';
 
 type Astrolabe = ReturnType<typeof createAstrolabeWithTrueSolar>['astrolabe'];
@@ -280,7 +280,7 @@ export interface ZiweiHoroscope {
 // ===== 运限计算函数 =====
 
 /**
- * 获取指定日期的运限信息（复用 mcp-core shared horoscope helper）
+ * 获取指定日期的运限信息（复用 core shared horoscope helper）
  * 需要 rawAstrolabe 存在才能计算，已保存的命盘无法使用此功能
  */
 export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiHoroscope | null {

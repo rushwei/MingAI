@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
-const packageJsonPath = resolve(root, 'packages/mcp-core/package.json');
+const packageJsonPath = resolve(root, 'packages/core/package.json');
 const webZiweiPath = resolve(root, 'src/lib/divination/ziwei.ts');
 
-test('mcp-core exposes browser-safe shared ziwei calculation via a dedicated subpath export', () => {
+test('core exposes browser-safe shared ziwei calculation via a dedicated subpath export', () => {
     const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
         exports?: Record<string, unknown>;
     };
@@ -15,12 +15,12 @@ test('mcp-core exposes browser-safe shared ziwei calculation via a dedicated sub
     assert.equal(
         typeof pkg.exports?.['./ziwei'],
         'object',
-        'shared ziwei calculation should be reachable through @mingai/mcp-core/ziwei',
+        'shared ziwei calculation should be reachable through @mingai/core/ziwei',
     );
 });
 
 test('shared ziwei module exposes sync calculator and astrolabe helper for web adapters', async () => {
-    const sharedZiwei = await import('@mingai/mcp-core/ziwei');
+    const sharedZiwei = await import('@mingai/core/ziwei');
 
     assert.equal(
         typeof sharedZiwei.calculateZiweiData,
@@ -49,8 +49,8 @@ test('web ziwei module reuses shared core instead of local iztro chart and horos
 
     assert.match(
         source,
-        /from '@mingai\/mcp-core\/ziwei'/u,
-        'web ziwei should reuse shared ziwei helpers from @mingai/mcp-core/ziwei',
+        /from '@mingai\/core\/ziwei'/u,
+        'web ziwei should reuse shared ziwei helpers from @mingai/core/ziwei',
     );
     assert.match(
         source,

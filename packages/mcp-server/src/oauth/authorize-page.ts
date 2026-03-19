@@ -2,7 +2,7 @@
  * MCP OAuth 授权页面 HTML 模板
  */
 
-import { toolRegistry } from '@mingai/mcp-core';
+import { toolRegistry } from '@mingai/core';
 
 // 工具名到中文显示名的映射
 const TOOL_DISPLAY_NAMES: Record<string, string> = {

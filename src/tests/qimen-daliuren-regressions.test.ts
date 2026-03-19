@@ -14,7 +14,7 @@ const daliurenResultPath = resolve(process.cwd(), 'src/app/daliuren/result/page.
 const daliurenPagePath = resolve(process.cwd(), 'src/app/daliuren/page.tsx');
 const historyDrawerPath = resolve(process.cwd(), 'src/components/layout/HistoryDrawer.tsx');
 
-test('qimen wrapper should forward zhiFuJiGong to mcp-core using canonical core enum values', async () => {
+test('qimen wrapper should forward zhiFuJiGong to core using canonical core enum values', async () => {
   const source = await readFile(qimenWrapperPath, 'utf-8');
 
   assert.match(source, /zhiFuJiGong/u, 'wrapper should continue accepting zhiFuJiGong from the web layer');
@@ -63,7 +63,7 @@ test('qimen page, wrapper, and route should preserve timezone when calculating a
   assert.match(
     wrapperSource,
     /timezone:\s*input\.timezone/u,
-    'qimen wrapper should forward timezone into the mcp-core input',
+    'qimen wrapper should forward timezone into the core input',
   );
   assert.match(
     routeSource,

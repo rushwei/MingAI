@@ -1,7 +1,7 @@
 /**
  * 六爻格式化共享工具
  *
- * 核心常量与函数从 @mingai/mcp-core 导入，
+ * 核心常量与函数从 @mingai/core 导入，
  * 本文件补充 web 侧专用的格式化函数（如卦级分析行、旬空行等）。
  */
 
@@ -23,7 +23,7 @@ import {
 import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
 
-// 从 mcp-core 导入并 re-export 共享常量
+// 从 core 导入并 re-export 共享常量
 export {
     YONG_SHEN_STATUS_LABELS,
     YAO_POSITION_NAMES,
@@ -31,7 +31,7 @@ export {
     formatGanZhiTime,
     formatGuaLevelLines,
     sortYaosDescending,
-} from '@mingai/mcp-core/liuyao-core';
+} from '@mingai/core/liuyao-core';
 
 import {
     traditionalYaoName,
@@ -40,7 +40,7 @@ import {
     formatGanZhiTime,
     formatGuaLevelLines,
     sortYaosDescending,
-} from '@mingai/mcp-core/liuyao-core';
+} from '@mingai/core/liuyao-core';
 
 // ── 函数 ──
 

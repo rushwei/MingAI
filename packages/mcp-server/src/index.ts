@@ -24,11 +24,11 @@ import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 import {
   handleToolCall,
-} from '@mingai/mcp-core';
+} from '@mingai/core';
 import {
   buildListToolsPayload,
   buildToolSuccessPayload,
-} from '@mingai/mcp-core/transport';
+} from '@mingai/core/transport';
 import { createRequire } from 'node:module';
 
 import {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-test('root web scripts should not be blocked by mcp-core build presteps', async () => {
+test('root web scripts should not be blocked by core build presteps', async () => {
   const packageJson = JSON.parse(
     await readFile(resolve(process.cwd(), 'package.json'), 'utf-8')
   );
@@ -12,8 +12,8 @@ test('root web scripts should not be blocked by mcp-core build presteps', async 
     const script = packageJson.scripts?.[scriptName] ?? '';
     assert.doesNotMatch(
       script,
-      /packages\/mcp-core build/u,
-      `${scriptName} should not force a prebuild of packages/mcp-core`
+      /packages\/core build/u,
+      `${scriptName} should not force a prebuild of packages/core`
     );
   }
 });

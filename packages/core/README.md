@@ -1,0 +1,140 @@
+# @mingai/core
+
+MingAI 的 MCP 共享核心库，负责工具定义、结构化输出、Markdown 格式化与命理算法能力本体。
+
+它同时服务于：
+
+- [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp) `stdio` 本地 MCP Server
+- [`@mingai/mcp-server`](https://www.npmjs.com/package/@mingai/mcp-server) Streamable HTTP 在线 MCP Server
+- MingAI Web 端对共享命理算法的直接复用
+
+## 安装
+
+```bash
+npm install @mingai/core
+```
+
+## 核心能力
+
+- 11 个 MCP 工具的统一 schema、handler 与 formatter 注册
+- `json` / `markdown` 双输出模式
+- 当工具声明 `outputSchema` 时，统一返回 `structuredContent + content`
+- 面向 Web / Server / SDK 的共享 transport 适配器
+- 可按子路径直接导入八字、紫微、奇门、大六壬等能力
+
+## 工具列表
+
+| 工具 | 说明 |
+|------|------|
+| `bazi_calculate` | 八字排盘，支持阳历/农历、真太阳时、分柱神煞、空亡、刑冲合害 |
+| `bazi_pillars_resolve` | 四柱反推出生时间候选 |
+| `bazi_dayun` | 大运、小运、流年链路计算 |
+| `ziwei_calculate` | 紫微斗数排盘 |
+| `ziwei_horoscope` | 紫微运限 |
+| `ziwei_flying_star` | 紫微飞星与四化落宫分析 |
+| `liuyao` | 六爻排卦与分析 |
+| `tarot` | 塔罗抽牌 |
+| `almanac` | 黄历与择日信息 |
+| `qimen_calculate` | 奇门遁甲排盘，支持显式时区与寄宫配置 |
+| `daliuren` | 大六壬排盘，支持显式时区输入 |
+
+## 使用示例
+
+### 1. 直接按工具名分发
+
+```ts
+import { handleToolCall } from '@mingai/core';
+
+const result = await handleToolCall('qimen_calculate', {
+  year: 2026,
+  month: 3,
+  day: 19,
+  hour: 21,
+  minute: 30,
+  timezone: 'Asia/Shanghai',
+  responseFormat: 'json',
+});
+```
+
+### 2. 按子路径导入具体能力
+
+```ts
+import { handleDaliurenCalculate } from '@mingai/core/daliuren';
+
+const chart = handleDaliurenCalculate({
+  date: '2026-03-19',
+  hour: 9,
+  minute: 30,
+  timezone: 'Asia/Shanghai',
+});
+```
+
+### 3. 六爻调用要包含时间
+
+```ts
+import { handleToolCall } from '@mingai/core';
+
+const liuyao = await handleToolCall('liuyao', {
+  question: '本周项目推进是否顺利？',
+  yongShenTargets: ['官鬼'],
+  date: '2026-03-19T21:30:00',
+});
+```
+
+### 4. 复用统一输出适配
+
+```ts
+import { renderToolResult } from '@mingai/core';
+
+const rendered = renderToolResult('bazi_calculate', result, 'markdown');
+
+// rendered.content -> MCP 文本内容
+// rendered.structuredContent -> outputSchema 存在时的结构化数据
+```
+
+## 对外导出
+
+| 导出入口 | 用途 |
+|---------|------|
+| `@mingai/core` | `tools`、`toolRegistry`、`handleToolCall`、`renderToolResult`、`formatAsMarkdown` |
+| `@mingai/core/bazi` | 八字工具 handler |
+| `@mingai/core/dayun` | 大运工具 handler |
+| `@mingai/core/ziwei` | 紫微排盘与共享 helper |
+| `@mingai/core/qimen` | 奇门遁甲 handler |
+| `@mingai/core/daliuren` | 大六壬 handler |
+| `@mingai/core/tarot` | 塔罗抽牌能力 |
+| `@mingai/core/utils` | 共享工具函数 |
+| `@mingai/core/timezone-utils` | 命理时间与时区辅助函数 |
+| `@mingai/core/transport` | `buildListToolsPayload` / `buildToolSuccessPayload` |
+| `@mingai/core/liuyao-core` | 六爻共享核心 |
+
+## 输出约定
+
+所有工具都支持 `responseFormat`：
+
+- `json`: 返回结构化对象
+- `markdown`: 返回适合 AI 直接阅读的 Markdown 文本
+
+当工具定义包含 `outputSchema` 时：
+
+- `renderToolResult(...)` 会产出 `content`
+- `buildToolSuccessPayload(...)` 会同时附带 `structuredContent`
+
+这样 `@mingai/mcp` 与 `@mingai/mcp-server` 可以复用同一套响应约定，不再分别维护。
+
+## 版本批次
+
+| 版本 | 批次说明 |
+|------|----------|
+| `1.5.0` | 收口 `tool-schema` / `tool-registry` / `tool-output` / `transport`，补齐 `bazi` / `dayun` / `ziwei` / `qimen` / `daliuren` / `tarot` / `timezone-utils` 等子路径导出，统一 SDK 与服务端响应面 |
+| `1.4.0` | 新增 `daliuren` 大六壬能力，补齐时区校验、输出 schema 与 Markdown formatter |
+| `1.3.0` | 新增 `qimen_calculate` 奇门遁甲能力，支持显式时区、寄宫配置与扩展宫位元数据 |
+| `1.2.6` | 延续 `1.2.5` 做补丁发布，集中修复输出契约、六爻输入边界、紫微/黄历/大运边界与回归测试覆盖 |
+| `1.2.5` | 旧基线版本，作为本次版本重排的对比起点 |
+
+## 如果你想在 AI 客户端中直接使用
+
+不需要手动封装协议层，请直接使用：
+
+- [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp) 适合 Claude Desktop、Cursor 等本地客户端
+- [`@mingai/mcp-server`](https://www.npmjs.com/package/@mingai/mcp-server) 适合在线部署为 Streamable HTTP MCP 服务

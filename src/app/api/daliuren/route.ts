@@ -6,7 +6,7 @@
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
-import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/mcp-core/daliuren';
+import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/core/daliuren';
 
 interface DaliurenRequest {
     action: 'calculate' | 'interpret' | 'save';

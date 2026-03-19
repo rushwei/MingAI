@@ -2,11 +2,11 @@
  * Web 侧六爻兼容层
  *
  * 页面与交互只保留起卦辅助；
- * 核心排盘与断卦规则统一复用 mcp-core 的编译产物。
+ * 核心排盘与断卦规则统一复用 core 的编译产物。
  */
 
-import { XUN_KONG_TABLE as CORE_XUN_KONG_TABLE } from '@mingai/mcp-core/data/shensha-data';
-import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram as CoreHexagram } from '@mingai/mcp-core/data/hexagram-data';
+import { XUN_KONG_TABLE as CORE_XUN_KONG_TABLE } from '@mingai/core/data/shensha-data';
+import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram as CoreHexagram } from '@mingai/core/data/hexagram-data';
 import {
     calculateFullYaoInfo as calculateFullYaoInfoCore,
     calculateGanZhiTime as calculateGanZhiTimeCore,
@@ -38,7 +38,7 @@ import {
     type YaoType,
     type YongShenCandidate,
     type YongShenGroup,
-} from '@mingai/mcp-core/liuyao-core';
+} from '@mingai/core/liuyao-core';
 
 export type {
     ChangedYaoDetail,

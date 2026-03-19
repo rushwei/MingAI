@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { zonedTimeToUtc } from '@mingai/mcp-core/timezone-utils';
+import { zonedTimeToUtc } from '@mingai/core/timezone-utils';
 
 test('zonedTimeToUtc converts Asia/Shanghai local time to UTC', () => {
     const date = zonedTimeToUtc({
