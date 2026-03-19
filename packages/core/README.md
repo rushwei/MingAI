@@ -5,7 +5,6 @@ MingAI 的 MCP 共享核心库，负责工具定义、结构化输出、Markdown
 它同时服务于：
 
 - [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp) `stdio` 本地 MCP Server
-- [`@mingai/mcp-server`](https://www.npmjs.com/package/@mingai/mcp-server) Streamable HTTP 在线 MCP Server
 - MingAI Web 端对共享命理算法的直接复用
 
 ## 安装
@@ -13,14 +12,6 @@ MingAI 的 MCP 共享核心库，负责工具定义、结构化输出、Markdown
 ```bash
 npm install @mingai/core
 ```
-
-## 核心能力
-
-- 11 个 MCP 工具的统一 schema、handler 与 formatter 注册
-- `json` / `markdown` 双输出模式
-- 当工具声明 `outputSchema` 时，统一返回 `structuredContent + content`
-- 面向 Web / Server / SDK 的共享 transport 适配器
-- 可按子路径直接导入八字、紫微、奇门、大六壬等能力
 
 ## 工具列表
 
@@ -137,4 +128,3 @@ const rendered = renderToolResult('bazi_calculate', result, 'markdown');
 不需要手动封装协议层，请直接使用：
 
 - [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp) 适合 Claude Desktop、Cursor 等本地客户端
-- [`@mingai/mcp-server`](https://www.npmjs.com/package/@mingai/mcp-server) 适合在线部署为 Streamable HTTP MCP 服务

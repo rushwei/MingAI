@@ -80,7 +80,6 @@ node packages/mcp/dist/index.js
 ## 相关包
 
 - [`@mingai/core`](https://www.npmjs.com/package/@mingai/core): 共享算法、工具定义与 transport 适配器
-- [`@mingai/mcp-server`](https://www.npmjs.com/package/@mingai/mcp-server): 在线 Streamable HTTP MCP Server
 
 ## 版本批次
 
