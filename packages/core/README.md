@@ -13,6 +13,8 @@ MingAI 的 MCP 共享核心库，负责工具定义、结构化输出、Markdown
 npm install @mingai/core
 ```
 
+如需从 GitHub Packages 安装镜像包，请改用 `@hhszzzz/mingai-core`，并把 `@hhszzzz` scope 指向 `https://npm.pkg.github.com`。npmjs 主包名仍然是 `@mingai/core`。
+
 ## 工具列表
 
 | 工具 | 说明 |

@@ -91,6 +91,21 @@ npm install @mingai/core
 
 详见 [@mingai/core npm 页面](https://www.npmjs.com/package/@mingai/core) 与 [packages/core/README.md](packages/core/README.md)。
 
+### GitHub Packages 镜像
+
+npmjs 主包名仍然是 `@mingai/core` 和 `@mingai/mcp`。如果你想从当前 GitHub 仓库直接安装镜像包，请改用 GitHub owner scope，并加上 MingAI 前缀：
+
+- `@hhszzzz/mingai-core`
+- `@hhszzzz/mingai-mcp`
+
+```bash
+echo "@hhszzzz:registry=https://npm.pkg.github.com" >> .npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> .npmrc
+npm install @hhszzzz/mingai-core
+```
+
+如果是在 GitHub Actions 外部安装，这个 PAT 至少要有 `read:packages` 权限。如果是在 GitHub Actions 里使用，内置 `GITHUB_TOKEN` 就够了。仓库维护者可以直接运行 `.github/workflows/publish-github-packages.yml` 发布这两个镜像包。
+
 ---
 
 ## 🚀 快速开始

@@ -91,6 +91,21 @@ npm install @mingai/core
 
 See [@mingai/core on npm](https://www.npmjs.com/package/@mingai/core) and [packages/core/README.md](packages/core/README.md) for full API docs and subpath exports.
 
+### GitHub Packages Mirror
+
+The npmjs package names stay as `@mingai/core` and `@mingai/mcp`. If you want to install the GitHub Packages mirror from this repository, use the GitHub owner scope plus a MingAI-specific package prefix instead:
+
+- `@hhszzzz/mingai-core`
+- `@hhszzzz/mingai-mcp`
+
+```bash
+echo "@hhszzzz:registry=https://npm.pkg.github.com" >> .npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> .npmrc
+npm install @hhszzzz/mingai-core
+```
+
+Outside GitHub Actions, that PAT should include at least `read:packages`. For CI inside GitHub, the built-in `GITHUB_TOKEN` is enough. Repository owners can publish the mirror packages from `.github/workflows/publish-github-packages.yml`.
+
 ---
 
 ## 🚀 Quick Start

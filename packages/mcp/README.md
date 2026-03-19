@@ -22,6 +22,8 @@ MingAI 的本地 `stdio` MCP Server，适合直接接入 Claude Desktop、Cursor
 - 本机已安装 [Node.js](https://nodejs.org/)
 - 客户端支持 MCP `stdio` 连接方式
 
+如需从 GitHub Packages 安装镜像包，请改用 `@hhszzzz/mingai-mcp`，并把 `@hhszzzz` scope 指向 `https://npm.pkg.github.com`。npmjs 主包名仍然是 `@mingai/mcp`。
+
 ## 可用工具
 
 | 工具 | 说明 |
