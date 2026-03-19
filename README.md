@@ -78,12 +78,18 @@ Add to your Claude Desktop / Cursor MCP config — no manual download needed, ju
 | `liuyao` | Liuyao divination (auto-casting / custom hexagram / time-based / number-based, with nuclear/opposite/reversed hexagrams) | "I want to divine my career luck this year." |
 | `tarot` | Draw Tarot cards (9 spreads, 78 cards with independent reversed keywords, astrological/elemental correspondences) | "Please draw a Tarot card for my recent love fortune." |
 | `almanac` | Daily almanac & calendar query (directions, 12 hourly fortunes, 28 mansions) | "How is today's almanac? Is it suitable for a proposal?" |
+| `qimen_calculate` | Qimen Dunjia charting (palaces, gates, stars, gods, dun type, ju number, explicit timezone) | "Use Qimen Dunjia to see whether today's negotiation is favorable." |
+| `daliuren` | Da Liu Ren charting (four lessons, three transmissions, heavenly plate, generals, explicit timezone) | "Use Da Liu Ren to analyze the outcome of this matter." |
 
 ### SDK
 
 If you want to call the calculation engine directly in your own Node.js project (without MCP), use the core library:
 
-See [@mingai/mcp-core on npm](https://www.npmjs.com/package/@mingai/mcp-core) for full API docs.
+```bash
+npm install @mingai/core
+```
+
+See [@mingai/core on npm](https://www.npmjs.com/package/@mingai/core) and [packages/core/README.md](packages/core/README.md) for full API docs and subpath exports.
 
 ---
 

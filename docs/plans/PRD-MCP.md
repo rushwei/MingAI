@@ -21,7 +21,7 @@ MingAI/
 │       └── fortune.ts           # 运势
 │
 ├── packages/
-│   ├── mcp-core/                # 共享 MCP 逻辑
+│   ├── core/                # 共享 MCP 逻辑
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── src/
@@ -36,7 +36,7 @@ MingAI/
 │   │       │   └── fortune.ts
 │   │       └── types.ts         # 类型定义
 │   │
-│   ├── mcp-local/               # 本地 MCP Server (stdio)
+│   ├── mcp/               # 本地 MCP Server (stdio)
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── src/
@@ -334,11 +334,11 @@ MingAI/
 
 ## 3. 核心实现
 
-### 3.1 mcp-core 包
+### 3.1 core 包
 
 **关键设计**: MCP 工具的输出直接复用现有的 `formatForAI` 方法和 `generateXxxChartText` 函数，确保输出格式与项目中传给 AI 的内容完全一致。
 
-**文件**: `packages/mcp-core/src/handlers/bazi.ts`
+**文件**: `packages/core/src/handlers/bazi.ts`
 
 ```typescript
 import { calculateBazi, calculateProfessionalData } from '../../../src/lib/bazi';
@@ -385,7 +385,7 @@ export async function handleBaziCalculate(input: BaziInput) {
 }
 ```
 
-**文件**: `packages/mcp-core/src/handlers/ziwei.ts`
+**文件**: `packages/core/src/handlers/ziwei.ts`
 
 ```typescript
 import { calculateZiwei, getDecadalList } from '../../../src/lib/ziwei';
@@ -422,7 +422,7 @@ export async function handleZiweiCalculate(input: ZiweiInput) {
 }
 ```
 
-**文件**: `packages/mcp-core/src/handlers/tarot.ts`
+**文件**: `packages/core/src/handlers/tarot.ts`
 
 ```typescript
 import { drawForSpread, TAROT_SPREADS } from '../../../src/lib/tarot';
@@ -452,7 +452,7 @@ export async function handleTarotDraw(input: TarotInput) {
 }
 ```
 
-**文件**: `packages/mcp-core/src/handlers/liuyao.ts`
+**文件**: `packages/core/src/handlers/liuyao.ts`
 
 ```typescript
 import {
@@ -520,7 +520,7 @@ export async function handleLiuyaoAnalyze(input: LiuyaoInput) {
 }
 ```
 
-**文件**: `packages/mcp-core/src/handlers/fortune.ts`
+**文件**: `packages/core/src/handlers/fortune.ts`
 
 ```typescript
 import { calculateDailyFortune, getAlmanac } from '../../../src/lib/fortune';
@@ -584,13 +584,13 @@ export async function handleDailyFortune(input: FortuneInput) {
 
 ### 3.2 本地 MCP Server (stdio)
 
-**文件**: `packages/mcp-local/src/index.ts`
+**文件**: `packages/mcp/src/index.ts`
 
 ```typescript
 #!/usr/bin/env node
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { tools, handleToolCall } from '@mingai/mcp-core';
+import { tools, handleToolCall } from '@mingai/core';
 
 const server = new McpServer(
   { name: 'mingai-mcp', version: '1.0.0' },
@@ -624,7 +624,7 @@ await server.connect(transport);
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { tools, handleToolCall } from '@mingai/mcp-core';
+import { tools, handleToolCall } from '@mingai/core';
 import { authMiddleware, rateLimitMiddleware } from './middleware';
 
 const app = express();
@@ -684,7 +684,7 @@ export function rateLimitMiddleware(req, res, next) {
   "mcpServers": {
     "mingai": {
       "command": "npx",
-      "args": ["-y", "@mingai/mcp-local"]
+      "args": ["-y", "@mingai/mcp"]
     }
   }
 }
@@ -696,7 +696,7 @@ export function rateLimitMiddleware(req, res, next) {
   "mcpServers": {
     "mingai": {
       "command": "node",
-      "args": ["/path/to/MingAI/packages/mcp-local/dist/index.js"]
+      "args": ["/path/to/MingAI/packages/mcp/dist/index.js"]
     }
   }
 }
@@ -784,21 +784,21 @@ packages:
 
 1. 创建 `packages/` 目录结构
 2. 配置 `pnpm-workspace.yaml`
-3. 创建 `mcp-core` 包基础结构
+3. 创建 `core` 包基础结构
 4. 安装 MCP SDK: `@modelcontextprotocol/sdk`
 
 ### 第二阶段：核心逻辑
 
-1. 实现 `mcp-core/src/tools.ts` - 工具定义
-2. 实现 `mcp-core/src/handlers/bazi.ts` - 八字处理器
-3. 实现 `mcp-core/src/handlers/ziwei.ts` - 紫微处理器
-4. 实现 `mcp-core/src/handlers/liuyao.ts` - 六爻处理器
-5. 实现 `mcp-core/src/handlers/tarot.ts` - 塔罗处理器
-6. 实现 `mcp-core/src/handlers/fortune.ts` - 运势处理器
+1. 实现 `core/src/tools.ts` - 工具定义
+2. 实现 `core/src/handlers/bazi.ts` - 八字处理器
+3. 实现 `core/src/handlers/ziwei.ts` - 紫微处理器
+4. 实现 `core/src/handlers/liuyao.ts` - 六爻处理器
+5. 实现 `core/src/handlers/tarot.ts` - 塔罗处理器
+6. 实现 `core/src/handlers/fortune.ts` - 运势处理器
 
 ### 第三阶段：本地 Server
 
-1. 创建 `mcp-local` 包
+1. 创建 `mcp` 包
 2. 实现 stdio 入口
 3. 本地测试
 
@@ -819,20 +819,20 @@ packages:
 | 文件 | 功能 |
 |------|------|
 | `pnpm-workspace.yaml` | Workspace 配置 |
-| `packages/mcp-core/package.json` | 核心包配置 |
-| `packages/mcp-core/tsconfig.json` | TS 配置 |
-| `packages/mcp-core/src/index.ts` | 主导出 |
-| `packages/mcp-core/src/tools.ts` | 工具定义 |
-| `packages/mcp-core/src/types.ts` | 类型定义 |
-| `packages/mcp-core/src/handlers/index.ts` | 处理器导出 |
-| `packages/mcp-core/src/handlers/bazi.ts` | 八字处理器 |
-| `packages/mcp-core/src/handlers/ziwei.ts` | 紫微处理器 |
-| `packages/mcp-core/src/handlers/liuyao.ts` | 六爻处理器 |
-| `packages/mcp-core/src/handlers/tarot.ts` | 塔罗处理器 |
-| `packages/mcp-core/src/handlers/fortune.ts` | 运势处理器 |
-| `packages/mcp-local/package.json` | 本地包配置 |
-| `packages/mcp-local/tsconfig.json` | TS 配置 |
-| `packages/mcp-local/src/index.ts` | stdio 入口 |
+| `packages/core/package.json` | 核心包配置 |
+| `packages/core/tsconfig.json` | TS 配置 |
+| `packages/core/src/index.ts` | 主导出 |
+| `packages/core/src/tools.ts` | 工具定义 |
+| `packages/core/src/types.ts` | 类型定义 |
+| `packages/core/src/handlers/index.ts` | 处理器导出 |
+| `packages/core/src/handlers/bazi.ts` | 八字处理器 |
+| `packages/core/src/handlers/ziwei.ts` | 紫微处理器 |
+| `packages/core/src/handlers/liuyao.ts` | 六爻处理器 |
+| `packages/core/src/handlers/tarot.ts` | 塔罗处理器 |
+| `packages/core/src/handlers/fortune.ts` | 运势处理器 |
+| `packages/mcp/package.json` | 本地包配置 |
+| `packages/mcp/tsconfig.json` | TS 配置 |
+| `packages/mcp/src/index.ts` | stdio 入口 |
 | `packages/mcp-server/package.json` | 线上包配置 |
 | `packages/mcp-server/tsconfig.json` | TS 配置 |
 | `packages/mcp-server/src/index.ts` | HTTP 入口 |
@@ -848,11 +848,11 @@ packages:
 
 ```bash
 # 1. 构建
-cd packages/mcp-core && pnpm build
-cd packages/mcp-local && pnpm build
+cd packages/core && pnpm build
+cd packages/mcp && pnpm build
 
 # 2. 测试 stdio
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node packages/mcp-local/dist/index.js
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node packages/mcp/dist/index.js
 
 # 3. 配置 Cherry Studio 并测试
 ```
@@ -885,8 +885,8 @@ curl -i -X POST -H "x-api-key: your-key" -H "Content-Type: application/json" -d 
 
 ## 8. 注意事项
 
-1. **依赖处理**: `lunar-javascript` 和 `iztro` 需要在 mcp-core 中正确引用
+1. **依赖处理**: `lunar-javascript` 和 `iztro` 需要在 core 中正确引用
 2. **路径别名**: 需要配置 tsconfig paths 或使用相对路径
-3. **类型导出**: 确保 src/types 中的类型可被 mcp-core 使用
-4. **构建顺序**: mcp-core → mcp-local/mcp-server
+3. **类型导出**: 确保 src/types 中的类型可被 core 使用
+4. **构建顺序**: core → mcp/mcp-server
 5. **环境变量**: 线上版本需要配置 SUPABASE_URL/SUPABASE_ANON_KEY

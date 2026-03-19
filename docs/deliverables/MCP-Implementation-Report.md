@@ -47,8 +47,8 @@ MingAI 是一个 AI 驱动的中国传统命理平台，提供八字、紫微斗
 ```
 MingAI/
 ├── packages/
-│   ├── mcp-core/          # 核心共享逻辑（工具定义、处理器）
-│   ├── mcp-local/         # 本地 MCP Server (stdio 模式)
+│   ├── core/          # 核心共享逻辑（工具定义、处理器）
+│   ├── mcp/         # 本地 MCP Server (stdio 模式)
 │   └── mcp-server/        # 线上 MCP Server (Streamable HTTP 模式)
 └── pnpm-workspace.yaml    # Workspace 配置
 ```
@@ -57,12 +57,12 @@ MingAI/
 
 ```
 ┌─────────────────┐
-│   mcp-local     │──────┐
+│   mcp     │──────┐
 │   (stdio)       │      │
 └─────────────────┘      │
                          ▼
                   ┌─────────────────┐
-                  │    mcp-core     │
+                  │    core     │
                   │  (核心逻辑)      │
                   └─────────────────┘
                          ▲
@@ -74,8 +74,8 @@ MingAI/
 
 ### 2.3 核心设计原则
 
-1. **关注点分离**: 核心逻辑与传输层分离，mcp-core 专注于业务逻辑，mcp-local/mcp-server 专注于通信
-2. **代码复用**: 所有工具定义和处理器在 mcp-core 中实现，两种运行模式共享同一套代码
+1. **关注点分离**: 核心逻辑与传输层分离，core 专注于业务逻辑，mcp/mcp-server 专注于通信
+2. **代码复用**: 所有工具定义和处理器在 core 中实现，两种运行模式共享同一套代码
 3. **类型安全**: 完整的 TypeScript 类型定义，确保输入输出的类型安全
 4. **独立计算**: 不依赖主应用的计算库，使用 lunar-javascript 和 iztro 独立实现
 
@@ -98,7 +98,7 @@ MingAI/
 
 **功能描述**: 根据出生时间计算完整的八字命盘
 
-**实现文件**: `packages/mcp-core/src/handlers/bazi.ts`
+**实现文件**: `packages/core/src/handlers/bazi.ts`
 
 **核心功能**:
 - 四柱计算（年柱、月柱、日柱、时柱）
@@ -128,7 +128,7 @@ MingAI/
 
 **功能描述**: 根据出生时间计算紫微命盘
 
-**实现文件**: `packages/mcp-core/src/handlers/ziwei.ts`
+**实现文件**: `packages/core/src/handlers/ziwei.ts`
 
 **核心功能**:
 - 十二宫位排盘（命宫、兄弟、夫妻、子女、财帛、疾厄、迁移、仆役、官禄、田宅、福德、父母）
@@ -148,7 +148,7 @@ MingAI/
 
 **功能描述**: 六爻卦象占卜分析，支持自动起卦或选卦
 
-**实现文件**: `packages/mcp-core/src/handlers/liuyao.ts`
+**实现文件**: `packages/core/src/handlers/liuyao.ts`
 
 **核心功能**:
 - 完整64卦数据（卦名、卦码、上下卦、五行、卦性）
@@ -186,7 +186,7 @@ MingAI/
 
 **功能描述**: 塔罗牌抽牌占卜，支持多种牌阵
 
-**实现文件**: `packages/mcp-core/src/handlers/tarot.ts`
+**实现文件**: `packages/core/src/handlers/tarot.ts`
 
 **核心功能**:
 - 完整78张韦特塔罗牌（22张大阿卡纳 + 56张小阿卡纳）
@@ -208,7 +208,7 @@ MingAI/
 
 **功能描述**: 计算个性化每日运势
 
-**实现文件**: `packages/mcp-core/src/handlers/fortune.ts`
+**实现文件**: `packages/core/src/handlers/fortune.ts`
 
 **核心功能**:
 - 流日干支计算
@@ -224,7 +224,7 @@ MingAI/
 
 **功能描述**: 分析当前大运、流年、流月对命主的影响
 
-**实现文件**: `packages/mcp-core/src/handlers/liunian.ts`
+**实现文件**: `packages/core/src/handlers/liunian.ts`
 
 **核心功能**:
 - 当前大运定位
@@ -239,10 +239,10 @@ MingAI/
 
 ## 4. 代码结构详解
 
-### 4.1 mcp-core 包结构
+### 4.1 core 包结构
 
 ```
-packages/mcp-core/
+packages/core/
 ├── package.json           # 包配置
 ├── tsconfig.json          # TypeScript 配置
 ├── src/
@@ -263,10 +263,10 @@ packages/mcp-core/
 └── dist/                  # 编译输出
 ```
 
-### 4.2 mcp-local 包结构
+### 4.2 mcp 包结构
 
 ```
-packages/mcp-local/
+packages/mcp/
 ├── package.json           # 包配置（含 bin 配置）
 ├── tsconfig.json          # TypeScript 配置
 ├── src/
@@ -382,7 +382,7 @@ pnpm --filter "@mingai/*" build
   "mcpServers": {
     "mingai": {
       "command": "node",
-      "args": ["/path/to/MingAI/packages/mcp-local/dist/index.js"]
+      "args": ["/path/to/MingAI/packages/mcp/dist/index.js"]
     }
   }
 }
@@ -391,7 +391,7 @@ pnpm --filter "@mingai/*" build
 #### 5.1.3 使用 npx 运行
 
 ```bash
-npx @mingai/mcp-local
+npx @mingai/mcp
 ```
 
 ### 5.2 线上模式 (Streamable HTTP)
@@ -609,8 +609,8 @@ MingAI MCP Server 项目已成功实现以下目标：
 
 | 包名 | 文件数 | 代码行数 |
 |------|:------:|:--------:|
-| mcp-core | 10 | ~3,800 |
-| mcp-local | 1 | 84 |
+| core | 10 | ~3,800 |
+| mcp | 1 | 84 |
 | mcp-server | 2 | 192 |
 | **总计** | **13** | **~4,076** |
 
