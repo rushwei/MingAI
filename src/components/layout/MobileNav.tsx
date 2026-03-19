@@ -19,7 +19,7 @@ import {
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
+import { DEFAULT_MOBILE_MAIN_ITEMS, getEffectiveMobileDrawerOrder } from '@/lib/user/settings';
 import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
 
 const ALL_NAV_ITEMS = getMobileItemsRecord();
@@ -50,17 +50,13 @@ export function MobileNav() {
 
     // 根据配置计算抽屉中的项目
     const drawerNavItems = useMemo(() => {
-        const order = config.mobileDrawerOrder ?? [...DEFAULT_MOBILE_DRAWER_ORDER];
-        const hidden = new Set(config.hiddenMobileItems || []);
-        const mainSet = new Set(config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS]);
-
-        // 按顺序排列已有的项目
+        const order = getEffectiveMobileDrawerOrder(config);
         const orderedItems = order
-            .filter(id => !mainSet.has(id) && !hidden.has(id) && isFeatureEnabled(toFeatureId(id)))
+            .filter(id => isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
         return orderedItems;
-    }, [config.mobileDrawerOrder, config.hiddenMobileItems, config.mobileMainItems, isFeatureEnabled]);
+    }, [config, isFeatureEnabled]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {

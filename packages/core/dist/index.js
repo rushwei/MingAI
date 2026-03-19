@@ -12,7 +12,6 @@ export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, ha
 /**
  * 统一工具调用分发（消除 mcp-server / mcp 重复 switch）
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function handleToolCall(name, args) {
     const entry = getToolRegistryEntry(name);
     if (!entry) {

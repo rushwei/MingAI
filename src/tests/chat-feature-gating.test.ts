@@ -199,6 +199,19 @@ test('chat UI and request flow should guard disabled mention entry points and st
     assert.match(chatPageSource, /\[aiPersonalizationEnabled,[^\]]*knowledgeBaseEnabled/u);
 });
 
+test('chat message source panel should compute memoized source visibility before any streaming early return', async () => {
+    const source = await readFile(chatMessageItemPath, 'utf-8');
+    const earlyReturn = 'if (isCurrentStreaming) return null;';
+    const sourceMemo = 'const { visibleSources, showKnowledgeBaseMiss } = useMemo(';
+
+    assert.notEqual(source.includes(earlyReturn), false, 'expected SourcePanelSection streaming guard');
+    assert.notEqual(source.includes(sourceMemo), false, 'expected SourcePanelSection source visibility memo');
+    assert.ok(
+        source.indexOf(sourceMemo) < source.indexOf(earlyReturn),
+        'source visibility memo must run before the streaming early return to preserve hook order',
+    );
+});
+
 test('feature-gated pages should avoid mounting inner fetch logic when dependent modules are disabled', async () => {
     const [ordersSource, dailySource, monthlySource] = await Promise.all([
         readFile(ordersPagePath, 'utf-8'),

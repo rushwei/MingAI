@@ -14,7 +14,7 @@ export interface SidebarConfig {
 }
 
 export const DEFAULT_NAV_ORDER = [
-  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'qimen', 'daliuren', 'face', 'palm', 'mbti',
+  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti',
 ] as const;
 
 export const DEFAULT_TOOL_ORDER = [
@@ -46,6 +46,48 @@ export const DEFAULT_SIDEBAR_CONFIG: SidebarConfig = {
   mobileDrawerOrder: [...DEFAULT_MOBILE_DRAWER_ORDER],
   hiddenMobileItems: [],
 };
+
+type MobileDrawerProjectionInput = Partial<Pick<SidebarConfig, 'mobileMainItems' | 'mobileDrawerOrder' | 'hiddenMobileItems'>>;
+
+type MobileDrawerProjectionOptions = {
+  includeHidden?: boolean;
+};
+
+export function getEffectiveMobileDrawerOrder(
+  config: MobileDrawerProjectionInput,
+  options: MobileDrawerProjectionOptions = {},
+): string[] {
+  const mainItems = filterUniqueIds(config.mobileMainItems, ALL_MOBILE_NAV_IDS).slice(0, 4);
+  const configuredOrder = filterUniqueIds(config.mobileDrawerOrder, ALL_MOBILE_NAV_IDS);
+  const hiddenItems = filterUniqueIds(config.hiddenMobileItems, ALL_MOBILE_NAV_IDS);
+  const hiddenSet = new Set(hiddenItems);
+  const mainSet = new Set(mainItems);
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  const append = (id: string) => {
+    if (seen.has(id) || mainSet.has(id)) {
+      return;
+    }
+    if (!options.includeHidden && hiddenSet.has(id)) {
+      return;
+    }
+    seen.add(id);
+    result.push(id);
+  };
+
+  for (const id of configuredOrder) {
+    append(id);
+  }
+  for (const id of DEFAULT_MOBILE_DRAWER_ORDER) {
+    append(id);
+  }
+  for (const id of ALL_MOBILE_NAV_IDS) {
+    append(id);
+  }
+
+  return result;
+}
 
 function filterUniqueIds(raw: unknown, allowedIds: readonly string[]): string[] {
   if (!Array.isArray(raw)) {

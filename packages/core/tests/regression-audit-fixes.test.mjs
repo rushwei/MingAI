@@ -201,6 +201,14 @@ test('qimen_calculate output schema should expose the extended palace metadata r
   assert.equal(tool.outputSchema?.properties?.juMethod?.type, 'string');
 });
 
+test('core handleToolCall should keep a lint-clean unknown input boundary', async () => {
+  const source = await readFile(resolve(process.cwd(), 'packages/core/src/index.ts'), 'utf8');
+
+  assert.match(source, /handleToolCall\(name: string, args: unknown\)/u);
+  assert.doesNotMatch(source, /handleToolCall\(name: string, args: any\)/u);
+  assert.doesNotMatch(source, /eslint-disable-next-line @typescript-eslint\/no-explicit-any/u);
+});
+
 test('bazi_dayun should keep xiaoYun coverage aligned with the upstream startAge', async () => {
   const result = await mcpCore.handleDayunCalculate({
     gender: 'male',

@@ -12,5 +12,5 @@ export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, ha
 /**
  * 统一工具调用分发（消除 mcp-server / mcp 重复 switch）
  */
-export declare function handleToolCall(name: string, args: any): Promise<unknown>;
+export declare function handleToolCall(name: string, args: unknown): Promise<unknown>;
 //# sourceMappingURL=index.d.ts.map

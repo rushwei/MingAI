@@ -429,15 +429,11 @@ function SourcePanelSection({
 }: SourcePanelSectionProps) {
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const { isFeatureEnabled } = useFeatureToggles();
+    const meta = message.metadata as AIMessageMetadata | undefined;
     const enabledDataSourceTypes = useMemo(
         () => getEnabledDataSourceTypes(isFeatureEnabled),
         [isFeatureEnabled],
     );
-
-    // 延迟到回复结束后再展示“参考了 n 个来源”，避免一开始就出现
-    if (isCurrentStreaming) return null;
-
-    const meta = message.metadata as AIMessageMetadata | undefined;
     const { visibleSources, showKnowledgeBaseMiss } = useMemo(
         () => getVisibleSourcePanelState(meta, {
             knowledgeBaseEnabled,
@@ -445,6 +441,10 @@ function SourcePanelSection({
         }),
         [enabledDataSourceTypes, knowledgeBaseEnabled, meta],
     );
+
+    // 延迟到回复结束后再展示“参考了 n 个来源”，避免一开始就出现
+    if (isCurrentStreaming) return null;
+
     if (!visibleSources.length && !showKnowledgeBaseMiss) return null;
 
     const isExpanded = !!expandedSources[message.id];

@@ -39,7 +39,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSidebarConfigSafe, type SidebarConfig } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS } from '@/lib/user/settings';
+import { DEFAULT_MOBILE_DRAWER_ORDER, DEFAULT_MOBILE_MAIN_ITEMS, getEffectiveMobileDrawerOrder } from '@/lib/user/settings';
 import { getMobileItemsList, toFeatureId, type NavIcon } from '@/lib/navigation/registry';
 
 const ALL_MOBILE_ITEMS = getMobileItemsList();
@@ -72,17 +72,18 @@ export function MobileNavCustomizer({ userId }: MobileNavCustomizerProps) {
 
     // 抽屉中的项目（排除底部导航栏的项目）
     const drawerItems = useMemo(() => {
-        const order = config.mobileDrawerOrder ?? [...DEFAULT_MOBILE_DRAWER_ORDER];
-        const mainSet = new Set(mainItems);
+        const order = getEffectiveMobileDrawerOrder({
+            mobileDrawerOrder: config.mobileDrawerOrder,
+            mobileMainItems: mainItems,
+            hiddenMobileItems: config.hiddenMobileItems,
+        }, { includeHidden: true });
 
-        // 按顺序排列已有的项目
         const orderedItems = order
-            .filter(id => !mainSet.has(id))
             .map(id => ALL_MOBILE_ITEMS.find(item => item.id === id))
             .filter((item): item is typeof ALL_MOBILE_ITEMS[0] => !!item && isFeatureEnabled(toFeatureId(item.id)));
 
         return orderedItems;
-    }, [config.mobileDrawerOrder, mainItems, isFeatureEnabled]);
+    }, [config.mobileDrawerOrder, config.hiddenMobileItems, mainItems, isFeatureEnabled]);
 
     const itemMap = useMemo(() => {
         return new Map(ALL_MOBILE_ITEMS.map(item => [item.id, item]));

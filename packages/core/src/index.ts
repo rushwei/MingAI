@@ -43,8 +43,7 @@ export {
 /**
  * 统一工具调用分发（消除 mcp-server / mcp 重复 switch）
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function handleToolCall(name: string, args: any): Promise<unknown> {
+export async function handleToolCall(name: string, args: unknown): Promise<unknown> {
   const entry = getToolRegistryEntry(name);
   if (!entry) {
     const availableTools = tools.map((t) => t.name).join(', ');

@@ -35,6 +35,43 @@ test('normalizeSidebarConfig should not auto-append missing items', () => {
   assert.equal(normalized.mobileDrawerOrder.includes('daliuren'), false);
 });
 
+test('legacy mobile configs should still surface newly introduced drawer items', async () => {
+  const [mobileNavSource, mobileCustomizerSource] = await Promise.all([
+    readFile(mobileNavPath, 'utf-8'),
+    readFile(mobileCustomizerPath, 'utf-8'),
+  ]);
+
+  const settingsModule = await import('@/lib/user/settings') as unknown as {
+    getEffectiveMobileDrawerOrder?: (config: {
+      mobileMainItems?: string[];
+      mobileDrawerOrder?: string[];
+      hiddenMobileItems?: string[];
+    }) => string[];
+  };
+
+  assert.equal(
+    typeof settingsModule.getEffectiveMobileDrawerOrder,
+    'function',
+    'user settings should expose a shared mobile drawer fallback helper',
+  );
+
+  const resolvedOrder = settingsModule.getEffectiveMobileDrawerOrder!({
+    mobileMainItems: ['fortune-hub', 'chat'],
+    mobileDrawerOrder: ['bazi', 'records', 'community'],
+    hiddenMobileItems: [],
+  });
+
+  assert.deepEqual(resolvedOrder.slice(0, 5), ['bazi', 'records', 'community', 'hepan', 'ziwei']);
+  assert.ok(resolvedOrder.includes('qimen'));
+  assert.ok(resolvedOrder.includes('daliuren'));
+  assert.ok(
+    resolvedOrder.indexOf('qimen') > resolvedOrder.indexOf('community'),
+    'new drawer items should be appended after the user-configured prefix',
+  );
+  assert.match(mobileNavSource, /getEffectiveMobileDrawerOrder\(config\)/u);
+  assert.match(mobileCustomizerSource, /getEffectiveMobileDrawerOrder\(\s*\{/u);
+});
+
 test('navigation registry should expose daliuren and qimen consistently', async () => {
   const registryPath = resolve(process.cwd(), 'src/lib/navigation/registry.ts');
   const registrySource = await readFile(registryPath, 'utf-8');
