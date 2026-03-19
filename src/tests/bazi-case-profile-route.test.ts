@@ -1,0 +1,217 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { NextRequest } from 'next/server';
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
+
+test('bazi case profile GET returns current profile with events for owned chart', async (t) => {
+    const apiUtils = require('../lib/api-utils') as {
+        requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
+    };
+    const originalRequireUserContext = apiUtils.requireUserContext;
+    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+    apiUtils.requireUserContext = (async () => ({
+        user: { id: 'user-1' },
+        supabase: {},
+    })) as unknown as typeof apiUtils.requireUserContext;
+
+    apiUtils.getSystemAdminClient = (() => ({
+        from(table: string) {
+            if (table === 'bazi_charts') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: { id: '11111111-1111-1111-1111-111111111111' },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === 'bazi_case_profiles') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: {
+                                                    id: 'profile-1',
+                                                    user_id: 'user-1',
+                                                    bazi_chart_id: '11111111-1111-1111-1111-111111111111',
+                                                    master_review: {
+                                                        strengthLevel: '偏强',
+                                                        patterns: ['财格'],
+                                                        yongShen: { basic: ['水'], advanced: ['壬'] },
+                                                        xiShen: { basic: [], advanced: [] },
+                                                        jiShen: { basic: [], advanced: [] },
+                                                        xianShen: { basic: [], advanced: [] },
+                                                        summary: '测试',
+                                                    },
+                                                    owner_feedback: {
+                                                        occupation: '上班族',
+                                                        education: '本科',
+                                                        wealthLevel: '小康',
+                                                        marriageStatus: '已婚',
+                                                        healthStatus: '健康稳定',
+                                                        familyStatusTags: ['父母助力'],
+                                                        temperamentTags: ['务实'],
+                                                        summary: '稳定',
+                                                    },
+                                                    created_at: '2026-03-20T00:00:00.000Z',
+                                                    updated_at: '2026-03-20T00:00:00.000Z',
+                                                },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === 'bazi_case_events') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    order: async () => ({
+                                        data: [
+                                            {
+                                                id: 'event-1',
+                                                profile_id: 'profile-1',
+                                                bazi_chart_id: '11111111-1111-1111-1111-111111111111',
+                                                event_date: '2025-01-01',
+                                                category: '事业',
+                                                title: '岗位晋升',
+                                                detail: '细节',
+                                                created_at: '2026-03-20T00:00:00.000Z',
+                                                updated_at: '2026-03-20T00:00:00.000Z',
+                                            },
+                                        ],
+                                        error: null,
+                                    }),
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            throw new Error(`Unexpected table: ${table}`);
+        },
+    })) as unknown as typeof apiUtils.getSystemAdminClient;
+
+    t.after(() => {
+        apiUtils.requireUserContext = originalRequireUserContext;
+        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+    });
+
+    const { GET } = await import('../app/api/bazi/case-profile/route');
+    const response = await GET(new NextRequest('http://localhost/api/bazi/case-profile?chartId=11111111-1111-1111-1111-111111111111'));
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.profile.id, 'profile-1');
+    assert.equal(payload.profile.masterReview.strengthLevel, '偏强');
+    assert.equal(payload.profile.events.length, 1);
+    assert.equal(payload.profile.events[0].category, '事业');
+});
+
+test('bazi case profile PUT rejects freeform values outside the allowed catalog', async (t) => {
+    const apiUtils = require('../lib/api-utils') as {
+        requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
+    };
+    const originalRequireUserContext = apiUtils.requireUserContext;
+    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+    apiUtils.requireUserContext = (async () => ({
+        user: { id: 'user-1' },
+        supabase: {},
+    })) as unknown as typeof apiUtils.requireUserContext;
+
+    apiUtils.getSystemAdminClient = (() => ({
+        from(table: string) {
+            if (table !== 'bazi_charts') {
+                throw new Error(`Unexpected table: ${table}`);
+            }
+            return {
+                select() {
+                    return {
+                        eq() {
+                            return {
+                                eq() {
+                                    return {
+                                        maybeSingle: async () => ({
+                                            data: { id: '11111111-1111-1111-1111-111111111111' },
+                                            error: null,
+                                        }),
+                                    };
+                                },
+                            };
+                        },
+                    };
+                },
+            };
+        },
+    })) as unknown as typeof apiUtils.getSystemAdminClient;
+
+    t.after(() => {
+        apiUtils.requireUserContext = originalRequireUserContext;
+        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+    });
+
+    const { PUT } = await import('../app/api/bazi/case-profile/route');
+    const request = new NextRequest('http://localhost/api/bazi/case-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chartId: '11111111-1111-1111-1111-111111111111',
+            masterReview: {
+                strengthLevel: '随便写',
+                patterns: ['财格'],
+                yongShen: { basic: ['水'], advanced: [] },
+                xiShen: { basic: [], advanced: [] },
+                jiShen: { basic: [], advanced: [] },
+                xianShen: { basic: [], advanced: [] },
+                summary: '',
+            },
+            ownerFeedback: {
+                occupation: '上班族',
+                education: '本科',
+                wealthLevel: '小康',
+                marriageStatus: '已婚',
+                healthStatus: '健康稳定',
+                familyStatusTags: [],
+                temperamentTags: [],
+                summary: '',
+            },
+            events: [],
+        }),
+    });
+
+    const response = await PUT(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /strengthLevel/u);
+});

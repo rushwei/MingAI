@@ -1,6 +1,6 @@
-import { Calendar, Sparkles } from 'lucide-react';
+import { BookOpenText, Calendar, Sparkles } from 'lucide-react';
 
-export type ResultTab = 'basic' | 'professional';
+export type ResultTab = 'basic' | 'professional' | 'notes';
 
 export function ResultTabs({
     activeTab,
@@ -14,6 +14,7 @@ export function ResultTabs({
             {[
                 { id: 'basic', label: '基本信息', icon: Sparkles },
                 { id: 'professional', label: '专业排盘', icon: Calendar },
+                { id: 'notes', label: '断事笔记', icon: BookOpenText },
             ].map((tab) => (
                 <button
                     key={tab.id}

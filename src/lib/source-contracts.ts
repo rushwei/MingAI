@@ -98,8 +98,22 @@ export type CommonAnalysisSourceData = {
 
 export type AnalysisSourceDataMap = {
   chat: CommonAnalysisSourceData;
-  bazi_wuxing: CommonAnalysisSourceData;
-  bazi_personality: CommonAnalysisSourceData;
+  bazi_wuxing: CommonAnalysisSourceData & {
+    chart_id?: string | null;
+    chart_name?: string | null;
+    chart_summary?: string | null;
+    case_profile_id?: string | null;
+    case_profile_updated_at?: string | null;
+    case_prompt_snapshot?: string | null;
+  };
+  bazi_personality: CommonAnalysisSourceData & {
+    chart_id?: string | null;
+    chart_name?: string | null;
+    chart_summary?: string | null;
+    case_profile_id?: string | null;
+    case_profile_updated_at?: string | null;
+    case_prompt_snapshot?: string | null;
+  };
   tarot: CommonAnalysisSourceData & {
     cards?: unknown[];
     spread_id?: string | null;

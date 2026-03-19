@@ -25,7 +25,6 @@ import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingRe
 interface AIAnalysisSectionProps {
     chartId: string;
     userId: string;
-    chartSummary: string;
     credits?: number | null;
     savedAnalysis?: string | null;
     savedReasoning?: string | null;
@@ -53,7 +52,6 @@ interface AIAnalysisSectionProps {
 export function AIAnalysisSection({
     chartId,
     userId,
-    chartSummary,
     credits,
     savedAnalysis,
     savedReasoning,
@@ -119,7 +117,7 @@ export function AIAnalysisSection({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chartId, type, chartSummary,
+                    chartId, type,
                     modelId: selectedModel,
                     reasoning: reasoningEnabled,
                     stream: true,

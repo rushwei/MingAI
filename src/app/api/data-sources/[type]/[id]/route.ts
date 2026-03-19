@@ -10,15 +10,14 @@ export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ type: string; id: string }> }
 ) {
-    const { type, id } = await params;
-    const featureError = await ensureFeatureRouteEnabled(getDataSourceFeatureId(type as DataSourceType));
-    if (featureError) return featureError;
-
     const auth = await requireUserContext(_request);
     if ('error' in auth) {
         return jsonError(auth.error.message, auth.error.status);
     }
     const user = auth.user;
+    const { type, id } = await params;
+    const featureError = await ensureFeatureRouteEnabled(getDataSourceFeatureId(type as DataSourceType));
+    if (featureError) return featureError;
 
     try {
         const accessToken = await getAccessToken(_request);

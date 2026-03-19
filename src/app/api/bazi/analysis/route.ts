@@ -13,6 +13,8 @@ import { getSystemAdminClient, jsonError, jsonOk, requireUserContext, SSE_HEADER
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
+import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
+import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 
 const RATE_LIMIT_CONFIG = {
     maxRequests: 10,
@@ -64,12 +66,10 @@ export async function POST(request: NextRequest) {
     let creditDeducted = false;
     let userId: string | null = null;
     try {
-        const { chartId, type, chartSummary, modelId, reasoning, stream } = await request.json();
+        const { chartId, type, modelId, reasoning, stream } = await request.json();
 
         if (!chartId || typeof chartId !== 'string') return jsonError('缺少命盘ID', 400);
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chartId)) return jsonError('命盘ID格式无效', 400);
-        if (!chartSummary || typeof chartSummary !== 'string') return jsonError('缺少命盘摘要', 400);
-        if (chartSummary.length > 5000) return jsonError('命盘摘要过长', 400);
         if (!type || !['wuxing', 'personality'].includes(type)) return jsonError('分析类型无效', 400);
 
         const auth = await requireUserContext(request);
@@ -81,18 +81,41 @@ export async function POST(request: NextRequest) {
         const rateLimit = await checkRateLimit(clientIP, '/api/bazi/analysis', RATE_LIMIT_CONFIG);
         if (!rateLimit.allowed) return jsonError('请求过于频繁，请稍后再试', 429);
 
-        const systemPrompt = type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT;
-        const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
-
         const supabase = getSystemAdminClient();
         const { data: chart, error: chartError } = await supabase
             .from('bazi_charts')
-            .select('name, user_id')
+            .select('id, name, user_id, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data')
             .eq('id', chartId)
             .eq('user_id', user.id)
             .single();
         if (chartError || !chart?.user_id) return jsonError('未找到命盘信息', 404);
-        const resolvedChart = chart;
+        const resolvedChart = chart as {
+            id: string;
+            name: string | null;
+            user_id: string;
+            gender: 'male' | 'female' | null;
+            birth_date: string;
+            birth_time: string | null;
+            birth_place: string | null;
+            calendar_type: string | null;
+            is_leap_month: boolean | null;
+            chart_data: Record<string, unknown> | null;
+        };
+
+        const caseProfile = await getBaziCaseProfileByChartId(supabase, chartId, user.id);
+        const chartSummary = formatBaziChartPromptBlock({
+            id: resolvedChart.id,
+            name: resolvedChart.name || '命盘',
+            gender: resolvedChart.gender || 'male',
+            birthDate: resolvedChart.birth_date,
+            birthTime: resolvedChart.birth_time || undefined,
+            birthPlace: resolvedChart.birth_place || undefined,
+            calendarType: (resolvedChart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
+            isLeapMonth: resolvedChart.is_leap_month || false,
+            chartData: resolvedChart.chart_data || undefined,
+        }, caseProfile);
+        const systemPrompt = type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT;
+        const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
 
         const authInfo = await getUserAuthInfo(user.id);
         if (!authInfo) return jsonError('获取用户信息失败', 500);
@@ -117,6 +140,9 @@ export async function POST(request: NextRequest) {
                     chart_id: chartId,
                     chart_name: resolvedChart.name,
                     chart_summary: chartSummary,
+                    case_profile_id: caseProfile?.id || null,
+                    case_profile_updated_at: caseProfile?.updatedAt || null,
+                    case_prompt_snapshot: chartSummary,
                     model_id: resolvedModelId,
                     reasoning: reasoningEnabled,
                     reasoning_text: reasoningText || null,

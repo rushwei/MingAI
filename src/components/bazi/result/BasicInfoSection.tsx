@@ -16,8 +16,6 @@ interface BasicInfoSectionProps {
     userId?: string | null;
     /** 用户当前积分 */
     credits?: number | null;
-    /** 命盘数据摘要（用于AI分析） */
-    chartSummary?: string;
     /** 已保存的五行分析 */
     savedWuxingAnalysis?: string | null;
     /** 已保存的五行推理 */
@@ -44,7 +42,6 @@ export function BasicInfoSection({
     chartId,
     userId,
     credits,
-    chartSummary,
     savedWuxingAnalysis,
     savedWuxingReasoning,
     savedWuxingModelId,
@@ -61,9 +58,6 @@ export function BasicInfoSection({
         baziResult.fourPillars.month.tenGod,
         baziResult.fourPillars.hour.tenGod,
     ].filter((g): g is TenGod => !!g);
-
-    // 生成简易 chartSummary - 只传八字四柱
-    const defaultChartSummary = chartSummary || `四柱八字：${baziResult.fourPillars.year.stem}${baziResult.fourPillars.year.branch} ${baziResult.fourPillars.month.stem}${baziResult.fourPillars.month.branch} ${baziResult.fourPillars.day.stem}${baziResult.fourPillars.day.branch} ${baziResult.fourPillars.hour.stem}${baziResult.fourPillars.hour.branch}`;
 
     // 是否已保存命盘
     const isSaved = Boolean(chartId);
@@ -140,7 +134,6 @@ export function BasicInfoSection({
                     chartId={chartId!}
                     userId={userId}
                     credits={credits}
-                    chartSummary={defaultChartSummary}
                     savedAnalysis={savedWuxingAnalysis}
                     savedReasoning={savedWuxingReasoning}
                     savedModelId={savedWuxingModelId}
@@ -188,7 +181,6 @@ export function BasicInfoSection({
                     chartId={chartId!}
                     userId={userId}
                     credits={credits}
-                    chartSummary={defaultChartSummary}
                     savedAnalysis={savedPersonalityAnalysis}
                     savedReasoning={savedPersonalityReasoning}
                     savedModelId={savedPersonalityModelId}

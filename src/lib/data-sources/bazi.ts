@@ -1,7 +1,9 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { generateBaziChartText } from '@/lib/divination/bazi';
 import type { BaziChart } from '@/types';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
+import { type BaziCaseProfile } from '@/lib/bazi-case-profile';
+import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
+import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 
 type BaziRow = {
     id: string;
@@ -15,6 +17,7 @@ type BaziRow = {
     is_leap_month: boolean | null;
     chart_data: Record<string, unknown> | null;
     created_at: string;
+    caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
 export const baziProvider: DataSourceProvider<BaziRow> = {
@@ -51,7 +54,12 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
             .eq('user_id', userId)
             .maybeSingle();
         if (error) throw new Error(error.message);
-        return (data as BaziRow) || null;
+        if (!data) return null;
+        const caseProfile = await getBaziCaseProfileByChartId(supabase, id, userId);
+        return {
+            ...(data as BaziRow),
+            caseProfile,
+        };
     },
 
     formatForAI(chart: BaziRow): string {
@@ -72,15 +80,13 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
             isLeapMonth: payload.isLeapMonth ?? chart.is_leap_month ?? undefined,
         };
 
-        if (normalized.fourPillars) {
-            return generateBaziChartText(normalized);
-        }
-
-        return [
-            `## 八字命盘：${name}`,
-            `- 出生时间：${birthDate}${birthTime ? ` ${birthTime}` : ''}`,
-            `- 结构化数据：${JSON.stringify(chartData)}`
-        ].join('\n');
+        return formatBaziChartPromptBlock({
+            ...normalized,
+            name,
+            birthDate,
+            birthTime,
+            chartData,
+        }, chart.caseProfile || null);
     },
 
     summarize(chart: BaziRow): string {

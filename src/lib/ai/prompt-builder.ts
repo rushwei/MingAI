@@ -6,7 +6,8 @@ import type { InjectedSource } from '@/lib/source-tracker';
 import { createSourceTracker } from '@/lib/source-tracker';
 import { countTokens, truncateToTokens } from '@/lib/token-utils';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
-import { generateBaziChartText } from '@/lib/divination/bazi';
+import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
+import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
 import { generateZiweiChartText, type ZiweiChart } from '@/lib/divination/ziwei';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
 
@@ -28,6 +29,7 @@ type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'g
     birthDate?: string;
     birthTime?: string;
     chartData?: Record<string, unknown>;
+    caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
 type ZiweiChartInput = Partial<ZiweiChart> & {
@@ -263,32 +265,12 @@ function formatUserProfile(profile?: unknown): string {
     }
 }
 
-function resolveBaziChartData(chart?: BaziChartInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
-    if (!chart) return null;
-    const chartData = chart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
-    if (chartData?.fourPillars) return chartData;
-    if ((chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>).fourPillars) {
-        return chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>;
-    }
-    return null;
-}
-
 function resolveZiweiChartData(chart?: ZiweiChartInput): ZiweiChart | null {
     if (!chart) return null;
     const chartData = chart.chartData as ZiweiChart | undefined;
     if (chartData?.palaces) return chartData;
     if ((chart as ZiweiChart).palaces) return chart as ZiweiChart;
     return null;
-}
-
-function formatBaziFallback(chart: BaziChartInput): string {
-    const gender = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : (chart.gender || '');
-    return [
-        '【八字命盘】',
-        `姓名：${chart.name || ''}`,
-        `性别：${gender}`,
-        `出生日期：${chart.birthDate || ''}${chart.birthTime ? ` ${chart.birthTime}` : ''}`,
-    ].filter(Boolean).join('\n');
 }
 
 function formatZiweiFallback(chart: ZiweiChartInput): string {
@@ -306,12 +288,7 @@ function formatChartContextPrompt(chartContext: NonNullable<PromptContext['chart
     const parts: string[] = ['--- 用户已选择以下命盘作为对话参考 ---'];
 
     if (chartContext.baziChart) {
-        const baziData = resolveBaziChartData(chartContext.baziChart);
-        if (baziData) {
-            parts.push(generateBaziChartText(baziData));
-        } else {
-            parts.push(formatBaziFallback(chartContext.baziChart));
-        }
+        parts.push(formatBaziChartPromptBlock(chartContext.baziChart, chartContext.baziChart.caseProfile));
     }
 
     if (chartContext.ziweiChart) {
@@ -449,9 +426,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         if (tryInject('chart_context', 'P2', chartPrompt)) {
             if (context.chartContext.baziChart) {
                 const baziChart = context.chartContext.baziChart;
-                const baziContent = resolveBaziChartData(baziChart)
-                    ? generateBaziChartText(resolveBaziChartData(baziChart) as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>)
-                    : formatBaziFallback(baziChart);
+                const baziContent = formatBaziChartPromptBlock(baziChart, baziChart.caseProfile);
                 tracker.trackAndInject({
                     type: 'data_source',
                     sourceType: 'bazi_chart',
@@ -459,6 +434,16 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
                     name: `八字命盘-${baziChart.name || '未命名'}`,
                     content: baziContent
                 });
+                const caseProfileContent = formatBaziCaseProfileForAI(baziChart.caseProfile);
+                if (caseProfileContent) {
+                    tracker.trackAndInject({
+                        type: 'data_source',
+                        sourceType: 'bazi_chart',
+                        id: `${baziChart.id || 'bazi_chart'}:case-profile`,
+                        name: `断事笔记-${baziChart.name || '未命名'}`,
+                        content: caseProfileContent,
+                    });
+                }
             }
             if (context.chartContext.ziweiChart) {
                 const ziweiChart = context.chartContext.ziweiChart;

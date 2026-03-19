@@ -4,6 +4,8 @@ import { getSystemAdminClient } from '@/lib/api-utils';
 import { countTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
+import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
+import type { BaziCaseProfile } from '@/lib/bazi-case-profile';
 
 export interface ChartIds {
     baziId?: string;
@@ -19,6 +21,7 @@ export interface ChartContext {
         birthDate: string;
         birthTime?: string;
         chartData?: Record<string, unknown>;
+        caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
     };
     ziweiChart?: {
         id?: string;
@@ -63,6 +66,7 @@ export async function loadChartContext(chartIds: ChartIds, userId: string): Prom
             .single();
 
         if (data) {
+            const caseProfile = await getBaziCaseProfileByChartId(supabase, data.id, userId);
             const genderLabel = data.gender === 'male' ? '男' : data.gender === 'female' ? '女' : '';
             context.baziChart = {
                 id: data.id,
@@ -71,6 +75,7 @@ export async function loadChartContext(chartIds: ChartIds, userId: string): Prom
                 birthDate: data.birth_date,
                 birthTime: data.birth_time,
                 chartData: data.chart_data,
+                caseProfile,
             };
         }
     }
@@ -116,10 +121,18 @@ export async function buildDreamContextPayload(userId: string): Promise<{ payloa
     const { data: baziChart } = defaultBaziId
         ? await baziQuery.eq('id', defaultBaziId).maybeSingle()
         : await baziQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const caseProfile = baziChart?.id
+        ? await getBaziCaseProfileByChartId(supabase, baziChart.id, userId)
+        : null;
 
     const fortune = await dailyFortuneProvider.get('today', userId, { client: supabase });
 
-    let baziText = baziChart ? baziProvider.formatForAI(baziChart as Parameters<typeof baziProvider.formatForAI>[0]) : '';
+    let baziText = baziChart
+        ? baziProvider.formatForAI({
+            ...(baziChart as Parameters<typeof baziProvider.formatForAI>[0]),
+            caseProfile,
+        })
+        : '';
     let fortuneText = fortune ? dailyFortuneProvider.formatForAI(fortune) : '';
 
     baziText = truncateToTokens(baziText, MAX_BAZI_TOKENS);

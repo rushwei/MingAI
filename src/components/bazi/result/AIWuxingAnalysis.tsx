@@ -12,7 +12,6 @@ import { AIAnalysisSection } from '@/components/bazi/result/AIAnalysisSection';
 interface AIWuxingAnalysisProps {
     chartId: string;
     userId: string;
-    chartSummary: string;
     credits?: number | null;
     savedAnalysis?: string | null;
     savedReasoning?: string | null;

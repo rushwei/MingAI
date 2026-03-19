@@ -27,6 +27,7 @@ import { ResultFooterLinks } from '@/components/bazi/result/ResultFooterLinks';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { CaseNotesSection } from '@/components/bazi/result/CaseNotesSection';
 import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { getMembershipInfo } from '@/lib/user/membership';
@@ -544,6 +545,10 @@ function BaziResultContent() {
                     onSelectLiuRi={handleSelectLiuRi}
                     activeLiuYue={activeLiuYue}
                 />
+            )}
+
+            {activeTab === 'notes' && (
+                <CaseNotesSection chartId={chartId} />
             )}
 
             <ResultFooterLinks />

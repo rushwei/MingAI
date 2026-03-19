@@ -38,23 +38,18 @@ export async function buildChatBootstrap(
 
   const membership = buildMembershipInfo((membershipRow ?? null) as MembershipInfoSource | null);
 
-  if (membership?.type === 'free' || !knowledgeBaseFeatureEnabled) {
-    return {
-      userId,
-      membership,
-      promptKnowledgeBaseIds: [],
-      promptKnowledgeBases: [],
-    };
-  }
+  const promptKbIds = membership?.type === 'free' || !knowledgeBaseFeatureEnabled
+    ? []
+    : await (async () => {
+      const { data: settingsRow } = await supabase
+        .from('user_settings')
+        .select('prompt_kb_ids')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return toPromptKnowledgeBaseIds((settingsRow as PromptSettingsRow | null)?.prompt_kb_ids);
+    })();
 
-  const { data: settingsRow } = await supabase
-    .from('user_settings')
-    .select('prompt_kb_ids')
-    .eq('user_id', userId)
-    .maybeSingle();
-  const promptKbIds = toPromptKnowledgeBaseIds((settingsRow as PromptSettingsRow | null)?.prompt_kb_ids);
-
-  if (promptKbIds.length === 0) {
+  if (membership?.type === 'free' || !knowledgeBaseFeatureEnabled || promptKbIds.length === 0) {
     return {
       userId,
       membership,

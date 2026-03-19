@@ -60,6 +60,58 @@ test('buildPromptWithSources injects dream and mangpai layers', async () => {
     assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'mangpai_data' && layer.included));
 });
 
+test('buildPromptWithSources appends structured bazi case profile context', async () => {
+    const pb = require('../lib/ai/prompt-builder') as any;
+    const res = await pb.buildPromptWithSources({
+        modelId: 'deepseek-chat',
+        userMessage: '结合这个命盘继续分析',
+        mentions: [],
+        knowledgeHits: [],
+        userSettings: { expressionStyle: 'direct', userProfile: {}, customInstructions: '' },
+        chartContext: {
+            baziChart: {
+                ...buildMinimalBaziChart(),
+                caseProfile: {
+                    masterReview: {
+                        strengthLevel: '偏强',
+                        patterns: ['财格'],
+                        yongShen: { basic: ['水'], advanced: ['壬'] },
+                        xiShen: { basic: ['金'], advanced: ['申金'] },
+                        jiShen: { basic: ['火'], advanced: [] },
+                        xianShen: { basic: ['土'], advanced: [] },
+                        summary: '财星可用，先取水润局。',
+                    },
+                    ownerFeedback: {
+                        occupation: '上班族',
+                        education: '本科',
+                        wealthLevel: '小康',
+                        marriageStatus: '已婚',
+                        healthStatus: '健康稳定',
+                        familyStatusTags: ['父母助力'],
+                        temperamentTags: ['务实'],
+                        summary: '近年事业稳定上升。',
+                    },
+                    events: [
+                        {
+                            id: 'event-1',
+                            eventDate: '2025-01-01',
+                            category: '事业',
+                            title: '岗位晋升',
+                            detail: '2025 年初完成晋升。',
+                        },
+                    ],
+                },
+            },
+        },
+    });
+
+    assert.ok(res.systemPrompt.includes('【断事笔记】'));
+    assert.ok(res.systemPrompt.includes('旺衰：偏强'));
+    assert.ok(res.systemPrompt.includes('用神：基础=水；进阶=壬'));
+    assert.ok(res.systemPrompt.includes('命主反馈'));
+    assert.ok(res.systemPrompt.includes('关键事件'));
+});
+
 test('buildPromptWithSources skips P2 layers when budget exceeded', async () => {
     const pb = require('../lib/ai/prompt-builder') as any;
     const hugeContent = 'a'.repeat(20000);
