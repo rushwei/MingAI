@@ -46,13 +46,13 @@
 
 ---
 
-## 🔌 MCP Server
+## 🔌 MCP
 
-MingAI 提供 MCP (Model Context Protocol) Server，可在支持 MCP 的客户端中直接调用命理工具。
+MingAI 提供 MCP (Model Context Protocol) ，可在支持 MCP 的客户端中直接调用命理工具。
 
 ### 快速配置
 
-在 Claude Desktop / Cursor 等客户端的 MCP 配置中添加以下内容即可使用，无需手动下载，仅需本机安装 [Node.js](https://nodejs.org) 18+：
+在 Claude Desktop / Cherry Studio 等客户端的 MCP 配置中添加以下内容即可使用，无需手动下载，仅需本机安装 [Node.js](https://nodejs.org) 18+：
 
 ```json
 {

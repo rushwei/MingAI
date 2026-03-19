@@ -52,7 +52,7 @@ MingAI provides an MCP (Model Context Protocol) server, so you can directly call
 
 ### Quick Setup
 
-Add to your Claude Desktop / Cursor MCP config — no manual download needed, just requires [Node.js](https://nodejs.org) 18+:
+Add to your Claude Desktop / Cherry Studio MCP config — no manual download needed, just requires [Node.js](https://nodejs.org) 18+:
 
 ```json
 {
