@@ -4,11 +4,11 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Brain, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { BookOpen, Brain, ChevronDown, ChevronUp, RotateCcw, Copy, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -21,6 +21,9 @@ import type { ChatMessage } from '@/types';
 import type { DaliurenOutput } from '@mingai/core/daliuren';
 import { supabase } from '@/lib/auth';
 import { loadConversation } from '@/lib/chat/conversation';
+import { generateDaliurenResultText } from '@/lib/divination/daliuren';
+import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 
 const SHENSHA_DISPLAY = [
     '日德', '日禄', '生气', '桃花', '天喜', '天医', '成神',
@@ -32,6 +35,7 @@ const SANCHUAN_COLORS = ['border-red-400/50', 'border-orange-400/50', 'border-ye
 
 export default function DaliurenResultPage() {
     const router = useRouter();
+    const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const { showToast } = useToast();
     const [result, setResult] = useState<DaliurenOutput | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -42,40 +46,131 @@ export default function DaliurenResultPage() {
     const [divinationId, setDivinationId] = useState<string | undefined>();
     const [conversationId, setConversationId] = useState<string | undefined>();
     const [interpretation, setInterpretation] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+    const hasAutoSavedRef = useRef(false);
 
     const streaming = useStreamingResponse();
 
-    useEffect(() => {
-        const params = readSessionJSON('daliuren_params') as Record<string, unknown> | null;
-        if (!params?.date) {
-            router.replace('/daliuren');
-            return;
-        }
-        const nextDivinationId = typeof params.divinationId === 'string' ? params.divinationId : undefined;
-        const nextConversationId = typeof params.conversationId === 'string' ? params.conversationId : undefined;
-        const controller = new AbortController();
-        fetch('/api/daliuren', {
+    const persistSessionIds = useCallback((next: {
+        divinationId?: string;
+        conversationId?: string;
+    }) => {
+        updateSessionJSON('daliuren_params', (prev) => ({
+            ...(prev || {}),
+            ...(next.divinationId ? { divinationId: next.divinationId } : {}),
+            ...(next.conversationId ? { conversationId: next.conversationId } : {}),
+        }));
+    }, []);
+
+    const saveDivinationRecord = useCallback(async (
+        params: Record<string, unknown> | null,
+        nextResult: DaliurenOutput,
+        token: string,
+    ): Promise<string | undefined> => {
+        const response = await fetch('/api/daliuren', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'calculate', ...params }),
-            signal: controller.signal,
-        })
-            .then(r => r.json())
-            .then(({ data }: { data: DaliurenOutput }) => {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: 'save', ...params, resultData: nextResult }),
+        });
+        const payload = await response.json().catch(() => null) as
+            | { success?: boolean; error?: string; data?: { divinationId?: string } }
+            | null;
+
+        const nextDivinationId = payload?.data?.divinationId;
+        if (nextDivinationId) {
+            setDivinationId(nextDivinationId);
+            persistSessionIds({ divinationId: nextDivinationId });
+            return nextDivinationId;
+        }
+
+        if (!response.ok || payload?.success === false) {
+            showToast('error', payload?.error || '保存排盘记录失败');
+        }
+
+        return undefined;
+    }, [persistSessionIds, showToast]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const init = async () => {
+            const params = readSessionJSON('daliuren_params') as Record<string, unknown> | null;
+            if (!params?.date) {
+                router.replace('/daliuren');
+                return;
+            }
+
+            const nextDivinationId = typeof params.divinationId === 'string' ? params.divinationId : undefined;
+            const nextConversationId = typeof params.conversationId === 'string' ? params.conversationId : undefined;
+
+            try {
+                const response = await fetch('/api/daliuren', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'calculate', ...params }),
+                    signal: controller.signal,
+                });
+                const payload = await response.json().catch(() => null) as
+                    | { success?: boolean; error?: string; data?: DaliurenOutput }
+                    | null;
+
+                if (controller.signal.aborted) return;
+
                 if (nextDivinationId) setDivinationId(nextDivinationId);
                 if (nextConversationId) setConversationId(nextConversationId);
-                if (data) setResult(data);
-                else showToast('error', '排盘失败');
+
+                const nextResult = payload?.data;
+                if (!response.ok || !nextResult) {
+                    showToast('error', payload?.error || '排盘失败');
+                    setIsLoading(false);
+                    return;
+                }
+
+                setResult(nextResult);
                 setIsLoading(false);
-            })
-            .catch(err => {
-                if (err.name !== 'AbortError') {
+
+                if (!nextDivinationId && !hasAutoSavedRef.current) {
+                    const session = await supabase.auth.getSession();
+                    const token = session.data.session?.access_token;
+                    if (token) {
+                        hasAutoSavedRef.current = true;
+                        await saveDivinationRecord(params, nextResult, token);
+                    }
+                }
+            } catch (err) {
+                if (err instanceof Error && err.name !== 'AbortError') {
                     showToast('error', '网络错误');
                     setIsLoading(false);
                 }
-            });
+            }
+        };
+
+        void init();
+
         return () => controller.abort();
-    }, [router, showToast]);
+    }, [router, saveDivinationRecord, showToast]);
+
+    useEffect(() => {
+        if (!divinationId || conversationId || streaming.isStreaming) return;
+
+        let cancelled = false;
+
+        const resolveConversationId = async () => {
+            const resolvedConversationId = await resolveHistoryConversationId('daliuren', divinationId, 'daliuren_params');
+            if (cancelled || !resolvedConversationId) return;
+            setConversationId(resolvedConversationId);
+            persistSessionIds({ conversationId: resolvedConversationId });
+        };
+
+        void resolveConversationId();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [conversationId, divinationId, persistSessionIds, streaming.isStreaming]);
 
     useEffect(() => {
         if (!conversationId || interpretation || streaming.content) return;
@@ -106,7 +201,32 @@ export default function DaliurenResultPage() {
         return result.shenSha.filter(s => SHENSHA_DISPLAY.includes(s.name));
     }, [result]);
 
-    const handleInterpret = async () => {
+    const handleCopy = useCallback(async () => {
+        if (!result) return;
+        try {
+            await navigator.clipboard.writeText(generateDaliurenResultText(result));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            showToast('success', '结果已复制到剪贴板');
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
+    }, [result, showToast]);
+
+    useEffect(() => {
+        if (!result) return;
+        setMenuItems([
+            {
+                id: 'copy',
+                label: copied ? '已复制' : '复制',
+                icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void handleCopy(); },
+            },
+        ]);
+        return () => clearMenuItems();
+    }, [result, copied, handleCopy, setMenuItems, clearMenuItems]);
+
+    const handleInterpret = useCallback(async () => {
         if (!result) return;
         const params = readSessionJSON('daliuren_params') as Record<string, unknown> | null;
         setInterpretation(null);
@@ -117,15 +237,7 @@ export default function DaliurenResultPage() {
 
         let currentDivinationId = divinationId;
         if (!currentDivinationId) {
-            const saveRes = await fetch('/api/daliuren', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ action: 'save', ...params, resultData: result }),
-            }).then(r => r.json()).catch(() => null) as { data?: { divinationId?: string } } | null;
-            if (saveRes?.data?.divinationId) {
-                currentDivinationId = saveRes.data.divinationId;
-                setDivinationId(currentDivinationId);
-            }
+            currentDivinationId = await saveDivinationRecord(params, result, token);
         }
 
         const streamResult = await streaming.startStream('/api/daliuren', {
@@ -144,8 +256,17 @@ export default function DaliurenResultPage() {
         if (err) {
             if (err.includes('积分')) setShowCreditsModal(true);
             else if (err.includes('401') || err.includes('认证')) setShowAuthModal(true);
+            return;
         }
-    };
+
+        if (currentDivinationId) {
+            const resolvedConversationId = await resolveHistoryConversationId('daliuren', currentDivinationId, 'daliuren_params');
+            if (resolvedConversationId) {
+                setConversationId(resolvedConversationId);
+                persistSessionIds({ conversationId: resolvedConversationId });
+            }
+        }
+    }, [divinationId, modelId, persistSessionIds, result, streaming]);
 
     if (isLoading) {
         return (
@@ -184,7 +305,13 @@ export default function DaliurenResultPage() {
                             {keTi.subTypes.join('·')}{keTi.extraTypes.length > 0 ? '·' + keTi.extraTypes.join('·') : ''}
                         </div>
                     </div>
-                    <div className="w-5" />
+                    <button
+                        onClick={() => { void handleCopy(); }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border/40 px-2 py-1 text-xs text-foreground-secondary hover:text-foreground hover:border-cyan-500/40 transition-colors"
+                    >
+                        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copied ? '已复制' : '复制'}</span>
+                    </button>
                 </div>
             </div>
 

@@ -133,6 +133,16 @@ test('daliuren history and result pages should preserve conversationId so saved 
     /extractAnalysisFromConversation/u,
     'result page should restore saved AI analysis from the linked conversation when present',
   );
+  assert.match(
+    resultSource,
+    /updateSessionJSON\('daliuren_params'/u,
+    'result page should persist returned save identifiers back into session params',
+  );
+  assert.match(
+    resultSource,
+    /action:\s*'save'/u,
+    'result page should auto-save the chart record instead of only saving inside AI interpretation flows',
+  );
 });
 
 test('daliuren page and history page should preserve timezone when restoring a chart', async () => {

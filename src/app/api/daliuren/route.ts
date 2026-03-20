@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/core/daliuren';
+import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 
 interface DaliurenRequest {
     action: 'calculate' | 'interpret' | 'save';
@@ -40,20 +41,10 @@ const DALIUREN_SYSTEM_PROMPT = `你是一位精通大六壬的命理大师，擅
 请用传统六壬术语，语言简洁有力。`;
 
 function buildDaliurenPrompt(result: DaliurenOutput, question?: string): string {
-    const lines: string[] = [
-        `## 大六壬排盘数据`,
-        `日期：${result.dateInfo.solarDate}`,
-        `八字：${result.dateInfo.bazi}`,
-        `月将：${result.dateInfo.yueJiang}（${result.dateInfo.yueJiangName}）`,
-        `旬空：${result.dateInfo.kongWang.join('')}`,
-        `课名：${result.keName}`,
-        `课体：${result.keTi.subTypes.join('、')}${result.keTi.extraTypes.length ? '，' + result.keTi.extraTypes.join('、') : ''}`,
-        `\n三传：初传${result.sanChuan.chu[0]}(${result.sanChuan.chu[1]}) 中传${result.sanChuan.zhong[0]}(${result.sanChuan.zhong[1]}) 末传${result.sanChuan.mo[0]}(${result.sanChuan.mo[1]})`,
-        `四课：一课${result.siKe.yiKe[0]} 二课${result.siKe.erKe[0]} 三课${result.siKe.sanKe[0]} 四课${result.siKe.siKe[0]}`,
-    ];
-    if (question) lines.push(`\n占事：${question}`);
-    lines.push(`\n请详细解读。`);
-    return lines.join('\n');
+    return `${generateDaliurenResultText({
+        ...result,
+        question: question || result.question,
+    })}\n\n请详细解读。`;
 }
 
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
