@@ -594,6 +594,10 @@ function TarotResultContent() {
                                             className="absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-purple-900/90 via-indigo-900/90 to-purple-950/90 border border-purple-500/20 p-3 flex flex-col"
                                             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                                         >
+                                            {/*
+                                                Card metadata (element / astrological correspondence / reversed keywords)
+                                                is shown to keep outputs aligned with core data without changing the reading flow.
+                                            */}
                                             <div className="text-center mb-2">
                                                 <h4 className="text-sm font-bold text-white truncate">{card.card.nameChinese}</h4>
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${card.orientation === 'reversed' ? 'text-rose-300 bg-rose-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
@@ -616,6 +620,22 @@ function TarotResultContent() {
                                                     </span>
                                                 ))}
                                             </div>
+                                            {(card.card.reversedKeywords && card.card.reversedKeywords.length > 0) && (
+                                                <div className="flex flex-wrap gap-1 mt-1 justify-center">
+                                                    {card.card.reversedKeywords.slice(0, 3).map((kw, i) => (
+                                                        <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-100/80">
+                                                            {kw}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {((card.card.element || card.card.zodiac) && (
+                                                <div className="mt-1 text-[9px] text-white/70 text-center">
+                                                    {[card.card.element ? `元素:${card.card.element}` : null, card.card.zodiac ? `星象:${card.card.zodiac}` : null]
+                                                        .filter(Boolean)
+                                                        .join(' · ')}
+                                                </div>
+                                            ))}
                                         </div>
                                     </button>
 

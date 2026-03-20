@@ -25,6 +25,7 @@ export interface TarotCard {
     reversedMeaning: string;   // 逆位含义
     element?: string;      // 对应元素
     zodiac?: string;       // 对应星座
+    reversedKeywords?: string[]; // 逆位关键词
 }
 
 // 抽牌结果
@@ -77,7 +78,10 @@ type TarotTextCardLike = {
         nameChinese?: string;
         number?: number;
         element?: string;
+        zodiac?: string;
+        astrologicalCorrespondence?: string;
         keywords?: string[];
+        reversedKeywords?: string[];
         uprightMeaning?: string;
         reversedMeaning?: string;
     };
@@ -126,7 +130,12 @@ export function generateTarotReadingText(input: {
         if (card.name) lines.push(`- **英文名**: ${card.name}`);
         if (typeof card.number === 'number') lines.push(`- **编号**: ${card.number}`);
         if (card.element) lines.push(`- **元素**: ${card.element}`);
+        const astro = card.astrologicalCorrespondence || card.zodiac;
+        if (astro) lines.push(`- **星象**: ${astro}`);
         if (keywords) lines.push(`- **关键词**: ${keywords}`);
+        if (card.reversedKeywords && card.reversedKeywords.length > 0) {
+            lines.push(`- **逆位关键词**: ${card.reversedKeywords.join('、')}`);
+        }
         if (meaning) lines.push(`- **牌义**: ${meaning}`);
         lines.push('');
     });
@@ -549,6 +558,7 @@ function mapCoreCardToDrawn(card: TarotCardResult, position?: string): DrawnCard
             number,
             image: resolveTarotCardImage(card.card.name),
             keywords: card.card.keywords,
+            reversedKeywords: card.reversedKeywords,
             uprightMeaning,
             reversedMeaning,
             element: card.element ?? base?.element,

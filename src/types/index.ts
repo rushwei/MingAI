@@ -82,6 +82,7 @@ export interface PillarData {
 export interface HiddenStemDetail {
     stem: HeavenlyStem;
     tenGod: string;
+    qiType?: string;
 }
 
 export interface Pillar {

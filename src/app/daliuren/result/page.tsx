@@ -310,6 +310,7 @@ export default function DaliurenResultPage() {
                         <div className="text-xs text-cyan-500">
                             {keTi.subTypes.join('·')}{keTi.extraTypes.length > 0 ? '·' + keTi.extraTypes.join('·') : ''}
                         </div>
+                        <div className="text-[10px] text-foreground-secondary">取传法：{keTi.method}</div>
                     </div>
                     <button
                         onClick={() => { void handleCopy(); }}
@@ -333,6 +334,12 @@ export default function DaliurenResultPage() {
                         <span>驿马：{dateInfo.yiMa} · 天马：{dateInfo.tianMa} · 丁马：{dateInfo.dingMa}</span>
                         <span>{dateInfo.diurnal ? '昼' : '夜'}占</span>
                     </div>
+                    {(result.benMing || result.xingNian) && (
+                        <div className="mt-2 text-xs text-foreground-secondary flex flex-wrap gap-x-4 gap-y-1">
+                            {result.benMing && <span>本命：{result.benMing}</span>}
+                            {result.xingNian && <span>行年：{result.xingNian}</span>}
+                        </div>
+                    )}
                     {(yangGuiRenText || yinGuiRenText) && (
                         <div className="mt-2 text-xs text-foreground-secondary space-y-1">
                             <div>阴阳贵人：</div>

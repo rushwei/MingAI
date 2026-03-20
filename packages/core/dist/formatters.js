@@ -544,6 +544,8 @@ ${question ? `- **问题**: ${question}` : ''}
 - **关键词**: ${card.card.keywords.join('、')}
 - **牌义**: ${card.meaning}
 ${card.element ? `- **元素**: ${card.element}` : ''}
+${card.astrologicalCorrespondence ? `- **星象**: ${card.astrologicalCorrespondence}` : ''}
+${card.reversedKeywords && card.reversedKeywords.length > 0 ? `- **逆位关键词**: ${card.reversedKeywords.join('、')}` : ''}
 
 `;
     }

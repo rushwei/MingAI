@@ -121,6 +121,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
             hiddenStemDetails: coreBazi.fourPillars.year.hiddenStems.map((item) => ({
                 stem: item.stem as HeavenlyStem,
                 tenGod: item.tenGod,
+                qiType: item.qiType,
             })) as HiddenStemDetail[],
             tenGod: coreBazi.fourPillars.year.tenGod as TenGod | undefined,
             naYin: coreBazi.fourPillars.year.naYin,
@@ -137,6 +138,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
             hiddenStemDetails: coreBazi.fourPillars.month.hiddenStems.map((item) => ({
                 stem: item.stem as HeavenlyStem,
                 tenGod: item.tenGod,
+                qiType: item.qiType,
             })) as HiddenStemDetail[],
             tenGod: coreBazi.fourPillars.month.tenGod as TenGod | undefined,
             naYin: coreBazi.fourPillars.month.naYin,
@@ -153,6 +155,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
             hiddenStemDetails: coreBazi.fourPillars.day.hiddenStems.map((item) => ({
                 stem: item.stem as HeavenlyStem,
                 tenGod: item.tenGod,
+                qiType: item.qiType,
             })) as HiddenStemDetail[],
             naYin: coreBazi.fourPillars.day.naYin,
             diShi: coreBazi.fourPillars.day.diShi,
@@ -168,6 +171,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
             hiddenStemDetails: coreBazi.fourPillars.hour.hiddenStems.map((item) => ({
                 stem: item.stem as HeavenlyStem,
                 tenGod: item.tenGod,
+                qiType: item.qiType,
             })) as HiddenStemDetail[],
             tenGod: coreBazi.fourPillars.hour.tenGod as TenGod | undefined,
             naYin: coreBazi.fourPillars.hour.naYin,
@@ -687,6 +691,22 @@ export function generateBaziChartText(
 ): string {
     const lines: string[] = [];
     const dayMasterElement = STEM_ELEMENTS[chart.dayMaster];
+    const formatHiddenStemDetails = (pillar: FourPillars['year']): string => {
+        const details = pillar.hiddenStemDetails && pillar.hiddenStemDetails.length > 0
+            ? pillar.hiddenStemDetails.map((item) => {
+                const parts = [item.qiType, item.tenGod].filter(Boolean);
+                return parts.length > 0 ? `${item.stem}(${parts.join('·')})` : item.stem;
+            })
+            : pillar.hiddenStems.map((stem) => stem);
+        return details.length > 0 ? `藏干：${details.join('、')}` : '';
+    };
+    const formatPillarMeta = (pillar: FourPillars['year']): string => {
+        const parts: string[] = [];
+        if (pillar.naYin) parts.push(`纳音：${pillar.naYin}`);
+        if (pillar.diShi) parts.push(`地势：${pillar.diShi}`);
+        if (pillar.kongWang) parts.push(`空亡：${pillar.kongWang.isKong ? '空' : '不空'}`);
+        return parts.length > 0 ? parts.join(' | ') : '';
+    };
     lines.push('【八字命盘】');
     lines.push(`姓名：${chart.name}`);
     lines.push(`性别：${chart.gender === 'male' ? '男' : '女'}`);
@@ -725,19 +745,27 @@ export function generateBaziChartText(
     // 四柱详解
     lines.push('【四柱详解】');
     const yearTenGod = fourPillars.year.tenGod ? `（${fourPillars.year.tenGod}）` : '';
-    const yearHidden = fourPillars.year.hiddenStems.length ? `藏干：${fourPillars.year.hiddenStems.join('、')}` : '';
+    const yearHidden = formatHiddenStemDetails(fourPillars.year);
     lines.push(`年柱：${fourPillars.year.stem}${fourPillars.year.branch}${yearTenGod} ${yearHidden}`);
+    const yearMeta = formatPillarMeta(fourPillars.year);
+    if (yearMeta) lines.push(`  ${yearMeta}`);
 
     const monthTenGod = fourPillars.month.tenGod ? `（${fourPillars.month.tenGod}）` : '';
-    const monthHidden = fourPillars.month.hiddenStems.length ? `藏干：${fourPillars.month.hiddenStems.join('、')}` : '';
+    const monthHidden = formatHiddenStemDetails(fourPillars.month);
     lines.push(`月柱：${fourPillars.month.stem}${fourPillars.month.branch}${monthTenGod} ${monthHidden}`);
+    const monthMeta = formatPillarMeta(fourPillars.month);
+    if (monthMeta) lines.push(`  ${monthMeta}`);
 
-    const dayHidden = fourPillars.day.hiddenStems.length ? `藏干：${fourPillars.day.hiddenStems.join('、')}` : '';
+    const dayHidden = formatHiddenStemDetails(fourPillars.day);
     lines.push(`日柱：${fourPillars.day.stem}${fourPillars.day.branch}（日主） ${dayHidden}`);
+    const dayMeta = formatPillarMeta(fourPillars.day);
+    if (dayMeta) lines.push(`  ${dayMeta}`);
 
     const hourTenGod = fourPillars.hour.tenGod ? `（${fourPillars.hour.tenGod}）` : '';
-    const hourHidden = fourPillars.hour.hiddenStems.length ? `藏干：${fourPillars.hour.hiddenStems.join('、')}` : '';
+    const hourHidden = formatHiddenStemDetails(fourPillars.hour);
     lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
+    const hourMeta = formatPillarMeta(fourPillars.hour);
+    if (hourMeta) lines.push(`  ${hourMeta}`);
     lines.push('');
 
     if (chart.kongWang) {

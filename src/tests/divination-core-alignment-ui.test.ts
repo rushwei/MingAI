@@ -62,6 +62,29 @@ test('bazi shared chart text should include core-aligned metadata that is curren
     assert.match(text, /地支半合/u, 'bazi text should expose diZhiBanHe summary');
 });
 
+test('bazi chart text should include naYin/diShi and hidden stem qiType details', () => {
+    const chart = calculateBazi({
+        name: '测试',
+        gender: 'male',
+        birthYear: 1990,
+        birthMonth: 1,
+        birthDay: 1,
+        birthHour: 12,
+        birthMinute: 0,
+        birthPlace: '上海',
+        longitude: 121.47,
+        calendarType: 'solar',
+    });
+
+    const text = generateBaziChartText(chart);
+    const qiType = chart.fourPillars.year.hiddenStemDetails?.[0]?.qiType;
+
+    assert.ok(qiType, 'bazi hidden stem details should include qiType from core output');
+    assert.match(text, /纳音/u, 'bazi text should include naYin markers for pillars');
+    assert.match(text, /地势/u, 'bazi text should include diShi markers for pillars');
+    assert.match(text, new RegExp(qiType), 'bazi text should surface hidden stem qiType');
+});
+
 test('web divination adapters should use explicit longitude instead of local fuzzy place matching', async () => {
     const [baziSource, ziweiSource] = await Promise.all([
         readFile(baziLibPath, 'utf-8'),
@@ -249,6 +272,8 @@ test('daliuren prompt + ui should surface yin/yang guiren and core date markers'
     assert.match(textSource, /丁马/u, 'daliuren shared text should include ding ma');
     assert.match(textSource, /天马/u, 'daliuren shared text should include tian ma');
     assert.match(pageSource, /农历|丁马|阴阳贵人/u, 'daliuren result UI should surface lunar date, ding ma, or guiren mappings');
+    assert.match(pageSource, /取传法|课体/u, 'daliuren result UI should surface keTi method');
+    assert.match(pageSource, /本命|行年/u, 'daliuren result UI should surface benMing/xingNian when available');
 });
 
 test('mcp formatters should surface core-aligned fields across divination features', async () => {
@@ -258,6 +283,7 @@ test('mcp formatters should surface core-aligned fields across divination featur
     assert.match(source, /互卦|错卦|综卦|卦身/u, 'mcp liuyao formatter should include derived hexagrams and gua shen');
     assert.match(source, /星五行|门五行|宫五行/u, 'mcp qimen formatter should include element details');
     assert.match(source, /丁马|天马|阴阳贵人|农历/u, 'mcp daliuren formatter should include extended date and guiren data');
+    assert.match(source, /星象|逆位关键词/u, 'mcp tarot formatter should include astrological or reversed keyword metadata');
 });
 
 test('tarot shared reading text should include core-aligned card metadata and numerology when provided', () => {
@@ -275,6 +301,8 @@ test('tarot shared reading text should include core-aligned card metadata and nu
                     keywords: ['成功', '清晰'],
                     element: '火',
                     number: 19,
+                    astrologicalCorrespondence: '太阳',
+                    reversedKeywords: ['消极', '迟滞'],
                 },
             },
         ],
@@ -288,6 +316,8 @@ test('tarot shared reading text should include core-aligned card metadata and nu
     assert.match(text, /英文名/u, 'tarot text should include english card name');
     assert.match(text, /编号/u, 'tarot text should include card number');
     assert.match(text, /元素/u, 'tarot text should include card element');
+    assert.match(text, /星象/u, 'tarot text should include astrological correspondence when provided');
+    assert.match(text, /逆位关键词/u, 'tarot text should include reversed keywords when provided');
     assert.match(text, /塔罗数秘术/u, 'tarot text should include numerology section when provided');
     assert.match(text, /人格牌/u, 'tarot numerology section should include personality card');
 });
