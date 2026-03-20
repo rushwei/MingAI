@@ -408,8 +408,11 @@ function getHexagramByCode(code) {
 function getHexagramByName(name) {
     return HEXAGRAM_BY_NAME.get(name) || HEXAGRAMS.find((item) => item.name.includes(name));
 }
+function isValidHexagramCode(code) {
+    return /^[01]{6}$/.test(code);
+}
 export function findHexagram(input) {
-    if (/^[01]{6}$/.test(input)) {
+    if (isValidHexagramCode(input)) {
         return getHexagramByCode(input);
     }
     return getHexagramByName(input);
@@ -491,6 +494,51 @@ export function getNaJiaByHexagram(hexagramCode, position) {
         return '子';
     }
     return isLower ? trigram.lower[position - 1] : trigram.upper[position - 4];
+}
+function buildDerivedHexagramInfo(code) {
+    const hexagram = findHexagram(code);
+    if (!hexagram)
+        return undefined;
+    return {
+        name: hexagram.name,
+        guaCi: GUA_CI[hexagram.name],
+        xiangCi: XIANG_CI[hexagram.name],
+    };
+}
+export function calculateDerivedHexagrams(hexagramCode) {
+    if (!isValidHexagramCode(hexagramCode)) {
+        return {};
+    }
+    const lowerTrigram = hexagramCode[1] + hexagramCode[2] + hexagramCode[3];
+    const upperTrigram = hexagramCode[2] + hexagramCode[3] + hexagramCode[4];
+    const nuclearCode = lowerTrigram + upperTrigram;
+    const oppositeCode = hexagramCode.split('').map((c) => (c === '1' ? '0' : '1')).join('');
+    const reversedCode = hexagramCode.split('').reverse().join('');
+    return {
+        nuclearHexagram: buildDerivedHexagramInfo(nuclearCode),
+        oppositeHexagram: buildDerivedHexagramInfo(oppositeCode),
+        reversedHexagram: buildDerivedHexagramInfo(reversedCode),
+    };
+}
+export function calculateGuaShen(hexagramCode) {
+    if (!isValidHexagramCode(hexagramCode)) {
+        return { branch: '子', absent: true };
+    }
+    const { shi } = getShiYingPosition(hexagramCode);
+    const shiLineType = Number.parseInt(hexagramCode[shi - 1] ?? '', 10);
+    if (Number.isNaN(shiLineType)) {
+        return { branch: '子', absent: true };
+    }
+    const startIndex = shiLineType === 1 ? 0 : 6;
+    const targetBranchIndex = (startIndex + (shi - 1)) % 12;
+    const targetBranch = DIZHI[targetBranchIndex] ?? '子';
+    for (let pos = 1; pos <= 6; pos += 1) {
+        const naJia = getNaJiaByHexagram(hexagramCode, pos);
+        if (naJia === targetBranch) {
+            return { branch: targetBranch, linePosition: pos };
+        }
+    }
+    return { branch: targetBranch, absent: true };
 }
 function getXunFromGanZhi(gan, zhi) {
     const ganIndex = TIANGAN.indexOf(gan);

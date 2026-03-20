@@ -11,9 +11,9 @@ import {
     calculateFullYaoInfo as calculateFullYaoInfoCore,
     calculateGanZhiTime as calculateGanZhiTimeCore,
     calculateKongWangByPillar as calculateKongWangByPillarCore,
+    calculateDerivedHexagrams,
+    calculateGuaShen,
     findHexagram as findHexagramCore,
-    getNaJiaByHexagram,
-    getShiYingPosition,
     hasInvalidYongShenTargets as hasInvalidYongShenTargetsCore,
     normalizeYongShenTargets as normalizeYongShenTargetsCore,
     performFullAnalysis as performFullAnalysisCore,
@@ -21,11 +21,13 @@ import {
     MOVEMENT_LABELS,
     WANG_SHUAI_LABELS,
     type ChangedYaoDetail,
+    type DerivedHexagramInfo,
     type DiZhi,
     type FullYaoInfo,
     type FullYaoInfoExtended,
     type FuShen,
     type GanZhiTime,
+    type GuaShenInfo,
     type KongWang,
     type KongWangByPillar,
     type LiuQinType,
@@ -41,15 +43,16 @@ import {
     type YongShenCandidate,
     type YongShenGroup,
 } from '@mingai/core/liuyao-core';
-import { getHexagramText } from '@/lib/divination/hexagram-texts';
 
 export type {
     ChangedYaoDetail,
+    DerivedHexagramInfo,
     DiZhi,
     FullYaoInfo,
     FullYaoInfoExtended,
     FuShen,
     GanZhiTime,
+    GuaShenInfo,
     KongWang,
     KongWangByPillar,
     LiuYaoFullAnalysis,
@@ -67,6 +70,7 @@ export type LiuQin = LiuQinType;
 export type Hexagram = CoreHexagram;
 
 export type Yao = CoreYao;
+export { calculateDerivedHexagrams, calculateGuaShen };
 
 export interface Trigram {
     name: string;
@@ -81,70 +85,6 @@ export interface CoinTossResult {
     sum: number;
     yaoType: YaoType;
     isChanging: boolean;
-}
-
-export interface DerivedHexagramInfo {
-    name: string;
-    guaCi?: string;
-    xiangCi?: string;
-}
-
-export interface GuaShenInfo {
-    branch: string;
-    linePosition?: number;
-    absent?: boolean;
-}
-
-const DERIVED_EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-
-function buildDerivedHexagramInfo(code: string): DerivedHexagramInfo | undefined {
-    const hexagram = findHexagramCore(code);
-    if (!hexagram) return undefined;
-    const text = getHexagramText(hexagram.name);
-    return {
-        name: hexagram.name,
-        guaCi: text?.gua,
-        xiangCi: text?.xiang,
-    };
-}
-
-export function calculateDerivedHexagrams(hexagramCode: string): {
-    nuclearHexagram?: DerivedHexagramInfo;
-    oppositeHexagram?: DerivedHexagramInfo;
-    reversedHexagram?: DerivedHexagramInfo;
-} {
-    if (!hexagramCode || hexagramCode.length !== 6) {
-        return {};
-    }
-
-    const lowerTrigram = hexagramCode[1] + hexagramCode[2] + hexagramCode[3];
-    const upperTrigram = hexagramCode[2] + hexagramCode[3] + hexagramCode[4];
-    const nuclearCode = lowerTrigram + upperTrigram;
-    const oppositeCode = hexagramCode.split('').map(c => (c === '1' ? '0' : '1')).join('');
-    const reversedCode = hexagramCode.split('').reverse().join('');
-
-    return {
-        nuclearHexagram: buildDerivedHexagramInfo(nuclearCode),
-        oppositeHexagram: buildDerivedHexagramInfo(oppositeCode),
-        reversedHexagram: buildDerivedHexagramInfo(reversedCode),
-    };
-}
-
-export function calculateGuaShen(hexagramCode: string): GuaShenInfo {
-    const { shi } = getShiYingPosition(hexagramCode);
-    const shiLineType = parseInt(hexagramCode[shi - 1], 10);
-    const startIndex = shiLineType === 1 ? 0 : 6;
-    const targetBranchIndex = (startIndex + (shi - 1)) % 12;
-    const targetBranch = DERIVED_EARTHLY_BRANCHES[targetBranchIndex];
-
-    for (let pos = 1; pos <= 6; pos += 1) {
-        const naJia = getNaJiaByHexagram(hexagramCode, pos);
-        if (naJia === targetBranch) {
-            return { branch: targetBranch, linePosition: pos };
-        }
-    }
-
-    return { branch: targetBranch, absent: true };
 }
 
 export interface DivinationResult {

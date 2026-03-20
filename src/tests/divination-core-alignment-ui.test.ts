@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
 import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
-import { findHexagram, type Yao } from '@/lib/divination/liuyao';
+import { findHexagram, type Yao, calculateDerivedHexagrams, calculateGuaShen } from '@/lib/divination/liuyao';
 import { drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
 
 const qimenRoutePath = resolve(process.cwd(), 'src/app/api/qimen/route.ts');
@@ -214,6 +214,14 @@ test('liuyao prompt should include derived hexagrams and gua shen', () => {
     assert.doesNotMatch(text, /错卦：无/u, 'liuyao prompt should resolve opposite hexagram instead of placeholder');
     assert.doesNotMatch(text, /综卦：无/u, 'liuyao prompt should resolve reversed hexagram instead of placeholder');
     assert.doesNotMatch(text, /卦身：无/u, 'liuyao prompt should resolve gua shen instead of placeholder');
+});
+
+test('liuyao derived helpers should handle invalid hexagram codes defensively', () => {
+    const derived = calculateDerivedHexagrams('');
+    assert.equal(Object.keys(derived).length, 0, 'invalid hexagram code should not yield derived results');
+
+    const guaShen = calculateGuaShen('');
+    assert.equal(guaShen.absent, true, 'invalid hexagram code should return an absent gua shen');
 });
 
 test('liuyao traditional analysis UI should surface derived hexagrams and gua shen', async () => {

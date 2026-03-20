@@ -1,7 +1,7 @@
 import { type Hexagram } from './data/hexagram-data.js';
 export type { Hexagram } from './data/hexagram-data.js';
-import type { WuXing, DiZhi, TianGan, LiuQinType, WangShuai, KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus } from './types.js';
-export type { WuXing, DiZhi, TianGan, LiuQinType, WangShuai, KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus, } from './types.js';
+import type { WuXing, DiZhi, TianGan, LiuQinType, WangShuai, KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus, DerivedHexagramInfo, GuaShenInfo } from './types.js';
+export type { WuXing, DiZhi, TianGan, LiuQinType, WangShuai, KongWangState, YaoMovementState, YaoSpecialStatus, YongShenSelectionStatus, DerivedHexagramInfo, GuaShenInfo, } from './types.js';
 export type LiuShen = '青龙' | '朱雀' | '勾陈' | '螣蛇' | '白虎' | '玄武';
 export type YaoType = 0 | 1;
 export type YaoChange = 'stable' | 'changing';
@@ -305,6 +305,12 @@ export declare function getShiYingPosition(code: string): {
     ying: number;
 };
 export declare function getNaJiaByHexagram(hexagramCode: string, position: number): DiZhi;
+export declare function calculateDerivedHexagrams(hexagramCode: string): {
+    nuclearHexagram?: DerivedHexagramInfo;
+    oppositeHexagram?: DerivedHexagramInfo;
+    reversedHexagram?: DerivedHexagramInfo;
+};
+export declare function calculateGuaShen(hexagramCode: string): GuaShenInfo;
 export declare function calculateGanZhiTime(date: Date): GanZhiTime;
 export declare function getKongWang(dayGan: TianGan, dayZhi: DiZhi): KongWang;
 export declare function calculateKongWangByPillar(ganZhiTime: GanZhiTime): KongWangByPillar;

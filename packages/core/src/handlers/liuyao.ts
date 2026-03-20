@@ -1,12 +1,12 @@
-import type { LiuyaoInput, LiuyaoOutput, DerivedHexagramInfo, GuaShenInfo } from '../types.js';
+import type { LiuyaoInput, LiuyaoOutput } from '../types.js';
 import { createSeededRng, resolveSeed } from '../seeded-rng.js';
 import { GUA_CI, XIANG_CI, YAO_CI } from '../hexagram-texts.js';
 import { Solar } from 'lunar-javascript';
 import {
   findHexagram,
   getPalaceInfo,
-  getShiYingPosition,
-  getNaJiaByHexagram,
+  calculateDerivedHexagrams,
+  calculateGuaShen,
   hasInvalidYongShenTargets,
   normalizeYongShenTargets,
   performFullAnalysis,
@@ -23,8 +23,6 @@ const TRIGRAM_LINES: Record<string, [number, number, number]> = {
   '乾': [1, 1, 1], '兑': [1, 1, 0], '离': [1, 0, 1], '震': [1, 0, 0],
   '巽': [0, 1, 1], '坎': [0, 1, 0], '艮': [0, 0, 1], '坤': [0, 0, 0],
 };
-
-const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 
 function calculateChangedLines(mainCode: string, changedCode: string): number[] {
   const lines: number[] = [];
@@ -88,74 +86,6 @@ function divine(rng: () => number): { yaos: YaoInput[]; hexagramCode: string; ch
     hexagramCode: yaos.map((item) => item.type).join(''),
     changedLines,
   };
-}
-
-// ── 互卦 (Nuclear Hexagram) ──
-function calculateNuclearHexagram(code: string): DerivedHexagramInfo | undefined {
-  // lines[1],lines[2],lines[3] as lower trigram; lines[2],lines[3],lines[4] as upper trigram
-  const lowerTrigram = code[1] + code[2] + code[3];
-  const upperTrigram = code[2] + code[3] + code[4];
-  const nuclearCode = lowerTrigram + upperTrigram;
-  const hexagram = findHexagram(nuclearCode);
-  if (!hexagram) return undefined;
-  return {
-    name: hexagram.name,
-    guaCi: GUA_CI[hexagram.name],
-    xiangCi: XIANG_CI[hexagram.name],
-  };
-}
-
-// ── 错卦 (Opposite Hexagram) ──
-function calculateOppositeHexagram(code: string): DerivedHexagramInfo | undefined {
-  const oppositeCode = code.split('').map(c => c === '1' ? '0' : '1').join('');
-  const hexagram = findHexagram(oppositeCode);
-  if (!hexagram) return undefined;
-  return {
-    name: hexagram.name,
-    guaCi: GUA_CI[hexagram.name],
-    xiangCi: XIANG_CI[hexagram.name],
-  };
-}
-
-// ── 综卦 (Reversed Hexagram) ──
-function calculateReversedHexagram(code: string): DerivedHexagramInfo | undefined {
-  const reversedCode = code.split('').reverse().join('');
-  const hexagram = findHexagram(reversedCode);
-  if (!hexagram) return undefined;
-  return {
-    name: hexagram.name,
-    guaCi: GUA_CI[hexagram.name],
-    xiangCi: XIANG_CI[hexagram.name],
-  };
-}
-
-// ── 卦身 (Hexagram Body) ──
-function calculateGuaShen(hexagramCode: string): GuaShenInfo {
-  const { shi } = getShiYingPosition(hexagramCode);
-  // shi is 1-6 position
-  const shiLineType = parseInt(hexagramCode[shi - 1], 10); // 1=yang, 0=yin
-
-  let startIndex: number;
-  if (shiLineType === 1) {
-    // yang: start from 子 (index 0)
-    startIndex = 0;
-  } else {
-    // yin: start from 午 (index 6)
-    startIndex = 6;
-  }
-
-  const targetBranchIndex = (startIndex + (shi - 1)) % 12;
-  const targetBranch = EARTHLY_BRANCHES[targetBranchIndex];
-
-  // Scan hexagram's Najia branches to find which line has that branch
-  for (let pos = 1; pos <= 6; pos++) {
-    const naJia = getNaJiaByHexagram(hexagramCode, pos);
-    if (naJia === targetBranch) {
-      return { branch: targetBranch, linePosition: pos };
-    }
-  }
-
-  return { branch: targetBranch, absent: true };
 }
 
 // ── 时间起卦 (Time-based divination) ──
@@ -290,10 +220,7 @@ function toLiuyaoOutput(params: {
     yaoCi: YAO_CI[baseHexagram.name]?.[yao.position - 1],
   }));
 
-  // Calculate derived hexagrams
-  const nuclearHexagram = calculateNuclearHexagram(hexagramCode);
-  const oppositeHexagram = calculateOppositeHexagram(hexagramCode);
-  const reversedHexagram = calculateReversedHexagram(hexagramCode);
+  const { nuclearHexagram, oppositeHexagram, reversedHexagram } = calculateDerivedHexagrams(hexagramCode);
   const guaShen = calculateGuaShen(hexagramCode);
 
   return {
