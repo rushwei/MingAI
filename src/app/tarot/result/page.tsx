@@ -713,19 +713,6 @@ function TarotResultContent() {
                             </div>
                         </div>
 
-                        {/* Share Card - 暂时隐藏 */}
-                        {/* <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8">
-                            <h2 className="text-lg font-bold flex items-center gap-3 mb-6">
-                                <Share2 className="w-5 h-5 text-purple-400" />
-                                珍藏与分享
-                            </h2>
-                            <TarotShareCard
-                                cards={drawnCards}
-                                spread={selectedSpread}
-                                question={question || undefined}
-                                interpretation={interpretation || undefined}
-                            />
-                        </div> */}
                     </div >
                 )
                 }

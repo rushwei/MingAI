@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { NextRequest } from 'next/server';
@@ -9,14 +10,11 @@ const loginOverlayPath = resolve(process.cwd(), 'src/components/auth/LoginOverla
 const notificationPanelPath = resolve(process.cwd(), 'src/components/admin/NotificationLaunchPanel.tsx');
 const recordDetailPath = resolve(process.cwd(), 'src/components/records/RecordDetail.tsx');
 const historyTemplatePath = resolve(process.cwd(), 'src/components/history/HistoryPageTemplate.tsx');
-const adminPageShellPath = resolve(process.cwd(), 'src/components/admin/AdminPageShell.tsx');
 const adminNotificationsPagePath = resolve(process.cwd(), 'src/app/admin/notifications/page.tsx');
 const featureTogglePanelPath = resolve(process.cwd(), 'src/components/admin/FeatureTogglePanel.tsx');
 const notificationHookPath = resolve(process.cwd(), 'src/lib/hooks/useNotificationUnreadCount.ts');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
-const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
-const emailLibPath = resolve(process.cwd(), 'src/lib/email.ts');
 const mobileNavCustomizerPath = resolve(process.cwd(), 'src/components/settings/MobileNavCustomizer.tsx');
 const baziLayoutPath = resolve(process.cwd(), 'src/app/bazi/layout.tsx');
 const baziPagePath = resolve(process.cwd(), 'src/app/bazi/page.tsx');
@@ -60,11 +58,9 @@ test('notification launch panel should submit the selected template payload inst
   assert.match(source, /templateVars/u);
 });
 
-test('email helpers should not keep the removed feature subscription launch flow', async () => {
-  const source = await readFile(emailLibPath, 'utf-8');
-
-  assert.doesNotMatch(source, /sendFeatureLaunchEmail/u);
-  assert.doesNotMatch(source, /您订阅的/u);
+test('removed admin shell and resend mail helper should stay deleted', () => {
+  assert.equal(existsSync(resolve(process.cwd(), 'src/components/admin/AdminPageShell.tsx')), false);
+  assert.equal(existsSync(resolve(process.cwd(), 'src/lib/email.ts')), false);
 });
 
 test('admin notifications page should describe launches as mandatory site-wide announcements', async () => {
@@ -303,13 +299,6 @@ test('history page template should avoid dynamic Tailwind interpolation and stop
   assert.doesNotMatch(source, /hover:border-\$\{themeColor\}/u);
 });
 
-test('admin shell should recover from client access lookup failures instead of hanging forever', async () => {
-  const source = await readFile(adminPageShellPath, 'utf-8');
-
-  assert.match(source, /catch/u);
-  assert.match(source, /loading:\s*false/u);
-});
-
 test('feature toggle panel should expose the actual enabled state to assistive tech', async () => {
   const source = await readFile(featureTogglePanelPath, 'utf-8');
 
@@ -317,33 +306,27 @@ test('feature toggle panel should expose the actual enabled state to assistive t
 });
 
 test('notification unread count should be centralized in a shared hook/store', async () => {
-  const [hookSource, userMenuSource, bellSource, userPageSource] = await Promise.all([
+  const [hookSource, userMenuSource, userPageSource] = await Promise.all([
     readFile(notificationHookPath, 'utf-8'),
     readFile(userMenuPath, 'utf-8'),
-    readFile(notificationBellPath, 'utf-8'),
     readFile(userPagePath, 'utf-8'),
   ]);
 
   assert.match(hookSource, /getUnreadCount/u);
   assert.match(userMenuSource, /useNotificationUnreadCount/u);
-  assert.match(bellSource, /useNotificationUnreadCount/u);
   assert.match(userPageSource, /useNotificationUnreadCount/u);
   assert.doesNotMatch(userMenuSource, /setInterval\(/u);
-  assert.doesNotMatch(bellSource, /setInterval\(/u);
 });
 
 test('notification unread shared store should support both explicit counts and delta updates', async () => {
-  const [hookSource, bellSource, notificationsPageSource] = await Promise.all([
+  const [hookSource, notificationsPageSource] = await Promise.all([
     readFile(notificationHookPath, 'utf-8'),
-    readFile(notificationBellPath, 'utf-8'),
     readFile(resolve(process.cwd(), 'src/app/user/notifications/page.tsx'), 'utf-8'),
   ]);
 
   assert.match(hookSource, /detail\?\.count/u);
-  assert.match(hookSource, /detail\?\.delta/u);
-  assert.match(bellSource, /detail:\s*\{\s*delta:\s*change\s*\}/u);
+  assert.doesNotMatch(hookSource, /detail\?\.delta/u);
   assert.match(notificationsPageSource, /detail:\s*\{\s*count:\s*unreadCount\s*\}/u);
-  assert.doesNotMatch(bellSource, /const next = Math\.max\(0, unreadCount \+ change\)/u);
 });
 
 test('mobile nav customizer should use shared confirm dialog instead of browser confirm', async () => {

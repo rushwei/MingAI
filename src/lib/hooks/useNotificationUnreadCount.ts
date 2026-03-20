@@ -29,16 +29,6 @@ function setUnreadState(next: NotificationUnreadState) {
     emitUnreadState();
 }
 
-function applyUnreadDelta(delta: number) {
-    if (!activeUserId) {
-        return;
-    }
-    setUnreadState({
-        userId: activeUserId,
-        unreadCount: Math.max(0, unreadState.unreadCount + delta),
-    });
-}
-
 async function refreshUnreadCount(userId: string, options?: { bypassCache?: boolean }) {
     const count = await getUnreadCount(userId, options);
     if (activeUserId !== userId) {
@@ -77,16 +67,12 @@ function handleNotificationsInvalidate() {
 }
 
 function handleNotificationsUnreadUpdate(event: Event) {
-    const detail = (event as CustomEvent<{ count?: number; delta?: number }>).detail;
+    const detail = (event as CustomEvent<{ count?: number }>).detail;
     if (typeof detail?.count === 'number') {
         setUnreadState({
             userId: activeUserId,
             unreadCount: Math.max(0, detail.count),
         });
-        return;
-    }
-    if (typeof detail?.delta === 'number') {
-        applyUnreadDelta(detail.delta);
     }
 }
 

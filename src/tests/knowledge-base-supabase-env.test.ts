@@ -5,9 +5,7 @@ import { resolve } from 'node:path';
 
 const FILES = [
   'src/lib/api-utils.ts',
-  'src/lib/knowledge-base/archive-status.ts',
   'src/lib/knowledge-base/embedding-config.ts',
-  'src/lib/knowledge-base/index.ts',
   'src/lib/knowledge-base/ingest.ts',
   'src/lib/knowledge-base/search.ts',
 ];

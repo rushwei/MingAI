@@ -7,8 +7,6 @@ const browserApiPath = resolve(process.cwd(), 'src/lib/browser-api.ts');
 const unreadHookPath = resolve(process.cwd(), 'src/lib/hooks/useNotificationUnreadCount.ts');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
-const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
-
 test('browser api helper should emit api-write events for successful non-GET writes', async () => {
   const source = await readFile(browserApiPath, 'utf-8');
 
@@ -23,11 +21,10 @@ test('browser api helper should emit api-write events for successful non-GET wri
 });
 
 test('notification counters should centralize supabase write-event sync in the shared unread hook', async () => {
-  const [hookSource, userPage, userMenu, bell] = await Promise.all([
+  const [hookSource, userPage, userMenu] = await Promise.all([
     readFile(unreadHookPath, 'utf-8'),
     readFile(userPagePath, 'utf-8'),
     readFile(userMenuPath, 'utf-8'),
-    readFile(notificationBellPath, 'utf-8'),
   ]);
 
   assert.ok(
@@ -41,9 +38,5 @@ test('notification counters should centralize supabase write-event sync in the s
   assert.ok(
     userMenu.includes('useNotificationUnreadCount'),
     'user menu should consume the shared unread hook'
-  );
-  assert.ok(
-    bell.includes('useNotificationUnreadCount'),
-    'notification bell should consume the shared unread hook'
   );
 });

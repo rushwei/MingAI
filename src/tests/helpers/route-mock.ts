@@ -77,7 +77,7 @@ export function setupRouteTest(options: RouteTestOptions = {}): RouteTestSetup {
 
     /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
     const credits = require('../../lib/user/credits') as any;
-    const supabaseModule = require('../../lib/supabase') as any;
+    const supabaseModule = require('../../lib/auth') as any;
     const supabaseServerModule = require('../../lib/supabase-server') as any;
     /* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 

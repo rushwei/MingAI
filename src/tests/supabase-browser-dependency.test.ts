@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const supabaseClientPath = resolve(process.cwd(), 'src/lib/supabase.ts');
+const supabaseClientPath = resolve(process.cwd(), 'src/lib/auth.ts');
 
 test('frontend supabase adapter should not depend on browser supabase client', async () => {
   const source = await readFile(supabaseClientPath, 'utf-8');

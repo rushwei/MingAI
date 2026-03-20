@@ -6,7 +6,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
 test('createNotification uses service client for inserts', async (t) => {
     const notificationModule = require('../lib/notification-server') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;

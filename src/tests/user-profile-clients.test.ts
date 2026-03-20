@@ -65,11 +65,11 @@ test('user profile feature clients should persist nickname through profile API a
 
   try {
     const profileClientPath = require.resolve('../lib/user/profile');
-    const chartClientPath = require.resolve('../lib/user/charts');
+    const chartClientPath = require.resolve('../lib/user-charts');
     delete require.cache[profileClientPath];
     delete require.cache[chartClientPath];
     const profileClient = require('../lib/user/profile') as typeof import('../lib/user/profile');
-    const chartClient = require('../lib/user/charts') as typeof import('../lib/user/charts');
+    const chartClient = require('../lib/user-charts') as typeof import('../lib/user-charts');
 
     const saveResult = await profileClient.updateCurrentUserProfile({
       profile: {

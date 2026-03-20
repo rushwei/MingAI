@@ -11,7 +11,7 @@ import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/l
 import { addCredits } from '@/lib/user/credits';
 // getMembershipInfo 和 getCreditLimit 不再使用，改用服务端直接查询
 
-// 按量付费套餐配置（与 PayPerUse.tsx 保持一致）
+// 按量付费套餐配置
 const PRICE_PER_CREDIT = 9.9;
 const creditPackages = [
     { count: 1, price: 9.9 },

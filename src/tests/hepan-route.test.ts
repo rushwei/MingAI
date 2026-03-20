@@ -7,7 +7,7 @@ ensureRouteTestEnv();
 
 test('hepan route returns error when credit deduction fails', async (t) => {
     const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
 
@@ -95,7 +95,7 @@ test('hepan route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;

@@ -7,7 +7,7 @@ ensureRouteTestEnv();
 
 test('liuyao route returns error when credit deduction fails', async (t) => {
     const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const consoleCapture = captureConsoleErrors();
 
@@ -104,7 +104,7 @@ test('liuyao route returns error when credit deduction fails', async (t) => {
 
 test('liuyao route uses divination created_at for analysis date', async (t) => {
     const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const liuyaoModule = require('../lib/divination/liuyao') as any;
@@ -244,7 +244,7 @@ test('liuyao route uses divination created_at for analysis date', async (t) => {
 
 test('liuyao route only marks 用神 when position and liuqin both match', async (t) => {
     const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -374,7 +374,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
@@ -509,7 +509,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
 });
 
 test('liuyao route save returns 400 when question is provided but yongShenTargets is missing', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
 
     supabaseModule.supabase.auth.getUser = async () => ({
@@ -582,7 +582,7 @@ test('liuyao route save returns 400 when question is not string', async () => {
 });
 
 test('liuyao route interpret returns 400 when question is provided but yongShenTargets is missing', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
 
     supabaseModule.supabase.auth.getUser = async () => ({
@@ -633,7 +633,7 @@ test('liuyao route interpret returns 400 when question is provided but yongShenT
 
 test('liuyao route interpret enforces targets when persisted question exists but request question is empty', async (t) => {
     const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
@@ -726,7 +726,7 @@ test('liuyao route interpret enforces targets when persisted question exists but
 });
 
 test('liuyao route save allows missing yongShenTargets when question is empty', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
@@ -783,7 +783,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
@@ -898,7 +898,7 @@ test('liuyao route rejects interpret when question is empty and persisted questi
 });
 
 test('liuyao route update returns 404 when no record is updated', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;

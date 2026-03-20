@@ -5,7 +5,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 
 test('annual report generation uses service client for queries', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;
@@ -105,7 +105,7 @@ test('annual report generation uses service client for queries', async (t) => {
 });
 
 test('annual report summary uses service client when cache is empty', async (t) => {
-    const supabaseModule = require('../lib/supabase') as any;
+    const supabaseModule = require('../lib/auth') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
 
     const originalFrom = supabaseModule.supabase.from;
