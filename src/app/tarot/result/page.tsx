@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
-import { generateTarotReadingText, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
+import { generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -662,60 +662,6 @@ function TarotResultContent() {
                     )}
                 </div>
 
-                {revealedCards.length === drawnCards.length && drawnCards.length > 0 && (
-                    <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
-                        <div className="mb-4">
-                            <h2 className="text-base font-bold">卡牌信息</h2>
-                            <p className="mt-1 text-sm text-foreground-secondary">展示元素、星象与关键词，保证卡牌元数据完整对齐。</p>
-                        </div>
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {drawnCards.map((card, index) => {
-                                const positionLabel = selectedSpread?.positions[index]?.name || `第${index + 1}张`;
-                                const keywords = card.card.keywords.length > 0 ? card.card.keywords.join('、') : '无';
-                                const reversedKeywords = card.card.reversedKeywords && card.card.reversedKeywords.length > 0
-                                    ? card.card.reversedKeywords.join('、')
-                                    : '无';
-                                return (
-                                    <div key={`${card.card.name}-${index}`} className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <div className="text-xs text-foreground-secondary">{positionLabel}</div>
-                                                <div className="mt-1 text-sm font-semibold text-foreground">
-                                                    {card.card.nameChinese} / {card.card.name}
-                                                </div>
-                                            </div>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full border ${card.orientation === 'reversed'
-                                                ? 'text-rose-400 border-rose-400/20 bg-rose-400/5'
-                                                : 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
-                                                }`}>
-                                                {card.orientation === 'reversed' ? '逆位' : '正位'}
-                                            </span>
-                                        </div>
-                                        <div className="mt-3 space-y-2 text-xs text-foreground-secondary">
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-10 text-foreground-secondary">元素</span>
-                                                <span className="text-foreground">{card.card.element || '无'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-10 text-foreground-secondary">星象</span>
-                                                <span className="text-foreground">{card.card.zodiac || '无'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-foreground-secondary">关键词：</span>
-                                                <span className="text-foreground">{keywords}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-foreground-secondary">逆位关键词：</span>
-                                                <span className="text-foreground">{reversedKeywords}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
-
                 {(birthDate || numerology) && (
                     <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
                         <div className="mb-4">
@@ -731,21 +677,41 @@ function TarotResultContent() {
                             )}
                             {numerology && (
                                 <>
-                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                        <div className="text-xs text-foreground-secondary">人格牌</div>
-                                        <div className="mt-1 text-sm font-medium">{numerology.personalityCard.nameChinese} / {numerology.personalityCard.name}</div>
-                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.personalityCard.number}</div>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                        <div className="text-xs text-foreground-secondary">灵魂牌</div>
-                                        <div className="mt-1 text-sm font-medium">{numerology.soulCard.nameChinese} / {numerology.soulCard.name}</div>
-                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.soulCard.number}</div>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4 md:col-span-2">
-                                        <div className="text-xs text-foreground-secondary">年度牌</div>
-                                        <div className="mt-1 text-sm font-medium">{numerology.yearlyCard.nameChinese} / {numerology.yearlyCard.name}</div>
-                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.yearlyCard.number}{numerology.yearlyCard.year ? ` · ${numerology.yearlyCard.year}` : ''}</div>
-                                    </div>
+                                    {[
+                                        { label: '人格牌', card: numerology.personalityCard },
+                                        { label: '灵魂牌', card: numerology.soulCard },
+                                        { label: '年度牌', card: numerology.yearlyCard },
+                                    ].map((item) => {
+                                        const cardImage = TAROT_CARDS.find(card => card.name === item.card.name)?.image || '';
+                                        return (
+                                            <div key={item.label} className="rounded-2xl border border-white/10 bg-background/60 p-4 flex gap-3 items-start">
+                                                <div className="relative w-16 h-24 rounded-lg overflow-hidden border border-white/10 bg-black/20 flex-shrink-0">
+                                                    {cardImage ? (
+                                                        <Image
+                                                            src={cardImage}
+                                                            alt={item.card.nameChinese}
+                                                            fill
+                                                            sizes="64px"
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-foreground-secondary">
+                                                            无图
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-xs text-foreground-secondary">{item.label}</div>
+                                                    <div className="mt-1 text-sm font-medium text-foreground">
+                                                        {item.card.nameChinese} / {item.card.name}
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-foreground-secondary">
+                                                        编号 {item.card.number}{item.card.year ? ` · ${item.card.year}` : ''}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </>
                             )}
                             {!numerology && birthDate && (

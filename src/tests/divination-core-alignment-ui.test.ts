@@ -14,7 +14,7 @@ const qimenResultPath = resolve(process.cwd(), 'src/app/qimen/result/page.tsx');
 const tarotResultPath = resolve(process.cwd(), 'src/app/tarot/result/page.tsx');
 const tarotRoutePath = resolve(process.cwd(), 'src/app/api/tarot/route.ts');
 const tarotHistoryRegistryPath = resolve(process.cwd(), 'src/lib/history/registry.ts');
-const baziBasicInfoSectionPath = resolve(process.cwd(), 'src/components/bazi/result/BasicInfoSection.tsx');
+const baziProfessionalSectionPath = resolve(process.cwd(), 'src/components/bazi/result/ProfessionalSection.tsx');
 const ziweiResultPath = resolve(process.cwd(), 'src/app/ziwei/result/page.tsx');
 const ziweiGridPath = resolve(process.cwd(), 'src/components/ziwei/ZiweiChartGrid.tsx');
 const ziweiStarBadgePath = resolve(process.cwd(), 'src/components/ziwei/StarBadge.tsx');
@@ -123,18 +123,18 @@ test('web divination adapters should use explicit longitude instead of local fuz
     assert.equal(ziweiChart.trueSolarTimeInfo?.longitude, 121.47);
 });
 
-test('bazi basic info section should render a direct chart metadata block for the newly aligned core fields', async () => {
-    const source = await readFile(baziBasicInfoSectionPath, 'utf-8');
+test('bazi professional section should render a direct chart metadata block for the newly aligned core fields', async () => {
+    const source = await readFile(baziProfessionalSectionPath, 'utf-8');
 
     assert.match(
         source,
         /排盘元信息/u,
-        'bazi result basic tab should present a dedicated metadata section for core-aligned chart fields',
+        'bazi professional section should present a dedicated metadata section for core-aligned chart fields',
     );
     assert.match(
         source,
         /真太阳时|胎元|命宫|天干五合|地支半合|干支关系|地支关系/u,
-        'bazi result basic tab should surface core-aligned metadata directly in the UI',
+        'bazi professional section should surface core-aligned metadata directly in the UI',
     );
 });
 
@@ -262,7 +262,7 @@ test('qimen prompt + ui should surface star/gate elements and palace element sta
 
     assert.match(sharedSource, /星五行|门五行|宫五行/u, 'qimen shared text should include star/gate elements and palace element state');
     assert.match(gridSource, /starElement|gateElement|elementState/u, 'qimen grid should display star/gate elements and palace element state');
-    assert.match(pageSource, /空亡|驿马|格局|三元/u, 'qimen result UI should surface kongWang/yiMa/global formations metadata');
+    assert.match(pageSource, /值符|值使/u, 'qimen result page should surface zhiFu/zhiShi in the header');
 });
 
 test('daliuren prompt + ui should surface yin/yang guiren and core date markers', async () => {

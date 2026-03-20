@@ -298,44 +298,6 @@ export default function QimenResultPage() {
                     </div>
                 </div>
 
-                {/* 盘面要点 */}
-                <div className="grid gap-3 md:grid-cols-3 mb-4">
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                        <div className="text-xs text-foreground-secondary">值符值使</div>
-                        <div className="mt-1 text-sm text-foreground">值符 {result.zhiFu} · {result.zhiFuPalace}宫</div>
-                        <div className="text-sm text-foreground">值使 {result.zhiShi} · {result.zhiShiPalace}宫</div>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                        <div className="text-xs text-foreground-secondary">空亡</div>
-                        <div className="mt-1 text-sm text-foreground">
-                            日空 {result.kongWang.dayKong.branches.join('、')} · {result.kongWang.dayKong.palaces.join('、')}宫
-                        </div>
-                        <div className="text-sm text-foreground-secondary">
-                            时空 {result.kongWang.hourKong.branches.join('、')} · {result.kongWang.hourKong.palaces.join('、')}宫
-                        </div>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                        <div className="text-xs text-foreground-secondary">驿马与三元</div>
-                        <div className="mt-1 text-sm text-foreground">驿马 {result.yiMa.branch} · {result.yiMa.palace}宫</div>
-                        <div className="text-sm text-foreground-secondary">三元 {result.yuan || '-'}</div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 mb-4">
-                    <div className="text-xs text-foreground-secondary mb-2">格局总览</div>
-                    {result.globalFormations.length > 0 ? (
-                        <div className="flex flex-wrap gap-2 text-xs">
-                            {result.globalFormations.map((item, index) => (
-                                <span key={`${item}-${index}`} className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-foreground-secondary">
-                                    {item}
-                                </span>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-sm text-foreground-secondary">无</div>
-                    )}
-                </div>
-
                 {/* 五行颜色图例 */}
                 <div className="flex items-center justify-center gap-3 mb-4">
                     {PHASE_LEGEND.map(({ label, color }) => (
