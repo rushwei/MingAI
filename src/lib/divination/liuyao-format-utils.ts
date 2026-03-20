@@ -19,6 +19,8 @@ import {
     WANG_SHUAI_LABELS,
     KONG_WANG_LABELS,
     performFullAnalysis,
+    calculateDerivedHexagrams,
+    calculateGuaShen,
 } from '@/lib/divination/liuyao';
 import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
@@ -191,6 +193,10 @@ export function buildTraditionalInfo(
         guaFanFuYin,
         sanHeAnalysis,
         warnings,
+        nuclearHexagram,
+        oppositeHexagram,
+        reversedHexagram,
+        guaShen,
     } = analysis;
 
     const palace = findPalace(hexagramCode);
@@ -265,6 +271,42 @@ export function buildTraditionalInfo(
         changedHexagramInfo = '无变爻';
     }
 
+    const derived = calculateDerivedHexagrams(hexagramCode);
+    const resolvedNuclear = nuclearHexagram ?? derived.nuclearHexagram;
+    const resolvedOpposite = oppositeHexagram ?? derived.oppositeHexagram;
+    const resolvedReversed = reversedHexagram ?? derived.reversedHexagram;
+    const resolvedGuaShen = guaShen ?? calculateGuaShen(hexagramCode);
+
+    const derivedHexagramLines: string[] = [];
+    if (resolvedNuclear) {
+        derivedHexagramLines.push(`互卦：${resolvedNuclear.name}`);
+        if (resolvedNuclear.guaCi) derivedHexagramLines.push(`互卦卦辞：${resolvedNuclear.guaCi}`);
+        if (resolvedNuclear.xiangCi) derivedHexagramLines.push(`互卦象辞：${resolvedNuclear.xiangCi}`);
+    } else {
+        derivedHexagramLines.push('互卦：无');
+    }
+    if (resolvedOpposite) {
+        derivedHexagramLines.push(`错卦：${resolvedOpposite.name}`);
+        if (resolvedOpposite.guaCi) derivedHexagramLines.push(`错卦卦辞：${resolvedOpposite.guaCi}`);
+        if (resolvedOpposite.xiangCi) derivedHexagramLines.push(`错卦象辞：${resolvedOpposite.xiangCi}`);
+    } else {
+        derivedHexagramLines.push('错卦：无');
+    }
+    if (resolvedReversed) {
+        derivedHexagramLines.push(`综卦：${resolvedReversed.name}`);
+        if (resolvedReversed.guaCi) derivedHexagramLines.push(`综卦卦辞：${resolvedReversed.guaCi}`);
+        if (resolvedReversed.xiangCi) derivedHexagramLines.push(`综卦象辞：${resolvedReversed.xiangCi}`);
+    } else {
+        derivedHexagramLines.push('综卦：无');
+    }
+    if (resolvedGuaShen) {
+        const posLabel = typeof resolvedGuaShen.linePosition === 'number' ? `第${resolvedGuaShen.linePosition}爻` : '';
+        const extra = [posLabel, resolvedGuaShen.absent ? '飞伏' : ''].filter(Boolean).join('，');
+        derivedHexagramLines.push(`卦身：${resolvedGuaShen.branch}${extra ? `（${extra}）` : ''}`);
+    } else {
+        derivedHexagramLines.push('卦身：无');
+    }
+
     // 卦级分析
     const guaLevelParts = formatGuaLevelLines({
         liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha,
@@ -282,6 +324,7 @@ export function buildTraditionalInfo(
         hexText ? `卦辞：${hexText.gua}` : '',
         hexText ? `象辞：${hexText.xiang}` : '',
         changedHexagramInfo,
+        ...derivedHexagramLines,
         '',
         '【起卦时间】',
         formatGanZhiTime(ganZhiTime),

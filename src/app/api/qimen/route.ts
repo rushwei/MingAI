@@ -39,8 +39,11 @@ interface QimenInterpretInput extends InterpretInput {
 }
 
 /** 构建排盘信息文本供 AI 解读 */
-function buildChartInfoText(chart: QimenOutput): string {
-    return generateQimenResultText(chart);
+function buildChartInfoText(chart: QimenOutput, question?: string): string {
+    return generateQimenResultText({
+        ...chart,
+        question,
+    });
 }
 
 const QIMEN_SYSTEM_PROMPT = `你是一位精通奇门遁甲的资深易学大师，深谙《奇门遁甲统宗》《御定奇门宝鉴》之精髓。
@@ -73,10 +76,10 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput>({
         return { chart: b.chartData, question: b.question, chartId: b.chartId };
     },
     buildPrompts: (input) => {
-        const chartInfo = buildChartInfoText(input.chart);
+        const chartInfo = buildChartInfoText(input.chart, input.question);
         return {
             systemPrompt: QIMEN_SYSTEM_PROMPT,
-            userPrompt: `${input.question ? `【占事】${input.question}\n\n` : ''}${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,
+            userPrompt: `${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,
         };
     },
     buildSourceData: (input, modelId, reasoningEnabled) => ({

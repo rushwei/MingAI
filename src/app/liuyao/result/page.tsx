@@ -22,6 +22,8 @@ import {
     type LiuQin,
     type LiuYaoFullAnalysis,
     type Yao,
+    calculateDerivedHexagrams,
+    calculateGuaShen,
     normalizeYongShenTargets,
     performFullAnalysis,
     yaosTpCode,
@@ -114,6 +116,9 @@ export default function ResultPage() {
             { yongShenTargets: appliedYongShenTargets }
         );
 
+        const derived = calculateDerivedHexagrams(hexagramCode);
+        const guaShen = calculateGuaShen(hexagramCode);
+
         // 获取卦辞
         const hexagramText = getHexagramText(result.hexagram.name);
         const changedHexagramText = result.changedHexagram
@@ -122,6 +127,10 @@ export default function ResultPage() {
 
         return {
             ...analysis,
+            nuclearHexagram: analysis.nuclearHexagram ?? derived.nuclearHexagram,
+            oppositeHexagram: analysis.oppositeHexagram ?? derived.oppositeHexagram,
+            reversedHexagram: analysis.reversedHexagram ?? derived.reversedHexagram,
+            guaShen: analysis.guaShen ?? guaShen,
             hexagramText,
             changedHexagramText,
             dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示

@@ -136,6 +136,10 @@ export function TraditionalAnalysis({
         kongWangByPillar,
         fuShen,
         warnings,
+        nuclearHexagram,
+        oppositeHexagram,
+        reversedHexagram,
+        guaShen,
     } = analysis;
 
     const movementStats = useMemo(() => {
@@ -238,6 +242,21 @@ export function TraditionalAnalysis({
                     </div>
                     <div className="text-[10px] text-foreground-tertiary">
                         {'注：六爻断卦判空亡以"日旬空"为主，年/月/时旬空供参考。'}
+                    </div>
+                </div>
+            )}
+
+            {(nuclearHexagram || oppositeHexagram || reversedHexagram || guaShen) && (
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 space-y-1 text-xs text-foreground-secondary">
+                    <div className="text-sm font-semibold text-foreground">衍生卦象</div>
+                    <div>互卦：{nuclearHexagram?.name || '无'}</div>
+                    <div>错卦：{oppositeHexagram?.name || '无'}</div>
+                    <div>综卦：{reversedHexagram?.name || '无'}</div>
+                    <div>
+                        卦身：
+                        {guaShen
+                            ? `${guaShen.branch}${typeof guaShen.linePosition === 'number' ? `（第${guaShen.linePosition}爻）` : ''}${guaShen.absent ? '（飞伏）' : ''}`
+                            : '无'}
                     </div>
                 </div>
             )}

@@ -104,6 +104,37 @@ ${trueSolarTimeInfo ? `- **钟表时间**: ${trueSolarTimeInfo.clockTime}
         }
         md += '\n';
     }
+    // 天干五合
+    if (result.tianGanWuHe) {
+        md += `## 天干五合
+
+`;
+        if (result.tianGanWuHe.length > 0) {
+            for (const he of result.tianGanWuHe) {
+                md += `- ${he.stemA}${he.stemB}合${he.resultElement}（${he.positions.join('、')}）\n`;
+            }
+        }
+        else {
+            md += '- 无\n';
+        }
+        md += '\n';
+    }
+    // 地支半合
+    if (result.diZhiBanHe) {
+        md += `## 地支半合
+
+`;
+        if (result.diZhiBanHe.length > 0) {
+            for (const he of result.diZhiBanHe) {
+                const missing = he.missingBranch ? `缺${he.missingBranch}` : '';
+                md += `- ${he.branches.join('')}半合${he.resultElement}${missing ? `（${missing}，${he.positions.join('、')}）` : `（${he.positions.join('、')}）`}\n`;
+            }
+        }
+        else {
+            md += '- 无\n';
+        }
+        md += '\n';
+    }
     // 地支三会
     if (result.diZhiSanHui && result.diZhiSanHui.length > 0) {
         md += `## 地支三会
@@ -353,6 +384,46 @@ export function formatLiuyaoAsMarkdown(result) {
     }
     else {
         lines.push('- 变卦: 无');
+    }
+    if (result.nuclearHexagram) {
+        lines.push(`- 互卦: ${result.nuclearHexagram.name}`);
+        if (result.nuclearHexagram.guaCi)
+            lines.push(`- 互卦卦辞: ${result.nuclearHexagram.guaCi}`);
+        if (result.nuclearHexagram.xiangCi)
+            lines.push(`- 互卦象辞: ${result.nuclearHexagram.xiangCi}`);
+    }
+    else {
+        lines.push('- 互卦: 无');
+    }
+    if (result.oppositeHexagram) {
+        lines.push(`- 错卦: ${result.oppositeHexagram.name}`);
+        if (result.oppositeHexagram.guaCi)
+            lines.push(`- 错卦卦辞: ${result.oppositeHexagram.guaCi}`);
+        if (result.oppositeHexagram.xiangCi)
+            lines.push(`- 错卦象辞: ${result.oppositeHexagram.xiangCi}`);
+    }
+    else {
+        lines.push('- 错卦: 无');
+    }
+    if (result.reversedHexagram) {
+        lines.push(`- 综卦: ${result.reversedHexagram.name}`);
+        if (result.reversedHexagram.guaCi)
+            lines.push(`- 综卦卦辞: ${result.reversedHexagram.guaCi}`);
+        if (result.reversedHexagram.xiangCi)
+            lines.push(`- 综卦象辞: ${result.reversedHexagram.xiangCi}`);
+    }
+    else {
+        lines.push('- 综卦: 无');
+    }
+    if (result.guaShen) {
+        const posLabel = typeof result.guaShen.linePosition === 'number'
+            ? `第${result.guaShen.linePosition}爻`
+            : '';
+        const extra = [posLabel, result.guaShen.absent ? '飞伏' : ''].filter(Boolean).join('，');
+        lines.push(`- 卦身: ${result.guaShen.branch}${extra ? `（${extra}）` : ''}`);
+    }
+    else {
+        lines.push('- 卦身: 无');
     }
     const gz = result.ganZhiTime;
     lines.push(`- 起卦时间: ${formatGanZhiTime(gz)}`);
@@ -606,8 +677,9 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
             return `**${p.palaceName}${p.palaceIndex}宫**${markStr}<br/>` +
                 `${p.deity}<br/>` +
                 `天:${p.heavenStem} 地:${p.earthStem}<br/>` +
-                `${p.star}<br/>` +
-                `${p.gate}${formStr}`;
+                `${p.star}（星五行:${p.starElement || '-'}）<br/>` +
+                `${p.gate}（门五行:${p.gateElement || '-'}）${formStr}<br/>` +
+                `宫五行:${p.element || '-'}${p.elementState ? `（${p.elementState}）` : ''}`;
         });
         md += `| ${cells.join(' | ')} |\n`;
         if (row === layout[0]) {
@@ -618,8 +690,8 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
         }
     }
     md += '\n## 九宫详情\n\n';
-    md += '| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 八门 | 八神 | 格局 | 旺衰 | 标记 |\n';
-    md += '|------|------|------|------|------|------|------|------|------|------|\n';
+    md += '| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 星五行 | 八门 | 门五行 | 八神 | 宫五行 | 宫旺衰 | 格局 | 旺衰 | 标记 |\n';
+    md += '|------|------|------|------|------|--------|------|--------|------|--------|--------|------|------|------|\n';
     for (const p of palaces) {
         const marks = [];
         if (p.isKongWang)
@@ -630,7 +702,7 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
             marks.push('入墓');
         const formStr = p.formations.join('、') || '-';
         const wangShuai = p.stemWangShuai || '-';
-        md += `| ${p.palaceName}${p.palaceIndex} | ${p.direction} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.gate || '-'} | ${p.deity || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |\n`;
+        md += `| ${p.palaceName}${p.palaceIndex} | ${p.direction} | ${p.earthStem || '-'} | ${p.heavenStem || '-'} | ${p.star || '-'} | ${p.starElement || '-'} | ${p.gate || '-'} | ${p.gateElement || '-'} | ${p.deity || '-'} | ${p.element || '-'} | ${p.elementState || '-'} | ${formStr} | ${wangShuai} | ${marks.join('、') || '-'} |\n`;
     }
     if (globalFormations.length > 0) {
         md += '\n## 格局总览\n\n';
@@ -645,17 +717,30 @@ ${result.question ? `- **占问**: ${result.question}` : ''}
  */
 export function formatDaliurenAsMarkdown(result) {
     const { dateInfo, siKe, sanChuan, keTi, keName, shenSha, gongInfos, question } = result;
+    const formatGuiRen = (map) => {
+        if (!map)
+            return '-';
+        const pairs = Object.entries(map).map(([key, value]) => `${key}${value}`);
+        return pairs.length > 0 ? pairs.join('、') : '-';
+    };
     let md = `# 大六壬排盘
 
 ## 基本信息
 - **日期**: ${dateInfo.solarDate}
+- **农历**: ${dateInfo.lunarDate || '-'}
 - **八字**: ${dateInfo.bazi}
 - **月将**: ${dateInfo.yueJiang}（${dateInfo.yueJiangName}）
 - **旬**: ${dateInfo.xun}
 - **空亡**: ${dateInfo.kongWang.join('、')}
 - **驿马**: ${dateInfo.yiMa}
+- **丁马**: ${dateInfo.dingMa}
+- **天马**: ${dateInfo.tianMa}
 - **昼夜**: ${dateInfo.diurnal ? '昼' : '夜'}
 ${question ? `- **占事**: ${question}` : ''}
+
+## 阴阳贵人
+- **阳贵人**: ${formatGuiRen(result.yinYangGuiRen?.yangGuiRen)}
+- **阴贵人**: ${formatGuiRen(result.yinYangGuiRen?.yinGuiRen)}
 
 ## 四课
 

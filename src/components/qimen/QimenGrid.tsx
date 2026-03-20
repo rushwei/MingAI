@@ -110,6 +110,14 @@ function PalaceCell({
                     {palace.gate}
                 </span>
             </div>
+            {/* 星五行 / 门五行 / 宫五行 */}
+            <div className="flex items-center justify-between text-[10px] md:text-[11px] text-foreground-tertiary">
+                <span>星{palace.starElement || '-'}</span>
+                <span>门{palace.gateElement || '-'}</span>
+            </div>
+            <div className="text-[10px] md:text-[11px] text-foreground-tertiary">
+                宫{palace.element || '-'}{palace.elementState ? `·${palace.elementState}` : ''}
+            </div>
             {/* 空亡/驿马标记 */}
             {(palace.isEmpty || palace.isHorseStar) && (
                 <div className="flex items-center gap-1 mt-auto">

@@ -95,20 +95,21 @@ export function generateQimenResultText(result: QimenOutput & { question?: strin
         if (palace.isRuMu) marks.push('墓');
         const markStr = marks.length > 0 ? ` [${marks.join(',')}]` : '';
         const patternStr = palace.patterns.length > 0 ? ` 格局:${palace.patterns.join(',')}` : '';
-        lines.push(`【${palace.palaceName}${palace.palaceNumber}宫】${markStr} ${palace.god} | 天:${palace.heavenStem} 地:${palace.earthStem} | ${palace.star} | ${palace.gate}${patternStr}`);
+        const elementInfo = `宫五行:${palace.element || '-'} 星五行:${palace.starElement || '-'} 门五行:${palace.gateElement || '-'}${palace.elementState ? ` 宫旺衰:${palace.elementState}` : ''}`;
+        lines.push(`【${palace.palaceName}${palace.palaceNumber}宫】${markStr} ${palace.god} | 天:${palace.heavenStem} 地:${palace.earthStem} | ${palace.star} | ${palace.gate}${patternStr} | ${elementInfo}`);
     }
 
     lines.push('');
     lines.push('## 九宫详情');
     lines.push('');
-    lines.push('| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 八门 | 八神 | 格局 | 旺衰 | 标记 |');
-    lines.push('|------|------|------|------|------|------|------|------|------|------|');
+    lines.push('| 宫位 | 方位 | 地盘 | 天盘 | 九星 | 星五行 | 八门 | 门五行 | 八神 | 宫五行 | 宫旺衰 | 格局 | 旺衰 | 标记 |');
+    lines.push('|------|------|------|------|------|--------|------|--------|------|--------|--------|------|------|------|');
     for (const palace of result.palaces) {
         const marks: string[] = [];
         if (palace.isEmpty) marks.push('空亡');
         if (palace.isHorseStar) marks.push('驿马');
         if (palace.isRuMu) marks.push('入墓');
-        lines.push(`| ${palace.palaceName}${palace.palaceNumber} | ${palace.direction || '-'} | ${palace.earthStem || '-'} | ${palace.heavenStem || '-'} | ${palace.star || '-'} | ${palace.gate || '-'} | ${palace.god || '-'} | ${palace.patterns.join('、') || '-'} | ${palace.stemWangShuai || '-'} | ${marks.join('、') || '-'} |`);
+        lines.push(`| ${palace.palaceName}${palace.palaceNumber} | ${palace.direction || '-'} | ${palace.earthStem || '-'} | ${palace.heavenStem || '-'} | ${palace.star || '-'} | ${palace.starElement || '-'} | ${palace.gate || '-'} | ${palace.gateElement || '-'} | ${palace.god || '-'} | ${palace.element || '-'} | ${palace.elementState || '-'} | ${palace.patterns.join('、') || '-'} | ${palace.stemWangShuai || '-'} | ${marks.join('、') || '-'} |`);
     }
 
     if (result.globalFormations?.length) {

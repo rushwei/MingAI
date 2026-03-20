@@ -1,12 +1,17 @@
 import type { DaliurenOutput } from '@mingai/core/daliuren';
 
 export function generateDaliurenResultText(result: DaliurenOutput): string {
+    const formatGuiRen = (map: Record<string, string> | undefined): string => {
+        if (!map) return '';
+        return Object.entries(map).map(([key, value]) => `${key}${value}`).join('、');
+    };
+
     const lines: string[] = [
         '# 大六壬排盘',
         '',
         '## 基本信息',
         `- **日期**: ${result.dateInfo.solarDate}`,
-        result.dateInfo.lunarDate ? `- **农历**: ${result.dateInfo.lunarDate}` : '',
+        `- **农历**: ${result.dateInfo.lunarDate || '-'}`,
         `- **八字**: ${result.dateInfo.bazi}`,
         `- **月将**: ${result.dateInfo.yueJiang}（${result.dateInfo.yueJiangName}）`,
         `- **旬**: ${result.dateInfo.xun}`,
@@ -16,6 +21,10 @@ export function generateDaliurenResultText(result: DaliurenOutput): string {
         `- **天马**: ${result.dateInfo.tianMa}`,
         `- **昼夜**: ${result.dateInfo.diurnal ? '昼' : '夜'}`,
         result.question ? `- **占事**: ${result.question}` : '',
+        '',
+        '## 阴阳贵人',
+        `- **阳贵人**: ${formatGuiRen(result.yinYangGuiRen?.yangGuiRen) || '-'}`,
+        `- **阴贵人**: ${formatGuiRen(result.yinYangGuiRen?.yinGuiRen) || '-'}`,
         '',
         '## 四课',
         '',

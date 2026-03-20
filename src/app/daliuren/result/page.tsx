@@ -266,7 +266,7 @@ export default function DaliurenResultPage() {
                 persistSessionIds({ conversationId: resolvedConversationId });
             }
         }
-    }, [divinationId, modelId, persistSessionIds, result, streaming]);
+    }, [divinationId, modelId, persistSessionIds, result, saveDivinationRecord, streaming]);
 
     if (isLoading) {
         return (
@@ -290,6 +290,12 @@ export default function DaliurenResultPage() {
     );
 
     const { dateInfo, siKe, sanChuan, keTi, keName } = result;
+    const formatGuiRen = (map: Record<string, string> | undefined): string => {
+        if (!map) return '';
+        return Object.entries(map).map(([key, value]) => `${key}${value}`).join('、');
+    };
+    const yangGuiRenText = formatGuiRen(result.yinYangGuiRen?.yangGuiRen);
+    const yinGuiRenText = formatGuiRen(result.yinYangGuiRen?.yinGuiRen);
 
     return (
         <div className="min-h-screen bg-background pb-20">
@@ -319,13 +325,21 @@ export default function DaliurenResultPage() {
                 {/* 基础信息 */}
                 <div className="bg-background-secondary/50 rounded-xl p-4 border border-border/30">
                     <div className="text-xs text-foreground-secondary mb-2">{dateInfo.solarDate}</div>
+                    <div className="text-xs text-foreground-tertiary mb-2">农历：{dateInfo.lunarDate || '-'}</div>
                     <div className="text-sm font-mono text-foreground mb-2">{dateInfo.bazi}</div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground-secondary">
                         <span>月将：{dateInfo.yueJiang}（{dateInfo.yueJiangName}）</span>
                         <span>旬空：{dateInfo.kongWang.join('')}</span>
-                        <span>驿马：{dateInfo.yiMa} · 天马：{dateInfo.tianMa}</span>
+                        <span>驿马：{dateInfo.yiMa} · 天马：{dateInfo.tianMa} · 丁马：{dateInfo.dingMa}</span>
                         <span>{dateInfo.diurnal ? '昼' : '夜'}占</span>
                     </div>
+                    {(yangGuiRenText || yinGuiRenText) && (
+                        <div className="mt-2 text-xs text-foreground-secondary space-y-1">
+                            <div>阴阳贵人：</div>
+                            <div>阳贵人：{yangGuiRenText || '-'}</div>
+                            <div>阴贵人：{yinGuiRenText || '-'}</div>
+                        </div>
+                    )}
                 </div>
 
                 {/* 神煞 */}
