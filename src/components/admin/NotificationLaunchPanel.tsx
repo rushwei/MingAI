@@ -1,7 +1,7 @@
 /**
- * 管理员功能上线通知面板
- * 
- * Beuatified version with step-based workflow and realistic previews.
+ * 管理员公告发布面板
+ *
+ * Beautified version with step-based workflow and realistic previews.
  */
 'use client';
 
@@ -107,10 +107,10 @@ export function NotificationLaunchPanel() {
 
             if (stats) {
                 const detailLines = [
-                    `📊 站内通知：${stats.notifications} / ${stats.siteEligible ?? 0} 位目标用户`,
+                    `📊 站内公告：${stats.notifications} / ${stats.siteEligible ?? 0} 位目标用户`,
                 ];
                 if (stats.siteSkipped) {
-                    detailLines.push(`⏭️ 跳过（用户关闭通知）：${stats.siteSkipped}`);
+                    detailLines.push(`⏭️ 未发送：${stats.siteSkipped}`);
                 }
                 if (Array.isArray(stats.errors) && stats.errors.length > 0) {
                     detailLines.push(...stats.errors);
@@ -118,7 +118,7 @@ export function NotificationLaunchPanel() {
                 setDetails(detailLines);
             }
         } catch (err) {
-            console.error('发送通知失败:', err);
+            console.error('发送公告失败:', err);
             setError('网络错误，请重试');
         } finally {
             setIsLoading(false);
@@ -240,12 +240,12 @@ export function NotificationLaunchPanel() {
                         {isLoading ? (
                             <>
                                 <SoundWaveLoader variant="inline" />
-                                正在发送通知...
+                                正在发送公告...
                             </>
                         ) : (
                             <>
                                 <Send className="w-5 h-5" />
-                                确认发布通知
+                                确认发布公告
                             </>
                         )}
                     </button>
@@ -350,8 +350,8 @@ export function NotificationLaunchPanel() {
                             注意事项
                         </h5>
                         <ul className="text-xs text-foreground-secondary space-y-1.5 list-disc list-inside opacity-80">
-                            <li>通知将发送给所有已订阅的用户。</li>
-                            <li>请确保链接以 <code>https://</code> 开头。</li>
+                            <li>公告将发送给所有站内用户。</li>
+                            <li>支持站内相对路径，也支持完整的 <code>https://</code> 链接。</li>
                             <li>发送量较大时可能有几分钟的延迟。</li>
                         </ul>
                     </div>

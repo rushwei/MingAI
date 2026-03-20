@@ -14,26 +14,40 @@ export async function GET(request: NextRequest) {
   const countOnly = request.nextUrl.searchParams.get('count') === '1';
   const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit') || 20), 1), 100);
 
+  if (countOnly) {
+    let countQuery = auth.supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', auth.user.id);
+
+    if (unreadOnly) {
+      countQuery = countQuery.eq('is_read', false);
+    }
+
+    const { error, count } = await countQuery;
+    if (error) {
+      console.error('[notifications][GET][count] query failed:', error);
+      return jsonError('获取通知失败', 500);
+    }
+
+    return jsonOk({ count: count ?? 0 });
+  }
+
   let query = auth.supabase
     .from('notifications')
-    .select('*', countOnly ? { count: 'exact', head: unreadOnly } : undefined)
+    .select('*')
     .eq('user_id', auth.user.id);
 
   if (unreadOnly) {
     query = query.eq('is_read', false);
   }
 
-  if (!countOnly) {
-    query = query.order('created_at', { ascending: false }).limit(limit);
-  }
+  query = query.order('created_at', { ascending: false }).limit(limit);
 
-  const { data, error, count } = await query;
+  const { data, error } = await query;
   if (error) {
+    console.error('[notifications][GET][list] query failed:', error);
     return jsonError('获取通知失败', 500);
-  }
-
-  if (countOnly) {
-    return jsonOk({ count: count ?? 0 });
   }
 
   return jsonOk({ notifications: data ?? [] });

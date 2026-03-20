@@ -10,11 +10,13 @@ const notificationPanelPath = resolve(process.cwd(), 'src/components/admin/Notif
 const recordDetailPath = resolve(process.cwd(), 'src/components/records/RecordDetail.tsx');
 const historyTemplatePath = resolve(process.cwd(), 'src/components/history/HistoryPageTemplate.tsx');
 const adminPageShellPath = resolve(process.cwd(), 'src/components/admin/AdminPageShell.tsx');
+const adminNotificationsPagePath = resolve(process.cwd(), 'src/app/admin/notifications/page.tsx');
 const featureTogglePanelPath = resolve(process.cwd(), 'src/components/admin/FeatureTogglePanel.tsx');
 const notificationHookPath = resolve(process.cwd(), 'src/lib/hooks/useNotificationUnreadCount.ts');
 const userMenuPath = resolve(process.cwd(), 'src/components/layout/UserMenu.tsx');
 const notificationBellPath = resolve(process.cwd(), 'src/components/notification/NotificationBell.tsx');
 const userPagePath = resolve(process.cwd(), 'src/app/user/page.tsx');
+const emailLibPath = resolve(process.cwd(), 'src/lib/email.ts');
 const mobileNavCustomizerPath = resolve(process.cwd(), 'src/components/settings/MobileNavCustomizer.tsx');
 const baziLayoutPath = resolve(process.cwd(), 'src/app/bazi/layout.tsx');
 const baziPagePath = resolve(process.cwd(), 'src/app/bazi/page.tsx');
@@ -58,6 +60,20 @@ test('notification launch panel should submit the selected template payload inst
   assert.match(source, /templateVars/u);
 });
 
+test('email helpers should not keep the removed feature subscription launch flow', async () => {
+  const source = await readFile(emailLibPath, 'utf-8');
+
+  assert.doesNotMatch(source, /sendFeatureLaunchEmail/u);
+  assert.doesNotMatch(source, /您订阅的/u);
+});
+
+test('admin notifications page should describe launches as mandatory site-wide announcements', async () => {
+  const source = await readFile(adminNotificationsPagePath, 'utf-8');
+
+  assert.match(source, /发送后将直接触达所有站内用户/u);
+  assert.doesNotMatch(source, /遵循用户通知偏好设置/u);
+});
+
 test('notifications launch route should honor selected template content for site notifications', async (t) => {
   const apiUtils = require('../lib/api-utils') as any;
 
@@ -72,22 +88,11 @@ test('notifications launch route should honor selected template content for site
   });
   apiUtils.getSystemAdminClient = () => ({
     from: (table: string) => {
-      if (table === 'feature_subscriptions') {
+      if (table === 'users') {
         return {
           select: () => ({
-            eq: async () => ({
-              data: [{ user_id: 'user-1', notify_site: true }],
-              error: null,
-            }),
-          }),
-        };
-      }
-
-      if (table === 'user_settings') {
-        return {
-          select: () => ({
-            in: async () => ({
-              data: [{ user_id: 'user-1', notifications_enabled: true, notify_site: true }],
+            order: async () => ({
+              data: [{ id: 'user-1' }],
               error: null,
             }),
           }),
@@ -149,22 +154,11 @@ test('notifications launch route should preserve absolute links instead of forci
   });
   apiUtils.getSystemAdminClient = () => ({
     from: (table: string) => {
-      if (table === 'feature_subscriptions') {
+      if (table === 'users') {
         return {
           select: () => ({
-            eq: async () => ({
-              data: [{ user_id: 'user-1', notify_site: true }],
-              error: null,
-            }),
-          }),
-        };
-      }
-
-      if (table === 'user_settings') {
-        return {
-          select: () => ({
-            in: async () => ({
-              data: [{ user_id: 'user-1', notifications_enabled: true, notify_site: true }],
+            order: async () => ({
+              data: [{ id: 'user-1' }],
               error: null,
             }),
           }),
@@ -203,6 +197,73 @@ test('notifications launch route should preserve absolute links instead of forci
   assert.equal(response.status, 200);
   assert.equal(insertedNotifications.length, 1);
   assert.equal(insertedNotifications[0]?.link, 'https://docs.example.com/features/liuyao?ref=launch');
+});
+
+test('notifications launch route should send site announcements to all users without feature subscriptions', async (t) => {
+  const apiUtils = require('../lib/api-utils') as any;
+
+  const originalRequireAdminContext = apiUtils.requireAdminContext;
+  const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+  const insertedNotifications: Array<{ user_id?: string; title?: string; content?: string }> = [];
+
+  apiUtils.requireAdminContext = async () => ({
+    user: { id: 'admin-1' },
+    supabase: {},
+  });
+  apiUtils.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      if (table === 'users') {
+        return {
+          select: () => ({
+            order: async () => ({
+              data: [{ id: 'user-1' }, { id: 'user-2' }],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === 'notifications') {
+        return {
+          insert: async (payload: Record<string, unknown>) => {
+            insertedNotifications.push(payload);
+            return { error: null };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    },
+  });
+
+  t.after(() => {
+    apiUtils.requireAdminContext = originalRequireAdminContext;
+    apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+  });
+
+  const { POST } = await import('../app/api/notifications/launch/route');
+  const request = new NextRequest('http://localhost/api/notifications/launch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      featureKey: 'qimen',
+      featureUrl: '/qimen',
+    }),
+  });
+
+  const response = await POST(request);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(insertedNotifications.length, 2);
+  assert.deepEqual(insertedNotifications.map((item) => item.user_id), ['user-1', 'user-2']);
+  assert.match(String(insertedNotifications[0]?.content), /奇门遁甲功能现已正式上线/u);
+  assert.doesNotMatch(String(insertedNotifications[0]?.content), /订阅/u);
+  assert.equal(payload.stats.total, 2);
+  assert.equal(payload.stats.siteEligible, 2);
+  assert.equal(payload.stats.siteSkipped, 0);
+  assert.equal(payload.stats.notifications, 2);
 });
 
 test('record detail flows should guard failed responses and use shared confirm dialog instead of browser confirm', async () => {

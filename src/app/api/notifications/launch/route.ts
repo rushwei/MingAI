@@ -1,7 +1,7 @@
 /**
- * 功能上线通知 API
+ * 管理员公告发布 API
  *
- * 管理员触发功能上线，批量发送站内通知
+ * 管理员触发全站公告，批量发送站内通知
  *
  * POST /api/notifications/launch
  * Body: { featureKey: string, featureUrl: string }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             })
             : null;
         const notificationTitle = messagePayload?.title || `${featureName}功能已上线！`;
-        const notificationContent = messagePayload?.content || `您订阅的${featureName}功能现已正式上线，快来体验吧！`;
+        const notificationContent = messagePayload?.content || `${featureName}功能现已正式上线，快来体验吧！`;
         const requestOrigin = request.nextUrl.origin;
         const normalizedFeatureUrl = featureUrl.trim();
         let siteLink = normalizedFeatureUrl;
@@ -62,47 +62,29 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 获取所有订阅者
-        const { data: subscribers, error: subError } = await supabaseAdmin
-            .from('feature_subscriptions')
-            .select('user_id, notify_site')
-            .eq('feature_key', featureKey);
+        // 公告类站内通知默认面向全站用户，不依赖 feature_subscriptions
+        const { data: users, error: usersError } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .order('created_at', { ascending: false });
 
-        if (subError) {
-            console.error('获取订阅者失败:', subError);
-            return jsonError('获取订阅者失败', 500);
+        if (usersError) {
+            console.error('获取目标用户失败:', usersError);
+            return jsonError('获取目标用户失败', 500);
         }
 
-        if (!subscribers || subscribers.length === 0) {
+        const targetUsers = (users || [])
+            .map((row) => row.id)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+        if (targetUsers.length === 0) {
             return jsonOk({
                 success: true,
-                message: '没有订阅者',
+                message: '没有目标用户',
                 stats: { total: 0, notifications: 0 }
             });
         }
-
-        const userIds = subscribers.map(s => s.user_id);
-
-        const { data: settingsRows, error: settingsError } = await supabaseAdmin
-            .from('user_settings')
-            .select('user_id, notifications_enabled, notify_site')
-            .in('user_id', userIds);
-
-        if (settingsError) {
-            console.error('获取通知偏好失败:', settingsError);
-        }
-
-        const settingsMap = new Map(
-            (settingsRows || []).map(row => [row.user_id, row])
-        );
-
-        // 筛选站内通知目标
-        const siteTargets = subscribers.filter(subscriber => {
-            const settings = settingsMap.get(subscriber.user_id);
-            const notificationsEnabled = settings?.notifications_enabled ?? true;
-            const allowSite = notificationsEnabled && (settings?.notify_site ?? true);
-            return subscriber.notify_site && allowSite;
-        });
+        const siteTargets = targetUsers;
 
         let notificationsSent = 0;
         const errors: string[] = [];
@@ -112,11 +94,11 @@ export async function POST(request: NextRequest) {
         for (let i = 0; i < siteTargets.length; i += BATCH_SIZE) {
             const batch = siteTargets.slice(i, i + BATCH_SIZE);
             const batchResults = await Promise.allSettled(
-                batch.map(async (subscriber) => {
+                batch.map(async (userId) => {
                     const { error } = await supabaseAdmin
                         .from('notifications')
                         .insert({
-                            user_id: subscriber.user_id,
+                            user_id: userId,
                             type: 'feature_launch',
                             title: notificationTitle,
                             content: notificationContent,
@@ -124,7 +106,7 @@ export async function POST(request: NextRequest) {
                         });
 
                     if (error) {
-                        throw new Error(`站内通知失败 (${subscriber.user_id}): ${error.message}`);
+                        throw new Error(`站内通知失败 (${userId}): ${error.message}`);
                     }
                 })
             );
@@ -140,18 +122,18 @@ export async function POST(request: NextRequest) {
 
         return jsonOk({
             success: true,
-            message: '功能上线通知发送完成',
+            message: '站内公告发送完成',
             stats: {
-                total: subscribers.length,
+                total: targetUsers.length,
                 siteEligible: siteTargets.length,
-                siteSkipped: subscribers.length - siteTargets.length,
+                siteSkipped: targetUsers.length - siteTargets.length,
                 notifications: notificationsSent,
                 errors: errors.length > 0 ? errors : undefined,
             }
         });
 
     } catch (error) {
-        console.error('发送功能上线通知失败:', error);
+        console.error('发送站内公告失败:', error);
         return jsonError('服务器错误', 500);
     }
 }

@@ -59,16 +59,6 @@ export async function PATCH(request: NextRequest) {
     return jsonError('更新用户设置失败', 500);
   }
 
-  if (typeof body.notificationsEnabled === 'boolean') {
-    await auth.supabase
-      .from('feature_subscriptions')
-      .update({
-        notify_email: body.notificationsEnabled,
-        notify_site: body.notificationsEnabled,
-      })
-      .eq('user_id', auth.user.id);
-  }
-
   const refreshed = await loadSettings(auth);
   if (refreshed.error) {
     return jsonError('读取更新后的用户设置失败', 500);

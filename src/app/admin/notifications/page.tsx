@@ -74,11 +74,11 @@ export default function AdminNotificationsPage() {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-xl font-bold">通知发布</h1>
+                <h1 className="text-xl font-bold">公告发布</h1>
             </div>
 
             <p className="text-sm text-foreground-secondary mb-6">
-                仅管理员可使用。发送时会遵循用户通知偏好设置。
+                仅管理员可使用。发送后将直接触达所有站内用户，不受个人通知偏好影响。
             </p>
 
             <NotificationLaunchPanel />

@@ -1,7 +1,7 @@
 /**
  * 通知服务
- * 
- * 提供站内通知和功能订阅的管理
+ *
+ * 提供站内通知读取、未读状态同步与公告模板管理
  */
 
 import { createMemoryCache, createSingleFlight } from '@/lib/cache';
@@ -50,7 +50,7 @@ export async function getUnreadCount(
             if (result.error) {
                 // 认证相关错误（session 未就绪或过期）静默处理，避免控制台噪音
                 const msg = result.error.message ?? '';
-                if (!msg.includes('登录') && !msg.includes('认证')) {
+                if (!msg.includes('登录') && !msg.includes('认证') && msg !== '获取通知失败') {
                     console.error('获取未读数量失败:', msg);
                 }
                 return 0;
