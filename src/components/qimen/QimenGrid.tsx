@@ -6,7 +6,7 @@
  */
 'use client';
 
-import type { QimenPalaceInfo } from '@/lib/divination/qimen';
+import type { QimenPalaceInfo } from '@/lib/divination/qimen-shared';
 
 /** 五行旺衰颜色映射 */
 const PHASE_COLORS: Record<string, string> = {

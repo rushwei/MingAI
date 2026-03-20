@@ -1,20 +1,24 @@
 import Link from 'next/link';
-import { Edit3, Save, Check, Share2 } from 'lucide-react';
+import { Edit3, Save, Check, Share2, Copy } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 
 export function ResultHeader({
     chartId,
     saving,
     saved,
+    copied,
     onEdit,
     onSave,
+    onCopy,
     onShare,
 }: {
     chartId: string | null;
     saving: boolean;
     saved: boolean;
+    copied: boolean;
     onEdit: () => void;
     onSave: () => void;
+    onCopy: () => void;
     onShare: () => void;
 }) {
     const backHref = chartId ? '/user/charts' : '/bazi';
@@ -54,6 +58,13 @@ export function ResultHeader({
                     ) : (
                         <><Save className="w-4 h-4" />保存</>
                     )}
+                </button>
+                <button
+                    onClick={onCopy}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors"
+                >
+                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? '已复制' : '复制'}
                 </button>
                 <button
                     onClick={onShare}

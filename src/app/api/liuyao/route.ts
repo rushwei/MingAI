@@ -217,7 +217,7 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
     // Build traditional analysis
     const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, resolvedHexagram, changedHexagram);
 
-    const userPrompt = `【求卦问题】${effectiveQuestion}\n\n${traditionalInfo}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`;
+    const userPrompt = `${traditionalInfo}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`;
 
     const remaining = await useCredit(user.id);
     if (remaining === null) return jsonError('积分扣减失败，请稍后重试', 500, { success: false });

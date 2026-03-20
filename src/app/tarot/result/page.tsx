@@ -13,10 +13,12 @@ import {
     RefreshCw,
     Send,
     BookOpenText,
+    Copy,
+    Check,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
-import { TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
+import { generateTarotReadingText, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -67,6 +69,7 @@ function TarotResultContent() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
+    const [copied, setCopied] = useState(false);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
 
@@ -241,6 +244,22 @@ function TarotResultContent() {
         }
     };
 
+    const handleCopy = async () => {
+        if (!selectedSpread || drawnCards.length === 0) return;
+        try {
+            await navigator.clipboard.writeText(generateTarotReadingText({
+                spreadName: selectedSpread.name,
+                question,
+                cards: drawnCards,
+            }));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            showToast('success', '结果已复制到剪贴板');
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
+    };
+
     const handleInterpret = async () => {
         if (drawnCards.length === 0) return;
 
@@ -376,6 +395,14 @@ function TarotResultContent() {
                 onClick: () => setKbModalOpen(true),
             });
         }
+        if (selectedSpread && drawnCards.length > 0) {
+            items.push({
+                id: 'copy',
+                label: copied ? '已复制' : '复制',
+                icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void handleCopy(); },
+            });
+        }
         items.push({
             id: 'reshuffle',
             label: isShuffling ? '洗牌中...' : '重新抽牌',
@@ -386,7 +413,7 @@ function TarotResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, setMenuItems, clearMenuItems]);
+    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, drawnCards.length, copied, setMenuItems, clearMenuItems]);
 
     if (isLoading) {
         return (
@@ -437,6 +464,15 @@ function TarotResultContent() {
                             >
                                 <BookOpenText className="w-4 h-4" />
                                 加入知识库
+                            </button>
+                        )}
+                        {selectedSpread && drawnCards.length > 0 && (
+                            <button
+                                onClick={handleCopy}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                            >
+                                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                                {copied ? '已复制' : '复制'}
                             </button>
                         )}
                         <button

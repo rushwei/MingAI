@@ -55,6 +55,57 @@ export interface TarotReading {
     createdAt: Date;
 }
 
+type TarotTextCardLike = {
+    position?: string;
+    orientation?: CardOrientation;
+    meaning?: string;
+    card?: {
+        name?: string;
+        nameChinese?: string;
+        keywords?: string[];
+        uprightMeaning?: string;
+        reversedMeaning?: string;
+    };
+};
+
+export function generateTarotReadingText(input: {
+    spreadName: string;
+    question?: string | null;
+    cards: unknown;
+}): string {
+    const cards = Array.isArray(input.cards) ? input.cards as TarotTextCardLike[] : [];
+    const lines: string[] = [
+        '# 塔罗占卜',
+        '',
+        '## 基本信息',
+        `- **牌阵**: ${input.spreadName}`,
+    ];
+
+    if (input.question) {
+        lines.push(`- **问题**: ${input.question}`);
+    }
+
+    lines.push('');
+    lines.push('## 抽到的牌');
+    lines.push('');
+
+    cards.forEach((item, index) => {
+        const position = item.position || `第${index + 1}张`;
+        const card = item.card || {};
+        const orientation = item.orientation === 'reversed' ? '逆位' : '正位';
+        const keywords = Array.isArray(card.keywords) ? card.keywords.join('、') : '';
+        const meaning = item.meaning || (item.orientation === 'reversed' ? card.reversedMeaning : card.uprightMeaning) || '';
+        lines.push(`### ${position}: ${card.nameChinese || card.name || `第${index + 1}张`}`);
+        lines.push('');
+        lines.push(`- **方向**: ${orientation}`);
+        if (keywords) lines.push(`- **关键词**: ${keywords}`);
+        if (meaning) lines.push(`- **牌义**: ${meaning}`);
+        lines.push('');
+    });
+
+    return lines.join('\n');
+}
+
 // ===== 22张大阿卡纳 =====
 const majorArcana: TarotCard[] = [
     {

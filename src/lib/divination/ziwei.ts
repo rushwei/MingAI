@@ -446,42 +446,94 @@ export function getPalaceIndexByName(chart: ZiweiChart, name: string): number {
 /**
  * 生成紫微命盘文字版本（用于AI分析和复制）
  */
-export function generateZiweiChartText(chart: ZiweiChart): string {
+export function generateZiweiChartText(
+    chart: ZiweiChart,
+    options: { includeHoroscope?: boolean } = {},
+): string {
+    const includeHoroscope = options.includeHoroscope ?? Boolean(chart.rawAstrolabe);
     const lines: string[] = [];
-    lines.push('【紫微斗数命盘】');
-    lines.push(`阳历：${chart.solarDate}`);
-    lines.push(`农历：${chart.lunarDate}`);
-    lines.push(`四柱：${chart.yearStem}${chart.yearBranch} ${chart.monthStem}${chart.monthBranch} ${chart.dayStem}${chart.dayBranch} ${chart.hourStem}${chart.hourBranch}`);
-    lines.push(`命主：${chart.soul}  身主：${chart.body}`);
-    lines.push(`五行局：${chart.fiveElement}`);
-    lines.push(`属相：${chart.zodiac}  星座：${chart.sign}`);
+    lines.push('# 紫微斗数命盘');
     lines.push('');
-    lines.push('【十二宫位】');
+    lines.push('## 基本信息');
+    lines.push(`- **阳历**: ${chart.solarDate}`);
+    lines.push(`- **农历**: ${chart.lunarDate}`);
+    lines.push(`- **时辰**: ${chart.time}`);
+    lines.push(`- **属相**: ${chart.zodiac}`);
+    lines.push(`- **星座**: ${chart.sign}`);
+    lines.push('');
+    lines.push('## 四柱');
+    lines.push(`- **年柱**: ${chart.yearStem}${chart.yearBranch}`);
+    lines.push(`- **月柱**: ${chart.monthStem}${chart.monthBranch}`);
+    lines.push(`- **日柱**: ${chart.dayStem}${chart.dayBranch}`);
+    lines.push(`- **时柱**: ${chart.hourStem}${chart.hourBranch}`);
+    lines.push('');
+    lines.push('## 命格');
+    lines.push(`- **命主**: ${chart.soul}`);
+    lines.push(`- **身主**: ${chart.body}`);
+    lines.push(`- **五行局**: ${chart.fiveElement}`);
+    const lifePalace = chart.palaces.find(p => p.name === '命宫');
+    const bodyPalace = chart.palaces.find(p => p.isBodyPalace);
+    if (lifePalace) {
+        lines.push(`- **命宫**: ${lifePalace.heavenlyStem}${lifePalace.earthlyBranch}`);
+    }
+    if (bodyPalace) {
+        lines.push(`- **身宫**: ${bodyPalace.name}（${bodyPalace.heavenlyStem}${bodyPalace.earthlyBranch}）`);
+    }
+    lines.push('');
+    lines.push('## 十二宫详情');
+    lines.push('');
 
     chart.palaces.forEach((palace) => {
         const bodyMark = palace.isBodyPalace ? '（身宫）' : '';
         const majorStars = palace.majorStars.map(s => {
             let str = s.name;
-            if (s.brightness) str += s.brightness;
-            if (s.mutagen) str += `化${s.mutagen}`;
+            if (s.brightness) str += `(${s.brightness})`;
+            if (s.mutagen) str += `[化${s.mutagen}]`;
             return str;
         }).join('、') || '无主星';
-        const minorStars = palace.minorStars.map(s => s.name + (s.brightness || '')).join('、');
+        const minorStars = palace.minorStars.map(s => s.name + (s.brightness ? `(${s.brightness})` : '')).join('、');
         const adjStars = palace.adjStars?.map(s => s.name).join('、');
-        lines.push(`${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
-        lines.push(`  主星：${majorStars}`);
-        if (minorStars) lines.push(`  辅星：${minorStars}`);
-        if (adjStars) lines.push(`  杂曜：${adjStars}`);
+        lines.push(`### ${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
+        lines.push(`- **主星**: ${majorStars}`);
+        if (minorStars) lines.push(`- **辅星**: ${minorStars}`);
+        if (adjStars) lines.push(`- **杂曜**: ${adjStars}`);
+        lines.push('');
     });
-    lines.push('');
 
-    // 大限列表
     const decadalList = getDecadalList(chart);
     if (decadalList.length > 0) {
-        lines.push('【大限排列】');
-        decadalList.forEach((d) => {
-            lines.push(`${d.startAge}-${d.endAge}岁 ${d.heavenlyStem}${d.palace.earthlyBranch} ${d.palace.name}`);
+        lines.push('## 大限排列');
+        lines.push('');
+        decadalList.forEach((item) => {
+            lines.push(`- ${item.startAge}-${item.endAge}岁: ${item.heavenlyStem}${item.palace.earthlyBranch} ${item.palace.name}`);
         });
+        lines.push('');
+    }
+
+    if (includeHoroscope) {
+        const horoscope = getHoroscope(chart, new Date());
+        if (horoscope) {
+            lines.push('## 当前运限');
+            lines.push(`- **当前大限**: ${horoscope.decadal.palace.name}（${horoscope.decadal.startAge}-${horoscope.decadal.endAge}岁）`);
+            lines.push(`- **流年宫位**: ${horoscope.yearly.palace.name}（${horoscope.yearly.period}）`);
+            lines.push(`- **流月宫位**: ${horoscope.monthly.palace.name}（${horoscope.monthly.period}）`);
+            lines.push(`- **流日宫位**: ${horoscope.daily.palace.name}（${horoscope.daily.period}）`);
+            lines.push('');
+        }
+    }
+
+    const mutagenSummary: string[] = [];
+    chart.palaces.forEach((palace) => {
+        [...palace.majorStars, ...palace.minorStars].forEach((star) => {
+            if (star.mutagen) {
+                mutagenSummary.push(`化${star.mutagen}: ${star.name}（${palace.name}）`);
+            }
+        });
+    });
+    if (mutagenSummary.length > 0) {
+        lines.push('## 四化分布');
+        lines.push('');
+        mutagenSummary.forEach((item) => lines.push(`- ${item}`));
     }
 
     return lines.join('\n');

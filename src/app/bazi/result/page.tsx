@@ -7,13 +7,14 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { Edit3, Save, Share2 } from 'lucide-react';
+import { Edit3, Save, Share2, Copy, Check } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import {
     calculateBazi,
     calculateProfessionalData,
     calculateLiuYue,
     calculateLiuRi,
+    generateBaziChartText,
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
 import { supabase } from '@/lib/auth';
@@ -52,6 +53,7 @@ function BaziResultContent() {
     const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
+    const [copied, setCopied] = useState(false);
     const { showToast } = useToast();
 
     type SavedBaziChartRow = {
@@ -341,6 +343,18 @@ function BaziResultContent() {
         }
     };
 
+    const handleCopy = async () => {
+        if (!baziResult) return;
+        try {
+            await navigator.clipboard.writeText(generateBaziChartText(baziResult));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            showToast('success', '命盘已复制到剪贴板');
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
+    };
+
     // 修改命盘
     const handleEdit = () => {
         const params = new URLSearchParams({
@@ -382,6 +396,12 @@ function BaziResultContent() {
                 disabled: saving || saved,
             },
             {
+                id: 'copy',
+                label: copied ? '已复制' : '复制',
+                icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: handleCopy,
+            },
+            {
                 id: 'share',
                 label: '分享',
                 icon: <Share2 className="w-4 h-4" />,
@@ -391,7 +411,7 @@ function BaziResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [saving, saved, setMenuItems, clearMenuItems]);
+    }, [saving, saved, copied, setMenuItems, clearMenuItems]);
 
     // 选择大运 - 同时更新流年到该大运第一年
     const handleSelectDaYun = (index: number) => {
@@ -467,8 +487,10 @@ function BaziResultContent() {
                 chartId={chartId}
                 saving={saving}
                 saved={saved}
+                copied={copied}
                 onEdit={handleEdit}
                 onSave={handleSave}
+                onCopy={handleCopy}
                 onShare={handleShare}
             />
 

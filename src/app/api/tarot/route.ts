@@ -4,7 +4,7 @@
  * 提供抽牌、每日一牌、牌阵解读等功能
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { drawCards, drawForSpread, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
+import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
 import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 
@@ -63,14 +63,6 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
         };
     },
     buildPrompts: (input) => {
-        const cardsDescription = input.cards.map((c, i) => {
-            const pos = c.position ? `【${c.position}】` : `【第${i + 1}张】`;
-            const orientation = c.orientation === 'reversed' ? '（逆位）' : '（正位）';
-            return `${pos} ${c.card.nameChinese}${orientation}
-- 关键词：${c.card.keywords.join('、')}
-- 含义：${c.orientation === 'reversed' ? c.card.reversedMeaning : c.card.uprightMeaning}`;
-        }).join('\n\n');
-
         const systemPrompt = `你是一位专业的塔罗牌解读师，精通韦特塔罗牌体系。请根据提供的塔罗牌信息，给出深入、有洞察力的解读。
 
 解读要求：
@@ -80,9 +72,12 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
 4. 语言温暖有同理心，避免过于负面的表述
 5. 解读应该在 300-500 字之间`;
 
-        const userPrompt = input.question
-            ? `问题：${input.question}\n\n抽到的塔罗牌：\n${cardsDescription}`
-            : `请解读以下塔罗牌：\n${cardsDescription}`;
+        const spreadName = TAROT_SPREADS.find((spread) => spread.id === input.spreadId)?.name || input.spreadId || '自定义牌阵';
+        const userPrompt = generateTarotReadingText({
+            spreadName,
+            question: input.question,
+            cards: input.cards,
+        });
 
         return { systemPrompt, userPrompt };
     },

@@ -1,6 +1,5 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import type { ZiweiChart } from '@/lib/divination/ziwei';
-import { ziweiChartToText } from '@/lib/divination/ziwei-to-text';
+import { generateZiweiChartText, type ZiweiChart } from '@/lib/divination/ziwei';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type ZiweiRow = {
@@ -65,10 +64,7 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
             Array.isArray((chartData as Record<string, unknown>).palaces)
         ) {
             const payload = chartData as unknown as ZiweiChart;
-            // 优先使用更丰富的 ziweiChartToText（含四化分布等），
-            // 但已保存的命盘没有 rawAstrolabe，跳过运限部分
-            const hasRawAstrolabe = !!payload.rawAstrolabe;
-            return ziweiChartToText(payload, hasRawAstrolabe);
+            return generateZiweiChartText(payload, { includeHoroscope: !!payload.rawAstrolabe });
         }
 
         // Fallback: 尝试提取更多有用信息

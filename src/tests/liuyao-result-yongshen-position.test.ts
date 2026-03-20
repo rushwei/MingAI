@@ -14,10 +14,7 @@ test('result page copy text marks yongshen only when line and liuqin both match'
     const resultPath = path.join(process.cwd(), 'src/app/liuyao/result/page.tsx');
     const resultContent = fs.readFileSync(resultPath, 'utf8');
 
-    // result page imports shared buildYongShenMarkers and passes markers to formatYaoDetailLine
-    assert.equal(resultContent.includes('buildYongShenMarkers'), true);
-    assert.equal(resultContent.includes('formatYaoDetailLine'), true);
-    assert.equal(resultContent.includes('yongShenMarkers'), true);
+    assert.equal(resultContent.includes('buildTraditionalInfo('), true);
     assert.equal(resultContent.includes('const yongShenPositions = new Set('), false);
 
     // shared util contains the actual Set construction with position:liuQin key

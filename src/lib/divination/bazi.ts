@@ -710,6 +710,35 @@ export function generateBaziChartText(
     lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
     lines.push('');
 
+    if (chart.kongWang) {
+        lines.push('【空亡】');
+        lines.push(`旬：${chart.kongWang.xun}`);
+        lines.push(`空亡地支：${chart.kongWang.kongBranches.join('、')}`);
+        lines.push('');
+    }
+
+    const pillarShenSha = [
+        ['年柱', fourPillars.year.shenSha],
+        ['月柱', fourPillars.month.shenSha],
+        ['日柱', fourPillars.day.shenSha],
+        ['时柱', fourPillars.hour.shenSha],
+    ].filter(([, shenSha]) => Array.isArray(shenSha) && shenSha.length > 0);
+    if (pillarShenSha.length > 0) {
+        lines.push('【神煞】');
+        pillarShenSha.forEach(([label, shenSha]) => {
+            lines.push(`${label}：${(shenSha as string[]).join('、')}`);
+        });
+        lines.push('');
+    }
+
+    if (chart.relations && chart.relations.length > 0) {
+        lines.push('【干支关系】');
+        chart.relations.forEach((relation) => {
+            lines.push(`${relation.type}（${relation.pillars.join('、')}）：${relation.description}`);
+        });
+        lines.push('');
+    }
+
     // 自动计算大运
     try {
         const [year, month, day] = chart.birthDate.split('-').map(Number);

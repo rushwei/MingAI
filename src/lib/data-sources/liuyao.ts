@@ -3,17 +3,12 @@ import {
     calculateGanZhiTime,
     calculateKongWangByPillar,
     findHexagram,
-    performFullAnalysis,
     type Yao,
 } from '@/lib/divination/liuyao';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
 import {
-    YONG_SHEN_STATUS_LABELS,
+    buildTraditionalInfo,
     formatGanZhiTime,
-    formatGuaLevelLines,
-    sortYaosDescending,
-    formatYaoDetailLine,
-    formatShenSystemParts,
 } from '@/lib/divination/liuyao-format-utils';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
@@ -94,19 +89,19 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
         const shouldAnalyze = Boolean(r.hexagram_code) && hasQuestion && yongShenTargets.length > 0;
         let effectiveGanZhiTime;
         let effectiveKongWangByPillar;
-        const analysis = shouldAnalyze
-            ? performFullAnalysis(
+        const baseHexagram = findHexagram(r.hexagram_code);
+        const changedHexagram = r.changed_hexagram_code ? findHexagram(r.changed_hexagram_code) : undefined;
+        if (shouldAnalyze && baseHexagram) {
+            return buildTraditionalInfo(
                 buildYaosFromCode(r.hexagram_code, changedLines),
                 r.hexagram_code,
                 r.changed_hexagram_code || undefined,
                 question,
                 new Date(r.created_at),
-                { yongShenTargets }
-            )
-            : null;
-        if (analysis) {
-            effectiveGanZhiTime = analysis.ganZhiTime;
-            effectiveKongWangByPillar = analysis.kongWangByPillar;
+                yongShenTargets,
+                baseHexagram,
+                changedHexagram,
+            );
         } else {
             effectiveGanZhiTime = calculateGanZhiTime(new Date(r.created_at));
             effectiveKongWangByPillar = calculateKongWangByPillar(effectiveGanZhiTime);
@@ -114,8 +109,6 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
         const ganZhiTime = formatGanZhiTime(effectiveGanZhiTime);
         const kongWangSummary = `年${effectiveKongWangByPillar.year.xun}（${effectiveKongWangByPillar.year.kongDizhi.join(' ')}）；月${effectiveKongWangByPillar.month.xun}（${effectiveKongWangByPillar.month.kongDizhi.join(' ')}）；日${effectiveKongWangByPillar.day.xun}（${effectiveKongWangByPillar.day.kongDizhi.join(' ')}）；时${effectiveKongWangByPillar.hour.xun}（${effectiveKongWangByPillar.hour.kongDizhi.join(' ')}）`;
 
-        const baseHexagram = findHexagram(r.hexagram_code);
-        const changedHexagram = r.changed_hexagram_code ? findHexagram(r.changed_hexagram_code) : undefined;
         const hexText = baseHexagram ? getHexagramText(baseHexagram.name) : undefined;
         const changedHexText = changedHexagram ? getHexagramText(changedHexagram.name) : undefined;
 
@@ -140,23 +133,6 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
                     .map(y => `- 动爻爻辞（${y.name}）：${y.text}`)
                 : []),
             !hasQuestion ? '- 当前记录未提供明确问题，仅可作为原始卦象记录，不应正式断卦。' : '',
-            analysis?.yongShen?.length
-                ? `- 用神：${analysis.yongShen.map(group => `${group.targetLiuQin}=>${group.selected.liuQin}${group.selected.position ? `@${group.selected.position}` : ''}（${YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus}${group.selectionNote ? `，${group.selectionNote}` : ''}${group.selected.evidence.length > 0 ? `；依据:${group.selected.evidence.join('、')}` : ''}）`).join('；')}`
-                : '',
-            analysis?.fuShen?.length ? `- 伏神：${analysis.fuShen.map(fs => `${fs.liuQin}（${fs.wuXing}·${fs.naJia}）伏于第${fs.feiShenPosition}爻${fs.feiShenLiuQin ? `（${fs.feiShenLiuQin}）` : ''}下，${fs.availabilityReason}`).join('；')}` : '',
-            analysis?.shenSystemByYongShen?.length ? `- 原神/忌神/仇神：${analysis.shenSystemByYongShen.map(sys => {
-                const parts: string[] = [sys.targetLiuQin, ...formatShenSystemParts(sys)];
-                return parts.join('，');
-            }).join('；')}` : '',
-            ...(analysis ? formatGuaLevelLines(analysis).map(line => `- ${line}`) : []),
-            analysis?.timeRecommendations?.length ? `- 时间建议：${analysis.timeRecommendations.map(item => `${item.targetLiuQin}:${item.trigger}${item.basis.length > 0 ? `（${item.basis.join('、')}）` : ''}-${item.description}`).join('；')}` : '',
-            analysis?.warnings?.length ? `- 风险提示：${analysis.warnings.join('；')}` : '',
-            // 逐爻排盘（上爻→初爻）
-            ...(analysis?.fullYaos?.length ? (() => {
-                const sorted = sortYaosDescending(analysis.fullYaos);
-                const yaoLines = sorted.map(y => `  - ${formatYaoDetailLine(y, { dataSourceStyle: true })}`);
-                return ['- 排盘（上爻→初爻）：', ...yaoLines];
-            })() : []),
         ].filter(Boolean).join('\n');
     },
 

@@ -19,16 +19,15 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import {
     type DivinationResult,
     type Hexagram,
-    type Yao,
     type LiuQin,
     type LiuYaoFullAnalysis,
+    type Yao,
     normalizeYongShenTargets,
     performFullAnalysis,
     yaosTpCode,
 } from '@/lib/divination/liuyao';
 import { resolveResultYongShenState, resolveResultYongShenTargets } from '@/lib/divination/liuyao-result-state';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
-import { getShiYingPosition, findPalace } from '@/lib/divination/eight-palaces';
 import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
@@ -40,19 +39,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
-import {
-    YONG_SHEN_STATUS_LABELS,
-    YAO_POSITION_NAMES,
-    traditionalYaoName,
-    buildYongShenMarkers,
-    formatGuaLevelLines,
-    formatGanZhiTime,
-    formatKongWangLines,
-    sortYaosDescending,
-    formatYaoDetailLine,
-    buildShenSystemMap,
-    formatShenSystemParts,
-} from '@/lib/divination/liuyao-format-utils';
+import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
 
@@ -143,155 +130,28 @@ export default function ResultPage() {
 
     const yaoByPositionMemo = useMemo(() =>
         traditionalData ? new Map(traditionalData.fullYaos.map(y => [y.position, y] as const)) : new Map(),
-        [traditionalData]
-    );
+    [traditionalData]);
 
-    // 生成可复制的六爻分析文本（与 AI 分析格式一致）
     const generateCopyText = () => {
-        if (!result || !traditionalData) return '';
-
-        const { hexagram, changedHexagram, question } = result;
-        const {
-            ganZhiTime,
-            kongWang,
-            kongWangByPillar,
-            fullYaos,
-            yongShen,
-            fuShen,
-            shenSystemByYongShen,
-            timeRecommendations,
-            hexagramText,
-            changedHexagramText,
-            globalShenSha,
-            liuChongGuaInfo,
-            liuHeGuaInfo,
-            chongHeTransition,
-            guaFanFuYin,
-            sanHeAnalysis,
-            warnings,
-        } = traditionalData;
-        const changedLines = fullYaos.filter(y => y.isChanging).map(y => y.position);
-        const yongShenMarkers = buildYongShenMarkers(yongShen);
-
+        if (!result || !canAnalyze) return '';
         const hexagramCode = yaosTpCode(result.yaos);
-        const shiYing = getShiYingPosition(hexagramCode);
-        const palace = findPalace(hexagramCode);
+        const changedCode = result.changedHexagram
+            ? yaosTpCode(result.yaos.map(y => ({
+                ...y,
+                type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type,
+            })))
+            : undefined;
 
-        const lines: string[] = [];
-
-        // ── 求卦问题 ──
-        if (question) {
-            lines.push(`【求卦问题】${question}`);
-            lines.push('');
-        }
-
-        // ── 卦象信息（含经文） ──
-        lines.push('【卦象信息】');
-        lines.push(`本卦：${hexagram.name}（${palace?.name || '未知'}宫·${hexagram.element}）`);
-        if (hexagramText) {
-            lines.push(`卦辞：${hexagramText.gua}`);
-            lines.push(`象辞：${hexagramText.xiang}`);
-        }
-        if (changedHexagram && changedLines.length > 0) {
-            lines.push(`变卦：${changedHexagram.name}（${changedHexagram.upperTrigram}/${changedHexagram.lowerTrigram}）`);
-            lines.push(`变爻：${changedLines.map(l => {
-                const yao = yaoByPositionMemo.get(l);
-                return yao ? traditionalYaoName(l, yao.type) : YAO_POSITION_NAMES[l - 1];
-            }).join('、')}`);
-            if (changedHexagramText) {
-                lines.push(`变卦卦辞：${changedHexagramText.gua}`);
-                lines.push(`变卦象辞：${changedHexagramText.xiang}`);
-            }
-            // 动爻爻辞
-            const movingYaoCi = changedLines
-                .map(pos => {
-                    const yao = yaoByPositionMemo.get(pos);
-                    return { pos, yao: hexagramText?.yao?.[pos - 1], type: yao?.type ?? 1 };
-                })
-                .filter((item): item is { pos: number; yao: NonNullable<typeof item.yao>; type: number } => Boolean(item.yao));
-            if (movingYaoCi.length > 0) {
-                movingYaoCi.forEach(({ pos, yao, type }) => {
-                    lines.push(`${traditionalYaoName(pos, type)}爻辞：${yao.text}`);
-                });
-            }
-        } else {
-            lines.push('无变爻');
-        }
-
-        // ── 起卦时间 ──
-        lines.push('');
-        lines.push('【起卦时间】');
-        lines.push(formatGanZhiTime(ganZhiTime));
-        formatKongWangLines(kongWangByPillar, kongWang).forEach(l => lines.push(l));
-        lines.push(`世爻：第${shiYing.shi}爻 | 应爻：第${shiYing.ying}爻`);
-
-        // ── 六爻排盘 ──
-        lines.push('');
-        lines.push('【六爻排盘】');
-        sortYaosDescending(fullYaos).forEach((y) => {
-            lines.push(formatYaoDetailLine(y, { yongShenMarkers }));
-        });
-
-        // ── 用神分析（含神系） ──
-        lines.push('');
-        lines.push('【用神分析】');
-        const shenSystemMap = buildShenSystemMap(shenSystemByYongShen);
-        yongShen.forEach((group) => {
-            const main = group.selected;
-            lines.push(`目标：${group.targetLiuQin}（${YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus}）`);
-            lines.push(`主用神：${main.liuQin}${main.position ? `@${YAO_POSITION_NAMES[main.position - 1]}` : ''} ${main.element} | ${main.strengthLabel} | ${main.movementLabel}`);
-            if (main.evidence.length > 0) {
-                lines.push(`依据：${main.evidence.join('、')}`);
-            }
-            if (group.selectionNote) {
-                lines.push(`说明：${group.selectionNote}`);
-            }
-            if (group.candidates.length > 0) {
-                lines.push(`并看：${group.candidates.map(c => `${c.liuQin}${c.position ? `@${YAO_POSITION_NAMES[c.position - 1]}` : ''}${c.evidence.length > 0 ? `（${c.evidence.join('、')}）` : ''}`).join('；')}`);
-            }
-            const system = shenSystemMap.get(group.targetLiuQin);
-            const shenParts = formatShenSystemParts(system);
-            if (shenParts.length > 0) {
-                lines.push(`神系：${shenParts.join('，')}`);
-            }
-            lines.push('');
-        });
-
-        // ── 伏神 ──
-        if (fuShen && fuShen.length > 0) {
-            lines.push('【伏神】');
-            fuShen.forEach(fs => {
-                lines.push(`${fs.liuQin}伏于${YAO_POSITION_NAMES[fs.feiShenPosition - 1]}（${fs.feiShenLiuQin || ''}）下，${fs.naJia}${fs.wuXing}，${fs.availabilityReason}`);
-            });
-            lines.push('');
-        }
-
-        // ── 卦级分析（六冲/六合/反吟伏吟/三合/神煞） ──
-        const guaLevelLines = formatGuaLevelLines({
-            liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha,
-        });
-        if (guaLevelLines.length > 0) {
-            lines.push('【卦级分析】');
-            guaLevelLines.forEach(l => lines.push(l));
-            lines.push('');
-        }
-
-        // ── 应期与警告 ──
-        if (timeRecommendations.length > 0) {
-            lines.push('【应期参考】');
-            timeRecommendations.forEach(r => {
-                const typeLabel = r.type === 'favorable' ? '利' : r.type === 'unfavorable' ? '忌' : '要';
-                lines.push(`${typeLabel}（${r.targetLiuQin} ${r.trigger}）：${r.description}`);
-            });
-            lines.push('');
-        }
-
-        if (warnings && warnings.length > 0) {
-            lines.push('【风险提示】');
-            warnings.forEach(w => lines.push(w));
-        }
-
-        return lines.join('\n');
+        return buildTraditionalInfo(
+            result.yaos,
+            hexagramCode,
+            changedCode,
+            result.question,
+            result.createdAt,
+            appliedYongShenTargets,
+            result.hexagram,
+            result.changedHexagram,
+        );
     };
 
     const handleCopy = async () => {

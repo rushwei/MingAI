@@ -7,7 +7,8 @@
  */
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { handleQimenCalculate, type QimenOutput } from '@/lib/divination/qimen';
+import { handleQimenCalculate } from '@/lib/divination/qimen';
+import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 
 interface QimenRequest {
@@ -39,40 +40,7 @@ interface QimenInterpretInput extends InterpretInput {
 
 /** 构建排盘信息文本供 AI 解读 */
 function buildChartInfoText(chart: QimenOutput): string {
-    const lines: string[] = [];
-    lines.push('【排盘信息】');
-    lines.push(`公历：${chart.solarDate}`);
-    lines.push(`农历：${chart.lunarDate}`);
-    lines.push(`四柱：${chart.fourPillars.year} ${chart.fourPillars.month} ${chart.fourPillars.day} ${chart.fourPillars.hour}`);
-    lines.push(`旬首：${chart.xunShou}`);
-    lines.push(`${chart.dunType === 'yang' ? '阳遁' : '阴遁'}${chart.juNumber}局`);
-    lines.push(`${chart.panTypeLabel} - ${chart.juMethodLabel}`);
-    lines.push(`节气：${chart.solarTermRange}`);
-    lines.push(`值符：${chart.zhiFu}  值使：${chart.zhiShi}`);
-    lines.push('');
-    lines.push('【九宫排盘】');
-    for (const p of chart.palaces) {
-        if (p.palaceNumber === 5) { lines.push(`${p.palaceName}（中宫）`); continue; }
-        const markers: string[] = [];
-        if (p.isEmpty) markers.push('空亡');
-        if (p.isHorseStar) markers.push('驿马');
-        const markerStr = markers.length > 0 ? ` [${markers.join(',')}]` : '';
-        const patternStr = p.patterns.length > 0 ? ` 格局：${p.patterns.join('、')}` : '';
-        lines.push(
-            `${p.palaceName}：地盘${p.earthStem} 天盘${p.heavenStem} ${p.star} ${p.gate} ${p.god}${patternStr}${markerStr}`
-        );
-    }
-    lines.push('');
-    lines.push('【月令旺衰】');
-    const phaseGroups: Record<string, string[]> = {};
-    for (const [stem, phase] of Object.entries(chart.monthPhase)) {
-        if (!phaseGroups[phase]) phaseGroups[phase] = [];
-        phaseGroups[phase].push(stem);
-    }
-    for (const [phase, stems] of Object.entries(phaseGroups)) {
-        lines.push(`${phase}：${stems.join('、')}`);
-    }
-    return lines.join('\n');
+    return generateQimenResultText(chart);
 }
 
 const QIMEN_SYSTEM_PROMPT = `你是一位精通奇门遁甲的资深易学大师，深谙《奇门遁甲统宗》《御定奇门宝鉴》之精髓。

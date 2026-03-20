@@ -10,6 +10,7 @@ import {
     type QimenOutput as CoreOutput,
     type QimenInput as CoreInput,
 } from '@mingai/core/qimen';
+import type { QimenOutput, QimenPalaceInfo } from './qimen-shared';
 
 // ── 前端类型定义 ──
 
@@ -24,54 +25,6 @@ export interface QimenInput {
     panType: 'zhuan';
     juMethod: 'chaibu' | 'maoshan';
     zhiFuJiGong: 'jiLiuYi' | 'jiWuGong';
-}
-
-export interface QimenPalaceInfo {
-    palaceNumber: number;
-    palaceName: string;
-    direction: string;
-    element: string;
-    earthStem: string;
-    heavenStem: string;
-    star: string;
-    gate: string;
-    god: string;
-    patterns: string[];
-    isEmpty: boolean;
-    isHorseStar: boolean;
-    isRuMu: boolean;
-    earthStemElement: string;
-    heavenStemElement: string;
-    starElement: string;
-    gateElement: string;
-    stemWangShuai?: string;
-    elementState?: string;
-}
-
-export interface QimenOutput {
-    solarDate: string;
-    lunarDate: string;
-    fourPillars: { year: string; month: string; day: string; hour: string };
-    xunShou: string;
-    dunType: 'yang' | 'yin';
-    juNumber: number;
-    yuan: string;
-    zhiFu: string;
-    zhiFuPalace: number;
-    zhiShi: string;
-    zhiShiPalace: number;
-    solarTerm: string;
-    solarTermRange: string;
-    panTypeLabel: string;
-    juMethodLabel: string;
-    palaces: QimenPalaceInfo[];
-    monthPhase: Record<string, string>;
-    kongWang: {
-        dayKong: { branches: string[]; palaces: number[] };
-        hourKong: { branches: string[]; palaces: number[] };
-    };
-    yiMa: { branch: string; palace: number };
-    globalFormations: string[];
 }
 
 // ── 天干五行 ──

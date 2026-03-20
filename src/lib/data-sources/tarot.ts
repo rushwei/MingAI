@@ -1,5 +1,5 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { TAROT_SPREADS } from '@/lib/divination/tarot';
+import { generateTarotReadingText, TAROT_SPREADS } from '@/lib/divination/tarot';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type TarotRow = {
@@ -10,25 +10,6 @@ type TarotRow = {
     cards: unknown;
     created_at: string;
     conversation_id: string | null;
-};
-
-const formatTarotCards = (cards: unknown): string => {
-    if (!Array.isArray(cards)) return '';
-    return cards.map((item, index) => {
-        const card = item?.card || item || {};
-        const name = card.nameChinese || card.name || `第${index + 1}张`;
-        const orientation = item?.orientation === 'reversed' ? '逆位' : '正位';
-        const keywords = Array.isArray(card.keywords) ? card.keywords.join('、') : '';
-        const meaning = item?.orientation === 'reversed'
-            ? card.reversedMeaning || ''
-            : card.uprightMeaning || '';
-        const position = item?.position ? `【${item.position}】` : `【第${index + 1}张】`;
-        return [
-            `${position} ${name}（${orientation}）`,
-            keywords ? `- 关键词：${keywords}` : '',
-            meaning ? `- 含义：${meaning}` : '',
-        ].filter(Boolean).join('\n');
-    }).join('\n\n');
 };
 
 export const tarotProvider: DataSourceProvider<TarotRow> = {
@@ -72,12 +53,11 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
 
     formatForAI(reading: TarotRow): string {
         const spreadName = TAROT_SPREADS.find(spread => spread.id === reading.spread_id)?.name || reading.spread_id || '塔罗占卜';
-        const cardsText = formatTarotCards(reading.cards);
-        return [
-            `## 塔罗占卜：${spreadName}`,
-            reading.question ? `- 问题：${reading.question}` : '',
-            cardsText ? `\n${cardsText}` : ''
-        ].filter(Boolean).join('\n');
+        return generateTarotReadingText({
+            spreadName,
+            question: reading.question,
+            cards: reading.cards,
+        });
     },
 
     summarize(reading: TarotRow): string {

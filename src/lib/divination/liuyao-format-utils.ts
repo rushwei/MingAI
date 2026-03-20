@@ -274,6 +274,7 @@ export function buildTraditionalInfo(
     const kongWangLines = formatKongWangLines(kongWangByPillar, kongWang);
 
     return [
+        question ? `【求卦问题】\n${question}` : '',
         '【卦象信息】',
         `本卦：${hexagram.name}（${palace?.name || '未知'}宫·${hexagram.element}）`,
         `上卦：${hexagram.upperTrigram}（${hexagram.nature}）`,
