@@ -55,6 +55,19 @@ export interface TarotReading {
     createdAt: Date;
 }
 
+export interface TarotNumerologyCard {
+    number: number;
+    name: string;
+    nameChinese: string;
+    year?: number;
+}
+
+export interface TarotNumerology {
+    personalityCard: TarotNumerologyCard;
+    soulCard: TarotNumerologyCard;
+    yearlyCard: TarotNumerologyCard;
+}
+
 type TarotTextCardLike = {
     position?: string;
     orientation?: CardOrientation;
@@ -62,6 +75,8 @@ type TarotTextCardLike = {
     card?: {
         name?: string;
         nameChinese?: string;
+        number?: number;
+        element?: string;
         keywords?: string[];
         uprightMeaning?: string;
         reversedMeaning?: string;
@@ -72,6 +87,8 @@ export function generateTarotReadingText(input: {
     spreadName: string;
     question?: string | null;
     cards: unknown;
+    numerology?: TarotNumerology | null;
+    birthDate?: string | null;
 }): string {
     const cards = Array.isArray(input.cards) ? input.cards as TarotTextCardLike[] : [];
     const lines: string[] = [
@@ -83,6 +100,14 @@ export function generateTarotReadingText(input: {
 
     if (input.question) {
         lines.push(`- **问题**: ${input.question}`);
+    }
+    const birthDateText = typeof input.birthDate === 'string' ? input.birthDate.trim() : '';
+    if (birthDateText) {
+        const normalizedBirth = parseBirthDateParts(birthDateText);
+        const normalizedText = normalizedBirth
+            ? `${normalizedBirth.birthYear}-${String(normalizedBirth.birthMonth).padStart(2, '0')}-${String(normalizedBirth.birthDay).padStart(2, '0')}`
+            : birthDateText;
+        lines.push(`- **出生日期**: ${normalizedText}`);
     }
 
     lines.push('');
@@ -98,10 +123,22 @@ export function generateTarotReadingText(input: {
         lines.push(`### ${position}: ${card.nameChinese || card.name || `第${index + 1}张`}`);
         lines.push('');
         lines.push(`- **方向**: ${orientation}`);
+        if (card.name) lines.push(`- **英文名**: ${card.name}`);
+        if (typeof card.number === 'number') lines.push(`- **编号**: ${card.number}`);
+        if (card.element) lines.push(`- **元素**: ${card.element}`);
         if (keywords) lines.push(`- **关键词**: ${keywords}`);
         if (meaning) lines.push(`- **牌义**: ${meaning}`);
         lines.push('');
     });
+
+    if (input.numerology) {
+        lines.push('## 塔罗数秘术');
+        lines.push('');
+        lines.push(`- **人格牌**: ${input.numerology.personalityCard.nameChinese}（${input.numerology.personalityCard.name} / ${input.numerology.personalityCard.number}）`);
+        lines.push(`- **灵魂牌**: ${input.numerology.soulCard.nameChinese}（${input.numerology.soulCard.name} / ${input.numerology.soulCard.number}）`);
+        lines.push(`- **年度牌**: ${input.numerology.yearlyCard.nameChinese}（${input.numerology.yearlyCard.name} / ${input.numerology.yearlyCard.number}${input.numerology.yearlyCard.year ? ` / ${input.numerology.yearlyCard.year}` : ''}）`);
+        lines.push('');
+    }
 
     return lines.join('\n');
 }
@@ -413,7 +450,25 @@ type TarotDrawOptions = {
     seedScope?: string;
     question?: string;
     timezone?: string;
+    birthDate?: string;
 };
+
+function parseBirthDateParts(birthDate?: string | null): { birthYear: number; birthMonth: number; birthDay: number } | null {
+    if (!birthDate) return null;
+    const normalized = birthDate.trim();
+    if (!normalized) return null;
+    const datePart = normalized.split('T')[0]?.split(' ')[0] ?? '';
+    const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+    if (!match) return null;
+    const [, yearText, monthText, dayText] = match;
+    const birthYear = Number(yearText);
+    const birthMonth = Number(monthText);
+    const birthDay = Number(dayText);
+    if (!birthYear || birthMonth < 1 || birthMonth > 12 || birthDay < 1 || birthDay > 31) {
+        return null;
+    }
+    return { birthYear, birthMonth, birthDay };
+}
 
 function buildMeaningText(
     orientation: 'upright' | 'reversed',
@@ -514,12 +569,14 @@ export async function drawCards(
 ): Promise<DrawnCard[]> {
     const safeCount = Math.max(1, Math.min(10, count));
     const spreadType = safeCount <= 1 ? 'single' : 'celtic-cross';
+    const birthParts = parseBirthDateParts(options.birthDate);
     const output = await handleTarotDraw({
         spreadType,
         allowReversed,
         seed: resolveDrawSeed(options.seed),
         seedScope: options.seedScope,
         question: options.question,
+        ...birthParts,
     });
     return output.cards.slice(0, safeCount).map(card => mapCoreCardToDrawn(card));
 }
@@ -531,23 +588,25 @@ export async function drawForSpread(
     spreadId: string,
     allowReversed: boolean = true,
     options: TarotDrawOptions = {}
-): Promise<{ spread: TarotSpread; cards: DrawnCard[] } | null> {
+): Promise<{ spread: TarotSpread; cards: DrawnCard[]; numerology?: TarotNumerology } | null> {
     const spread = TAROT_SPREADS.find(s => s.id === spreadId);
     if (!spread) return null;
 
+    const birthParts = parseBirthDateParts(options.birthDate);
     const output = await handleTarotDraw({
         spreadType: spreadId,
         allowReversed,
         seed: resolveDrawSeed(options.seed),
         seedScope: options.seedScope,
         question: options.question,
+        ...birthParts,
     });
 
     const cardsWithPositions = output.cards.map((card, index) =>
         mapCoreCardToDrawn(card, spread.positions[index]?.meaning)
     );
 
-    return { spread, cards: cardsWithPositions };
+    return { spread, cards: cardsWithPositions, numerology: output.numerology as TarotNumerology | undefined };
 }
 
 /**

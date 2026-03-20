@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
-import { generateTarotReadingText, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
+import { generateTarotReadingText, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -45,10 +45,13 @@ function TarotResultContent() {
     const historyTimestamp = searchParams.get('t');
     const spreadId = searchParams.get('spreadId');
     const questionParam = searchParams.get('question');
+    const birthDateParam = searchParams.get('birthDate');
 
     const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
     const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
     const [question, setQuestion] = useState(questionParam || '');
+    const [birthDate, setBirthDate] = useState(birthDateParam || '');
+    const [numerology, setNumerology] = useState<TarotNumerology | null>(null);
     const [interpretation, setInterpretation] = useState('');
     const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +107,8 @@ function TarotResultContent() {
             setRevealedCards([]);
             setInterpretation('');
             setInterpretationReasoning(null);
+            setBirthDate(birthDateParam || '');
+            setNumerology(null);
 
             try {
                 const res = await fetch('/api/tarot', {
@@ -113,6 +118,7 @@ function TarotResultContent() {
                         action: 'draw-only',
                         spreadId,
                         allowReversed: true,
+                        birthDate: birthDateParam || undefined,
                     }),
                 });
                 const data = await res.json();
@@ -120,6 +126,7 @@ function TarotResultContent() {
                 if (data.success && data.data?.cards) {
                     setSelectedSpread(data.data.spread);
                     setDrawnCards(data.data.cards);
+                    setNumerology(data.data.numerology || null);
                 }
             } catch (error) {
                 console.error('抽牌失败:', error);
@@ -129,13 +136,15 @@ function TarotResultContent() {
         };
 
         drawCards();
-    }, [spreadId]);
+    }, [birthDateParam, spreadId]);
 
     type TarotSession = {
         spread?: TarotSpread;
         spreadId?: string;
         cards?: DrawnCard[];
         question?: string;
+        birthDate?: string;
+        numerology?: TarotNumerology | null;
         readingId?: string | null;
         conversationId?: string | null;
         createdAt?: string;
@@ -165,6 +174,10 @@ function TarotResultContent() {
                     if (parsed.question !== undefined) {
                         setQuestion(parsed.question);
                     }
+                    if (parsed.birthDate !== undefined) {
+                        setBirthDate(parsed.birthDate);
+                    }
+                    setNumerology(parsed.numerology || null);
                     setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i));
                     setReadingId(parsed.readingId || null);
                     setConversationId(parsed.conversationId || null);
@@ -191,6 +204,23 @@ function TarotResultContent() {
         router.push('/tarot');
     }, [historyTimestamp, router, spreadId]);
 
+    useEffect(() => {
+        if (!selectedSpread || drawnCards.length === 0) return;
+
+        updateSessionJSON<TarotSession>('tarot_result', (prev) => ({
+            ...(prev || {}),
+            spread: selectedSpread,
+            spreadId: selectedSpread.id,
+            cards: drawnCards,
+            question,
+            birthDate,
+            numerology,
+            readingId,
+            conversationId,
+            createdAt: prev?.createdAt || new Date().toISOString(),
+        }));
+    }, [birthDate, conversationId, drawnCards, numerology, question, readingId, selectedSpread]);
+
     const saveReading = async () => {
         if (hasSaved || isSaving || isViewingHistory || !selectedSpread || !drawnCards.length) return;
         setIsSaving(true);
@@ -211,6 +241,8 @@ function TarotResultContent() {
                     action: 'save',
                     spreadId: selectedSpread.id,
                     question: question || undefined,
+                    birthDate: birthDate || undefined,
+                    numerology: numerology || undefined,
                     cards: drawnCards,
                 }),
             });
@@ -251,6 +283,8 @@ function TarotResultContent() {
                 spreadName: selectedSpread.name,
                 question,
                 cards: drawnCards,
+                numerology,
+                birthDate,
             }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
@@ -286,6 +320,8 @@ function TarotResultContent() {
                     action: 'interpret',
                     cards: drawnCards,
                     question: question || undefined,
+                    birthDate: birthDate || undefined,
+                    numerology: numerology || undefined,
                     spreadId: selectedSpread?.id,
                     readingId: readingId || undefined,
                     modelId: selectedModel,
@@ -359,6 +395,7 @@ function TarotResultContent() {
         setHasSaved(false);
         setReadingId(null);
         setConversationId(null);
+        setNumerology(null);
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -370,12 +407,14 @@ function TarotResultContent() {
                     action: 'draw-only',
                     spreadId: selectedSpread.id,
                     allowReversed: true,
+                    birthDate: birthDate || undefined,
                 }),
             });
             const data = await res.json();
 
             if (data.success && data.data?.cards) {
                 setDrawnCards(data.data.cards);
+                setNumerology(data.data.numerology || null);
             }
         } catch (error) {
             console.error('重新抽牌失败:', error);
@@ -616,6 +655,42 @@ function TarotResultContent() {
                         </div>
                     )}
                 </div>
+
+                {(birthDate || numerology) && (
+                    <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
+                        <div className="mb-4">
+                            <h2 className="text-base font-bold">塔罗数秘术</h2>
+                            <p className="mt-1 text-sm text-foreground-secondary">生日信息仅用于补充人格牌、灵魂牌与年度牌。</p>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {birthDate && (
+                                <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                    <div className="text-xs text-foreground-secondary">出生日期</div>
+                                    <div className="mt-1 text-sm font-medium">{birthDate}</div>
+                                </div>
+                            )}
+                            {numerology && (
+                                <>
+                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                        <div className="text-xs text-foreground-secondary">人格牌</div>
+                                        <div className="mt-1 text-sm font-medium">{numerology.personalityCard.nameChinese} / {numerology.personalityCard.name}</div>
+                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.personalityCard.number}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                        <div className="text-xs text-foreground-secondary">灵魂牌</div>
+                                        <div className="mt-1 text-sm font-medium">{numerology.soulCard.nameChinese} / {numerology.soulCard.name}</div>
+                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.soulCard.number}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/10 bg-background/60 p-4 md:col-span-2">
+                                        <div className="text-xs text-foreground-secondary">年度牌</div>
+                                        <div className="mt-1 text-sm font-medium">{numerology.yearlyCard.nameChinese} / {numerology.yearlyCard.name}</div>
+                                        <div className="mt-1 text-xs text-foreground-secondary">编号 {numerology.yearlyCard.number}{numerology.yearlyCard.year ? ` · ${numerology.yearlyCard.year}` : ''}</div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 {/* Interpretation Section */}
                 {revealedCards.length === drawnCards.length && (

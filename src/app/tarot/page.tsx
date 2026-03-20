@@ -21,6 +21,7 @@ const HistoryDrawer = dynamic(
 export default function TarotPage() {
     const router = useRouter();
     const [question, setQuestion] = useState('');
+    const [birthDate, setBirthDate] = useState('');
     const [dailyCard, setDailyCard] = useState<DrawnCard | null>(null);
 
     useEffect(() => {
@@ -46,6 +47,9 @@ export default function TarotPage() {
         params.set('spreadId', spread.id);
         if (question.trim()) {
             params.set('question', question.trim());
+        }
+        if (birthDate) {
+            params.set('birthDate', birthDate);
         }
         router.push(`/tarot/result?${params.toString()}`);
     };
@@ -123,6 +127,21 @@ export default function TarotPage() {
                                     text-center text-base md:text-lg placeholder:text-foreground-tertiary/70
                                     transition-all duration-300"
                             />
+                        </div>
+
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                                出生日期（选填，用于塔罗数秘术）
+                            </label>
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-accent/10 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                                <input
+                                    type="date"
+                                    value={birthDate}
+                                    onChange={(e) => setBirthDate(e.target.value)}
+                                    className="relative w-full px-4 md:px-6 py-3 md:py-4 bg-background rounded-xl border border-border shadow-sm focus:border-accent focus:ring-0 focus:outline-none text-center text-base md:text-lg transition-all duration-300"
+                                />
+                            </div>
                         </div>
                     </div>
 

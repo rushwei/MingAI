@@ -336,3 +336,94 @@ test('tarot route returns 400 for invalid timezone on GET daily requests', async
     assert.equal(data.success, false);
     assert.equal(data.error, 'timezone 无效');
 });
+
+test('tarot route returns numerology on draw-only and persists birth metadata on save', async (t) => {
+    const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+    const originalGetAuthContext = apiUtilsModule.getAuthContext;
+    const originalRequireBearerUser = apiUtilsModule.requireBearerUser;
+    const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+    let inserted: Record<string, unknown> | null = null;
+
+    apiUtilsModule.getAuthContext = async () => ({
+        user: null,
+        session: null,
+    }) as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
+
+    apiUtilsModule.requireBearerUser = async () => ({
+        user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+        session: null,
+    }) as Awaited<ReturnType<typeof import('../lib/api-utils').requireBearerUser>>;
+
+    apiUtilsModule.getSystemAdminClient = () => ({
+        from(table: string) {
+            assert.equal(table, 'tarot_readings');
+            return {
+                insert(payload: Record<string, unknown>) {
+                    inserted = payload;
+                    return {
+                        select() {
+                            return {
+                                single: async () => ({
+                                    data: { id: 'reading-1' },
+                                    error: null,
+                                }),
+                            };
+                        },
+                    };
+                },
+            };
+        },
+    }) as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
+
+    t.after(() => {
+        apiUtilsModule.getAuthContext = originalGetAuthContext;
+        apiUtilsModule.requireBearerUser = originalRequireBearerUser;
+        apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    });
+
+    const { POST } = await import('../app/api/tarot/route');
+
+    const drawOnlyResponse = await POST(new NextRequest('http://localhost/api/tarot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'draw-only',
+            spreadId: 'single',
+            birthDate: '1990-01-01',
+        }),
+    }));
+    const drawOnlyPayload = await drawOnlyResponse.json();
+
+    assert.equal(drawOnlyResponse.status, 200);
+    assert.equal(drawOnlyPayload.success, true);
+    assert.ok(drawOnlyPayload.data?.numerology);
+    assert.equal(typeof drawOnlyPayload.data?.numerology?.personalityCard?.nameChinese, 'string');
+
+    const saveResponse = await POST(new NextRequest('http://localhost/api/tarot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'save',
+            spreadId: 'single',
+            question: '今天如何',
+            birthDate: '1990-01-01',
+            numerology: drawOnlyPayload.data?.numerology,
+            cards: drawOnlyPayload.data?.cards,
+        }),
+    }));
+    const savePayload = await saveResponse.json();
+
+    assert.equal(saveResponse.status, 200);
+    assert.equal(savePayload.success, true);
+    assert.ok(inserted);
+    assert.deepEqual((inserted as Record<string, unknown>).metadata, {
+        birthDate: '1990-01-01',
+        numerology: drawOnlyPayload.data?.numerology,
+    });
+});

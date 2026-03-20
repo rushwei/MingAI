@@ -50,7 +50,7 @@ export const HISTORY_CONFIG: Record<HistoryType, HistoryConfig> = {
     historyPath: '/tarot/history',
     detailPath: '/tarot/result',
     sessionKey: 'tarot_result',
-    summarySelect: 'id, spread_id, question, cards, conversation_id, created_at, conversation:conversations(source_data)',
+    summarySelect: 'id, spread_id, question, cards, metadata, conversation_id, created_at, conversation:conversations(source_data)',
     useTimestamp: true,
   },
   liuyao: {
@@ -351,6 +351,9 @@ export async function buildHistoryRestorePayload(
   if (type === 'tarot') {
     const { TAROT_SPREADS } = await import('@/lib/divination/tarot');
     const spreadId = String(row.spread_id || '');
+    const metadata = row.metadata && typeof row.metadata === 'object'
+      ? row.metadata as Record<string, unknown>
+      : {};
     return {
       sessionKey: config.sessionKey,
       detailPath: config.detailPath,
@@ -360,6 +363,8 @@ export async function buildHistoryRestorePayload(
         spreadId,
         cards: Array.isArray(row.cards) ? row.cards : [],
         question: row.question || '',
+        birthDate: typeof metadata.birthDate === 'string' ? metadata.birthDate : '',
+        numerology: metadata.numerology || null,
         readingId: row.id,
         createdAt: row.created_at,
         conversationId: row.conversation_id || null,

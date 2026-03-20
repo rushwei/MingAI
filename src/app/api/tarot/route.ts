@@ -4,7 +4,7 @@
  * 提供抽牌、每日一牌、牌阵解读等功能
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotSpread } from '@/lib/divination/tarot';
+import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 
@@ -20,6 +20,8 @@ interface TarotRequest {
     modelId?: string;
     reasoning?: boolean;
     stream?: boolean;
+    birthDate?: string;
+    numerology?: TarotNumerology;
 }
 
 interface TarotResponse {
@@ -34,6 +36,7 @@ interface TarotResponse {
         dailyCard?: DrawnCard;
         readingId?: string | null;
         conversationId?: string | null;
+        numerology?: TarotNumerology;
     };
     error?: string;
 }
@@ -45,6 +48,19 @@ interface TarotInterpretInput extends InterpretInput {
     spreadId: string;
     question?: string;
     readingId?: string;
+    birthDate?: string;
+    numerology?: TarotNumerology;
+}
+
+function buildTarotMetadata(birthDate?: string, numerology?: TarotNumerology): Record<string, unknown> | undefined {
+    const metadata: Record<string, unknown> = {};
+    if (birthDate) {
+        metadata.birthDate = birthDate;
+    }
+    if (numerology) {
+        metadata.numerology = numerology;
+    }
+    return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
 const handleInterpret = createInterpretHandler<TarotInterpretInput>({
@@ -60,6 +76,8 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
             spreadId: b.spreadId || 'custom',
             question: b.question,
             readingId: b.readingId,
+            birthDate: b.birthDate,
+            numerology: b.numerology,
         };
     },
     buildPrompts: (input) => {
@@ -77,6 +95,8 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
             spreadName,
             question: input.question,
             cards: input.cards,
+            numerology: input.numerology,
+            birthDate: input.birthDate,
         });
 
         return { systemPrompt, userPrompt };
@@ -87,6 +107,8 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
         question: input.question || null,
         model_id: modelId,
         reasoning: reasoningEnabled,
+        birth_date: input.birthDate || null,
+        numerology: input.numerology || null,
     }),
     generateTitle: (input) => {
         const SPREAD_NAMES: Record<string, string> = {
@@ -100,10 +122,11 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
     },
     persistRecord: async (input, userId, conversationId) => {
         const serviceClient = getSystemAdminClient();
+        const metadata = buildTarotMetadata(input.birthDate, input.numerology);
         if (input.readingId) {
             await serviceClient
                 .from('tarot_readings')
-                .update({ conversation_id: conversationId })
+                .update({ conversation_id: conversationId, ...(metadata ? { metadata } : {}) })
                 .eq('id', input.readingId)
                 .eq('user_id', userId);
         } else {
@@ -115,6 +138,7 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
                     question: input.question || null,
                     cards: input.cards,
                     conversation_id: conversationId,
+                    ...(metadata ? { metadata } : {}),
                 });
         }
     },
@@ -135,7 +159,8 @@ async function buildDailyCardResponse(timezone?: string, seedScope?: string): Pr
 export async function POST(request: NextRequest): Promise<NextResponse<TarotResponse> | Response> {
     try {
         const body: TarotRequest = await request.json();
-        const { action, spreadId, count = 1, question, cards, allowReversed = true, timezone } = body;
+        const { action, spreadId, count = 1, question, cards, allowReversed = true, timezone, birthDate, numerology } = body;
+        const metadata = buildTarotMetadata(birthDate, numerology);
 
         switch (action) {
             case 'list-spreads':
@@ -154,8 +179,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
             case 'spread': {
                 if (!spreadId) return jsonError('请指定牌阵ID', 400, { success: false });
                 const { user } = await getAuthContext(request);
-                const spreadResult = await drawForSpread(spreadId, allowReversed, { seedScope: user?.id, question });
+                const spreadResult = await drawForSpread(spreadId, allowReversed, { seedScope: user?.id, question, birthDate });
                 if (!spreadResult) return jsonError('未找到指定牌阵', 404, { success: false });
+                const spreadMetadata = buildTarotMetadata(birthDate, spreadResult.numerology || numerology);
                 let readingId: string | null = null;
                 if (request.headers.get('authorization')) {
                     const { user: spreadUser } = await getAuthContext(request);
@@ -163,20 +189,32 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                         const serviceClient = getSystemAdminClient();
                         const { data, error } = await serviceClient
                             .from('tarot_readings')
-                            .insert({ user_id: spreadUser.id, spread_id: spreadId, question: question || null, cards: spreadResult.cards })
+                            .insert({
+                                user_id: spreadUser.id,
+                                spread_id: spreadId,
+                                question: question || null,
+                                cards: spreadResult.cards,
+                                ...(spreadMetadata ? { metadata: spreadMetadata } : {}),
+                            })
                             .select('id')
                             .single();
                         if (!error) readingId = data?.id;
                     }
                 }
-                return jsonOk({ success: true, data: { spread: spreadResult.spread, cards: spreadResult.cards, readingId } });
+                return jsonOk({
+                    success: true,
+                    data: { spread: spreadResult.spread, cards: spreadResult.cards, readingId, numerology: spreadResult.numerology },
+                });
             }
             case 'draw-only': {
                 if (!spreadId) return jsonError('请指定牌阵ID', 400, { success: false });
                 const { user } = await getAuthContext(request);
-                const spreadResult = await drawForSpread(spreadId, allowReversed, { seedScope: user?.id, question });
+                const spreadResult = await drawForSpread(spreadId, allowReversed, { seedScope: user?.id, question, birthDate });
                 if (!spreadResult) return jsonError('未找到指定牌阵', 404, { success: false });
-                return jsonOk({ success: true, data: { spread: spreadResult.spread, cards: spreadResult.cards } });
+                return jsonOk({
+                    success: true,
+                    data: { spread: spreadResult.spread, cards: spreadResult.cards, numerology: spreadResult.numerology },
+                });
             }
             case 'save': {
                 if (!spreadId || !cards || cards.length === 0) return jsonError('请提供牌阵与抽牌结果', 400, { success: false });
@@ -185,7 +223,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                 const serviceClient = getSystemAdminClient();
                 const { data, error } = await serviceClient
                     .from('tarot_readings')
-                    .insert({ user_id: authResult.user.id, spread_id: spreadId, question: question || null, cards })
+                    .insert({
+                        user_id: authResult.user.id,
+                        spread_id: spreadId,
+                        question: question || null,
+                        cards,
+                        ...(metadata ? { metadata } : {}),
+                    })
                     .select('id')
                     .single();
                 if (error) return jsonError('保存记录失败', 500, { success: false });

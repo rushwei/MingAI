@@ -8,6 +8,7 @@ type TarotRow = {
     spread_id: string;
     question: string | null;
     cards: unknown;
+    metadata?: Record<string, unknown> | null;
     created_at: string;
     conversation_id: string | null;
 };
@@ -53,10 +54,13 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
 
     formatForAI(reading: TarotRow): string {
         const spreadName = TAROT_SPREADS.find(spread => spread.id === reading.spread_id)?.name || reading.spread_id || '塔罗占卜';
+        const birthDate = typeof reading.metadata?.birthDate === 'string' ? reading.metadata.birthDate : undefined;
         return generateTarotReadingText({
             spreadName,
             question: reading.question,
             cards: reading.cards,
+            numerology: (reading.metadata?.numerology || null) as Parameters<typeof generateTarotReadingText>[0]['numerology'],
+            birthDate,
         });
     },
 

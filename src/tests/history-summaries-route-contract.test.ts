@@ -130,7 +130,7 @@ test('history summaries route should support offset pagination instead of clampi
           select(selectClause: string) {
             assert.equal(
               selectClause,
-              'id, spread_id, question, cards, conversation_id, created_at, conversation:conversations(source_data)',
+              'id, spread_id, question, cards, metadata, conversation_id, created_at, conversation:conversations(source_data)',
             );
             return {
               eq() {
@@ -176,4 +176,67 @@ test('history summaries route should support offset pagination instead of clampi
   assert.equal(payload.items[0].id, 'tarot-101');
   assert.equal(payload.pagination.hasMore, false);
   assert.equal(payload.pagination.nextOffset, null);
+});
+
+test('history summaries route should restore tarot birthDate and numerology metadata', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
+    supabase: {
+      from(table: string) {
+        assert.equal(table, 'tarot_readings');
+        return {
+          select(selectClause: string) {
+            assert.equal(selectClause, '*');
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({
+                        data: {
+                          id: 'tarot-1',
+                          spread_id: 'single',
+                          question: '今天如何',
+                          cards: [],
+                          conversation_id: 'conv-1',
+                          created_at: '2026-03-20T00:00:00.000Z',
+                          metadata: {
+                            birthDate: '1990-01-01',
+                            numerology: {
+                              personalityCard: { number: 1, name: 'The Magician', nameChinese: '魔术师' },
+                              soulCard: { number: 2, name: 'The High Priestess', nameChinese: '女祭司' },
+                              yearlyCard: { number: 19, name: 'The Sun', nameChinese: '太阳', year: 2026 },
+                            },
+                          },
+                        },
+                        error: null,
+                      }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as never,
+  } as unknown as RequireUserContextResult);
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+  });
+
+  const { GET } = await import('../app/api/history-summaries/route');
+  const response = await GET(new NextRequest('http://localhost/api/history-summaries?type=tarot&id=tarot-1'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.item.sessionKey, 'tarot_result');
+  assert.equal(payload.item.sessionData.birthDate, '1990-01-01');
+  assert.equal(payload.item.sessionData.numerology.personalityCard.nameChinese, '魔术师');
+  assert.equal(payload.item.sessionData.conversationId, 'conv-1');
 });
