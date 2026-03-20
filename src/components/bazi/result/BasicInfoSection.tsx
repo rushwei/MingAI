@@ -76,6 +76,7 @@ export function BasicInfoSection({
         || baziResult.tianGanWuHe?.length
         || baziResult.diZhiSanHui?.length
         || baziResult.diZhiBanHe?.length
+        || baziResult.relations?.length
     );
 
     return (
@@ -124,6 +125,27 @@ export function BasicInfoSection({
                                                 {item.stemA}{item.stemB}合{item.resultElement} · {item.positions.join('、')}
                                             </span>
                                         ))}
+                                    </div>
+                                </div>
+                            )}
+                            {baziResult.relations && baziResult.relations.length > 0 && (
+                                <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <div className="text-xs text-foreground-secondary mb-1">地支关系</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {baziResult.relations.map((item, index) => {
+                                            const style = item.type === '合'
+                                                ? 'bg-emerald-500/10 text-emerald-500'
+                                                : item.type === '冲'
+                                                    ? 'bg-rose-500/10 text-rose-500'
+                                                    : item.type === '刑'
+                                                        ? 'bg-amber-500/10 text-amber-600'
+                                                        : 'bg-violet-500/10 text-violet-500';
+                                            return (
+                                                <span key={`${item.type}-${index}`} className={`rounded-full px-2 py-1 text-xs ${style}`}>
+                                                    {item.type} · {item.description} · {item.pillars.join('、')}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

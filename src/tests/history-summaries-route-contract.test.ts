@@ -130,7 +130,7 @@ test('history summaries route should support offset pagination instead of clampi
           select(selectClause: string) {
             assert.equal(
               selectClause,
-              'id, spread_id, question, cards, metadata, conversation_id, created_at, conversation:conversations(source_data)',
+              'id, spread_id, question, cards, conversation_id, created_at, conversation:conversations(source_data)',
             );
             return {
               eq() {

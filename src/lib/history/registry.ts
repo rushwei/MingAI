@@ -50,7 +50,7 @@ export const HISTORY_CONFIG: Record<HistoryType, HistoryConfig> = {
     historyPath: '/tarot/history',
     detailPath: '/tarot/result',
     sessionKey: 'tarot_result',
-    summarySelect: 'id, spread_id, question, cards, metadata, conversation_id, created_at, conversation:conversations(source_data)',
+    summarySelect: 'id, spread_id, question, cards, conversation_id, created_at, conversation:conversations(source_data)',
     useTimestamp: true,
   },
   liuyao: {

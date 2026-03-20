@@ -32,6 +32,13 @@ const SHENSHA_DISPLAY = [
 ];
 
 const SANCHUAN_COLORS = ['border-red-400/50', 'border-orange-400/50', 'border-yellow-400/50'] as const;
+const WANG_SHUAI_COLORS: Record<string, string> = {
+    旺: 'text-rose-400',
+    相: 'text-amber-400',
+    休: 'text-blue-400',
+    囚: 'text-slate-400',
+    死: 'text-stone-500',
+};
 
 export default function DaliurenResultPage() {
     const router = useRouter();
@@ -41,6 +48,7 @@ export default function DaliurenResultPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [modelId, setModelId] = useState<string | undefined>();
     const [showShensha, setShowShensha] = useState(false);
+    const [showGongDetails, setShowGongDetails] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [divinationId, setDivinationId] = useState<string | undefined>();
@@ -415,6 +423,55 @@ export default function DaliurenResultPage() {
                 <div className="bg-background-secondary/50 rounded-xl p-4 border border-border/30">
                     <h3 className="text-sm font-bold text-foreground mb-3">天地盘</h3>
                     <TianDiPanGrid result={result} />
+                </div>
+
+                {/* 十二宫详情 */}
+                <div className="bg-background-secondary/50 rounded-xl p-4 border border-border/30">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-foreground">十二宫详情</h3>
+                        <button
+                            type="button"
+                            onClick={() => setShowGongDetails((prev) => !prev)}
+                            className="text-xs text-foreground-secondary hover:text-foreground flex items-center gap-1"
+                        >
+                            {showGongDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {showGongDetails ? '收起' : '展开'}
+                        </button>
+                    </div>
+                    {showGongDetails ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse">
+                                <thead>
+                                    <tr className="text-foreground-secondary">
+                                        <th className="py-2 px-2 text-left">地盘</th>
+                                        <th className="py-2 px-2 text-left">天盘</th>
+                                        <th className="py-2 px-2 text-left">天将</th>
+                                        <th className="py-2 px-2 text-left">遁干</th>
+                                        <th className="py-2 px-2 text-left">长生</th>
+                                        <th className="py-2 px-2 text-left">五行</th>
+                                        <th className="py-2 px-2 text-left">旺衰</th>
+                                        <th className="py-2 px-2 text-left">建除</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {result.gongInfos.map((gong, index) => (
+                                        <tr key={`${gong.diZhi}-${index}`} className="border-t border-border/30">
+                                            <td className="py-2 px-2">{gong.diZhi}</td>
+                                            <td className="py-2 px-2">{gong.tianZhi}</td>
+                                            <td className="py-2 px-2">{gong.tianJiangShort || gong.tianJiang}</td>
+                                            <td className="py-2 px-2">{gong.dunGan || '-'}</td>
+                                            <td className="py-2 px-2">{gong.changSheng || '-'}</td>
+                                            <td className="py-2 px-2">{gong.wuXing || '-'}</td>
+                                            <td className={`py-2 px-2 ${WANG_SHUAI_COLORS[gong.wangShuai] || ''}`}>{gong.wangShuai}</td>
+                                            <td className="py-2 px-2">{gong.jianChu || '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="text-xs text-foreground-secondary">包含遁干、建除、五行旺衰等完整十二宫数据。</div>
+                    )}
                 </div>
 
                 {/* AI 解读 */}

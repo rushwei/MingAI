@@ -273,7 +273,7 @@ export function ProfessionalTable({
                                 <div className="flex flex-col items-center gap-0.5">
                                         {col.hiddenStems.map((stem, idx) => {
                                             const element = STEM_ELEMENTS[stem.stem as HeavenlyStem];
-                                            const detailLabel = stem.qiType ? `${stem.qiType}${stem.tenGod ? `·${stem.tenGod}` : ''}` : stem.tenGod;
+                                            const detailLabel = stem.tenGod || '';
                                             return (
                                                 <div key={idx} className="flex items-center gap-0.5">
                                                     <span
@@ -282,9 +282,11 @@ export function ProfessionalTable({
                                                     >
                                                         {stem.stem}
                                                     </span>
-                                                    <span className="text-xs text-foreground-secondary">
-                                                        {detailLabel}
-                                                    </span>
+                                                    {detailLabel && (
+                                                        <span className="text-xs text-foreground-secondary">
+                                                            {detailLabel}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -299,7 +301,7 @@ export function ProfessionalTable({
                                     <div className="flex flex-col items-center gap-0.5">
                                         {(col.pillar.hiddenStemDetails || []).map((stem, idx) => {
                                             const element = STEM_ELEMENTS[stem.stem as HeavenlyStem];
-                                            const detailLabel = stem.qiType ? `${stem.qiType}${stem.tenGod ? `·${stem.tenGod}` : ''}` : stem.tenGod;
+                                            const detailLabel = stem.tenGod || '';
                                             return (
                                                 <div key={idx} className="flex items-center gap-0.5">
                                                     <span
@@ -308,9 +310,11 @@ export function ProfessionalTable({
                                                     >
                                                         {stem.stem}
                                                     </span>
-                                                    <span className="text-xs text-foreground-secondary">
-                                                        {detailLabel}
-                                                    </span>
+                                                    {detailLabel && (
+                                                        <span className="text-xs text-foreground-secondary">
+                                                            {detailLabel}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         })}

@@ -10,6 +10,7 @@ import { findHexagram, type Yao, calculateDerivedHexagrams, calculateGuaShen } f
 import { drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
 
 const qimenRoutePath = resolve(process.cwd(), 'src/app/api/qimen/route.ts');
+const qimenResultPath = resolve(process.cwd(), 'src/app/qimen/result/page.tsx');
 const tarotResultPath = resolve(process.cwd(), 'src/app/tarot/result/page.tsx');
 const tarotRoutePath = resolve(process.cwd(), 'src/app/api/tarot/route.ts');
 const tarotHistoryRegistryPath = resolve(process.cwd(), 'src/lib/history/registry.ts');
@@ -132,7 +133,7 @@ test('bazi basic info section should render a direct chart metadata block for th
     );
     assert.match(
         source,
-        /真太阳时|胎元|命宫|天干五合|地支半合/u,
+        /真太阳时|胎元|命宫|天干五合|地支半合|干支关系|地支关系/u,
         'bazi result basic tab should surface core-aligned metadata directly in the UI',
     );
 });
@@ -253,13 +254,15 @@ test('liuyao traditional analysis UI should surface derived hexagrams and gua sh
 });
 
 test('qimen prompt + ui should surface star/gate elements and palace element state', async () => {
-    const [sharedSource, gridSource] = await Promise.all([
+    const [sharedSource, gridSource, pageSource] = await Promise.all([
         readFile(qimenSharedPath, 'utf-8'),
         readFile(qimenGridPath, 'utf-8'),
+        readFile(qimenResultPath, 'utf-8'),
     ]);
 
     assert.match(sharedSource, /星五行|门五行|宫五行/u, 'qimen shared text should include star/gate elements and palace element state');
     assert.match(gridSource, /starElement|gateElement|elementState/u, 'qimen grid should display star/gate elements and palace element state');
+    assert.match(pageSource, /空亡|驿马|格局|三元/u, 'qimen result UI should surface kongWang/yiMa/global formations metadata');
 });
 
 test('daliuren prompt + ui should surface yin/yang guiren and core date markers', async () => {
@@ -274,6 +277,7 @@ test('daliuren prompt + ui should surface yin/yang guiren and core date markers'
     assert.match(pageSource, /农历|丁马|阴阳贵人/u, 'daliuren result UI should surface lunar date, ding ma, or guiren mappings');
     assert.match(pageSource, /取传法|课体/u, 'daliuren result UI should surface keTi method');
     assert.match(pageSource, /本命|行年/u, 'daliuren result UI should surface benMing/xingNian when available');
+    assert.match(pageSource, /遁干|建除|十二宫/u, 'daliuren result UI should surface gongInfos detail fields');
 });
 
 test('mcp formatters should surface core-aligned fields across divination features', async () => {
@@ -352,6 +356,7 @@ test('tarot result, save route, and history restore should preserve optional bir
     assert.match(pageSource, /birthDate/u, 'tarot result flow should keep birthDate in local state/session payloads');
     assert.match(pageSource, /出生日期/u, 'tarot result page should render birth date with a user-facing label');
     assert.match(pageSource, /塔罗数秘术|人格牌|灵魂牌|年度牌/u, 'tarot result page should render numerology output directly');
+    assert.match(pageSource, /卡牌信息|关键词|逆位关键词/u, 'tarot result page should surface core-aligned card metadata in the UI');
     assert.match(routeSource, /birthDate|numerology|metadata/u, 'tarot route should persist numerology-related metadata');
     assert.match(historySource, /birthDate|numerology|metadata/u, 'tarot history restore should recover numerology-related metadata');
 });
