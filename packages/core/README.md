@@ -31,6 +31,13 @@ npm install @mingai/core
 | `qimen_calculate` | 奇门遁甲排盘，支持显式时区与寄宫配置 |
 | `daliuren` | 大六壬排盘，支持显式时区输入 |
 
+## 地点与真太阳时
+
+- `@mingai/core` 本身不接地图服务，也不会把地点名自动换算成经度。
+- `bazi_calculate` 的 `birthPlace` 仅用于展示/存档。
+- 需要真太阳时时，请显式传入 `longitude`。
+- 如果你的上层产品只收“广东广州”这类地点名，应在 `web/server` 或 MCP 外层先做地理编码，再把经度传给 `core`。
+
 ## 使用示例
 
 ### 1. 直接按工具名分发

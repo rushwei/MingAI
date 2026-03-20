@@ -61,9 +61,101 @@ export function BasicInfoSection({
 
     // 是否已保存命盘
     const isSaved = Boolean(chartId);
+    const chartMetadata = [
+        baziResult.trueSolarTimeInfo
+            ? {
+                label: '真太阳时',
+                value: `${baziResult.trueSolarTimeInfo.trueSolarTime}（钟表 ${baziResult.trueSolarTimeInfo.clockTime}）`,
+            }
+            : null,
+        baziResult.taiYuan ? { label: '胎元', value: baziResult.taiYuan } : null,
+        baziResult.mingGong ? { label: '命宫', value: baziResult.mingGong } : null,
+    ].filter((item): item is { label: string; value: string } => Boolean(item));
+    const hasGanZhiHighlights = Boolean(
+        baziResult.tianGanChongKe?.length
+        || baziResult.tianGanWuHe?.length
+        || baziResult.diZhiSanHui?.length
+        || baziResult.diZhiBanHe?.length
+    );
 
     return (
         <div className="space-y-4">
+            {chartMetadata.length > 0 && (
+                <section className="bg-background-secondary rounded-xl p-4 border border-border">
+                    <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-accent" />
+                        排盘元信息
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-border bg-background px-3 py-2">
+                            <div className="text-xs text-foreground-secondary mb-1">命主五行</div>
+                            <div className="font-medium">
+                                {baziResult.dayMaster}
+                                {baziResult.fourPillars.day.stemElement}
+                            </div>
+                        </div>
+                        {chartMetadata.map((item) => (
+                            <div key={item.label} className="rounded-lg border border-border bg-background px-3 py-2">
+                                <div className="text-xs text-foreground-secondary mb-1">{item.label}</div>
+                                <div className="font-medium">{item.value}</div>
+                            </div>
+                        ))}
+                    </div>
+                    {hasGanZhiHighlights ? (
+                        <div className="mt-3 space-y-2 text-sm">
+                            {baziResult.tianGanChongKe && baziResult.tianGanChongKe.length > 0 && (
+                                <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <div className="text-xs text-foreground-secondary mb-1">天干冲克</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {baziResult.tianGanChongKe.map((item, index) => (
+                                            <span key={`${item.stemA}-${item.stemB}-${index}`} className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-500">
+                                                {item.stemA}{item.stemB}冲克 · {item.positions.join('、')}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {baziResult.tianGanWuHe && baziResult.tianGanWuHe.length > 0 && (
+                                <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <div className="text-xs text-foreground-secondary mb-1">天干五合</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {baziResult.tianGanWuHe.map((item, index) => (
+                                            <span key={`${item.stemA}-${item.stemB}-${index}`} className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-600">
+                                                {item.stemA}{item.stemB}合{item.resultElement} · {item.positions.join('、')}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {baziResult.diZhiSanHui && baziResult.diZhiSanHui.length > 0 && (
+                                <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <div className="text-xs text-foreground-secondary mb-1">地支三会</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {baziResult.diZhiSanHui.map((item, index) => (
+                                            <span key={`${item.branches.join('')}-${index}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-500">
+                                                {item.branches.join('')}三会{item.resultElement}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {baziResult.diZhiBanHe && baziResult.diZhiBanHe.length > 0 && (
+                                <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <div className="text-xs text-foreground-secondary mb-1">地支半合</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {baziResult.diZhiBanHe.map((item, index) => (
+                                            <span key={`${item.branches.join('')}-${index}`} className="rounded-full bg-sky-500/10 px-2 py-1 text-xs text-sky-500">
+                                                {item.branches.join('')}半合{item.resultElement}{item.missingBranch ? ` · 缺${item.missingBranch}` : ''} · {item.positions.join('、')}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+                </section>
+            )}
+
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-gradient-to-r from-green-500 via-red-500 to-blue-500" />

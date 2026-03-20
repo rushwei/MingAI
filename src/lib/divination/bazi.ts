@@ -97,6 +97,7 @@ export function calculateTenGod(dayStem: HeavenlyStem, targetStem: HeavenlyStem)
  * @returns 八字命盘对象
  */
 export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> {
+    const longitude = formData.longitude;
     const coreBazi = calculateBaziData({
         gender: formData.gender,
         birthYear: formData.birthYear,
@@ -107,6 +108,7 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
         calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: formData.isLeapMonth,
         birthPlace: formData.birthPlace,
+        longitude,
     });
 
     const fourPillars: FourPillars = {
@@ -198,6 +200,9 @@ export function calculateBazi(formData: BaziFormData): Omit<BaziChart, 'id' | 'c
             xun: coreBazi.kongWang.xun,
             kongBranches: coreBazi.kongWang.kongZhi as EarthlyBranch[],
         },
+        taiYuan: coreBazi.taiYuan,
+        mingGong: coreBazi.mingGong,
+        trueSolarTimeInfo: coreBazi.trueSolarTimeInfo,
         relations: coreBazi.relations,
         tianGanWuHe: coreBazi.tianGanWuHe,
         tianGanChongKe: coreBazi.tianGanChongKe,
@@ -476,6 +481,7 @@ export function calculateProfessionalData(
     formData: BaziFormData,
     currentYear: number = new Date().getFullYear()
 ): ProfessionalBaziData {
+    const longitude = formData.longitude;
     const coreBazi = calculateBaziData({
         gender: formData.gender,
         birthYear: formData.birthYear,
@@ -486,6 +492,7 @@ export function calculateProfessionalData(
         calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: formData.isLeapMonth,
         birthPlace: formData.birthPlace,
+        longitude,
     });
 
     // 纳音
@@ -594,6 +601,7 @@ export function calculateLiuYue(year: number, formData?: BaziFormData): LiuYueIn
         return calculateBaziLiuYueData(year) as LiuYueInfo[];
     }
 
+    const longitude = formData.longitude;
     const coreBazi = calculateBaziData({
         gender: formData.gender,
         birthYear: formData.birthYear,
@@ -604,6 +612,7 @@ export function calculateLiuYue(year: number, formData?: BaziFormData): LiuYueIn
         calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: formData.isLeapMonth,
         birthPlace: formData.birthPlace,
+        longitude,
     });
 
     return calculateBaziLiuYueData(year, {
@@ -634,6 +643,7 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
         return calculateBaziLiuRiData(startDate, endDate) as LiuRiInfo[];
     }
 
+    const longitude = formData.longitude;
     const coreBazi = calculateBaziData({
         gender: formData.gender,
         birthYear: formData.birthYear,
@@ -644,6 +654,7 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
         calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: formData.isLeapMonth,
         birthPlace: formData.birthPlace,
+        longitude,
     });
 
     return calculateBaziLiuRiData(startDate, endDate, {
@@ -675,6 +686,7 @@ export function generateBaziChartText(
     chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
 ): string {
     const lines: string[] = [];
+    const dayMasterElement = STEM_ELEMENTS[chart.dayMaster];
     lines.push('【八字命盘】');
     lines.push(`姓名：${chart.name}`);
     lines.push(`性别：${chart.gender === 'male' ? '男' : '女'}`);
@@ -690,7 +702,25 @@ export function generateBaziChartText(
     lines.push('【四柱八字】');
     lines.push(`四柱：${fourPillars.year.stem}${fourPillars.year.branch}年 ${fourPillars.month.stem}${fourPillars.month.branch}月 ${fourPillars.day.stem}${fourPillars.day.branch}日 ${fourPillars.hour.stem}${fourPillars.hour.branch}时`);
     lines.push(`日主：${dayMaster}`);
+    if (dayMasterElement) {
+        lines.push(`命主五行：${dayMaster}${dayMasterElement}`);
+    }
     lines.push('');
+
+    if (chart.trueSolarTimeInfo || chart.taiYuan || chart.mingGong) {
+        lines.push('【排盘元信息】');
+        if (chart.trueSolarTimeInfo) {
+            lines.push(`钟表时间：${chart.trueSolarTimeInfo.clockTime}`);
+            lines.push(`真太阳时：${chart.trueSolarTimeInfo.trueSolarTime}（经度 ${chart.trueSolarTimeInfo.longitude}°，校正 ${chart.trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${chart.trueSolarTimeInfo.correctionMinutes} 分钟）`);
+        }
+        if (chart.taiYuan) {
+            lines.push(`胎元：${chart.taiYuan}`);
+        }
+        if (chart.mingGong) {
+            lines.push(`命宫：${chart.mingGong}`);
+        }
+        lines.push('');
+    }
 
     // 四柱详解
     lines.push('【四柱详解】');
@@ -736,6 +766,55 @@ export function generateBaziChartText(
         chart.relations.forEach((relation) => {
             lines.push(`${relation.type}（${relation.pillars.join('、')}）：${relation.description}`);
         });
+        lines.push('');
+    }
+
+    if (chart.tianGanChongKe) {
+        lines.push('【天干冲克】');
+        if (chart.tianGanChongKe.length > 0) {
+            chart.tianGanChongKe.forEach((item) => {
+                lines.push(`${item.stemA}${item.stemB}冲克（${item.positions.join('、')}）`);
+            });
+        } else {
+            lines.push('无');
+        }
+        lines.push('');
+    }
+
+    if (chart.tianGanWuHe) {
+        lines.push('【天干五合】');
+        if (chart.tianGanWuHe.length > 0) {
+            chart.tianGanWuHe.forEach((item) => {
+                lines.push(`${item.stemA}${item.stemB}合${item.resultElement}（${item.positions.join('、')}）`);
+            });
+        } else {
+            lines.push('无');
+        }
+        lines.push('');
+    }
+
+    if (chart.diZhiBanHe) {
+        lines.push('【地支半合】');
+        if (chart.diZhiBanHe.length > 0) {
+            chart.diZhiBanHe.forEach((item) => {
+                const missing = item.missingBranch ? `缺${item.missingBranch}` : '';
+                lines.push(`${item.branches.join('')}半合${item.resultElement}${missing ? `（${missing}，${item.positions.join('、')}）` : `（${item.positions.join('、')}）`}`);
+            });
+        } else {
+            lines.push('无');
+        }
+        lines.push('');
+    }
+
+    if (chart.diZhiSanHui) {
+        lines.push('【地支三会】');
+        if (chart.diZhiSanHui.length > 0) {
+            chart.diZhiSanHui.forEach((item) => {
+                lines.push(`${item.branches.join('')}三会${item.resultElement}（${item.positions.join('、')}）`);
+            });
+        } else {
+            lines.push('无');
+        }
         lines.push('');
     }
 

@@ -49,6 +49,12 @@ import { validateOAuthLoginRequest } from './oauth/login-validation.js';
 import { getAllowedTokenAudiences } from './oauth/jwt.js';
 import { isOAuthDebugEnabled, oauthError } from './oauth/logger.js';
 import { getSupabaseAuthClient, getSupabaseClient } from './supabase.js';
+import {
+  attachPlaceResolutionInfoToResult,
+  attachPlaceResolutionNoteToPayload,
+  decorateToolListPayloadForRuntime,
+  preprocessToolArgsForRuntimePlace,
+} from './place-resolution.js';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
 // ─── 会话管理配置 ───
@@ -428,17 +434,20 @@ function createMcpServer(auth: McpAuthInfo) {
   );
 
   // 列出工具
-  server.server.setRequestHandler(ListToolsRequestSchema, async () => buildListToolsPayload());
+  server.server.setRequestHandler(ListToolsRequestSchema, async () => decorateToolListPayloadForRuntime(buildListToolsPayload()));
 
   // 调用工具（错误脱敏）
   server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    const toolArgs = withSeedScope(name, args, auth);
+    const seedScopedArgs = withSeedScope(name, args, auth);
+    const { toolArgs, placeResolutionInfo } = await preprocessToolArgsForRuntimePlace(name, seedScopedArgs);
 
     try {
-      const result = await handleToolCall(name, toolArgs);
+      const rawResult = await handleToolCall(name, toolArgs);
+      const result = attachPlaceResolutionInfoToResult(rawResult, placeResolutionInfo);
       const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
-      return buildToolSuccessPayload(name, result, responseFormat);
+      const payload = buildToolSuccessPayload(name, result, responseFormat) as Record<string, unknown>;
+      return attachPlaceResolutionNoteToPayload(payload, placeResolutionInfo, responseFormat);
     } catch (error) {
       const internalMessage = error instanceof Error ? error.message : String(error);
 

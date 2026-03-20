@@ -32,6 +32,7 @@ import { CaseNotesSection } from '@/components/bazi/result/CaseNotesSection';
 import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { getMembershipInfo } from '@/lib/user/membership';
+import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
 
 // 结果内容组件
 function BaziResultContent() {
@@ -64,6 +65,7 @@ function BaziResultContent() {
         birth_place: string | null;
         calendar_type: CalendarType | null;
         is_leap_month: boolean | null;
+        chart_data?: Record<string, unknown> | null;
     };
 
     const now = new Date();
@@ -131,6 +133,7 @@ function BaziResultContent() {
                         calendarType: (data.calendar_type as CalendarType) || 'solar',
                         isLeapMonth: data.is_leap_month || false,
                         birthPlace: data.birth_place || undefined,
+                        longitude: extractLongitudeFromChartData(data.chart_data),
                     });
 
                     setSavedWuxingAnalysis(wuxingAnalysis?.analysis ?? null);
@@ -175,6 +178,7 @@ function BaziResultContent() {
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
             isLeapMonth: searchParams.get('leap') === '1',
             birthPlace: searchParams.get('place') || undefined,
+            longitude: parseLongitude(searchParams.get('longitude')),
             isUnknownTime,
         };
     }, [searchParams, chartFromDb]);
@@ -372,6 +376,9 @@ function BaziResultContent() {
         }
         if (formData.birthPlace) {
             params.set('place', formData.birthPlace);
+        }
+        if (formData.longitude != null) {
+            params.set('longitude', String(formData.longitude));
         }
         if (chartId) {
             params.set('chart', chartId);

@@ -26,6 +26,7 @@ npm install @mingai/mcp-server
 - `Authorization: Bearer <token>` 与 `x-api-key` 双认证链路
 - 基于共享 transport 的 `structuredContent + content` 响应策略
 - OAuth 授权页内置当前工具清单展示
+- 八字 / 紫微相关工具支持仅传地点名，由在线服务运行时通过高德解析经度；解析失败时自动退化为不采用真太阳时
 
 ## 最小运行方式
 
@@ -64,6 +65,7 @@ pnpm -C packages/mcp-server start
 | `MCP_MAX_SSE_PER_USER` | 每用户 SSE 并发上限 |
 | `MCP_TRUST_PROXY` | 反向代理后设为 `true` |
 | `MINGAI_SITE_URL` | OAuth 授权页 Logo 与站点链接来源 |
+| `AMAP_WEB_SERVICE_KEY` | 可选。为八字 / 紫微工具开启“仅传地点名”运行时解析；未配置时自动退化为不采用真太阳时 |
 
 ### OAuth 2.1
 
@@ -77,6 +79,14 @@ pnpm -C packages/mcp-server start
 | `MCP_OAUTH_DEBUG` | OAuth 调试日志开关 |
 
 ## MCP 客户端示例
+
+## 出生地点与真太阳时
+
+- 在线 `@mingai/mcp-server` 支持在八字 / 紫微相关工具中只传 `birthPlace`。
+- 当未显式提供 `longitude` 时，服务端会尝试通过高德把地点名解析为经度。
+- 解析成功且精度达到 `市 / 区县` 时，会自动启用真太阳时。
+- 解析失败、只到 `省` 级、或未配置 `AMAP_WEB_SERVICE_KEY` 时，会自动退化为不采用真太阳时。
+- 若同时提供 `longitude` 和 `birthPlace`，优先使用显式 `longitude`。
 
 ### OAuth / Streamable HTTP
 
@@ -113,6 +123,8 @@ Bearer token 的优先级高于 API Key；若 Bearer token 存在但无效，不
 
 - [`@mingai/core`](https://www.npmjs.com/package/@mingai/core): 工具注册、算法实现、transport 适配器
 - [`@mingai/mcp`](https://www.npmjs.com/package/@mingai/mcp): 本地 `stdio` MCP Server
+
+注意：`@mingai/core` 仍保持纯算法边界，本身不接地图服务，也不会自动把地点名换算为经度。
 
 ## 版本批次
 

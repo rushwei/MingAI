@@ -83,11 +83,11 @@ export const toolDefinitions: ToolDefinition[] = [
         },
         birthPlace: {
           type: 'string',
-          description: '出生地点（可选）',
+          description: '出生地点（可选，仅用于展示/存档，不会自动换算为经度）',
         },
         longitude: {
           type: 'number',
-          description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。提供后自动计算真太阳时校正时辰（仅公历有效）',
+          description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。提供后自动计算真太阳时校正时辰；农历输入会先换算为公历再校正。如果只有地点名，需要在调用方先做地理编码',
         },
         responseFormat: {
           type: 'string',
@@ -111,7 +111,7 @@ export const toolDefinitions: ToolDefinition[] = [
         },
         birthPlace: {
           type: 'string',
-          description: '出生地点',
+          description: '出生地点（原样回显，不参与地理编码）',
         },
         dayMaster: {
           type: 'string',
@@ -354,7 +354,7 @@ export const toolDefinitions: ToolDefinition[] = [
         },
         trueSolarTimeInfo: {
           type: 'object',
-          description: '真太阳时校正信息（仅在提供 longitude 且 calendarType=solar 时返回）',
+          description: '真太阳时校正信息（仅在提供 longitude 时返回；农历输入会先换算为公历再校正）',
           properties: {
             clockTime: { type: 'string', description: '钟表时间 (HH:MM)' },
             trueSolarTime: { type: 'string', description: '真太阳时 (HH:MM)' },
@@ -638,7 +638,7 @@ export const toolDefinitions: ToolDefinition[] = [
         },
         longitude: {
           type: 'number',
-          description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
+          description: '出生地经度（东经为正，如北京 116.4，上海 121.5）。提供后自动计算真太阳时校正时辰；农历输入会先换算为公历再校正。如果只有地点名，需要在调用方先做地理编码',
         },
         responseFormat: {
           type: 'string',
@@ -820,7 +820,7 @@ export const toolDefinitions: ToolDefinition[] = [
         douJun: { type: 'string', description: '子年斗君地支' },
         trueSolarTimeInfo: {
           type: 'object',
-          description: '真太阳时校正信息（仅在提供 longitude 且 calendarType=solar 时返回）',
+          description: '真太阳时校正信息（仅在提供 longitude 时返回；农历输入会先换算为公历再校正）',
           properties: {
             clockTime: { type: 'string', description: '钟表时间 (HH:MM)' },
             trueSolarTime: { type: 'string', description: '真太阳时 (HH:MM)' },
@@ -879,7 +879,7 @@ export const toolDefinitions: ToolDefinition[] = [
         isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
         longitude: {
           type: 'number',
-          description: '出生地经度（东经为正，如北京 116.4）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
+          description: '出生地经度（东经为正，如北京 116.4）。提供后自动计算真太阳时校正时辰；农历输入会先换算为公历再校正。如果只有地点名，需要在调用方先做地理编码',
         },
         targetDate: { type: 'string', description: '目标日期 (YYYY-MM-DD)，默认今天' },
         targetTimeIndex: { type: 'number', description: '目标时辰索引 (0-12)，默认当前时辰' },
@@ -954,7 +954,7 @@ export const toolDefinitions: ToolDefinition[] = [
         isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
         longitude: {
           type: 'number',
-          description: '出生地经度（东经为正，如北京 116.4）。仅 calendarType=solar 时支持；提供后自动计算真太阳时校正时辰',
+          description: '出生地经度（东经为正，如北京 116.4）。提供后自动计算真太阳时校正时辰；农历输入会先换算为公历再校正。如果只有地点名，需要在调用方先做地理编码',
         },
         queries: {
           type: 'array',

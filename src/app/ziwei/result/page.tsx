@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { getDayCount } from '@/lib/date-utils';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
+import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -42,6 +43,7 @@ function ZiweiResultContent() {
         birth_place: string | null;
         calendar_type: CalendarType | null;
         is_leap_month: boolean | null;
+        chart_data?: Record<string, unknown> | null;
     };
 
     const chartId = searchParams.get('chart');
@@ -84,6 +86,7 @@ function ZiweiResultContent() {
                         calendarType: (data.calendar_type as CalendarType) || 'solar',
                         isLeapMonth: (data.is_leap_month as boolean | undefined) ?? false,
                         birthPlace: (data.birth_place as string) || '',
+                        longitude: extractLongitudeFromChartData(data.chart_data),
                         isUnknownTime: !hasTime,
                     });
                     setSaved(true);
@@ -109,6 +112,7 @@ function ZiweiResultContent() {
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
             isLeapMonth: searchParams.get('leap') === '1', // 解析闰月参数
             birthPlace: searchParams.get('place') || '',
+            longitude: parseLongitude(searchParams.get('longitude')),
             isUnknownTime,
         };
     }, [searchParams]);
@@ -193,6 +197,18 @@ function ZiweiResultContent() {
         }
     }, [adjustedFormData]);
 
+    const chartMetaItems = useMemo(() => {
+        if (!chart) return [];
+        return [
+            chart.douJun ? { label: '斗君', value: chart.douJun } : null,
+            chart.lifeMasterStar ? { label: '命主星', value: chart.lifeMasterStar } : null,
+            chart.bodyMasterStar ? { label: '身主星', value: chart.bodyMasterStar } : null,
+            chart.earthlyBranchOfSoulPalace ? { label: '命宫地支', value: chart.earthlyBranchOfSoulPalace } : null,
+            chart.earthlyBranchOfBodyPalace ? { label: '身宫地支', value: chart.earthlyBranchOfBodyPalace } : null,
+            chart.trueSolarTimeInfo ? { label: '真太阳时', value: chart.trueSolarTimeInfo.trueSolarTime } : null,
+        ].filter((item): item is { label: string; value: string } => Boolean(item));
+    }, [chart]);
+
     // 修改命盘
     const handleEdit = useCallback(() => {
         const params = new URLSearchParams({
@@ -211,6 +227,9 @@ function ZiweiResultContent() {
         }
         if (resolvedFormData.birthPlace) {
             params.set('place', resolvedFormData.birthPlace);
+        }
+        if (resolvedFormData.longitude != null) {
+            params.set('longitude', String(resolvedFormData.longitude));
         }
         if (chartId) {
             params.set('chart', chartId);
@@ -468,6 +487,20 @@ function ZiweiResultContent() {
                     </div>
                 </div>
             </div>
+
+            {chartMetaItems.length > 0 && (
+                <section className="mb-3 rounded-2xl border border-border bg-background-secondary p-3">
+                    <h2 className="mb-3 text-sm font-semibold">排盘元信息</h2>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {chartMetaItems.map((item) => (
+                            <div key={item.label} className="rounded-xl bg-background px-3 py-2 border border-border">
+                                <div className="text-xs text-foreground-secondary">{item.label}</div>
+                                <div className="mt-1 text-sm font-medium">{item.value}</div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             <section className="bg-background-secondary rounded-xl md:p-3 pt-2 md:border md:border-border overflow-x-hidden w-full sm:max-w-none mx-auto">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2 md:pl-0 pl-3">

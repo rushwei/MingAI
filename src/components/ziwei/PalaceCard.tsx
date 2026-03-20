@@ -47,6 +47,13 @@ export function PalaceCard({
     flowInfo,
     onClick
 }: PalaceCardProps) {
+    const shenSha = [palace.changsheng12, palace.boshi12, palace.jiangqian12, palace.suiqian12]
+        .filter((value): value is string => Boolean(value))
+        .join('、');
+    const flowSummary = [
+        palace.ages?.length ? `小限 ${palace.ages.slice(0, 3).join('、')}` : null,
+        palace.liuNianAges?.length ? `流年 ${palace.liuNianAges.slice(0, 3).join('、')}` : null,
+    ].filter((value): value is string => Boolean(value));
 
     // 获取边框样式（支持多色）
     const getBorderClasses = () => {
@@ -125,6 +132,14 @@ export function PalaceCard({
                     <StarBadge key={`adj-${idx}`} star={star} size="sm" />
                 ))}
             </div>
+
+            {(shenSha || flowSummary.length > 0 || palace.isOriginalPalace) && (
+                <div className="mt-1 space-y-1 text-[9px] text-foreground-secondary">
+                    {shenSha && <div>神煞：{shenSha}</div>}
+                    {flowSummary.length > 0 && <div>{flowSummary.join(' · ')}</div>}
+                    {palace.isOriginalPalace && <div>标记：来因宫</div>}
+                </div>
+            )}
 
             {/* 流限信息 - 底部横向排列 */}
             {hasFlowInfo && (

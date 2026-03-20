@@ -10,7 +10,7 @@ import {
     calculateZiweiHoroscopeDataWithAstrolabe,
     createAstrolabeWithTrueSolar,
 } from '@mingai/core/ziwei';
-import type { Gender, CalendarType } from '@/types';
+import type { Gender, CalendarType, TrueSolarTimeInfo } from '@/types';
 
 type Astrolabe = ReturnType<typeof createAstrolabeWithTrueSolar>['astrolabe'];
 
@@ -28,6 +28,7 @@ export interface ZiweiFormData {
     calendarType: CalendarType;
     isLeapMonth?: boolean; // 是否闰月
     birthPlace?: string; // 出生地点（不参与排盘，仅用于存储）
+    longitude?: number;
     isUnknownTime?: boolean; // 是否未知时辰
 }
 
@@ -37,6 +38,8 @@ export interface StarInfo {
     type: 'major' | 'minor' | 'auxiliary'; // 主星、辅星、杂曜
     brightness?: string; // 亮度：庙、旺、得、利、平、不、陷
     mutagen?: string; // 四化：禄、权、科、忌
+    selfMutagen?: string; // 离心自化 ↓
+    oppositeMutagen?: string; // 向心自化 ↑
 }
 
 /** 宫位信息 */
@@ -49,6 +52,26 @@ export interface PalaceInfo {
     adjStars: StarInfo[]; // 杂曜
     isBodyPalace: boolean; // 是否身宫
     decadalIndex: number; // 大限序号
+    index?: number;
+    isOriginalPalace?: boolean;
+    changsheng12?: string;
+    boshi12?: string;
+    jiangqian12?: string;
+    suiqian12?: string;
+    ages?: number[];
+    decadalRange?: [number, number];
+    liuNianAges?: number[];
+    sanFangSiZheng?: string[];
+}
+
+export interface SmallLimitEntry {
+    palaceName: string;
+    ages: number[];
+}
+
+export interface ScholarStarEntry {
+    starName: string;
+    palaceName: string;
 }
 
 /** 大限数据（用于持久化存储） */
@@ -66,8 +89,10 @@ export interface ZiweiChart {
     solarDate: string;
     lunarDate: string;
     time: string;
+    timeRange?: string;
     sign: string; // 星座
     zodiac: string; // 生肖
+    gender?: Gender;
 
     // 四柱
     yearStem: string;
@@ -83,6 +108,14 @@ export interface ZiweiChart {
     soul: string; // 命主
     body: string; // 身主
     fiveElement: string; // 五行局
+    earthlyBranchOfSoulPalace?: string;
+    earthlyBranchOfBodyPalace?: string;
+    douJun?: string;
+    trueSolarTimeInfo?: TrueSolarTimeInfo;
+    lifeMasterStar?: string;
+    bodyMasterStar?: string;
+    smallLimit?: SmallLimitEntry[];
+    scholarStars?: ScholarStarEntry[];
 
     // 12宫位
     palaces: PalaceInfo[];
@@ -104,6 +137,8 @@ const PALACE_LAYOUT_ORDER = [
     3, -1, -1, 10, // 卯-中空-戌 (第三行)
     2, 1, 0, 11,   // 寅丑子亥 (第四行)
 ];
+
+const PALACE_TEXT_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
 
 const BRIGHTNESS_COLORS: Record<string, string> = {
     '庙': '#FFD700', // 金色
@@ -131,6 +166,7 @@ const MUTAGEN_COLORS: Record<string, string> = {
  * @returns 紫微命盘数据
  */
 export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
+    const longitude = formData.longitude;
     const { output, astrolabe } = calculateZiweiDataWithAstrolabe({
         gender: formData.gender,
         birthYear: formData.birthYear,
@@ -140,6 +176,7 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         birthMinute: formData.birthMinute,
         calendarType: formData.calendarType === 'lunar' ? 'lunar' : 'solar',
         isLeapMonth: formData.isLeapMonth,
+        longitude,
     });
 
     const palaces: PalaceInfo[] = output.palaces.map((palace, index) => ({
@@ -151,21 +188,37 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
             type: 'major' as const,
             brightness: star.brightness,
             mutagen: star.mutagen,
+            selfMutagen: star.selfMutagen,
+            oppositeMutagen: star.oppositeMutagen,
         })),
         minorStars: palace.minorStars.map(star => ({
             name: star.name,
             type: 'minor' as const,
             brightness: star.brightness,
             mutagen: star.mutagen,
+            selfMutagen: star.selfMutagen,
+            oppositeMutagen: star.oppositeMutagen,
         })),
         adjStars: (palace.adjStars || []).map((star) => ({
             name: star.name,
             type: 'auxiliary' as const,
             brightness: star.brightness,
             mutagen: star.mutagen,
+            selfMutagen: star.selfMutagen,
+            oppositeMutagen: star.oppositeMutagen,
         })),
         isBodyPalace: palace.isBodyPalace,
         decadalIndex: palace.index ?? index,
+        index: palace.index,
+        isOriginalPalace: palace.isOriginalPalace,
+        changsheng12: palace.changsheng12,
+        boshi12: palace.boshi12,
+        jiangqian12: palace.jiangqian12,
+        suiqian12: palace.suiqian12,
+        ages: palace.ages,
+        decadalRange: palace.decadalRange,
+        liuNianAges: palace.liuNianAges,
+        sanFangSiZheng: palace.sanFangSiZheng,
     }));
 
     const decadalData: DecadalData[] = output.decadalList.map((item) => {
@@ -186,8 +239,10 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         solarDate: output.solarDate,
         lunarDate: output.lunarDate,
         time: output.time || astrolabe.time,
+        timeRange: output.timeRange,
         sign: output.sign,
         zodiac: output.zodiac,
+        gender: output.gender as Gender | undefined,
 
         yearStem: output.fourPillars.year.gan,
         yearBranch: output.fourPillars.year.zhi,
@@ -201,6 +256,14 @@ export function calculateZiwei(formData: ZiweiFormData): ZiweiChart {
         soul: output.soul,
         body: output.body,
         fiveElement: output.fiveElement,
+        earthlyBranchOfSoulPalace: output.earthlyBranchOfSoulPalace,
+        earthlyBranchOfBodyPalace: output.earthlyBranchOfBodyPalace,
+        douJun: output.douJun,
+        trueSolarTimeInfo: output.trueSolarTimeInfo,
+        lifeMasterStar: output.lifeMasterStar,
+        bodyMasterStar: output.bodyMasterStar,
+        smallLimit: output.smallLimit,
+        scholarStars: output.scholarStars,
 
         palaces,
         decadalData,
@@ -443,6 +506,26 @@ export function getPalaceIndexByName(chart: ZiweiChart, name: string): number {
     return chart.palaces.findIndex(p => p.name === name);
 }
 
+function getTraditionalTextPalaces(chart: ZiweiChart): PalaceInfo[] {
+    return [...chart.palaces].sort((a, b) => {
+        const left = PALACE_TEXT_ORDER.indexOf(a.name);
+        const right = PALACE_TEXT_ORDER.indexOf(b.name);
+        const leftOrder = left >= 0 ? left : Number.MAX_SAFE_INTEGER;
+        const rightOrder = right >= 0 ? right : Number.MAX_SAFE_INTEGER;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return (a.index ?? a.decadalIndex) - (b.index ?? b.decadalIndex);
+    });
+}
+
+function formatStarLabel(star: StarInfo): string {
+    let label = star.name;
+    if (star.brightness) label += `(${star.brightness})`;
+    if (star.mutagen) label += `[化${star.mutagen}]`;
+    if (star.selfMutagen) label += `[↓${star.selfMutagen}]`;
+    if (star.oppositeMutagen) label += `[↑${star.oppositeMutagen}]`;
+    return label;
+}
+
 /**
  * 生成紫微命盘文字版本（用于AI分析和复制）
  */
@@ -451,15 +534,38 @@ export function generateZiweiChartText(
     options: { includeHoroscope?: boolean } = {},
 ): string {
     const includeHoroscope = options.includeHoroscope ?? Boolean(chart.rawAstrolabe);
+    const palaces = getTraditionalTextPalaces(chart);
     const lines: string[] = [];
     lines.push('# 紫微斗数命盘');
     lines.push('');
     lines.push('## 基本信息');
+    if (chart.gender) {
+        lines.push(`- **性别**: ${chart.gender === 'male' ? '男' : '女'}`);
+    }
     lines.push(`- **阳历**: ${chart.solarDate}`);
     lines.push(`- **农历**: ${chart.lunarDate}`);
-    lines.push(`- **时辰**: ${chart.time}`);
+    lines.push(`- **时辰**: ${chart.time}${chart.timeRange ? `（${chart.timeRange}）` : ''}`);
     lines.push(`- **属相**: ${chart.zodiac}`);
     lines.push(`- **星座**: ${chart.sign}`);
+    if (chart.earthlyBranchOfSoulPalace) {
+        lines.push(`- **命宫地支**: ${chart.earthlyBranchOfSoulPalace}`);
+    }
+    if (chart.earthlyBranchOfBodyPalace) {
+        lines.push(`- **身宫地支**: ${chart.earthlyBranchOfBodyPalace}`);
+    }
+    if (chart.douJun) {
+        lines.push(`- **子年斗君**: ${chart.douJun}`);
+    }
+    if (chart.lifeMasterStar) {
+        lines.push(`- **命主星**: ${chart.lifeMasterStar}`);
+    }
+    if (chart.bodyMasterStar) {
+        lines.push(`- **身主星**: ${chart.bodyMasterStar}`);
+    }
+    if (chart.trueSolarTimeInfo) {
+        lines.push(`- **钟表时间**: ${chart.trueSolarTimeInfo.clockTime}`);
+        lines.push(`- **真太阳时**: ${chart.trueSolarTimeInfo.trueSolarTime}（经度 ${chart.trueSolarTimeInfo.longitude}°，校正 ${chart.trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${chart.trueSolarTimeInfo.correctionMinutes} 分钟）`);
+    }
     lines.push('');
     lines.push('## 四柱');
     lines.push(`- **年柱**: ${chart.yearStem}${chart.yearBranch}`);
@@ -483,20 +589,25 @@ export function generateZiweiChartText(
     lines.push('## 十二宫详情');
     lines.push('');
 
-    chart.palaces.forEach((palace) => {
+    palaces.forEach((palace) => {
         const bodyMark = palace.isBodyPalace ? '（身宫）' : '';
-        const majorStars = palace.majorStars.map(s => {
-            let str = s.name;
-            if (s.brightness) str += `(${s.brightness})`;
-            if (s.mutagen) str += `[化${s.mutagen}]`;
-            return str;
-        }).join('、') || '无主星';
-        const minorStars = palace.minorStars.map(s => s.name + (s.brightness ? `(${s.brightness})` : '')).join('、');
-        const adjStars = palace.adjStars?.map(s => s.name).join('、');
+        const majorStars = palace.majorStars.map(formatStarLabel).join('、') || '无主星';
+        const minorStars = palace.minorStars.map(formatStarLabel).join('、');
+        const adjStars = palace.adjStars?.map(formatStarLabel).join('、');
+        const shenSha = [palace.changsheng12, palace.boshi12, palace.jiangqian12, palace.suiqian12].filter(Boolean).join('、');
+        const markers = [
+            palace.isOriginalPalace ? '来因宫' : null,
+            palace.decadalRange ? `大限 ${palace.decadalRange[0]}-${palace.decadalRange[1]}` : null,
+            palace.ages?.length ? `小限 ${palace.ages.slice(0, 5).join('、')}` : null,
+            palace.liuNianAges?.length ? `流年 ${palace.liuNianAges.slice(0, 5).join('、')}` : null,
+            palace.sanFangSiZheng?.length ? `三方四正 ${palace.sanFangSiZheng.join('、')}` : null,
+        ].filter(Boolean).join('；');
         lines.push(`### ${palace.name}${bodyMark}（${palace.heavenlyStem}${palace.earthlyBranch}）`);
         lines.push(`- **主星**: ${majorStars}`);
         if (minorStars) lines.push(`- **辅星**: ${minorStars}`);
         if (adjStars) lines.push(`- **杂曜**: ${adjStars}`);
+        if (shenSha) lines.push(`- **神煞**: ${shenSha}`);
+        if (markers) lines.push(`- **标记**: ${markers}`);
         lines.push('');
     });
 
@@ -534,6 +645,24 @@ export function generateZiweiChartText(
         lines.push('## 四化分布');
         lines.push('');
         mutagenSummary.forEach((item) => lines.push(`- ${item}`));
+        lines.push('');
+    }
+
+    if (chart.scholarStars && chart.scholarStars.length > 0) {
+        lines.push('## 博士十二星');
+        lines.push('');
+        chart.scholarStars.forEach((item) => {
+            lines.push(`- ${item.starName}：${item.palaceName}`);
+        });
+        lines.push('');
+    }
+
+    if (chart.smallLimit && chart.smallLimit.length > 0) {
+        lines.push('## 小限');
+        lines.push('');
+        chart.smallLimit.forEach((item) => {
+            lines.push(`- ${item.palaceName}：${item.ages.slice(0, 8).join('、')}`);
+        });
     }
 
     return lines.join('\n');

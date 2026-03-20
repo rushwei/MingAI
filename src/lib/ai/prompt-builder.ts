@@ -32,10 +32,10 @@ type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'g
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
-type ZiweiChartInput = Partial<ZiweiChart> & {
+type ZiweiChartInput = Partial<Omit<ZiweiChart, 'gender'>> & {
     id?: string;
     name?: string;
-    gender?: string;
+    gender?: ZiweiChart['gender'] | string;
     birthDate?: string;
     birthTime?: string;
     chartData?: Record<string, unknown>;

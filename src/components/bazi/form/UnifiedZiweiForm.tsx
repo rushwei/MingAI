@@ -47,6 +47,9 @@ export function UnifiedZiweiForm({
         ? LunarYear.fromYear(formData.birthYear).getLeapMonth()
         : 0;
     const hasLeapMonth = leapMonth === formData.birthMonth;
+    const placeSummary = formData.birthPlace
+        ? `${formData.birthPlace}${formData.longitude != null ? '（已启用真太阳时）' : '（提交时自动解析）'}`
+        : '未设置（使用北京时间）';
 
     return (
         <>
@@ -223,7 +226,7 @@ export function UnifiedZiweiForm({
                         <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
                         <span className="text-xs sm:text-sm font-medium">出生地点</span>
                         <span className="text-xs text-foreground-secondary truncate">
-                            {formData.birthPlace || '未设置（使用北京时间）'}
+                            {placeSummary}
                         </span>
                     </div>
                     <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-foreground-secondary" />

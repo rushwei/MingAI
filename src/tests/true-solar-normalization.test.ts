@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Lunar } from 'lunar-javascript';
 import { handleBaziCalculate } from '../../packages/core/src/handlers/bazi';
 import { handleZiweiCalculate } from '../../packages/core/src/handlers/ziwei';
 import { calculateTrueSolarTime } from '../../packages/core/src/handlers/ziwei-shared';
@@ -80,4 +81,67 @@ test('handleZiweiCalculate should accept valid solar birthdays on the 31st', asy
   });
 
   assert.equal(result.solarDate, '1990-1-31');
+});
+
+test('handleBaziCalculate should apply true solar correction for lunar input through the equivalent solar instant', async () => {
+  const lunar = Lunar.fromYmdHms(2023, 8, 15, 23, 40, 0);
+  const solar = lunar.getSolar();
+
+  const correctedLunar = await handleBaziCalculate({
+    gender: 'female',
+    birthYear: 2023,
+    birthMonth: 8,
+    birthDay: 15,
+    birthHour: 23,
+    birthMinute: 40,
+    calendarType: 'lunar',
+    longitude: 73,
+  });
+
+  const correctedSolar = await handleBaziCalculate({
+    gender: 'female',
+    birthYear: solar.getYear(),
+    birthMonth: solar.getMonth(),
+    birthDay: solar.getDay(),
+    birthHour: solar.getHour(),
+    birthMinute: solar.getMinute(),
+    calendarType: 'solar',
+    longitude: 73,
+  });
+
+  assert.deepEqual(correctedLunar.fourPillars, correctedSolar.fourPillars);
+  assert.equal(correctedLunar.dayMaster, correctedSolar.dayMaster);
+  assert.deepEqual(correctedLunar.trueSolarTimeInfo, correctedSolar.trueSolarTimeInfo);
+});
+
+test('handleZiweiCalculate should apply true solar correction for lunar input through the equivalent solar instant', async () => {
+  const lunar = Lunar.fromYmdHms(2023, 8, 15, 23, 40, 0);
+  const solar = lunar.getSolar();
+
+  const correctedLunar = await handleZiweiCalculate({
+    gender: 'female',
+    birthYear: 2023,
+    birthMonth: 8,
+    birthDay: 15,
+    birthHour: 23,
+    birthMinute: 40,
+    calendarType: 'lunar',
+    longitude: 73,
+  });
+
+  const correctedSolar = await handleZiweiCalculate({
+    gender: 'female',
+    birthYear: solar.getYear(),
+    birthMonth: solar.getMonth(),
+    birthDay: solar.getDay(),
+    birthHour: solar.getHour(),
+    birthMinute: solar.getMinute(),
+    calendarType: 'solar',
+    longitude: 73,
+  });
+
+  assert.equal(correctedLunar.solarDate, correctedSolar.solarDate);
+  assert.equal(correctedLunar.lunarDate, correctedSolar.lunarDate);
+  assert.deepEqual(correctedLunar.fourPillars, correctedSolar.fourPillars);
+  assert.deepEqual(correctedLunar.trueSolarTimeInfo, correctedSolar.trueSolarTimeInfo);
 });

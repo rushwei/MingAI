@@ -35,6 +35,10 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
     // 四化颜色标记
     const mutagenColor = getMutagenColor(star.mutagen);
     const hasMutagen = star.mutagen && mutagenColor !== 'transparent';
+    const mutagenMarkers = [
+        star.selfMutagen ? { label: `↓${star.selfMutagen}`, color: getMutagenColor(star.selfMutagen) } : null,
+        star.oppositeMutagen ? { label: `↑${star.oppositeMutagen}`, color: getMutagenColor(star.oppositeMutagen) } : null,
+    ].filter(Boolean) as Array<{ label: string; color: string }>;
 
     const nameChars = Array.from(star.name);
 
@@ -55,6 +59,15 @@ export function StarBadge({ star, size = 'sm' }: StarBadgeProps) {
                     {star.mutagen}
                 </span>
             )}
+            {mutagenMarkers.map((marker, idx) => (
+                <span
+                    key={`${marker.label}-${idx}`}
+                    className={statusSize}
+                    style={marker.color !== 'transparent' ? { color: marker.color } : undefined}
+                >
+                    {marker.label}
+                </span>
+            ))}
         </span>
     );
 }

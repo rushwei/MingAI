@@ -15,7 +15,9 @@ import type { BaziFormData, Gender, CalendarType } from '@/types';
 import { BaziForm } from '@/components/bazi/form/BaziForm';
 import { InstantBaziPreview } from '@/components/bazi/InstantBaziPreview';
 import { DEFAULT_BAZI_FORM_DATA } from '@/components/bazi/form/options';
+import { resolvePlaceWithAmap } from '@/lib/divination/amap-client';
 import { normalizeBirthDateForCalendarSwitch } from '@/lib/divination/bazi-form-utils';
+import { buildPlaceResolutionFallbackMessage, parseLongitude } from '@/lib/divination/place-resolution';
 import { useToast } from '@/components/ui/Toast';
 import { clampDay } from '@/lib/date-utils';
 
@@ -38,6 +40,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
     const calendar = searchParams.get('calendar') as CalendarType | null;
     const place = searchParams.get('place');
     const leap = searchParams.get('leap');
+    const longitude = searchParams.get('longitude');
 
     if (!name && !year) {
         return { ...DEFAULT_BAZI_FORM_DATA };
@@ -62,6 +65,7 @@ const getInitialFormData = (searchParams: { get: (key: string) => string | null 
         calendarType: calendar === 'pillars' ? 'pillars' : (calendar === 'lunar' ? 'lunar' : 'solar'),
         isLeapMonth: isLeapRequested && leapMonthOfYear === birthMonth,
         birthPlace: place || '',
+        longitude: parseLongitude(longitude),
     };
 };
 
@@ -177,6 +181,10 @@ function BaziPageContent() {
         setFormData(prev => {
             const next = { ...prev, [field]: value };
 
+            if (field === 'birthPlace') {
+                next.longitude = undefined;
+            }
+
             if ((field === 'birthYear' || field === 'birthMonth' || field === 'isLeapMonth') && prev.calendarType) {
                 next.birthDay = clampDay(
                     prev.calendarType,
@@ -215,6 +223,16 @@ function BaziPageContent() {
         setIsSubmitting(true);
 
         try {
+            let resolvedLongitude = formData.longitude;
+            if (formData.birthPlace && resolvedLongitude == null) {
+                const { resolution, errorMessage } = await resolvePlaceWithAmap(formData.birthPlace);
+                if (resolution.resolved) {
+                    resolvedLongitude = resolution.longitude;
+                } else {
+                    showToast('info', errorMessage || buildPlaceResolutionFallbackMessage(resolution.reason));
+                }
+            }
+
             const params = new URLSearchParams();
             const chartId = searchParams.get('chart');
 
@@ -242,6 +260,9 @@ function BaziPageContent() {
                 }
                 // 四柱模式下也保留出生地点
                 params.set('place', formData.birthPlace || '');
+                if (resolvedLongitude != null) {
+                    params.set('longitude', String(resolvedLongitude));
+                }
             } else {
                 // 日期模式
                 params.set('name', formData.name || '');
@@ -256,6 +277,9 @@ function BaziPageContent() {
                     params.set('leap', formData.isLeapMonth ? '1' : '0');
                 }
                 params.set('place', formData.birthPlace || '');
+                if (resolvedLongitude != null) {
+                    params.set('longitude', String(resolvedLongitude));
+                }
             }
 
             if (chartId) {

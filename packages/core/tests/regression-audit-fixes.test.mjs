@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { LunarMonth, LunarYear } from 'lunar-javascript';
+import { Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 
 import * as mcpCore from '@mingai/core';
 
@@ -120,21 +120,36 @@ test('ziwei_calculate should derive lifeMasterStar from the birth-year earthly b
   assert.equal(result.lifeMasterStar, '武曲');
 });
 
-test('ziwei should reject longitude correction for lunar input until that path is implemented correctly', async () => {
-  await assert.rejects(
-    () =>
-      mcpCore.handleZiweiCalculate({
-        gender: 'male',
-        birthYear: 2003,
-        birthMonth: 8,
-        birthDay: 6,
-        birthHour: 0,
-        birthMinute: 10,
-        calendarType: 'lunar',
-        longitude: 73,
-      }),
-    /longitude.*solar|农历.*longitude/u,
-  );
+test('ziwei should support longitude correction for lunar input by normalizing through the equivalent solar birth time', async () => {
+  const lunar = Lunar.fromYmdHms(2003, 8, 6, 0, 10, 0);
+  const solar = lunar.getSolar();
+
+  const correctedLunar = await mcpCore.handleZiweiCalculate({
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 8,
+    birthDay: 6,
+    birthHour: 0,
+    birthMinute: 10,
+    calendarType: 'lunar',
+    longitude: 73,
+  });
+
+  const correctedSolar = await mcpCore.handleZiweiCalculate({
+    gender: 'male',
+    birthYear: solar.getYear(),
+    birthMonth: solar.getMonth(),
+    birthDay: solar.getDay(),
+    birthHour: solar.getHour(),
+    birthMinute: solar.getMinute(),
+    calendarType: 'solar',
+    longitude: 73,
+  });
+
+  assert.deepEqual(correctedLunar.fourPillars, correctedSolar.fourPillars);
+  assert.equal(correctedLunar.solarDate, correctedSolar.solarDate);
+  assert.equal(correctedLunar.timeRange, correctedSolar.timeRange);
+  assert.equal(correctedLunar.trueSolarTimeInfo?.longitude, 73);
 });
 
 test('ziwei should reject invalid lunar leap months and out-of-range lunar days', async () => {

@@ -3,7 +3,7 @@
  */
 
 import { astro } from 'iztro';
-import { LunarMonth, LunarYear } from 'lunar-javascript';
+import { Lunar, LunarMonth, LunarYear } from 'lunar-javascript';
 import type { BirthTimeInput, Gender, StarInfo, TrueSolarTimeInfo, DiZhi } from '../types.js';
 
 export const MUTAGEN_NAMES = ['禄', '权', '科', '忌'] as const;
@@ -201,6 +201,62 @@ export function calculateTrueSolarTime(
   return resolveTrueSolarDateTime(input, longitude).trueSolarTimeInfo;
 }
 
+function validateLunarBirthInput(params: {
+  birthYear: number;
+  birthMonth: number;
+  birthDay: number;
+  birthHour: number;
+  birthMinute: number;
+  isLeapMonth: boolean;
+}): { lunar: ReturnType<typeof Lunar.fromYmdHms>; solar: ReturnType<ReturnType<typeof Lunar.fromYmdHms>['getSolar']> } {
+  const {
+    birthYear,
+    birthMonth,
+    birthDay,
+    birthHour,
+    birthMinute,
+    isLeapMonth,
+  } = params;
+
+  if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) {
+    throw new Error(`农历月份无效：${birthMonth}月不存在。请输入 1-12 之间的整数。`);
+  }
+
+  const leapMonth = LunarYear.fromYear(birthYear).getLeapMonth();
+  if (isLeapMonth && leapMonth !== birthMonth) {
+    throw new Error(`农历闰月无效：${birthYear}年没有闰${birthMonth}月，请检查该年是否有闰月。`);
+  }
+
+  const lunarMonth = isLeapMonth ? -Math.abs(birthMonth) : birthMonth;
+  let lunarMonthInfo: ReturnType<typeof LunarMonth.fromYm>;
+  try {
+    lunarMonthInfo = LunarMonth.fromYm(birthYear, lunarMonth);
+  } catch {
+    throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
+  }
+
+  if (!lunarMonthInfo) {
+    throw new Error(`农历月份无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月不存在。`);
+  }
+
+  const dayCount = lunarMonthInfo.getDayCount();
+  if (birthDay < 1 || birthDay > dayCount) {
+    throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月只有${dayCount}天，请输入 1-${dayCount} 之间的日期。`);
+  }
+
+  let lunar: ReturnType<typeof Lunar.fromYmdHms>;
+  try {
+    lunar = Lunar.fromYmdHms(birthYear, lunarMonth, birthDay, birthHour, birthMinute, 0);
+  } catch {
+    throw new Error(`农历日期无效：${birthYear}年${isLeapMonth ? '闰' : ''}${birthMonth}月${birthDay}日不存在，请检查日期是否正确。`);
+  }
+
+  return {
+    lunar,
+    solar: lunar.getSolar(),
+  };
+}
+
 /** 校验出生参数并创建星盘 */
 export function createAstrolabe(input: BirthTimeInput & { gender: Gender }): Astrolabe {
   const {
@@ -298,13 +354,31 @@ export function createAstrolabeWithTrueSolar(
     birthHour,
     birthMinute = 0,
     calendarType = 'solar',
+    isLeapMonth = false,
   } = input;
-  if (calendarType === 'lunar') {
-    throw new Error('longitude 仅支持 calendarType=solar；农历输入请先换算为公历后再使用真太阳时校正');
-  }
+
+  const baseSolarInput = calendarType === 'lunar'
+    ? (() => {
+      const prepared = validateLunarBirthInput({
+        birthYear,
+        birthMonth,
+        birthDay,
+        birthHour,
+        birthMinute,
+        isLeapMonth,
+      });
+      return {
+        birthYear: prepared.solar.getYear(),
+        birthMonth: prepared.solar.getMonth(),
+        birthDay: prepared.solar.getDay(),
+        birthHour: prepared.solar.getHour(),
+        birthMinute: prepared.solar.getMinute(),
+      };
+    })()
+    : { birthYear, birthMonth, birthDay, birthHour, birthMinute };
 
   const resolvedDateTime = resolveTrueSolarDateTime(
-    { birthYear, birthMonth, birthDay, birthHour, birthMinute },
+    baseSolarInput,
     longitude,
   );
   const trueSolarTimeInfo = resolvedDateTime.trueSolarTimeInfo;

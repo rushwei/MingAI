@@ -137,6 +137,8 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
     const lifePalaceBranch = chart.palaces[lifePalaceIndex]?.earthlyBranch || '';
     const bodyPalaceBranch = chart.palaces[bodyPalaceIndex]?.earthlyBranch || '';
+    const scholarStarSummary = chart.scholarStars?.slice(0, 6) || [];
+    const smallLimitSummary = chart.smallLimit?.slice(0, 4) || [];
 
     return (
         <div className="w-full">
@@ -315,6 +317,13 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                                     <span>身宫：<span className="text-amber-500">{bodyPalaceBranch}</span></span>
                                                 </div>
 
+                                                <div className="grid grid-cols-2 gap-1 text-[10px] text-center">
+                                                    {chart.douJun && <span>斗君：{chart.douJun}</span>}
+                                                    {chart.lifeMasterStar && <span>命主星：{chart.lifeMasterStar}</span>}
+                                                    {chart.bodyMasterStar && <span>身主星：{chart.bodyMasterStar}</span>}
+                                                    {chart.trueSolarTimeInfo && <span>真太阳时：{chart.trueSolarTimeInfo.trueSolarTime}</span>}
+                                                </div>
+
                                                 <div className="text-center">
                                                     <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
                                                         {chart.fiveElement}
@@ -356,6 +365,37 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                     )}
                 </div>
             </div>
+
+            {(scholarStarSummary.length > 0 || smallLimitSummary.length > 0) && (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {scholarStarSummary.length > 0 && (
+                        <section className="rounded-xl border border-border bg-background-secondary p-3">
+                            <div className="mb-2 text-xs font-medium text-foreground-secondary">博士十二星</div>
+                            <div className="flex flex-wrap gap-1.5 text-xs">
+                                {scholarStarSummary.map((item) => (
+                                    <span key={`${item.starName}-${item.palaceName}`} className="rounded-full border border-border bg-background px-2 py-1">
+                                        {item.starName} · {item.palaceName}
+                                    </span>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                    {smallLimitSummary.length > 0 && (
+                        <section className="rounded-xl border border-border bg-background-secondary p-3">
+                            <div className="mb-2 text-xs font-medium text-foreground-secondary">小限 / 流年</div>
+                            <div className="space-y-1.5 text-xs">
+                                {smallLimitSummary.map((item) => (
+                                    <div key={item.palaceName} className="flex items-start justify-between gap-3">
+                                        <span className="text-foreground-secondary">{item.palaceName}</span>
+                                        <span className="text-right">{item.ages.slice(0, 5).join('、')}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 text-[11px] text-foreground-tertiary">宫位卡片中继续展示神煞与流年标记。</div>
+                        </section>
+                    )}
+                </div>
+            )}
         </div >
     );
 }

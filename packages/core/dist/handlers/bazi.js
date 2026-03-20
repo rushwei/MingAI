@@ -609,24 +609,15 @@ function validateLunarDateInput(params) {
 }
 function resolveBaziCalendarContext(input) {
     const { birthYear, birthMonth, birthDay, birthHour, birthMinute = 0, calendarType = 'solar', isLeapMonth = false, longitude, } = input;
+    if (longitude != null && (typeof longitude !== 'number' || longitude < -180 || longitude > 180)) {
+        throw new Error('longitude 必须是 -180 到 180 之间的数字');
+    }
     let trueSolarTimeInfo;
     let effectiveYear = birthYear;
     let effectiveMonth = birthMonth;
     let effectiveDay = birthDay;
     let effectiveHour = birthHour;
     let effectiveMinute = birthMinute;
-    if (longitude != null && calendarType !== 'lunar') {
-        if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
-            throw new Error('longitude 必须是 -180 到 180 之间的数字');
-        }
-        const resolvedDateTime = resolveTrueSolarDateTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
-        trueSolarTimeInfo = resolvedDateTime.trueSolarTimeInfo;
-        effectiveYear = resolvedDateTime.year;
-        effectiveMonth = resolvedDateTime.month;
-        effectiveDay = resolvedDateTime.day;
-        effectiveHour = resolvedDateTime.hour;
-        effectiveMinute = resolvedDateTime.minute;
-    }
     if (calendarType === 'lunar') {
         const prepared = validateLunarDateInput({
             birthYear,
@@ -636,11 +627,35 @@ function resolveBaziCalendarContext(input) {
             birthMinute,
             isLeapMonth,
         });
+        if (longitude != null) {
+            const resolvedDateTime = resolveTrueSolarDateTime({
+                birthYear: prepared.solar.getYear(),
+                birthMonth: prepared.solar.getMonth(),
+                birthDay: prepared.solar.getDay(),
+                birthHour: prepared.solar.getHour(),
+                birthMinute: prepared.solar.getMinute(),
+            }, longitude);
+            const correctedSolar = Solar.fromYmdHms(resolvedDateTime.year, resolvedDateTime.month, resolvedDateTime.day, resolvedDateTime.hour, resolvedDateTime.minute, 0);
+            return {
+                solar: correctedSolar,
+                lunar: correctedSolar.getLunar(),
+                trueSolarTimeInfo: resolvedDateTime.trueSolarTimeInfo,
+            };
+        }
         return {
             solar: prepared.solar,
             lunar: prepared.lunar,
             trueSolarTimeInfo,
         };
+    }
+    if (longitude != null) {
+        const resolvedDateTime = resolveTrueSolarDateTime({ birthYear, birthMonth, birthDay, birthHour, birthMinute }, longitude);
+        trueSolarTimeInfo = resolvedDateTime.trueSolarTimeInfo;
+        effectiveYear = resolvedDateTime.year;
+        effectiveMonth = resolvedDateTime.month;
+        effectiveDay = resolvedDateTime.day;
+        effectiveHour = resolvedDateTime.hour;
+        effectiveMinute = resolvedDateTime.minute;
     }
     const solar = Solar.fromYmdHms(effectiveYear, effectiveMonth, effectiveDay, effectiveHour, effectiveMinute, 0);
     return {

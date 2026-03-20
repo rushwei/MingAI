@@ -52,6 +52,12 @@ MingAI 的本地 `stdio` MCP Server，适合直接接入 Claude Desktop、Cursor
 
 这套响应策略由 `@mingai/core/transport` 统一提供。
 
+关于出生地点与真太阳时：
+
+- 本地 `@mingai/mcp` 当前不做在线地理编码。
+- 若需要真太阳时，请显式传入 `longitude`。
+- 若你只有地点名，需要由调用方先做地理编码，再把经度传给工具。
+
 ## 其他安装方式
 
 ```bash

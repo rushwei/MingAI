@@ -63,6 +63,15 @@ export interface BaziDiZhiSanHuiItem {
     positions: ('年支' | '月支' | '日支' | '时支')[];
 }
 
+export interface TrueSolarTimeInfo {
+    clockTime: string;
+    trueSolarTime: string;
+    longitude: number;
+    correctionMinutes: number;
+    trueTimeIndex: number;
+    dayOffset: number;
+}
+
 /** 简化的柱数据（用于四柱输入） */
 export interface PillarData {
     stem: HeavenlyStem | '';      // 天干（空字符串表示未选择）
@@ -126,6 +135,9 @@ export interface BaziChart {
     dayMaster: HeavenlyStem;  // 日主
     fiveElements: FiveElementsStats; // 五行统计
     kongWang?: { xun: string; kongBranches: EarthlyBranch[] };
+    taiYuan?: string;
+    mingGong?: string;
+    trueSolarTimeInfo?: TrueSolarTimeInfo;
     relations?: BaziRelation[];
     tianGanWuHe?: BaziTianGanWuHeItem[];
     tianGanChongKe?: BaziTianGanChongKeItem[];
@@ -147,6 +159,7 @@ export interface BaziFormData {
     birthHour: number;
     birthMinute: number;
     birthPlace?: string;
+    longitude?: number;
     calendarType: CalendarType;
     isLeapMonth?: boolean;
     isUnknownTime?: boolean;

@@ -82,7 +82,7 @@ export function PlaceInputModal({
                     <div className="bg-blue-50/50 text-blue-600/90 p-3 rounded-lg text-sm flex items-start gap-2">
                         <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         <p className="leading-relaxed">
-                            出生地点用于真太阳时修正。如果不确定，可以留空，系统将使用北京时间（东八区）进行排盘。
+                            出生地点会在提交时通过高德 Web 服务解析经度，用于真太阳时修正。如果无法精确解析到城市或区县，系统会自动回退为北京时间（东八区）排盘。
                         </p>
                     </div>
                 </div>
