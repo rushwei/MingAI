@@ -37,6 +37,7 @@ import {
   renderZiweiFlyingStarCanonicalText,
   renderZiweiHoroscopeCanonicalText,
 } from './text.js';
+import { canonicalOutputSchemas } from './canonical-output-schema.js';
 import { toolDefinitions, type ToolDefinition } from './tool-schema.js';
 
 type ToolHandler = (args: unknown) => unknown | Promise<unknown>;
@@ -66,7 +67,15 @@ function createRegistryEntry(
   markdownFormatter?: MarkdownFormatter,
   jsonFormatter?: JsonFormatter,
 ): ToolRegistryEntry {
-  return { definition, handler, markdownFormatter, jsonFormatter };
+  const canonicalOutputSchema = canonicalOutputSchemas[definition.name];
+  return {
+    definition: canonicalOutputSchema
+      ? { ...definition, outputSchema: canonicalOutputSchema }
+      : definition,
+    handler,
+    markdownFormatter,
+    jsonFormatter,
+  };
 }
 
 function adaptToolHandler<TInput, TOutput>(

@@ -24,18 +24,21 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
   assert.equal(outputProps?.rankScoreNote, undefined, 'rankScoreNote should be removed');
 
   assert.equal(outputProps?.globalShenSha?.type, 'array');
-  assert.equal(outputProps?.yongShen?.type, 'array');
-  assert.equal(outputProps?.shenSystemByYongShen?.type, 'array');
-  const yongShenSelected = outputProps?.yongShen?.items?.properties?.selected?.properties;
+  assert.equal(outputProps?.yongShenAnalysis?.type, 'array');
+  assert.equal(outputProps?.shenSystemByYongShen, undefined);
+  const yongShenSelected = outputProps?.yongShenAnalysis?.items?.properties?.selected?.properties;
   assert.equal(yongShenSelected?.changedNaJia?.type, 'string');
   assert.equal(yongShenSelected?.huaType?.type, 'string');
+  assert.equal(yongShenSelected?.source?.type, 'string');
+  assert.equal(yongShenSelected?.element?.type, 'string');
+  assert.equal(yongShenSelected?.movementState?.type, 'string');
 
-  const fullYao = outputProps?.fullYaos?.items?.properties;
-  assert.equal(fullYao?.isChanging?.type, 'boolean');
+  const fullYao = outputProps?.yaos?.items?.properties;
+  assert.equal(fullYao?.position?.type, 'string');
   assert.deepEqual(fullYao?.movementState?.enum, MOVEMENT_STATES);
   assert.equal(fullYao?.movementLabel?.type, 'string');
   assert.equal(fullYao?.shenSha?.type, 'array');
-  assert.deepEqual(fullYao?.changedYao?.type, ['object', 'null']);
+  assert.equal(fullYao?.changedYao?.type, 'object');
 });
 
 test('liuyao output uses refactored yao/yongshen/time structures', async () => {

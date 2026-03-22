@@ -27,18 +27,19 @@ test('json response should keep structuredContent aligned with published outputS
   const payload = buildToolSuccessPayload('bazi_calculate', createBaziResult(), 'json');
 
   assert.equal(typeof payload.structuredContent, 'object');
-  assert.equal(payload.structuredContent.gender, 'male');
-  assert.equal(payload.structuredContent.birthPlace, '北京');
-  assert.equal(payload.structuredContent.fourPillars.year.stem, '甲');
-  assert.equal(JSON.parse(payload.content[0].text).basicInfo.gender, '男');
+  assert.equal(payload.structuredContent.basicInfo.gender, '男');
+  assert.equal(payload.structuredContent.basicInfo.birthPlace, '北京');
+  assert.equal(payload.structuredContent.fourPillars[0].pillar, '年柱');
+  assert.match(payload.content[0].text, /# 八字命盘/u);
+  assert.doesNotMatch(payload.content[0].text, /"basicInfo"/u);
 });
 
 test('markdown response should still keep schema-aligned structuredContent', () => {
   const payload = buildToolSuccessPayload('bazi_calculate', createBaziResult(), 'markdown');
 
   assert.equal(typeof payload.structuredContent, 'object');
-  assert.equal(payload.structuredContent.gender, 'male');
-  assert.equal(payload.structuredContent.fourPillars.year.stem, '甲');
+  assert.equal(payload.structuredContent.basicInfo.gender, '男');
+  assert.equal(payload.structuredContent.fourPillars[0].pillar, '年柱');
   assert.match(payload.content[0].text, /# 八字命盘/u);
   assert.doesNotMatch(payload.content[0].text, /"basicInfo"/u, 'markdown content should remain human-readable text');
 });

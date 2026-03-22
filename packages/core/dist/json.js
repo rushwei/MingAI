@@ -414,6 +414,7 @@ export function renderTarotCanonicalJSON(result, options = {}) {
 }
 // ===== 紫微 =====
 export function renderZiweiCanonicalJSON(result, options = {}) {
+    void options;
     const basicInfo = {
         solarDate: result.solarDate,
         lunarDate: result.lunarDate,

@@ -3,13 +3,6 @@ import type { DaliurenOutput } from './daliuren/types.js';
 export type BaziCanonicalTextOptions = {
     name?: string;
     dayun?: DayunOutput;
-    fiveElements?: {
-        wood: number;
-        fire: number;
-        earth: number;
-        metal: number;
-        water: number;
-    };
 };
 export type TarotCanonicalTextOptions = {
     birthDate?: string | null;

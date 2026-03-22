@@ -1,6 +1,7 @@
 import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, } from './handlers/index.js';
 import { renderBaziCanonicalJSON, renderBaziPillarsResolveCanonicalJSON, renderDaliurenCanonicalJSON, renderDayunCanonicalJSON, renderFortuneCanonicalJSON, renderLiuyaoCanonicalJSON, renderQimenCanonicalJSON, renderTarotCanonicalJSON, renderZiweiCanonicalJSON, renderZiweiFlyingStarCanonicalJSON, renderZiweiHoroscopeCanonicalJSON, } from './json.js';
 import { renderBaziCanonicalText, renderBaziPillarsResolveCanonicalText, renderDaliurenCanonicalText, renderDayunCanonicalText, renderFortuneCanonicalText, renderLiuyaoCanonicalText, renderQimenCanonicalText, renderTarotCanonicalText, renderZiweiCanonicalText, renderZiweiFlyingStarCanonicalText, renderZiweiHoroscopeCanonicalText, } from './text.js';
+import { canonicalOutputSchemas } from './canonical-output-schema.js';
 import { toolDefinitions } from './tool-schema.js';
 const definitionByName = new Map(toolDefinitions.map((definition) => [definition.name, definition]));
 function requireDefinition(name) {
@@ -11,7 +12,15 @@ function requireDefinition(name) {
     return definition;
 }
 function createRegistryEntry(definition, handler, markdownFormatter, jsonFormatter) {
-    return { definition, handler, markdownFormatter, jsonFormatter };
+    const canonicalOutputSchema = canonicalOutputSchemas[definition.name];
+    return {
+        definition: canonicalOutputSchema
+            ? { ...definition, outputSchema: canonicalOutputSchema }
+            : definition,
+        handler,
+        markdownFormatter,
+        jsonFormatter,
+    };
 }
 function adaptToolHandler(handler) {
     return (args) => handler(args);
