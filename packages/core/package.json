@@ -66,6 +66,10 @@
       "types": "./dist/transport.d.ts",
       "default": "./dist/transport.js"
     },
+    "./text": {
+      "types": "./dist/text.d.ts",
+      "default": "./dist/text.js"
+    },
     "./timezone-utils": {
       "types": "./dist/timezone-utils.d.ts",
       "default": "./dist/timezone-utils.js"

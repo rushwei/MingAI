@@ -22,6 +22,17 @@ export { tools } from './tools.js';
 export { toolRegistry } from './tool-registry.js';
 export type { ToolRegistryEntry } from './tool-registry.js';
 export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
+export {
+  renderBaziCanonicalText,
+  renderDayunCanonicalText,
+  renderFortuneCanonicalText,
+  renderZiweiCanonicalText,
+  renderLiuyaoCanonicalText,
+  renderDaliurenCanonicalText,
+  renderQimenCanonicalText,
+  renderTarotCanonicalText,
+} from './text.js';
+export type { ZiweiCanonicalTextOptions } from './text.js';
 export type { ToolDefinition, ToolInput, ToolAnnotation } from './tools.js';
 
 export * from './types.js';

@@ -7,6 +7,7 @@ import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, ha
 export { tools } from './tools.js';
 export { toolRegistry } from './tool-registry.js';
 export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
+export { renderBaziCanonicalText, renderDayunCanonicalText, renderFortuneCanonicalText, renderZiweiCanonicalText, renderLiuyaoCanonicalText, renderDaliurenCanonicalText, renderQimenCanonicalText, renderTarotCanonicalText, } from './text.js';
 export * from './types.js';
 export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, };
 /**
