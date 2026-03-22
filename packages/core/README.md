@@ -1,6 +1,6 @@
 # @mingai/core
 
-MingAI 的 MCP 共享核心库，负责工具定义、结构化输出、Markdown 格式化与命理算法能力本体。
+MingAI 的 MCP 共享核心库，负责工具定义、规范文本输出、结构化输出与命理算法能力本体。
 
 它同时服务于：
 
@@ -86,17 +86,17 @@ const liuyao = await handleToolCall('liuyao', {
 ```ts
 import { renderToolResult } from '@mingai/core';
 
-const rendered = renderToolResult('bazi_calculate', result, 'markdown');
+const rendered = renderToolResult('bazi_calculate', result, 'json');
 
-// rendered.content -> MCP 文本内容
-// rendered.structuredContent -> outputSchema 存在时的结构化数据
+// rendered.content -> canonical text
+// rendered.structuredContent -> canonical JSON
 ```
 
 ## 对外导出
 
 | 导出入口 | 用途 |
 |---------|------|
-| `@mingai/core` | `tools`、`toolRegistry`、`handleToolCall`、`renderToolResult`、`formatAsMarkdown` |
+| `@mingai/core` | `tools`、`toolRegistry`、`handleToolCall`、`renderToolResult` |
 | `@mingai/core/bazi` | 八字工具 handler |
 | `@mingai/core/dayun` | 大运工具 handler |
 | `@mingai/core/ziwei` | 紫微排盘与共享 helper |
@@ -107,18 +107,27 @@ const rendered = renderToolResult('bazi_calculate', result, 'markdown');
 | `@mingai/core/timezone-utils` | 命理时间与时区辅助函数 |
 | `@mingai/core/transport` | `buildListToolsPayload` / `buildToolSuccessPayload` |
 | `@mingai/core/liuyao-core` | 六爻共享核心 |
+| `@mingai/core/text` | `render*CanonicalText()` 规范文本输出 |
+| `@mingai/core/json` | `render*CanonicalJSON()` Web 侧 canonical JSON 输出 |
 
 ## 输出约定
 
 所有工具都支持 `responseFormat`：
 
-- `json`: 返回结构化对象
-- `markdown`: 返回适合 AI 直接阅读的 Markdown 文本
+- `json`: `content[0].text` 返回 canonical text
+- `markdown`: `content[0].text` 返回 canonical text / markdown
 
 当工具定义包含 `outputSchema` 时：
 
-- `renderToolResult(...)` 会产出 `content`
+- `renderToolResult(...)` 始终产出 `content`
 - `buildToolSuccessPayload(...)` 会同时附带 `structuredContent`
+- `structuredContent` 返回 canonical JSON，并与已发布 `outputSchema` 对齐
+
+换句话说：
+
+- MCP 客户端若按 schema 消费，应读取 `structuredContent`
+- `content` 只承担文本阅读用途，不再承载 JSON 字符串
+- Web 端管理员的“复制 JSON”按钮复制的就是与 MCP `structuredContent` 同源的 canonical JSON
 
 这样 `@mingai/mcp` 与 `@mingai/mcp-server` 可以复用同一套响应约定，不再分别维护。
 
@@ -126,6 +135,7 @@ const rendered = renderToolResult('bazi_calculate', result, 'markdown');
 
 | 版本 | 批次说明 |
 |------|----------|
+| `2.0.0` | 将 MCP 最终输出契约收口为 `content=canonical text`、`structuredContent=canonical JSON`，并同步切换公开 `outputSchema` 到 canonical JSON schema |
 | `1.5.0` | 收口 `tool-schema` / `tool-registry` / `tool-output` / `transport`，补齐 `bazi` / `dayun` / `ziwei` / `qimen` / `daliuren` / `tarot` / `timezone-utils` 等子路径导出，统一 SDK 与服务端响应面 |
 | `1.4.0` | 新增 `daliuren` 大六壬能力，补齐时区校验、输出 schema 与 Markdown formatter |
 | `1.3.0` | 新增 `qimen_calculate` 奇门遁甲能力，支持显式时区、寄宫配置与扩展宫位元数据 |

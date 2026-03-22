@@ -1,6 +1,6 @@
 {
   "name": "@mingai/mcp-server",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "description": "MingAI MCP Server - Online (Streamable HTTP + OAuth 2.1)",
   "license": "MIT",
   "homepage": "https://github.com/hhszzzz/MingAI",

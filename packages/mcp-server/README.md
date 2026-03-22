@@ -2,9 +2,9 @@
 
 MingAI 的在线 MCP Server，基于 Streamable HTTP 运行，面向远程部署场景。
 
-当前发布线：`1.5.x`
+当前发布线：`2.0.x`
 
-说明：本 README 将 `1.2.5` 之后累计的改动按功能重排为 `1.2.6 -> 1.3.0 -> 1.4.0 -> 1.5.0`，便于按大功能分批发布 npm 版本。
+说明：本 README 将 `1.2.5` 之后累计的改动按功能重排为 `1.2.6 -> 1.3.0 -> 1.4.0 -> 1.5.0 -> 2.0.0`，便于按大功能分批发布 npm 版本。
 
 ## 适用场景
 
@@ -27,6 +27,20 @@ npm install @mingai/mcp-server
 - 基于共享 transport 的 `structuredContent + content` 响应策略
 - OAuth 授权页内置当前工具清单展示
 - 八字 / 紫微相关工具支持仅传地点名，由在线服务运行时通过高德解析经度；解析失败时自动退化为不采用真太阳时
+
+## 输出约定
+
+在线 MCP 响应分成两条通道：
+
+- `structuredContent`: canonical JSON，并与工具公开 `outputSchema` 对齐，适合客户端按 schema 消费
+- `content`: 文本通道
+  - `responseFormat=json` 时，`content[0].text` 是 canonical text
+  - `responseFormat=markdown` 时，`content[0].text` 是 canonical text / markdown
+
+注意：
+
+- `structuredContent` 与 Web 结果页使用的是同源 canonical JSON
+- `content[0].text` 只承担文本阅读，不再承载 JSON 字符串
 
 ## 最小运行方式
 
@@ -130,6 +144,7 @@ Bearer token 的优先级高于 API Key；若 Bearer token 存在但无效，不
 
 | 版本 | 批次说明 |
 |------|----------|
+| `2.0.0` | 跟随 core 切换到最终 MCP 契约：`content` 输出规范文本，`structuredContent` 输出 canonical JSON，在线服务保留 runtime `placeResolutionInfo` 扩展 |
 | `1.5.0` | 统一在线服务版本号，收口共享 transport、动态授权页工具展示、会话管理与运行时契约 |
 | `1.4.0` | 跟随核心接入 `daliuren` 大六壬工具 |
 | `1.3.0` | 跟随核心接入 `qimen_calculate` 奇门遁甲工具 |
