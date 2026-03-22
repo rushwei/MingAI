@@ -77,12 +77,12 @@ function PalaceCell({
     const heavenColor = getStemColorClass(palace.heavenStem, monthPhase);
 
     return (
-        <div className="flex flex-col h-full gap-0.5 py-1.5 px-1 md:px-2 md:py-2 md:gap-1">
+        <div className="flex flex-col h-full gap-1.5 pt-4 pb-2 px-1.5 md:px-2.5 md:pt-4 md:pb-2.5">
             {/* 格局标注 */}
-            <div className="min-h-[1rem] md:min-h-[1.25rem]">
+            <div className="min-h-[1.75rem] md:min-h-[2.25rem]">
                 {palace.patterns.length > 0 && (
-                    <span className="text-[10px] md:text-xs text-purple-400 line-clamp-1">
-                        {palace.patterns.join(' ')}
+                    <span className="text-[9px] md:text-[11px] text-purple-400/90 break-words leading-snug">
+                        {palace.patterns.join('、')}
                     </span>
                 )}
             </div>
@@ -145,7 +145,7 @@ export function QimenGrid({ palaces, monthPhase, juNumber, dunType }: QimenGridP
                 return (
                     <div
                         key={num}
-                        className="bg-background min-h-[90px] md:min-h-[120px] relative"
+                        className="bg-background min-h-[100px] md:min-h-[140px] relative"
                     >
                         {/* 宫名角标 */}
                         <span className="absolute top-0.5 left-1 text-[9px] md:text-[10px] text-foreground-tertiary/60">
