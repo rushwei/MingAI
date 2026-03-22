@@ -1,8 +1,10 @@
 <div align="center">
 
-# 🔮 MingAI - AI Metaphysics
+<img src="public/favicon.svg" alt="MingAI" width="80" height="80">
 
-**Integrating traditional metaphysics with AI**
+# MingAI - AI命理
+
+**将传统命理文化与AI深度融合**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
@@ -10,49 +12,51 @@
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat-square&logo=vercel)](https://vercel.com/)
 
-🌐 Language: **English** | [中文](README.zh-CN.md)
+Language: **中文** | [English](README.en.md)
 
-[🌐 Live Demo](https://www.mingai.fun) · [🐛 Report Issues](https://github.com/hhszzzz/MingAI/issues)
+[在线体验](https://www.mingai.fun) · [报告问题](https://github.com/hhszzzz/MingAI/issues)
 
 </div>
 
 ---
 
-## ✨ Highlights
+## 产品亮点
 
-- 🔮 **Multiple Metaphysics Systems** - Bazi, Liuyao, Ziwei Doushu, Tarot, MBTI, Face Reading, Palm Reading, Synastry, Dream Interpretation
-- 🤖 **AI-Powered Analysis** - Export chart/divination text for AI analysis with multi-model support, deep reasoning, and visual recognition
-- 🔌 **MCP Server** - Supports Model Context Protocol (MCP), allowing direct use of metaphysics tools in MCP-compatible clients
-- 📚 **History, Knowledge Base, and @Mentions** - Store records across all systems, add them into your personal knowledge base, and explicitly reference data sources
-- 🎛️ **AI Personalization** - Expression style, user profile, and custom instructions with context/prompt budget visualization
-- 📱 **Cross-Platform Experience** - Web + iOS/Android clients
-- 💬 **Community and Incentives** - Metaphysics records, anonymous discussions, and daily check-in rewards
+- **多命理体系** - 八字、六爻、紫微斗数、奇门遁甲、大六壬、塔罗、MBTI、面相、手相、合盘、周公解梦
+- **AI智能分析** - 支持导出命理体系文本进行AI分析，多模型支持，深度推理，视觉识别
+- **MCP Server** - 支持 Model Context Protocol（MCP），可在支持MCP的客户端中直接调用命理工具
+- **历史记录、知识库与@提及** - 支持存储所有命理体系的记录，可将命理体系纳入个人知识库，显式引用命理体系数据源
+- **AI个性化** - 表达风格/用户画像/自定义指令 + 上下文、提示词预算可视化
+- **多端体验** - Web + iOS/Android 客户端
+- **社区与激励** - 命理记录、匿名讨论、签到激励
 
 ---
 
-## 🖥️ Feature Overview
+## 命理功能预览
 
-| Module | Core Capabilities |
+| 功能模块 | 核心特性 |
 | :----: | :--- |
-| 🎎 **Bazi Charting** | · True solar time, solar/lunar calendar charting, instant charting, Four Pillars charting<br/>· Five elements, heavenly stems & earthly branches, Ten Gods, hidden stems, star phases, Na Yin, shensha, Twelve Growth Phases, clash/harm/combine/punishment<br/>· Major luck cycles, yearly/monthly/daily luck<br/>· Traditional and blind-school analysis |
-| 🌟 **Ziwei Doushu** | · Twelve palaces, three-way/four-direction structure, main/support/minor stars, Four Transformations<br/>· Strength/fall states and fortune-cycle analysis |
-| 🪙 **Liuyao Divination** | · Coin casting, quick casting, selected-hexagram casting, time-based casting<br/>· Explicit and implicit moving lines<br/>· Hexagram text, line text, image text<br/>· Useful spirit, original spirit, hidden spirit, adversary spirit<br/>· Void branches, self/opponent lines, strength states, clash/combine/harm<br/>· Timing prediction |
-| 🃏 **Tarot Reading** | · Single-card, three-card spread, love spread, Celtic Cross<br/>· Reversed-card judgment, full 78-card interpretation, refined card visuals<br/>· Daily guidance |
-| 💑 **Synastry** | · Couple, business, and parent-child analysis<br/>· Future trend lines<br/>· Communication advice |
-| 👁️ **Face & Palm Reading** | · Forehead, nose, eyes, mouth analysis<br/>· Life line, wisdom line, career line, relationship line |
-| 📈 **Fortune Center** | · Daily and monthly fortune analysis based on natal charts<br/>· Daily almanac<br/>· Future trend lines |
-| 🧠 **MBTI Test** | · 90+ personality questions<br/>· Comprehensive AI personality analysis |
-| 🤖 **Deep AI Integration** | · Combined analysis based on past readings<br/>· Full-system metaphysics analysis<br/>· Knowledge base, attachments, and search<br/>· Mention all metaphysics systems during AI chat |
+| **八字排盘** | · 真太阳时、阳历农历排盘、即时排盘、四柱排盘<br/>· 五行天干地支、十神、藏干、星运、纳音、神煞（51种）、十二长生、刑害合冲<br/>· 天干五合、地支半合、地支三会<br/>· 大运、流年、流月、流日<br/>· 传统分析、盲派分析 |
+| **紫微斗数** | · 十二宫位、三方四正<br/>· 主星、辅星、杂曜、四化（含自化）<br/>· 命主星/身主星、小限、博士十二星<br/>· 旺衰落陷、大限/流年/流月/流日/流时运限分析<br/>· 飞星分析（飞化落宫、三方四正） |
+| **奇门遁甲** | · 九宫、天地盘、八门、九星、八神<br/>· 值符值使、遁甲类型、局数<br/>· 格局判定（吉/凶）、空亡、驿马、入墓、旺衰<br/>· 转盘排盘，拆补/茅山局法<br/>· 显式时区支持 |
+| **大六壬** | · 天地盘、四课、三传<br/>· 天将（十二神将）、遁干<br/>· 49种神煞、课体分类<br/>· 十二长生、五行旺衰、建除十二神<br/>· 显式时区，支持本命/行年 |
+| **六爻占卜** | · 硬币起卦、快速起卦、选卦起卦、时间起卦、数字起卦<br/>· 爻变明动、暗动<br/>· 卦辞、爻辞、象辞<br/>· 用神、原神、伏神、仇神<br/>· 空亡 · 世应、旺衰状态、刑冲合害<br/>· 互卦、错卦、综卦<br/>· 应期推测 |
+| **塔罗占卜** | · 9种牌阵：单牌、三牌阵、爱情牌阵、凯尔特十字、马蹄、抉择、身心灵、情境、是/否<br/>· 逆位判定、78张完整牌面解读、精美卡牌<br/>· 星座/元素对应、数字命理（人格牌/灵魂牌/年份牌）<br/>· 每日运势指引 |
+| **关系合盘** | · 情侣、商业、亲子<br/>· 未来运势走线<br/>· 沟通建议 |
+| **面相、手相** | · 天庭、鼻相、眼相、口相<br/>· 生命线、智慧线、事业线、感情线 |
+| **运势中心** | · 基于命盘的每日、每月运势分析<br/>· 每日黄历（含方位系统、12时辰吉凶、二十八星宿）<br/>· 未来运势走线 |
+| **MBTI性格测试** | · 90+道性格测试题<br/>· 综合AI分析性格 |
+| **高度AI集成** | · 根据过往占卜综合分析<br/>· 命理体系全分析<br/>· 知识库、附件、搜索<br/>· 支持AI对话时提及所有命理体系<br/>· 年度命理报告 |
 
 ---
 
-## 🔌 MCP Server
+## MCP
 
-MingAI provides an MCP (Model Context Protocol) server, so you can directly call metaphysics tools from MCP-compatible clients.
+MingAI 提供 MCP (Model Context Protocol) ，可在支持 MCP 的客户端中直接调用命理工具。
 
-### Quick Setup
+### 快速配置
 
-Add to your Claude Desktop / Cherry Studio MCP config — no manual download needed, just requires [Node.js](https://nodejs.org) 18+:
+在 Claude Desktop / Cherry Studio 等客户端的 MCP 配置中添加以下内容即可使用，无需手动下载，仅需本机安装 [Node.js](https://nodejs.org) 18+：
 
 ```json
 {
@@ -65,129 +69,116 @@ Add to your Claude Desktop / Cherry Studio MCP config — no manual download nee
 }
 ```
 
-### Supported Tools
+### 支持的工具
 
-| Tool | Function | Example Prompt |
+| 工具 | 功能 | 提问例子 |
 | --- | --- | --- |
-| `bazi_calculate` | Generate a Bazi chart (solar/lunar supported, 51 shensha types, stem combinations, branch half-combinations) | "I was born at 3:00 PM on May 15, 1990. Please generate my chart." |
-| `bazi_pillars_resolve` | Reverse-lookup birth time from Four Pillars | "My Bazi is 丙午 庚寅 丙辰 癸巳, please analyze it." |
-| `bazi_dayun` | Compute major luck cycles (10-year periods with annual transits, Tai Sui annotations, minor luck) | AI automatically calls this based on your Bazi |
-| `ziwei_calculate` | Generate a Ziwei Doushu chart (Life/Body Master stars, Small Limit, Scholar Stars, San Fang Si Zheng) | "I was born on the 8th day of the 4th lunar month in 1990, please generate my Ziwei chart." |
-| `ziwei_horoscope` | Ziwei fortune periods (decadal/yearly/monthly/daily with transit stars) | "What are my Ziwei fortune periods for 2026?" |
-| `ziwei_flying_star` | Flying star analysis (four transformations, surrounded palaces) | "Analyze the flying stars of my Life Palace." |
-| `liuyao` | Liuyao divination (auto-casting / custom hexagram / time-based / number-based, with nuclear/opposite/reversed hexagrams) | "I want to divine my career luck this year." |
-| `tarot` | Draw Tarot cards (9 spreads, 78 cards with independent reversed keywords, astrological/elemental correspondences) | "Please draw a Tarot card for my recent love fortune." |
-| `almanac` | Daily almanac & calendar query (directions, 12 hourly fortunes, 28 mansions) | "How is today's almanac? Is it suitable for a proposal?" |
-| `qimen_calculate` | Qimen Dunjia charting (palaces, gates, stars, gods, dun type, ju number, explicit timezone) | "Use Qimen Dunjia to see whether today's negotiation is favorable." |
-| `daliuren` | Da Liu Ren charting (four lessons, three transmissions, heavenly plate, generals, explicit timezone) | "Use Da Liu Ren to analyze the outcome of this matter." |
+| `bazi_calculate` | 八字排盘（支持阳历/农历，51种神煞，天干五合，地支半合/三会，胎元/命宫） | "我是1990年5月15日15点生，请帮我排盘" |
+| `bazi_pillars_resolve` | 八字反查（四柱 → 出生时间候选，1900-2100） | "我的八字是丙午庚寅丙辰癸巳，请帮我分析" |
+| `bazi_dayun` | 八字大运计算（十年大运周期，流年详情，太岁标注，小运） | AI会自动分析你的八字调用计算 |
+| `ziwei_calculate` | 紫微斗数排盘（含命主星/身主星，小限，博士12星，三方四正） | "我是农历1990年4月初八生，请排紫微盘" |
+| `ziwei_horoscope` | 紫微运限（大限/小限/流年/流月/流日/流时，流年星曜） | "帮我看看2026年的紫微运限" |
+| `ziwei_flying_star` | 紫微飞星分析（飞化/自化/四化落宫/三方四正） | "分析一下我命宫的飞星" |
+| `liuyao` | 六爻占卜（支持起卦/自主选卦/时间起卦/数字起卦，含互卦/错卦/综卦） | "我想占卜今年的事业运，请帮我起卦分析" |
+| `tarot` | 塔罗抽牌（9种牌阵，78张完整牌面，独立逆位关键词，星座/元素对应） | "请为我抽一张塔罗牌，关于近期的爱情运势" |
+| `almanac` | 黄历查询（含方位系统，12时辰吉凶，二十八星宿） | "今天的黄历怎么样？适合求婚吗？" |
+| `qimen_calculate` | 奇门遁甲排盘（九宫、八门、九星、八神、值符值使、显式时区） | "用奇门看一下今天谈合作是否顺利" |
+| `daliuren` | 大六壬排盘（四课三传、天地盘、神将、显式时区） | "用大六壬看一下这件事的结果" |
 
 ### SDK
 
-If you want to call the calculation engine directly in your own Node.js project (without MCP), use the core library:
+如果你想在自己的 Node.js 项目中直接调用计算引擎（无需 MCP 协议），可以使用核心库：
 
 ```bash
 npm install @mingai/core
 ```
 
-See [@mingai/core on npm](https://www.npmjs.com/package/@mingai/core) and [packages/core/README.md](packages/core/README.md) for full API docs and subpath exports.
-
-### GitHub Packages Mirror
-
-The npmjs package names stay as `@mingai/core` and `@mingai/mcp`. If you want to install the GitHub Packages mirror from this repository, use the GitHub owner scope plus a MingAI-specific package prefix instead:
-
-- `@hhszzzz/mingai-core`
-- `@hhszzzz/mingai-mcp`
-
-```bash
-echo "@hhszzzz:registry=https://npm.pkg.github.com" >> .npmrc
-echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> .npmrc
-npm install @hhszzzz/mingai-core
-```
-
-Outside GitHub Actions, that PAT should include at least `read:packages`. For CI inside GitHub, the built-in `GITHUB_TOKEN` is enough. Repository owners can publish the mirror packages from `.github/workflows/publish-github-packages.yml`.
+详见 [@mingai/core npm 页面](https://www.npmjs.com/package/@mingai/core) 与 [packages/core/README.md](packages/core/README.md)。
 
 ---
 
-## 🚀 Quick Start
+## 快速开始
 
-### Docker Deployment
+### Docker 部署
 
-Two deployment options are supported:
+支持三种方式：
 
 ```bash
-# Prepare environment variables (first time)
+# 准备环境变量（首次）
 cp .env.example .env
 
-# 1) One-command deployment: start both Web + MCP
+# 1) 一键部署：同时启动 Web + MCP
 docker compose up -d --build
 
-# 2) Web only
+# 2) 仅部署 Web
 docker compose -f docker-compose.web.yml up -d --build
+
+# 3) 仅部署 MCP Server
+docker compose -f docker-compose.mcp.yml up -d --build
 ```
 
-Default ports:
-- Web: `3000` ([http://localhost:3000](http://localhost:3000))
+默认端口：
+- Web: `3000` （[http://localhost:3000](http://localhost:3000)）
 - MCP: `3001`
 
-### Local Development
+### 开发环境部署
 
-Requirements:
+环境要求：
 - Node.js 18+
-- pnpm (recommended) / npm / yarn
+- pnpm (推荐) / npm / yarn
 
 ```bash
-# Clone repository
+# 克隆项目
 git clone git@github.com:hhszzzz/MingAI.git
 cd MingAI
 
-# Install dependencies
+# 安装依赖
 pnpm install
 
-# Configure environment variables
+# 配置环境变量
 cp .env.example .env
-# Edit .env and fill required API keys
+# 编辑 .env 填入必要的 API Keys
 
-# Start dev server
+# 启动开发服务器
 pnpm dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to view the app.
+访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
 ---
 
-## 📚 Documentation
+## 文档
 
-| Document | Description |
+| 文档 | 说明 |
 | --- | --- |
-| [PRD](docs/plans/PRD-MingAI.md) | Product Requirements Document |
-| [MCP Manual](/docs/manual/MCP-Server-Manual.md) | Detailed MCP operation guide |
+| [PRD](docs/plans/PRD-MingAI.md) | 产品需求文档 |
+| [MCP 使用手册](/docs/manual/MCP-Server-Manual.md) | MCP 详细操作指南 |
 
 ---
 
-## 📝 Planned Major Updates
+## 计划中的功能
 
-- Qimen Dunjia
-- Seven Governors and Four Remainders
-- Plum Blossom Numerology
-- Name Study
-
----
-
-## 🤝 Contributing
-
-Issues and Pull Requests are welcome.
+- 七政四余
+- 梅花易数
+- 姓名学
 
 ---
 
-## 📄 License
+## 贡献
 
-This project is for learning and communication purposes only.
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+## 许可证
+
+本项目仅供学习交流使用。
 
 ---
 
 <div align="center">
 
-**MingAI** - Interpret destiny with AI, preserve culture with technology
+**MingAI** - 用AI解读命运，用科技传承文化
 
 Made with ❤️ by [hhszzzz](https://github.com/hhszzzz)
 
