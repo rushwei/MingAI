@@ -159,6 +159,12 @@ pnpm test
 ## 提交与变更说明
 
 - Commit message 使用 Conventional Commits：`feat: / fix: / refactor: / chore: / docs:`。
+- MCP / npm 发布默认不发布 `@mingai/mcp-server`，除非用户明确要求。
+- npm 发布优先使用 npm access token，不要依赖 OTP 交互流程。
+- 版本号遵循 `x.y.z`：
+  `x`：重大架构变更
+  `y`：功能新增
+  `z`：bug 修复
 - PR 描述建议包含：
   - 改了什么（行为变化）
   - 为什么改（问题或目标）
