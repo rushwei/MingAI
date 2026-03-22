@@ -1861,13 +1861,6 @@ export const toolDefinitions = [
                 },
                 dunGan: { type: 'object', description: '遁干表' },
                 jianChu: { type: 'object', description: '建除表' },
-                yinYangGuiRen: {
-                    type: 'object',
-                    properties: {
-                        yangGuiRen: { type: 'object' },
-                        yinGuiRen: { type: 'object' },
-                    },
-                },
                 benMing: { type: 'string', description: '本命干支' },
                 xingNian: { type: 'string', description: '行年干支' },
                 question: { type: 'string', description: '占事' },

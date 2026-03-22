@@ -145,11 +145,6 @@ export interface DaliurenOutput {
   dunGan: Record<string, string>;
   /** 建除表 */
   jianChu: Record<string, string>;
-  /** 阴阳贵人 */
-  yinYangGuiRen: {
-    yangGuiRen: Record<string, string>;
-    yinGuiRen: Record<string, string>;
-  };
   /** 本命干支 */
   benMing?: string;
   /** 行年干支 */

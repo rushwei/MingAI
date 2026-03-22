@@ -70,6 +70,10 @@
       "types": "./dist/text.d.ts",
       "default": "./dist/text.js"
     },
+    "./json": {
+      "types": "./dist/json.d.ts",
+      "default": "./dist/json.js"
+    },
     "./timezone-utils": {
       "types": "./dist/timezone-utils.d.ts",
       "default": "./dist/timezone-utils.js"

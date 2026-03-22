@@ -6,8 +6,9 @@ import { getToolRegistryEntry } from './tool-registry.js';
 import { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, } from './handlers/index.js';
 export { tools } from './tools.js';
 export { toolRegistry } from './tool-registry.js';
-export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
-export { renderBaziCanonicalText, renderDayunCanonicalText, renderFortuneCanonicalText, renderZiweiCanonicalText, renderLiuyaoCanonicalText, renderDaliurenCanonicalText, renderQimenCanonicalText, renderTarotCanonicalText, } from './text.js';
+export { renderToolResult } from './tool-output.js';
+export { renderBaziCanonicalText, renderBaziPillarsResolveCanonicalText, renderDayunCanonicalText, renderFortuneCanonicalText, renderZiweiCanonicalText, renderZiweiHoroscopeCanonicalText, renderZiweiFlyingStarCanonicalText, renderLiuyaoCanonicalText, renderDaliurenCanonicalText, renderQimenCanonicalText, renderTarotCanonicalText, } from './text.js';
+export { renderBaziCanonicalJSON, renderBaziPillarsResolveCanonicalJSON, renderDaliurenCanonicalJSON, renderDayunCanonicalJSON, renderFortuneCanonicalJSON, renderLiuyaoCanonicalJSON, renderQimenCanonicalJSON, renderTarotCanonicalJSON, renderZiweiCanonicalJSON, renderZiweiHoroscopeCanonicalJSON, renderZiweiFlyingStarCanonicalJSON, } from './json.js';
 export * from './types.js';
 export { handleBaziCalculate, handleBaziPillarsResolve, handleZiweiCalculate, handleZiweiHoroscope, handleZiweiFlyingStar, handleLiuyaoAnalyze, handleTarotDraw, handleDailyFortune, handleDayunCalculate, handleQimenCalculate, handleDaliurenCalculate, };
 /**

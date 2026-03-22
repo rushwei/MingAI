@@ -1,4 +1,4 @@
-import { getToolRegistryEntry, toolRegistry } from './tool-registry.js';
+import { toolRegistry } from './tool-registry.js';
 import { renderToolResult } from './tool-output.js';
 
 export type ToolResponseFormat = 'json' | 'markdown';
@@ -20,12 +20,11 @@ export function buildToolSuccessPayload(
   result: unknown,
   responseFormat: ToolResponseFormat = 'json',
 ) {
-  const entry = getToolRegistryEntry(toolName);
   const rendered = renderToolResult(toolName, result, responseFormat);
 
-  if (entry?.definition.outputSchema && typeof result === 'object' && result !== null) {
+  if (rendered.structuredContent !== undefined) {
     return {
-      structuredContent: result,
+      structuredContent: rendered.structuredContent,
       content: rendered.content,
     };
   }

@@ -12,27 +12,42 @@ import {
   handleDaliurenCalculate,
 } from './handlers/index.js';
 import {
-  formatBaziAsMarkdown,
-  formatBaziPillarsResolveAsMarkdown,
-  formatZiweiAsMarkdown,
-  formatZiweiHoroscopeAsMarkdown,
-  formatZiweiFlyingStarAsMarkdown,
-  formatLiuyaoAsMarkdown,
-  formatTarotAsMarkdown,
-  formatDailyFortuneAsMarkdown,
-  formatDayunAsMarkdown,
-  formatQimenAsMarkdown,
-  formatDaliurenAsMarkdown,
-} from './formatters.js';
+  renderBaziCanonicalJSON,
+  renderBaziPillarsResolveCanonicalJSON,
+  renderDaliurenCanonicalJSON,
+  renderDayunCanonicalJSON,
+  renderFortuneCanonicalJSON,
+  renderLiuyaoCanonicalJSON,
+  renderQimenCanonicalJSON,
+  renderTarotCanonicalJSON,
+  renderZiweiCanonicalJSON,
+  renderZiweiFlyingStarCanonicalJSON,
+  renderZiweiHoroscopeCanonicalJSON,
+} from './json.js';
+import {
+  renderBaziCanonicalText,
+  renderBaziPillarsResolveCanonicalText,
+  renderDaliurenCanonicalText,
+  renderDayunCanonicalText,
+  renderFortuneCanonicalText,
+  renderLiuyaoCanonicalText,
+  renderQimenCanonicalText,
+  renderTarotCanonicalText,
+  renderZiweiCanonicalText,
+  renderZiweiFlyingStarCanonicalText,
+  renderZiweiHoroscopeCanonicalText,
+} from './text.js';
 import { toolDefinitions, type ToolDefinition } from './tool-schema.js';
 
 type ToolHandler = (args: unknown) => unknown | Promise<unknown>;
 type MarkdownFormatter = (result: unknown) => string;
+type JsonFormatter = (result: unknown) => unknown;
 
 export interface ToolRegistryEntry {
   definition: ToolDefinition;
   handler: ToolHandler;
   markdownFormatter?: MarkdownFormatter;
+  jsonFormatter?: JsonFormatter;
 }
 
 const definitionByName = new Map(toolDefinitions.map((definition) => [definition.name, definition] as const));
@@ -49,8 +64,9 @@ function createRegistryEntry(
   definition: ToolDefinition,
   handler: ToolHandler,
   markdownFormatter?: MarkdownFormatter,
+  jsonFormatter?: JsonFormatter,
 ): ToolRegistryEntry {
-  return { definition, handler, markdownFormatter };
+  return { definition, handler, markdownFormatter, jsonFormatter };
 }
 
 function adaptToolHandler<TInput, TOutput>(
@@ -60,17 +76,17 @@ function adaptToolHandler<TInput, TOutput>(
 }
 
 export const toolRegistry: ToolRegistryEntry[] = [
-  createRegistryEntry(requireDefinition('bazi_calculate'), adaptToolHandler(handleBaziCalculate), (result) => formatBaziAsMarkdown(result as Parameters<typeof formatBaziAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('bazi_pillars_resolve'), adaptToolHandler(handleBaziPillarsResolve), (result) => formatBaziPillarsResolveAsMarkdown(result as Parameters<typeof formatBaziPillarsResolveAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('ziwei_calculate'), adaptToolHandler(handleZiweiCalculate), (result) => formatZiweiAsMarkdown(result as Parameters<typeof formatZiweiAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('ziwei_horoscope'), adaptToolHandler(handleZiweiHoroscope), (result) => formatZiweiHoroscopeAsMarkdown(result as Parameters<typeof formatZiweiHoroscopeAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('ziwei_flying_star'), adaptToolHandler(handleZiweiFlyingStar), (result) => formatZiweiFlyingStarAsMarkdown(result as Parameters<typeof formatZiweiFlyingStarAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('liuyao'), adaptToolHandler(handleLiuyaoAnalyze), (result) => formatLiuyaoAsMarkdown(result as Parameters<typeof formatLiuyaoAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('tarot'), adaptToolHandler(handleTarotDraw), (result) => formatTarotAsMarkdown(result as Parameters<typeof formatTarotAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result) => formatDailyFortuneAsMarkdown(result as Parameters<typeof formatDailyFortuneAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result) => formatDayunAsMarkdown(result as Parameters<typeof formatDayunAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result) => formatQimenAsMarkdown(result as Parameters<typeof formatQimenAsMarkdown>[0])),
-  createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result) => formatDaliurenAsMarkdown(result as Parameters<typeof formatDaliurenAsMarkdown>[0])),
+  createRegistryEntry(requireDefinition('bazi_calculate'), adaptToolHandler(handleBaziCalculate), (result) => renderBaziCanonicalText(result as Parameters<typeof renderBaziCanonicalText>[0]), (result) => renderBaziCanonicalJSON(result as Parameters<typeof renderBaziCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('bazi_pillars_resolve'), adaptToolHandler(handleBaziPillarsResolve), (result) => renderBaziPillarsResolveCanonicalText(result as Parameters<typeof renderBaziPillarsResolveCanonicalText>[0]), (result) => renderBaziPillarsResolveCanonicalJSON(result as Parameters<typeof renderBaziPillarsResolveCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('ziwei_calculate'), adaptToolHandler(handleZiweiCalculate), (result) => renderZiweiCanonicalText(result as Parameters<typeof renderZiweiCanonicalText>[0]), (result) => renderZiweiCanonicalJSON(result as Parameters<typeof renderZiweiCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('ziwei_horoscope'), adaptToolHandler(handleZiweiHoroscope), (result) => renderZiweiHoroscopeCanonicalText(result as Parameters<typeof renderZiweiHoroscopeCanonicalText>[0]), (result) => renderZiweiHoroscopeCanonicalJSON(result as Parameters<typeof renderZiweiHoroscopeCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('ziwei_flying_star'), adaptToolHandler(handleZiweiFlyingStar), (result) => renderZiweiFlyingStarCanonicalText(result as Parameters<typeof renderZiweiFlyingStarCanonicalText>[0]), (result) => renderZiweiFlyingStarCanonicalJSON(result as Parameters<typeof renderZiweiFlyingStarCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('liuyao'), adaptToolHandler(handleLiuyaoAnalyze), (result) => renderLiuyaoCanonicalText(result as Parameters<typeof renderLiuyaoCanonicalText>[0]), (result) => renderLiuyaoCanonicalJSON(result as Parameters<typeof renderLiuyaoCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('tarot'), adaptToolHandler(handleTarotDraw), (result) => renderTarotCanonicalText(result as Parameters<typeof renderTarotCanonicalText>[0]), (result) => renderTarotCanonicalJSON(result as Parameters<typeof renderTarotCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result) => renderFortuneCanonicalText(result as Parameters<typeof renderFortuneCanonicalText>[0]), (result) => renderFortuneCanonicalJSON(result as Parameters<typeof renderFortuneCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result) => renderDayunCanonicalText(result as Parameters<typeof renderDayunCanonicalText>[0]), (result) => renderDayunCanonicalJSON(result as Parameters<typeof renderDayunCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result) => renderQimenCanonicalText(result as Parameters<typeof renderQimenCanonicalText>[0]), (result) => renderQimenCanonicalJSON(result as Parameters<typeof renderQimenCanonicalJSON>[0])),
+  createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result) => renderDaliurenCanonicalText(result as Parameters<typeof renderDaliurenCanonicalText>[0]), (result) => renderDaliurenCanonicalJSON(result as Parameters<typeof renderDaliurenCanonicalJSON>[0])),
 ];
 
 export const toolRegistryMap = new Map(toolRegistry.map((entry) => [entry.definition.name, entry] as const));

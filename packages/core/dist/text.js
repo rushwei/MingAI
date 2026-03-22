@@ -14,6 +14,47 @@ function formatTrueSolarBlock(info) {
         `- **跨日偏移**: ${dayOffsetLabel}`,
     ];
 }
+function buildBaziCanonicalPillarShenSha(item) {
+    return item.shenSha?.length ? [...item.shenSha] : [];
+}
+function buildBaziCanonicalRelations(result) {
+    const posBranchMap = {
+        '年支': result.fourPillars.year.branch,
+        '月支': result.fourPillars.month.branch,
+        '日支': result.fourPillars.day.branch,
+        '时支': result.fourPillars.hour.branch,
+    };
+    const relationParts = [];
+    const seen = new Set();
+    const pushUnique = (value) => {
+        if (!value || seen.has(value))
+            return;
+        seen.add(value);
+        relationParts.push(value);
+    };
+    for (const relation of result.relations) {
+        if (relation.type === '刑') {
+            const branches = [...new Set(relation.pillars.map((pillar) => posBranchMap[pillar]))].join('');
+            pushUnique(`${branches}刑（${relation.description}）`);
+        }
+        else {
+            pushUnique(relation.description);
+        }
+    }
+    for (const item of result.tianGanChongKe) {
+        pushUnique(`${item.stemA}${item.stemB}冲克`);
+    }
+    for (const item of result.tianGanWuHe) {
+        pushUnique(`${item.stemA}${item.stemB}合${item.resultElement}`);
+    }
+    for (const item of result.diZhiBanHe) {
+        pushUnique(`${item.branches.join('')}半合${item.resultElement}`);
+    }
+    for (const item of result.diZhiSanHui) {
+        pushUnique(`${item.branches.join('')}三会${item.resultElement}`);
+    }
+    return relationParts;
+}
 function formatStarLabel(star) {
     let label = star.name;
     if (star.brightness)
@@ -39,7 +80,7 @@ function formatShenSystemParts(system) {
         parts.push(`仇神=${system.chouShen.liuQin}（${system.chouShen.wuXing}）`);
     return parts;
 }
-function sortZiweiPalaces(palaces) {
+export function sortZiweiPalaces(palaces) {
     return [...palaces].sort((left, right) => {
         const leftOrder = ZIWEI_PALACE_TEXT_ORDER.indexOf(left.name);
         const rightOrder = ZIWEI_PALACE_TEXT_ORDER.indexOf(right.name);
@@ -79,41 +120,11 @@ export function renderBaziCanonicalText(result, options = {}) {
         const hiddenStemsText = pillar.hiddenStems.length > 0
             ? pillar.hiddenStems.map((item) => `${item.stem}(${item.tenGod || '-'})`).join('、')
             : '-';
-        const shenShaParts = [...pillar.shenSha];
-        if (pillar.kongWang?.isKong)
-            shenShaParts.unshift('空亡');
+        const shenShaParts = buildBaziCanonicalPillarShenSha(pillar);
         lines.push(`| ${label} | ${pillar.stem}${pillar.branch} | ${pillar.tenGod || '-'} | ${hiddenStemsText} | ${pillar.diShi || '-'} | ${pillar.naYin || '-'} | ${shenShaParts.length > 0 ? shenShaParts.join('、') : '-'} |`);
     }
     lines.push('');
-    const posBranchMap = {
-        '年支': result.fourPillars.year.branch,
-        '月支': result.fourPillars.month.branch,
-        '日支': result.fourPillars.day.branch,
-        '时支': result.fourPillars.hour.branch,
-    };
-    const relationParts = [];
-    for (const relation of result.relations) {
-        if (relation.type === '刑') {
-            const branches = [...new Set(relation.pillars.map((p) => posBranchMap[p]))].join('');
-            relationParts.push(`${branches}刑（${relation.description}）`);
-        }
-        else {
-            relationParts.push(relation.description);
-        }
-    }
-    for (const item of result.tianGanChongKe) {
-        relationParts.push(`${item.stemA}${item.stemB}冲克`);
-    }
-    for (const item of result.tianGanWuHe) {
-        relationParts.push(`${item.stemA}${item.stemB}合${item.resultElement}`);
-    }
-    for (const item of result.diZhiBanHe) {
-        const missing = item.missingBranch ? `（缺${item.missingBranch}）` : '';
-        relationParts.push(`${item.branches.join('')}半合${item.resultElement}${missing}`);
-    }
-    for (const item of result.diZhiSanHui) {
-        relationParts.push(`${item.branches.join('')}三会${item.resultElement}`);
-    }
+    const relationParts = buildBaziCanonicalRelations(result);
     if (relationParts.length > 0) {
         lines.push('## 干支关系');
         lines.push(relationParts.join('；'));
@@ -133,6 +144,38 @@ export function renderBaziCanonicalText(result, options = {}) {
             const shenShaText = item.shenSha?.length ? item.shenSha.join('、') : '-';
             lines.push(`| ${item.startYear} | ${item.ganZhi} | ${item.tenGod || '-'} | ${hiddenStemsText} | ${item.diShi || '-'} | ${item.naYin || '-'} | ${shenShaText} |`);
         }
+    }
+    return lines.join('\n');
+}
+export function renderBaziPillarsResolveCanonicalText(result) {
+    const lines = [
+        '# 四柱反推候选时间',
+        '',
+        '## 原始四柱',
+        `- **年柱**: ${result.pillars.yearPillar}`,
+        `- **月柱**: ${result.pillars.monthPillar}`,
+        `- **日柱**: ${result.pillars.dayPillar}`,
+        `- **时柱**: ${result.pillars.hourPillar}`,
+        '',
+        '## 候选数量',
+        `- **总数**: ${result.count}`,
+    ];
+    if (result.candidates.length === 0) {
+        lines.push('');
+        lines.push('## 候选列表');
+        lines.push('- 无匹配候选');
+        return lines.join('\n');
+    }
+    lines.push('');
+    lines.push('## 候选列表');
+    for (const [index, candidate] of result.candidates.entries()) {
+        lines.push('');
+        lines.push(`### 候选 ${index + 1}（${candidate.candidateId}）`);
+        lines.push(`- **农历**: ${candidate.lunarText}`);
+        lines.push(`- **公历**: ${candidate.solarText}`);
+        lines.push(`- **出生时间**: ${candidate.birthHour}:${String(candidate.birthMinute).padStart(2, '0')}`);
+        if (candidate.isLeapMonth)
+            lines.push('- **闰月**: 是');
     }
     return lines.join('\n');
 }
@@ -182,6 +225,86 @@ export function renderZiweiCanonicalText(result, options = {}) {
         lines.push(`- **流年宫位**: ${h.yearly.palaceName}（${h.yearly.period}）`);
         lines.push(`- **流月宫位**: ${h.monthly.palaceName}（${h.monthly.period}）`);
         lines.push(`- **流日宫位**: ${h.daily.palaceName}（${h.daily.period}）`);
+    }
+    return lines.join('\n');
+}
+export function renderZiweiHoroscopeCanonicalText(result) {
+    const lines = [
+        '# 紫微运限',
+        '',
+        '## 基本信息',
+        `- **阳历**: ${result.solarDate}`,
+        `- **农历**: ${result.lunarDate}`,
+        `- **命主**: ${result.soul}`,
+        `- **身主**: ${result.body}`,
+        `- **五行局**: ${result.fiveElement}`,
+        `- **目标日期**: ${result.targetDate}`,
+        '',
+        '## 运限列表',
+        '| 类型 | 宫位 | 干支 | 四化 | 十二宫重排 | 附加 |',
+        '|------|------|------|------|------------|------|',
+    ];
+    const periods = [
+        { label: '大限', data: result.decadal },
+        { label: '小限', data: result.age, extra: `虚岁${result.age.nominalAge}` },
+        { label: '流年', data: result.yearly },
+        { label: '流月', data: result.monthly },
+        { label: '流日', data: result.daily },
+        { label: '流时', data: result.hourly },
+    ];
+    for (const { label, data, extra } of periods) {
+        lines.push(`| ${label} | ${data.name} | ${data.heavenlyStem}${data.earthlyBranch} | ${data.mutagen.join('、') || '-'} | ${data.palaceNames.join('、') || '-'} | ${extra || '-'} |`);
+    }
+    if (result.transitStars?.length) {
+        lines.push('');
+        lines.push('## 流年星曜');
+        for (const entry of result.transitStars) {
+            lines.push(`- ${entry.starName} → ${entry.palaceName}`);
+        }
+    }
+    if (result.yearlyDecStar?.suiqian12.length) {
+        lines.push('');
+        lines.push('## 岁前十二星');
+        lines.push(result.yearlyDecStar.suiqian12.join('、'));
+    }
+    if (result.yearlyDecStar?.jiangqian12.length) {
+        lines.push('');
+        lines.push('## 将前十二星');
+        lines.push(result.yearlyDecStar.jiangqian12.join('、'));
+    }
+    return lines.join('\n');
+}
+function formatZiweiFlyingStarResult(r, lines) {
+    if (r.type === 'fliesTo' || r.type === 'selfMutaged') {
+        lines.push(`- **结果**: ${r.result ? '是' : '否'}`);
+        return;
+    }
+    if (r.type === 'mutagedPlaces') {
+        const places = r.result;
+        if (places.length === 0) {
+            lines.push('- **结果**: 无');
+            return;
+        }
+        for (const p of places) {
+            lines.push(`- **化${p.mutagen}**: ${p.targetPalace ?? '无'}`);
+        }
+        return;
+    }
+    if (r.type === 'surroundedPalaces') {
+        const s = r.result;
+        lines.push(`- **本宫**: ${s.target.name}`);
+        lines.push(`- **对宫**: ${s.opposite.name}`);
+        lines.push(`- **财帛**: ${s.wealth.name}`);
+        lines.push(`- **官禄**: ${s.career.name}`);
+    }
+}
+export function renderZiweiFlyingStarCanonicalText(result) {
+    const lines = ['# 紫微飞星分析'];
+    for (const r of result.results) {
+        lines.push('');
+        lines.push(`## 查询 ${r.queryIndex + 1}`);
+        lines.push(`- **类型**: ${r.type}`);
+        formatZiweiFlyingStarResult(r, lines);
     }
     return lines.join('\n');
 }

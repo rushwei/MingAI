@@ -114,11 +114,6 @@ export function handleDaliurenCalculate(input) {
         benMing = result.benMing;
         xingNian = result.xingNian;
     }
-    // 13. 阴阳贵人
-    const yinYangGuiRen = {
-        yangGuiRen: raw.yinYangGuiRen?.['阳贵人'] || {},
-        yinGuiRen: raw.yinYangGuiRen?.['阴贵人'] || {},
-    };
     return {
         dateInfo,
         tianDiPan,
@@ -130,7 +125,6 @@ export function handleDaliurenCalculate(input) {
         gongInfos,
         dunGan: raw.dunGan || {},
         jianChu: raw.jianChu || {},
-        yinYangGuiRen,
         benMing,
         xingNian,
         question,

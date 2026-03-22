@@ -21,18 +21,59 @@ import {
 export { tools } from './tools.js';
 export { toolRegistry } from './tool-registry.js';
 export type { ToolRegistryEntry } from './tool-registry.js';
-export { formatAsMarkdown, hasMarkdownFormatter, renderToolResult } from './tool-output.js';
+export { renderToolResult } from './tool-output.js';
 export {
   renderBaziCanonicalText,
+  renderBaziPillarsResolveCanonicalText,
   renderDayunCanonicalText,
   renderFortuneCanonicalText,
   renderZiweiCanonicalText,
+  renderZiweiHoroscopeCanonicalText,
+  renderZiweiFlyingStarCanonicalText,
   renderLiuyaoCanonicalText,
   renderDaliurenCanonicalText,
   renderQimenCanonicalText,
   renderTarotCanonicalText,
 } from './text.js';
 export type { ZiweiCanonicalTextOptions } from './text.js';
+export {
+  renderBaziCanonicalJSON,
+  renderBaziPillarsResolveCanonicalJSON,
+  renderDaliurenCanonicalJSON,
+  renderDayunCanonicalJSON,
+  renderFortuneCanonicalJSON,
+  renderLiuyaoCanonicalJSON,
+  renderQimenCanonicalJSON,
+  renderTarotCanonicalJSON,
+  renderZiweiCanonicalJSON,
+  renderZiweiHoroscopeCanonicalJSON,
+  renderZiweiFlyingStarCanonicalJSON,
+} from './json.js';
+export type {
+  BaziCanonicalJSON,
+  BaziPillarJSON,
+  BaziPillarsResolveCanonicalJSON,
+  DaliurenCanonicalJSON,
+  DayunCanonicalJSON,
+  DayunItemJSON,
+  DerivedHexagramJSON,
+  FortuneCanonicalJSON,
+  LiuyaoCanonicalJSON,
+  LiuyaoYaoJSON,
+  LiuyaoYongShenJSON,
+  QimenCanonicalJSON,
+  QimenPalaceJSON,
+  TarotCanonicalJSON,
+  TarotCardJSON,
+  TarotNumerologyCardJSON,
+  TrueSolarTimeJSON,
+  ZiweiCanonicalJSON,
+  ZiweiFlyingStarCanonicalJSON,
+  ZiweiFlyingStarResultJSON,
+  ZiweiHoroscopeCanonicalJSON,
+  ZiweiPalaceJSON,
+  ZiweiStarJSON,
+} from './json-types.js';
 export type { ToolDefinition, ToolInput, ToolAnnotation } from './tools.js';
 
 export * from './types.js';

@@ -4,24 +4,28 @@ function stringifyResult(result) {
         ? JSON.stringify(result, null, 2)
         : String(result);
 }
-export function hasMarkdownFormatter(toolName) {
-    return !!getToolRegistryEntry(toolName)?.markdownFormatter;
-}
-export function formatAsMarkdown(toolName, result) {
-    const formatter = getToolRegistryEntry(toolName)?.markdownFormatter;
-    if (!formatter) {
-        return stringifyResult(result);
-    }
-    return formatter(result);
-}
 export function renderToolResult(toolName, result, responseFormat = 'json') {
     const entry = getToolRegistryEntry(toolName);
-    const hasStructuredContent = typeof result === 'object' && result !== null && !!entry?.definition.outputSchema;
-    const text = responseFormat === 'markdown' && entry?.markdownFormatter
-        ? entry.markdownFormatter(result)
-        : stringifyResult(result);
+    const canonicalJSON = entry?.jsonFormatter
+        ? entry.jsonFormatter(result)
+        : undefined;
+    const structuredContent = typeof result === 'object' && result !== null && !!entry?.definition.outputSchema
+        ? result
+        : (typeof canonicalJSON === 'object' && canonicalJSON !== null ? canonicalJSON : undefined);
+    if (responseFormat === 'markdown' && entry?.markdownFormatter) {
+        return {
+            content: [{ type: 'text', text: entry.markdownFormatter(result) }],
+            structuredContent,
+        };
+    }
+    if (canonicalJSON !== undefined) {
+        return {
+            content: [{ type: 'text', text: JSON.stringify(canonicalJSON, null, 2) }],
+            structuredContent,
+        };
+    }
     return {
-        content: [{ type: 'text', text }],
-        structuredContent: hasStructuredContent ? result : undefined,
+        content: [{ type: 'text', text: stringifyResult(result) }],
+        structuredContent,
     };
 }

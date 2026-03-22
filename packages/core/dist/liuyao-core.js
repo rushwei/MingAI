@@ -80,7 +80,7 @@ export function formatGanZhiTime(gz) {
  */
 export function formatGuaLevelLines(analysis) {
     const parts = [];
-    const { liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha } = analysis;
+    const { liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis } = analysis;
     if (liuChongGuaInfo?.isLiuChongGua) {
         parts.push(`六冲卦：是${liuChongGuaInfo.description ? `（${liuChongGuaInfo.description}）` : ''}`);
     }
@@ -110,9 +110,6 @@ export function formatGuaLevelLines(analysis) {
                 parts.push(`半合：${bh.branches.join('')}→${bh.result}（${bh.type}）`);
             }
         }
-    }
-    if (globalShenSha && globalShenSha.length > 0) {
-        parts.push(`全局神煞：${globalShenSha.join('、')}`);
     }
     return parts;
 }
