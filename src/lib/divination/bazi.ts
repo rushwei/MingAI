@@ -14,8 +14,10 @@ import {
     calculateBaziLiuRiData,
     calculateBaziLiuYueData,
     calculateBaziShenShaData,
+    type BaziOutput as CoreBaziOutput,
 } from '@mingai/core/bazi';
 import { calculateDayunData } from '@mingai/core/dayun';
+import { renderBaziCanonicalText } from '@mingai/core/text';
 import {
     TIAN_GAN as CORE_TIAN_GAN,
     DI_ZHI as CORE_DI_ZHI,
@@ -689,189 +691,98 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
 export function generateBaziChartText(
     chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
 ): string {
-    const lines: string[] = [];
-    const dayMasterElement = STEM_ELEMENTS[chart.dayMaster];
-    const formatHiddenStemDetails = (pillar: FourPillars['year']): string => {
-        const details = pillar.hiddenStemDetails && pillar.hiddenStemDetails.length > 0
-            ? pillar.hiddenStemDetails.map((item) => {
-                const parts = [item.qiType, item.tenGod].filter(Boolean);
-                return parts.length > 0 ? `${item.stem}(${parts.join('·')})` : item.stem;
-            })
-            : pillar.hiddenStems.map((stem) => stem);
-        return details.length > 0 ? `藏干：${details.join('、')}` : '';
+    const coreChart: CoreBaziOutput = {
+        gender: chart.gender,
+        birthPlace: chart.birthPlace,
+        dayMaster: chart.dayMaster,
+        kongWang: {
+            xun: chart.kongWang?.xun || '',
+            kongZhi: (chart.kongWang?.kongBranches || []) as [string, string],
+        },
+        fourPillars: {
+            year: {
+                stem: chart.fourPillars.year.stem,
+                branch: chart.fourPillars.year.branch,
+                tenGod: chart.fourPillars.year.tenGod,
+                hiddenStems: (chart.fourPillars.year.hiddenStemDetails || chart.fourPillars.year.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                    stem: item.stem,
+                    qiType: item.qiType || '',
+                    tenGod: item.tenGod || '',
+                })),
+                naYin: chart.fourPillars.year.naYin,
+                diShi: chart.fourPillars.year.diShi,
+                shenSha: chart.fourPillars.year.shenSha || [],
+                kongWang: chart.fourPillars.year.kongWang || { isKong: false },
+            },
+            month: {
+                stem: chart.fourPillars.month.stem,
+                branch: chart.fourPillars.month.branch,
+                tenGod: chart.fourPillars.month.tenGod,
+                hiddenStems: (chart.fourPillars.month.hiddenStemDetails || chart.fourPillars.month.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                    stem: item.stem,
+                    qiType: item.qiType || '',
+                    tenGod: item.tenGod || '',
+                })),
+                naYin: chart.fourPillars.month.naYin,
+                diShi: chart.fourPillars.month.diShi,
+                shenSha: chart.fourPillars.month.shenSha || [],
+                kongWang: chart.fourPillars.month.kongWang || { isKong: false },
+            },
+            day: {
+                stem: chart.fourPillars.day.stem,
+                branch: chart.fourPillars.day.branch,
+                hiddenStems: (chart.fourPillars.day.hiddenStemDetails || chart.fourPillars.day.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                    stem: item.stem,
+                    qiType: item.qiType || '',
+                    tenGod: item.tenGod || '',
+                })),
+                naYin: chart.fourPillars.day.naYin,
+                diShi: chart.fourPillars.day.diShi,
+                shenSha: chart.fourPillars.day.shenSha || [],
+                kongWang: chart.fourPillars.day.kongWang || { isKong: false },
+            },
+            hour: {
+                stem: chart.fourPillars.hour.stem,
+                branch: chart.fourPillars.hour.branch,
+                tenGod: chart.fourPillars.hour.tenGod,
+                hiddenStems: (chart.fourPillars.hour.hiddenStemDetails || chart.fourPillars.hour.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                    stem: item.stem,
+                    qiType: item.qiType || '',
+                    tenGod: item.tenGod || '',
+                })),
+                naYin: chart.fourPillars.hour.naYin,
+                diShi: chart.fourPillars.hour.diShi,
+                shenSha: chart.fourPillars.hour.shenSha || [],
+                kongWang: chart.fourPillars.hour.kongWang || { isKong: false },
+            },
+        },
+        relations: chart.relations || [],
+        tianGanWuHe: chart.tianGanWuHe || [],
+        tianGanChongKe: chart.tianGanChongKe || [],
+        diZhiBanHe: chart.diZhiBanHe || [],
+        diZhiSanHui: chart.diZhiSanHui || [],
+        taiYuan: chart.taiYuan,
+        mingGong: chart.mingGong,
+        trueSolarTimeInfo: chart.trueSolarTimeInfo,
     };
-    const formatPillarMeta = (pillar: FourPillars['year']): string => {
-        const parts: string[] = [];
-        if (pillar.naYin) parts.push(`纳音：${pillar.naYin}`);
-        if (pillar.diShi) parts.push(`地势：${pillar.diShi}`);
-        if (pillar.kongWang) parts.push(`空亡：${pillar.kongWang.isKong ? '空' : '不空'}`);
-        return parts.length > 0 ? parts.join(' | ') : '';
-    };
-    lines.push('【八字命盘】');
-    lines.push(`姓名：${chart.name}`);
-    lines.push(`性别：${chart.gender === 'male' ? '男' : '女'}`);
-    // 只采用四柱八字，不采用出生日期
-    // lines.push(`出生日期：${chart.birthDate} ${chart.birthTime}`);
-    if (chart.birthPlace) {
-        lines.push(`出生地点：${chart.birthPlace}`);
-    }
-    lines.push('');
 
-    // 四柱信息
-    const { fourPillars, dayMaster } = chart;
-    lines.push('【四柱八字】');
-    lines.push(`四柱：${fourPillars.year.stem}${fourPillars.year.branch}年 ${fourPillars.month.stem}${fourPillars.month.branch}月 ${fourPillars.day.stem}${fourPillars.day.branch}日 ${fourPillars.hour.stem}${fourPillars.hour.branch}时`);
-    lines.push(`日主：${dayMaster}`);
-    if (dayMasterElement) {
-        lines.push(`命主五行：${dayMaster}${dayMasterElement}`);
-    }
-    lines.push('');
-
-    if (chart.trueSolarTimeInfo || chart.taiYuan || chart.mingGong) {
-        lines.push('【排盘元信息】');
-        if (chart.trueSolarTimeInfo) {
-            lines.push(`钟表时间：${chart.trueSolarTimeInfo.clockTime}`);
-            lines.push(`真太阳时：${chart.trueSolarTimeInfo.trueSolarTime}（经度 ${chart.trueSolarTimeInfo.longitude}°，校正 ${chart.trueSolarTimeInfo.correctionMinutes > 0 ? '+' : ''}${chart.trueSolarTimeInfo.correctionMinutes} 分钟）`);
-        }
-        if (chart.taiYuan) {
-            lines.push(`胎元：${chart.taiYuan}`);
-        }
-        if (chart.mingGong) {
-            lines.push(`命宫：${chart.mingGong}`);
-        }
-        lines.push('');
-    }
-
-    // 四柱详解
-    lines.push('【四柱详解】');
-    const yearTenGod = fourPillars.year.tenGod ? `（${fourPillars.year.tenGod}）` : '';
-    const yearHidden = formatHiddenStemDetails(fourPillars.year);
-    lines.push(`年柱：${fourPillars.year.stem}${fourPillars.year.branch}${yearTenGod} ${yearHidden}`);
-    const yearMeta = formatPillarMeta(fourPillars.year);
-    if (yearMeta) lines.push(`  ${yearMeta}`);
-
-    const monthTenGod = fourPillars.month.tenGod ? `（${fourPillars.month.tenGod}）` : '';
-    const monthHidden = formatHiddenStemDetails(fourPillars.month);
-    lines.push(`月柱：${fourPillars.month.stem}${fourPillars.month.branch}${monthTenGod} ${monthHidden}`);
-    const monthMeta = formatPillarMeta(fourPillars.month);
-    if (monthMeta) lines.push(`  ${monthMeta}`);
-
-    const dayHidden = formatHiddenStemDetails(fourPillars.day);
-    lines.push(`日柱：${fourPillars.day.stem}${fourPillars.day.branch}（日主） ${dayHidden}`);
-    const dayMeta = formatPillarMeta(fourPillars.day);
-    if (dayMeta) lines.push(`  ${dayMeta}`);
-
-    const hourTenGod = fourPillars.hour.tenGod ? `（${fourPillars.hour.tenGod}）` : '';
-    const hourHidden = formatHiddenStemDetails(fourPillars.hour);
-    lines.push(`时柱：${fourPillars.hour.stem}${fourPillars.hour.branch}${hourTenGod} ${hourHidden}`);
-    const hourMeta = formatPillarMeta(fourPillars.hour);
-    if (hourMeta) lines.push(`  ${hourMeta}`);
-    lines.push('');
-
-    if (chart.kongWang) {
-        lines.push('【空亡】');
-        lines.push(`旬：${chart.kongWang.xun}`);
-        lines.push(`空亡地支：${chart.kongWang.kongBranches.join('、')}`);
-        lines.push('');
-    }
-
-    const pillarShenSha = [
-        ['年柱', fourPillars.year.shenSha],
-        ['月柱', fourPillars.month.shenSha],
-        ['日柱', fourPillars.day.shenSha],
-        ['时柱', fourPillars.hour.shenSha],
-    ].filter(([, shenSha]) => Array.isArray(shenSha) && shenSha.length > 0);
-    if (pillarShenSha.length > 0) {
-        lines.push('【神煞】');
-        pillarShenSha.forEach(([label, shenSha]) => {
-            lines.push(`${label}：${(shenSha as string[]).join('、')}`);
-        });
-        lines.push('');
-    }
-
-    if (chart.relations && chart.relations.length > 0) {
-        lines.push('【干支关系】');
-        chart.relations.forEach((relation) => {
-            lines.push(`${relation.type}（${relation.pillars.join('、')}）：${relation.description}`);
-        });
-        lines.push('');
-    }
-
-    if (chart.tianGanChongKe) {
-        lines.push('【天干冲克】');
-        if (chart.tianGanChongKe.length > 0) {
-            chart.tianGanChongKe.forEach((item) => {
-                lines.push(`${item.stemA}${item.stemB}冲克（${item.positions.join('、')}）`);
-            });
-        } else {
-            lines.push('无');
-        }
-        lines.push('');
-    }
-
-    if (chart.tianGanWuHe) {
-        lines.push('【天干五合】');
-        if (chart.tianGanWuHe.length > 0) {
-            chart.tianGanWuHe.forEach((item) => {
-                lines.push(`${item.stemA}${item.stemB}合${item.resultElement}（${item.positions.join('、')}）`);
-            });
-        } else {
-            lines.push('无');
-        }
-        lines.push('');
-    }
-
-    if (chart.diZhiBanHe) {
-        lines.push('【地支半合】');
-        if (chart.diZhiBanHe.length > 0) {
-            chart.diZhiBanHe.forEach((item) => {
-                const missing = item.missingBranch ? `缺${item.missingBranch}` : '';
-                lines.push(`${item.branches.join('')}半合${item.resultElement}${missing ? `（${missing}，${item.positions.join('、')}）` : `（${item.positions.join('、')}）`}`);
-            });
-        } else {
-            lines.push('无');
-        }
-        lines.push('');
-    }
-
-    if (chart.diZhiSanHui) {
-        lines.push('【地支三会】');
-        if (chart.diZhiSanHui.length > 0) {
-            chart.diZhiSanHui.forEach((item) => {
-                lines.push(`${item.branches.join('')}三会${item.resultElement}（${item.positions.join('、')}）`);
-            });
-        } else {
-            lines.push('无');
-        }
-        lines.push('');
-    }
-
-    // 自动计算大运
+    let dayun;
     try {
         const [year, month, day] = chart.birthDate.split('-').map(Number);
-        const [hour, minute] = (chart.birthTime || '12:00').split(':').map(Number);
-        const proData = calculateProfessionalData({
-            name: chart.name,
+        const [hour, minute] = chart.birthTime.split(':').map(Number);
+        dayun = calculateDayunData({
             gender: chart.gender,
             birthYear: year,
             birthMonth: month,
             birthDay: day,
             birthHour: hour,
-            birthMinute: minute,
-            calendarType: chart.calendarType || 'solar',
+            birthMinute: minute || 0,
+            calendarType: chart.calendarType,
             isLeapMonth: chart.isLeapMonth,
         });
-
-        if (proData.daYun.length > 0) {
-            lines.push('【大运排列】');
-            lines.push(`起运：${proData.startAgeDetail}`);
-            proData.daYun.forEach((dy) => {
-                lines.push(`${dy.startAge}岁 ${dy.ganZhi}`);
-            });
-        }
     } catch {
-        // 大运计算失败时忽略
+        // dayun calculation may fail for edge-case birth times; skip silently
     }
 
-    return lines.join('\n');
+    return renderBaziCanonicalText(coreChart, { name: chart.name, dayun });
 }

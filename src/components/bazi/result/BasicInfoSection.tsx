@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MessageCircle, User, Save } from 'lucide-react';
+import { MessageCircle, User, Save, Sparkles } from 'lucide-react';
 import { calculateBazi, getElementColor } from '@/lib/divination/bazi';
 import { FiveElementsChart } from '@/components/bazi/result/FiveElementsChart';
 import { TenGodKnowledge } from '@/components/bazi/TenGodKnowledge';
