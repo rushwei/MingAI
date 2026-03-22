@@ -365,9 +365,9 @@ test('liuyao route only marks 用神 when position and liuqin both match', async
     const response = await POST(request);
     assert.equal(response.status, 200);
 
-    const firstLine = capturedPrompt.match(/初[九六]：[^\n]*/)?.[0] ?? '';
-    assert.ok(firstLine.length > 0, 'should include first yao line in prompt');
-    assert.equal(firstLine.includes('【用神】'), false, 'fallback liuqin mismatch should not mark 用神');
+    const firstLine = capturedPrompt.match(/\| 初[九六] \|[^\n]*/u)?.[0] ?? '';
+    assert.ok(firstLine.length > 0, 'should include first yao row in prompt');
+    assert.equal(capturedPrompt.includes('【用神】'), false, 'fallback liuqin mismatch should not mark 用神');
 });
 
 test('liuyao route persists analysis after streaming completes', async (t) => {

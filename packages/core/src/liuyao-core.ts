@@ -373,8 +373,8 @@ export function formatGuaLevelLines(analysis: {
 }): string[] {
   const parts: string[] = [];
   const { liuChongGuaInfo, liuHeGuaInfo, chongHeTransition, guaFanFuYin, sanHeAnalysis, globalShenSha } = analysis;
-  if (liuChongGuaInfo) {
-    parts.push(`六冲卦：${liuChongGuaInfo.isLiuChongGua ? '是' : '否'}${liuChongGuaInfo.description ? `（${liuChongGuaInfo.description}）` : ''}`);
+  if (liuChongGuaInfo?.isLiuChongGua) {
+    parts.push(`六冲卦：是${liuChongGuaInfo.description ? `（${liuChongGuaInfo.description}）` : ''}`);
   }
   if (liuHeGuaInfo?.isLiuHeGua) {
     parts.push(`六合卦：是${liuHeGuaInfo.description ? `（${liuHeGuaInfo.description}）` : ''}`);
@@ -1763,6 +1763,11 @@ function buildYongShenGroups(
   dayZhi: DiZhi,
   kongWang: KongWang
 ): YongShenGroup[] {
+  const yaoName = (pos?: number) => {
+    if (!pos) return '';
+    const yao = fullYaos.find((y) => y.position === pos);
+    return yao ? `${traditionalYaoName(pos, yao.type)}爻` : `${pos}爻`;
+  };
   return targets.map((target) => {
     const visibleCandidates = fullYaos
       .filter((yao) => yao.liuQin === target)
@@ -1777,8 +1782,8 @@ function buildYongShenGroups(
         targetLiuQin: target,
         selectionStatus: ambiguous ? 'ambiguous' : 'resolved',
         selectionNote: ambiguous
-          ? `同类${target}并见，当前并看${[selected, candidates[0]].filter(Boolean).map((item) => `${item.strengthLabel}${item.position ? `@${item.position}爻` : ''}`).join(' / ')}。`
-          : `以${selected.position ? `第${selected.position}爻` : '当前所见'}${target}为主用神，优先参考其旺衰、动静与空亡。`,
+          ? `同类${target}并见，当前并看${[selected, candidates[0]].filter(Boolean).map((item) => `${item.strengthLabel}${item.position ? `${yaoName(item.position)}` : ''}`).join(' / ')}。`
+          : `以${selected.position ? yaoName(selected.position) : '当前所见'}${target}为主用神，优先参考其旺衰、动静与空亡。`,
         selected,
         candidates,
       };
@@ -1799,7 +1804,7 @@ function buildYongShenGroups(
         selectionStatus: ambiguous ? 'ambiguous' : 'from_changed',
         selectionNote: ambiguous
           ? `本卦无${target}而多爻变出同类，当前需并看其动变、旺衰与化变去向。`
-          : `本卦无${target}而第${selected.position}爻变出用神，依“变者显也”先取变爻。`,
+          : `本卦无${target}而${yaoName(selected.position) || '变爻'}变出用神，依”变者显也”先取变爻。`,
         selected,
         candidates,
       };

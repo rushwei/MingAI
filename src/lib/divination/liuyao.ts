@@ -14,6 +14,7 @@ import {
     calculateDerivedHexagrams,
     calculateGuaShen,
     findHexagram as findHexagramCore,
+    getHexagramContext,
     hasInvalidYongShenTargets as hasInvalidYongShenTargetsCore,
     normalizeYongShenTargets as normalizeYongShenTargetsCore,
     performFullAnalysis as performFullAnalysisCore,
@@ -70,7 +71,7 @@ export type LiuQin = LiuQinType;
 export type Hexagram = CoreHexagram;
 
 export type Yao = CoreYao;
-export { calculateDerivedHexagrams, calculateGuaShen };
+export { calculateDerivedHexagrams, calculateGuaShen, getHexagramContext };
 
 export interface Trigram {
     name: string;
