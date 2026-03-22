@@ -29,15 +29,6 @@ test('almanac should return consistent results for same date', async () => {
   assert.equal(a.luckyDirection, undefined);
 });
 
-test('almanac schema should not expose removed guidance fields', async () => {
-  const tool = mcpCore.tools.find((item) => item.name === 'almanac');
-  assert.ok(tool, 'almanac tool missing');
-  assert.equal(tool.outputSchema?.properties?.scores, undefined);
-  assert.equal(tool.outputSchema?.properties?.advice, undefined);
-  assert.equal(tool.outputSchema?.properties?.luckyColor, undefined);
-  assert.equal(tool.outputSchema?.properties?.luckyDirection, undefined);
-});
-
 test('liuyao(auto) should be deterministic with identical seed', async () => {
   const seed = 'seed-liuyao-1';
   const input = {

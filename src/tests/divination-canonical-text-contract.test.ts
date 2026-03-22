@@ -1,61 +1,81 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import {
-  formatBaziAsMarkdown,
-  formatLiuyaoAsMarkdown,
-  formatTarotAsMarkdown,
-  formatZiweiAsMarkdown,
-} from '../../packages/core/src/formatters';
+  renderBaziCanonicalText,
+  renderBaziPillarsResolveCanonicalText,
+  renderLiuyaoCanonicalText,
+  renderZiweiFlyingStarCanonicalText,
+  renderZiweiHoroscopeCanonicalText,
+  renderZiweiCanonicalText,
+} from '../../packages/core/src/text';
 import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
-import { generateTarotReadingText } from '@/lib/divination/tarot';
 
-const corePackagePath = resolve(process.cwd(), 'packages/core/package.json');
-const coreTextPath = resolve(process.cwd(), 'packages/core/src/text.ts');
-const coreFormatterPath = resolve(process.cwd(), 'packages/core/src/formatters.ts');
-const baziLibPath = resolve(process.cwd(), 'src/lib/divination/bazi.ts');
-const ziweiLibPath = resolve(process.cwd(), 'src/lib/divination/ziwei.ts');
-const liuyaoTextPath = resolve(process.cwd(), 'src/lib/divination/liuyao-format-utils.ts');
-const qimenTextPath = resolve(process.cwd(), 'src/lib/divination/qimen-shared.ts');
-const daliurenTextPath = resolve(process.cwd(), 'src/lib/divination/daliuren.ts');
-const tarotTextPath = resolve(process.cwd(), 'src/lib/divination/tarot.ts');
+test('specialized core canonical text renderers should cover non-mainline tools', () => {
+  const pillarsText = renderBaziPillarsResolveCanonicalText({
+    pillars: {
+      yearPillar: '甲子',
+      monthPillar: '乙丑',
+      dayPillar: '丙寅',
+      hourPillar: '丁卯',
+    },
+    count: 1,
+    candidates: [{
+      candidateId: 'cand-1',
+      lunarText: '农历1990年正月初一',
+      solarText: '1990-01-27',
+      birthYear: 1990,
+      birthMonth: 1,
+      birthDay: 1,
+      birthHour: 5,
+      birthMinute: 30,
+      isLeapMonth: false,
+      nextCall: {
+        tool: 'bazi_calculate',
+        arguments: {
+          birthYear: 1990,
+          birthMonth: 1,
+          birthDay: 1,
+          birthHour: 5,
+          birthMinute: 30,
+          calendarType: 'lunar',
+          isLeapMonth: false,
+        },
+        missing: ['gender'],
+      },
+    }],
+  });
+  assert.match(pillarsText, /四柱反推候选时间/u);
+  assert.match(pillarsText, /候选 1/u);
 
-test('core should expose a browser-safe canonical text module for cross-end reuse', async () => {
-  const [packageSource, textSource] = await Promise.all([
-    readFile(corePackagePath, 'utf-8'),
-    readFile(coreTextPath, 'utf-8'),
-  ]);
+  const horoscopeText = renderZiweiHoroscopeCanonicalText({
+    solarDate: '1990-01-01',
+    lunarDate: '1989-12-05',
+    soul: '廉贞',
+    body: '天相',
+    fiveElement: '金四局',
+    targetDate: '2026-03-22',
+    decadal: { index: 0, name: '命宫', heavenlyStem: '甲', earthlyBranch: '子', mutagen: ['禄'], palaceNames: ['命宫'] },
+    age: { index: 1, name: '兄弟', heavenlyStem: '乙', earthlyBranch: '丑', mutagen: [], palaceNames: ['兄弟'], nominalAge: 37 },
+    yearly: { index: 2, name: '夫妻', heavenlyStem: '丙', earthlyBranch: '寅', mutagen: ['权'], palaceNames: ['夫妻'] },
+    monthly: { index: 3, name: '子女', heavenlyStem: '丁', earthlyBranch: '卯', mutagen: [], palaceNames: ['子女'] },
+    daily: { index: 4, name: '财帛', heavenlyStem: '戊', earthlyBranch: '辰', mutagen: [], palaceNames: ['财帛'] },
+    hourly: { index: 5, name: '疾厄', heavenlyStem: '己', earthlyBranch: '巳', mutagen: [], palaceNames: ['疾厄'] },
+    transitStars: [{ starName: '文昌', palaceName: '命宫' }],
+    yearlyDecStar: { suiqian12: ['岁建'], jiangqian12: ['将星'] },
+  });
+  assert.match(horoscopeText, /紫微运限/u);
+  assert.match(horoscopeText, /流年星曜|岁前十二星|将前十二星/u);
 
-  assert.match(packageSource, /"\.\/text"/u, 'core package should export a dedicated text subpath');
-  assert.match(textSource, /renderBaziCanonicalText/u);
-  assert.match(textSource, /renderZiweiCanonicalText/u);
-  assert.match(textSource, /renderLiuyaoCanonicalText/u);
-  assert.match(textSource, /renderDaliurenCanonicalText/u);
-  assert.match(textSource, /renderQimenCanonicalText/u);
-  assert.match(textSource, /renderTarotCanonicalText/u);
-});
-
-test('mcp markdown and web text helpers should delegate to the same core canonical text module', async () => {
-  const [formatterSource, baziSource, ziweiSource, liuyaoSource, qimenSource, daliurenSource, tarotSource] = await Promise.all([
-    readFile(coreFormatterPath, 'utf-8'),
-    readFile(baziLibPath, 'utf-8'),
-    readFile(ziweiLibPath, 'utf-8'),
-    readFile(liuyaoTextPath, 'utf-8'),
-    readFile(qimenTextPath, 'utf-8'),
-    readFile(daliurenTextPath, 'utf-8'),
-    readFile(tarotTextPath, 'utf-8'),
-  ]);
-
-  assert.match(formatterSource, /from '\.\/text\.js'/u);
-  assert.match(baziSource, /@mingai\/core\/text/u);
-  assert.match(ziweiSource, /@mingai\/core\/text/u);
-  assert.match(liuyaoSource, /@mingai\/core\/text/u);
-  assert.match(qimenSource, /@mingai\/core\/text/u);
-  assert.match(daliurenSource, /@mingai\/core\/text/u);
-  assert.match(tarotSource, /@mingai\/core\/text/u);
+  const flyingStarText = renderZiweiFlyingStarCanonicalText({
+    results: [
+      { queryIndex: 0, type: 'fliesTo', result: true },
+      { queryIndex: 1, type: 'mutagedPlaces', result: [{ mutagen: '禄', targetPalace: '财帛' }] },
+    ],
+  });
+  assert.match(flyingStarText, /紫微飞星分析/u);
+  assert.match(flyingStarText, /化禄|结果/u);
 });
 
 test('core and web bazi text should surface full true-solar metadata details', () => {
@@ -68,7 +88,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
     dayOffset: -1,
   };
 
-  const markdown = formatBaziAsMarkdown({
+  const markdown = renderBaziCanonicalText({
     gender: 'male',
     birthPlace: '新疆',
     dayMaster: '甲',
@@ -108,7 +128,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
 });
 
 test('core and web ziwei text should keep full age arrays instead of truncating them', () => {
-  const markdown = formatZiweiAsMarkdown({
+  const markdown = renderZiweiCanonicalText({
     solarDate: '1990-1-1',
     lunarDate: '1989-12-5',
     fourPillars: {
@@ -202,7 +222,7 @@ test('web ziwei text should include horoscope block when caller explicitly reque
 });
 
 test('core liuyao markdown should surface changedNaJia and huaType in yongshen analysis text', () => {
-  const markdown = formatLiuyaoAsMarkdown({
+  const markdown = renderLiuyaoCanonicalText({
     question: '测试问题',
     hexagramName: '乾为天',
     hexagramGong: '乾',

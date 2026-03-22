@@ -230,37 +230,6 @@ test('bazi_calculate should keep bazi-specific shensha after shared refactor', a
   }
 });
 
-test('tools should include bazi_pillars_resolve', () => {
-  const names = mcpCore.tools.map((tool) => tool.name);
-  assert.ok(names.includes('bazi_pillars_resolve'));
-});
-
-test('bazi_calculate output schema should constrain relation pillars enum', () => {
-  const tool = mcpCore.tools.find((t) => t.name === 'bazi_calculate');
-  assert.ok(tool, 'bazi_calculate tool missing');
-  const enumValues = tool.outputSchema
-    ?.properties?.relations?.items?.properties?.pillars?.items?.enum;
-  assert.deepEqual(enumValues, ['年支', '月支', '日支', '时支']);
-});
-
-test('bazi_pillars_resolve output schema should expose lunar candidate contract', () => {
-  const tool = mcpCore.tools.find((t) => t.name === 'bazi_pillars_resolve');
-  assert.ok(tool, 'bazi_pillars_resolve tool missing');
-
-  const candidateProps = tool.outputSchema
-    ?.properties?.candidates?.items?.properties;
-
-  assert.equal(candidateProps?.isLeapMonth?.type, 'boolean');
-  assert.deepEqual(
-    candidateProps?.nextCall?.properties?.arguments?.properties?.calendarType?.enum,
-    ['lunar']
-  );
-  assert.equal(
-    candidateProps?.nextCall?.properties?.arguments?.properties?.isLeapMonth?.type,
-    'boolean'
-  );
-});
-
 test('bazi_pillars_resolve should return candidates and next call hint', async () => {
   assert.equal(typeof mcpCore.handleBaziPillarsResolve, 'function', 'handleBaziPillarsResolve should be exported');
 

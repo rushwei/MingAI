@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 type FetchLike = typeof global.fetch;
-
-const qimenHistoryPagePath = resolve(process.cwd(), 'src/app/qimen/history/page.tsx');
-const daliurenHistoryPagePath = resolve(process.cwd(), 'src/app/daliuren/history/page.tsx');
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
@@ -54,33 +49,4 @@ test('loadHistorySummaries should keep fetching pages until hasMore is false', a
   } finally {
     global.fetch = originalFetch;
   }
-});
-
-test('qimen and daliuren history pages should restore through the shared history client instead of dedicated route fetches', async () => {
-  const [qimenSource, daliurenSource] = await Promise.all([
-    readFile(qimenHistoryPagePath, 'utf-8'),
-    readFile(daliurenHistoryPagePath, 'utf-8'),
-  ]);
-
-  assert.match(
-    qimenSource,
-    /<HistoryPageTemplate[\s\S]*sourceType="qimen"/u,
-    'qimen history page should use HistoryPageTemplate with qimen sourceType',
-  );
-  assert.doesNotMatch(
-    qimenSource,
-    /fetch\('\/api\/qimen'/u,
-    'qimen history page should not call the dedicated qimen history route directly',
-  );
-
-  assert.match(
-    daliurenSource,
-    /<HistoryPageTemplate[\s\S]*sourceType="daliuren"/u,
-    'daliuren history page should use HistoryPageTemplate with daliuren sourceType',
-  );
-  assert.doesNotMatch(
-    daliurenSource,
-    /fetch\('\/api\/daliuren'/u,
-    'daliuren history page should not call the dedicated daliuren history route directly',
-  );
 });

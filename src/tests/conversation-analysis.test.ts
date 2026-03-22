@@ -126,20 +126,3 @@ test('replaceConversationMessages should no-op safely when rpc is unavailable', 
 
     assert.equal(result.error, null);
 });
-
-// Architecture guard: result pages should include re-analyze button and error banner.
-// If this test fails after refactoring, update the data-testid to match new structure.
-test('result pages include re-analyze button', () => {
-    const fs = require('node:fs');
-    const path = require('node:path');
-    const pages = [
-        'src/app/liuyao/result/page.tsx',
-        'src/app/tarot/result/page.tsx',
-        'src/app/hepan/result/page.tsx',
-        'src/app/mbti/result/page.tsx',
-    ];
-    pages.forEach((page) => {
-        const content = fs.readFileSync(path.join(process.cwd(), page), 'utf8');
-        assert.equal(content.includes('data-testid="reanalyze-button"'), true);
-    });
-});

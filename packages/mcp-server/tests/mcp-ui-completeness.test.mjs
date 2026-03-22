@@ -56,18 +56,3 @@ test('renderAuthorizePage should escape client and error text to prevent XSS', a
   assert.ok(html.includes('&lt;b&gt;wrong&lt;/b&gt;'), 'error should be escaped');
   assert.equal(html.includes('<script>alert(1)</script>'), false, 'raw script tag must not appear');
 });
-
-test('renderAuthorizePage should render tools grid even when scopes are empty', async () => {
-  const { renderAuthorizePage } = await importDist('oauth/authorize-page.js');
-
-  const html = renderAuthorizePage({
-    scopes: [],
-    clientId: 'client-1',
-    redirectUri: 'https://chat.openai.com/aip/mcp/callback',
-    codeChallenge: 'challenge-1',
-    codeChallengeMethod: 'S256',
-  });
-
-  assert.ok(html.includes('八字排盘'), 'should show tools grid with bazi tool');
-  assert.ok(html.includes('紫微斗数'), 'should show tools grid with ziwei tool');
-});

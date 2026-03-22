@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { buildHistorySummary } from '../lib/history/registry';
 
 test('tarot history summary should preserve reversed card orientation in preview badges', async () => {
@@ -31,24 +29,4 @@ test('liuyao history summary should preserve changed line overview', async () =>
   });
 
   assert.equal(item.metric, '变爻：第1爻、第3爻、第6爻');
-});
-
-test('tarot history page should style reversed preview badges distinctly', async () => {
-  const source = await readFile(resolve(process.cwd(), 'src/app/tarot/history/page.tsx'), 'utf-8');
-
-  assert.match(
-    source,
-    /badge\.includes\('\(逆\)'\)/u,
-    'tarot history page should branch preview badge style by reversed orientation marker',
-  );
-});
-
-test('liuyao history page should render the shared changed-line summary', async () => {
-  const source = await readFile(resolve(process.cwd(), 'src/app/liuyao/history/page.tsx'), 'utf-8');
-
-  assert.match(
-    source,
-    /item\.metric/u,
-    'liuyao history page should render the changed-line summary provided by HistorySummaryItem.metric',
-  );
 });

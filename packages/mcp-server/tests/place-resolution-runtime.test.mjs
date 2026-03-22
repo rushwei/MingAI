@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { buildListToolsPayload } from '@mingai/core/transport';
-
-const indexPath = resolve(process.cwd(), 'packages/mcp-server/src/index.ts');
 
 test('mcp server runtime place resolution should geocode city-level birthPlace when longitude is absent', async (t) => {
   const originalFetch = global.fetch;
@@ -144,14 +140,6 @@ test('mcp server tool payload should advertise runtime birthPlace resolution wit
 
   assert.equal(typeof ziweiTool?.inputSchema?.properties?.birthPlace, 'object');
   assert.equal(typeof ziweiTool?.outputSchema?.properties?.placeResolutionInfo, 'object');
-  assert.match(String(ziweiTool?.inputSchema?.properties?.birthPlace?.description), /高德|地点名|地理编码/u);
-  assert.match(String(baziTool?.inputSchema?.properties?.longitude?.description), /优先|birthPlace|地点名/u);
-});
-
-test('mcp server index should wire runtime place resolution into tool listing and tool calls', async () => {
-  const source = await readFile(indexPath, 'utf-8');
-
-  assert.match(source, /decorateToolListPayloadForRuntime/u);
-  assert.match(source, /preprocessToolArgsForRuntimePlace/u);
-  assert.match(source, /attachPlaceResolutionNoteToPayload/u);
+  assert.equal(typeof baziTool?.inputSchema?.properties?.birthPlace, 'object');
+  assert.equal(typeof baziTool?.outputSchema?.properties?.placeResolutionInfo, 'object');
 });

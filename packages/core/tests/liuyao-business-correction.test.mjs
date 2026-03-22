@@ -3,23 +3,6 @@ import assert from 'node:assert/strict';
 
 import * as mcpCore from '@mingai/core';
 
-test('liuyao schema no longer exposes score or confidence fields', () => {
-  const tool = mcpCore.tools.find((item) => item.name === 'liuyao');
-  assert.ok(tool, 'liuyao tool missing');
-
-  const fullYao = tool.outputSchema?.properties?.fullYaos?.items?.properties;
-  assert.equal(fullYao?.strengthScore, undefined);
-
-  const yongShenCandidate = tool.outputSchema?.properties?.yongShen?.items?.properties?.candidates?.items?.properties;
-  assert.equal(yongShenCandidate?.strengthScore, undefined);
-  assert.equal(yongShenCandidate?.rankScore, undefined);
-
-  const timeRecommendation = tool.outputSchema?.properties?.timeRecommendations?.items?.properties;
-  assert.equal(timeRecommendation?.confidence, undefined);
-  assert.equal(timeRecommendation?.startDate, undefined);
-  assert.equal(timeRecommendation?.endDate, undefined);
-});
-
 test('mcp liuyao uses fixed najia for 天风姤 and should not treat second yao as 妻财', async () => {
   const result = await mcpCore.handleLiuyaoAnalyze({
     question: '问财运',

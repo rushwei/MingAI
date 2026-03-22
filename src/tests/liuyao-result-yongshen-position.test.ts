@@ -1,26 +1,54 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 
-test('result page highlights yongshen star only when liuqin matches visible yao', () => {
-    const filePath = path.join(process.cwd(), 'src/app/liuyao/result/page.tsx');
-    const content = fs.readFileSync(filePath, 'utf8');
+import { resolveTraditionalYongShenPositions } from '../lib/divination/liuyao-result-state';
 
-    assert.equal(content.includes('line.liuQin === group.selected.liuQin'), true);
+test('result page resolves yongshen highlight positions when selected labels include 爻 suffix', () => {
+    const positions = resolveTraditionalYongShenPositions({
+        yaos: [
+            { position: '上九', liuQin: '子孙' },
+            { position: '九五', liuQin: '妻财' },
+            { position: '九四', liuQin: '兄弟' },
+            { position: '六三', liuQin: '官鬼' },
+            { position: '六二', liuQin: '父母' },
+            { position: '初九', liuQin: '妻财' },
+        ],
+        yongShenAnalysis: [{
+            targetLiuQin: '妻财',
+            selectionStatus: '已定',
+            selected: {
+                position: '初九爻',
+                liuQin: '妻财',
+                strengthLabel: '旺',
+                movementLabel: '静',
+            },
+        }],
+    } as any);
+
+    assert.deepEqual(positions, [1]);
 });
 
-test('result page copy text marks yongshen only when line and liuqin both match', () => {
-    const resultPath = path.join(process.cwd(), 'src/app/liuyao/result/page.tsx');
-    const resultContent = fs.readFileSync(resultPath, 'utf8');
+test('result page does not highlight yongshen when normalized position matches but liuqin differs', () => {
+    const positions = resolveTraditionalYongShenPositions({
+        yaos: [
+            { position: '上九', liuQin: '子孙' },
+            { position: '九五', liuQin: '妻财' },
+            { position: '九四', liuQin: '兄弟' },
+            { position: '六三', liuQin: '官鬼' },
+            { position: '六二', liuQin: '父母' },
+            { position: '初九', liuQin: '兄弟' },
+        ],
+        yongShenAnalysis: [{
+            targetLiuQin: '妻财',
+            selectionStatus: '已定',
+            selected: {
+                position: '初九爻',
+                liuQin: '妻财',
+                strengthLabel: '旺',
+                movementLabel: '静',
+            },
+        }],
+    } as any);
 
-    assert.equal(resultContent.includes('buildTraditionalInfo('), true);
-    assert.equal(resultContent.includes('const yongShenPositions = new Set('), false);
-
-    // shared util contains the actual Set construction with position:liuQin key
-    const utilPath = path.join(process.cwd(), 'src/lib/divination/liuyao-format-utils.ts');
-    const utilContent = fs.readFileSync(utilPath, 'utf8');
-    assert.equal(utilContent.includes('new Set('), true);
-    assert.equal(utilContent.includes('return `${position}:${liuQin}`;'), true);
-    assert.equal(utilContent.includes('yongShenMarkers?.has(`${y.position}:${y.liuQin}`)'), true);
+    assert.deepEqual(positions, []);
 });

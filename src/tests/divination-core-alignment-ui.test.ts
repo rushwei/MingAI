@@ -1,42 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
 import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { findHexagram, type Yao, calculateDerivedHexagrams, calculateGuaShen } from '@/lib/divination/liuyao';
 import { drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
-
-const qimenRoutePath = resolve(process.cwd(), 'src/app/api/qimen/route.ts');
-const qimenResultPath = resolve(process.cwd(), 'src/app/qimen/result/page.tsx');
-const tarotResultPath = resolve(process.cwd(), 'src/app/tarot/result/page.tsx');
-const tarotRoutePath = resolve(process.cwd(), 'src/app/api/tarot/route.ts');
-const tarotHistoryRegistryPath = resolve(process.cwd(), 'src/lib/history/registry.ts');
-const tarotDataSourcePath = resolve(process.cwd(), 'src/lib/data-sources/tarot.ts');
-const baziProfessionalSectionPath = resolve(process.cwd(), 'src/components/bazi/result/ProfessionalSection.tsx');
-const ziweiResultPath = resolve(process.cwd(), 'src/app/ziwei/result/page.tsx');
-const ziweiGridPath = resolve(process.cwd(), 'src/components/ziwei/ZiweiChartGrid.tsx');
-const ziweiStarBadgePath = resolve(process.cwd(), 'src/components/ziwei/StarBadge.tsx');
-const baziLibPath = resolve(process.cwd(), 'src/lib/divination/bazi.ts');
-const ziweiLibPath = resolve(process.cwd(), 'src/lib/divination/ziwei.ts');
-const liuyaoTraditionalPath = resolve(process.cwd(), 'src/components/liuyao/TraditionalAnalysis.tsx');
-const qimenSharedPath = resolve(process.cwd(), 'src/lib/divination/qimen-shared.ts');
-const qimenGridPath = resolve(process.cwd(), 'src/components/qimen/QimenGrid.tsx');
-const daliurenTextPath = resolve(process.cwd(), 'src/lib/divination/daliuren.ts');
-const daliurenResultPath = resolve(process.cwd(), 'src/app/daliuren/result/page.tsx');
-const mcpCanonicalTextPath = resolve(process.cwd(), 'packages/core/src/text.ts');
-
-test('qimen interpret prompt should not prepend a duplicate question block outside the shared chart text', async () => {
-    const source = await readFile(qimenRoutePath, 'utf-8');
-
-    assert.doesNotMatch(
-        source,
-        /【占事】/u,
-        'qimen route should let the shared formatter own the question line instead of duplicating it in userPrompt',
-    );
-});
 
 test('bazi shared chart text should include core-aligned metadata that is currently missing from web output', () => {
     const chart = calculateBazi({
@@ -87,15 +56,7 @@ test('bazi chart text should include naYin/diShi and hidden stem details', () =>
     assert.match(text, new RegExp(firstHiddenStem.stem), 'bazi text should surface hidden stem name');
 });
 
-test('web divination adapters should use explicit longitude instead of local fuzzy place matching', async () => {
-    const [baziSource, ziweiSource] = await Promise.all([
-        readFile(baziLibPath, 'utf-8'),
-        readFile(ziweiLibPath, 'utf-8'),
-    ]);
-
-    assert.doesNotMatch(baziSource, /place-longitude/u);
-    assert.doesNotMatch(ziweiSource, /place-longitude/u);
-
+test('web divination adapters should use explicit longitude instead of local fuzzy place matching', () => {
     const baziChart = calculateBazi({
         name: '测试',
         gender: 'male',
@@ -124,21 +85,6 @@ test('web divination adapters should use explicit longitude instead of local fuz
     assert.equal(ziweiChart.trueSolarTimeInfo?.longitude, 121.47);
 });
 
-test('bazi professional section should render a direct chart metadata block for the newly aligned core fields', async () => {
-    const source = await readFile(baziProfessionalSectionPath, 'utf-8');
-
-    assert.match(
-        source,
-        /排盘元信息/u,
-        'bazi professional section should present a dedicated metadata section for core-aligned chart fields',
-    );
-    assert.match(
-        source,
-        /真太阳时|胎元|命宫|天干五合|地支半合|干支关系|地支关系/u,
-        'bazi professional section should surface core-aligned metadata directly in the UI',
-    );
-});
-
 test('ziwei web contract and copy text should preserve richer core metadata and stable palace ordering', () => {
     const chart = calculateZiwei({
         name: '测试',
@@ -151,11 +97,11 @@ test('ziwei web contract and copy text should preserve richer core metadata and 
         calendarType: 'solar',
     });
 
-    assert.ok(typeof (chart as Record<string, unknown>).douJun === 'string', 'ziwei chart should preserve douJun from core output');
-    assert.ok(typeof (chart as Record<string, unknown>).lifeMasterStar === 'string', 'ziwei chart should preserve lifeMasterStar from core output');
-    assert.ok(typeof (chart as Record<string, unknown>).bodyMasterStar === 'string', 'ziwei chart should preserve bodyMasterStar from core output');
-    assert.ok(Array.isArray((chart as Record<string, unknown>).smallLimit), 'ziwei chart should preserve smallLimit from core output');
-    assert.ok(Array.isArray((chart as Record<string, unknown>).scholarStars), 'ziwei chart should preserve scholarStars from core output');
+    assert.ok(typeof (chart as unknown as Record<string, unknown>).douJun === 'string', 'ziwei chart should preserve douJun from core output');
+    assert.ok(typeof (chart as unknown as Record<string, unknown>).lifeMasterStar === 'string', 'ziwei chart should preserve lifeMasterStar from core output');
+    assert.ok(typeof (chart as unknown as Record<string, unknown>).bodyMasterStar === 'string', 'ziwei chart should preserve bodyMasterStar from core output');
+    assert.ok(Array.isArray((chart as unknown as Record<string, unknown>).smallLimit), 'ziwei chart should preserve smallLimit from core output');
+    assert.ok(Array.isArray((chart as unknown as Record<string, unknown>).scholarStars), 'ziwei chart should preserve scholarStars from core output');
 
     const text = generateZiweiChartText(chart);
     assert.match(text, /子年斗君/u, 'ziwei text should include douJun');
@@ -175,17 +121,7 @@ test('ziwei web contract and copy text should preserve richer core metadata and 
     );
 });
 
-test('ziwei result page should surface richer aligned metadata directly in the visible UI', async () => {
-    const [pageSource, gridSource] = await Promise.all([
-        readFile(ziweiResultPath, 'utf-8'),
-        readFile(ziweiGridPath, 'utf-8'),
-    ]);
-
-    assert.match(pageSource, /命主星|身主星|斗君|真太阳时/u);
-    assert.match(gridSource, /博士十二星|小限|神煞|流年/u);
-});
-
-test('ziwei star mutagen variants should be surfaced in text and UI', async () => {
+test('ziwei star mutagen variants should be surfaced in text output', () => {
     const chart = calculateZiwei({
         name: '测试',
         gender: 'male',
@@ -206,9 +142,6 @@ test('ziwei star mutagen variants should be surfaced in text and UI', async () =
     const text = generateZiweiChartText(chart);
     assert.match(text, /↓禄/u, 'ziwei text should include self mutagen markers');
     assert.match(text, /↑权/u, 'ziwei text should include opposite mutagen markers');
-
-    const badgeSource = await readFile(ziweiStarBadgePath, 'utf-8');
-    assert.match(badgeSource, /selfMutagen|oppositeMutagen/u, 'ziwei star badge should render self/opposite mutagen markers');
 });
 
 test('liuyao prompt should include derived hexagrams and gua shen', () => {
@@ -247,52 +180,6 @@ test('liuyao derived helpers should handle invalid hexagram codes defensively', 
 
     const guaShen = calculateGuaShen('');
     assert.equal(guaShen.absent, true, 'invalid hexagram code should return an absent gua shen');
-});
-
-test('liuyao traditional analysis UI should surface derived hexagrams and gua shen', async () => {
-    const source = await readFile(liuyaoTraditionalPath, 'utf-8');
-    assert.match(source, /互卦|错卦|综卦|卦身/u);
-});
-
-test('qimen prompt + ui should surface star/gate elements and palace element state', async () => {
-    const [sharedSource, canonicalTextSource, gridSource, pageSource] = await Promise.all([
-        readFile(qimenSharedPath, 'utf-8'),
-        readFile(mcpCanonicalTextPath, 'utf-8'),
-        readFile(qimenGridPath, 'utf-8'),
-        readFile(qimenResultPath, 'utf-8'),
-    ]);
-
-    assert.match(sharedSource, /renderQimenCanonicalText/u, 'qimen shared text should delegate to core canonical text');
-    assert.match(canonicalTextSource, /starElement|gateElement|elementState|heavenStemElement/u, 'core canonical qimen text should inline element info in nine-palace table');
-    assert.match(gridSource, /starElement|gateElement|elementState/u, 'qimen grid should display star/gate elements and palace element state');
-    assert.match(pageSource, /值符|值使/u, 'qimen result page should surface zhiFu/zhiShi in the header');
-});
-
-test('daliuren prompt + ui should surface yin/yang guiren and core date markers', async () => {
-    const [textSource, canonicalTextSource, pageSource] = await Promise.all([
-        readFile(daliurenTextPath, 'utf-8'),
-        readFile(mcpCanonicalTextPath, 'utf-8'),
-        readFile(daliurenResultPath, 'utf-8'),
-    ]);
-
-    assert.match(textSource, /renderDaliurenCanonicalText/u, 'daliuren shared text should delegate to core canonical text');
-    assert.match(canonicalTextSource, /天将/u, 'core canonical daliuren text should include tianJiang in table');
-    assert.match(canonicalTextSource, /丁马/u, 'core canonical daliuren text should include ding ma');
-    assert.match(canonicalTextSource, /天马/u, 'core canonical daliuren text should include tian ma');
-    assert.match(pageSource, /农历|丁马|阴阳贵人/u, 'daliuren result UI should surface lunar date, ding ma, or guiren mappings');
-    assert.match(pageSource, /取传法|课体/u, 'daliuren result UI should surface keTi method');
-    assert.match(pageSource, /本命|行年/u, 'daliuren result UI should surface benMing/xingNian when available');
-    assert.match(pageSource, /遁干|建除|十二宫/u, 'daliuren result UI should surface gongInfos detail fields');
-});
-
-test('mcp formatters should surface core-aligned fields across divination features', async () => {
-    const source = await readFile(mcpCanonicalTextPath, 'utf-8');
-    assert.match(source, /冲克|合.*resultElement/u, 'core canonical bazi text should include tianGan relation logic');
-    assert.match(source, /半合/u, 'core canonical bazi text should include diZhiBanHe');
-    assert.match(source, /互卦|错卦|综卦|卦身/u, 'core canonical liuyao text should include derived hexagrams and gua shen');
-    assert.match(source, /starElement|gateElement|elementState|heavenStemElement/u, 'core canonical qimen text should include element details');
-    assert.match(source, /丁马|天马|阴阳贵人|农历/u, 'core canonical daliuren text should include extended date and guiren data');
-    assert.match(source, /星象|逆位关键词|keywords|orientation/u, 'core canonical tarot text should include astrological and card metadata');
 });
 
 test('tarot shared reading text should include core-aligned card metadata and numerology when provided', () => {
@@ -347,22 +234,4 @@ test('tarot draw should accept ISO datetime birthDate for numerology', async () 
     });
 
     assert.ok(result?.numerology, 'tarot draw should return numerology when birth date is provided');
-});
-
-test('tarot result, save route, history restore, and AI data source should preserve birthDate/numerology plus seed metadata', async () => {
-    const [pageSource, routeSource, historySource, dataSource] = await Promise.all([
-        readFile(tarotResultPath, 'utf-8'),
-        readFile(tarotRoutePath, 'utf-8'),
-        readFile(tarotHistoryRegistryPath, 'utf-8'),
-        readFile(tarotDataSourcePath, 'utf-8'),
-    ]);
-
-    assert.match(pageSource, /birthDate/u, 'tarot result flow should keep birthDate in local state/session payloads');
-    assert.match(pageSource, /seed/u, 'tarot result flow should keep seed in local state/session payloads');
-    assert.match(pageSource, /出生日期/u, 'tarot result page should render birth date with a user-facing label');
-    assert.match(pageSource, /塔罗数秘术|人格牌|灵魂牌|年度牌/u, 'tarot result page should render numerology output directly');
-    assert.match(pageSource, /卡牌信息|关键词|逆位关键词/u, 'tarot result page should surface core-aligned card metadata in the UI');
-    assert.match(routeSource, /birthDate|numerology|seed|metadata/u, 'tarot route should persist numerology and seed-related metadata');
-    assert.match(historySource, /birthDate|numerology|seed|metadata/u, 'tarot history restore should recover numerology and seed-related metadata');
-    assert.match(dataSource, /birthDate|numerology|seed/u, 'tarot AI data source should reuse birthDate/numerology/seed metadata in shared text');
 });

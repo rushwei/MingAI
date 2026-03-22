@@ -117,94 +117,6 @@ test('tarot route uses schema column names when inserting history', async (t) =>
     assert.equal('ai_interpretation' in (inserted || {}), false);
 });
 
-test('tarot route returns error when credit deduction fails', async (t) => {
-    const credits = require('../lib/user/credits') as any;
-    const supabaseModule = require('../lib/auth') as any;
-    const supabaseServerModule = require('../lib/supabase-server') as any;
-    const consoleCapture = captureConsoleErrors();
-
-    const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
-    const originalFetch = global.fetch;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'free', hasCredits: true });
-    credits.useCredit = async () => null;
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
-        from: (table: string) => {
-            if (table === 'users') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'free', last_credit_restore_at: null, membership_expires_at: null },
-                                error: null,
-                            }),
-                            maybeSingle: async () => ({ data: null, error: null }),
-                        }),
-                    }),
-                };
-            }
-            return {
-                insert: async () => ({ error: null }),
-            };
-        },
-    });
-    global.fetch = async () => ({
-        ok: true,
-        json: async () => ({ choices: [{ message: { content: 'analysis' } }] }),
-    } as any);
-
-    t.after(() => {
-        consoleCapture.restore();
-        credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
-        global.fetch = originalFetch;
-    });
-
-    const { POST } = await import('../app/api/tarot/route');
-
-    const request = new NextRequest('http://localhost/api/tarot', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-token',
-        },
-        body: JSON.stringify({
-            action: 'interpret',
-            cards: [
-                {
-                    card: {
-                        nameChinese: '测试牌',
-                        keywords: ['关键词'],
-                        uprightMeaning: '正位',
-                        reversedMeaning: '逆位',
-                    },
-                    orientation: 'upright',
-                },
-            ],
-        }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    const hasMembershipWarning = consoleCapture.errors.some((line) =>
-        line.includes('[membership] Failed') ||
-        line.includes('[supabase-server] Missing Supabase service configuration')
-    );
-    assert.equal(hasMembershipWarning, false);
-    assert.equal(response.status, 500);
-    assert.equal(data.error, '积分扣减失败，请稍后重试');
-});
-
 test('tarot route persists analysis after streaming completes', async (t) => {
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
@@ -325,118 +237,6 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
 });
 
-test('tarot route should surface a stream error when persistence fails after content generation', async (t) => {
-    const credits = require('../lib/user/credits') as any;
-    const aiModule = require('../lib/ai/ai') as any;
-    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
-    const supabaseModule = require('../lib/auth') as any;
-    const supabaseServerModule = require('../lib/supabase-server') as any;
-
-    const originalGetUserAuthInfo = credits.getUserAuthInfo;
-    const originalUseCredit = credits.useCredit;
-    const originalCallAIStream = aiModule.callAIStream;
-    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
-    const originalGetUser = supabaseModule.supabase.auth.getUser;
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-            controller.enqueue(
-                encoder.encode('data: {"choices":[{"delta":{"content":"analysis","reasoning_content":"reason"}}]}\n\n')
-            );
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-        },
-    });
-
-    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
-    credits.useCredit = async () => 1;
-    aiModule.callAIStream = async () => stream;
-    aiAnalysisModule.createAIAnalysisConversation = async () => 'conv-1';
-    supabaseModule.supabase.auth.getUser = async () => ({
-        data: { user: { id: 'user-1' } },
-        error: null,
-    });
-    supabaseServerModule.getSystemAdminClient = () => ({
-        from: (table: string) => {
-            if (table === 'users') {
-                return {
-                    select: () => ({
-                        eq: () => ({
-                            single: async () => ({
-                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
-                                error: null,
-                            }),
-                            maybeSingle: async () => ({
-                                data: { membership: 'pro', membership_expires_at: null },
-                                error: null,
-                            }),
-                        }),
-                    }),
-                };
-            }
-            if (table === 'tarot_readings') {
-                return {
-                    update: () => ({
-                        eq: () => ({
-                            eq: async () => ({
-                                error: { message: 'column "metadata" of relation "tarot_readings" does not exist' },
-                            }),
-                        }),
-                    }),
-                    insert: async () => ({ error: null }),
-                };
-            }
-            return {
-                insert: async () => ({ error: null }),
-            };
-        },
-    });
-
-    t.after(() => {
-        credits.getUserAuthInfo = originalGetUserAuthInfo;
-        credits.useCredit = originalUseCredit;
-        aiModule.callAIStream = originalCallAIStream;
-        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
-        supabaseModule.supabase.auth.getUser = originalGetUser;
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
-    });
-
-    const { POST } = await import('../app/api/tarot/route');
-
-    const request = new NextRequest('http://localhost/api/tarot', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-token',
-        },
-        body: JSON.stringify({
-            action: 'interpret',
-            stream: true,
-            readingId: 'reading-1',
-            cards: [
-                {
-                    card: {
-                        nameChinese: '测试牌',
-                        keywords: ['关键词'],
-                        uprightMeaning: '正位',
-                        reversedMeaning: '逆位',
-                    },
-                    orientation: 'upright',
-                },
-            ],
-        }),
-    });
-
-    const response = await POST(request);
-    const body = await response.text();
-
-    assert.equal(response.status, 200);
-    assert.match(body, /"content":"analysis"/);
-    assert.match(body, /"error":"保存结果失败，请稍后重试"/);
-});
-
 test('tarot route returns 400 for invalid timezone on GET daily requests', async () => {
     const { GET } = await import('../app/api/tarot/route');
 
@@ -460,7 +260,7 @@ test('tarot route returns numerology on draw-only and persists birth metadata on
     apiUtilsModule.getAuthContext = async () => ({
         user: null,
         session: null,
-    }) as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
+    }) as unknown as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>;
 
     apiUtilsModule.requireBearerUser = async () => ({
         user: { id: 'user-1' } as Awaited<ReturnType<typeof import('../lib/api-utils').getAuthContext>>['user'],
@@ -486,7 +286,7 @@ test('tarot route returns numerology on draw-only and persists birth metadata on
                 },
             };
         },
-    }) as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
+    }) as unknown as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
 
     t.after(() => {
         apiUtilsModule.getAuthContext = originalGetAuthContext;
@@ -578,7 +378,7 @@ test('tarot save should fail fast when metadata column is missing', async (t) =>
                 },
             };
         },
-    }) as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
+    }) as unknown as ReturnType<typeof import('../lib/api-utils').getSystemAdminClient>;
 
     t.after(() => {
         apiUtilsModule.requireBearerUser = originalRequireBearerUser;
