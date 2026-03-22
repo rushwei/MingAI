@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Brain, ChevronDown, ChevronUp, RotateCcw, Copy, Check } from 'lucide-react';
+import { renderDaliurenCanonicalJSON } from '@mingai/core/json';
 import { useToast } from '@/components/ui/Toast';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
@@ -24,6 +25,7 @@ import { loadConversation } from '@/lib/chat/conversation';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 const SHENSHA_DISPLAY = [
     '日德', '日禄', '生气', '桃花', '天喜', '天医', '成神',
@@ -58,6 +60,11 @@ export default function DaliurenResultPage() {
     const hasAutoSavedRef = useRef(false);
 
     const streaming = useStreamingResponse();
+    const canonicalResult = useMemo(
+        () => (result ? renderDaliurenCanonicalJSON(result) : null),
+        [result]
+    );
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     const persistSessionIds = useCallback((next: {
         divinationId?: string;
@@ -205,9 +212,11 @@ export default function DaliurenResultPage() {
     }, [conversationId, interpretation, streaming.content]);
 
     const filteredShensha = useMemo(() => {
-        if (!result) return [];
-        return result.shenSha.filter(s => SHENSHA_DISPLAY.includes(s.name));
-    }, [result]);
+        if (!canonicalResult) return [];
+        return Object.entries(canonicalResult.shenSha)
+            .flatMap(([value, names]) => names.map((name) => ({ name, value })))
+            .filter((item) => SHENSHA_DISPLAY.includes(item.name));
+    }, [canonicalResult]);
 
     const handleCopy = useCallback(async () => {
         if (!result) return;
@@ -230,9 +239,15 @@ export default function DaliurenResultPage() {
                 icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
                 onClick: () => { void handleCopy(); },
             },
+            ...(isAdmin && canonicalResult ? [{
+                id: 'copy-json',
+                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void copyJson(); },
+            }] : []),
         ]);
         return () => clearMenuItems();
-    }, [result, copied, handleCopy, setMenuItems, clearMenuItems]);
+    }, [result, copied, isAdmin, canonicalResult, jsonCopied, handleCopy, copyJson, setMenuItems, clearMenuItems]);
 
     const handleInterpret = useCallback(async () => {
         if (!result) return;
@@ -297,13 +312,7 @@ export default function DaliurenResultPage() {
         </div>
     );
 
-    const { dateInfo, siKe, sanChuan, keTi, keName } = result;
-    const formatGuiRen = (map: Record<string, string> | undefined): string => {
-        if (!map) return '';
-        return Object.entries(map).map(([key, value]) => `${key}${value}`).join('、');
-    };
-    const yangGuiRenText = formatGuiRen(result.yinYangGuiRen?.yangGuiRen);
-    const yinGuiRenText = formatGuiRen(result.yinYangGuiRen?.yinGuiRen);
+    const { basicInfo, siKe, sanChuan, gongInfos } = canonicalResult!;
 
     return (
         <div className="min-h-screen bg-background pb-20">
@@ -314,11 +323,11 @@ export default function DaliurenResultPage() {
                         <RotateCcw className="w-5 h-5" />
                     </button>
                     <div className="text-center">
-                        <div className="text-sm font-bold text-foreground">{keName}</div>
+                        <div className="text-sm font-bold text-foreground">{basicInfo.keName}</div>
                         <div className="text-xs text-cyan-500">
-                            {keTi.subTypes.join('·')}{keTi.extraTypes.length > 0 ? '·' + keTi.extraTypes.join('·') : ''}
+                            {basicInfo.keTi.subTypes.join('·')}{basicInfo.keTi.extraTypes.length > 0 ? '·' + basicInfo.keTi.extraTypes.join('·') : ''}
                         </div>
-                        <div className="text-[10px] text-foreground-secondary">取传法：{keTi.method}</div>
+                        <div className="text-[10px] text-foreground-secondary">取传法：{basicInfo.keTi.method}</div>
                     </div>
                     <button
                         onClick={() => { void handleCopy(); }}
@@ -327,32 +336,34 @@ export default function DaliurenResultPage() {
                         {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copied ? '已复制' : '复制'}</span>
                     </button>
+                    {isAdmin && canonicalResult && (
+                        <button
+                            onClick={() => { void copyJson(); }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border/40 px-2 py-1 text-xs text-foreground-secondary hover:text-foreground hover:border-cyan-500/40 transition-colors"
+                        >
+                            {jsonCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{jsonCopied ? 'JSON 已复制' : '复制 JSON'}</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
             <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
                 {/* 基础信息 */}
                 <div className="bg-background-secondary/50 rounded-xl p-4 border border-border/30">
-                    <div className="text-xs text-foreground-secondary mb-2">{dateInfo.solarDate}</div>
-                    <div className="text-xs text-foreground-tertiary mb-2">农历：{dateInfo.lunarDate || '-'}</div>
-                    <div className="text-sm font-mono text-foreground mb-2">{dateInfo.bazi}</div>
+                    <div className="text-xs text-foreground-secondary mb-2">{basicInfo.date}</div>
+                    <div className="text-xs text-foreground-tertiary mb-2">农历：{basicInfo.lunarDate || '-'}</div>
+                    <div className="text-sm font-mono text-foreground mb-2">{basicInfo.bazi}</div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground-secondary">
-                        <span>月将：{dateInfo.yueJiang}（{dateInfo.yueJiangName}）</span>
-                        <span>旬空：{dateInfo.kongWang.join('')}</span>
-                        <span>驿马：{dateInfo.yiMa} · 天马：{dateInfo.tianMa} · 丁马：{dateInfo.dingMa}</span>
-                        <span>{dateInfo.diurnal ? '昼' : '夜'}占</span>
+                        <span>月将：{basicInfo.yueJiang}</span>
+                        <span>旬空：{basicInfo.kongWang.join('')}</span>
+                        <span>驿马：{basicInfo.yiMa} · 天马：{basicInfo.tianMa} · 丁马：{basicInfo.dingMa}</span>
+                        <span>{basicInfo.diurnal}占</span>
                     </div>
-                    {(result.benMing || result.xingNian) && (
+                    {(basicInfo.benMing || basicInfo.xingNian) && (
                         <div className="mt-2 text-xs text-foreground-secondary flex flex-wrap gap-x-4 gap-y-1">
-                            {result.benMing && <span>本命：{result.benMing}</span>}
-                            {result.xingNian && <span>行年：{result.xingNian}</span>}
-                        </div>
-                    )}
-                    {(yangGuiRenText || yinGuiRenText) && (
-                        <div className="mt-2 text-xs text-foreground-secondary space-y-1">
-                            <div>阴阳贵人：</div>
-                            <div>阳贵人：{yangGuiRenText || '-'}</div>
-                            <div>阴贵人：{yinGuiRenText || '-'}</div>
+                            {basicInfo.benMing && <span>本命：{basicInfo.benMing}</span>}
+                            {basicInfo.xingNian && <span>行年：{basicInfo.xingNian}</span>}
                         </div>
                     )}
                 </div>
@@ -382,14 +393,14 @@ export default function DaliurenResultPage() {
                     <h3 className="text-sm font-bold text-foreground mb-3">三传</h3>
                     <div className="grid grid-cols-3 gap-2">
                         {(['初传', '中传', '末传'] as const).map((label, i) => {
-                            const data = [sanChuan.chu, sanChuan.zhong, sanChuan.mo][i];
+                            const data = sanChuan[i];
                             return (
                                 <div key={label} className={`flex flex-col items-center p-2 rounded-lg border ${SANCHUAN_COLORS[i]} bg-background`}>
                                     <div className="text-xs text-foreground-secondary">{label}</div>
-                                    <div className="text-lg font-bold text-foreground">{data[0]}</div>
-                                    <div className="text-xs text-foreground-secondary">{data[1]}</div>
-                                    <div className="text-xs text-cyan-500">{data[2]}</div>
-                                    {data[3] && <div className="text-xs text-foreground-tertiary">{data[3]}</div>}
+                                    <div className="text-lg font-bold text-foreground">{data?.branch}</div>
+                                    <div className="text-xs text-foreground-secondary">{data?.tianJiang}</div>
+                                    <div className="text-xs text-cyan-500">{data?.liuQin}</div>
+                                    {data?.dunGan && data.dunGan !== '-' && <div className="text-xs text-foreground-tertiary">{data.dunGan}</div>}
                                 </div>
                             );
                         })}
@@ -401,17 +412,12 @@ export default function DaliurenResultPage() {
                     <h3 className="text-sm font-bold text-foreground mb-3">四课</h3>
                     <div className="grid grid-cols-4 gap-1">
                         {(['四课', '三课', '二课', '一课'] as const).map((label) => {
-                            const data: string[] = {
-                                '一课': siKe.yiKe,
-                                '二课': siKe.erKe,
-                                '三课': siKe.sanKe,
-                                '四课': siKe.siKe,
-                            }[label];
+                            const data = siKe.find((item) => item.ke === label);
                             return (
                                 <div key={label} className="flex flex-col items-center p-2 rounded-lg bg-background border border-border/20">
-                                    <div className="text-xs text-cyan-400">{data[1]}</div>
-                                    <div className="text-sm font-bold">{data[0]?.slice(0, 1)}</div>
-                                    <div className="text-xs text-foreground-secondary">{data[0]?.slice(1)}</div>
+                                    <div className="text-xs text-cyan-400">{data?.tianJiang}</div>
+                                    <div className="text-sm font-bold">{data?.upper}</div>
+                                    <div className="text-xs text-foreground-secondary">{data?.lower}</div>
                                     <div className="text-xs text-foreground-tertiary">{label}</div>
                                 </div>
                             );
@@ -422,7 +428,7 @@ export default function DaliurenResultPage() {
                 {/* 天地盘 */}
                 <div className="bg-background-secondary/50 rounded-xl p-4 border border-border/30">
                     <h3 className="text-sm font-bold text-foreground mb-3">天地盘</h3>
-                    <TianDiPanGrid result={result} />
+                    <TianDiPanGrid result={canonicalResult!} />
                 </div>
 
                 {/* 十二宫详情 */}
@@ -454,15 +460,15 @@ export default function DaliurenResultPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {result.gongInfos.map((gong, index) => (
+                                    {gongInfos.map((gong, index) => (
                                         <tr key={`${gong.diZhi}-${index}`} className="border-t border-border/30">
                                             <td className="py-2 px-2">{gong.diZhi}</td>
                                             <td className="py-2 px-2">{gong.tianZhi}</td>
-                                            <td className="py-2 px-2">{gong.tianJiangShort || gong.tianJiang}</td>
+                                            <td className="py-2 px-2">{gong.tianJiang}</td>
                                             <td className="py-2 px-2">{gong.dunGan || '-'}</td>
                                             <td className="py-2 px-2">{gong.changSheng || '-'}</td>
                                             <td className="py-2 px-2">{gong.wuXing || '-'}</td>
-                                            <td className={`py-2 px-2 ${WANG_SHUAI_COLORS[gong.wangShuai] || ''}`}>{gong.wangShuai}</td>
+                                            <td className={`py-2 px-2 ${gong.wangShuai ? WANG_SHUAI_COLORS[gong.wangShuai] || '' : ''}`}>{gong.wangShuai}</td>
                                             <td className="py-2 px-2">{gong.jianChu || '-'}</td>
                                         </tr>
                                     ))}

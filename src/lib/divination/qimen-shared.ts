@@ -49,7 +49,7 @@ export interface QimenOutput {
     globalFormations: string[];
 }
 
-function toCoreQimenOutput(result: QimenOutput & { question?: string }): CoreQimenOutput {
+export function toCoreQimenOutput(result: QimenOutput & { question?: string }): CoreQimenOutput {
     return {
         dateInfo: {
             solarDate: result.solarDate,

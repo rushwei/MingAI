@@ -8,8 +8,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { ZiweiChart } from '@/lib/divination/ziwei';
-import { getBranchIndex, generateZiweiChartText, getTriangleSquare } from '@/lib/divination/ziwei';
+import type { ZiweiCanonicalJSON } from '@mingai/core/json';
+import { getBranchIndex, getTriangleSquare } from '@/lib/divination/ziwei';
 import { getBranchElement, getStemElement, getElementColor } from '@/lib/divination/bazi';
 import { PalaceCard } from '@/components/ziwei/PalaceCard';
 import type { HoroscopeInfo, HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
@@ -18,7 +18,11 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 
 interface ZiweiChartProps {
-    chart: ZiweiChart;
+    canonicalChart: ZiweiCanonicalJSON;
+    copyText: string;
+    showJsonCopy?: boolean;
+    jsonCopied?: boolean;
+    onCopyJson?: () => void;
     horoscopeHighlight?: HoroscopeHighlight;
     horoscopeInfo?: HoroscopeInfo;
 }
@@ -37,37 +41,30 @@ function getBranchElementStyle(branch: string | undefined): { color: string } | 
 }
 
 
-// 生成命盘文字版本（复用 lib/ziwei.ts 中的函数，添加流年信息）
-function generateChartText(chart: ZiweiChart, horoscopeInfo?: HoroscopeInfo): string {
-    let text = generateZiweiChartText(chart);
-
-    // 添加当前选中的流年信息
-    if (horoscopeInfo?.yearly) {
-        text += `\n\n【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`;
-    }
-
-    return text;
-}
-
-
 /**
  * 紫微斗数命盘 12 宫位图
  */
-export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }: ZiweiChartProps) {
-    const lifePalaceIndex = chart.palaces.findIndex(p => p.name === '命宫');
-    const bodyPalaceIndex = chart.palaces.findIndex(p => p.isBodyPalace);
-
+export function ZiweiChartGrid({
+    canonicalChart,
+    copyText,
+    showJsonCopy = false,
+    jsonCopied = false,
+    onCopyJson,
+    horoscopeHighlight = {},
+    horoscopeInfo,
+}: ZiweiChartProps) {
+    const lifePalaceIndex = canonicalChart.palaces.find(p => p.name === '命宫')?.index ?? null;
     // 默认选中命宫，显示三方四正
     const [selectedPalace, setSelectedPalace] = useState<number | null | undefined>(undefined);
     const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
     const [copied, setCopied] = useState(false);
     const { showToast } = useToast();
 
-    const defaultSelectedPalace = lifePalaceIndex >= 0 ? lifePalaceIndex : null;
+    const defaultSelectedPalace = typeof lifePalaceIndex === 'number' && lifePalaceIndex >= 0 ? lifePalaceIndex : null;
     const activeSelectedPalace = selectedPalace === undefined ? defaultSelectedPalace : selectedPalace;
 
-    const getPalaceByBranch = (branchIndex: number) => {
-        return chart.palaces.find(p => getBranchIndex(p.earthlyBranch) === branchIndex);
+    const getCanonicalPalaceByBranch = (branchIndex: number) => {
+        return canonicalChart.palaces.find((p) => getBranchIndex(p.ganZhi.slice(-1)) === branchIndex);
     };
 
     // 计算三方四正高亮
@@ -85,9 +82,8 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
     // 复制命盘
     const handleCopy = async () => {
-        const text = generateChartText(chart, horoscopeInfo);
         try {
-            await navigator.clipboard.writeText(text);
+            await navigator.clipboard.writeText(copyText);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
@@ -135,10 +131,9 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
         [2, 1, 0, 11],
     ];
 
-    const lifePalaceBranch = chart.palaces[lifePalaceIndex]?.earthlyBranch || '';
-    const bodyPalaceBranch = chart.palaces[bodyPalaceIndex]?.earthlyBranch || '';
-    const scholarStarSummary = chart.scholarStars?.slice(0, 6) || [];
-    const smallLimitSummary = chart.smallLimit?.slice(0, 4) || [];
+    const lifePalaceBranch = canonicalChart.palaces.find((p) => p.name === '命宫')?.ganZhi.slice(-1) || '';
+    const bodyPalaceBranch = canonicalChart.palaces.find((p) => p.isBodyPalace)?.ganZhi.slice(-1) || '';
+    const smallLimitSummary = canonicalChart.smallLimit?.slice(0, 4) || [];
 
     return (
         <div className="w-full">
@@ -153,6 +148,17 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                 >
                     {copied ? '已复制' : '复制排盘'}
                 </button>
+                {showJsonCopy && onCopyJson && (
+                    <button
+                        onClick={onCopyJson}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${jsonCopied
+                            ? 'bg-green-500/10 text-green-500'
+                            : 'bg-background-secondary text-foreground-secondary hover:bg-background-tertiary'
+                            }`}
+                    >
+                        {jsonCopied ? 'JSON 已复制' : '复制 JSON'}
+                    </button>
+                )}
                 <button
                     onClick={() => setShowAdjStars(!showAdjStars)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${showAdjStars
@@ -173,7 +179,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                         preserveAspectRatio="none"
                     >
                         {(() => {
-                            const selectedPalaceInfo = chart.palaces[activeSelectedPalace];
+                            const selectedPalaceInfo = canonicalChart.palaces.find((palace) => palace.index === activeSelectedPalace);
                             if (!selectedPalaceInfo) return null;
                             // 宫位在网格中的位置映射 (branchIndex -> {row, col})
                             const positionMap: Record<number, { row: number; col: number }> = {
@@ -183,7 +189,7 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                 2: { row: 3, col: 0 }, 1: { row: 3, col: 1 }, 0: { row: 3, col: 2 }, 11: { row: 3, col: 3 },
                             };
 
-                            const selectedBranch = getBranchIndex(selectedPalaceInfo.earthlyBranch);
+                            const selectedBranch = getBranchIndex(selectedPalaceInfo.ganZhi.slice(-1));
                             const selectedPos = positionMap[selectedBranch];
                             if (!selectedPos) return null;
 
@@ -219,9 +225,9 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                             const startPoint = getAnchorPoint(selectedPos);
                             sanFangIndexes.forEach((palaceIdx, i) => {
                                 if (palaceIdx === activeSelectedPalace) return;
-                                const palaceInfo = chart.palaces[palaceIdx];
+                                const palaceInfo = canonicalChart.palaces.find((palace) => palace.index === palaceIdx);
                                 if (!palaceInfo) return;
-                                const branch = getBranchIndex(palaceInfo.earthlyBranch);
+                                const branch = getBranchIndex(palaceInfo.ganZhi.slice(-1));
                                 const targetPos = positionMap[branch];
                                 if (!targetPos) return;
 
@@ -262,29 +268,29 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">年柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(chart.yearStem)}>{chart.yearStem || '*'}</span>
-                                                            <span style={getBranchElementStyle(chart.yearBranch)}>{chart.yearBranch || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">月柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(chart.monthStem)}>{chart.monthStem || '*'}</span>
-                                                            <span style={getBranchElementStyle(chart.monthBranch)}>{chart.monthBranch || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">日柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(chart.dayStem)}>{chart.dayStem || '*'}</span>
-                                                            <span style={getBranchElementStyle(chart.dayBranch)}>{chart.dayBranch || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">时柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(chart.hourStem)}>{chart.hourStem || '*'}</span>
-                                                            <span style={getBranchElementStyle(chart.hourBranch)}>{chart.hourBranch || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -293,23 +299,18 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
 
                                                 <div className="flex justify-center gap-2 text-xs">
                                                     <span className="text-foreground-secondary">阳历</span>
-                                                    <span>{chart.solarDate}</span>
+                                                    <span>{canonicalChart.basicInfo.solarDate}</span>
                                                 </div>
                                                 <div className="flex justify-center gap-2 text-xs">
                                                     <span className="text-foreground-secondary">农历</span>
-                                                    <span>{chart.lunarDate}</span>
+                                                    <span>{canonicalChart.basicInfo.lunarDate}</span>
                                                 </div>
 
                                                 <div className="border-t border-border my-1" />
 
                                                 <div className="flex justify-center gap-4 text-xs">
-                                                    <span>属相：{chart.zodiac}</span>
-                                                    <span>星座：{chart.sign}</span>
-                                                </div>
-
-                                                <div className="flex justify-center gap-4 text-xs">
-                                                    <span>命主：<span className="font-semibold text-purple-500">{chart.soul}</span></span>
-                                                    <span>身主：<span className="font-semibold">{chart.body}</span></span>
+                                                    <span>命主：<span className="font-semibold text-purple-500">{canonicalChart.basicInfo.soul}</span></span>
+                                                    <span>身主：<span className="font-semibold">{canonicalChart.basicInfo.body}</span></span>
                                                 </div>
 
                                                 <div className="flex justify-center gap-4 text-xs">
@@ -318,15 +319,15 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-1 text-[10px] text-center">
-                                                    {chart.douJun && <span>斗君：{chart.douJun}</span>}
-                                                    {chart.lifeMasterStar && <span>命主星：{chart.lifeMasterStar}</span>}
-                                                    {chart.bodyMasterStar && <span>身主星：{chart.bodyMasterStar}</span>}
-                                                    {chart.trueSolarTimeInfo && <span>真太阳时：{chart.trueSolarTimeInfo.trueSolarTime}</span>}
+                                                    {canonicalChart.basicInfo.douJun && <span>斗君：{canonicalChart.basicInfo.douJun}</span>}
+                                                    {canonicalChart.basicInfo.lifeMasterStar && <span>命主星：{canonicalChart.basicInfo.lifeMasterStar}</span>}
+                                                    {canonicalChart.basicInfo.bodyMasterStar && <span>身主星：{canonicalChart.basicInfo.bodyMasterStar}</span>}
+                                                    {canonicalChart.basicInfo.trueSolarTime && <span>真太阳时：{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}</span>}
                                                 </div>
 
                                                 <div className="text-center">
                                                     <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
-                                                        {chart.fiveElement}
+                                                        {canonicalChart.basicInfo.fiveElement}
                                                     </span>
                                                 </div>
                                             </div>
@@ -336,10 +337,10 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                                 return null;
                             }
 
-                            const palace = getPalaceByBranch(branchIdx);
-                            if (!palace) return null;
+                            const palace = getCanonicalPalaceByBranch(branchIdx);
+                            if (!palace || typeof palace.index !== 'number') return null;
 
-                            const palaceIndex = chart.palaces.indexOf(palace);
+                            const palaceIndex = palace.index;
                             const isLifePalace = palaceIndex === lifePalaceIndex;
                             const highlightTypes = getHighlightTypes(palaceIndex);
                             const isHighlighted = highlightTypes.length > 0 || sanFangSiZhengPalaces.includes(palaceIndex);
@@ -366,34 +367,20 @@ export function ZiweiChartGrid({ chart, horoscopeHighlight = {}, horoscopeInfo }
                 </div>
             </div>
 
-            {(scholarStarSummary.length > 0 || smallLimitSummary.length > 0) && (
+            {smallLimitSummary.length > 0 && (
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    {scholarStarSummary.length > 0 && (
-                        <section className="rounded-xl border border-border bg-background-secondary p-3">
-                            <div className="mb-2 text-xs font-medium text-foreground-secondary">博士十二星</div>
-                            <div className="flex flex-wrap gap-1.5 text-xs">
-                                {scholarStarSummary.map((item) => (
-                                    <span key={`${item.starName}-${item.palaceName}`} className="rounded-full border border-border bg-background px-2 py-1">
-                                        {item.starName} · {item.palaceName}
-                                    </span>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-                    {smallLimitSummary.length > 0 && (
-                        <section className="rounded-xl border border-border bg-background-secondary p-3">
-                            <div className="mb-2 text-xs font-medium text-foreground-secondary">小限 / 流年</div>
-                            <div className="space-y-1.5 text-xs">
-                                {smallLimitSummary.map((item) => (
-                                    <div key={item.palaceName} className="flex items-start justify-between gap-3">
-                                        <span className="text-foreground-secondary">{item.palaceName}</span>
-                                        <span className="text-right">{item.ages.slice(0, 5).join('、')}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-2 text-[11px] text-foreground-tertiary">宫位卡片中继续展示神煞与流年标记。</div>
-                        </section>
-                    )}
+                    <section className="rounded-xl border border-border bg-background-secondary p-3">
+                        <div className="mb-2 text-xs font-medium text-foreground-secondary">小限 / 流年</div>
+                        <div className="space-y-1.5 text-xs">
+                            {smallLimitSummary.map((item) => (
+                                <div key={item.palaceName} className="flex items-start justify-between gap-3">
+                                    <span className="text-foreground-secondary">{item.palaceName}</span>
+                                    <span className="text-right">{item.ages.slice(0, 5).join('、')}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-2 text-[11px] text-foreground-tertiary">宫位卡片中继续展示神煞与流年标记。</div>
+                    </section>
                 </div>
             )}
         </div >

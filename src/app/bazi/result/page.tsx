@@ -14,6 +14,7 @@ import {
     calculateProfessionalData,
     calculateLiuYue,
     calculateLiuRi,
+    buildBaziCanonicalJSON,
     generateBaziChartText,
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
@@ -33,6 +34,7 @@ import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { getMembershipInfo } from '@/lib/user/membership';
 import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 // 结果内容组件
 function BaziResultContent() {
@@ -205,6 +207,11 @@ function BaziResultContent() {
             return null;
         }
     }, [formData, currentYear]);
+    const canonicalBazi = useMemo(() => {
+        if (!baziResult) return null;
+        return buildBaziCanonicalJSON(baziResult);
+    }, [baziResult]);
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalBazi);
 
     // 初始化选中的大运和流年
     useEffect(() => {
@@ -408,6 +415,12 @@ function BaziResultContent() {
                 icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
                 onClick: handleCopy,
             },
+            ...(isAdmin && canonicalBazi ? [{
+                id: 'copy-json',
+                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void copyJson(); },
+            }] : []),
             {
                 id: 'share',
                 label: '分享',
@@ -418,7 +431,7 @@ function BaziResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [saving, saved, copied, setMenuItems, clearMenuItems]);
+    }, [saving, saved, copied, isAdmin, canonicalBazi, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
 
     // 选择大运 - 同时更新流年到该大运第一年
     const handleSelectDaYun = (index: number) => {
@@ -475,7 +488,7 @@ function BaziResultContent() {
         return <SoundWaveLoader variant="block" text="正在加载命盘" />;
     }
 
-    if (!baziResult || !proData) {
+    if (!baziResult || !proData || !canonicalBazi) {
         return (
             <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <p className="text-foreground-secondary">八字计算出错，请返回重新输入</p>
@@ -486,7 +499,7 @@ function BaziResultContent() {
         );
     }
 
-    const dayMasterDescription = getDayMasterDescription(baziResult.dayMaster);
+    const dayMasterDescription = getDayMasterDescription(canonicalBazi.basicInfo.dayMaster as Parameters<typeof getDayMasterDescription>[0]);
 
     return (
         <div className="max-w-4xl mx-auto md:px-2 md:py-6 py-2 animate-fade-in">
@@ -495,16 +508,19 @@ function BaziResultContent() {
                 saving={saving}
                 saved={saved}
                 copied={copied}
+                jsonCopied={jsonCopied}
+                showJsonCopy={isAdmin && !!canonicalBazi}
                 onEdit={handleEdit}
                 onSave={handleSave}
                 onCopy={handleCopy}
+                onCopyJson={() => { void copyJson(); }}
                 onShare={handleShare}
             />
 
             <ProfileSummaryCard
                 formData={formData}
                 isUnknownTime={isUnknownTime}
-                dayMaster={baziResult.dayMaster}
+                canonicalChart={canonicalBazi}
             />
 
             <ResultTabs activeTab={activeTab} onChange={setActiveTab} />
@@ -512,7 +528,7 @@ function BaziResultContent() {
             {/* 基本信息 */}
             {activeTab === 'basic' && (
                 <BasicInfoSection
-                    baziResult={baziResult}
+                    canonicalChart={canonicalBazi}
                     dayMasterDescription={dayMasterDescription}
                     chartId={chartId}
                     userId={userId}
@@ -558,7 +574,7 @@ function BaziResultContent() {
             {/* 专业排盘 */}
             {activeTab === 'professional' && (
                 <ProfessionalSection
-                    baziResult={baziResult}
+                    canonicalChart={canonicalBazi}
                     proData={proData}
                     isUnknownTime={isUnknownTime}
                     selectedDaYunIndex={selectedDaYunIndex}

@@ -8,8 +8,8 @@
 'use client';
 
 import { useState } from 'react';
+import type { BaziCanonicalJSON } from '@mingai/core/json';
 import {
-    calculateBazi,
     getElementColor,
     STEM_ELEMENTS,
     BRANCH_ELEMENTS,
@@ -67,7 +67,7 @@ interface FortuneColumn {
 }
 
 export function ProfessionalTable({
-    baziResult,
+    canonicalChart,
     isUnknownTime = false,
     // 运势信息 - 新增
     activeDaYun,
@@ -75,7 +75,7 @@ export function ProfessionalTable({
     activeLiuYue,
     activeLiuRi,
 }: {
-    baziResult: ReturnType<typeof calculateBazi>;
+    canonicalChart: BaziCanonicalJSON;
     isUnknownTime?: boolean;
     // 运势信息 - 新增
     activeDaYun?: DaYunInfo;
@@ -84,7 +84,6 @@ export function ProfessionalTable({
     activeLiuRi?: LiuRiInfo;
 }) {
     const [shenShaExpanded, setShenShaExpanded] = useState(false);
-    const kongWang = baziResult.kongWang;
 
     // 构建运势柱列表（左侧列）
     const fortuneColumns: FortuneColumn[] = [];
@@ -149,12 +148,19 @@ export function ProfessionalTable({
         });
     }
 
-    const columns = [
-        { key: 'year', label: '年柱', pillar: baziResult.fourPillars.year, shiShen: baziResult.fourPillars.year.tenGod || '', hidden: false },
-        { key: 'month', label: '月柱', pillar: baziResult.fourPillars.month, shiShen: baziResult.fourPillars.month.tenGod || '', hidden: false },
-        { key: 'day', label: '日柱', pillar: baziResult.fourPillars.day, shiShen: baziResult.gender === 'male' ? '元男' : '元女', hidden: false },
-        { key: 'hour', label: '时柱', pillar: baziResult.fourPillars.hour, shiShen: baziResult.fourPillars.hour.tenGod || '', hidden: isUnknownTime },
-    ];
+    const columns = canonicalChart.fourPillars.map((pillar, index) => {
+        const stem = pillar.ganZhi.charAt(0);
+        const branch = pillar.ganZhi.charAt(1);
+        return {
+            key: ['year', 'month', 'day', 'hour'][index] || `pillar-${index}`,
+            label: pillar.pillar,
+            pillar,
+            stem,
+            branch,
+            shiShen: index === 2 ? (canonicalChart.basicInfo.gender === '男' ? '元男' : '元女') : (pillar.tenGod || ''),
+            hidden: isUnknownTime && index === 3,
+        };
+    });
 
     const hasShenSha = columns.some(col => (col.pillar.shenSha || []).length > 0)
         || fortuneColumns.some(col => col.shenSha.length > 0);
@@ -233,9 +239,9 @@ export function ProfessionalTable({
                             <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
                                 <span
                                     className="text-xl sm:text-2xl font-bold"
-                                    style={{ color: col.hidden ? undefined : getElementColor(col.pillar.stemElement) }}
+                                    style={{ color: col.hidden ? undefined : getStemColor(col.stem) }}
                                 >
-                                    {col.hidden ? '*' : col.pillar.stem}
+                                    {col.hidden ? '*' : col.stem}
                                 </span>
                             </td>
                         ))}
@@ -257,9 +263,9 @@ export function ProfessionalTable({
                             <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
                                 <span
                                     className="text-xl sm:text-2xl font-bold"
-                                    style={{ color: col.hidden ? undefined : getElementColor(col.pillar.branchElement) }}
+                                    style={{ color: col.hidden ? undefined : getBranchColor(col.branch) }}
                                 >
-                                    {col.hidden ? '*' : col.pillar.branch}
+                                    {col.hidden ? '*' : col.branch}
                                 </span>
                             </td>
                         ))}
@@ -299,7 +305,7 @@ export function ProfessionalTable({
                                     <span className="text-xs">*</span>
                                 ) : (
                                     <div className="flex flex-col items-center gap-0.5">
-                                        {(col.pillar.hiddenStemDetails || []).map((stem, idx) => {
+                                        {(col.pillar.hiddenStems || []).map((stem, idx) => {
                                             const element = STEM_ELEMENTS[stem.stem as HeavenlyStem];
                                             const detailLabel = stem.tenGod || '';
                                             return (
@@ -354,39 +360,6 @@ export function ProfessionalTable({
                                 {col.hidden ? '?' : (col.pillar.naYin || '-')}
                             </td>
                         ))}
-                    </tr>
-                    {/* 空亡行 */}
-                    <tr className="border-b border-border/50">
-                        <td className="py-2 px-0.5 sm:px-1 max-sm:text-center text-foreground-secondary text-xs sticky left-0 z-20 bg-background/90 backdrop-blur-md border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-                            title={kongWang ? `${kongWang.xun}空${kongWang.kongBranches.join('')}` : undefined}
-                        >空亡</td>
-                        {fortuneColumns.map((col) => {
-                            const isKong = Boolean(kongWang?.kongBranches.includes(col.branch as EarthlyBranch));
-                            return (
-                                <td key={col.key} className="py-2 px-0.5 sm:px-1 text-center text-xs">
-                                    {isKong ? (
-                                        <span className="text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded">空</span>
-                                    ) : (
-                                        <span className="text-foreground-secondary/50">-</span>
-                                    )}
-                                </td>
-                            );
-                        })}
-                        {columns.map((col, idx) => {
-                            // 日支不查空亡
-                            const isKong = col.key !== 'day' && Boolean(col.pillar.kongWang?.isKong);
-                            return (
-                                <td key={col.key} className={`py-2 px-0.5 sm:px-1 text-center text-xs ${col.hidden ? 'opacity-40' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border' : ''}`}>
-                                    {col.hidden ? '?' : col.key === 'day' ? (
-                                        <span className="text-foreground-secondary/50" title={kongWang?.xun}>{kongWang?.kongBranches.join('') || '-'}</span>
-                                    ) : isKong ? (
-                                        <span className="text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded">空</span>
-                                    ) : (
-                                        <span className="text-foreground-secondary/50">-</span>
-                                    )}
-                                </td>
-                            );
-                        })}
                     </tr>
                     {/* 神煞星行 */}
                     {hasShenSha && (

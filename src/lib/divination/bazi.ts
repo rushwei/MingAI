@@ -14,9 +14,10 @@ import {
     calculateBaziLiuRiData,
     calculateBaziLiuYueData,
     calculateBaziShenShaData,
-    type BaziOutput as CoreBaziOutput,
 } from '@mingai/core/bazi';
+import type { BaziOutput as CoreBaziOutput } from '@mingai/core';
 import { calculateDayunData } from '@mingai/core/dayun';
+import { renderBaziCanonicalJSON } from '@mingai/core/json';
 import { renderBaziCanonicalText } from '@mingai/core/text';
 import {
     TIAN_GAN as CORE_TIAN_GAN,
@@ -684,14 +685,13 @@ export function calculateLiuRi(startDate: string, endDate: string, formData?: Ba
     }));
 }
 
-/**
- * 生成八字命盘文字版本（用于AI分析和复制）
- * @param chart 八字命盘数据（自动计算大运）
- */
-export function generateBaziChartText(
-    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
-): string {
-    const coreChart: CoreBaziOutput = {
+function normalizeQiType(qiType?: string): '本气' | '中气' | '余气' {
+    if (qiType === '中气' || qiType === '余气') return qiType;
+    return '本气';
+}
+
+function toCoreBaziOutput(chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>): CoreBaziOutput {
+    return {
         gender: chart.gender,
         birthPlace: chart.birthPlace,
         dayMaster: chart.dayMaster,
@@ -704,9 +704,9 @@ export function generateBaziChartText(
                 stem: chart.fourPillars.year.stem,
                 branch: chart.fourPillars.year.branch,
                 tenGod: chart.fourPillars.year.tenGod,
-                hiddenStems: (chart.fourPillars.year.hiddenStemDetails || chart.fourPillars.year.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                hiddenStems: (chart.fourPillars.year.hiddenStemDetails || chart.fourPillars.year.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
                     stem: item.stem,
-                    qiType: item.qiType || '',
+                    qiType: normalizeQiType(item.qiType),
                     tenGod: item.tenGod || '',
                 })),
                 naYin: chart.fourPillars.year.naYin,
@@ -718,9 +718,9 @@ export function generateBaziChartText(
                 stem: chart.fourPillars.month.stem,
                 branch: chart.fourPillars.month.branch,
                 tenGod: chart.fourPillars.month.tenGod,
-                hiddenStems: (chart.fourPillars.month.hiddenStemDetails || chart.fourPillars.month.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                hiddenStems: (chart.fourPillars.month.hiddenStemDetails || chart.fourPillars.month.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
                     stem: item.stem,
-                    qiType: item.qiType || '',
+                    qiType: normalizeQiType(item.qiType),
                     tenGod: item.tenGod || '',
                 })),
                 naYin: chart.fourPillars.month.naYin,
@@ -731,9 +731,9 @@ export function generateBaziChartText(
             day: {
                 stem: chart.fourPillars.day.stem,
                 branch: chart.fourPillars.day.branch,
-                hiddenStems: (chart.fourPillars.day.hiddenStemDetails || chart.fourPillars.day.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                hiddenStems: (chart.fourPillars.day.hiddenStemDetails || chart.fourPillars.day.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
                     stem: item.stem,
-                    qiType: item.qiType || '',
+                    qiType: normalizeQiType(item.qiType),
                     tenGod: item.tenGod || '',
                 })),
                 naYin: chart.fourPillars.day.naYin,
@@ -745,9 +745,9 @@ export function generateBaziChartText(
                 stem: chart.fourPillars.hour.stem,
                 branch: chart.fourPillars.hour.branch,
                 tenGod: chart.fourPillars.hour.tenGod,
-                hiddenStems: (chart.fourPillars.hour.hiddenStemDetails || chart.fourPillars.hour.hiddenStems.map((stem) => ({ stem }))).map((item) => ({
+                hiddenStems: (chart.fourPillars.hour.hiddenStemDetails || chart.fourPillars.hour.hiddenStems.map((stem) => ({ stem, qiType: '本气' as const, tenGod: '' }))).map((item) => ({
                     stem: item.stem,
-                    qiType: item.qiType || '',
+                    qiType: normalizeQiType(item.qiType),
                     tenGod: item.tenGod || '',
                 })),
                 naYin: chart.fourPillars.hour.naYin,
@@ -757,14 +757,42 @@ export function generateBaziChartText(
             },
         },
         relations: chart.relations || [],
-        tianGanWuHe: chart.tianGanWuHe || [],
-        tianGanChongKe: chart.tianGanChongKe || [],
+        tianGanWuHe: (chart.tianGanWuHe || []).map((item) => ({
+            ...item,
+            positions: [
+                item.positions[0] ?? '年支',
+                item.positions[1] ?? item.positions[0] ?? '年支',
+            ] as ['年支' | '月支' | '日支' | '时支', '年支' | '月支' | '日支' | '时支'],
+        })),
+        tianGanChongKe: (chart.tianGanChongKe || []).map((item) => ({
+            ...item,
+            positions: [
+                item.positions[0] ?? '年支',
+                item.positions[1] ?? item.positions[0] ?? '年支',
+            ] as ['年支' | '月支' | '日支' | '时支', '年支' | '月支' | '日支' | '时支'],
+        })),
         diZhiBanHe: chart.diZhiBanHe || [],
         diZhiSanHui: chart.diZhiSanHui || [],
         taiYuan: chart.taiYuan,
         mingGong: chart.mingGong,
         trueSolarTimeInfo: chart.trueSolarTimeInfo,
     };
+}
+
+export function buildBaziCanonicalJSON(
+    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+) {
+    return renderBaziCanonicalJSON(toCoreBaziOutput(chart));
+}
+
+/**
+ * 生成八字命盘文字版本（用于AI分析和复制）
+ * @param chart 八字命盘数据（自动计算大运）
+ */
+export function generateBaziChartText(
+    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+): string {
+    const coreChart = toCoreBaziOutput(chart);
 
     let dayun;
     try {
@@ -777,7 +805,7 @@ export function generateBaziChartText(
             birthDay: day,
             birthHour: hour,
             birthMinute: minute || 0,
-            calendarType: chart.calendarType,
+            calendarType: chart.calendarType === 'lunar' ? 'lunar' : 'solar',
             isLeapMonth: chart.isLeapMonth,
         });
     } catch {

@@ -24,6 +24,7 @@ import {
     getHexagramContext,
 } from '@/lib/divination/liuyao';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
+import { renderLiuyaoCanonicalJSON } from '@mingai/core/json';
 import { renderLiuyaoCanonicalText } from '@mingai/core/text';
 
 // 从 core 导入并 re-export 共享常量
@@ -171,13 +172,59 @@ export function buildTraditionalInfo(
 ): string {
     if (!yaos || yaos.length !== 6) return '';
 
+    return renderLiuyaoCanonicalText(buildTraditionalCoreResult(
+        yaos,
+        hexagramCode,
+        changedCode,
+        question,
+        date,
+        yongShenTargets,
+        hexagram,
+        changedHexagram,
+    ));
+}
+
+export function buildTraditionalCanonicalJSON(
+    yaos: Yao[] | undefined,
+    hexagramCode: string,
+    changedCode: string | undefined,
+    question: string,
+    date: Date,
+    yongShenTargets: LiuQin[],
+    hexagram: Hexagram,
+    changedHexagram?: Hexagram,
+) {
+    if (!yaos || yaos.length !== 6) return null;
+
+    return renderLiuyaoCanonicalJSON(buildTraditionalCoreResult(
+        yaos,
+        hexagramCode,
+        changedCode,
+        question,
+        date,
+        yongShenTargets,
+        hexagram,
+        changedHexagram,
+    ));
+}
+
+function buildTraditionalCoreResult(
+    yaos: Yao[],
+    hexagramCode: string,
+    changedCode: string | undefined,
+    question: string,
+    date: Date,
+    yongShenTargets: LiuQin[],
+    hexagram: Hexagram,
+    changedHexagram?: Hexagram,
+) {
     const analysis = performFullAnalysis(yaos, hexagramCode, changedCode, question, date, { yongShenTargets });
     const hexText = getHexagramText(hexagram.name);
     const changedHexText = changedHexagram ? getHexagramText(changedHexagram.name) : undefined;
     const derived = calculateDerivedHexagrams(hexagramCode);
     const baseCtx = getHexagramContext(hexagramCode);
     const changedCtx = changedCode ? getHexagramContext(changedCode) : undefined;
-    return renderLiuyaoCanonicalText({
+    return {
         question,
         hexagramName: hexagram.name,
         hexagramGong: baseCtx.palace?.name || '',
@@ -204,9 +251,9 @@ export function buildTraditionalInfo(
         sanHeAnalysis: analysis.sanHeAnalysis,
         warnings: analysis.warnings,
         timeRecommendations: analysis.timeRecommendations,
-        nuclearHexagram: analysis.nuclearHexagram ?? derived.nuclearHexagram,
-        oppositeHexagram: analysis.oppositeHexagram ?? derived.oppositeHexagram,
-        reversedHexagram: analysis.reversedHexagram ?? derived.reversedHexagram,
-        guaShen: analysis.guaShen ?? calculateGuaShen(hexagramCode),
-    });
+        nuclearHexagram: derived.nuclearHexagram,
+        oppositeHexagram: derived.oppositeHexagram,
+        reversedHexagram: derived.reversedHexagram,
+        guaShen: calculateGuaShen(hexagramCode),
+    };
 }

@@ -7,10 +7,11 @@
  */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sparkles, RotateCw, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
+import { renderQimenCanonicalJSON } from '@mingai/core/json';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
@@ -26,9 +27,10 @@ import { supabase } from '@/lib/auth';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
-import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
+import { generateQimenResultText, toCoreQimenOutput, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 /** 五行旺衰图例 */
 const PHASE_LEGEND = [
@@ -66,6 +68,11 @@ export default function QimenResultPage() {
     const [copied, setCopied] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
+    const canonicalResult = useMemo(
+        () => (result ? renderQimenCanonicalJSON(toCoreQimenOutput(result)) : null),
+        [result]
+    );
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     useEffect(() => {
         const init = async () => {
@@ -124,10 +131,16 @@ export default function QimenResultPage() {
                 icon: <RotateCw className="w-4 h-4" />,
                 onClick: () => router.push('/qimen'),
             },
+            ...(isAdmin && canonicalResult ? [{
+                id: 'copy-json',
+                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void copyJson(); },
+            }] : []),
         ];
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [router, setMenuItems, clearMenuItems]);
+    }, [router, isAdmin, canonicalResult, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
 
     // 从历史记录查看时，恢复之前的 AI 解读
     useEffect(() => {
@@ -246,12 +259,12 @@ export default function QimenResultPage() {
                 </div>
 
                 {/* 占事 */}
-                {result.question && (
+                {(canonicalResult?.basicInfo.question || result.question) && (
                     <div className="text-center mb-4">
                         <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
                             <Sparkles className="w-4 h-4 text-indigo-400" />
                             <span className="text-xs text-foreground-secondary">占事</span>
-                            <span className="text-foreground font-medium">{result.question}</span>
+                            <span className="text-foreground font-medium">{canonicalResult?.basicInfo.question || result.question}</span>
                         </div>
                     </div>
                 )}
@@ -278,23 +291,31 @@ export default function QimenResultPage() {
                             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                             <span>{copied ? '已复制' : '复制'}</span>
                         </button>
+                        {isAdmin && canonicalResult && (
+                            <button
+                                onClick={() => { void copyJson(); }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                                title="复制 canonical JSON"
+                            >
+                                {jsonCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                <span>{jsonCopied ? 'JSON 已复制' : '复制 JSON'}</span>
+                            </button>
+                        )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm text-foreground-secondary">
-                        <span>{result.solarDate}</span>
-                        <span>{result.lunarDate}</span>
-                        <span>{result.panTypeLabel} - {result.juMethodLabel}</span>
-                        <span>{result.solarTermRange}</span>
+                        <span>{canonicalResult?.basicInfo.solarDate}</span>
+                        <span>{canonicalResult?.basicInfo.lunarDate}</span>
+                        <span>{canonicalResult?.basicInfo.panType}</span>
+                        <span>{canonicalResult?.basicInfo.solarTermRange}</span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm mt-2">
                         <span className="text-foreground">
-                            四柱：{result.fourPillars.year} {result.fourPillars.month} {result.fourPillars.day} {result.fourPillars.hour}
+                            四柱：{canonicalResult?.basicInfo.fourPillars}
                         </span>
-                        <span className="text-foreground-secondary">旬首：{result.xunShou}</span>
+                        <span className="text-foreground-secondary">旬首：{canonicalResult?.basicInfo.xunShou}</span>
                         <span className="text-foreground-secondary">
-                            {result.dunType === 'yang' ? '阳遁' : '阴遁'}{result.juNumber}局
+                            {canonicalResult?.basicInfo.ju}
                         </span>
-                        <span className="text-foreground-secondary">值符：{result.zhiFu}</span>
-                        <span className="text-foreground-secondary">值使：{result.zhiShi}</span>
                     </div>
                 </div>
 
@@ -311,10 +332,9 @@ export default function QimenResultPage() {
                 {/* 九宫格 */}
                 <div className="mb-6">
                     <QimenGrid
-                        palaces={result.palaces}
-                        monthPhase={result.monthPhase}
-                        juNumber={result.juNumber}
-                        dunType={result.dunType}
+                        palaces={canonicalResult?.palaces || []}
+                        monthPhaseMap={canonicalResult?.monthPhaseMap}
+                        ju={canonicalResult?.basicInfo.ju || ''}
                     />
                 </div>
 

@@ -1,4 +1,4 @@
-import type { PalaceInfo } from '@/lib/divination/ziwei';
+import type { ZiweiPalaceJSON } from '@mingai/core/json';
 import { StarBadge } from '@/components/ziwei/StarBadge';
 
 interface FlowInfo {
@@ -9,7 +9,7 @@ interface FlowInfo {
 }
 
 interface PalaceCardProps {
-    palace: PalaceInfo;
+    palace: ZiweiPalaceJSON;
     isSelected?: boolean;
     isLifePalace?: boolean;
     isHighlighted?: boolean;
@@ -47,9 +47,7 @@ export function PalaceCard({
     flowInfo,
     onClick
 }: PalaceCardProps) {
-    const shenSha = [palace.changsheng12, palace.boshi12, palace.jiangqian12, palace.suiqian12]
-        .filter((value): value is string => Boolean(value))
-        .join('、');
+    const shenSha = palace.shenSha.join('、');
     const flowSummary = [
         palace.ages?.length ? `小限 ${palace.ages.slice(0, 3).join('、')}` : null,
         palace.liuNianAges?.length ? `流年 ${palace.liuNianAges.slice(0, 3).join('、')}` : null,
@@ -114,22 +112,22 @@ export function PalaceCard({
                     )}
                 </span>
                 <span className="text-[10px] text-foreground-secondary">
-                    {palace.heavenlyStem}{palace.earthlyBranch}
+                    {palace.ganZhi}
                 </span>
             </div>
             {/* 星曜列表 - 主内容区 */}
             <div className="flex-1 flex flex-wrap gap-0.5 content-start">
                 {/* 主星全部显示 */}
                 {palace.majorStars.map((star, idx) => (
-                    <StarBadge key={`major-${idx}`} star={star} size="sm" />
+                    <StarBadge key={`major-${idx}`} star={{ ...star, type: 'major' }} size="sm" />
                 ))}
                 {/* 辅星全部显示 */}
                 {palace.minorStars.map((star, idx) => (
-                    <StarBadge key={`minor-${idx}`} star={star} size="sm" />
+                    <StarBadge key={`minor-${idx}`} star={{ ...star, type: 'minor' }} size="sm" />
                 ))}
                 {/* 杂曜全部显示（受showAdjStars控制） */}
                 {showAdjStars && palace.adjStars?.map((star, idx) => (
-                    <StarBadge key={`adj-${idx}`} star={star} size="sm" />
+                    <StarBadge key={`adj-${idx}`} star={{ ...star, type: 'auxiliary' }} size="sm" />
                 ))}
             </div>
 

@@ -1,14 +1,15 @@
 import { User, MapPinned } from 'lucide-react';
+import type { BaziCanonicalJSON } from '@mingai/core/json';
 import type { BaziFormData } from '@/types';
 
 export function ProfileSummaryCard({
     formData,
     isUnknownTime,
-    dayMaster,
+    canonicalChart,
 }: {
     formData: BaziFormData;
     isUnknownTime: boolean;
-    dayMaster: string;
+    canonicalChart: BaziCanonicalJSON;
 }) {
     const timeText = isUnknownTime
         ? '时辰未知'
@@ -30,13 +31,13 @@ export function ProfileSummaryCard({
                             <span className="ml-2">{timeText}</span>
                         </span>
                         <span>•</span>
-                        <span>日主 {dayMaster}</span>
+                        <span>日主 {canonicalChart.basicInfo.dayMaster}</span>
                     </div>
-                    {formData.birthPlace && (
+                    {canonicalChart.basicInfo.birthPlace && (
                         <div className="text-sm text-foreground-secondary mt-0.5">
                             <span className="inline-flex items-center gap-1">
                                 <MapPinned className="w-4 h-4 text-foreground-secondary" />
-                                {formData.birthPlace}
+                                {canonicalChart.basicInfo.birthPlace}
                             </span>
                         </div>
                     )}

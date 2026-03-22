@@ -5,6 +5,7 @@
  */
 
 import type { TarotOutput as CoreTarotOutput } from '@mingai/core';
+import { renderTarotCanonicalJSON } from '@mingai/core/json';
 import { renderTarotCanonicalText } from '@mingai/core/text';
 import { handleTarotDraw, type TarotCardResult } from '@mingai/core/tarot';
 
@@ -98,6 +99,21 @@ export function generateTarotReadingText(input: {
     numerology?: TarotNumerology | null;
     birthDate?: string | null;
 }): string {
+    const { result, birthDate: normalizedBirthText } = buildTarotCanonicalPayload(input);
+    return renderTarotCanonicalText(result, {
+        birthDate: normalizedBirthText || undefined,
+    });
+}
+
+function buildTarotCanonicalPayload(input: {
+    spreadName: string;
+    spreadId?: string;
+    question?: string | null;
+    cards: unknown;
+    seed?: string;
+    numerology?: TarotNumerology | null;
+    birthDate?: string | null;
+}) {
     const cards = Array.isArray(input.cards) ? input.cards as TarotTextCardLike[] : [];
     const birthDateText = typeof input.birthDate === 'string' ? input.birthDate.trim() : '';
     const normalizedBirth = birthDateText ? parseBirthDateParts(birthDateText) : null;
@@ -129,8 +145,24 @@ export function generateTarotReadingText(input: {
         numerology: input.numerology || undefined,
     };
 
-    return renderTarotCanonicalText(result, {
-        birthDate: normalizedBirthText || undefined,
+    return {
+        result,
+        birthDate: normalizedBirthText,
+    };
+}
+
+export function buildTarotCanonicalJSON(input: {
+    spreadName: string;
+    spreadId?: string;
+    question?: string | null;
+    cards: unknown;
+    seed?: string;
+    numerology?: TarotNumerology | null;
+    birthDate?: string | null;
+}) {
+    const { result, birthDate } = buildTarotCanonicalPayload(input);
+    return renderTarotCanonicalJSON(result, {
+        birthDate: birthDate || undefined,
     });
 }
 

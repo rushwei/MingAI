@@ -256,7 +256,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TarotResp
                             question: question || null,
                             cards: spreadResult.cards,
                         }, spreadMetadata, { selectId: true });
-                        if (!error) readingId = data?.id;
+                        if (!error) readingId = data?.id ?? null;
                     }
                 }
                 return jsonOk({

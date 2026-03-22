@@ -1,9 +1,36 @@
 import { normalizeYongShenTargets, type LiuQin } from './liuyao';
+import type { LiuyaoCanonicalJSON } from '@mingai/core/json';
 
 export type ResultYongShenState = {
     appliedTargets: LiuQin[];
     pendingTargets: LiuQin[];
 };
+
+const YAO_POSITION_MARKERS = [
+    ['初', 1],
+    ['二', 2],
+    ['三', 3],
+    ['四', 4],
+    ['五', 5],
+    ['上', 6],
+] as const;
+
+function normalizeTraditionalYaoPositionLabel(position?: string): string | null {
+    if (typeof position !== 'string') return null;
+    const normalized = position.trim().replace(/爻$/u, '');
+    return normalized || null;
+}
+
+function parseTraditionalYaoPosition(position?: string): number | null {
+    const normalized = normalizeTraditionalYaoPositionLabel(position);
+    if (!normalized) return null;
+
+    for (const [marker, value] of YAO_POSITION_MARKERS) {
+        if (normalized.includes(marker)) return value;
+    }
+
+    return null;
+}
 
 export function resolveResultYongShenTargets(
     resultTargets?: readonly unknown[],
@@ -39,4 +66,25 @@ export function resolveResultYongShenState(
         appliedTargets,
         pendingTargets: normPending,
     };
+}
+
+export function resolveTraditionalYongShenPositions(
+    analysis?: Pick<LiuyaoCanonicalJSON, 'yaos' | 'yongShenAnalysis'> | null,
+): number[] {
+    if (!analysis) return [];
+
+    const positions = new Set<number>();
+
+    for (const group of analysis.yongShenAnalysis) {
+        const normalizedPosition = normalizeTraditionalYaoPositionLabel(group.selected.position);
+        if (!normalizedPosition) continue;
+
+        const visibleYao = analysis.yaos.find((yao) => normalizeTraditionalYaoPositionLabel(yao.position) === normalizedPosition);
+        if (!visibleYao || visibleYao.liuQin !== group.selected.liuQin) continue;
+
+        const numericPosition = parseTraditionalYaoPosition(normalizedPosition);
+        if (numericPosition) positions.add(numericPosition);
+    }
+
+    return [...positions];
 }

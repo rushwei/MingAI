@@ -1,5 +1,6 @@
 import { Calendar, TrendingUp, Sparkles } from 'lucide-react';
-import { calculateBazi, calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo } from '@/lib/divination/bazi';
+import type { BaziCanonicalJSON } from '@mingai/core/json';
+import { calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo } from '@/lib/divination/bazi';
 import { DaYunTable } from '@/components/bazi/result/DaYunTable';
 import { LiuNianTable } from '@/components/bazi/result/LiuNianTable';
 import { LiuYueTable } from '@/components/bazi/result/LiuYueTable';
@@ -7,7 +8,7 @@ import { LiuRiTable } from '@/components/bazi/result/LiuRiTable';
 import { ProfessionalTable } from '@/components/bazi/result/ProfessionalTable';
 
 export function ProfessionalSection({
-    baziResult,
+    canonicalChart,
     proData,
     isUnknownTime = false,
     selectedDaYunIndex,
@@ -23,7 +24,7 @@ export function ProfessionalSection({
     onSelectLiuRi,
     activeLiuYue,
 }: {
-    baziResult: ReturnType<typeof calculateBazi>;
+    canonicalChart: BaziCanonicalJSON;
     proData: ReturnType<typeof calculateProfessionalData>;
     isUnknownTime?: boolean;
     selectedDaYunIndex: number;
@@ -44,27 +45,17 @@ export function ProfessionalSection({
     const activeLiuNian: LiuNianInfo | undefined = currentLiuNian.find(ln => ln.year === selectedLiuNianYear);
     const activeLiuRi: LiuRiInfo | undefined = liuRi.find(lr => lr.date === selectedLiuRiDate);
     const chartMetadata = [
-        baziResult.trueSolarTimeInfo
+        canonicalChart.basicInfo.trueSolarTime
             ? {
                 label: '真太阳时',
-                value: `${baziResult.trueSolarTimeInfo.trueSolarTime}（钟表 ${baziResult.trueSolarTimeInfo.clockTime}）`,
+                value: `${canonicalChart.basicInfo.trueSolarTime.trueSolarTime}（钟表 ${canonicalChart.basicInfo.trueSolarTime.clockTime}）`,
             }
             : null,
-        baziResult.taiYuan ? { label: '胎元', value: baziResult.taiYuan } : null,
-        baziResult.mingGong ? { label: '命宫', value: baziResult.mingGong } : null,
+        canonicalChart.basicInfo.taiYuan ? { label: '胎元', value: canonicalChart.basicInfo.taiYuan } : null,
+        canonicalChart.basicInfo.mingGong ? { label: '命宫', value: canonicalChart.basicInfo.mingGong } : null,
     ].filter((item): item is { label: string; value: string } => Boolean(item));
-
-    const visibleRelations = (baziResult.relations || []).filter((item) => (
-        isUnknownTime ? !item.pillars.includes('时支') : true
-    ));
-
-    const hasGanZhiHighlights = Boolean(
-        baziResult.tianGanChongKe?.length
-        || baziResult.tianGanWuHe?.length
-        || baziResult.diZhiSanHui?.length
-        || baziResult.diZhiBanHe?.length
-        || visibleRelations.length
-    );
+    const relationHighlights = isUnknownTime ? [] : canonicalChart.relations;
+    const hasGanZhiHighlights = relationHighlights.length > 0;
 
     return (
         <div className="sm:space-y-4 space-y-1">
@@ -80,8 +71,7 @@ export function ProfessionalSection({
                             <div className="rounded-lg border border-border bg-background px-3 py-2">
                                 <div className="text-xs text-foreground-secondary mb-1">命主五行</div>
                                 <div className="font-medium">
-                                    {baziResult.dayMaster}
-                                    {baziResult.fourPillars.day.stemElement}
+                                    {canonicalChart.basicInfo.dayMasterElement}
                                 </div>
                             </div>
                             {chartMetadata.map((item) => (
@@ -92,82 +82,21 @@ export function ProfessionalSection({
                             ))}
                         </div>
                         {hasGanZhiHighlights ? (
-                            <div className="space-y-2 text-sm">
-                                {baziResult.tianGanChongKe && baziResult.tianGanChongKe.length > 0 && (
-                                    <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                        <div className="text-xs text-foreground-secondary mb-1">天干冲克</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {baziResult.tianGanChongKe.map((item, index) => (
-                                                <span key={`${item.stemA}-${item.stemB}-${index}`} className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-500">
-                                                    {item.stemA}{item.stemB}冲克 · {item.positions.join('、')}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {baziResult.tianGanWuHe && baziResult.tianGanWuHe.length > 0 && (
-                                    <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                        <div className="text-xs text-foreground-secondary mb-1">天干五合</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {baziResult.tianGanWuHe.map((item, index) => (
-                                                <span key={`${item.stemA}-${item.stemB}-${index}`} className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-600">
-                                                    {item.stemA}{item.stemB}合{item.resultElement} · {item.positions.join('、')}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {visibleRelations.length > 0 && (
-                                    <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                        <div className="text-xs text-foreground-secondary mb-1">地支关系</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {visibleRelations.map((item, index) => {
-                                                const style = item.type === '合'
-                                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                                    : item.type === '冲'
-                                                        ? 'bg-rose-500/10 text-rose-500'
-                                                        : item.type === '刑'
-                                                            ? 'bg-amber-500/10 text-amber-600'
-                                                            : 'bg-violet-500/10 text-violet-500';
-                                                return (
-                                                    <span key={`${item.type}-${index}`} className={`rounded-full px-2 py-1 text-xs ${style}`}>
-                                                        {item.type} · {item.description} · {item.pillars.join('、')}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                                {baziResult.diZhiSanHui && baziResult.diZhiSanHui.length > 0 && (
-                                    <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                        <div className="text-xs text-foreground-secondary mb-1">地支三会</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {baziResult.diZhiSanHui.map((item, index) => (
-                                                <span key={`${item.branches.join('')}-${index}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-500">
-                                                    {item.branches.join('')}三会{item.resultElement}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {baziResult.diZhiBanHe && baziResult.diZhiBanHe.length > 0 && (
-                                    <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                        <div className="text-xs text-foreground-secondary mb-1">地支半合</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {baziResult.diZhiBanHe.map((item, index) => (
-                                                <span key={`${item.branches.join('')}-${index}`} className="rounded-full bg-sky-500/10 px-2 py-1 text-xs text-sky-500">
-                                                    {item.branches.join('')}半合{item.resultElement}{item.missingBranch ? ` · 缺${item.missingBranch}` : ''} · {item.positions.join('、')}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                            <div className="rounded-lg border border-border bg-background px-3 py-2">
+                                <div className="text-xs text-foreground-secondary mb-1">干支关系</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {relationHighlights.map((item, index) => (
+                                        <span key={`${item}-${index}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-500">
+                                            {item}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         ) : null}
                     </div>
                 )}
                 <ProfessionalTable
-                    baziResult={baziResult}
+                    canonicalChart={canonicalChart}
                     isUnknownTime={isUnknownTime}
                     // 运势信息
                     activeDaYun={activeDaYun}

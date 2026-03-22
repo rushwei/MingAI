@@ -7,18 +7,24 @@ export function ResultHeader({
     saving,
     saved,
     copied,
+    jsonCopied,
+    showJsonCopy = false,
     onEdit,
     onSave,
     onCopy,
+    onCopyJson,
     onShare,
 }: {
     chartId: string | null;
     saving: boolean;
     saved: boolean;
     copied: boolean;
+    jsonCopied?: boolean;
+    showJsonCopy?: boolean;
     onEdit: () => void;
     onSave: () => void;
     onCopy: () => void;
+    onCopyJson?: () => void;
     onShare: () => void;
 }) {
     const backHref = chartId ? '/user/charts' : '/bazi';
@@ -66,6 +72,15 @@ export function ResultHeader({
                     {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                     {copied ? '已复制' : '复制'}
                 </button>
+                {showJsonCopy && onCopyJson && (
+                    <button
+                        onClick={onCopyJson}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors"
+                    >
+                        {jsonCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                        {jsonCopied ? 'JSON 已复制' : '复制 JSON'}
+                    </button>
+                )}
                 <button
                     onClick={onShare}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors"

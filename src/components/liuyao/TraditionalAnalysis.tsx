@@ -5,22 +5,12 @@
 
 import { useMemo, useState, type CSSProperties } from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
-import {
-    type FullYaoInfoExtended,
-    type LiuYaoFullAnalysis,
-    type TimeRecommendation,
-    type KongWangByPillar,
-    KONG_WANG_LABELS,
-} from '@/lib/divination/liuyao';
-import { type HexagramText } from '@/lib/divination/hexagram-texts';
-import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
-import { YONG_SHEN_STATUS_LABELS, buildShenSystemMap } from '@/lib/divination/liuyao-format-utils';
+import type { LiuyaoCanonicalJSON } from '@mingai/core/json';
+import { LIU_QIN_TIPS, SHEN_XI_TIPS } from '@/lib/divination/liuyao-term-tips';
+import { KONG_WANG_LABELS } from '@/lib/divination/liuyao';
 
 interface TraditionalAnalysisProps {
-    analysis: LiuYaoFullAnalysis;
-    hexagramText?: HexagramText;
-    changedHexagramText?: HexagramText;
-    changedLines?: number[];
+    analysis: LiuyaoCanonicalJSON;
 }
 
 function CollapsibleSection({
@@ -78,12 +68,6 @@ const wuXingColorValues: Record<string, string> = {
     '土': '#8B4513',
 };
 
-const KONG_WANG_PILLAR_ITEMS: Array<{ key: keyof KongWangByPillar; label: string; suffix: string }> = [
-    { key: 'year', label: '年空', suffix: '年' },
-    { key: 'month', label: '月空', suffix: '月' },
-    { key: 'day', label: '日空', suffix: '日' },
-    { key: 'hour', label: '时空', suffix: '时' },
-];
 const YAO_NAMES = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
 function getWuXingStyle(wuXing: string | undefined): CSSProperties | undefined {
@@ -101,47 +85,30 @@ function getZhiStyle(zhi: string): CSSProperties | undefined {
     return getWuXingStyle(wuXing);
 }
 
-const RECOMMENDATION_TYPE_TIPS: Record<TimeRecommendation['type'], string> = {
-    favorable: '顺势推进窗口',
-    unfavorable: '风险回避窗口',
-    critical: '关键观察节点',
-};
-
-function getStrengthTone(strength: 'strong' | 'moderate' | 'weak' | 'unknown'): string {
-    if (strength === 'strong') return 'text-green-500';
-    if (strength === 'moderate') return 'text-amber-500';
-    if (strength === 'weak') return 'text-red-500';
-    return 'text-foreground-tertiary';
+function getMovementTone(state?: string): string {
+    if (state === 'changing') return 'text-red-500';
+    if (state === 'hidden_moving') return 'text-amber-500';
+    if (state === 'day_break') return 'text-orange-500';
+    return '';
 }
 
-function getPositionLabel(position?: number): string {
+function getPositionLabel(position?: string | number): string {
+    if (typeof position === 'string' && position.trim()) return position;
     if (typeof position !== 'number') return '未定位';
     return YAO_NAMES[position - 1] ?? `第${position}爻`;
 }
 
+function getCandidateSourceLabel(source?: string): string | null {
+    if (source === 'changed') return '变出';
+    if (source === 'fushen') return '伏神';
+    if (source === 'temporal') return '时空';
+    if (source === 'visible') return '显爻';
+    return null;
+}
+
 export function TraditionalAnalysis({
     analysis,
-    hexagramText,
-    changedHexagramText,
-    changedLines = [],
 }: TraditionalAnalysisProps) {
-    const {
-        fullYaos,
-        yongShen,
-        shenSystemByYongShen,
-        globalShenSha,
-        timeRecommendations,
-        ganZhiTime,
-        kongWang,
-        kongWangByPillar,
-        fuShen,
-        warnings,
-        nuclearHexagram,
-        oppositeHexagram,
-        reversedHexagram,
-        guaShen,
-    } = analysis;
-
     const movementStats = useMemo(() => {
         let changing = 0;
         let hiddenMoving = 0;
@@ -149,9 +116,8 @@ export function TraditionalAnalysis({
         let staticCount = 0;
         let withShenSha = 0;
 
-        for (const yao of fullYaos) {
-            const ext = yao as Partial<FullYaoInfoExtended>;
-            switch (ext.movementState) {
+        for (const yao of analysis.yaos) {
+            switch (yao.movementState) {
                 case 'changing':
                     changing += 1;
                     break;
@@ -166,34 +132,28 @@ export function TraditionalAnalysis({
                     break;
             }
 
-            if (Array.isArray(ext.shenSha) && ext.shenSha.length > 0) {
+            if (Array.isArray(yao.shenSha) && yao.shenSha.length > 0) {
                 withShenSha += 1;
             }
         }
 
         return { changing, hiddenMoving, dayBreak, staticCount, withShenSha };
-    }, [fullYaos]);
+    }, [analysis.yaos]);
 
-    const recommendationByTarget = useMemo(() => {
-        const grouped = new Map<string, TimeRecommendation[]>();
-
-        for (const rec of timeRecommendations) {
-            const list = grouped.get(rec.targetLiuQin) ?? [];
-            list.push(rec);
-            grouped.set(rec.targetLiuQin, list);
-        }
-
-        return grouped;
-    }, [timeRecommendations]);
-
-    const shenSystemMap = useMemo(() =>
-        buildShenSystemMap(shenSystemByYongShen),
-        [shenSystemByYongShen]
+    const totalRecommendations = useMemo(
+        () => analysis.yongShenAnalysis.reduce((sum, group) => sum + (group.timeRecommendations?.length || 0), 0),
+        [analysis.yongShenAnalysis]
     );
+
+    const fuShenHints = useMemo(() => {
+        return analysis.yaos
+            .filter((yao) => yao.fuShen)
+            .map((yao) => `${yao.fuShen?.liuQin}伏于${yao.position}下`);
+    }, [analysis.yaos]);
 
     return (
         <div className="mx-auto w-full max-w-3xl space-y-4">
-            {ganZhiTime && (
+            {analysis.ganZhiTime.length > 0 && (
                 <div className="space-y-1.5">
                     <div className="overflow-x-auto">
                         <div className="min-w-max overflow-hidden rounded-xl border border-border/70 bg-white/[0.02]">
@@ -201,14 +161,13 @@ export function TraditionalAnalysis({
                                 <tbody className="divide-y divide-border/70">
                                     <tr className="divide-x divide-border/70">
                                         <td className="px-3 py-2 bg-white/5 text-accent font-semibold whitespace-nowrap">干支</td>
-                                        {KONG_WANG_PILLAR_ITEMS.map(({ key, suffix }) => {
-                                            const pillar = ganZhiTime[key];
+                                        {analysis.ganZhiTime.map((pillar) => {
                                             return (
-                                                <td key={key} className="px-3 py-2 whitespace-nowrap">
+                                                <td key={pillar.pillar} className="px-3 py-2 whitespace-nowrap">
                                                     <span className="font-medium">
-                                                        <span style={getGanStyle(pillar.gan)}>{pillar.gan}</span>
-                                                        <span style={getZhiStyle(pillar.zhi)}>{pillar.zhi}</span>
-                                                        <span className="text-foreground-secondary">{suffix}</span>
+                                                        <span style={getGanStyle(pillar.ganZhi.charAt(0))}>{pillar.ganZhi.charAt(0)}</span>
+                                                        <span style={getZhiStyle(pillar.ganZhi.charAt(1))}>{pillar.ganZhi.charAt(1)}</span>
+                                                        <span className="text-foreground-secondary">{pillar.pillar}</span>
                                                     </span>
                                                 </td>
                                             );
@@ -216,18 +175,16 @@ export function TraditionalAnalysis({
                                     </tr>
                                     <tr className="divide-x divide-border/70">
                                         <td className="px-3 py-2 bg-white/5 text-accent font-semibold whitespace-nowrap">空亡</td>
-                                        {KONG_WANG_PILLAR_ITEMS.map(({ key, suffix }) => {
-                                            const value = kongWangByPillar?.[key] ?? (key === 'day' ? kongWang : undefined);
+                                        {analysis.ganZhiTime.map((pillar) => {
                                             return (
                                                 <td
-                                                    key={key}
-                                                    title={value ? `${suffix}旬空：${value.xun}（${value.kongDizhi.join(' ')}）` : undefined}
+                                                    key={pillar.pillar}
                                                     className="px-3 py-2 whitespace-nowrap"
                                                 >
-                                                    {value ? (
+                                                    {pillar.kongWang.length > 0 ? (
                                                         <span className="tracking-wide">
-                                                            <span style={getZhiStyle(value.kongDizhi[0])}>{value.kongDizhi[0]}</span>
-                                                            <span style={getZhiStyle(value.kongDizhi[1])}>{value.kongDizhi[1]}</span>
+                                                            <span style={getZhiStyle(pillar.kongWang[0])}>{pillar.kongWang[0]}</span>
+                                                            <span style={getZhiStyle(pillar.kongWang[1])}>{pillar.kongWang[1]}</span>
                                                         </span>
                                                     ) : (
                                                         <span className="text-foreground-tertiary">-</span>
@@ -246,16 +203,16 @@ export function TraditionalAnalysis({
                 </div>
             )}
 
-            {(nuclearHexagram || oppositeHexagram || reversedHexagram || guaShen) && (
+            {(analysis.hexagramInfo.nuclearHexagram || analysis.hexagramInfo.oppositeHexagram || analysis.hexagramInfo.reversedHexagram || analysis.hexagramInfo.guaShen) && (
                 <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 space-y-1 text-xs text-foreground-secondary">
                     <div className="text-sm font-semibold text-foreground">衍生卦象</div>
-                    <div>互卦：{nuclearHexagram?.name || '无'}</div>
-                    <div>错卦：{oppositeHexagram?.name || '无'}</div>
-                    <div>综卦：{reversedHexagram?.name || '无'}</div>
+                    <div>互卦：{analysis.hexagramInfo.nuclearHexagram?.name || '无'}</div>
+                    <div>错卦：{analysis.hexagramInfo.oppositeHexagram?.name || '无'}</div>
+                    <div>综卦：{analysis.hexagramInfo.reversedHexagram?.name || '无'}</div>
                     <div>
                         卦身：
-                        {guaShen
-                            ? `${guaShen.branch}${typeof guaShen.linePosition === 'number' ? `（第${guaShen.linePosition}爻）` : ''}${guaShen.absent ? '（飞伏）' : ''}`
+                        {analysis.hexagramInfo.guaShen
+                            ? `${analysis.hexagramInfo.guaShen.branch}${analysis.hexagramInfo.guaShen.position ? `（${analysis.hexagramInfo.guaShen.position}）` : ''}${analysis.hexagramInfo.guaShen.absent ? '（飞伏）' : ''}`
                             : '无'}
                     </div>
                 </div>
@@ -276,40 +233,39 @@ export function TraditionalAnalysis({
                         )}
                         <span className="text-foreground-tertiary">静爻 {movementStats.staticCount}</span>
                         <span className="text-foreground-tertiary">|</span>
-                        <span className="text-foreground-secondary">用神 {yongShen.length}</span>
-                        <span className="text-foreground-secondary">应期 {timeRecommendations.length}</span>
-                        {globalShenSha.length > 0 && (
+                        <span className="text-foreground-secondary">用神 {analysis.yongShenAnalysis.length}</span>
+                        <span className="text-foreground-secondary">应期 {totalRecommendations}</span>
+                        {(analysis.globalShenSha?.length || 0) > 0 && (
                             <>
                                 <span className="text-foreground-tertiary">|</span>
                                 <span className="text-foreground-secondary">
                                     {'全局神煞：'}
-                                    {globalShenSha.join(' ')}
+                                    {analysis.globalShenSha?.join(' ')}
                                 </span>
                             </>
                         )}
                     </div>
 
-                    {warnings && warnings.length > 0 && (
+                    {analysis.warnings.length > 0 && (
                         <div className="flex items-start gap-1.5 text-xs md:max-w-[48%]">
                             <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
                             <span className="text-foreground-secondary">
                                 <span className="text-foreground-tertiary">{'关键信号提示：'}</span>
-                                {warnings.join('；')}
+                                {analysis.warnings.join('；')}
                             </span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {yongShen.length > 0 && (
+            {analysis.yongShenAnalysis.length > 0 && (
                 <div className="grid gap-3 md:grid-cols-2">
-                    {yongShen.map((group, groupIndex) => {
-                        const system = shenSystemMap.get(group.targetLiuQin);
-                        const recs = recommendationByTarget.get(group.targetLiuQin) ?? [];
-                        const isFuShenSelected = group.selected.source === 'fushen';
-                        const isChangedSelected = group.selected.source === 'changed';
-                        const isTemporalSelected = group.selected.source === 'temporal';
-
+                    {analysis.yongShenAnalysis.map((group, groupIndex) => {
+                        const selectedSourceLabel = getCandidateSourceLabel(group.selected.source);
+                        const selectedKongState = group.selected.kongWangState;
+                        const selectedKongLabel = selectedKongState && selectedKongState !== 'not_kong'
+                            ? KONG_WANG_LABELS[selectedKongState as keyof typeof KONG_WANG_LABELS] || selectedKongState
+                            : '';
                         return (
                             <div key={group.targetLiuQin} className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden text-xs">
                                 {/* 卡片头：目标 */}
@@ -319,7 +275,7 @@ export function TraditionalAnalysis({
                                         {groupIndex === 0 && (
                                             <span className="px-1.5 py-0.5 rounded border border-accent/40 bg-accent/10 text-accent text-[10px] leading-none">主</span>
                                         )}
-                                        <span className="text-foreground-tertiary">{YONG_SHEN_STATUS_LABELS[group.selectionStatus]}</span>
+                                        <span className="text-foreground-tertiary">{group.selectionStatus}</span>
                                     </div>
                                 </div>
 
@@ -329,44 +285,42 @@ export function TraditionalAnalysis({
                                         <span className="text-foreground-tertiary shrink-0 w-8">用神</span>
                                             <span>
                                                 <span className="text-foreground font-medium" title={LIU_QIN_TIPS[group.selected.liuQin]}>{group.selected.liuQin}</span>
-                                                {typeof group.selected.position === 'number' && (
+                                                {group.selected.position && (
                                                     <span className="text-foreground-secondary">{' @'}{getPositionLabel(group.selected.position)}</span>
                                                 )}
-                                                {isFuShenSelected && <span className="text-orange-500" title={TERM_TIPS['伏神取用']}>{' · 伏神取用'}</span>}
-                                                {isChangedSelected && <span className="text-red-500">{' · 变出取用'}</span>}
-                                                {isTemporalSelected && <span className="text-blue-400">{' · 月日代用'}</span>}
-                                                {group.selected.isShiYao && <span className="text-accent" title={TERM_TIPS['世位']}>{' · 世位'}</span>}
-                                                {group.selected.isYingYao && <span className="text-blue-500" title={TERM_TIPS['应位']}>{' · 应位'}</span>}
+                                                {group.selected.isShiYao && <span className="text-accent">{' · 世位'}</span>}
+                                                {group.selected.isYingYao && <span className="text-blue-500">{' · 应位'}</span>}
+                                                {selectedSourceLabel && <span className="text-foreground-tertiary">{` · ${selectedSourceLabel}`}</span>}
                                             </span>
                                     </div>
 
                                     <div className="flex gap-2">
                                         <span className="text-foreground-tertiary shrink-0 w-8">状态</span>
                                         <span className="text-foreground-secondary">
-                                            <span className={group.selected.movementState === 'changing' ? 'text-red-500' : group.selected.movementState === 'hidden_moving' ? 'text-amber-500' : group.selected.movementState === 'day_break' ? 'text-orange-500' : ''}>{group.selected.movementLabel}</span>
+                                            <span className={getMovementTone(group.selected.movementState)}>{group.selected.movementLabel}</span>
                                             {' · '}
-                                            <span className={getStrengthTone(group.selected.strength)}>{group.selected.strengthLabel}</span>
-                                            {group.selected.naJia && ` · ${group.selected.naJia}${group.selected.element}`}
-                                            {group.selected.kongWangState && group.selected.kongWangState !== 'not_kong' && (
-                                                <span className="text-orange-500">{' · '}{KONG_WANG_LABELS[group.selected.kongWangState]}</span>
+                                            <span>{group.selected.strengthLabel}</span>
+                                            {group.selected.naJia && group.selected.element && ` · ${group.selected.naJia}${group.selected.element}`}
+                                            {selectedKongLabel && (
+                                                <span className="text-orange-500">{' · '}{selectedKongLabel}</span>
                                             )}
                                         </span>
                                     </div>
 
-                                    {(system?.yuanShen || system?.jiShen || system?.chouShen) && (
+                                    {(group.shenSystem?.yuanShen || group.shenSystem?.jiShen || group.shenSystem?.chouShen) && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-8">神系</span>
                                             <span className="text-foreground-secondary">
                                                 {[
-                                                    system?.yuanShen && <span key="yuan" className="text-green-500" title={SHEN_XI_TIPS['原神']}>{'原神'}{system.yuanShen.liuQin}({system.yuanShen.wuXing})</span>,
-                                                    system?.jiShen && <span key="ji" className="text-red-500" title={SHEN_XI_TIPS['忌神']}>{'忌神'}{system.jiShen.liuQin}({system.jiShen.wuXing})</span>,
-                                                    system?.chouShen && <span key="chou" className="text-orange-500" title={SHEN_XI_TIPS['仇神']}>{'仇神'}{system.chouShen.liuQin}({system.chouShen.wuXing})</span>,
+                                                    group.shenSystem?.yuanShen && <span key="yuan" className="text-green-500" title={SHEN_XI_TIPS['原神']}>{'原神'}{group.shenSystem.yuanShen}</span>,
+                                                    group.shenSystem?.jiShen && <span key="ji" className="text-red-500" title={SHEN_XI_TIPS['忌神']}>{'忌神'}{group.shenSystem.jiShen}</span>,
+                                                    group.shenSystem?.chouShen && <span key="chou" className="text-orange-500" title={SHEN_XI_TIPS['仇神']}>{'仇神'}{group.shenSystem.chouShen}</span>,
                                                 ].filter(Boolean).map((node, i) => <span key={i}>{i > 0 && ' · '}{node}</span>)}
                                             </span>
                                         </div>
                                     )}
 
-                                    {group.selected.evidence.length > 0 && (
+                                    {group.selected.evidence && group.selected.evidence.length > 0 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-8">判据</span>
                                             <span className="text-foreground-secondary">{group.selected.evidence.join('、')}</span>
@@ -380,30 +334,29 @@ export function TraditionalAnalysis({
                                         </div>
                                     )}
 
-                                    {group.candidates.length > 0 && (
+                                    {group.candidates && group.candidates.length > 0 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-12">{`候选（${group.candidates.length}）`}</span>
-                                            <span className="text-foreground-tertiary">{group.candidates.map(c =>
-                                                `${c.liuQin}@${getPositionLabel(c.position)}`
-                                            ).join('、')}</span>
+                                            <span className="text-foreground-tertiary">{group.candidates.map((c) => {
+                                                const sourceLabel = getCandidateSourceLabel(c.source);
+                                                return `${c.liuQin}@${getPositionLabel(c.position)}${sourceLabel ? `(${sourceLabel})` : ''}`;
+                                            }).join('、')}</span>
                                         </div>
                                     )}
 
-                                    {group.candidates.length > 1 && (
+                                    {group.candidates && group.candidates.length > 1 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-12">说明</span>
                                             <span className="text-foreground-tertiary">候选仅表示并看线索，不代表数值高低。</span>
                                         </div>
                                     )}
 
-                                    {recs.length > 0 && (
+                                    {group.timeRecommendations && group.timeRecommendations.length > 0 && (
                                         <div className="flex gap-2">
                                             <span className="text-foreground-tertiary shrink-0 w-12">近期应期</span>
                                             <span className="text-foreground-secondary space-y-1 flex flex-col">
-                                                {recs.slice(0, 2).map((rec, i) => (
+                                                {group.timeRecommendations.slice(0, 2).map((rec, i) => (
                                                     <span key={i}>
-                                                        <span className="font-semibold">{RECOMMENDATION_TYPE_TIPS[rec.type]}</span>
-                                                        {'：'}
                                                         {rec.trigger}
                                                         {rec.basis.length > 0 && <span className="text-foreground-tertiary">{`（${rec.basis.join('、')}）`}</span>}
                                                         {` ${rec.description}`}
@@ -419,57 +372,71 @@ export function TraditionalAnalysis({
                 </div>
             )}
 
-            {fuShen && fuShen.length > 0 && (
+            {fuShenHints.length > 0 && (
                 <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs space-y-1">
                     <div className="text-orange-400 font-medium">伏神提示</div>
                     <div className="text-foreground-secondary">
-                        {fuShen.map((fs) => `${fs.liuQin}伏于${getPositionLabel(fs.feiShenPosition)}下（${fs.availabilityReason}）`).join('；')}
+                        {fuShenHints.join('；')}
                     </div>
                 </div>
             )}
 
-            {hexagramText && (
+            {analysis.guaLevelAnalysis.length > 0 && (
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 space-y-1 text-xs text-foreground-secondary">
+                    <div className="text-sm font-semibold text-foreground">卦级分析</div>
+                    {analysis.guaLevelAnalysis.map((line, index) => (
+                        <div key={`${line}-${index}`}>{line}</div>
+                    ))}
+                </div>
+            )}
+
+            {(analysis.hexagramInfo.mainHexagram.guaCi || analysis.hexagramInfo.mainHexagram.xiangCi || analysis.hexagramInfo.changedHexagram?.changingYaoCi?.length) && (
                 <CollapsibleSection title="卦辞象辞" defaultOpen={false}>
                     <div className="space-y-2">
-                        <div>
-                            <span className="text-foreground-secondary">卦辞：</span>
-                            <span className="text-foreground">{hexagramText.gua}</span>
-                        </div>
-                        <div>
-                            <span className="text-foreground-secondary">象曰：</span>
-                            <span className="text-foreground italic">{hexagramText.xiang}</span>
-                        </div>
+                        {analysis.hexagramInfo.mainHexagram.guaCi && (
+                            <div>
+                                <span className="text-foreground-secondary">卦辞：</span>
+                                <span className="text-foreground">{analysis.hexagramInfo.mainHexagram.guaCi}</span>
+                            </div>
+                        )}
+                        {analysis.hexagramInfo.mainHexagram.xiangCi && (
+                            <div>
+                                <span className="text-foreground-secondary">象曰：</span>
+                                <span className="text-foreground italic">{analysis.hexagramInfo.mainHexagram.xiangCi}</span>
+                            </div>
+                        )}
 
-                        {changedLines.length > 0 && hexagramText.yao && (
+                        {analysis.hexagramInfo.changedHexagram?.changingYaoCi && analysis.hexagramInfo.changedHexagram.changingYaoCi.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-white/10">
                                 <div className="text-foreground-secondary mb-1">变爻爻辞：</div>
-                                {changedLines.map((linePos) => {
-                                    const yaoText = hexagramText.yao.find(y => y.position === linePos);
-                                    if (!yaoText) return null;
+                                {analysis.hexagramInfo.changedHexagram.changingYaoCi.map((yaoText) => {
                                     return (
                                         <div
-                                            key={linePos}
-                                            className={`p-2 rounded border-l-2 mb-1 ${yaoText.emphasis === 'high' ? 'border-l-accent bg-accent/5' : 'border-l-gray-500 bg-white/5'}`}
+                                            key={`${yaoText.yaoName}-${yaoText.yaoCi}`}
+                                            className="p-2 rounded border-l-2 mb-1 border-l-accent bg-accent/5"
                                         >
-                                            <span className="font-medium text-foreground">{yaoText.name}：</span>
-                                            <span className="text-foreground-secondary">{yaoText.text}</span>
-                                            {yaoText.emphasis === 'high' && <span className="text-accent ml-1">★关键</span>}
+                                            <span className="font-medium text-foreground">{yaoText.yaoName}：</span>
+                                            <span className="text-foreground-secondary">{yaoText.yaoCi}</span>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
 
-                        {changedHexagramText && (
+                        {analysis.hexagramInfo.changedHexagram && (
                             <div className="mt-2 pt-2 border-t border-white/10">
-                                <div>
-                                    <span className="text-foreground-secondary">变卦 {changedHexagramText.name} 卦辞：</span>
-                                    <span className="text-foreground">{changedHexagramText.gua}</span>
-                                </div>
-                                <div className="mt-1">
-                                    <span className="text-foreground-secondary">变卦象曰：</span>
-                                    <span className="text-foreground italic">{changedHexagramText.xiang}</span>
-                                </div>
+                                {analysis.hexagramInfo.changedHexagram.guaCi && (
+                                    <div>
+                                        <span className="text-foreground-secondary">变卦 {analysis.hexagramInfo.changedHexagram.name} 卦辞：</span>
+                                        <span className="text-foreground">{analysis.hexagramInfo.changedHexagram.guaCi}</span>
+                                    </div>
+                                )}
+                                {analysis.hexagramInfo.changedHexagram.xiangCi && (
+                                    <div className="mt-1">
+                                        <span className="text-foreground-secondary">变卦象曰：</span>
+                                        <span className="text-foreground italic">{analysis.hexagramInfo.changedHexagram.xiangCi}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

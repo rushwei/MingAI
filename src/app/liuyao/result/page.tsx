@@ -20,16 +20,15 @@ import {
     type DivinationResult,
     type Hexagram,
     type LiuQin,
-    type LiuYaoFullAnalysis,
     type Yao,
-    calculateDerivedHexagrams,
-    calculateGuaShen,
     normalizeYongShenTargets,
-    performFullAnalysis,
     yaosTpCode,
 } from '@/lib/divination/liuyao';
-import { resolveResultYongShenState, resolveResultYongShenTargets } from '@/lib/divination/liuyao-result-state';
-import { getHexagramText } from '@/lib/divination/hexagram-texts';
+import {
+    resolveResultYongShenState,
+    resolveResultYongShenTargets,
+    resolveTraditionalYongShenPositions,
+} from '@/lib/divination/liuyao-result-state';
 import { supabase } from '@/lib/auth';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
@@ -41,9 +40,10 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
-import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
+import { buildTraditionalCanonicalJSON, buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 type LiuyaoQuestionSession = {
     question: string;
@@ -89,15 +89,9 @@ export default function ResultPage() {
     const hasAppliedTargets = appliedYongShenTargets.length > 0;
     const canAnalyze = requiresYongShenTargets && hasAppliedTargets;
 
-    // 计算传统分析数据（使用起卦日期执行完整分析）
-    const traditionalData = useMemo((): (LiuYaoFullAnalysis & {
-        hexagramText?: ReturnType<typeof getHexagramText>;
-        changedHexagramText?: ReturnType<typeof getHexagramText>;
-        dayStem: string;
-    }) | null => {
+    const traditionalCanonical = useMemo(() => {
         if (!result || !canAnalyze) return null;
 
-        // 计算卦码
         const hexagramCode = yaosTpCode(result.yaos);
         const changedCode = result.changedHexagram
             ? yaosTpCode(result.yaos.map(y => ({
@@ -106,40 +100,22 @@ export default function ResultPage() {
             })))
             : undefined;
 
-        // 执行完整分析
-        const analysis = performFullAnalysis(
+        return buildTraditionalCanonicalJSON(
             result.yaos,
             hexagramCode,
             changedCode,
             result.question,
             result.createdAt,
-            { yongShenTargets: appliedYongShenTargets }
+            appliedYongShenTargets,
+            result.hexagram,
+            result.changedHexagram,
         );
-
-        const derived = calculateDerivedHexagrams(hexagramCode);
-        const guaShen = calculateGuaShen(hexagramCode);
-
-        // 获取卦辞
-        const hexagramText = getHexagramText(result.hexagram.name);
-        const changedHexagramText = result.changedHexagram
-            ? getHexagramText(result.changedHexagram.name)
-            : undefined;
-
-        return {
-            ...analysis,
-            nuclearHexagram: analysis.nuclearHexagram ?? derived.nuclearHexagram,
-            oppositeHexagram: analysis.oppositeHexagram ?? derived.oppositeHexagram,
-            reversedHexagram: analysis.reversedHexagram ?? derived.reversedHexagram,
-            guaShen: analysis.guaShen ?? guaShen,
-            hexagramText,
-            changedHexagramText,
-            dayStem: analysis.ganZhiTime.day.gan, // 返回日干供显示
-        };
     }, [appliedYongShenTargets, canAnalyze, result]);
-
-    const yaoByPositionMemo = useMemo(() =>
-        traditionalData ? new Map(traditionalData.fullYaos.map(y => [y.position, y] as const)) : new Map(),
-    [traditionalData]);
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(traditionalCanonical);
+    const traditionalYongShenPositions = useMemo(
+        () => resolveTraditionalYongShenPositions(traditionalCanonical),
+        [traditionalCanonical]
+    );
 
     const generateCopyText = () => {
         if (!result || !canAnalyze) return '';
@@ -279,9 +255,17 @@ export default function ResultPage() {
             icon: <Album className="w-4 h-4" />,
             onClick: () => setShowTermsModal(true),
         });
+        if (isAdmin && traditionalCanonical) {
+            items.push({
+                id: 'copy-json',
+                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void copyJson(); },
+            });
+        }
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [divinationId, knowledgeBaseEnabled, showTraditional, router, setMenuItems, clearMenuItems]);
+    }, [divinationId, knowledgeBaseEnabled, showTraditional, isAdmin, traditionalCanonical, jsonCopied, copyJson, router, setMenuItems, clearMenuItems]);
 
     useEffect(() => {
         if (!result || interpretation) return;
@@ -325,7 +309,7 @@ export default function ResultPage() {
             setError('必须先选择分析目标');
             return;
         }
-        if (!traditionalData) {
+        if (!traditionalCanonical) {
             setError('传统分析数据准备中，请稍后重试');
             return;
         }
@@ -545,33 +529,32 @@ export default function ResultPage() {
                         {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copied ? '已复制' : '复制'}</span>
                     </button>
+                    {isAdmin && traditionalCanonical && (
+                        <button
+                            onClick={() => { void copyJson(); }}
+                            className="absolute top-2 right-20 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
+                            title="复制 canonical JSON"
+                        >
+                            {jsonCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{jsonCopied ? 'JSON 已复制' : '复制 JSON'}</span>
+                        </button>
+                    )}
                     <HexagramDisplay
                         yaos={result.yaos}
                         hexagram={result.hexagram}
                         changedHexagram={result.changedHexagram}
                         changedLines={result.changedLines}
                         showDetails={true}
-                        fullYaos={traditionalData?.fullYaos}
+                        fullYaos={traditionalCanonical?.yaos}
                         showTraditional={showTraditional}
-                        yongShenPositions={traditionalData?.yongShen
-                            .flatMap((group) => {
-                                if (typeof group.selected.position !== 'number') return [];
-                                const line = yaoByPositionMemo.get(group.selected.position);
-                                if (!line) return [];
-                                return line.liuQin === group.selected.liuQin ? [group.selected.position] : [];
-                            })}
+                        yongShenPositions={traditionalYongShenPositions}
                     />
                 </div>
 
                 {/* Traditional Analysis */}
-                {showTraditional && traditionalData && (
+                {showTraditional && traditionalCanonical && (
                     <div className="mb-4 animate-fade-in-up">
-                        <TraditionalAnalysis
-                            analysis={traditionalData}
-                            hexagramText={traditionalData.hexagramText}
-                            changedHexagramText={traditionalData.changedHexagramText}
-                            changedLines={result.changedLines}
-                        />
+                        <TraditionalAnalysis analysis={traditionalCanonical} />
                     </div>
                 )}
 

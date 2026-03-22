@@ -10,7 +10,8 @@ import {
     calculateZiweiHoroscopeDataWithAstrolabe,
     createAstrolabeWithTrueSolar,
 } from '@mingai/core/ziwei';
-import type { ZiweiOutput as CoreZiweiOutput } from '@mingai/core';
+import type { ZiweiOutput as CoreZiweiOutput, ZiweiHoroscopeOutput as CoreZiweiHoroscopeOutput } from '@mingai/core';
+import { renderZiweiCanonicalJSON, renderZiweiHoroscopeCanonicalJSON } from '@mingai/core/json';
 import { renderZiweiCanonicalText } from '@mingai/core/text';
 import type { Gender, CalendarType, TrueSolarTimeInfo } from '@/types';
 
@@ -419,6 +420,20 @@ export function getHoroscope(chart: ZiweiChart, date: Date = new Date()): ZiweiH
     }
 }
 
+export function buildZiweiHoroscopeCanonicalJSON(chart: ZiweiChart, date: Date = new Date()) {
+    if (!chart.rawAstrolabe) return null;
+
+    try {
+        const result = calculateZiweiHoroscopeDataWithAstrolabe(chart.rawAstrolabe, {
+            targetDate: date,
+        }) as CoreZiweiHoroscopeOutput;
+        return renderZiweiHoroscopeCanonicalJSON(result);
+    } catch (error) {
+        console.error('构建紫微运限 JSON 失败:', error);
+        return null;
+    }
+}
+
 /**
  * 获取大限列表
  *
@@ -601,6 +616,11 @@ function toCoreZiweiOutput(chart: ZiweiChart): CoreZiweiOutput {
         smallLimit: chart.smallLimit,
         scholarStars: chart.scholarStars,
     };
+}
+
+export function buildZiweiCanonicalJSON(chart: ZiweiChart) {
+    const coreOutput = toCoreZiweiOutput(chart);
+    return renderZiweiCanonicalJSON(coreOutput);
 }
 
 /**

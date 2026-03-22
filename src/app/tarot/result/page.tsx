@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Sparkles,
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
-import { generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
+import { buildTarotCanonicalJSON, generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -35,6 +35,7 @@ import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 function TarotResultContent() {
     const router = useRouter();
@@ -76,6 +77,19 @@ function TarotResultContent() {
     const [copied, setCopied] = useState(false);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
+    const canonicalReading = useMemo(() => {
+        if (!selectedSpread || drawnCards.length === 0) return null;
+        return buildTarotCanonicalJSON({
+            spreadName: selectedSpread.name,
+            spreadId: selectedSpread.id,
+            question,
+            cards: drawnCards,
+            seed: seed || undefined,
+            numerology,
+            birthDate,
+        });
+    }, [birthDate, drawnCards, numerology, question, seed, selectedSpread]);
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalReading);
 
     useEffect(() => {
         const loadMembership = async () => {
@@ -254,16 +268,26 @@ function TarotResultContent() {
                 }),
             });
             const data = await res.json();
-            if (data.success) {
-                setReadingId(data.data?.readingId || null);
+            if (!res.ok || !data.success) {
+                showToast('error', data.error || '保存记录失败');
+                return;
+            }
+
+            const nextReadingId = data.data?.readingId || null;
+            if (nextReadingId) {
+                setReadingId(nextReadingId);
                 setHasSaved(true);
                 updateSessionJSON('tarot_result', (prev) => ({
                     ...(prev || {}),
-                    readingId: data.data?.readingId || null,
+                    readingId: nextReadingId,
                 }));
+                return;
             }
+
+            showToast('error', '保存记录失败');
         } catch (error) {
             console.error('保存记录失败:', error);
+            showToast('error', '保存记录失败');
         } finally {
             setIsSaving(false);
         }
@@ -453,6 +477,14 @@ function TarotResultContent() {
                 icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
                 onClick: () => { void handleCopy(); },
             });
+            if (isAdmin && canonicalReading) {
+                items.push({
+                    id: 'copy-json',
+                    label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                    icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                    onClick: () => { void copyJson(); },
+                });
+            }
         }
         items.push({
             id: 'reshuffle',
@@ -464,7 +496,7 @@ function TarotResultContent() {
         setMenuItems(items);
         return () => clearMenuItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, drawnCards.length, copied, setMenuItems, clearMenuItems]);
+    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, drawnCards.length, copied, isAdmin, canonicalReading, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
 
     if (isLoading) {
         return (
@@ -526,6 +558,15 @@ function TarotResultContent() {
                                 {copied ? '已复制' : '复制'}
                             </button>
                         )}
+                        {isAdmin && canonicalReading && (
+                            <button
+                                onClick={() => { void copyJson(); }}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                            >
+                                {jsonCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                                {jsonCopied ? 'JSON 已复制' : '复制 JSON'}
+                            </button>
+                        )}
                         <button
                             onClick={handleReshuffle}
                             disabled={isShuffling}
@@ -545,22 +586,12 @@ function TarotResultContent() {
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
                             <div className="text-xs text-foreground-secondary">牌阵</div>
-                            <div className="mt-1 text-sm font-medium">{selectedSpread.name}</div>
+                            <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.spreadName || selectedSpread.name}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                            <div className="text-xs text-foreground-secondary">牌阵 ID</div>
-                            <div className="mt-1 text-sm font-medium">{selectedSpread.id}</div>
-                        </div>
-                        {seed && (
-                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                <div className="text-xs text-foreground-secondary">随机种子</div>
-                                <div className="mt-1 break-all text-sm font-medium">{seed}</div>
-                            </div>
-                        )}
                         {question && (
                             <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
                                 <div className="text-xs text-foreground-secondary">问题</div>
-                                <div className="mt-1 text-sm font-medium">{question}</div>
+                                <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.question || question}</div>
                             </div>
                         )}
                     </div>
@@ -574,12 +605,13 @@ function TarotResultContent() {
                                 'grid-cols-2 sm:grid-cols-5'
                         }`}>
                         {drawnCards.map((card, index) => {
+                            const canonicalCard = canonicalReading?.cards[index];
                             const isRevealed = revealedCards.includes(index);
                             const isFlippedToInterpretation = flippedToInterpretation.includes(index);
                             return (
                                 <div key={index} className="flex flex-col items-center group" style={{ perspective: '1000px' }}>
                                     <div className="text-xs font-bold text-foreground-secondary/70 uppercase tracking-widest mb-3">
-                                        {selectedSpread?.positions[index]?.name}
+                                        {canonicalCard?.position || selectedSpread?.positions[index]?.name}
                                     </div>
                                     <button
                                         onClick={() => {
@@ -636,43 +668,36 @@ function TarotResultContent() {
                                             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                                         >
                                             <div className="text-center mb-2 space-y-1">
-                                                <h4 className="text-sm font-bold text-white truncate">{card.card.nameChinese}</h4>
+                                                <h4 className="text-sm font-bold text-white truncate">{canonicalCard?.cardName || card.card.nameChinese}</h4>
                                                 <div className="flex items-center justify-center gap-1 text-[10px] text-white/70">
-                                                    <span className={`px-1.5 py-0.5 rounded-full ${card.orientation === 'reversed' ? 'text-rose-300 bg-rose-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
-                                                        {card.orientation === 'reversed' ? '逆位' : '正位'}
+                                                    <span className={`px-1.5 py-0.5 rounded-full ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位' ? 'text-rose-300 bg-rose-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
+                                                        {canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}
                                                     </span>
-                                                    {card.card.element && <span>元素 {card.card.element}</span>}
-                                                    {card.card.zodiac && <span>星象 {card.card.zodiac}</span>}
+                                                    {canonicalCard?.element && <span>元素 {canonicalCard.element}</span>}
+                                                    {canonicalCard?.astrologicalCorrespondence && <span>星象 {canonicalCard.astrologicalCorrespondence}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                                                 <p className="text-[11px] sm:text-xs text-white/85 leading-relaxed">
-                                                    {(() => {
+                                                    {canonicalCard?.meaning || (() => {
                                                         const meaning = card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning;
-                                                        // 移除开头的"卡片名+正位/逆位："格式
                                                         return meaning.replace(/^[^:：]+[：:]\s*/, '');
                                                     })()}
                                                 </p>
                                             </div>
                                             <div className="mt-2 text-[10px] text-white/70 text-center">
-                                                {(() => {
-                                                    const rawKeywords = card.orientation === 'reversed'
-                                                        ? (card.card.reversedKeywords && card.card.reversedKeywords.length > 0 ? card.card.reversedKeywords : card.card.keywords)
-                                                        : card.card.keywords;
-                                                    const keywords = rawKeywords.slice(0, 4).join(' · ');
-                                                    return keywords ? `关键词：${keywords}` : '关键词：无';
-                                                })()}
+                                                {canonicalCard?.keywords?.length ? `关键词：${canonicalCard.keywords.slice(0, 4).join(' · ')}` : '关键词：无'}
                                             </div>
                                         </div>
                                     </button>
 
                                     <div className={`mt-4 text-center transition-opacity duration-500 ${isRevealed ? 'opacity-100' : 'opacity-0'}`}>
-                                        <h4 className="font-bold text-foreground">{card.card.nameChinese}</h4>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${card.orientation === 'reversed'
+                                        <h4 className="font-bold text-foreground">{canonicalCard?.cardName || card.card.nameChinese}</h4>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位'
                                             ? 'text-rose-400 border-rose-400/20 bg-rose-400/5'
                                             : 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
                                             }`}>
-                                            {card.orientation === 'reversed' ? '逆位' : '正位'}
+                                            {canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}
                                         </span>
                                     </div>
                                 </div>
@@ -703,7 +728,7 @@ function TarotResultContent() {
                     )}
                 </div>
 
-                {(birthDate || numerology) && (
+                {(birthDate || canonicalReading?.numerology) && (
                     <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
                         <div className="mb-4">
                             <h2 className="text-base font-bold">塔罗数秘术</h2>
@@ -712,17 +737,17 @@ function TarotResultContent() {
                         {birthDate && (
                             <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
                                 <div className="text-xs text-foreground-secondary">出生日期</div>
-                                <div className="mt-1 text-sm font-medium">{birthDate}</div>
+                                <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.birthDate || birthDate}</div>
                             </div>
                         )}
-                        {numerology && (
+                        {canonicalReading?.numerology && (
                             <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
                                 {[
-                                    { label: '人格牌', card: numerology.personalityCard },
-                                    { label: '灵魂牌', card: numerology.soulCard },
-                                    { label: '年度牌', card: numerology.yearlyCard },
+                                    { label: '人格牌', card: canonicalReading.numerology.personalityCard },
+                                    { label: '灵魂牌', card: canonicalReading.numerology.soulCard },
+                                    { label: '年度牌', card: canonicalReading.numerology.yearlyCard },
                                 ].map((item) => {
-                                    const cardImage = TAROT_CARDS.find(card => card.name === item.card.name)?.image || '';
+                                    const cardImage = TAROT_CARDS.find(card => card.nameChinese === item.card.name)?.image || '';
                                     return (
                                         <div key={item.label} className="rounded-2xl border border-white/10 bg-background/60 p-3 flex flex-col items-center text-center gap-2">
                                             <div className="text-[11px] text-foreground-secondary">{item.label}</div>
@@ -730,7 +755,7 @@ function TarotResultContent() {
                                                 {cardImage ? (
                                                     <Image
                                                         src={cardImage}
-                                                        alt={item.card.nameChinese}
+                                                        alt={item.card.name}
                                                         fill
                                                         sizes="120px"
                                                         className="object-cover"
@@ -742,20 +767,17 @@ function TarotResultContent() {
                                                 )}
                                             </div>
                                             <div className="text-sm font-medium text-foreground">
-                                                {item.card.nameChinese}
-                                            </div>
-                                            <div className="text-[11px] text-foreground-secondary truncate w-full">
                                                 {item.card.name}
                                             </div>
                                             <div className="text-[10px] text-foreground-secondary">
-                                                编号 {item.card.number}{item.card.year ? ` · ${item.card.year}` : ''}
+                                                {'year' in item.card && item.card.year ? `年度 ${item.card.year}` : item.card.keywords.slice(0, 3).join(' · ') || '关键词 -'}
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
-                        {!numerology && birthDate && (
+                        {!canonicalReading?.numerology && birthDate && (
                             <div className="mt-3 rounded-2xl border border-white/10 bg-background/60 p-4">
                                 <div className="text-xs text-foreground-secondary">数秘牌提示</div>
                                 <div className="mt-1 text-sm font-medium text-foreground">当前未生成数秘牌</div>

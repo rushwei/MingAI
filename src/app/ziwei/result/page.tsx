@@ -6,9 +6,9 @@
 import { useMemo, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Share2, Edit3, Save, Check, MapPinned, Clock, Plus, Minus } from 'lucide-react';
+import { Star, Share2, Edit3, Save, Check, Copy, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { calculateZiwei, type ZiweiFormData } from '@/lib/divination/ziwei';
+import { buildZiweiCanonicalJSON, calculateZiwei, generateZiweiChartText, type ZiweiFormData } from '@/lib/divination/ziwei';
 import type { Gender, CalendarType } from '@/types';
 import { ZiweiChartGrid } from '@/components/ziwei/ZiweiChartGrid';
 import { ZiweiHoroscopePanel, type HoroscopeInfo, type HoroscopeHighlight } from '@/components/ziwei/ZiweiHoroscopePanel';
@@ -19,6 +19,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { getDayCount } from '@/lib/date-utils';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -196,18 +197,29 @@ function ZiweiResultContent() {
             return null;
         }
     }, [adjustedFormData]);
+    const canonicalChart = useMemo(() => {
+        if (!chart) return null;
+        return buildZiweiCanonicalJSON(chart);
+    }, [chart]);
+    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalChart);
+    const chartCopyText = useMemo(() => {
+        if (!chart) return '';
+        let text = generateZiweiChartText(chart);
+        if (horoscopeInfo?.yearly) {
+            text += `\n\n【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`;
+        }
+        return text;
+    }, [chart, horoscopeInfo]);
 
     const chartMetaItems = useMemo(() => {
-        if (!chart) return [];
+        if (!canonicalChart) return [];
         return [
-            chart.douJun ? { label: '斗君', value: chart.douJun } : null,
-            chart.lifeMasterStar ? { label: '命主星', value: chart.lifeMasterStar } : null,
-            chart.bodyMasterStar ? { label: '身主星', value: chart.bodyMasterStar } : null,
-            chart.earthlyBranchOfSoulPalace ? { label: '命宫地支', value: chart.earthlyBranchOfSoulPalace } : null,
-            chart.earthlyBranchOfBodyPalace ? { label: '身宫地支', value: chart.earthlyBranchOfBodyPalace } : null,
-            chart.trueSolarTimeInfo ? { label: '真太阳时', value: chart.trueSolarTimeInfo.trueSolarTime } : null,
+            canonicalChart.basicInfo.douJun ? { label: '斗君', value: canonicalChart.basicInfo.douJun } : null,
+            canonicalChart.basicInfo.lifeMasterStar ? { label: '命主星', value: canonicalChart.basicInfo.lifeMasterStar } : null,
+            canonicalChart.basicInfo.bodyMasterStar ? { label: '身主星', value: canonicalChart.basicInfo.bodyMasterStar } : null,
+            canonicalChart.basicInfo.trueSolarTime ? { label: '真太阳时', value: canonicalChart.basicInfo.trueSolarTime.trueSolarTime } : null,
         ].filter((item): item is { label: string; value: string } => Boolean(item));
-    }, [chart]);
+    }, [canonicalChart]);
 
     // 修改命盘
     const handleEdit = useCallback(() => {
@@ -346,10 +358,16 @@ function ZiweiResultContent() {
                 icon: <Share2 className="w-4 h-4" />,
                 onClick: handleShare,
             },
+            ...(isAdmin && canonicalChart ? [{
+                id: 'copy-json',
+                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
+                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
+                onClick: () => { void copyJson(); },
+            }] : []),
         ];
         setMenuItems(items);
         return () => clearMenuItems();
-    }, [saving, saved, setMenuItems, clearMenuItems, handleEdit, handleSave, handleShare]);
+    }, [saving, saved, isAdmin, canonicalChart, jsonCopied, copyJson, setMenuItems, clearMenuItems, handleEdit, handleSave, handleShare]);
 
     if (loading) {
         return <SoundWaveLoader variant="block" text="正在加载命盘" />;
@@ -366,7 +384,7 @@ function ZiweiResultContent() {
         );
     }
 
-    if (!chart) {
+    if (!chart || !canonicalChart) {
         return (
             <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
                 <p className="text-foreground-secondary">命盘计算出错，请返回重新输入</p>
@@ -507,13 +525,22 @@ function ZiweiResultContent() {
                     <Star className="w-4 h-4 text-accent" />
                     紫微斗数命盘
                 </h2>
-                <ZiweiChartGrid chart={chart} horoscopeHighlight={horoscopeHighlight} horoscopeInfo={horoscopeInfo} />
+                <ZiweiChartGrid
+                    canonicalChart={canonicalChart}
+                    copyText={chartCopyText}
+                    showJsonCopy={isAdmin && !!canonicalChart}
+                    jsonCopied={jsonCopied}
+                    onCopyJson={() => { void copyJson(); }}
+                    horoscopeHighlight={horoscopeHighlight}
+                    horoscopeInfo={horoscopeInfo}
+                />
             </section>
 
             {/* 运限分析 */}
             <section className="mt-4 max-w-[390px] sm:max-w-none mx-auto">
                 <ZiweiHoroscopePanel
                     chart={chart}
+                    canonicalChart={canonicalChart}
                     onPalaceHighlight={setHoroscopeHighlight}
                     onHoroscopeChange={setHoroscopeInfo}
                 />

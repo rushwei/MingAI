@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { MessageCircle, User, Save, Sparkles } from 'lucide-react';
-import { calculateBazi, getElementColor } from '@/lib/divination/bazi';
-import { FiveElementsChart } from '@/components/bazi/result/FiveElementsChart';
+import type { BaziCanonicalJSON } from '@mingai/core/json';
+import { getElementColor } from '@/lib/divination/bazi';
 import { TenGodKnowledge } from '@/components/bazi/TenGodKnowledge';
 import { AIWuxingAnalysis } from '@/components/bazi/result/AIWuxingAnalysis';
 import { AIPersonalityAnalysis } from '@/components/bazi/result/AIPersonalityAnalysis';
 import type { TenGod } from '@/types';
 
 interface BasicInfoSectionProps {
-    baziResult: ReturnType<typeof calculateBazi>;
+    canonicalChart: BaziCanonicalJSON;
     dayMasterDescription: string;
     /** 命盘ID（用于AI分析持久化） */
     chartId?: string | null;
@@ -37,7 +37,7 @@ interface BasicInfoSectionProps {
 }
 
 export function BasicInfoSection({
-    baziResult,
+    canonicalChart,
     dayMasterDescription,
     chartId,
     userId,
@@ -54,10 +54,11 @@ export function BasicInfoSection({
 }: BasicInfoSectionProps) {
     // 获取命盘中出现的十神
     const highlightedTenGods: TenGod[] = [
-        baziResult.fourPillars.year.tenGod,
-        baziResult.fourPillars.month.tenGod,
-        baziResult.fourPillars.hour.tenGod,
+        canonicalChart.fourPillars[0]?.tenGod,
+        canonicalChart.fourPillars[1]?.tenGod,
+        canonicalChart.fourPillars[3]?.tenGod,
     ].filter((g): g is TenGod => !!g);
+    const dayMasterElement = canonicalChart.basicInfo.dayMasterElement.slice(-1);
 
     // 是否已保存命盘
     const isSaved = Boolean(chartId);
@@ -66,27 +67,19 @@ export function BasicInfoSection({
         <div className="space-y-4">
             <section className="bg-background-secondary rounded-xl p-4 border border-border">
                 <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-gradient-to-r from-green-500 via-red-500 to-blue-500" />
-                    五行分析
-                </h2>
-                <FiveElementsChart elements={baziResult.fiveElements} />
-            </section>
-
-            <section className="bg-background-secondary rounded-xl p-4 border border-border">
-                <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <User className="w-4 h-4 text-accent" />
                     日主特征
                 </h2>
                 <div className="flex items-start gap-3">
                     <div
                         className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
-                        style={{ backgroundColor: getElementColor(baziResult.fourPillars.day.stemElement) }}
+                        style={{ backgroundColor: getElementColor(dayMasterElement as Parameters<typeof getElementColor>[0]) }}
                     >
-                        {baziResult.dayMaster}
+                        {canonicalChart.basicInfo.dayMaster}
                     </div>
                     <div className="min-w-0">
                         <div className="font-medium mb-1">
-                            日主「{baziResult.dayMaster}」，五行属{baziResult.fourPillars.day.stemElement}
+                            日主「{canonicalChart.basicInfo.dayMaster}」，五行属{dayMasterElement}
                         </div>
                         <p className="text-sm text-foreground-secondary leading-relaxed">
                             {dayMasterDescription}

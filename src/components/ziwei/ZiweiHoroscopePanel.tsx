@@ -9,8 +9,9 @@
 
 import { useReducer, useMemo, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar } from 'lucide-react';
-import type { ZiweiChart, ZiweiHoroscope, DecadalInfo } from '@/lib/divination/ziwei';
-import { getHoroscope, getDecadalList } from '@/lib/divination/ziwei';
+import type { ZiweiCanonicalJSON, ZiweiHoroscopeCanonicalJSON } from '@mingai/core/json';
+import type { ZiweiChart, DecadalInfo } from '@/lib/divination/ziwei';
+import { buildZiweiHoroscopeCanonicalJSON } from '@/lib/divination/ziwei';
 import { getStemElement, getBranchElement, getElementColor } from '@/lib/divination/bazi';
 
 export interface HoroscopeInfo {
@@ -29,6 +30,7 @@ export interface HoroscopeHighlight {
 
 interface ZiweiHoroscopePanelProps {
     chart: ZiweiChart;
+    canonicalChart: ZiweiCanonicalJSON;
     onPalaceHighlight?: (highlights: HoroscopeHighlight) => void;
     onHoroscopeChange?: (info: HoroscopeInfo) => void;
 }
@@ -97,26 +99,25 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
 }
 
 // Fix 1: 模块级缓存，避免重复排盘计算
-// 使用 WeakMap 以 chart.rawAstrolabe 为 key，chart 被 GC 时缓存自动释放
-const horoscopeCacheMap = new WeakMap<object, Map<string, ZiweiHoroscope | null>>();
+const canonicalHoroscopeCacheMap = new WeakMap<object, Map<string, ReturnType<typeof buildZiweiHoroscopeCanonicalJSON>>>();
 
-function getCachedHoroscope(chart: ZiweiChart, date: Date): ZiweiHoroscope | null {
-    const cacheKey = chart.rawAstrolabe ?? chart;
-    let dateCache = horoscopeCacheMap.get(cacheKey);
+function getCachedHoroscopeCanonical(chart: ZiweiChart, date: Date) {
+    const cacheKey = chart;
+    let dateCache = canonicalHoroscopeCacheMap.get(cacheKey);
     if (!dateCache) {
         dateCache = new Map();
-        horoscopeCacheMap.set(cacheKey, dateCache);
+        canonicalHoroscopeCacheMap.set(cacheKey, dateCache);
     }
     const dateKey = date.toISOString().split('T')[0];
     if (dateCache.has(dateKey)) {
         return dateCache.get(dateKey)!;
     }
-    const result = getHoroscope(chart, date);
+    const result = buildZiweiHoroscopeCanonicalJSON(chart, date);
     dateCache.set(dateKey, result);
     return result;
 }
 
-export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
+export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, onHoroscopeChange }: ZiweiHoroscopePanelProps) {
     const [state, dispatch] = useReducer(selectionReducer, initialSelectionState);
     const { selectedDecadalIndex, selectedYear, selectedMonth, selectedDay } = state;
 
@@ -127,30 +128,55 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
     const dailySelected = selectedDay !== null;
 
     // 获取大限列表
-    const decadalList = useMemo(() => getDecadalList(chart), [chart]);
+    const decadalList = useMemo(() => (
+        canonicalChart.palaces
+            .map((palace) => {
+                if (typeof palace.index !== 'number' || !palace.decadalRange) return null;
+                const match = palace.decadalRange.match(/^(\d+)~(\d+)$/u);
+                if (!match) return null;
+                return {
+                    index: palace.index,
+                    startAge: Number(match[1]),
+                    endAge: Number(match[2]),
+                    palace: {
+                        index: palace.index,
+                        name: palace.name,
+                        heavenlyStem: palace.ganZhi.charAt(0),
+                        earthlyBranch: palace.ganZhi.charAt(1),
+                    },
+                    heavenlyStem: palace.ganZhi.charAt(0),
+                };
+            })
+            .filter((item): item is DecadalInfo => Boolean(item))
+            .sort((a, b) => a.startAge - b.startAge)
+    ), [canonicalChart.palaces]);
 
     // Fix 3: birthYear 提取为 useMemo 常量
-    const birthYear = useMemo(() => parseInt(chart.solarDate.split('-')[0]), [chart.solarDate]);
+    const birthYear = useMemo(() => parseInt(canonicalChart.basicInfo.solarDate.split('-')[0]), [canonicalChart.basicInfo.solarDate]);
 
     // Fix 4: 去掉 useMemo，直接在 render 中获取当前日期
     const today = new Date();
     const viewYear = selectedYear ?? today.getFullYear();
     const viewMonth = selectedMonth ?? (today.getMonth() + 1);
 
-    const yearlyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
+    const yearlyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear) return null;
-        return getCachedHoroscope(chart, new Date(selectedYear, 5, 15));
+        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, 5, 15));
     }, [chart, selectedYear]);
 
-    const monthlyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
+    const monthlyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear || !selectedMonth) return null;
-        return getCachedHoroscope(chart, new Date(selectedYear, selectedMonth - 1, 15));
+        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, selectedMonth - 1, 15));
     }, [chart, selectedYear, selectedMonth]);
 
-    const dailyHoroscope = useMemo<ZiweiHoroscope | null>(() => {
+    const dailyHoroscope = useMemo<ZiweiHoroscopeCanonicalJSON | null>(() => {
         if (!selectedYear || !selectedMonth || !selectedDay) return null;
-        return getCachedHoroscope(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
+        return getCachedHoroscopeCanonical(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
     }, [chart, selectedYear, selectedMonth, selectedDay]);
+
+    const yearlyPeriod = yearlyHoroscope?.periods.find((period) => period.label === '流年');
+    const monthlyPeriod = monthlyHoroscope?.periods.find((period) => period.label === '流月');
+    const dailyPeriod = dailyHoroscope?.periods.find((period) => period.label === '流日');
 
     // 获取选中的大限
     const selectedDecadal = useMemo(() =>
@@ -168,28 +194,28 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
             info.decadal = selectedDecadal;
         }
 
-        if (yearlySelected && yearlyHoroscope) {
-            highlights.yearlyIndex = yearlyHoroscope.yearly.palace.index;
+        if (yearlySelected && yearlyPeriod) {
+            highlights.yearlyIndex = yearlyPeriod.palaceIndex;
             info.yearly = {
-                heavenlyStem: yearlyHoroscope.yearly.heavenlyStem,
-                earthlyBranch: yearlyHoroscope.yearly.earthlyBranch,
-                palaceIndex: yearlyHoroscope.yearly.palace.index,
+                heavenlyStem: yearlyPeriod.ganZhi.charAt(0),
+                earthlyBranch: yearlyPeriod.ganZhi.charAt(1),
+                palaceIndex: yearlyPeriod.palaceIndex,
             };
         }
-        if (monthlySelected && monthlyHoroscope) {
-            highlights.monthlyIndex = monthlyHoroscope.monthly.palace.index;
+        if (monthlySelected && monthlyPeriod) {
+            highlights.monthlyIndex = monthlyPeriod.palaceIndex;
             info.monthly = {
-                heavenlyStem: monthlyHoroscope.monthly.heavenlyStem,
-                earthlyBranch: monthlyHoroscope.monthly.earthlyBranch,
-                palaceIndex: monthlyHoroscope.monthly.palace.index,
+                heavenlyStem: monthlyPeriod.ganZhi.charAt(0),
+                earthlyBranch: monthlyPeriod.ganZhi.charAt(1),
+                palaceIndex: monthlyPeriod.palaceIndex,
             };
         }
-        if (dailySelected && dailyHoroscope) {
-            highlights.dailyIndex = dailyHoroscope.daily.palace.index;
+        if (dailySelected && dailyPeriod) {
+            highlights.dailyIndex = dailyPeriod.palaceIndex;
             info.daily = {
-                heavenlyStem: dailyHoroscope.daily.heavenlyStem,
-                earthlyBranch: dailyHoroscope.daily.earthlyBranch,
-                palaceIndex: dailyHoroscope.daily.palace.index,
+                heavenlyStem: dailyPeriod.ganZhi.charAt(0),
+                earthlyBranch: dailyPeriod.ganZhi.charAt(1),
+                palaceIndex: dailyPeriod.palaceIndex,
             };
         }
 
@@ -199,9 +225,9 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
         onPalaceHighlight,
         onHoroscopeChange,
         selectedDecadal,
-        yearlyHoroscope,
-        monthlyHoroscope,
-        dailyHoroscope,
+        yearlyPeriod,
+        monthlyPeriod,
+        dailyPeriod,
         decadalSelected,
         yearlySelected,
         monthlySelected,
@@ -222,13 +248,14 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
 
         for (let year = startYear; year <= endYear; year++) {
             const yearDate = new Date(year, 5, 15);
-            const yearHoroscope = getCachedHoroscope(chart, yearDate);
-            if (yearHoroscope) {
+            const yearHoroscope = getCachedHoroscopeCanonical(chart, yearDate);
+            const yearly = yearHoroscope?.periods.find((period) => period.label === '流年');
+            if (yearly) {
                 years.push({
                     year,
-                    stem: yearHoroscope.yearly.heavenlyStem,
-                    branch: yearHoroscope.yearly.earthlyBranch,
-                    palace: yearHoroscope.yearly.palace.name,
+                    stem: yearly.ganZhi.charAt(0),
+                    branch: yearly.ganZhi.charAt(1),
+                    palace: yearly.name,
                 });
             }
         }
@@ -241,13 +268,14 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
         const months: { month: number; stem: string; branch: string; palace: string }[] = [];
         for (let m = 1; m <= 12; m++) {
             const monthDate = new Date(viewYear, m - 1, 15);
-            const monthHoroscope = getCachedHoroscope(chart, monthDate);
-            if (monthHoroscope) {
+            const monthHoroscope = getCachedHoroscopeCanonical(chart, monthDate);
+            const monthly = monthHoroscope?.periods.find((period) => period.label === '流月');
+            if (monthly) {
                 months.push({
                     month: m,
-                    stem: monthHoroscope.monthly.heavenlyStem,
-                    branch: monthHoroscope.monthly.earthlyBranch,
-                    palace: monthHoroscope.monthly.palace.name,
+                    stem: monthly.ganZhi.charAt(0),
+                    branch: monthly.ganZhi.charAt(1),
+                    palace: monthly.name,
                 });
             }
         }
@@ -264,13 +292,14 @@ export function ZiweiHoroscopePanel({ chart, onPalaceHighlight, onHoroscopeChang
 
         for (let d = 1; d <= daysInMonth; d++) {
             const dayDate = new Date(year, month, d);
-            const dayHoroscope = getCachedHoroscope(chart, dayDate);
-            if (dayHoroscope) {
+            const dayHoroscope = getCachedHoroscopeCanonical(chart, dayDate);
+            const daily = dayHoroscope?.periods.find((period) => period.label === '流日');
+            if (daily) {
                 days.push({
                     day: d,
-                    stem: dayHoroscope.daily.heavenlyStem,
-                    branch: dayHoroscope.daily.earthlyBranch,
-                    palace: dayHoroscope.daily.palace.name,
+                    stem: daily.ganZhi.charAt(0),
+                    branch: daily.ganZhi.charAt(1),
+                    palace: daily.name,
                 });
             }
         }

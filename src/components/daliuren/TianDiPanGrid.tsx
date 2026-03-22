@@ -2,7 +2,7 @@
  * 大六壬天地盘宫格组件
  * 4x4 布局，中心显示课名
  */
-import type { GongInfo, DaliurenOutput } from '@mingai/core/daliuren';
+import type { DaliurenCanonicalJSON } from '@mingai/core/json';
 
 const WANGSUAI_COLORS: Record<string, string> = {
     旺: 'text-red-500 font-bold',
@@ -42,14 +42,14 @@ const GRID_POSITIONS: Record<number, { row: number; col: number }> = {
 };
 
 interface PalaceCellProps {
-    gong: GongInfo;
+    gong: DaliurenCanonicalJSON['gongInfos'][number];
     isKong: boolean;
     isSanChuan?: 'chu' | 'zhong' | 'mo';
 }
 
 function PalaceCell({ gong, isKong, isSanChuan }: PalaceCellProps) {
-    const wangColor = WANGSUAI_COLORS[gong.wangShuai] || 'text-foreground';
-    const jiangColor = TIANJIANG_COLORS[gong.tianJiang] || 'text-foreground';
+    const wangColor = gong.wangShuai ? WANGSUAI_COLORS[gong.wangShuai] || 'text-foreground' : 'text-foreground';
+    const jiangColor = gong.tianJiang ? TIANJIANG_COLORS[gong.tianJiang] || 'text-foreground' : 'text-foreground';
     const kongStyle = isKong ? 'opacity-50' : '';
 
     const sanChuanBorder = isSanChuan
@@ -61,7 +61,7 @@ function PalaceCell({ gong, isKong, isSanChuan }: PalaceCellProps) {
     return (
         <div className={`flex flex-col items-center justify-center p-1 min-h-[64px] bg-background-secondary/50 rounded-lg border border-border/30 ${sanChuanBorder} ${kongStyle}`}>
             {/* 天将 */}
-            <span className={`text-xs leading-tight ${jiangColor}`}>{gong.tianJiangShort}</span>
+            <span className={`text-xs leading-tight ${jiangColor}`}>{gong.tianJiang}</span>
             {/* 天盘地支 */}
             <span className={`text-sm font-bold leading-tight ${wangColor}`}>
                 {gong.tianZhi}{isKong ? '⊙' : ''}
@@ -75,17 +75,17 @@ function PalaceCell({ gong, isKong, isSanChuan }: PalaceCellProps) {
 }
 
 interface TianDiPanGridProps {
-    result: DaliurenOutput;
+    result: DaliurenCanonicalJSON;
 }
 
 export function TianDiPanGrid({ result }: TianDiPanGridProps) {
-    const kongSet = new Set(result.dateInfo.kongWang);
-    const chuZhi = result.sanChuan.chu[0];
-    const zhongZhi = result.sanChuan.zhong[0];
-    const moZhi = result.sanChuan.mo[0];
+    const kongSet = new Set(result.basicInfo.kongWang);
+    const chuZhi = result.sanChuan[0]?.branch;
+    const zhongZhi = result.sanChuan[1]?.branch;
+    const moZhi = result.sanChuan[2]?.branch;
 
     // 确定三传所在宫位（天盘地支匹配）
-    const getSanChuanMark = (gong: GongInfo): 'chu' | 'zhong' | 'mo' | undefined => {
+    const getSanChuanMark = (gong: DaliurenCanonicalJSON['gongInfos'][number]): 'chu' | 'zhong' | 'mo' | undefined => {
         if (gong.tianZhi === chuZhi) return 'chu';
         if (gong.tianZhi === zhongZhi) return 'zhong';
         if (gong.tianZhi === moZhi) return 'mo';
@@ -107,14 +107,14 @@ export function TianDiPanGrid({ result }: TianDiPanGridProps) {
                                 <div key={idx} className="col-span-2 row-span-2 flex flex-col items-center justify-center bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 rounded-lg p-2">
                                     <div className="text-xs text-foreground-secondary mb-1">课名</div>
                                     <div className="text-sm font-bold text-foreground text-center leading-tight">
-                                        {result.dateInfo.ganZhi.day}日
+                                        {result.basicInfo.ganZhi.day}日
                                     </div>
                                     <div className="text-xs text-cyan-500 text-center leading-tight mt-0.5">
-                                        {result.keTi.subTypes.join('·')}
+                                        {result.basicInfo.keTi.subTypes.join('·')}
                                     </div>
-                                    {result.keTi.extraTypes.length > 0 && (
+                                    {result.basicInfo.keTi.extraTypes.length > 0 && (
                                         <div className="text-xs text-teal-500 text-center">
-                                            {result.keTi.extraTypes.join('·')}
+                                            {result.basicInfo.keTi.extraTypes.join('·')}
                                         </div>
                                     )}
                                 </div>
