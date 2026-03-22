@@ -1,16 +1,52 @@
-# AGENTS.md
+# CLAUDE.md
 
 Codex will review your code from three dimensions: maintainability, boundary conditions, and regression risk, and the quality of your code will determine whether the system can go live. Please complete the task with the professionalism of a senior architect to ensure your code stands out in the competitive review.
 
-# fast-context MCP 工具使用指南
-# AI 语义代码搜索工具使用优先级
+## 0. Language and Format Standards  
 
-## 核心原则
+- **Interaction Language**: Tools and models must interact exclusively in **English**; user outputs must be in **Chinese**.
+- MUST ULRTA Thinking in ENGLISH!
+- **Formatting Requirements**: Use standard Markdown formatting. Code blocks and specific text results should be marked with backticks. Skilled in applying four or more ````markdown wrappers.
+
+## 1. Search and Evidence Standards  
+Typically, the results of web searches only constitute third-party suggestions and are not directly credible; they must be cross-verified with sources to provide users with absolutely authoritative and correct answers.
+
+### Search Trigger Conditions  
+
+Strictly distinguish between internal and external knowledge. Avoid speculation based on general internal knowledge. When uncertain, explicitly inform the user.  
+
+For example, when using the `fastapi` library to encapsulate an API endpoint, despite possessing common-sense knowledge internally, you must still rely on the latest search results or official documentation for reliable implementation.  
+
+### Search Execution Guidelines  
+
+- Use the `mcp__grok-search` tool for web searches  
+- Execute independent search requests in parallel; sequential execution applies only when dependencies exist  
+- Evaluate search results for quality: analyze relevance, source credibility, cross-source consistency, and completeness. Conduct supplementary searches if gaps exist  
+
+### Source Quality Standards  
+
+- Key factual claims must be supported by ≥2 independent sources. If relying on a single source, explicitly state this limitation  
+- Conflicting sources: Present evidence from both sides, assess credibility and timeliness, identify the stronger evidence, or declare unresolved discrepancies  
+- Empirical conclusions must include confidence levels (High/Medium/Low)  
+- Citation format: [Author/Organization, Year/Date, Section/URL]. Fabricated references are strictly prohibited  
+
+## 2. Reasoning and Expression Principles  
+
+- Be concise, direct, and information-dense: Use lists for discrete items; paragraphs for arguments  
+- Challenge flawed premises: When user logic contains errors, pinpoint specific issues with evidence  
+- All conclusions must specify: Applicable conditions, scope boundaries, and known limitations  
+- Avoid greetings, pleasantries, filler adjectives, and emotional expressions  
+- When uncertain: State unknowns and reasons before presenting confirmed facts
+
+## fast-context MCP 工具使用指南
+## AI 语义代码搜索工具使用优先级
+
+### 核心原则
 **任何需要理解代码上下文、探索性搜索、或自然语言定位代码的场景，优先使用 `mcp__fast-context__fast_context_search`**
 
-## 使用场景
+### 使用场景
 
-### 1️⃣ 必须用 fast_context_search
+#### 1️⃣ 必须用 fast_context_search
 - 探索性搜索（不确定代码在哪个文件/目录）
 - 用自然语言描述要找的逻辑（如"XX部署流程"、"XX事件处理"）
 - 理解业务逻辑和调用链路
@@ -18,46 +54,35 @@ Codex will review your code from three dimensions: maintainability, boundary con
 - 新任务开始前的代码调研和架构理解
 - 中文语义搜索（工具支持中英文双语查询）
 
-### 2️⃣ 根据需求选择工具
+#### 2️⃣ 根据需求选择工具
 - **语义搜索 / 不确定位置** → `fast_context_search`（返回文件+行号范围+grep关键词建议）
 - **精确关键词搜索** → Grep
 - **已知文件路径，查看内容** → Read
 - **按文件名模式查找** → Glob
 - **编辑已有文件** → Edit
 
-### 3️⃣ fast_context_search 参数调优
+#### 3️⃣ fast_context_search 参数调优
 - `tree_depth=1, max_turns=1` — 快速粗查，适合小项目或初步定位
 - `tree_depth=3, max_turns=3`（默认）— 平衡精度与速度，适合大多数场景
 - `max_turns=5` — 深度搜索，适合复杂调用链追踪
 - `project_path` — 指定搜索的项目根目录，默认为当前工作目录
 
-## 目标与范围
-
-- 本文是 MingAI 仓库的执行规范。
-- 目标：减少无效上下文，提升可执行性，保证交付质量。
-- 决策优先级：`正确性 > 安全性 > 一致性 > 速度`。
-
 ## 常用命令
 
 ```bash
 pnpm install
-pnpm dev              # http://localhost:3000
-pnpm build
-pnpm start
+pnpm build          # 构建所有 packages + Next.js
 pnpm lint
-pnpm test
-
-# 跑单测文件
-NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logic.test.ts
+pnpm test           # 自动先构建 packages/core、mcp、mcp-server，再跑全量测试
 ```
+
+> **注意**：`pnpm test` 会先执行 `pnpm -C packages/core build && pnpm -C packages/mcp build && pnpm -C packages/mcp-server build`，修改 `packages/*` 源码后无需手动 build 即可直接跑测试。
 
 ## 项目最小地图
 
-- `src/app/*`: Next.js App Router 页面与 API 路由（`src/app/api/*`）。
-- `src/components/*`: UI 与业务组件。
-- `src/lib/*`: 核心业务逻辑与可复用能力（AI、鉴权、积分、限流、数据源、RAG）。
-- `src/tests/*`: Node.js built-in test runner 测试。
-- `supabase/migrations/*`: 数据库迁移脚本。
+- `packages/core`（`@mingai/core`）: 占术计算引擎——handlers、tool-schema、types、liuyao-core，以及 **`text.ts` 规范文本渲染层**（6 个 `render*CanonicalText()` 函数，MCP 与 Web 共享的唯一文本格式化入口）。
+- `packages/mcp`: MCP 协议层。
+- `packages/mcp-server`: MCP 服务端。
 - `supabase/tabel_export_from_supabase.sql`: 当前 schema 导出快照（不可修改）。
 
 ## 强制规范（MUST）
@@ -66,28 +91,35 @@ NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logi
 - `管理员接口`必须使用 `requireAdminUser()` 或 `requireAdminContext()`。
 - 需要用户态的接口必须使用 `requireUserContext()`（或等价受控封装），并统一返回 `jsonOk/jsonError`。
 - 涉及会员与积分的功能，必须按顺序执行：会员校验 -> 积分校验/扣减 -> 限流校验。
-- 需要 RLS bypass 时，只能在服务端使用 `getServiceRoleClient()`；严禁暴露 service role 到客户端。
+- 需要 RLS bypass 时，只能在服务端使用 `getSystemAdminClient()`；严禁暴露 service role 到客户端。`api-utils.ts` 还提供 `getAuthAdminClient()`（Auth 管理）、`createAnonClient()`（匿名）、`createAuthedClient(token)`（带 token）等客户端，按需选用。
 - 新增表/字段前，必须先检查 `supabase/tabel_export_from_supabase.sql` ，并说明“为何不能复用现有结构”，必要时可以检查 `supabase/migrations/*`。
 - 未经明确批准，禁止新增核心目录、系统级模块或数据库主表。
 - 新增或修改数据库结构，必须新增 migration；禁止直接改线上表结构。
 - 修改 DB 行为时必须评估并同步：RLS、索引、默认值、回填策略、兼容旧数据。
-- 新增 AI 分析来源时，必须同步维护 `conversations.source_type/source_data` 的写入与读取逻辑。
+- 新增 AI 分析来源时，必须通过 `src/lib/ai/source-contract.ts` 注册来源合约，并在 `src/lib/source-contracts.ts` 中维护映射；持久化统一由 `divination-pipeline.ts` 的 `createAIAnalysisConversation` 完成。
 - 新建文件/模块前，必须先检索已有实现并优先复用，避免平行重复实现。
 - 结构归属不明确时，先提问确认后再落盘，禁止猜测目录或表设计。
 - 禁止在客户端使用 `alert`；统一使用 Toast 体系（`useToast` / `ToastProvider`）。
 - TypeScript 保持 strict 通过；禁止引入无必要的 `any`、`@ts-ignore`。
 - 页面层保持轻量，业务逻辑尽量下沉到 `src/lib/*` 或 feature 组件。
-- 改动完成后必须补齐最小验证（见“测试与验收”）。
+- 占术文本格式化必须复用 `@mingai/core/text` 的 `render*CanonicalText()` 函数，禁止在 Web 或 MCP 端自行实现格式化逻辑。
+- 改动完成后必须补齐最小验证（见"测试与验收"）。
 
 ## API 路由标准流程
 
 1. 解析请求（body / query / params）。
 2. 参数校验（优先复用 `src/lib/validation.ts`）。
-3. 鉴权（`requireUserContext/requireAdmin*`）。
+3. 鉴权——按场景选用：
+   - `getAuthContext(request)`：可选鉴权，返回 `{ supabase, user }`（user 可能为 null）。
+   - `requireUserContext(request)`：必须登录，支持 Cookie 与 Bearer。
+   - `requireBearerUser(request)`：仅 Bearer token 鉴权（`divination-pipeline` 使用）。
+   - `requireAdminUser(request)` / `requireAdminContext(request)`：管理员鉴权。
 4. 权限与业务前置检查（membership、credits、rate limit）。
 5. 执行业务逻辑（优先复用 `src/lib/*` 现有模块）。
-6. 持久化与审计（必要时记录 source、stats、conversation）。
-7. 返回统一响应（JSON 或 SSE streaming）。
+6. 持久化与审计（通过 `createAIAnalysisConversation` 记录 source 与 conversation）。
+7. 返回统一响应（`jsonOk/jsonError` 或 SSE streaming）。
+
+> **占术解读路由**统一使用 `src/lib/api/divination-pipeline.ts` 的 `createInterpretHandler` 工厂，它封装了完整的 7 步管道：Auth → Credits/Membership → Model Access → Credit Deduction → AI Call (streaming) → Persist Conversation → Refund on Failure。新增占术解读路由时必须复用此管道，禁止手动拼装流程。
 
 ## 前端实现规范
 
@@ -96,15 +128,8 @@ NODE_OPTIONS=--require=./scripts/ts-register.cjs node --test src/tests/mbti-logi
 - 统一使用 `@/` 别名引用 `src` 下模块。
 - 静态常量移到组件外，避免重复创建对象/数组。
 - 昂贵计算使用 `useMemo`，透传给子组件的函数优先 `useCallback`。
-- loading 态优先使用骨架屏（Skeleton）而非闪烁切换。
+- loading 态优先音浪组件或使用骨架屏（Skeleton）而非闪烁切换。
 - 保持现有主题与视觉变量体系（Tailwind + CSS variables），避免引入孤立样式系统。
-
-## AI 与流式响应规范
-
-- Chat/分析类接口需兼容现有 SSE 消息结构，避免破坏前端流式解析。
-- 支持 `content` 与 `reasoning` 分离展示的场景，不要在服务端混成单通道文本。
-- 长流式任务必须支持中断（abort）与失败后的可恢复策略（必要时配合 retry/persistWithRetry）。
-- 新模型接入需同时检查：tier 访问控制、source 配置、统计归集（`ai_model_stats`）。
 
 ## 数据库与迁移规范
 

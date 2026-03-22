@@ -97,6 +97,34 @@ CREATE TABLE public.archived_sources (
   CONSTRAINT archived_sources_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT archived_sources_kb_id_fkey FOREIGN KEY (kb_id) REFERENCES public.knowledge_bases(id)
 );
+CREATE TABLE public.bazi_case_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  profile_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  bazi_chart_id uuid NOT NULL,
+  event_date date NOT NULL,
+  category text NOT NULL CHECK (category = ANY (ARRAY['事业'::text, '学业'::text, '财富'::text, '婚姻'::text, '健康'::text, '六亲'::text, '其他'::text])),
+  title text NOT NULL,
+  detail text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT bazi_case_events_pkey PRIMARY KEY (id),
+  CONSTRAINT bazi_case_events_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.bazi_case_profiles(id),
+  CONSTRAINT bazi_case_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT bazi_case_events_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id)
+);
+CREATE TABLE public.bazi_case_profiles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  bazi_chart_id uuid NOT NULL UNIQUE,
+  master_review jsonb NOT NULL DEFAULT '{}'::jsonb,
+  owner_feedback jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT bazi_case_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT bazi_case_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT bazi_case_profiles_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id)
+);
 CREATE TABLE public.bazi_charts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -173,6 +201,18 @@ CREATE TABLE public.community_votes (
   CONSTRAINT community_votes_pkey PRIMARY KEY (id),
   CONSTRAINT community_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.conversation_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  sequence integer NOT NULL,
+  message_id text NOT NULL,
+  role text NOT NULL,
+  content text NOT NULL DEFAULT ''::text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT conversation_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT conversation_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
 CREATE TABLE public.conversations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -183,7 +223,7 @@ CREATE TABLE public.conversations (
   messages jsonb DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALID),
+  source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALI),
   source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
@@ -236,16 +276,6 @@ CREATE TABLE public.face_readings (
   CONSTRAINT face_readings_pkey PRIMARY KEY (id),
   CONSTRAINT face_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT face_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
-);
-CREATE TABLE public.feature_subscriptions (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  feature_key character varying NOT NULL,
-  notify_email boolean DEFAULT true,
-  notify_site boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT feature_subscriptions_pkey PRIMARY KEY (id),
-  CONSTRAINT feature_subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.hepan_charts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
