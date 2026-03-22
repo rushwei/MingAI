@@ -204,7 +204,7 @@ function calculateYearlyCard(birthMonth: number, birthDay: number, currentYear: 
 }
 
 // 根据大阿卡纳编号获取牌名
-function getMajorArcanaByNumber(num: number): { name: string; nameChinese: string } | undefined {
+function getMajorArcanaByNumber(num: number): TarotCard | undefined {
   return MAJOR_ARCANA.find(c => c.number === num);
 }
 
@@ -266,16 +266,25 @@ export async function handleTarotDraw(input: TarotInput): Promise<TarotOutput> {
         number: personalityCard,
         name: personalityArcana?.name || '',
         nameChinese: personalityArcana?.nameChinese || '',
+        keywords: personalityArcana?.keywords,
+        element: personalityArcana?.element,
+        astrologicalCorrespondence: personalityArcana?.astrologicalCorrespondence,
       },
       soulCard: {
         number: soulCard,
         name: soulArcana?.name || '',
         nameChinese: soulArcana?.nameChinese || '',
+        keywords: soulArcana?.keywords,
+        element: soulArcana?.element,
+        astrologicalCorrespondence: soulArcana?.astrologicalCorrespondence,
       },
       yearlyCard: {
         number: yearlyCard,
         name: yearlyArcana?.name || '',
         nameChinese: yearlyArcana?.nameChinese || '',
+        keywords: yearlyArcana?.keywords,
+        element: yearlyArcana?.element,
+        astrologicalCorrespondence: yearlyArcana?.astrologicalCorrespondence,
         year: currentYear,
       },
     };

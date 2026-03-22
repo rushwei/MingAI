@@ -52,6 +52,7 @@ function TarotResultContent() {
     const [question, setQuestion] = useState(questionParam || '');
     const [birthDate, setBirthDate] = useState(birthDateParam || '');
     const [numerology, setNumerology] = useState<TarotNumerology | null>(null);
+    const [seed, setSeed] = useState<string | null>(null);
     const [interpretation, setInterpretation] = useState('');
     const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +110,7 @@ function TarotResultContent() {
             setInterpretationReasoning(null);
             setBirthDate(birthDateParam || '');
             setNumerology(null);
+            setSeed(null);
 
             try {
                 const res = await fetch('/api/tarot', {
@@ -127,6 +129,7 @@ function TarotResultContent() {
                     setSelectedSpread(data.data.spread);
                     setDrawnCards(data.data.cards);
                     setNumerology(data.data.numerology || null);
+                    setSeed(typeof data.data.seed === 'string' ? data.data.seed : null);
                 }
             } catch (error) {
                 console.error('抽牌失败:', error);
@@ -145,6 +148,7 @@ function TarotResultContent() {
         question?: string;
         birthDate?: string;
         numerology?: TarotNumerology | null;
+        seed?: string | null;
         readingId?: string | null;
         conversationId?: string | null;
         createdAt?: string;
@@ -178,6 +182,7 @@ function TarotResultContent() {
                         setBirthDate(parsed.birthDate);
                     }
                     setNumerology(parsed.numerology || null);
+                    setSeed(parsed.seed || null);
                     setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i));
                     setReadingId(parsed.readingId || null);
                     setConversationId(parsed.conversationId || null);
@@ -215,11 +220,12 @@ function TarotResultContent() {
             question,
             birthDate,
             numerology,
+            seed,
             readingId,
             conversationId,
             createdAt: prev?.createdAt || new Date().toISOString(),
         }));
-    }, [birthDate, conversationId, drawnCards, numerology, question, readingId, selectedSpread]);
+    }, [birthDate, conversationId, drawnCards, numerology, question, readingId, seed, selectedSpread]);
 
     const saveReading = async () => {
         if (hasSaved || isSaving || isViewingHistory || !selectedSpread || !drawnCards.length) return;
@@ -243,6 +249,7 @@ function TarotResultContent() {
                     question: question || undefined,
                     birthDate: birthDate || undefined,
                     numerology: numerology || undefined,
+                    seed: seed || undefined,
                     cards: drawnCards,
                 }),
             });
@@ -281,8 +288,10 @@ function TarotResultContent() {
         try {
             await navigator.clipboard.writeText(generateTarotReadingText({
                 spreadName: selectedSpread.name,
+                spreadId: selectedSpread.id,
                 question,
                 cards: drawnCards,
+                seed: seed || undefined,
                 numerology,
                 birthDate,
             }));
@@ -322,6 +331,7 @@ function TarotResultContent() {
                     question: question || undefined,
                     birthDate: birthDate || undefined,
                     numerology: numerology || undefined,
+                    seed: seed || undefined,
                     spreadId: selectedSpread?.id,
                     readingId: readingId || undefined,
                     modelId: selectedModel,
@@ -396,6 +406,7 @@ function TarotResultContent() {
         setReadingId(null);
         setConversationId(null);
         setNumerology(null);
+        setSeed(null);
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -415,6 +426,7 @@ function TarotResultContent() {
             if (data.success && data.data?.cards) {
                 setDrawnCards(data.data.cards);
                 setNumerology(data.data.numerology || null);
+                setSeed(typeof data.data.seed === 'string' ? data.data.seed : null);
             }
         } catch (error) {
             console.error('重新抽牌失败:', error);
@@ -524,6 +536,35 @@ function TarotResultContent() {
                         </button>
                     </div>
                 </div>
+
+                <section className="mb-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
+                    <div className="mb-4">
+                        <h2 className="text-base font-bold">排盘信息</h2>
+                        <p className="mt-1 text-sm text-foreground-secondary">复制文本、AI 解读与历史恢复共用同一份排盘正文。</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                            <div className="text-xs text-foreground-secondary">牌阵</div>
+                            <div className="mt-1 text-sm font-medium">{selectedSpread.name}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                            <div className="text-xs text-foreground-secondary">牌阵 ID</div>
+                            <div className="mt-1 text-sm font-medium">{selectedSpread.id}</div>
+                        </div>
+                        {seed && (
+                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                <div className="text-xs text-foreground-secondary">随机种子</div>
+                                <div className="mt-1 break-all text-sm font-medium">{seed}</div>
+                            </div>
+                        )}
+                        {question && (
+                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                <div className="text-xs text-foreground-secondary">问题</div>
+                                <div className="mt-1 text-sm font-medium">{question}</div>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
                 {/* Card Table */}
                 <div className="relative py-2 bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm">
@@ -668,60 +709,59 @@ function TarotResultContent() {
                             <h2 className="text-base font-bold">塔罗数秘术</h2>
                             <p className="mt-1 text-sm text-foreground-secondary">生日信息仅用于补充人格牌、灵魂牌与年度牌。</p>
                         </div>
-                        <div className={`grid gap-3 ${numerology ? 'md:grid-cols-2' : ''}`}>
-                            {birthDate && (
-                                <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                    <div className="text-xs text-foreground-secondary">出生日期</div>
-                                    <div className="mt-1 text-sm font-medium">{birthDate}</div>
-                                </div>
-                            )}
-                            {numerology && (
-                                <>
-                                    {[
-                                        { label: '人格牌', card: numerology.personalityCard },
-                                        { label: '灵魂牌', card: numerology.soulCard },
-                                        { label: '年度牌', card: numerology.yearlyCard },
-                                    ].map((item) => {
-                                        const cardImage = TAROT_CARDS.find(card => card.name === item.card.name)?.image || '';
-                                        return (
-                                            <div key={item.label} className="rounded-2xl border border-white/10 bg-background/60 p-4 flex gap-3 items-start">
-                                                <div className="relative w-16 h-24 rounded-lg overflow-hidden border border-white/10 bg-black/20 flex-shrink-0">
-                                                    {cardImage ? (
-                                                        <Image
-                                                            src={cardImage}
-                                                            alt={item.card.nameChinese}
-                                                            fill
-                                                            sizes="64px"
-                                                            className="object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-foreground-secondary">
-                                                            无图
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="text-xs text-foreground-secondary">{item.label}</div>
-                                                    <div className="mt-1 text-sm font-medium text-foreground">
-                                                        {item.card.nameChinese} / {item.card.name}
+                        {birthDate && (
+                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+                                <div className="text-xs text-foreground-secondary">出生日期</div>
+                                <div className="mt-1 text-sm font-medium">{birthDate}</div>
+                            </div>
+                        )}
+                        {numerology && (
+                            <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
+                                {[
+                                    { label: '人格牌', card: numerology.personalityCard },
+                                    { label: '灵魂牌', card: numerology.soulCard },
+                                    { label: '年度牌', card: numerology.yearlyCard },
+                                ].map((item) => {
+                                    const cardImage = TAROT_CARDS.find(card => card.name === item.card.name)?.image || '';
+                                    return (
+                                        <div key={item.label} className="rounded-2xl border border-white/10 bg-background/60 p-3 flex flex-col items-center text-center gap-2">
+                                            <div className="text-[11px] text-foreground-secondary">{item.label}</div>
+                                            <div className="relative w-full max-w-[120px] aspect-[2/3] rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                                                {cardImage ? (
+                                                    <Image
+                                                        src={cardImage}
+                                                        alt={item.card.nameChinese}
+                                                        fill
+                                                        sizes="120px"
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-foreground-secondary">
+                                                        无图
                                                     </div>
-                                                    <div className="mt-1 text-xs text-foreground-secondary">
-                                                        编号 {item.card.number}{item.card.year ? ` · ${item.card.year}` : ''}
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
-                                        );
-                                    })}
-                                </>
-                            )}
-                            {!numerology && birthDate && (
-                                <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                    <div className="text-xs text-foreground-secondary">数秘牌提示</div>
-                                    <div className="mt-1 text-sm font-medium text-foreground">当前未生成数秘牌</div>
-                                    <div className="mt-1 text-xs text-foreground-secondary">补充完整出生日期即可生成。</div>
-                                </div>
-                            )}
-                        </div>
+                                            <div className="text-sm font-medium text-foreground">
+                                                {item.card.nameChinese}
+                                            </div>
+                                            <div className="text-[11px] text-foreground-secondary truncate w-full">
+                                                {item.card.name}
+                                            </div>
+                                            <div className="text-[10px] text-foreground-secondary">
+                                                编号 {item.card.number}{item.card.year ? ` · ${item.card.year}` : ''}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {!numerology && birthDate && (
+                            <div className="mt-3 rounded-2xl border border-white/10 bg-background/60 p-4">
+                                <div className="text-xs text-foreground-secondary">数秘牌提示</div>
+                                <div className="mt-1 text-sm font-medium text-foreground">当前未生成数秘牌</div>
+                                <div className="mt-1 text-xs text-foreground-secondary">补充完整出生日期即可生成。</div>
+                            </div>
+                        )}
                     </section>
                 )}
 

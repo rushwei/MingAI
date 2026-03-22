@@ -618,6 +618,9 @@ export interface TarotNumerologyCard {
     number: number;
     name: string;
     nameChinese: string;
+    keywords?: string[];
+    element?: string;
+    astrologicalCorrespondence?: string;
     year?: number;
 }
 export interface TarotNumerology {
@@ -788,6 +791,8 @@ export interface QimenPalaceInfo {
     formations: string[];
     stemWangShuai?: string;
     elementState?: string;
+    earthStemElement?: string;
+    heavenStemElement?: string;
     isKongWang?: boolean;
     isYiMa?: boolean;
     isRuMu?: boolean;
@@ -836,5 +841,6 @@ export interface QimenOutput {
     panType: string;
     juMethod: string;
     question?: string;
+    monthPhase?: Record<string, string>;
 }
 //# sourceMappingURL=types.d.ts.map

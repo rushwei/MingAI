@@ -644,6 +644,9 @@ export interface TarotNumerologyCard {
   number: number;
   name: string;
   nameChinese: string;
+  keywords?: string[];
+  element?: string;
+  astrologicalCorrespondence?: string;
   year?: number;
 }
 
@@ -836,6 +839,8 @@ export interface QimenPalaceInfo {
   formations: string[];       // 该宫格局列表
   stemWangShuai?: string;     // 天干旺衰状态
   elementState?: string;      // 宫五行旺衰
+  earthStemElement?: string;  // 地盘干五行
+  heavenStemElement?: string; // 天盘干五行
   isKongWang?: boolean;       // 是否空亡
   isYiMa?: boolean;           // 是否驿马
   isRuMu?: boolean;           // 是否入墓
@@ -870,4 +875,5 @@ export interface QimenOutput {
   panType: string;
   juMethod: string;
   question?: string;
+  monthPhase?: Record<string, string>; // 十干月令旺衰：干 → 旺/相/休/囚/死
 }

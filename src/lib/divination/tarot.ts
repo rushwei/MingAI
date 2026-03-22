@@ -4,6 +4,8 @@
  * 78张韦特塔罗牌完整数据，包含22张大阿卡纳和56张小阿卡纳
  */
 
+import type { TarotOutput as CoreTarotOutput } from '@mingai/core';
+import { renderTarotCanonicalText } from '@mingai/core/text';
 import { handleTarotDraw, type TarotCardResult } from '@mingai/core/tarot';
 
 // 牌的类型
@@ -89,67 +91,47 @@ type TarotTextCardLike = {
 
 export function generateTarotReadingText(input: {
     spreadName: string;
+    spreadId?: string;
     question?: string | null;
     cards: unknown;
+    seed?: string;
     numerology?: TarotNumerology | null;
     birthDate?: string | null;
 }): string {
     const cards = Array.isArray(input.cards) ? input.cards as TarotTextCardLike[] : [];
-    const lines: string[] = [
-        '# 塔罗占卜',
-        '',
-        '## 基本信息',
-        `- **牌阵**: ${input.spreadName}`,
-    ];
-
-    if (input.question) {
-        lines.push(`- **问题**: ${input.question}`);
-    }
     const birthDateText = typeof input.birthDate === 'string' ? input.birthDate.trim() : '';
-    if (birthDateText) {
-        const normalizedBirth = parseBirthDateParts(birthDateText);
-        const normalizedText = normalizedBirth
-            ? `${normalizedBirth.birthYear}-${String(normalizedBirth.birthMonth).padStart(2, '0')}-${String(normalizedBirth.birthDay).padStart(2, '0')}`
-            : birthDateText;
-        lines.push(`- **出生日期**: ${normalizedText}`);
-    }
+    const normalizedBirth = birthDateText ? parseBirthDateParts(birthDateText) : null;
+    const normalizedBirthText = normalizedBirth
+        ? `${normalizedBirth.birthYear}-${String(normalizedBirth.birthMonth).padStart(2, '0')}-${String(normalizedBirth.birthDay).padStart(2, '0')}`
+        : birthDateText;
+    const result: CoreTarotOutput = {
+        spreadId: input.spreadId || 'custom',
+        spreadName: input.spreadName,
+        question: input.question || undefined,
+        seed: input.seed || '',
+        cards: cards.map((item, index) => {
+            const card = item.card || {};
+            return {
+                position: item.position || `第${index + 1}张`,
+                card: {
+                    name: card.name || `第${index + 1}张`,
+                    nameChinese: card.nameChinese || card.name || `第${index + 1}张`,
+                    keywords: Array.isArray(card.keywords) ? card.keywords : [],
+                },
+                orientation: item.orientation === 'reversed' ? 'reversed' : 'upright',
+                meaning: item.meaning || (item.orientation === 'reversed' ? card.reversedMeaning : card.uprightMeaning) || '',
+                number: typeof card.number === 'number' ? card.number : undefined,
+                reversedKeywords: Array.isArray(card.reversedKeywords) ? card.reversedKeywords : undefined,
+                element: card.element,
+                astrologicalCorrespondence: card.astrologicalCorrespondence || card.zodiac,
+            };
+        }),
+        numerology: input.numerology || undefined,
+    };
 
-    lines.push('');
-    lines.push('## 抽到的牌');
-    lines.push('');
-
-    cards.forEach((item, index) => {
-        const position = item.position || `第${index + 1}张`;
-        const card = item.card || {};
-        const orientation = item.orientation === 'reversed' ? '逆位' : '正位';
-        const keywords = Array.isArray(card.keywords) ? card.keywords.join('、') : '';
-        const meaning = item.meaning || (item.orientation === 'reversed' ? card.reversedMeaning : card.uprightMeaning) || '';
-        lines.push(`### ${position}: ${card.nameChinese || card.name || `第${index + 1}张`}`);
-        lines.push('');
-        lines.push(`- **方向**: ${orientation}`);
-        if (card.name) lines.push(`- **英文名**: ${card.name}`);
-        if (typeof card.number === 'number') lines.push(`- **编号**: ${card.number}`);
-        if (card.element) lines.push(`- **元素**: ${card.element}`);
-        const astro = card.astrologicalCorrespondence || card.zodiac;
-        if (astro) lines.push(`- **星象**: ${astro}`);
-        if (keywords) lines.push(`- **关键词**: ${keywords}`);
-        if (card.reversedKeywords && card.reversedKeywords.length > 0) {
-            lines.push(`- **逆位关键词**: ${card.reversedKeywords.join('、')}`);
-        }
-        if (meaning) lines.push(`- **牌义**: ${meaning}`);
-        lines.push('');
+    return renderTarotCanonicalText(result, {
+        birthDate: normalizedBirthText || undefined,
     });
-
-    if (input.numerology) {
-        lines.push('## 塔罗数秘术');
-        lines.push('');
-        lines.push(`- **人格牌**: ${input.numerology.personalityCard.nameChinese}（${input.numerology.personalityCard.name} / ${input.numerology.personalityCard.number}）`);
-        lines.push(`- **灵魂牌**: ${input.numerology.soulCard.nameChinese}（${input.numerology.soulCard.name} / ${input.numerology.soulCard.number}）`);
-        lines.push(`- **年度牌**: ${input.numerology.yearlyCard.nameChinese}（${input.numerology.yearlyCard.name} / ${input.numerology.yearlyCard.number}${input.numerology.yearlyCard.year ? ` / ${input.numerology.yearlyCard.year}` : ''}）`);
-        lines.push('');
-    }
-
-    return lines.join('\n');
 }
 
 // ===== 22张大阿卡纳 =====
@@ -598,7 +580,7 @@ export async function drawForSpread(
     spreadId: string,
     allowReversed: boolean = true,
     options: TarotDrawOptions = {}
-): Promise<{ spread: TarotSpread; cards: DrawnCard[]; numerology?: TarotNumerology } | null> {
+): Promise<{ spread: TarotSpread; cards: DrawnCard[]; numerology?: TarotNumerology; seed: string } | null> {
     const spread = TAROT_SPREADS.find(s => s.id === spreadId);
     if (!spread) return null;
 
@@ -616,7 +598,12 @@ export async function drawForSpread(
         mapCoreCardToDrawn(card, spread.positions[index]?.meaning)
     );
 
-    return { spread, cards: cardsWithPositions, numerology: output.numerology as TarotNumerology | undefined };
+    return {
+        spread,
+        cards: cardsWithPositions,
+        numerology: output.numerology as TarotNumerology | undefined,
+        seed: output.seed,
+    };
 }
 
 /**
