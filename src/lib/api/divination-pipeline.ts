@@ -218,8 +218,7 @@ export function createInterpretHandler<T extends InterpretInput>(
       { reasoning: reasoningEnabled, temperature: 0.7 },
     );
     const [clientStream, tapStream] = streamBody.tee();
-
-    void (async () => {
+    const persistenceTask = (async (): Promise<{ conversationId: string | null; error?: string }> => {
       try {
         const { content, reasoning: reasoningText } = await readAIStream(tapStream);
         const conversationId = await persistConversation(
@@ -228,12 +227,61 @@ export function createInterpretHandler<T extends InterpretInput>(
         if (persistRecord) {
           await persistRecord(input, userId, conversationId);
         }
+        return { conversationId };
       } catch (err) {
         console.error(`[${tag}] 流式结果保存失败:`, err);
+        return { conversationId: null, error: '保存结果失败，请稍后重试' };
       }
     })();
 
-    return new Response(clientStream, { headers: SSE_HEADERS });
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let sourceReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+    const responseStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        sourceReader = clientStream.getReader();
+        let buffer = '';
+
+        try {
+          while (true) {
+            const { done, value } = await sourceReader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              if (line.startsWith('data: ') && line.slice(6) === '[DONE]') {
+                continue;
+              }
+              controller.enqueue(encoder.encode(`${line}\n`));
+            }
+          }
+
+          if (buffer && !(buffer.startsWith('data: ') && buffer.slice(6) === '[DONE]')) {
+            controller.enqueue(encoder.encode(buffer));
+          }
+
+          const persistenceResult = await persistenceTask;
+          if (persistenceResult.error) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: persistenceResult.error })}\n\n`));
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          sourceReader?.releaseLock();
+        }
+      },
+      async cancel(reason) {
+        await sourceReader?.cancel(reason);
+      },
+    });
+
+    return new Response(responseStream, { headers: SSE_HEADERS });
   }
 
   // ── Non-stream ──

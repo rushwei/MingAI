@@ -41,6 +41,36 @@ interface ParsedSSEData {
             reasoning_content?: string;
         };
     }>;
+    error?: string;
+    conversationId?: string | null;
+}
+
+export interface ParsedStreamingSSEFrame {
+    contentDelta?: string;
+    reasoningDelta?: string;
+    error?: string;
+    conversationId?: string | null;
+    done: boolean;
+}
+
+export function parseStreamingSSEData(data: string): ParsedStreamingSSEFrame {
+    if (data === '[DONE]') {
+        return { done: true };
+    }
+
+    try {
+        const parsed: ParsedSSEData = JSON.parse(data);
+        const delta = parsed.choices?.[0]?.delta;
+        return {
+            contentDelta: delta?.content,
+            reasoningDelta: delta?.reasoning_content,
+            error: typeof parsed.error === 'string' ? parsed.error : undefined,
+            conversationId: typeof parsed.conversationId === 'string' ? parsed.conversationId : null,
+            done: false,
+        };
+    } catch {
+        return { done: false };
+    }
 }
 
 /**
@@ -112,6 +142,7 @@ export function useStreamingResponse(
         const decoder = new TextDecoder();
         let accumulatedContent = '';
         let accumulatedReasoning = '';
+        let streamError: string | undefined = undefined;
         let streamReasoningStartTime: number | undefined = undefined;
         let buffer = '';
 
@@ -127,53 +158,57 @@ export function useStreamingResponse(
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6);
-                        if (data === '[DONE]') continue;
+                        const frame = parseStreamingSSEData(data);
+                        if (frame.done) continue;
 
-                        try {
-                            const parsed: ParsedSSEData = JSON.parse(data);
-                            const delta = parsed.choices?.[0]?.delta;
+                        if (frame.error) {
+                            streamError = frame.error;
+                            setState(prev => ({
+                                ...prev,
+                                error: frame.error || null,
+                            }));
+                            callbacks?.onError?.(frame.error);
+                            continue;
+                        }
 
-                            // 处理推理内容
-                            const reasoningContent = delta?.reasoning_content;
-                            if (reasoningContent) {
-                                if (!accumulatedReasoning && !streamReasoningStartTime) {
-                                    streamReasoningStartTime = Date.now();
-                                    setState(prev => ({
-                                        ...prev,
-                                        reasoningStartTime: streamReasoningStartTime,
-                                    }));
-                                    callbacks?.onReasoningStart?.(streamReasoningStartTime);
-                                }
-                                accumulatedReasoning += reasoningContent;
-                                rawReasoningRef.current = accumulatedReasoning;
-                                if (smoothRendering) {
-                                    reasoningStreaming.addCharacters(reasoningContent);
-                                } else {
-                                    setState(prev => ({
-                                        ...prev,
-                                        reasoning: accumulatedReasoning,
-                                    }));
-                                }
-                                callbacks?.onReasoning?.(accumulatedReasoning);
+                        // 处理推理内容
+                        const reasoningContent = frame.reasoningDelta;
+                        if (reasoningContent) {
+                            if (!accumulatedReasoning && !streamReasoningStartTime) {
+                                streamReasoningStartTime = Date.now();
+                                setState(prev => ({
+                                    ...prev,
+                                    reasoningStartTime: streamReasoningStartTime,
+                                }));
+                                callbacks?.onReasoningStart?.(streamReasoningStartTime);
                             }
-
-                            // 处理正常内容
-                            const content = delta?.content;
-                            if (content) {
-                                accumulatedContent += content;
-                                rawContentRef.current = accumulatedContent;
-                                if (smoothRendering) {
-                                    contentStreaming.addCharacters(content);
-                                } else {
-                                    setState(prev => ({
-                                        ...prev,
-                                        content: accumulatedContent,
-                                    }));
-                                }
-                                callbacks?.onContent?.(accumulatedContent);
+                            accumulatedReasoning += reasoningContent;
+                            rawReasoningRef.current = accumulatedReasoning;
+                            if (smoothRendering) {
+                                reasoningStreaming.addCharacters(reasoningContent);
+                            } else {
+                                setState(prev => ({
+                                    ...prev,
+                                    reasoning: accumulatedReasoning,
+                                }));
                             }
-                        } catch {
-                            // 跳过解析错误
+                            callbacks?.onReasoning?.(accumulatedReasoning);
+                        }
+
+                        // 处理正常内容
+                        const content = frame.contentDelta;
+                        if (content) {
+                            accumulatedContent += content;
+                            rawContentRef.current = accumulatedContent;
+                            if (smoothRendering) {
+                                contentStreaming.addCharacters(content);
+                            } else {
+                                setState(prev => ({
+                                    ...prev,
+                                    content: accumulatedContent,
+                                }));
+                            }
+                            callbacks?.onContent?.(accumulatedContent);
                         }
                     }
                 }
@@ -196,6 +231,7 @@ export function useStreamingResponse(
         setState(prev => ({
             ...prev,
             isStreaming: false,
+            error: streamError || prev.error,
             reasoningDuration,
             content: accumulatedContent,
             reasoning: accumulatedReasoning || null,
@@ -209,6 +245,7 @@ export function useStreamingResponse(
         return {
             content: accumulatedContent,
             reasoning: accumulatedReasoning || null,
+            error: streamError,
         };
     }, [callbacks, smoothRendering, contentStreaming, reasoningStreaming]);
 

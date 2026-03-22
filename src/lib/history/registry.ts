@@ -365,6 +365,7 @@ export async function buildHistoryRestorePayload(
         question: row.question || '',
         birthDate: typeof metadata.birthDate === 'string' ? metadata.birthDate : '',
         numerology: metadata.numerology || null,
+        seed: typeof metadata.seed === 'string' ? metadata.seed : null,
         readingId: row.id,
         createdAt: row.created_at,
         conversationId: row.conversation_id || null,
