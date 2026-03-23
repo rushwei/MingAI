@@ -55,13 +55,10 @@ next-env.d.ts
 .pnpm-store
 
 # migration files
-# supabase/migrations
+supabase/migrations
 
 # docs
-docs/review/log
-docs/resource
-docs/change
-docs/other
+docs/
 
 # AI
 .claude
