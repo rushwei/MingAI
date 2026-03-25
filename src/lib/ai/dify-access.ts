@@ -48,38 +48,3 @@ export function checkDifyAccess(
     return { allowed: true };
 }
 
-/**
- * 根据用户选择确定实际的 Dify 模式
- */
-export function determineDifyMode(
-    hasFile: boolean,
-    hasWebSearch: boolean
-): DifyMode | null {
-    if (!hasFile && !hasWebSearch) {
-        return null;
-    }
-
-    if (hasFile && hasWebSearch) {
-        return 'all';
-    }
-
-    if (hasFile) {
-        return 'file';
-    }
-
-    return 'web';
-}
-
-/**
- * 检查用户是否可以使用网络搜索功能
- */
-export function canUseWebSearch(membershipType: MembershipType): boolean {
-    return membershipType !== 'free';
-}
-
-/**
- * 检查用户是否可以同时使用文件和搜索
- */
-export function canUseBothFeatures(membershipType: MembershipType): boolean {
-    return membershipType === 'pro';
-}

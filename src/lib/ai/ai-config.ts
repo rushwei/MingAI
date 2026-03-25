@@ -150,15 +150,6 @@ export function buildModels(): AIModelConfig[] {
 let _models: AIModelConfig[] | null = null;
 
 /**
- * 获取模型配置（异步签名，实际同步）
- *
- * 保留 async 签名以兼容服务端 ai-config 的异步覆盖。
- */
-export async function getModelsAsync(): Promise<AIModelConfig[]> {
-  return getModels();
-}
-
-/**
  * 同步获取环境变量回退模型配置
  */
 export function getModels(): AIModelConfig[] {
@@ -170,31 +161,12 @@ export function getModels(): AIModelConfig[] {
 
 export function clearModelCache(): void {
   _models = null;
-  _visionModels = null;
   console.info('[ai-config] Model cache cleared');
 }
-
-export const AI_MODELS = getModels();
 
 export function getModelConfig(modelId: string): AIModelConfig | undefined {
   const models = getModels();
   return models.find((model) => model.id === modelId);
-}
-
-export async function getModelConfigAsync(modelId: string): Promise<AIModelConfig | undefined> {
-  return getModelConfig(modelId);
-}
-
-export function getAllModelIds(): string[] {
-  return getModels().map((model) => model.id);
-}
-
-export function getModelsByVendor(vendor: AIVendor): AIModelConfig[] {
-  return getModels().filter((model) => model.vendor === vendor);
-}
-
-export function getAllVendors(): AIVendor[] {
-  return [...new Set(getModels().map((model) => model.vendor))];
 }
 
 export const DEFAULT_MODEL_ID = '';
@@ -227,11 +199,3 @@ export function getVendorName(vendor: string): string {
 /** 管理后台 vendor 下拉预设（从 VENDOR_NAMES 派生） */
 export const VENDOR_PRESETS = Object.keys(VENDOR_NAMES) as readonly string[];
 
-let _visionModels: AIModelConfig[] | null = null;
-
-export function getVisionModels(): AIModelConfig[] {
-  if (_visionModels === null) {
-    _visionModels = getModels().filter((model) => getModelUsageType(model) === 'vision');
-  }
-  return _visionModels;
-}

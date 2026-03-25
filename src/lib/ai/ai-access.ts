@@ -115,10 +115,10 @@ export function getModelAccessForMembership(
  * 异步版本 - 用于 API 路由
  * 直接使用传入的模型配置（已包含数据库 tier 信息）
  */
-export async function getModelAccessForMembershipAsync(
+export function getModelAccessForMembershipAsync(
     model: AIModelConfig,
     membership: MembershipType
-): Promise<{ allowed: boolean; blockedReason: string | null; reasoningAllowed: boolean }> {
+): { allowed: boolean; blockedReason: string | null; reasoningAllowed: boolean } {
     return getModelAccessForMembership(model, membership);
 }
 

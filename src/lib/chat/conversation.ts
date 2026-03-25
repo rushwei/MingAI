@@ -193,33 +193,6 @@ export async function renameConversation(
     return true;
 }
 
-export async function updateConversationPersonality(
-    conversationId: string,
-    personality: AIPersonality
-): Promise<boolean> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'PATCH',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({ personality }),
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 更新人格失败');
-        return false;
-    }
-
-    return true;
-}
-
-export function generateConversationTitle(messages: ChatMessage[]): string {
-    const firstUserMessage = messages.find((message) => message.role === 'user');
-    if (!firstUserMessage) return '新对话';
-
-    const content = firstUserMessage.content.trim();
-    if (content.length <= 20) return content;
-    return `${content.substring(0, 20)}...`;
-}
-
 export async function loadConversationMessages(
     conversationId: string,
     options: {
@@ -275,13 +248,3 @@ export async function loadInitialMessages(
     });
 }
 
-export async function loadMoreMessages(
-    conversationId: string,
-    currentCount: number,
-    batchSize: number = 20
-): Promise<PaginatedMessages | null> {
-    return loadConversationMessages(conversationId, {
-        limit: batchSize,
-        offset: currentCount,
-    });
-}

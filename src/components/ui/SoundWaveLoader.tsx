@@ -71,19 +71,3 @@ export function SoundWaveLoader({
     );
 }
 
-/**
- * AI 流式回复等待指示器（音浪版，替代三个弹跳圆点）
- */
-export function StreamingIndicator({ className = '' }: { className?: string }) {
-    return (
-        <span className={`inline-flex items-center gap-[2px] h-4 ${className}`}>
-            {Array.from({ length: 4 }, (_, i) => (
-                <span
-                    key={i}
-                    className="sound-wave-bar w-[2px] rounded-full bg-foreground/60"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                />
-            ))}
-        </span>
-    );
-}

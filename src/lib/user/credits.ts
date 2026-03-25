@@ -73,7 +73,7 @@ export async function getUserCreditInfo(userId: string): Promise<{
 /**
  * 获取用户积分（从 users 表读取 ai_chat_count）
  */
-export async function getCredits(userId: string): Promise<number> {
+async function getCredits(userId: string): Promise<number> {
     const info = await getUserCreditInfo(userId);
     return info?.credits ?? 0;
 }

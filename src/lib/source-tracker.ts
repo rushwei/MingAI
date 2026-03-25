@@ -85,14 +85,6 @@ export class SourceTracker {
         return { content: finalContent, injected: true, tokens, truncated };
     }
 
-    // 批量注入并返回最终写入的文本块
-    trackBatch(items: Array<Parameters<SourceTracker['trackAndInject']>[0]>): string[] {
-        return items
-            .map(item => this.trackAndInject(item))
-            .filter(r => r.injected)
-            .map(r => r.content);
-    }
-
     // 统一去重后返回所有来源
     getSources(): InjectedSource[] {
         const seen = new Map<string, InjectedSource>();
@@ -101,19 +93,6 @@ export class SourceTracker {
             seen.set(key, source);
         }
         return Array.from(seen.values());
-    }
-
-    // 统计注入总量，用于提示词诊断面板
-    getDiagnostics(): {
-        totalSources: number;
-        totalTokens: number;
-        blocks: Array<{ id: string; tokens: number }>;
-    } {
-        return {
-            totalSources: this.sources.length,
-            totalTokens: Array.from(this.injectedBlocks.values()).reduce((sum, b) => sum + b.tokens, 0),
-            blocks: Array.from(this.injectedBlocks.entries()).map(([id, b]) => ({ id, tokens: b.tokens }))
-        };
     }
 
     // 清空注入状态，便于复用同一 tracker

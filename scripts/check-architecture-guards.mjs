@@ -283,11 +283,6 @@ mustNotMatch(
   'community page should not write user_settings directly from the browser',
 );
 mustNotMatch(
-  'src/components/chat/BaziChartSelector.tsx',
-  /\.from\('bazi_charts'\)|\.from\('ziwei_charts'\)/u,
-  'chart selector should load charts through an API boundary',
-);
-mustNotMatch(
   'src/lib/user/membership.ts',
   /supabase\s*\.\s*from\s*\(/m,
   'browser membership helpers should not write tables directly',

@@ -185,11 +185,3 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
     };
 }
 
-/**
- * 检查用户是否有AI对话权限（有积分即可）
- */
-export async function canUseAIChat(userId: string): Promise<boolean> {
-    const membership = await getMembershipInfo(userId);
-    if (!membership) return false;
-    return membership.aiChatCount > 0;
-}

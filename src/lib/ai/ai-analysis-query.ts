@@ -8,7 +8,6 @@ import {
     getSourceDataModelId,
     getSourceDataReasoning,
 } from '@/lib/source-contracts';
-import type { HistorySummaryItem, HistoryType } from '@/lib/history/registry';
 import type { ChatMessage } from '@/types';
 
 export function extractAnalysisFromConversation(
@@ -48,58 +47,3 @@ export function hydrateConversationMessages(
     });
 }
 
-/**
- * 根据 chartId 查询最新的八字 AI 分析
- */
-export async function getLatestBaziAnalysis(
-    chartId: string,
-    type: 'wuxing' | 'personality'
-): Promise<string | null> {
-    const sourceType = type === 'wuxing' ? 'bazi_wuxing' : 'bazi_personality';
-
-    const query = new URLSearchParams({
-        limit: '1',
-        includeArchived: 'true',
-        sourceType,
-        baziChartId: chartId,
-    });
-
-    const response = await fetch(`/api/conversations?${query.toString()}`, {
-        credentials: 'include',
-    });
-    if (!response.ok) {
-        return null;
-    }
-
-    const payload = await response.json().catch(() => null) as {
-        conversations?: Array<{ messages?: ChatMessage[] | null }>;
-    } | null;
-    const messages = payload?.conversations?.[0]?.messages;
-    if (!messages?.length) return null;
-
-    // 找到 AI 回复内容
-    const aiMessage = messages.find((message) => message.role === 'assistant');
-    return aiMessage?.content || null;
-}
-
-/**
- * 根据类型查询用户的历史记录列表（用于抽屉组件）
- */
-export async function getHistoryList(
-    userId: string,
-    type: HistoryType
-): Promise<HistorySummaryItem[]> {
-    void userId;
-
-    const response = await fetch(`/api/history-summaries?type=${type}`, {
-        credentials: 'include',
-    });
-    if (!response.ok) {
-        return [];
-    }
-
-    const payload = await response.json().catch(() => null) as {
-        items?: HistorySummaryItem[];
-    } | null;
-    return payload?.items || [];
-}

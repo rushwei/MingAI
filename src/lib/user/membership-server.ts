@@ -1,5 +1,5 @@
 import { getSystemAdminClient } from "@/lib/api-utils";
-import type { MembershipType } from "@/lib/user/membership";
+import { isMembershipExpired, type MembershipType } from "@/lib/user/membership";
 
 export async function getEffectiveMembershipType(userId: string): Promise<MembershipType> {
     try {
@@ -18,11 +18,8 @@ export async function getEffectiveMembershipType(userId: string): Promise<Member
         }
 
         const membership = (data.membership || "free") as MembershipType;
-        const expiresAt = data.membership_expires_at
-            ? new Date(data.membership_expires_at)
-            : null;
 
-        if (membership !== "free" && expiresAt && expiresAt <= new Date()) {
+        if (isMembershipExpired({ membership, membership_expires_at: data.membership_expires_at })) {
             return "free";
         }
 
