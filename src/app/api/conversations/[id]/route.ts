@@ -8,15 +8,11 @@ type ConversationPatchBody = {
     title?: string;
     messages?: unknown[];
     personality?: string;
-    baziChartId?: string | null;
-    ziweiChartId?: string | null;
 };
 
 type ConversationDetailRow = {
     id: string;
     user_id: string;
-    bazi_chart_id?: string | null;
-    ziwei_chart_id?: string | null;
     personality?: string | null;
     title?: string | null;
     created_at?: string;
@@ -30,8 +26,6 @@ type ConversationDetailRow = {
 const CONVERSATION_DETAIL_SELECT = [
     'id',
     'user_id',
-    'bazi_chart_id',
-    'ziwei_chart_id',
     'personality',
     'title',
     'created_at',
@@ -108,29 +102,9 @@ export async function GET(
         });
     }
 
-    const context: { baziName?: string; ziweiName?: string } = {};
-    const baziChartId = typeof conversationRow.bazi_chart_id === 'string' ? conversationRow.bazi_chart_id : null;
-    const ziweiChartId = typeof conversationRow.ziwei_chart_id === 'string' ? conversationRow.ziwei_chart_id : null;
-
-    const [baziResult, ziweiResult] = await Promise.all([
-        baziChartId
-            ? auth.supabase.from('bazi_charts').select('name').eq('id', baziChartId).eq('user_id', auth.user.id).maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
-        ziweiChartId
-            ? auth.supabase.from('ziwei_charts').select('name').eq('id', ziweiChartId).eq('user_id', auth.user.id).maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
-    ]);
-
-    if (!baziResult.error && baziResult.data?.name) {
-        context.baziName = baziResult.data.name;
-    }
-    if (!ziweiResult.error && ziweiResult.data?.name) {
-        context.ziweiName = ziweiResult.data.name;
-    }
-
     return jsonOk({
         conversation,
-        context,
+        context: {},
         ...(paginationRequested ? {
             pagination: {
                 total: 'total' in messageResult ? messageResult.total : messageResult.messages.length,
@@ -166,8 +140,6 @@ export async function PATCH(
     const shouldSyncMessages = body.messages !== undefined;
     const nextMessages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
     if (body.personality !== undefined) updatePayload.personality = body.personality;
-    if (body.baziChartId !== undefined) updatePayload.bazi_chart_id = body.baziChartId;
-    if (body.ziweiChartId !== undefined) updatePayload.ziwei_chart_id = body.ziweiChartId;
 
     const { data, error } = await auth.supabase
         .from('conversations')

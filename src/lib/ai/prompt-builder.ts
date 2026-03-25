@@ -8,8 +8,17 @@ import { countTokens, truncateToTokens } from '@/lib/token-utils';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
 import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
-import { generateZiweiChartText, type ZiweiChart } from '@/lib/divination/ziwei';
+import { formatZiweiChartPromptText, type ZiweiChartPromptInput } from '@/lib/ziwei-chart-prompt';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
+import {
+    type VisualizationSettings,
+} from '@/lib/visualization/settings';
+import { type ChartType, SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
+import {
+    buildVisualizationOutputContractPrompt,
+    buildVisualizationPreferencePrompts,
+} from '@/lib/visualization/prompt';
+import { formatPreviousChartsForPrompt, type ExtractedChart } from '@/lib/visualization/chart-data-extract';
 
 export { countTokens, truncateToTokens } from '@/lib/token-utils';
 
@@ -32,14 +41,7 @@ type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'g
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
-type ZiweiChartInput = Partial<Omit<ZiweiChart, 'gender'>> & {
-    id?: string;
-    name?: string;
-    gender?: ZiweiChart['gender'] | string;
-    birthDate?: string;
-    birthTime?: string;
-    chartData?: Record<string, unknown>;
-};
+type ZiweiChartInput = ZiweiChartPromptInput;
 
 export interface PromptContext {
     modelId: string;
@@ -51,6 +53,7 @@ export interface PromptContext {
         expressionStyle?: 'direct' | 'gentle';
         userProfile?: unknown;
         customInstructions?: string | null;
+        visualizationSettings?: VisualizationSettings;
     };
     chartContext?: {
         baziChart?: BaziChartInput;
@@ -63,6 +66,8 @@ export interface PromptContext {
         fortuneText?: string;
     };
     difyContext?: DifyContext;
+    /** 之前分析中已生成的图表（用于复用提示） */
+    previousCharts?: ExtractedChart[];
 }
 
 interface ModelContextConfig {
@@ -247,6 +252,37 @@ ${roleDescriptions.join('\n\n')}
 如涉及多种数据，请分别从各角度分析，最后给出综合结论。`;
 }
 
+const VISUALIZATION_MENTION_TYPES = new Set(
+    Object.keys(SOURCE_CHART_TYPE_MAP).filter(
+        (key) => (SOURCE_CHART_TYPE_MAP as Record<string, readonly ChartType[]>)[key].length > 0,
+    ),
+);
+
+function hasVisualizationMentions(mentions?: PromptContext['mentions']): boolean {
+    return (mentions || []).some((mention) => VISUALIZATION_MENTION_TYPES.has(mention.type));
+}
+
+// 根据 mention 类型和 chart context 动态推荐适合的图表类型
+function resolveAllowedChartTypes(context: PromptContext): ChartType[] {
+    const types = new Set<ChartType>();
+    for (const m of (context.mentions || [])) {
+        const mapped = (SOURCE_CHART_TYPE_MAP as Record<string, readonly ChartType[]>)[m.type];
+        if (mapped) {
+            for (const t of mapped) types.add(t);
+        }
+    }
+    if (context.chartContext?.baziChart) {
+        for (const t of SOURCE_CHART_TYPE_MAP.bazi_chart) types.add(t);
+    }
+    if (context.chartContext?.ziweiChart) {
+        for (const t of SOURCE_CHART_TYPE_MAP.ziwei_chart) types.add(t);
+    }
+    if (context.dreamMode?.enabled) {
+        types.add('dream_association');
+    }
+    return [...types];
+}
+
 // 用户表达风格偏好（来自 user_settings）
 function formatExpressionStyle(style?: 'direct' | 'gentle'): string {
     if (!style) return '';
@@ -263,14 +299,6 @@ function formatUserProfile(profile?: unknown): string {
     } catch {
         return '';
     }
-}
-
-function resolveZiweiChartData(chart?: ZiweiChartInput): ZiweiChart | null {
-    if (!chart) return null;
-    const chartData = chart.chartData as ZiweiChart | undefined;
-    if (chartData?.palaces) return chartData;
-    if ((chart as ZiweiChart).palaces) return chart as ZiweiChart;
-    return null;
 }
 
 function formatZiweiFallback(chart: ZiweiChartInput): string {
@@ -292,9 +320,9 @@ function formatChartContextPrompt(chartContext: NonNullable<PromptContext['chart
     }
 
     if (chartContext.ziweiChart) {
-        const ziweiData = resolveZiweiChartData(chartContext.ziweiChart);
-        if (ziweiData) {
-            parts.push(generateZiweiChartText(ziweiData));
+        const ziweiText = formatZiweiChartPromptText(chartContext.ziweiChart);
+        if (ziweiText) {
+            parts.push(ziweiText);
         } else {
             parts.push(formatZiweiFallback(chartContext.ziweiChart));
         }
@@ -357,7 +385,16 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     const diagnostics: PromptLayerDiagnostic[] = [];
     const parts: string[] = [];
 
-    const tryInject = (id: string, priority: PromptLayerPriority, content: string, options?: { tokens?: number; truncated?: boolean; reason?: PromptLayerDiagnostic['reason'] }): boolean => {
+    const tryInject = (
+        id: string,
+        priority: PromptLayerPriority,
+        content: string,
+        options?: {
+            tokens?: number;
+            truncated?: boolean;
+            reason?: PromptLayerDiagnostic['reason'];
+        },
+    ): boolean => {
         if (!content?.trim()) {
             diagnostics.push({
                 id,
@@ -404,26 +441,9 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     });
     tryInject('personality_role', 'P0', buildPersonalityPrompt(personalityResolution.personalities));
 
-    // ========== P1 层：指令类 ==========
-    const expressionStyle = formatExpressionStyle(context.userSettings?.expressionStyle);
-    if (expressionStyle) {
-        tryInject('expression_style', 'P1', expressionStyle);
-    }
-
-    const userProfile = formatUserProfile(context.userSettings?.userProfile);
-    if (userProfile) {
-        tryInject('user_profile', 'P1', userProfile);
-    }
-
-    const customInstructions = context.userSettings?.customInstructions || '';
-    if (customInstructions) {
-        tryInject('custom_instructions', 'P1', customInstructions);
-    }
-
-    // ========== P2 层：数据类 ==========
     if (context.chartContext) {
         const chartPrompt = formatChartContextPrompt(context.chartContext);
-        if (tryInject('chart_context', 'P2', chartPrompt)) {
+        if (tryInject('chart_context', 'P1', chartPrompt)) {
             if (context.chartContext.baziChart) {
                 const baziChart = context.chartContext.baziChart;
                 const baziContent = formatBaziChartPromptBlock(baziChart, baziChart.caseProfile);
@@ -447,9 +467,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
             }
             if (context.chartContext.ziweiChart) {
                 const ziweiChart = context.chartContext.ziweiChart;
-                const ziweiContent = resolveZiweiChartData(ziweiChart)
-                    ? generateZiweiChartText(resolveZiweiChartData(ziweiChart) as ZiweiChart)
-                    : formatZiweiFallback(ziweiChart);
+                const ziweiContent = formatZiweiChartPromptText(ziweiChart) || formatZiweiFallback(ziweiChart);
                 tracker.trackAndInject({
                     type: 'data_source',
                     sourceType: 'ziwei_chart',
@@ -461,6 +479,60 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         }
     }
 
+    // ========== P1 层：指令类 ==========
+    const expressionStyle = formatExpressionStyle(context.userSettings?.expressionStyle);
+    if (expressionStyle) {
+        tryInject('expression_style', 'P1', expressionStyle);
+    }
+
+    const userProfile = formatUserProfile(context.userSettings?.userProfile);
+    if (userProfile) {
+        tryInject('user_profile', 'P1', userProfile);
+    }
+
+    const customInstructions = context.userSettings?.customInstructions || '';
+    if (customInstructions) {
+        tryInject('custom_instructions', 'P1', customInstructions);
+    }
+
+    // 可视化维度设置（userSettings.visualizationSettings 已在上游 normalize）
+    const vizSettings = context.userSettings?.visualizationSettings;
+    const visualizationPrompts = buildVisualizationPreferencePrompts(vizSettings);
+    if (visualizationPrompts.dimensionsPrompt) {
+        tryInject('visualization_dimensions', 'P1', visualizationPrompts.dimensionsPrompt);
+    }
+    if (visualizationPrompts.dayunPrompt) {
+        tryInject(
+            'visualization_dayun_display',
+            'P1',
+            visualizationPrompts.dayunPrompt,
+        );
+    }
+    if (visualizationPrompts.chartStylePrompt) {
+        tryInject(
+            'visualization_chart_style',
+            'P1',
+            visualizationPrompts.chartStylePrompt,
+        );
+    }
+    if (context.chartContext || vizSettings || context.dreamMode?.enabled || hasVisualizationMentions(context.mentions)) {
+        const allowedChartTypes = resolveAllowedChartTypes(context);
+        tryInject(
+            'visualization_output_contract',
+            'P1',
+            buildVisualizationOutputContractPrompt(allowedChartTypes),
+        );
+    }
+
+    // 之前生成的图表数据复用提示
+    if (context.previousCharts && context.previousCharts.length > 0) {
+        const chartReusePrompt = formatPreviousChartsForPrompt(context.previousCharts);
+        if (chartReusePrompt) {
+            tryInject('visualization_previous_charts', 'P2', chartReusePrompt);
+        }
+    }
+
+    // ========== P2 层：数据类 ==========
     if (context.chartContext?.analysisMode === 'mangpai' && context.chartContext.baziChart) {
         const dayPillar = resolveDayPillar(context.chartContext.baziChart);
         if (dayPillar) {

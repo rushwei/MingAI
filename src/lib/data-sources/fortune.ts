@@ -27,7 +27,7 @@ async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryC
 
     const baseQuery = supabase
         .from('bazi_charts')
-        .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at')
+        .select('id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, day_master, day_branch, created_at')
         .eq('user_id', userId);
 
     const { data } = defaultId
@@ -45,11 +45,13 @@ async function getDefaultBaziChartForUser(userId: string, ctx?: DataSourceQueryC
         calendar_type: BaziChart['calendarType'];
         is_leap_month: boolean | null;
         chart_data: Record<string, unknown> | null;
+        day_master: string | null;
+        day_branch: string | null;
         created_at: string;
     };
 
     const chartData = row.chart_data;
-    const dayMaster = chartData ? (chartData['dayMaster'] as BaziChart['dayMaster'] | undefined) : undefined;
+    const dayMaster = row.day_master ?? (chartData ? (chartData['dayMaster'] as BaziChart['dayMaster'] | undefined) : undefined);
     if (!dayMaster) return null;
 
     return {

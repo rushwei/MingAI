@@ -1,6 +1,7 @@
 import type { BaziChart } from '@/types';
-import { generateBaziChartText } from '@/lib/divination/bazi';
+import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
+import { extractLongitudeFromChartData } from '@/lib/divination/place-resolution';
 
 export type BaziChartPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
     id?: string;
@@ -14,10 +15,70 @@ export type BaziChartPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 
     chartData?: Record<string, unknown>;
 };
 
+export function hasCompletePillarDetails(chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>): boolean {
+    return [chart.fourPillars.year, chart.fourPillars.month, chart.fourPillars.day, chart.fourPillars.hour].every((pillar) => {
+        if (!pillar.hiddenStemDetails?.length) return false;
+        if (pillar.hiddenStemDetails.length !== pillar.hiddenStems.length) return false;
+        if (!pillar.naYin || !pillar.diShi) return false;
+        return pillar.hiddenStemDetails.every((item) => typeof item.tenGod === 'string' && item.tenGod.trim().length > 0);
+    });
+}
+
+function rebuildBaziChart(chart: BaziChartPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
+    if (!chart.birthDate || !chart.birthTime) return null;
+    const [birthYear, birthMonth, birthDay] = chart.birthDate.split('-').map(Number);
+    const [birthHour, birthMinute] = chart.birthTime.split(':').map(Number);
+    if (
+        !Number.isFinite(birthYear)
+        || !Number.isFinite(birthMonth)
+        || !Number.isFinite(birthDay)
+        || !Number.isFinite(birthHour)
+        || !Number.isFinite(birthMinute)
+    ) {
+        return null;
+    }
+
+    try {
+        return calculateBazi({
+            name: chart.name || '未命名',
+            gender: chart.gender === 'female' ? 'female' : 'male',
+            birthYear,
+            birthMonth,
+            birthDay,
+            birthHour,
+            birthMinute,
+            birthPlace: chart.birthPlace,
+            longitude: extractLongitudeFromChartData(chart.chartData),
+            calendarType: chart.calendarType === 'lunar' ? 'lunar' : 'solar',
+            isLeapMonth: chart.isLeapMonth ?? false,
+        });
+    } catch {
+        return null;
+    }
+}
+
 function resolveBaziChartData(chart?: BaziChartPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
     if (!chart) return null;
     const chartData = chart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
-    if (chartData?.fourPillars) return chartData;
+    const mergedInput: BaziChartPromptInput = {
+        ...(chartData as Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId'>>),
+        ...chart,
+        chartData: chart.chartData,
+        name: chart.name || chartData?.name,
+        gender: chart.gender || chartData?.gender,
+        birthDate: chart.birthDate || chartData?.birthDate,
+        birthTime: chart.birthTime || chartData?.birthTime,
+        birthPlace: chart.birthPlace || chartData?.birthPlace,
+        calendarType: chart.calendarType || chartData?.calendarType,
+        isLeapMonth: chart.isLeapMonth ?? chartData?.isLeapMonth,
+    };
+    const rebuilt = rebuildBaziChart(mergedInput);
+    if (rebuilt) {
+        return rebuilt;
+    }
+    if (chartData?.fourPillars) {
+        return chartData;
+    }
     if ((chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>).fourPillars) {
         return chart as Omit<BaziChart, 'id' | 'createdAt' | 'userId'>;
     }

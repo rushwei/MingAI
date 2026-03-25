@@ -94,6 +94,6 @@ export async function POST(request: NextRequest) {
         );
     } catch (error) {
         console.error('Title generation error:', error);
-        return jsonOk({ title: '新对话' });
+        return jsonError('标题生成失败，请稍后重试', 500);
     }
 }

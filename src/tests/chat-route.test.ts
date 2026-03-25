@@ -11,23 +11,75 @@ const waitForMicrotask = () => new Promise((resolve) => setTimeout(resolve, 0));
 interface MockState {
     useCreditCalls: number;
     addCreditCalls: number;
+    aiUiCalls: number;
 }
 
-function createSseStream(events: string[]): ReadableStream<Uint8Array> {
-    const encoder = new TextEncoder();
-    return new ReadableStream<Uint8Array>({
+function createUIChunkStream(chunks: Array<Record<string, unknown>>): ReadableStream<Record<string, unknown>> {
+    return new ReadableStream<Record<string, unknown>>({
         start(controller) {
-            for (const event of events) {
-                controller.enqueue(encoder.encode(event));
+            for (const chunk of chunks) {
+                controller.enqueue(chunk);
             }
             controller.close();
         },
     });
 }
 
+function createMockUIMessageResult(
+    chunks: Array<Record<string, unknown>>,
+    responseMessage: { parts: Array<Record<string, unknown>> },
+    finishReason: string = 'stop',
+) {
+    return {
+        toUIMessageStreamResponse(options?: {
+            headers?: Record<string, string>;
+            messageMetadata?: (input: { part: { type: string } }) => unknown;
+            onFinish?: (event: {
+                responseMessage: { parts: Array<Record<string, unknown>> };
+                finishReason?: string;
+                isAborted: boolean;
+                isContinuation: boolean;
+                messages: Array<{ parts: Array<Record<string, unknown>> }>;
+            }) => PromiseLike<void> | void;
+        }) {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream<Uint8Array>({
+                async start(controller) {
+                    const metadata = options?.messageMetadata?.({ part: { type: 'start' } });
+                    if (metadata) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'start', messageMetadata: metadata })}\n\n`));
+                    }
+                    for (const chunk of chunks) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                    }
+                    await options?.onFinish?.({
+                        responseMessage,
+                        finishReason,
+                        isAborted: false,
+                        isContinuation: false,
+                        messages: [responseMessage],
+                    });
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                headers: {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache, no-transform',
+                    'Connection': 'keep-alive',
+                    'X-Accel-Buffering': 'no',
+                    'x-vercel-ai-ui-message-stream': 'v1',
+                    ...(options?.headers || {}),
+                },
+            });
+        },
+    };
+}
+
 function setupRouteMocks(
     t: { after: (fn: () => void) => void },
-    streamBody: ReadableStream<Uint8Array>
+    streamBody: ReadableStream<unknown>
 ): MockState {
     const aiModule = require('../lib/ai/ai') as any;
     const creditsModule = require('../lib/user/credits') as any;
@@ -39,6 +91,7 @@ function setupRouteMocks(
     const apiUtilsModule = require('../lib/api-utils') as any;
 
     const originalCallAIStream = aiModule.callAIStream;
+    const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalHasCredits = creditsModule.hasCredits;
     const originalUseCredit = creditsModule.useCredit;
     const originalAddCredits = creditsModule.addCredits;
@@ -56,9 +109,39 @@ function setupRouteMocks(
     const state: MockState = {
         useCreditCalls: 0,
         addCreditCalls: 0,
+        aiUiCalls: 0,
     };
 
-    aiModule.callAIStream = async () => streamBody;
+    aiModule.callAIStream = async () => createUIChunkStream([]);
+    aiModule.callAIUIMessageResult = async () => {
+        state.aiUiCalls += 1;
+        const chunks: Array<Record<string, unknown>> = [];
+        const reader = streamBody.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value as Record<string, unknown>);
+        }
+        reader.releaseLock();
+
+        const text = chunks
+            .filter((chunk) => chunk.type === 'text-delta' && typeof chunk.delta === 'string')
+            .map((chunk) => String(chunk.delta))
+            .join('');
+        const reasoning = chunks
+            .filter((chunk) => chunk.type === 'reasoning-delta' && typeof chunk.delta === 'string')
+            .map((chunk) => String(chunk.delta))
+            .join('');
+        const responseParts: Array<Record<string, unknown>> = [];
+        if (text) {
+            responseParts.push({ type: 'text', text, state: 'done' });
+        }
+        if (reasoning) {
+            responseParts.push({ type: 'reasoning', text: reasoning, state: 'done' });
+        }
+
+        return createMockUIMessageResult(chunks, { parts: responseParts });
+    };
     creditsModule.hasCredits = async () => true;
     creditsModule.useCredit = async () => {
         state.useCreditCalls += 1;
@@ -138,6 +221,7 @@ function setupRouteMocks(
 
     t.after(() => {
         aiModule.callAIStream = originalCallAIStream;
+        aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         creditsModule.hasCredits = originalHasCredits;
         creditsModule.useCredit = originalUseCredit;
         creditsModule.addCredits = originalAddCredits;
@@ -178,9 +262,8 @@ function createChatRequest() {
 }
 
 test('chat route does not charge when stream ends before visible content', async (t) => {
-    const streamBody = createSseStream([
-        'data: {"choices":[{"delta":{"reasoning_content":"thinking"}}]}\n\n',
-        'data: [DONE]\n\n',
+    const streamBody = createUIChunkStream([
+        { type: 'reasoning-delta', id: 'r1', delta: 'thinking' },
     ]);
     const state = setupRouteMocks(t, streamBody);
     const { POST } = await import('../app/api/chat/route');
@@ -189,16 +272,37 @@ test('chat route does not charge when stream ends before visible content', async
     await response.text();
     await waitForMicrotask();
 
-    assert.equal(state.useCreditCalls, 0);
-    assert.equal(state.addCreditCalls, 0);
+    assert.equal(state.useCreditCalls, 1);
+    assert.equal(state.addCreditCalls, 1);
 });
 
-test('chat route charges exactly once after first visible content appears', async (t) => {
-    const streamBody = createSseStream([
-        'data: {"choices":[{"delta":{"reasoning_content":"thinking"}}]}\n\n',
-        'data: {"choices":[{"delta":{"content":"你"}}]}\n\n',
-        'data: {"choices":[{"delta":{"content":"好"}}]}\n\n',
-        'data: [DONE]\n\n',
+test('chat route rejects streamed requests when upfront credit deduction fails', async (t) => {
+    const streamBody = createUIChunkStream([
+        { type: 'text-delta', id: 't1', delta: '你好' },
+    ]);
+    const state = setupRouteMocks(t, streamBody);
+    const creditsModule = require('../lib/user/credits') as any;
+    creditsModule.useCredit = async () => {
+        state.useCreditCalls += 1;
+        return null;
+    };
+
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createChatRequest());
+    const payload = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.equal(payload.code, 'CREDIT_DEDUCTION_FAILED');
+    assert.equal(state.useCreditCalls, 1);
+    assert.equal(state.aiUiCalls, 0);
+});
+
+test('chat route keeps upfront charge when stream produces visible content', async (t) => {
+    const streamBody = createUIChunkStream([
+        { type: 'reasoning-delta', id: 'r1', delta: 'thinking' },
+        { type: 'text-delta', id: 't1', delta: '你' },
+        { type: 'text-delta', id: 't1', delta: '好' },
     ]);
     const state = setupRouteMocks(t, streamBody);
     const { POST } = await import('../app/api/chat/route');
@@ -212,15 +316,10 @@ test('chat route charges exactly once after first visible content appears', asyn
 });
 
 test('chat route keeps charge and does not refund when stream fails after visible content', async (t) => {
-    const encoder = new TextEncoder();
-    const failingStream = new ReadableStream<Uint8Array>({
-        start(controller) {
-            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'));
-        },
-        pull() {
-            throw new Error('stream read failed');
-        },
-    });
+    const failingStream = createUIChunkStream([
+        { type: 'text-delta', id: 't1', delta: 'partial' },
+        { type: 'error', errorText: 'stream read failed' },
+    ]);
 
     const state = setupRouteMocks(t, failingStream);
     const { POST } = await import('../app/api/chat/route');

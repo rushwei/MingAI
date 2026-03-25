@@ -6,8 +6,6 @@ import type { ChatMessage } from '@/types';
 const CONVERSATION_LIST_SELECT = [
     'id',
     'user_id',
-    'bazi_chart_id',
-    'ziwei_chart_id',
     'personality',
     'title',
     'created_at',
@@ -27,7 +25,6 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number.parseInt(searchParams.get('limit') || '100', 10) || 100, 1), 100);
     const offset = Math.max(Number.parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
     const sourceType = searchParams.get('sourceType');
-    const baziChartId = searchParams.get('baziChartId');
 
     let query = auth.supabase
         .from('conversations_with_archive_status')
@@ -41,9 +38,6 @@ export async function GET(request: NextRequest) {
     }
     if (sourceType) {
         query = query.eq('source_type', sourceType);
-    }
-    if (baziChartId) {
-        query = query.eq('bazi_chart_id', baziChartId);
     }
 
     const { data, error } = await query;
@@ -72,8 +66,6 @@ export async function POST(request: NextRequest) {
     let body: {
         personality?: string;
         title?: string;
-        baziChartId?: string | null;
-        ziweiChartId?: string | null;
         messages?: unknown[];
     };
 
@@ -90,8 +82,6 @@ export async function POST(request: NextRequest) {
             user_id: auth.user.id,
             personality: body.personality || 'general',
             title: body.title || '新对话',
-            bazi_chart_id: body.baziChartId ?? null,
-            ziwei_chart_id: body.ziweiChartId ?? null,
         })
         .select('id')
         .single();

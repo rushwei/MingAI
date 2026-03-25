@@ -6,7 +6,8 @@ import { createMockUIMessageResult } from './helpers/ui-message-result';
 
 ensureRouteTestEnv();
 
-test('hepan route persists analysis after streaming completes', async (t) => {
+test('qimen route persists analysis after streaming completes', async (t) => {
+    const { handleQimenCalculate } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
@@ -19,6 +20,19 @@ test('hepan route persists analysis after streaming completes', async (t) => {
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+
+    const chartData = await handleQimenCalculate({
+        year: 2025,
+        month: 1,
+        day: 15,
+        hour: 10,
+        minute: 30,
+        timezone: 'Asia/Shanghai',
+        question: '测试问题',
+        panType: 'zhuan',
+        juMethod: 'chaibu',
+        zhiFuJiGong: 'jiLiuYi',
+    });
 
     let createArgs: Record<string, unknown> | null = null;
     let updated: Record<string, unknown> | null = null;
@@ -52,7 +66,7 @@ test('hepan route persists analysis after streaming completes', async (t) => {
                     }),
                 };
             }
-            if (table === 'hepan_charts') {
+            if (table === 'qimen_charts') {
                 return {
                     update: (payload: Record<string, unknown>) => {
                         updated = payload;
@@ -80,9 +94,8 @@ test('hepan route persists analysis after streaming completes', async (t) => {
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
     });
 
-    const { POST } = await import('../app/api/hepan/route');
-
-    const request = new NextRequest('http://localhost/api/hepan', {
+    const { POST } = await import('../app/api/qimen/route');
+    const request = new NextRequest('http://localhost/api/qimen', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -92,15 +105,8 @@ test('hepan route persists analysis after streaming completes', async (t) => {
             action: 'analyze',
             stream: true,
             chartId: 'chart-1',
-            result: {
-                type: 'love',
-                person1: { name: 'A', year: 1990, month: 1, day: 1, hour: 1 },
-                person2: { name: 'B', year: 1991, month: 2, day: 2, hour: 2 },
-                overallScore: 80,
-                dimensions: [{ name: '测试', score: 80, description: 'ok' }],
-                conflicts: [],
-                createdAt: new Date(),
-            },
+            question: '测试问题',
+            chartData,
         }),
     });
 
@@ -110,22 +116,35 @@ test('hepan route persists analysis after streaming completes', async (t) => {
 
     assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
     assert.ok(createArgs);
-    assert.equal((createArgs as Record<string, unknown>).sourceType, 'hepan');
+    assert.equal((createArgs as Record<string, unknown>).sourceType, 'qimen');
     assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
 });
 
-test('hepan route surfaces SSE error when stream persistence fails after content generation', async (t) => {
+test('qimen route surfaces SSE error when stream persistence fails after content generation', async (t) => {
+    const { handleQimenCalculate } = require('../lib/divination/qimen') as typeof import('../lib/divination/qimen');
     const credits = require('../lib/user/credits') as any;
     const aiModule = require('../lib/ai/ai') as any;
     const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
     const supabaseModule = require('../lib/auth') as any;
-
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalConsoleError = console.error;
+
+    const chartData = await handleQimenCalculate({
+        year: 2025,
+        month: 1,
+        day: 15,
+        hour: 10,
+        minute: 30,
+        timezone: 'Asia/Shanghai',
+        question: '测试问题',
+        panType: 'zhuan',
+        juMethod: 'chaibu',
+        zhiFuJiGong: 'jiLiuYi',
+    });
 
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
@@ -148,8 +167,8 @@ test('hepan route surfaces SSE error when stream persistence fails after content
         console.error = originalConsoleError;
     });
 
-    const { POST } = await import('../app/api/hepan/route');
-    const request = new NextRequest('http://localhost/api/hepan', {
+    const { POST } = await import('../app/api/qimen/route');
+    const request = new NextRequest('http://localhost/api/qimen', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -159,15 +178,8 @@ test('hepan route surfaces SSE error when stream persistence fails after content
             action: 'analyze',
             stream: true,
             chartId: 'chart-1',
-            result: {
-                type: 'love',
-                person1: { name: 'A', year: 1990, month: 1, day: 1, hour: 1 },
-                person2: { name: 'B', year: 1991, month: 2, day: 2, hour: 2 },
-                overallScore: 80,
-                dimensions: [{ name: '测试', score: 80, description: 'ok' }],
-                conflicts: [],
-                createdAt: new Date(),
-            },
+            question: '测试问题',
+            chartData,
         }),
     });
 

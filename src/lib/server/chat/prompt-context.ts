@@ -7,9 +7,10 @@ import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledg
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { AIMessageMetadata, AIPersonality, ChatMessage } from '@/types';
 import type { Mention } from '@/types/mentions';
-import { buildDreamContextPayload, loadChartContext } from '@/lib/chat/chat-context';
+import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
+import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
 
 function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatMessage[] {
   if (!prefix) return messages;
@@ -26,6 +27,7 @@ type UserSettingsContext = {
   userProfile: unknown;
   customInstructions: string;
   promptKbIds: string[];
+  visualizationSettings?: VisualizationSettings;
 };
 
 type ChatPromptContextResult = {
@@ -87,7 +89,7 @@ async function loadUserSettingsContext(
 ): Promise<UserSettingsContext> {
   const { data } = await supabase
     .from('user_settings')
-    .select('expression_style, user_profile, custom_instructions, prompt_kb_ids')
+    .select('expression_style, user_profile, custom_instructions, prompt_kb_ids, visualization_settings')
     .eq('user_id', userId)
     .maybeSingle();
   const row = data as null | {
@@ -95,6 +97,7 @@ async function loadUserSettingsContext(
     user_profile: unknown;
     custom_instructions: string | null;
     prompt_kb_ids?: unknown;
+    visualization_settings?: unknown;
   };
 
   return {
@@ -104,12 +107,13 @@ async function loadUserSettingsContext(
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
       ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
       : [],
+    visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings),
   };
 }
 
 function applyUserSettingsOverrides(
   settings: UserSettingsContext,
-  overrides: Pick<ResolvedChatRequest['body'], 'expressionStyle' | 'customInstructions' | 'userProfile'>
+  overrides: Pick<ResolvedChatRequest['body'], 'expressionStyle' | 'customInstructions' | 'userProfile' | 'visualizationSettings'>
 ): UserSettingsContext {
   return {
     expressionStyle: overrides.expressionStyle === 'gentle' ? 'gentle' : (
@@ -120,6 +124,7 @@ function applyUserSettingsOverrides(
       : settings.customInstructions,
     userProfile: overrides.userProfile !== undefined ? overrides.userProfile : settings.userProfile,
     promptKbIds: settings.promptKbIds,
+    visualizationSettings: overrides.visualizationSettings || settings.visualizationSettings,
   };
 }
 
@@ -175,10 +180,6 @@ export async function buildChatPromptContext(
   const supabase = getSystemAdminClient();
   const knowledgeBaseFeatureEnabled = await isFeatureModuleEnabled('knowledge-base');
 
-  const chartContext = userId && body.chartIds && (body.chartIds.baziId || body.chartIds.ziweiId)
-    ? await loadChartContext(body.chartIds, userId)
-    : undefined;
-
   let dreamContext: { baziChartName?: string; dailyFortune?: string } | undefined;
   let dreamPayload: { baziText?: string; fortuneText?: string } | undefined;
   if (body.dreamMode && userId) {
@@ -211,6 +212,7 @@ export async function buildChatPromptContext(
     expressionStyle: body.expressionStyle,
     customInstructions: body.customInstructions,
     userProfile: body.userProfile,
+    visualizationSettings: body.visualizationSettings,
   });
 
   const promptKnowledgeBases = userId && canUsePromptKnowledgeBase && effectiveUserSettings.promptKbIds.length > 0
@@ -243,8 +245,8 @@ export async function buildChatPromptContext(
     )
     : [];
 
-  const promptChartContext = chartContext
-    ? { ...chartContext, analysisMode: body.chartIds?.baziAnalysisMode }
+  const promptChartContext = body.mangpaiMode
+    ? { analysisMode: 'mangpai' as const }
     : undefined;
   const promptDreamMode = body.dreamMode
     ? {

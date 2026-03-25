@@ -1,5 +1,6 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { generateZiweiChartText, type ZiweiChart } from '@/lib/divination/ziwei';
+import { type ZiweiChart } from '@/lib/divination/ziwei';
+import { formatZiweiChartPromptText } from '@/lib/ziwei-chart-prompt';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type ZiweiRow = {
@@ -56,16 +57,18 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
-
-        // 类型守卫：检查 palaces 字段是否存在且为数组
-        if (
-            chartData &&
-            'palaces' in chartData &&
-            Array.isArray((chartData as Record<string, unknown>).palaces)
-        ) {
-            const payload = chartData as unknown as ZiweiChart;
-            return generateZiweiChartText(payload, { includeHoroscope: !!payload.rawAstrolabe });
-        }
+        const canonicalText = formatZiweiChartPromptText({
+            ...(chartData as Partial<ZiweiChart>),
+            name,
+            gender: (chart.gender === 'male' || chart.gender === 'female') ? chart.gender : undefined,
+            birthDate: chart.birth_date,
+            birthTime: chart.birth_time || undefined,
+            birthPlace: chart.birth_place || undefined,
+            calendarType: (chart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
+            isLeapMonth: chart.is_leap_month ?? false,
+            chartData,
+        });
+        if (canonicalText) return canonicalText;
 
         // Fallback: 尝试提取更多有用信息
         const lines = [`## 紫微命盘：${name}`, `- 出生时间：${birth}`];

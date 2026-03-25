@@ -8,14 +8,14 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callAI, callAIStream } from '@/lib/ai/ai';
+import { isTextUIPart } from 'ai';
+import { callAI, callAIUIMessageResult } from '@/lib/ai/ai';
 import { addCredits } from '@/lib/user/credits';
 import { jsonError, jsonOk } from '@/lib/api-utils';
 import {
   parseChatRequestBody,
   prepareChatRequest,
 } from '@/lib/server/chat/request';
-import { createChatStreamResponse } from '@/lib/server/chat/stream-response';
 
 export async function POST(request: NextRequest) {
   let creditDeducted = false;
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     } = preparedRequest;
 
     if (resolvedBody.stream) {
-      const streamBody = await callAIStream(
+      const streamResult = await callAIUIMessageResult(
         sanitizedMessages,
         fallbackPersonality,
         '',
@@ -58,11 +58,29 @@ export async function POST(request: NextRequest) {
         { reasoning: reasoningEnabled, systemPromptOverride: systemPrompt }
       );
 
-      return createChatStreamResponse({
-        streamBody,
-        metadata,
-        userId,
-        canSkipCredit,
+      return streamResult.toUIMessageStreamResponse({
+        headers: {
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+        sendReasoning: true,
+        sendSources: false,
+        messageMetadata: ({ part }) => part.type === 'start' ? metadata : undefined,
+        onFinish: async ({ responseMessage }) => {
+          if (!userId || canSkipCredit || !creditDeducted) return;
+          const hasVisibleText = responseMessage.parts.some(
+            (part) => isTextUIPart(part) && part.text.trim().length > 0,
+          );
+
+          if (!hasVisibleText) {
+            try {
+              await addCredits(userId, 1);
+              creditDeducted = false;
+            } catch (refundError) {
+              console.error('AI 对话流式退费失败:', refundError);
+            }
+          }
+        },
       });
     }
 

@@ -282,7 +282,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
-    const originalCallAIStream = aiModule.callAIStream;
+    const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
@@ -290,20 +290,46 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     let createArgs: Record<string, unknown> | null = null;
     let updated: Record<string, unknown> | null = null;
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-            controller.enqueue(
-                encoder.encode('data: {"choices":[{"delta":{"content":"analysis","reasoning_content":"reason"}}]}\n\n')
-            );
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-        },
-    });
-
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
-    aiModule.callAIStream = async () => stream;
+    aiModule.callAIUIMessageResult = async () => ({
+        toUIMessageStream(options?: {
+            onFinish?: (event: {
+                responseMessage: { parts: Array<Record<string, unknown>> };
+                finishReason?: string;
+                isAborted: boolean;
+                isContinuation: boolean;
+                messages: Array<{ parts: Array<Record<string, unknown>> }>;
+            }) => PromiseLike<void> | void;
+        }) {
+            const stream = new ReadableStream<Record<string, unknown>>({
+                start(controller) {
+                    controller.enqueue({ type: 'reasoning-start', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'reasoning-delta', id: 'reasoning-1', delta: 'reason' });
+                    controller.enqueue({ type: 'reasoning-end', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'text-start', id: 'text-1' });
+                    controller.enqueue({ type: 'text-delta', id: 'text-1', delta: 'analysis' });
+                    controller.enqueue({ type: 'text-end', id: 'text-1' });
+                    controller.close();
+                },
+            });
+            queueMicrotask(() => {
+                void options?.onFinish?.({
+                    responseMessage: {
+                        parts: [
+                            { type: 'reasoning', text: 'reason', state: 'done' },
+                            { type: 'text', text: 'analysis', state: 'done' },
+                        ],
+                    },
+                    finishReason: 'stop',
+                    isAborted: false,
+                    isContinuation: false,
+                    messages: [],
+                });
+            });
+            return stream;
+        },
+    });
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
         createArgs = params;
         return 'conv-1';
@@ -362,7 +388,7 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
-        aiModule.callAIStream = originalCallAIStream;
+        aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
@@ -409,6 +435,173 @@ test('liuyao route persists analysis after streaming completes', async (t) => {
     assert.ok(createArgs);
     assert.equal((createArgs as Record<string, unknown>).sourceType, 'liuyao');
     assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+});
+
+test('liuyao route surfaces SSE error when stream persistence fails after content generation', async (t) => {
+    const credits = require('../lib/user/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const supabaseModule = require('../lib/auth') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
+    const originalUseCredit = credits.useCredit;
+    const originalAddCredits = credits.addCredits;
+    const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
+    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalConsoleError = console.error;
+
+    let refundCalls = 0;
+
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
+    credits.useCredit = async () => 1;
+    credits.addCredits = async () => { refundCalls += 1; };
+    aiModule.callAIUIMessageResult = async () => ({
+        toUIMessageStream(options?: {
+            onFinish?: (event: {
+                responseMessage: { parts: Array<Record<string, unknown>> };
+                finishReason?: string;
+                isAborted: boolean;
+                isContinuation: boolean;
+                messages: Array<{ parts: Array<Record<string, unknown>> }>;
+            }) => PromiseLike<void> | void;
+        }) {
+            const stream = new ReadableStream<Record<string, unknown>>({
+                start(controller) {
+                    controller.enqueue({ type: 'reasoning-start', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'reasoning-delta', id: 'reasoning-1', delta: 'reason' });
+                    controller.enqueue({ type: 'reasoning-end', id: 'reasoning-1' });
+                    controller.enqueue({ type: 'text-start', id: 'text-1' });
+                    controller.enqueue({ type: 'text-delta', id: 'text-1', delta: 'analysis' });
+                    controller.enqueue({ type: 'text-end', id: 'text-1' });
+                    controller.close();
+                },
+            });
+            queueMicrotask(() => {
+                void options?.onFinish?.({
+                    responseMessage: {
+                        parts: [
+                            { type: 'reasoning', text: 'reason', state: 'done' },
+                            { type: 'text', text: 'analysis', state: 'done' },
+                        ],
+                    },
+                    finishReason: 'stop',
+                    isAborted: false,
+                    isContinuation: false,
+                    messages: [],
+                });
+            });
+            return stream;
+        },
+    });
+    aiAnalysisModule.createAIAnalysisConversation = async () => {
+        throw new Error('persist failed');
+    };
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    supabaseServerModule.getSystemAdminClient = () => ({
+        from: (table: string) => {
+            if (table === 'users') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            single: async () => ({
+                                data: { ai_chat_count: 10, membership: 'pro', last_credit_restore_at: null, membership_expires_at: null },
+                                error: null,
+                            }),
+                            maybeSingle: async () => ({
+                                data: { membership: 'pro', membership_expires_at: null },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'liuyao_divinations') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => ({
+                                maybeSingle: async () => ({
+                                    data: { created_at: new Date().toISOString() },
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                    update: () => ({
+                        eq: () => ({
+                            eq: async () => ({ error: null }),
+                        }),
+                    }),
+                    insert: async () => ({ error: null }),
+                };
+            }
+            return {
+                insert: async () => ({ error: null }),
+            };
+        },
+    });
+    console.error = () => {};
+
+    t.after(() => {
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
+        credits.useCredit = originalUseCredit;
+        credits.addCredits = originalAddCredits;
+        aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
+        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        supabaseModule.supabase.auth.getUser = originalGetUser;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        console.error = originalConsoleError;
+    });
+
+    const { POST } = await import('../app/api/liuyao/route');
+
+    const request = new NextRequest('http://localhost/api/liuyao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'interpret',
+            stream: true,
+            divinationId: 'divination-1',
+            question: '测试问题',
+            yongShenTargets: ['官鬼'],
+            hexagram: {
+                name: '乾为天',
+                code: '111111',
+                upperTrigram: '乾',
+                lowerTrigram: '乾',
+                element: '金',
+                nature: '刚健',
+            },
+            yaos: [
+                { type: 1, change: 'stable', position: 1 },
+                { type: 1, change: 'stable', position: 2 },
+                { type: 1, change: 'stable', position: 3 },
+                { type: 1, change: 'stable', position: 4 },
+                { type: 1, change: 'stable', position: 5 },
+                { type: 1, change: 'stable', position: 6 },
+            ],
+            changedLines: [],
+        }),
+    });
+
+    const response = await POST(request);
+    const body = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
+    assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
+    assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
+    assert.match(body, /\[DONE\]/u);
+    assert.equal(refundCalls, 0);
 });
 
 test('liuyao route save returns 400 when question is provided but yongShenTargets is missing', async (t) => {

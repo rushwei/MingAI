@@ -53,10 +53,23 @@ export function createChartPostHandler(config: ChartCrudConfig) {
             return jsonError('缺少有效的命盘数据', 400);
         }
 
-        const payload = {
-            ...body.payload,
+        const payload: Record<string, unknown> = {
+            ...(body.payload as Record<string, unknown>),
             user_id: auth.user.id,
         };
+
+        // bazi_charts: 同步提取 day_master / day_branch
+        if (config.tableName === 'bazi_charts' && payload.chart_data && typeof payload.chart_data === 'object') {
+            const cd = payload.chart_data as Record<string, unknown>;
+            if (cd.dayMaster) {
+                payload.day_master = cd.dayMaster;
+            }
+            const fourPillars = cd.fourPillars as Record<string, unknown> | undefined;
+            const day = fourPillars?.day as Record<string, unknown> | undefined;
+            if (day?.branch) {
+                payload.day_branch = day.branch;
+            }
+        }
 
         const { data, error } = await auth.supabase
             .from(config.tableName)

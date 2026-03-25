@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { type MBTIType, PERSONALITY_BASICS } from '@/lib/divination/mbti';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface MBTIRequest {
     action: 'analyze' | 'save' | 'history';
@@ -36,6 +37,7 @@ interface MBTIInterpretInput extends InterpretInput {
 const handleInterpret = createInterpretHandler<MBTIInterpretInput>({
     sourceType: 'mbti',
     tag: 'mbti',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.mbti_reading],
     parseInput: (body) => {
         const b = body as MBTIRequest;
         if (!b.type || !b.percentages) {

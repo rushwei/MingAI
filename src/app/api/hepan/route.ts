@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { type HepanResult, getHepanTypeName } from '@/lib/divination/hepan';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface HepanRequest {
     action: 'analyze' | 'save' | 'list';
@@ -25,6 +26,7 @@ interface HepanInterpretInput extends InterpretInput {
 const handleInterpret = createInterpretHandler<HepanInterpretInput>({
     sourceType: 'hepan',
     tag: 'hepan',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.hepan_chart],
     parseInput: (body) => {
         const b = body as HepanRequest;
         if (!b.result) return { error: '请提供合盘结果', status: 400 };

@@ -50,12 +50,25 @@ export const mbtiProvider: DataSourceProvider<MbtiRow> = {
 
     formatForAI(r: MbtiRow): string {
         const basic = PERSONALITY_BASICS[r.mbti_type as keyof typeof PERSONALITY_BASICS];
+        const percentages = (r.percentages && typeof r.percentages === 'object')
+            ? r.percentages as {
+                EI?: { E?: number; I?: number };
+                SN?: { S?: number; N?: number };
+                TF?: { T?: number; F?: number };
+                JP?: { J?: number; P?: number };
+            }
+            : null;
         return [
             `## MBTI 测评：${r.mbti_type}`,
             basic?.title ? `- 类型名称：${basic.title}` : '',
             basic?.description ? `- 类型描述：${basic.description}` : '',
+            percentages ? '\n## 维度分析' : '',
+            percentages?.EI ? `- 外向(E) ${percentages.EI.E ?? 0}% vs 内向(I) ${percentages.EI.I ?? 0}%` : '',
+            percentages?.SN ? `- 实感(S) ${percentages.SN.S ?? 0}% vs 直觉(N) ${percentages.SN.N ?? 0}%` : '',
+            percentages?.TF ? `- 思考(T) ${percentages.TF.T ?? 0}% vs 情感(F) ${percentages.TF.F ?? 0}%` : '',
+            percentages?.JP ? `- 判断(J) ${percentages.JP.J ?? 0}% vs 知觉(P) ${percentages.JP.P ?? 0}%` : '',
             r.scores ? `- 分数：${JSON.stringify(r.scores)}` : '',
-            r.percentages ? `- 比例：${JSON.stringify(r.percentages)}` : ''
+            !percentages && r.percentages ? `- 比例：${JSON.stringify(r.percentages)}` : '',
         ].filter(Boolean).join('\n');
     },
 

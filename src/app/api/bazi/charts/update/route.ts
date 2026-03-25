@@ -53,6 +53,19 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. 业务逻辑
+        // 当 chart_data 被更新时，同步提取 day_master 和 day_branch
+        if (sanitizedPayload.chart_data && typeof sanitizedPayload.chart_data === 'object') {
+            const cd = sanitizedPayload.chart_data as Record<string, unknown>;
+            if (cd.dayMaster) {
+                (sanitizedPayload as Record<string, unknown>).day_master = cd.dayMaster;
+            }
+            const fourPillars = cd.fourPillars as Record<string, unknown> | undefined;
+            const day = fourPillars?.day as Record<string, unknown> | undefined;
+            if (day?.branch) {
+                (sanitizedPayload as Record<string, unknown>).day_branch = day.branch;
+            }
+        }
+
         const supabase = getSystemAdminClient();
         const { data, error } = await supabase
             .from('bazi_charts')

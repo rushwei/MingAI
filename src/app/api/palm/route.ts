@@ -14,6 +14,7 @@ import {
     type HandType,
 } from '@/lib/divination/palm';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
 
@@ -28,6 +29,7 @@ interface PalmInterpretInput extends InterpretInput {
 const handleAnalyze = createInterpretHandler<PalmInterpretInput>({
     sourceType: 'palm',
     tag: 'palm',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.palm_reading],
     defaultModelId: DEFAULT_VISION_MODEL_ID,
     isVision: true,
     modelAccessOptions: {

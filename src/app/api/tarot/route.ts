@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface TarotRequest {
     action: 'draw' | 'daily' | 'spread' | 'draw-only' | 'save' | 'interpret' | 'list-spreads' | 'list-cards';
@@ -121,6 +122,7 @@ async function updateTarotReading(
 const handleInterpret = createInterpretHandler<TarotInterpretInput>({
     sourceType: 'tarot',
     tag: 'tarot',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.tarot_reading],
     parseInput: (body) => {
         const b = body as TarotRequest;
         if (!b.cards || b.cards.length === 0) {

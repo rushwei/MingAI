@@ -10,6 +10,7 @@ import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/li
 import { handleQimenCalculate } from '@/lib/divination/qimen';
 import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 interface QimenRequest {
     action: 'calculate' | 'analyze' | 'save';
@@ -70,6 +71,7 @@ const QIMEN_SYSTEM_PROMPT = `你是一位精通奇门遁甲的资深易学大师
 const handleInterpret = createInterpretHandler<QimenInterpretInput>({
     sourceType: 'qimen',
     tag: 'qimen',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.qimen_chart],
     parseInput: (body) => {
         const b = body as QimenRequest;
         if (!b.chartData) return { error: '请提供排盘数据', status: 400 };

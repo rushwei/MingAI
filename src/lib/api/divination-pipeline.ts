@@ -12,14 +12,17 @@
  */
 
 import { type NextRequest } from 'next/server';
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { jsonError, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { callAIWithReasoning, callAIStream, readAIStream, callAIVision } from '@/lib/ai/ai';
+import { callAIWithReasoning, callAIUIMessageResult, callAIVision } from '@/lib/ai/ai';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import type { AIModelConfig } from '@/types';
 import type { AIPersonality } from '@/types';
+import type { ChartType } from '@/lib/visualization/chart-types';
+import { buildVisualizationOutputContractPrompt } from '@/lib/visualization/prompt';
 
 // ─── Types ───
 
@@ -59,6 +62,8 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
     requireVision?: boolean;
     membershipDeniedMessage?: string;
   };
+  /** 该路由允许 AI 输出的可视化图表类型。传入后会自动在 system prompt 尾部追加图表输出合约。 */
+  allowedChartTypes?: ChartType[];
   /**
    * Optional post-persist hook. Called after conversation is created.
    * Use for updating reading/divination records with conversation_id.
@@ -68,6 +73,63 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
     userId: string,
     conversationId: string | null,
   ) => Promise<void>;
+}
+
+export interface PersistentStreamResult {
+  error?: string | null;
+}
+
+export function createPersistentStreamResponse({
+  streamResult,
+  onStreamComplete,
+}: {
+  streamResult: Awaited<ReturnType<typeof callAIUIMessageResult>>;
+  onStreamComplete: (result: { content: string; reasoning: string | null }) => Promise<PersistentStreamResult>;
+}): Response {
+  const uiStream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      writer.merge(streamResult.toUIMessageStream({
+        sendReasoning: true,
+        sendSources: false,
+        sendStart: false,
+        sendFinish: false,
+        onFinish: async ({ responseMessage, finishReason, isAborted }) => {
+          if (isAborted) {
+            return;
+          }
+
+          let content = '';
+          let reasoning = '';
+
+          for (const part of responseMessage.parts) {
+            if (part.type === 'text') {
+              content += part.text;
+            } else if (part.type === 'reasoning') {
+              reasoning += part.text;
+            }
+          }
+
+          const persistenceResult = await onStreamComplete({
+            content,
+            reasoning: reasoning || null,
+          });
+          if (persistenceResult.error) {
+            writer.write({ type: 'error', errorText: persistenceResult.error });
+          }
+          writer.write({ type: 'finish', finishReason });
+        },
+      }));
+    },
+  });
+
+  return createUIMessageStreamResponse({
+    stream: uiStream,
+    headers: {
+      ...SSE_HEADERS,
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }
 
 // ─── Factory ───
@@ -99,6 +161,7 @@ export function createInterpretHandler<T extends InterpretInput>(
     isVision = false,
     buildVisionOptions,
     modelAccessOptions,
+    allowedChartTypes,
     persistRecord,
   } = config;
 
@@ -140,8 +203,11 @@ export function createInterpretHandler<T extends InterpretInput>(
     }
     const { modelId: resolvedModelId, modelConfig, reasoningEnabled } = access;
 
-    // Build prompts
-    const { systemPrompt, userPrompt } = buildPrompts(input);
+    // Build prompts, optionally appending visualization output contract
+    const { systemPrompt: rawSystemPrompt, userPrompt } = buildPrompts(input);
+    const systemPrompt = allowedChartTypes?.length
+      ? `${rawSystemPrompt}\n\n${buildVisualizationOutputContractPrompt(allowedChartTypes)}`
+      : rawSystemPrompt;
 
     // 4. Deduct credit
     // eslint-disable-next-line react-hooks/rules-of-hooks -- useCredit is a server function, not a React hook
@@ -210,78 +276,30 @@ export function createInterpretHandler<T extends InterpretInput>(
     input: T, userId: string, resolvedModelId: string,
     reasoningEnabled: boolean, systemPrompt: string, userPrompt: string,
   ): Promise<Response> {
-    const streamBody = await callAIStream(
+    const streamResult = await callAIUIMessageResult(
       [{ role: 'user', content: userPrompt }],
       personality,
       `\n\n${systemPrompt}\n\n`,
       resolvedModelId,
       { reasoning: reasoningEnabled, temperature: 0.7 },
     );
-    const [clientStream, tapStream] = streamBody.tee();
-    const persistenceTask = (async (): Promise<{ conversationId: string | null; error?: string }> => {
-      try {
-        const { content, reasoning: reasoningText } = await readAIStream(tapStream);
-        const conversationId = await persistConversation(
-          input, userId, resolvedModelId, reasoningEnabled, content, reasoningText ?? null,
-        );
-        if (persistRecord) {
-          await persistRecord(input, userId, conversationId);
-        }
-        return { conversationId };
-      } catch (err) {
-        console.error(`[${tag}] 流式结果保存失败:`, err);
-        return { conversationId: null, error: '保存结果失败，请稍后重试' };
-      }
-    })();
-
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    let sourceReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-
-    const responseStream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        sourceReader = clientStream.getReader();
-        let buffer = '';
-
+    return createPersistentStreamResponse({
+      streamResult,
+      onStreamComplete: async ({ content, reasoning }) => {
         try {
-          while (true) {
-            const { done, value } = await sourceReader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-              if (line.startsWith('data: ') && line.slice(6) === '[DONE]') {
-                continue;
-              }
-              controller.enqueue(encoder.encode(`${line}\n`));
-            }
+          const conversationId = await persistConversation(
+            input, userId, resolvedModelId, reasoningEnabled, content, reasoning,
+          );
+          if (persistRecord) {
+            await persistRecord(input, userId, conversationId);
           }
-
-          if (buffer && !(buffer.startsWith('data: ') && buffer.slice(6) === '[DONE]')) {
-            controller.enqueue(encoder.encode(buffer));
-          }
-
-          const persistenceResult = await persistenceTask;
-          if (persistenceResult.error) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: persistenceResult.error })}\n\n`));
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          return {};
         } catch (err) {
-          controller.error(err);
-        } finally {
-          sourceReader?.releaseLock();
+          console.error(`[${tag}] 流式结果保存失败:`, err);
+          return { error: '保存结果失败，请稍后重试' };
         }
-      },
-      async cancel(reason) {
-        await sourceReader?.cancel(reason);
       },
     });
-
-    return new Response(responseStream, { headers: SSE_HEADERS });
   }
 
   // ── Non-stream ──

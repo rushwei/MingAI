@@ -60,12 +60,38 @@ export const hepanProvider: DataSourceProvider<HepanRow> = {
     },
 
     formatForAI(r: HepanRow): string {
+        const result = (r.result_data && typeof r.result_data === 'object')
+            ? r.result_data as {
+                type?: string;
+                overallScore?: number;
+                person1?: { name?: string; year?: number; month?: number; day?: number };
+                person2?: { name?: string; year?: number; month?: number; day?: number };
+                dimensions?: Array<{ name?: string; score?: number; description?: string }>;
+                conflicts?: Array<{ severity?: string; title?: string; description?: string }>;
+            }
+            : null;
+        const typeName = getHepanTypeName((result?.type || r.type) as HepanType);
+        const person1 = result?.person1;
+        const person2 = result?.person2;
+        const dimensionsSummary = Array.isArray(result?.dimensions) && result!.dimensions.length > 0
+            ? result!.dimensions
+                .map((d) => `${d.name || '维度'}: ${d.score ?? 0}分${d.description ? ` - ${d.description}` : ''}`)
+                .join('\n')
+            : '';
+        const conflictsSummary = Array.isArray(result?.conflicts) && result!.conflicts.length > 0
+            ? result!.conflicts
+                .map((c) => `[${c.severity || '未知'}] ${c.title || '冲突'}${c.description ? `: ${c.description}` : ''}`)
+                .join('\n')
+            : '无明显冲突';
+
         return [
-            `## 合盘：${r.person1_name} × ${r.person2_name}`,
-            `- 类型：${r.type}`,
-            `- 类型名称：${getHepanTypeName(r.type as HepanType)}`,
-            r.compatibility_score != null ? `- 匹配度：${r.compatibility_score}` : '',
-            r.result_data ? `- 结构化结果：${JSON.stringify(r.result_data)}` : ''
+            `## 合盘分析：${r.person1_name} × ${r.person2_name}`,
+            `- 合盘类型：${typeName}`,
+            person1 ? `- ${person1.name || r.person1_name}：${person1.year ?? '-'}年${person1.month ?? '-'}月${person1.day ?? '-'}日` : '',
+            person2 ? `- ${person2.name || r.person2_name}：${person2.year ?? '-'}年${person2.month ?? '-'}月${person2.day ?? '-'}日` : '',
+            (result?.overallScore ?? r.compatibility_score) != null ? `- 综合契合度：${result?.overallScore ?? r.compatibility_score}分` : '',
+            dimensionsSummary ? `\n## 各维度分析\n${dimensionsSummary}` : '',
+            `\n## 潜在冲突点\n${conflictsSummary}`,
         ].filter(Boolean).join('\n');
     },
 

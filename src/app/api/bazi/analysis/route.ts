@@ -6,15 +6,22 @@
  */
 
 import { NextRequest } from 'next/server';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { callAIWithReasoning, callAIUIMessageResult } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
-import { getSystemAdminClient, jsonError, jsonOk, requireUserContext, SSE_HEADERS } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
+import { USER_SETTINGS_SELECT, normalizeUserSettings } from '@/lib/user/settings';
+import {
+    buildVisualizationOutputContractPrompt,
+    buildVisualizationPreferencePrompts,
+} from '@/lib/visualization/prompt';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
+import { createPersistentStreamResponse } from '@/lib/api/divination-pipeline';
 
 const RATE_LIMIT_CONFIG = {
     maxRequests: 10,
@@ -114,7 +121,23 @@ export async function POST(request: NextRequest) {
             isLeapMonth: resolvedChart.is_leap_month || false,
             chartData: resolvedChart.chart_data || undefined,
         }, caseProfile);
-        const systemPrompt = type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT;
+        const { data: userSettingsRow } = await supabase
+            .from('user_settings')
+            .select(USER_SETTINGS_SELECT)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        const userSettings = normalizeUserSettings((userSettingsRow ?? null) as Record<string, unknown> | null);
+        const visualizationPrompts = buildVisualizationPreferencePrompts(userSettings.visualizationSettings);
+        const allowedChartTypes = type === 'wuxing'
+            ? [...SOURCE_CHART_TYPE_MAP.bazi_chart, 'fortune_calendar'] as const
+            : ['personality_petal', 'life_timeline', 'fortune_radar', 'fortune_calendar'] as const;
+        const systemPrompt = [
+            type === 'wuxing' ? WUXING_PROMPT : PERSONALITY_PROMPT,
+            visualizationPrompts.dimensionsPrompt,
+            visualizationPrompts.dayunPrompt,
+            visualizationPrompts.chartStylePrompt,
+            buildVisualizationOutputContractPrompt([...allowedChartTypes]),
+        ].filter(Boolean).join('\n\n');
         const userPrompt = `请分析以下八字：\n\n${chartSummary}`;
 
         const authInfo = await getUserAuthInfo(user.id);
@@ -149,31 +172,31 @@ export async function POST(request: NextRequest) {
                 },
                 title,
                 aiResponse: content,
-                baziChartId: chartId,
             });
         }
 
         if (stream) {
-            const streamBody = await callAIStream(
+            const streamResult = await callAIUIMessageResult(
                 [{ role: 'user', content: userPrompt }], 'bazi',
                 `\n\n${systemPrompt}\n\n`, resolvedModelId,
                 { reasoning: reasoningEnabled, temperature: 0.7 },
             );
-            const [clientStream, tapStream] = streamBody.tee();
-            void (async () => {
-                try {
-                    const { content, reasoning: rText } = await readAIStream(tapStream);
-                    if (!content?.trim()) {
-                        if (userId) await addCredits(userId, 1);
-                        return;
+            return createPersistentStreamResponse({
+                streamResult,
+                onStreamComplete: async ({ content, reasoning }) => {
+                    try {
+                        if (!content?.trim()) {
+                            if (userId) await addCredits(userId, 1);
+                            return { error: 'AI 分析结果为空，请稍后重试' };
+                        }
+                        await persist(content, reasoning);
+                        return {};
+                    } catch (e) {
+                        console.error('[bazi/analysis] 保存流式结果失败:', e);
+                        return { error: '保存结果失败，请稍后重试' };
                     }
-                    await persist(content, rText ?? null);
-                } catch (e) {
-                    console.error('[bazi/analysis] 保存流式结果失败:', e);
-                    if (userId) await addCredits(userId, 1);
-                }
-            })();
-            return new Response(clientStream, { headers: SSE_HEADERS });
+                },
+            });
         }
 
         const { content, reasoning: reasoningText } = await callAIWithReasoning(

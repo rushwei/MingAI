@@ -10,7 +10,7 @@ import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import { addCredits, hasCredits, useCredit as deductCredit } from '@/lib/user/credits';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
-import type { ChartIds } from '@/lib/chat/chat-context';
+import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 
@@ -19,7 +19,7 @@ export interface ChatRequestBody {
   skipCreditCheck?: boolean;
   internalSecret?: string;
   stream?: boolean;
-  chartIds?: ChartIds;
+  mangpaiMode?: boolean;
   model?: string;
   reasoning?: boolean;
   difyContext?: DifyContext;
@@ -28,6 +28,7 @@ export interface ChatRequestBody {
   expressionStyle?: 'direct' | 'gentle';
   customInstructions?: string;
   userProfile?: unknown;
+  visualizationSettings?: VisualizationSettings;
 }
 
 export type ChatRouteBody = ChatRequestBody;
@@ -82,6 +83,7 @@ export async function parseChatRequestBody(request: NextRequest): Promise<ChatRe
   if (!body.messages || !Array.isArray(body.messages)) {
     return jsonError('无效的消息格式', 400);
   }
+  body.visualizationSettings = normalizeVisualizationSettings(body.visualizationSettings);
   return body;
 }
 
@@ -164,15 +166,14 @@ export async function resolveChatRequest(
       });
     }
 
-    if (!body.stream) {
-      const remaining = await deductCredit(userId);
-      if (remaining === null) {
-        return jsonError('积分扣减失败，请重试', 500, {
-          code: 'CREDIT_DEDUCTION_FAILED',
-        });
-      }
-      creditDeducted = true;
+    // 流式与非流式统一预扣费，避免并发流式请求在完成后扣费时漏计。
+    const remaining = await deductCredit(userId);
+    if (remaining === null) {
+      return jsonError('积分扣减失败，请重试', 500, {
+        code: 'CREDIT_DEDUCTION_FAILED',
+      });
     }
+    creditDeducted = true;
   }
 
   return {

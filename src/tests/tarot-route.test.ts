@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import { captureConsoleErrors, ensureRouteTestEnv } from './helpers/route-mock';
+import { createMockUIMessageResult } from './helpers/ui-message-result';
 
 ensureRouteTestEnv();
 
@@ -60,10 +61,9 @@ test('tarot route uses schema column names when inserting history', async (t) =>
         error: null,
     });
     supabaseServerModule.getSystemAdminClient = () => fakeClient;
-    global.fetch = async () => ({
-        ok: true,
-        json: async () => ({ choices: [{ message: { content: 'analysis' } }] }),
-    } as any);
+    global.fetch = async () => Response.json({
+        choices: [{ index: 0, message: { content: 'analysis' } }],
+    });
 
     t.after(() => {
         consoleCapture.restore();
@@ -126,7 +126,7 @@ test('tarot route persists analysis after streaming completes', async (t) => {
 
     const originalGetUserAuthInfo = credits.getUserAuthInfo;
     const originalUseCredit = credits.useCredit;
-    const originalCallAIStream = aiModule.callAIStream;
+    const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
     const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
     const originalGetUser = supabaseModule.supabase.auth.getUser;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
@@ -134,20 +134,9 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     let createArgs: Record<string, unknown> | null = null;
     let updated: Record<string, unknown> | null = null;
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-            controller.enqueue(
-                encoder.encode('data: {"choices":[{"delta":{"content":"analysis","reasoning_content":"reason"}}]}\n\n')
-            );
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-        },
-    });
-
     credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
     credits.useCredit = async () => 1;
-    aiModule.callAIStream = async () => stream;
+    aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
     aiAnalysisModule.createAIAnalysisConversation = async (params: Record<string, unknown>) => {
         createArgs = params;
         return 'conv-1';
@@ -196,7 +185,7 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     t.after(() => {
         credits.getUserAuthInfo = originalGetUserAuthInfo;
         credits.useCredit = originalUseCredit;
-        aiModule.callAIStream = originalCallAIStream;
+        aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
         aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
         supabaseModule.supabase.auth.getUser = originalGetUser;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
@@ -232,9 +221,77 @@ test('tarot route persists analysis after streaming completes', async (t) => {
     await response.text();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
     assert.ok(createArgs);
     assert.equal((createArgs as Record<string, unknown>).sourceType, 'tarot');
     assert.equal((updated as Record<string, unknown> | null)?.conversation_id, 'conv-1');
+});
+
+test('tarot route surfaces SSE error when stream persistence fails after content generation', async (t) => {
+    const credits = require('../lib/user/credits') as any;
+    const aiModule = require('../lib/ai/ai') as any;
+    const aiAnalysisModule = require('../lib/ai/ai-analysis') as any;
+    const supabaseModule = require('../lib/auth') as any;
+    const originalGetUserAuthInfo = credits.getUserAuthInfo;
+    const originalUseCredit = credits.useCredit;
+    const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
+    const originalCreateConversation = aiAnalysisModule.createAIAnalysisConversation;
+    const originalGetUser = supabaseModule.supabase.auth.getUser;
+    const originalConsoleError = console.error;
+
+    credits.getUserAuthInfo = async () => ({ credits: 10, effectiveMembership: 'pro', hasCredits: true });
+    credits.useCredit = async () => 1;
+    aiModule.callAIUIMessageResult = async () => createMockUIMessageResult();
+    aiAnalysisModule.createAIAnalysisConversation = async () => {
+        throw new Error('persist failed');
+    };
+    supabaseModule.supabase.auth.getUser = async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+    });
+    console.error = () => {};
+
+    t.after(() => {
+        credits.getUserAuthInfo = originalGetUserAuthInfo;
+        credits.useCredit = originalUseCredit;
+        aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
+        aiAnalysisModule.createAIAnalysisConversation = originalCreateConversation;
+        supabaseModule.supabase.auth.getUser = originalGetUser;
+        console.error = originalConsoleError;
+    });
+
+    const { POST } = await import('../app/api/tarot/route');
+    const request = new NextRequest('http://localhost/api/tarot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token',
+        },
+        body: JSON.stringify({
+            action: 'interpret',
+            stream: true,
+            readingId: 'reading-1',
+            cards: [
+                {
+                    card: {
+                        nameChinese: '测试牌',
+                        keywords: ['关键词'],
+                        uprightMeaning: '正位',
+                        reversedMeaning: '逆位',
+                    },
+                    orientation: 'upright',
+                },
+            ],
+        }),
+    });
+
+    const response = await POST(request);
+    const body = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
+    assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
+    assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
 });
 
 test('tarot route returns 400 for invalid timezone on GET daily requests', async () => {

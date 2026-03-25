@@ -8,16 +8,45 @@ ensureRouteTestEnv();
 
 type MutableModule = Record<string, unknown>;
 
-function createStreamResponse(lines: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream<Uint8Array>({
+function createUIChunkStream(chunks: Array<Record<string, unknown>>): ReadableStream<Record<string, unknown>> {
+  return new ReadableStream<Record<string, unknown>>({
     start(controller) {
-      for (const line of lines) {
-        controller.enqueue(encoder.encode(line));
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
       }
       controller.close();
     },
   });
+}
+
+function createMockUIMessageResult(
+  chunks: Array<Record<string, unknown>>,
+  responseMessage: { parts: Array<Record<string, unknown>> },
+  finishOptions?: { isAborted?: boolean; finishReason?: string },
+) {
+  return {
+    toUIMessageStream(streamOptions?: {
+      onFinish?: (event: {
+        responseMessage: { parts: Array<Record<string, unknown>> };
+        finishReason?: string;
+        isAborted: boolean;
+        isContinuation: boolean;
+        messages: Array<{ parts: Array<Record<string, unknown>> }>;
+      }) => PromiseLike<void> | void;
+    }) {
+      const stream = createUIChunkStream(chunks);
+      queueMicrotask(() => {
+        void streamOptions?.onFinish?.({
+          responseMessage,
+          finishReason: finishOptions?.finishReason ?? 'stop',
+          isAborted: finishOptions?.isAborted ?? false,
+          isContinuation: false,
+          messages: [responseMessage],
+        });
+      });
+      return stream;
+    },
+  };
 }
 
 function setupPipelineMocks(t: TestContext) {
@@ -33,8 +62,7 @@ function setupPipelineMocks(t: TestContext) {
     useCredit: credits.useCredit,
     addCredits: credits.addCredits,
     resolveModelAccessAsync: aiAccess.resolveModelAccessAsync,
-    callAIStream: aiModule.callAIStream,
-    readAIStream: aiModule.readAIStream,
+    callAIUIMessageResult: aiModule.callAIUIMessageResult,
     createAIAnalysisConversation: aiAnalysisModule.createAIAnalysisConversation,
   };
 
@@ -62,13 +90,18 @@ function setupPipelineMocks(t: TestContext) {
     },
     reasoningEnabled: false,
   });
-  aiModule.callAIStream = async () => createStreamResponse([
-    'data: {"choices":[{"delta":{"content":"analysis","reasoning_content":"reason"}}]}\n\n',
-    'data: [DONE]\n\n',
-  ]);
-  aiModule.readAIStream = async () => ({
-    content: 'analysis',
-    reasoning: 'reason',
+  aiModule.callAIUIMessageResult = async () => createMockUIMessageResult([
+    { type: 'reasoning-start', id: 'reasoning-1' },
+    { type: 'reasoning-delta', id: 'reasoning-1', delta: 'reason' },
+    { type: 'reasoning-end', id: 'reasoning-1' },
+    { type: 'text-start', id: 'text-1' },
+    { type: 'text-delta', id: 'text-1', delta: 'analysis' },
+    { type: 'text-end', id: 'text-1' },
+  ], {
+    parts: [
+      { type: 'reasoning', text: 'reason', state: 'done' },
+      { type: 'text', text: 'analysis', state: 'done' },
+    ],
   });
 
   const createCalls: Array<Record<string, unknown>> = [];
@@ -86,8 +119,7 @@ function setupPipelineMocks(t: TestContext) {
     credits.useCredit = originals.useCredit;
     credits.addCredits = originals.addCredits;
     aiAccess.resolveModelAccessAsync = originals.resolveModelAccessAsync;
-    aiModule.callAIStream = originals.callAIStream;
-    aiModule.readAIStream = originals.readAIStream;
+    aiModule.callAIUIMessageResult = originals.callAIUIMessageResult;
     aiAnalysisModule.createAIAnalysisConversation = originals.createAIAnalysisConversation;
     delete require.cache[pipelinePath];
   });
@@ -164,7 +196,8 @@ test('divination pipeline persists streamed analysis and calls persistRecord aft
   const body = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(body, /"content":"analysis"/u);
+  assert.equal(response.headers.get('x-vercel-ai-ui-message-stream'), 'v1');
+  assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
   assert.ok(createCalls[0], 'createAIAnalysisConversation should be called');
   assert.equal(createCalls[0]?.sourceType, 'test_divination');
   assert.equal(createCalls[0]?.aiResponse, 'analysis');
@@ -195,7 +228,37 @@ test('divination pipeline surfaces an SSE error when stream persistence fails af
   const body = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(body, /"content":"analysis"/u);
-  assert.match(body, /"error":"保存结果失败，请稍后重试"/u);
+  assert.match(body, /"type":"text-delta","id":"text-1","delta":"analysis"/u);
+  assert.match(body, /"type":"error","errorText":"保存结果失败，请稍后重试"/u);
   assert.match(body, /\[DONE\]/u);
+});
+
+test('divination pipeline skips persistence when streamed response is aborted', async (t) => {
+  const { aiModule, createCalls, loadPipeline } = setupPipelineMocks(t);
+  const persistCalls: Array<{ conversationId: string | null }> = [];
+
+  aiModule.callAIUIMessageResult = async () => createMockUIMessageResult([
+    { type: 'text-start', id: 'text-1' },
+    { type: 'text-delta', id: 'text-1', delta: 'partial-analysis' },
+    { type: 'text-end', id: 'text-1' },
+  ], {
+    parts: [
+      { type: 'text', text: 'partial-analysis', state: 'done' },
+    ],
+  }, {
+    isAborted: true,
+    finishReason: 'stop',
+  });
+
+  const { createInterpretHandler } = loadPipeline();
+  const handler = createTestHandler(createInterpretHandler, async (_input, _userId, conversationId) => {
+    persistCalls.push({ conversationId });
+  });
+
+  const response = await handler(createTestRequest(), { action: 'interpret', stream: true });
+  await response.text();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(createCalls, []);
+  assert.deepEqual(persistCalls, []);
 });

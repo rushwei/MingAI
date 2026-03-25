@@ -6,6 +6,7 @@
 import { NextRequest } from 'next/server';
 import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/core/daliuren';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 
@@ -50,6 +51,7 @@ function buildDaliurenPrompt(result: DaliurenOutput, question?: string): string 
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
     sourceType: 'daliuren',
     tag: 'daliuren',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.daliuren_divination],
     parseInput: (body) => {
         const b = body as DaliurenRequest;
         if (!b.resultData) {

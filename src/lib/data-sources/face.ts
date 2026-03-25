@@ -17,6 +17,10 @@ const extractConversationAnalysis = (conversation?: { messages?: unknown } | nul
     return assistant?.content || null;
 };
 
+function getFaceAnalysisTypeLabel(type: string | null | undefined): string {
+    return FACE_ANALYSIS_TYPES.find((item) => item.id === type)?.name || type || '面相分析';
+}
+
 export const faceProvider: DataSourceProvider<FaceRow> = {
     type: 'face_reading',
     displayName: '面相记录',
@@ -59,16 +63,16 @@ export const faceProvider: DataSourceProvider<FaceRow> = {
     formatForAI(r: FaceRow): string {
         const analysisText = extractConversationAnalysis(r.conversation);
         const sourceData = r.conversation?.source_data || {};
+        const typeLabel = getFaceAnalysisTypeLabel(r.analysis_type);
         return [
             '## 面相分析记录',
-            r.analysis_type ? `- 类型：${r.analysis_type}` : '',
+            r.analysis_type ? `- 类型：${typeLabel}` : '',
             typeof sourceData?.question === 'string' && sourceData.question ? `- 提问：${sourceData.question}` : '',
-            r.conversation_id ? `- 对应对话：${r.conversation_id}` : '',
             analysisText ? `\n【AI解读】\n${analysisText}` : ''
         ].filter(Boolean).join('\n');
     },
 
     summarize(r: FaceRow): string {
-        return FACE_ANALYSIS_TYPES.find(t => t.id === r.analysis_type)?.name || r.analysis_type || '面相分析';
+        return getFaceAnalysisTypeLabel(r.analysis_type);
     }
 };

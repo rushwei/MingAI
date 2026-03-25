@@ -15,6 +15,7 @@ import {
 } from '@/lib/divination/face';
 import { jsonError, jsonOk } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
 
@@ -28,6 +29,7 @@ interface FaceInterpretInput extends InterpretInput {
 const handleAnalyze = createInterpretHandler<FaceInterpretInput>({
     sourceType: 'face',
     tag: 'face',
+    allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.face_reading],
     defaultModelId: DEFAULT_VISION_MODEL_ID,
     isVision: true,
     modelAccessOptions: {

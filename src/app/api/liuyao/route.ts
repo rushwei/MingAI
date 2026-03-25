@@ -4,9 +4,9 @@
  * 提供 AI 解卦功能，包含传统六爻分析
  */
 import { NextRequest } from 'next/server';
-import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser, SSE_HEADERS } from '@/lib/api-utils';
+import { getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { useCredit, getUserAuthInfo, addCredits } from '@/lib/user/credits';
-import { callAIWithReasoning, callAIStream, readAIStream } from '@/lib/ai/ai';
+import { callAIWithReasoning, callAIUIMessageResult } from '@/lib/ai/ai';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { resolveModelAccessAsync } from '@/lib/ai/ai-access';
 import {
@@ -17,6 +17,9 @@ import {
 } from '@/lib/divination/liuyao';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
+import { buildVisualizationOutputContractPrompt } from '@/lib/visualization/prompt';
+import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
+import { createPersistentStreamResponse } from '@/lib/api/divination-pipeline';
 
 interface LiuyaoRequest {
     action: 'interpret' | 'save' | 'history' | 'update';
@@ -98,6 +101,14 @@ const LIUYAO_SYSTEM_PROMPT = `你是一位精通《周易》的资深易学大�
 7. 【综合判断】明确吉凶判断和应期建议
 
 要求：专业而通俗易懂，让求卦者理解断卦依据。字数800-1200字。`;
+
+let _liuyaoFullSystemPrompt: string | null = null;
+function getLiuyaoFullSystemPrompt(): string {
+    if (!_liuyaoFullSystemPrompt) {
+        _liuyaoFullSystemPrompt = `${LIUYAO_SYSTEM_PROMPT}\n\n${buildVisualizationOutputContractPrompt([...SOURCE_CHART_TYPE_MAP.liuyao_divination])}`;
+    }
+    return _liuyaoFullSystemPrompt;
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -254,24 +265,32 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
 
     try {
         if (stream) {
-            const streamBody = await callAIStream(
+            const streamResult = await callAIUIMessageResult(
                 [{ role: 'user', content: userPrompt }], 'general',
-                `\n\n${LIUYAO_SYSTEM_PROMPT}\n\n`, resolvedModelId,
+                `\n\n${getLiuyaoFullSystemPrompt()}\n\n`, resolvedModelId,
                 { reasoning: reasoningEnabled, temperature: 0.7 },
             );
-            const [clientStream, tapStream] = streamBody.tee();
-            void (async () => {
-                try {
-                    const { content, reasoning: rText } = await readAIStream(tapStream);
-                    await persist(content, rText ?? null);
-                } catch (e) { console.error('[liuyao] 流式结果保存失败:', e); }
-            })();
-            return new Response(clientStream, { headers: SSE_HEADERS });
+            return createPersistentStreamResponse({
+                streamResult,
+                onStreamComplete: async ({ content, reasoning }) => {
+                    try {
+                        if (!content?.trim()) {
+                            await addCredits(user.id, 1);
+                            return { error: 'AI 解读结果为空，请稍后重试' };
+                        }
+                        await persist(content, reasoning);
+                        return {};
+                    } catch (e) {
+                        console.error('[liuyao] 流式结果保存失败:', e);
+                        return { error: '保存结果失败，请稍后重试' };
+                    }
+                },
+            });
         }
 
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
             [{ role: 'user', content: userPrompt }], 'general', resolvedModelId,
-            `\n\n${LIUYAO_SYSTEM_PROMPT}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
+            `\n\n${getLiuyaoFullSystemPrompt()}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
         );
         const conversationId = await persist(content, reasoningText ?? null);
         return jsonOk({ success: true, data: { interpretation: content, reasoning: reasoningText, conversationId } });
