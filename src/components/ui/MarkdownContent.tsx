@@ -1,14 +1,23 @@
 /**
  * Markdown 内容渲染组件
  *
+ * 'use client' 标记说明：
+ * - 使用 React hooks (useMemo)
+ * - 动态导入 ChartRenderer 组件
+ *
  * 性能优化：
  * - 使用 React.memo 避免不必要的重渲染
  * - 使用 useMemo 缓存组件定义和 textClass
  * - 静态组件提取到组件外部
  */
-import { memo, useMemo } from 'react';
+'use client';
+
+import { memo, useMemo, lazy, Suspense } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { ChartData } from '@/lib/visualization/chart-types';
+
+const ChartRenderer = lazy(() => import('@/components/visualization/ChartRenderer'));
 
 interface MarkdownContentProps {
     content: string;
@@ -49,7 +58,28 @@ const staticComponents: Partial<Components> = {
     ),
     em: ({ children }) => <em className="italic">{children}</em>,
     code: ({ className, children }) => {
+        const match = /language-(\w+)/.exec(className || '');
         const isInline = !className;
+
+        if (!isInline && match?.[1] === 'chart') {
+            try {
+                const chartData = JSON.parse(String(children).trim()) as ChartData;
+                return (
+                    <div className="my-4 max-w-full overflow-x-auto">
+                        <Suspense fallback={<div className="py-4 text-center text-sm text-foreground-secondary">加载图表...</div>}>
+                            <ChartRenderer data={chartData} />
+                        </Suspense>
+                    </div>
+                );
+            } catch {
+                return (
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
+                        图表数据解析失败
+                    </div>
+                );
+            }
+        }
+
         return (
             <code
                 className={isInline
