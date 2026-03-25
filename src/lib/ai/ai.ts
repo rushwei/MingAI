@@ -1,17 +1,60 @@
 /**
  * AI API 调用封装
  *
- * 服务端组件说明：
- * - 这些函数主要在服务端运行（API Routes 或 Server Actions）
- * - 保护 API 密钥不暴露给客户端
+ * 基于 Vercel AI SDK（ai v6 + @ai-sdk/openai v3）
+ * 服务端组件：保护 API 密钥不暴露给客户端
  */
+import 'server-only';
 
 import type { AIPersonality, AIPersonalityConfig, AIModelConfig } from '@/types';
-import { getProvider, createMockStream } from './providers';
-import type { AIRequestMessage } from '@/lib/ai/providers/base';
+import {
+    type AIRequestMessage,
+    createModelFromConfig,
+    isModelAvailable,
+    toCoreMessages,
+    callWithAISDK,
+    streamWithAISDK,
+} from './providers';
 import { DEFAULT_MODEL_ID } from './ai-config';
 import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
 import { applySourceToModel, getOrderedModelSources } from './source-runtime';
+// ===== 流式转换辅助函数 =====
+
+const SSE_ENCODER = new TextEncoder();
+
+/**
+ * 将 AI SDK fullStream 转换为统一 SSE 事件协议。
+ *
+ * fullStream 中的 chunk 包含 type 字段（text-delta / reasoning-delta / error 等），
+ * 此处仅转发与文本生成相关的事件。
+ */
+function fullStreamToSSE(fullStream: AsyncIterable<{ type: string; text?: string; errorText?: string }>): ReadableStream<Uint8Array> {
+    return new ReadableStream({
+        async start(controller) {
+            try {
+                for await (const chunk of fullStream) {
+                    if (chunk.type === 'text-delta') {
+                        const payload = JSON.stringify({ type: 'text-delta', delta: chunk.text });
+                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                    } else if (chunk.type === 'reasoning-delta') {
+                        const payload = JSON.stringify({ type: 'reasoning-delta', delta: chunk.text });
+                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                    } else if (chunk.type === 'error') {
+                        const payload = JSON.stringify({
+                            type: 'error',
+                            error: chunk.errorText || '请求失败',
+                        });
+                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                    }
+                }
+                controller.enqueue(SSE_ENCODER.encode('data: [DONE]\n\n'));
+                controller.close();
+            } catch (err) {
+                controller.error(err);
+            }
+        }
+    });
+}
 
 // ===== 时间辅助函数 =====
 
@@ -205,43 +248,6 @@ export const AI_PERSONALITIES: Record<AIPersonality, AIPersonalityConfig> = {
     },
 };
 
-// ===== 模拟响应（用于演示和测试）=====
-
-const MOCK_RESPONSES: Record<AIPersonality, string[]> = {
-    bazi: [
-        `观您所问，先给结论：近期运势有转机，但需把握节奏。\n\n《子平真诠》有云："日主旺相，事业可期。"可见时机已至。\n\n建议：\n1. 把握关键节点，主动推进\n2. 留意合作关系，贵人可期\n3. 先稳后进，厚积薄发`,
-    ],
-    ziwei: [
-        `从紫微格局看，主星落点提示你当前更适合稳中求进。\n\n建议：\n1. 聚焦核心宫位所指主题\n2. 避免分散精力，先固基础\n3. 以阶段性目标推进`,
-    ],
-    dream: [
-        `梦境多反映近期情绪与潜意识信号。\n\n建议：\n1. 记录梦境细节，观察重复符号\n2. 关注近期压力来源\n3. 给自己留出放松与复盘时间`,
-    ],
-    mangpai: [
-        `盲派重在口诀要点与日柱称号。\n\n建议：\n1. 先明喜忌，再定趋避\n2. 结合现实处境，取其可行之策`,
-    ],
-    general: [
-        `先给结论：当前适合稳中求进，注意节奏与资源配置。\n\n建议：\n1. 先明确目标，再匹配策略\n2. 保持行动与复盘的节奏\n3. 重点投入在高回报方向`,
-    ],
-    tarot: [
-        `从牌面来看，当前的处境蕴含转机与挑战并存的信号。\n\n建议：\n1. 保持内心的平静与觉察\n2. 信任直觉，但也要理性分析\n3. 适时放下过度担忧，专注当下`,
-    ],
-    liuyao: [
-        `卦象显示用神旺相，整体趋势向好。\n\n建议：\n1. 把握近期有利时机\n2. 注意规避忌神所指方位或时间\n3. 稳扎稳打，不宜急躁冒进`,
-    ],
-    mbti: [
-        `您的性格类型展现了独特的优势与发展空间。\n\n建议：\n1. 发挥核心优势，在擅长领域深耕\n2. 适度关注非主导功能的发展\n3. 选择与性格契合的工作环境`,
-    ],
-    hepan: [
-        `从八字合盘来看，双方存在较好的互补基础。\n\n建议：\n1. 珍惜契合点，加强沟通\n2. 包容差异，避免强求一致\n3. 共同成长，相互支持`,
-    ],
-};
-
-function generateMockResponse(personality: AIPersonality): string {
-    const responses = MOCK_RESPONSES[personality];
-    return responses[Math.floor(Math.random() * responses.length)];
-}
-
 // ===== API 调用函数 =====
 
 export interface AICallOptions {
@@ -272,9 +278,8 @@ async function runWithSourceFallback<T>(
 
     for (const source of sources) {
         const runtimeConfig = applySourceToModel(config, source);
-        const provider = getProvider(runtimeConfig);
 
-        if (!provider.isAvailable(runtimeConfig)) {
+        if (!isModelAvailable(runtimeConfig)) {
             continue;
         }
 
@@ -323,28 +328,26 @@ export async function callAI(
 ): Promise<string> {
     const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
-        console.error(`Unknown model: ${modelId}`);
-        return generateMockResponse(personality);
+        throw new Error(`Unknown model: ${modelId}`);
     }
     const systemPrompt = buildSystemPrompt(personality, chartContext, options);
-    try {
-        return await runWithSourceFallback(config, async (runtimeConfig) => {
-            const provider = getProvider(runtimeConfig);
-            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
-            return await provider.chat(messages, systemPrompt, runtimeConfig, {
-                reasoning: useReasoning,
-                temperature: options?.temperature,
-                maxTokens: options?.maxTokens,
-            });
+    return await runWithSourceFallback(config, async (runtimeConfig) => {
+        const reasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+        const model = createModelFromConfig(runtimeConfig, { reasoning });
+        const coreMessages = toCoreMessages(messages);
+        const result = await callWithAISDK(model, coreMessages, systemPrompt, runtimeConfig, {
+            reasoning,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
         });
-    } catch (error) {
-        console.error('AI API 调用失败，使用模拟响应:', error);
-        return generateMockResponse(personality);
-    }
+        return result.text;
+    });
 }
 
 /**
  * 流式调用 AI API
+ *
+ * 内部使用 AI SDK streamText()，输出转换为统一 SSE 事件协议
  */
 export async function callAIStream(
     messages: AIRequestMessage[],
@@ -355,24 +358,48 @@ export async function callAIStream(
 ): Promise<ReadableStream<Uint8Array>> {
     const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
-        console.error(`Unknown model: ${modelId}`);
-        return createMockStream(generateMockResponse(personality));
+        throw new Error(`Unknown model: ${modelId}`);
     }
     const systemPrompt = buildSystemPrompt(personality, chartContext, options);
-    try {
-        return await runWithSourceFallback(config, async (runtimeConfig) => {
-            const provider = getProvider(runtimeConfig);
-            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
-            return await provider.chatStream(messages, systemPrompt, runtimeConfig, {
-                reasoning: useReasoning,
-                temperature: options?.temperature,
-                maxTokens: options?.maxTokens,
-            });
+    return await runWithSourceFallback(config, async (runtimeConfig) => {
+        const reasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+        const model = createModelFromConfig(runtimeConfig, { reasoning });
+        const coreMessages = toCoreMessages(messages);
+        const result = await streamWithAISDK(model, coreMessages, systemPrompt, runtimeConfig, {
+            reasoning,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
         });
-    } catch (error) {
-        console.error('AI 流式调用失败，使用模拟响应:', error);
-        return createMockStream(generateMockResponse(personality));
+        return fullStreamToSSE(result.fullStream);
+    });
+}
+
+/**
+ * 直接返回 AI SDK stream result（主要用于 chat 路由）。
+ */
+export async function callAIUIMessageResult(
+    messages: AIRequestMessage[],
+    personality: AIPersonality = 'general',
+    chartContext: string = '',
+    modelId: string = DEFAULT_MODEL_ID,
+    options?: AICallOptions
+): Promise<Awaited<ReturnType<typeof streamWithAISDK>>> {
+    const config = await resolveModelConfigForCall(modelId, 'chat');
+    if (!config) {
+        throw new Error(`Unknown model: ${modelId}`);
     }
+    const systemPrompt = buildSystemPrompt(personality, chartContext, options);
+    return await runWithSourceFallback(config, async (runtimeConfig) => {
+        const reasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+        const model = createModelFromConfig(runtimeConfig, { reasoning });
+        const coreMessages = toCoreMessages(messages);
+        const result = await streamWithAISDK(model, coreMessages, systemPrompt, runtimeConfig, {
+            reasoning,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+        });
+        return result;
+    });
 }
 
 export async function callAIVision(
@@ -384,29 +411,29 @@ export async function callAIVision(
 ): Promise<string> {
     const config = await resolveModelConfigForCall(modelId, 'vision');
     if (!config) {
-        console.error(`Unknown model: ${modelId}`);
-        return generateMockResponse(personality);
+        throw new Error(`Unknown model: ${modelId}`);
     }
     const systemPrompt = buildSystemPrompt(personality, chartContext, options);
 
-    try {
-        return await runWithSourceFallback(config, async (runtimeConfig) => {
-            const provider = getProvider(runtimeConfig);
-            const useReasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
-            return await provider.chat(messages, systemPrompt, runtimeConfig, {
-                reasoning: useReasoning,
-                temperature: options?.temperature,
-                maxTokens: options?.maxTokens,
-                imageBase64: options?.imageBase64,
-                imageMimeType: options?.imageMimeType,
-            });
+    return await runWithSourceFallback(config, async (runtimeConfig) => {
+        const reasoning = runtimeConfig.isReasoningDefault || options?.reasoning;
+        const model = createModelFromConfig(runtimeConfig, { reasoning });
+        const coreMessages = toCoreMessages(messages, {
+            imageBase64: options?.imageBase64,
+            imageMimeType: options?.imageMimeType,
         });
-    } catch (error) {
-        console.error('AI 视觉调用失败，使用模拟响应:', error);
-        return generateMockResponse(personality);
-    }
+        const result = await callWithAISDK(model, coreMessages, systemPrompt, runtimeConfig, {
+            reasoning,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+        });
+        return result.text;
+    });
 }
 
+/**
+ * 从统一 SSE 流中读取完整内容。
+ */
 export async function readAIStream(stream: ReadableStream<Uint8Array>): Promise<AICallResult> {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
@@ -428,12 +455,11 @@ export async function readAIStream(stream: ReadableStream<Uint8Array>): Promise<
             if (dataStr === '[DONE]') continue;
             try {
                 const parsed = JSON.parse(dataStr);
-                const delta = parsed?.choices?.[0]?.delta;
-                if (delta?.reasoning_content) {
-                    reasoning += delta.reasoning_content;
+                if (parsed?.type === 'reasoning-delta' && typeof parsed.delta === 'string') {
+                    reasoning += parsed.delta;
                 }
-                if (delta?.content) {
-                    content += delta.content;
+                if (parsed?.type === 'text-delta' && typeof parsed.delta === 'string') {
+                    content += parsed.delta;
                 }
             } catch {
                 // ignore malformed stream chunk
@@ -456,7 +482,7 @@ export async function callAIWithReasoning(
 ): Promise<AICallResult> {
     const config = await resolveModelConfigForCall(modelId, 'chat');
     if (!config) {
-        return { content: generateMockResponse(personality) };
+        throw new Error(`Unknown model: ${modelId}`);
     }
 
     const shouldStream = !!options?.reasoning || !!config.isReasoningDefault;
@@ -465,12 +491,6 @@ export async function callAIWithReasoning(
         return { content };
     }
 
-    try {
-        const stream = await callAIStream(messages, personality, chartContext, modelId, options);
-        return await readAIStream(stream);
-    } catch (error) {
-        console.error('AI 推理解析失败，回退普通调用:', error);
-        const content = await callAI(messages, personality, modelId, chartContext, options);
-        return { content };
-    }
+    const stream = await callAIStream(messages, personality, chartContext, modelId, options);
+    return await readAIStream(stream);
 }

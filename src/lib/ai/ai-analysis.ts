@@ -31,8 +31,6 @@ export interface CreateAIAnalysisParams {
     sourceData: AnalysisSourceData;
     title: string;
     aiResponse: string;
-    baziChartId?: string;
-    ziweiChartId?: string;
 }
 
 /**
@@ -66,8 +64,6 @@ export async function createAIAnalysisConversation(params: CreateAIAnalysisParam
             source_data: normalizedSourceData,
             title: params.title,
             personality,
-            bazi_chart_id: params.baziChartId || null,
-            ziwei_chart_id: params.ziweiChartId || null,
         })
         .select('id')
         .single();

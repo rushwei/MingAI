@@ -98,6 +98,7 @@ const MODEL_SELECT = `
 let dbModelsCache: AIModelConfig[] | null = null;
 let dbLastFetch = 0;
 const DB_CACHE_TTL = 5 * 60 * 1000;
+import { IS_NODE_TEST_RUNTIME } from '@/lib/runtime';
 
 function pickGateway(input: DBModelGatewayBindingRow['gateway']): DBGatewayRow | null {
   if (Array.isArray(input)) {
@@ -208,7 +209,9 @@ async function fetchModelsFromDB(): Promise<AIModelConfig[] | null> {
   try {
     supabase = getSystemAdminClient();
   } catch (error) {
-    console.warn('[ai-config/server] Supabase client unavailable, fallback to env models:', error);
+    if (!IS_NODE_TEST_RUNTIME) {
+      console.warn('[ai-config/server] Supabase client unavailable, fallback to env models:', error);
+    }
     return null;
   }
 

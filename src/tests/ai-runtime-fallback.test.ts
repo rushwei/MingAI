@@ -57,7 +57,7 @@ test('callAI should fall back from primary source to backup source', async (t) =
       return new Response('upstream failure', { status: 502 });
     }
     return Response.json({
-      choices: [{ message: { content: 'backup-success' } }],
+      choices: [{ index: 0, message: { content: 'backup-success' } }],
     });
   }) as typeof fetch;
 
@@ -131,7 +131,7 @@ test('callAI should honor fixed octopus routing mode', async (t) => {
   global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     urls.push(String(input));
     return Response.json({
-      choices: [{ message: { content: 'octopus-only' } }],
+      choices: [{ index: 0, message: { content: 'octopus-only' } }],
     });
   }) as typeof fetch;
 
