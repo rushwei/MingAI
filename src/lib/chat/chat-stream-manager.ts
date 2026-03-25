@@ -400,6 +400,16 @@ export class ChatStreamManager {
             return 'break';
         }
 
+        // AI SDK abort 事件（安全过滤等）
+        if ((parsed as { type?: string }).type === 'abort') {
+            const reason = (parsed as { reason?: string }).reason;
+            task.sseError = {
+                code: 'REQUEST_FAILED',
+                message: reason || '请求被中断',
+            };
+            return 'break';
+        }
+
         const delta = parsed as { type?: unknown; delta?: unknown; textDelta?: unknown };
 
         let hasChanges = false;

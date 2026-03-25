@@ -75,12 +75,13 @@ export function toCoreMessages(
     messages: AIRequestMessage[],
     options?: { imageBase64?: string; imageMimeType?: string },
 ): CoreMessage[] {
-    return messages.map((msg, index) => {
+    // system role 通过 streamText/generateText 的 system 参数传递，不放入 messages 数组
+    return messages.filter(msg => msg.role !== 'system').map((msg, index, filtered) => {
         // Vision: 在最后一条用户消息中添加图片
         if (
             msg.role === 'user' &&
             options?.imageBase64 &&
-            index === messages.length - 1
+            index === filtered.length - 1
         ) {
             return {
                 role: 'user' as const,

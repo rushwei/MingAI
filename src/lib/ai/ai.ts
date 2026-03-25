@@ -28,23 +28,25 @@ const SSE_ENCODER = new TextEncoder();
  * fullStream 中的 chunk 包含 type 字段（text-delta / reasoning-delta / error 等），
  * 此处仅转发与文本生成相关的事件。
  */
-function fullStreamToSSE(fullStream: AsyncIterable<{ type: string; text?: string; errorText?: string }>): ReadableStream<Uint8Array> {
+function fullStreamToSSE(fullStream: AsyncIterable<{ type: string; text?: string; error?: unknown; finishReason?: string }>): ReadableStream<Uint8Array> {
     return new ReadableStream({
         async start(controller) {
+            const emit = (data: Record<string, unknown>) =>
+                controller.enqueue(SSE_ENCODER.encode(`data: ${JSON.stringify(data)}\n\n`));
             try {
                 for await (const chunk of fullStream) {
                     if (chunk.type === 'text-delta') {
-                        const payload = JSON.stringify({ type: 'text-delta', delta: chunk.text });
-                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                        emit({ type: 'text-delta', delta: chunk.text });
                     } else if (chunk.type === 'reasoning-delta') {
-                        const payload = JSON.stringify({ type: 'reasoning-delta', delta: chunk.text });
-                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                        emit({ type: 'reasoning-delta', delta: chunk.text });
                     } else if (chunk.type === 'error') {
-                        const payload = JSON.stringify({
-                            type: 'error',
-                            error: chunk.errorText || '请求失败',
-                        });
-                        controller.enqueue(SSE_ENCODER.encode(`data: ${payload}\n\n`));
+                        // AI SDK fullStream 使用 chunk.error (unknown)，非 errorText
+                        const errorMsg = typeof chunk.error === 'string'
+                            ? chunk.error
+                            : chunk.error instanceof Error ? chunk.error.message : '请求失败';
+                        emit({ type: 'error', error: errorMsg });
+                    } else if (chunk.type === 'finish' && (chunk.finishReason === 'error' || chunk.finishReason === 'content-filter')) {
+                        emit({ type: 'error', error: chunk.finishReason === 'content-filter' ? '内容被安全过滤' : '模型返回错误' });
                     }
                 }
                 controller.enqueue(SSE_ENCODER.encode('data: [DONE]\n\n'));
