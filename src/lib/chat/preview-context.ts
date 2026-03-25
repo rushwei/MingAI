@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { getModelContextInfo, getPromptBudget, buildPromptWithSources } from '@/lib/ai/prompt-builder';
+import { resolveModelContextConfig, calculatePromptBudget, buildPromptWithSources } from '@/lib/ai/prompt-builder';
 import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
@@ -236,7 +236,7 @@ async function buildSharedPreviewContext({
     });
 
   const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
-  const contextTotal = getModelContextInfo(requestedModelId, reasoningEnabled).maxContext;
+  const contextTotal = resolveModelContextConfig(requestedModelId, reasoningEnabled).maxContext;
   const previewText = sharedContext.systemPrompt.slice(0, PREVIEW_TEXT_LIMIT);
 
   return {
@@ -278,7 +278,7 @@ async function buildOverridePreviewContext({
         ? mergedMentions
         : mergedMentions.filter((mention) => mention.type !== 'knowledge_base');
 
-    const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
+    const mentionBudget = await calculatePromptBudget(requestedModelId, reasoningEnabled);
     const resolvedMentions = await Promise.all(effectiveMentions.map(async (mention) => {
         const resolvedContent = await resolveMention(mention, auth.user.id, {
             client: auth.supabase,
@@ -324,7 +324,7 @@ async function buildOverridePreviewContext({
     });
 
     const historyTokens = countMessageTokens(messagePayload as Array<{ content?: string }>);
-    const contextTotal = getModelContextInfo(requestedModelId, reasoningEnabled).maxContext;
+    const contextTotal = resolveModelContextConfig(requestedModelId, reasoningEnabled).maxContext;
     const previewText = promptBuild.systemPrompt.slice(0, PREVIEW_TEXT_LIMIT);
 
     return {

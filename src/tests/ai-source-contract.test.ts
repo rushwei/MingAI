@@ -6,7 +6,7 @@ import {
   normalizeAnalysisSourceType,
   getSourceDataModelId,
   getSourceDataReasoning,
-} from '../lib/ai/source-contract';
+} from '../lib/source-contracts';
 
 test('analysis source contract should preserve qimen and daliuren and stamp source_data schema version', () => {
   assert.equal(normalizeAnalysisSourceType('qimen'), 'qimen');

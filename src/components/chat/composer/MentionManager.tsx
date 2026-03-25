@@ -11,7 +11,8 @@ import { X, BookOpenText, Check, Settings } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { Mention } from '@/types';
 import { MentionPopover } from '@/components/chat/MentionPopover';
-import type { DataSourceSummary, DataSourceLoadError, KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
+import type { DataSourceSummary, DataSourceLoadError } from '@/lib/data-sources/types';
+import type { KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
 import type { DataSourceType } from '@/lib/data-sources/types';
 
 interface MentionManagerProps {

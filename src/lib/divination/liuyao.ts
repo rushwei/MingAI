@@ -6,7 +6,7 @@
  */
 
 import { XUN_KONG_TABLE as CORE_XUN_KONG_TABLE } from '@mingai/core/data/shensha-data';
-import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram as CoreHexagram } from '@mingai/core/data/hexagram-data';
+import { HEXAGRAMS as CORE_HEXAGRAMS, type Hexagram } from '@mingai/core/data/hexagram-data';
 import {
     calculateFullYaoInfo as calculateFullYaoInfoCore,
     calculateGanZhiTime as calculateGanZhiTimeCore,
@@ -68,8 +68,7 @@ export type {
     YongShenGroup,
 };
 export type LiuQin = LiuQinType;
-export type Hexagram = CoreHexagram;
-
+export type { Hexagram };
 export type Yao = CoreYao;
 export { calculateDerivedHexagrams, calculateGuaShen, getHexagramContext };
 

@@ -56,5 +56,3 @@ export function TrigramSelector({ label, value, onChange }: TrigramSelectorProps
     );
 }
 
-// 导出供外部使用
-export { TRIGRAMS_LIST };

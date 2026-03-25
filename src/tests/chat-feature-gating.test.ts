@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
     getVisibleSourcePanelState,
-    sanitizeChatMentions,
 } from '../lib/chat/feature-normalization';
+import { filterMentionsByFeature } from '../lib/data-sources/catalog';
 
 test('chat feature normalization should drop disabled mentions', () => {
-    const mentions = sanitizeChatMentions(
+    const mentions = filterMentionsByFeature(
         [
             { type: 'knowledge_base', id: 'kb-1', name: '知识库', preview: 'kb' },
             { type: 'ming_record', id: 'record-1', name: '记录', preview: 'record' },

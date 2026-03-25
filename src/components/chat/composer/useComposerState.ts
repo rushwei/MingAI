@@ -12,19 +12,9 @@ import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { supabase } from '@/lib/auth';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
-import type { DataSourceType } from '@/lib/data-sources/types';
+import type { DataSourceType, DataSourceSummary, DataSourceLoadError } from '@/lib/data-sources/types';
 import { filterMentionsByFeature } from '@/lib/data-sources/catalog';
 import type { ChatMode } from '@/lib/chat/use-chat-state';
-
-export type DataSourceSummary = {
-    id: string;
-    type: DataSourceType;
-    name: string;
-    preview: string;
-    createdAt: string;
-};
-
-export type DataSourceLoadError = { type: DataSourceType; message: string };
 
 export type KnowledgeBaseSummary = {
     id: string;

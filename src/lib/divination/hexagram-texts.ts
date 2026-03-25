@@ -4,10 +4,10 @@
  * 包含完整的卦辞、象辞和爻辞，以及权重标记
  */
 import {
-    HEXAGRAM_GUA_CI_FALLBACK,
-    HEXAGRAM_XIANG_CI_FALLBACK,
-    HEXAGRAM_YAO_CI_FALLBACK,
-} from './hexagram-texts-fallback';
+    GUA_CI as HEXAGRAM_GUA_CI_FALLBACK,
+    XIANG_CI as HEXAGRAM_XIANG_CI_FALLBACK,
+    YAO_CI as HEXAGRAM_YAO_CI_FALLBACK,
+} from '../../../packages/core/src/hexagram-texts';
 
 // 爻辞结构
 export interface YaoText {

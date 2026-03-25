@@ -230,7 +230,7 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
   };
 }
 
-export function loadUserSettingsRow(
+export function getUserSettingsRow(
   client: UserSettingsReader,
   userId: string,
 ): UserSettingsQueryResult {
@@ -241,11 +241,11 @@ export function loadUserSettingsRow(
     .maybeSingle();
 }
 
-export async function loadUserSettingsSnapshot(
+export async function getUserSettingsSnapshot(
   client: UserSettingsReader,
   userId: string,
 ): Promise<{ settings: UserSettingsSnapshot; error: unknown }> {
-  const result = await loadUserSettingsRow(client, userId);
+  const result = await getUserSettingsRow(client, userId);
   return {
     settings: normalizeUserSettings(result.data),
     error: result.error,
@@ -334,7 +334,7 @@ export function dispatchPromptKnowledgeBaseUpdated() {
   );
 }
 
-export async function loadCurrentUserSettings(): Promise<UserSettingsLoadResult> {
+export async function getCurrentUserSettings(): Promise<UserSettingsLoadResult> {
   const result = await requestBrowserJson<{ settings: UserSettingsSnapshot }>('/api/user/settings', {
     method: 'GET',
   });

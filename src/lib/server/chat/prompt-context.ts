@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { buildPromptWithSources, getPromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
+import { buildPromptWithSources, calculatePromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
@@ -197,7 +197,7 @@ export async function buildChatPromptContext(
     ? mergedMentions
     : mergedMentions.filter((mention) => mention.type !== 'knowledge_base');
 
-  const mentionBudget = await getPromptBudget(requestedModelId, reasoningEnabled);
+  const mentionBudget = await calculatePromptBudget(requestedModelId, reasoningEnabled);
   const [resolvedMentions, userSettings] = await Promise.all([
     userId ? resolveMentionsForPrompt(effectiveMentions, userId, supabase, mentionBudget) : [],
     userId ? loadUserSettingsContext(supabase, userId) : {

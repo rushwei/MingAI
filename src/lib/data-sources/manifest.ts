@@ -1,7 +1,6 @@
-import type { DataSourceProvider } from '@/lib/data-sources/types';
-import type { DataSourceType } from '@/lib/data-sources/contracts';
+import type { DataSourceProvider, DataSourceType } from '@/lib/data-sources/types';
 
-export { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/contracts';
+export { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/types';
 
 type DataSourceLoader = () => Promise<DataSourceProvider>;
 

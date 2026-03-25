@@ -1,7 +1,22 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { DataSourceType } from '@/lib/data-sources/contracts';
+export const DATA_SOURCE_TYPES = [
+    'bazi_chart',
+    'ziwei_chart',
+    'tarot_reading',
+    'liuyao_divination',
+    'mbti_reading',
+    'hepan_chart',
+    'face_reading',
+    'palm_reading',
+    'ming_record',
+    'daily_fortune',
+    'monthly_fortune',
+    'qimen_chart',
+    'daliuren_divination',
+] as const;
 
-export type { DataSourceType } from '@/lib/data-sources/contracts';
+export type DataSourceType = typeof DATA_SOURCE_TYPES[number];
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface DataSourceSummary {
     id: string;
@@ -11,6 +26,8 @@ export interface DataSourceSummary {
     createdAt: string;
     hepanType?: 'love' | 'business' | 'family';
 }
+
+export type DataSourceLoadError = { type: DataSourceType; message: string };
 
 export type DataSourceQueryContext = {
     client?: SupabaseClient;

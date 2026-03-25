@@ -11,7 +11,7 @@ import { BookOpenText, AtSign, FileText } from 'lucide-react';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getDataSourceFeatureId } from '@/lib/data-sources/catalog';
-import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/contracts';
+import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/types';
 import type { InjectedSource } from '@/types';
 
 function isDataSourceType(value: string): value is DataSourceType {

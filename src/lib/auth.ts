@@ -15,7 +15,6 @@ import {
 } from '@/lib/browser-api';
 import {
     getCurrentUserProfile,
-    loadCurrentUserProfileBundle,
     updateAvatarUrl as updateAvatarProfile,
     updateNickname as updateNicknameProfile,
 } from '@/lib/user/profile';
@@ -23,13 +22,11 @@ import {
 export type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
 export type User = SupabaseUser;
 
-export type AuthError = BrowserApiError;
-
 type AuthPayload<T = unknown> = BrowserApiPayload<T>;
 
 export type AuthResult = {
     success: boolean;
-    error?: AuthError;
+    error?: BrowserApiError;
 };
 
 type AuthListener = (event: AuthChangeEvent, session: Session | null) => void;
@@ -110,7 +107,7 @@ export const supabase = {
             return result;
         },
 
-        async getSession(): Promise<{ data: { session: Session | null }; error: AuthError | null }> {
+        async getSession(): Promise<{ data: { session: Session | null }; error: BrowserApiError | null }> {
             const result = await loadSessionFromServer();
             return {
                 data: { session: result.data?.session ?? null },
@@ -118,7 +115,7 @@ export const supabase = {
             };
         },
 
-        async getUser(token?: string): Promise<{ data: { user: SupabaseUser | null }; error: AuthError | null }> {
+        async getUser(token?: string): Promise<{ data: { user: SupabaseUser | null }; error: BrowserApiError | null }> {
             if (token) {
                 const result = await postAuthAction<{ user: SupabaseUser | null }>('getUser', { token });
                 return { data: { user: result.data?.user ?? null }, error: result.error };
@@ -299,9 +296,7 @@ export async function getUserProfile(userId?: string) {
     return getCurrentUserProfile(userId);
 }
 
-export async function getCurrentUserProfileBundle() {
-    return loadCurrentUserProfileBundle();
-}
+export { getCurrentUserProfileBundle } from '@/lib/user/profile';
 
 export async function ensureUserRecord(user: SupabaseUser, accessToken?: string) {
     void user;

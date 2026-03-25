@@ -1,4 +1,4 @@
-import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/contracts';
+import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/types';
 
 export const CONVERSATION_SOURCE_TYPES = [
   'chat',

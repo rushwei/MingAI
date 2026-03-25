@@ -7,7 +7,7 @@
 import {
     getSourceDataModelId,
     getSourceDataReasoning,
-} from '@/lib/ai/source-contract';
+} from '@/lib/source-contracts';
 import type { HistorySummaryItem, HistoryType } from '@/lib/history/registry';
 import type { ChatMessage } from '@/types';
 

@@ -19,7 +19,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useToast } from '@/components/ui/Toast';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
+import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 type KnowledgeBase = {
     id: string;
@@ -128,7 +128,7 @@ function KnowledgeBaseManageContent() {
 
     const loadPromptKbIds = useCallback(async (id: string) => {
         void id;
-        const { settings, error } = await loadCurrentUserSettings();
+        const { settings, error } = await getCurrentUserSettings();
         if (error) {
             setError(error.message || '加载知识库设置失败');
             return;

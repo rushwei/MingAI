@@ -1,7 +1,5 @@
-import { DATA_SOURCE_TYPES } from '@/lib/data-sources/contracts';
-import { filterMentionsByFeature } from '@/lib/data-sources/catalog';
-import type { DataSourceType } from '@/lib/data-sources/types';
-import type { AIMessageMetadata, InjectedSource, Mention } from '@/types';
+import { DATA_SOURCE_TYPES, type DataSourceType } from '@/lib/data-sources/types';
+import type { AIMessageMetadata, InjectedSource } from '@/types';
 
 type ChatMentionFeatureState = {
     knowledgeBaseEnabled: boolean;
@@ -22,14 +20,7 @@ function isEnabledDataSourceType(
         && enabledTypeSet.has(sourceType as DataSourceType);
 }
 
-export function sanitizeChatMentions(
-    mentions: Mention[] | undefined,
-    featureState: ChatMentionFeatureState,
-): Mention[] {
-    return filterMentionsByFeature(mentions ?? [], featureState);
-}
-
-export function sanitizeChatSources(
+function sanitizeChatSources(
     sources: InjectedSource[] | undefined,
     featureState: ChatMentionFeatureState,
 ): InjectedSource[] {

@@ -2,7 +2,7 @@ import { getSystemAdminClient } from '@/lib/api-utils';
 import type { BaziChart } from '@/types';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 import { type BaziCaseProfile } from '@/lib/bazi-case-profile';
-import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
+import { formatBaziPromptText } from '@/lib/bazi-prompt';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 
 type BaziRow = {
@@ -80,7 +80,7 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
             isLeapMonth: payload.isLeapMonth ?? chart.is_leap_month ?? undefined,
         };
 
-        return formatBaziChartPromptBlock({
+        return formatBaziPromptText({
             ...normalized,
             name,
             birthDate,

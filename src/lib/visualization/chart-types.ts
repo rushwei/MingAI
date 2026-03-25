@@ -329,7 +329,7 @@ export type ChartType = ChartData['chartType'];
 // ─── Source-to-ChartType mapping (single source of truth) ───
 // Used by both the chat prompt-builder (mention-driven) and divination route configs.
 
-import type { DataSourceType } from '@/lib/data-sources/contracts';
+import type { DataSourceType } from '@/lib/data-sources/types';
 
 export const SOURCE_CHART_TYPE_MAP: Record<DataSourceType, readonly ChartType[]> = {
     bazi_chart:          ['life_fortune_trend', 'fortune_radar', 'wuxing_energy', 'life_timeline'],

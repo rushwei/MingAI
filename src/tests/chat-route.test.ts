@@ -101,7 +101,7 @@ function setupRouteMocks(
     const originalIsReasoningAllowedForMembership = aiAccessModule.isReasoningAllowedForMembership;
     const originalGetEffectiveMembershipType = membershipServerModule.getEffectiveMembershipType;
     const originalBuildPromptWithSources = promptBuilderModule.buildPromptWithSources;
-    const originalGetPromptBudget = promptBuilderModule.getPromptBudget;
+    const originalGetPromptBudget = promptBuilderModule.calculatePromptBudget;
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
     const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
     const originalRequireUserContext = apiUtilsModule.requireUserContext;
@@ -166,7 +166,7 @@ function setupRouteMocks(
     aiAccessModule.isReasoningAllowedForMembership = () => true;
     membershipServerModule.getEffectiveMembershipType = async () => 'free';
 
-    promptBuilderModule.getPromptBudget = async () => 1024;
+    promptBuilderModule.calculatePromptBudget = async () => 1024;
     promptBuilderModule.resolvePersonalities = () => ({ personalities: ['general'] });
     promptBuilderModule.buildPromptWithSources = async () => ({
         userMessagePrefix: '',
@@ -231,7 +231,7 @@ function setupRouteMocks(
         aiAccessModule.isReasoningAllowedForMembership = originalIsReasoningAllowedForMembership;
         membershipServerModule.getEffectiveMembershipType = originalGetEffectiveMembershipType;
         promptBuilderModule.buildPromptWithSources = originalBuildPromptWithSources;
-        promptBuilderModule.getPromptBudget = originalGetPromptBudget;
+        promptBuilderModule.calculatePromptBudget = originalGetPromptBudget;
         promptBuilderModule.resolvePersonalities = originalResolvePersonalities;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         apiUtilsModule.requireUserContext = originalRequireUserContext;

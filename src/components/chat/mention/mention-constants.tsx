@@ -10,26 +10,12 @@ import {
 } from 'lucide-react';
 import type { MentionType } from '@/types';
 import { getDataSourceNavIcon } from '@/lib/data-sources/icon-catalog';
-import type { DataSourceType } from '@/lib/data-sources/types';
+import type { DataSourceSummary, DataSourceLoadError } from '@/lib/data-sources/types';
+import type { KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
+
+export type { DataSourceSummary, DataSourceLoadError, KnowledgeBaseSummary };
 
 // ---- Data types ----
-
-export type DataSourceSummary = {
-    id: string;
-    type: DataSourceType;
-    name: string;
-    preview: string;
-    createdAt: string;
-    hepanType?: 'love' | 'business' | 'family';
-};
-
-export type DataSourceLoadError = { type: DataSourceType; message: string };
-
-export type KnowledgeBaseSummary = {
-    id: string;
-    name: string;
-    description: string | null;
-};
 
 export type ViewItem = {
     key: string;
@@ -45,15 +31,7 @@ export type ViewModel = {
     items: ViewItem[];
 };
 
-export type Level = 'category' | 'subcategory' | 'type' | 'item' | 'search';
-
-export interface MentionPopoverState {
-    level: Level;
-    selectedCategory?: 'data' | 'knowledge';
-    selectedSubcategory?: string;
-    selectedType?: string;
-    activeIndex: number;
-}
+export type { MentionNavigationLevel as Level, MentionNavigationState as MentionPopoverState } from './mention-navigation';
 
 // ---- Config maps ----
 

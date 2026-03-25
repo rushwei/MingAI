@@ -31,8 +31,6 @@ export interface ChatRequestBody {
   visualizationSettings?: VisualizationSettings;
 }
 
-export type ChatRouteBody = ChatRequestBody;
-
 export interface ResolvedChatRequest {
   body: ChatRequestBody;
   userId: string | null;

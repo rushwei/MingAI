@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth';
-import { loadCurrentUserProfileBundle } from '@/lib/user/profile';
+import { getCurrentUserProfileBundle } from '@/lib/user/profile';
 
 export type AdminClientAccessState = {
   loading: boolean;
@@ -19,7 +19,7 @@ export async function loadAdminClientAccessState(): Promise<AdminClientAccessSta
     return UNAUTHED_ADMIN_ACCESS_STATE;
   }
 
-  const bundle = await loadCurrentUserProfileBundle();
+  const bundle = await getCurrentUserProfileBundle();
   return {
     loading: false,
     isAuthed: true,

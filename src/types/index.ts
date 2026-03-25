@@ -439,13 +439,6 @@ export interface User {
     updatedAt: string;
 }
 
-import type { MembershipType } from '@/lib/user/membership';
-
-/**
- * @deprecated Use `MembershipType` from `@/lib/user/membership` instead.
- */
-export type MembershipLevel = MembershipType;
-
 // ===== Dify 增强功能相关类型 =====
 
 /** Dify 增强模式 */

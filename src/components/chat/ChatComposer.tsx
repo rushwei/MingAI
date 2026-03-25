@@ -16,8 +16,7 @@ import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight
 import { buildMentionToken, extractMentionTokens, filterMentionsByTokens, removeMentionsByTokens, type MentionToken } from '@/lib/mention-tokens';
 import { updateCurrentUserSettings } from '@/lib/user/settings';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { filterDataSourceItemsByFeature, getDataSourceFeatureId, getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
-import { sanitizeChatMentions } from '@/lib/chat/feature-normalization';
+import { filterDataSourceItemsByFeature, filterMentionsByFeature, getDataSourceFeatureId, getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 import { useComposerState, type KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
 import { MentionManager } from '@/components/chat/composer/MentionManager';
 import { AttachmentBar } from '@/components/chat/composer/AttachmentBar';
@@ -140,7 +139,7 @@ export function ChatComposer({
         [isFeatureEnabled, mentionDataSourceErrors]
     );
     const normalizedMentions = useMemo(
-        () => sanitizeChatMentions(mentions, {
+        () => filterMentionsByFeature(mentions ?? [], {
             knowledgeBaseEnabled: canUseKnowledgeBase,
             enabledDataSourceTypes: enabledMentionDataSourceTypes,
         }),
@@ -507,6 +506,3 @@ export function ChatComposer({
     );
 }
 
-// 导出类型和配置以保持向后兼容
-export type AIModel = string;
-export { getModelName } from '@/lib/ai/ai-config';

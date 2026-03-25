@@ -23,7 +23,7 @@ import { useTheme } from '@/components/ui/ThemeProvider';
 import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
 import { MobileNavCustomizer } from '@/components/settings/MobileNavCustomizer';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
-import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
+import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
 interface Settings {
     notifications: boolean;
@@ -163,7 +163,7 @@ export default function SettingsPage() {
 
             setUserId(user.id);
 
-            const { settings: loaded, error } = await loadCurrentUserSettings();
+            const { settings: loaded, error } = await getCurrentUserSettings();
             if (error) {
                 setLoadError(error.message || '加载偏好设置失败');
                 setLoading(false);

@@ -11,7 +11,7 @@ import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import {
     DEFAULT_SIDEBAR_CONFIG,
-    loadCurrentUserSettings,
+    getCurrentUserSettings,
     normalizeSidebarConfig,
     updateCurrentUserSettings,
     type SidebarConfig,
@@ -68,7 +68,7 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
             } else {
                 setConfigLoading(true);
             }
-            const { settings, error } = await loadCurrentUserSettings();
+            const { settings, error } = await getCurrentUserSettings();
 
             if (!isActive) return;
 

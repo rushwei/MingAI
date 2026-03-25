@@ -11,7 +11,7 @@ test('buildChatPromptContext should load visualization_settings from user_settin
 
   const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
   const originalBuildPromptWithSources = promptBuilderModule.buildPromptWithSources;
-  const originalGetPromptBudget = promptBuilderModule.getPromptBudget;
+  const originalGetPromptBudget = promptBuilderModule.calculatePromptBudget;
   const originalFeatureEnabled = appSettingsModule.isFeatureModuleEnabled;
 
   let selectedColumns = '';
@@ -77,7 +77,7 @@ test('buildChatPromptContext should load visualization_settings from user_settin
     },
   })) as unknown as typeof apiUtilsModule.getSystemAdminClient;
 
-  promptBuilderModule.getPromptBudget = (async () => 1024) as typeof promptBuilderModule.getPromptBudget;
+  promptBuilderModule.calculatePromptBudget = (async () => 1024) as typeof promptBuilderModule.calculatePromptBudget;
   promptBuilderModule.buildPromptWithSources = (async (context) => {
     capturedVisualizationSettings = context.userSettings?.visualizationSettings;
     return {
@@ -95,7 +95,7 @@ test('buildChatPromptContext should load visualization_settings from user_settin
   t.after(() => {
     apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
     promptBuilderModule.buildPromptWithSources = originalBuildPromptWithSources;
-    promptBuilderModule.getPromptBudget = originalGetPromptBudget;
+    promptBuilderModule.calculatePromptBudget = originalGetPromptBudget;
     appSettingsModule.isFeatureModuleEnabled = originalFeatureEnabled;
   });
 

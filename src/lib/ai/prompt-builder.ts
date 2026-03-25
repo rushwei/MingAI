@@ -7,8 +7,8 @@ import { createSourceTracker } from '@/lib/source-tracker';
 import { countTokens, truncateToTokens } from '@/lib/token-utils';
 import { getModelConfigAsync } from '@/lib/server/ai-config';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
-import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
-import { formatZiweiChartPromptText, type ZiweiChartPromptInput } from '@/lib/ziwei-chart-prompt';
+import { formatBaziPromptText } from '@/lib/bazi-prompt';
+import { formatZiweiPromptText, type ZiweiPromptInput } from '@/lib/ziwei-chart-prompt';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
 import {
     type VisualizationSettings,
@@ -19,10 +19,6 @@ import {
     buildVisualizationPreferencePrompts,
 } from '@/lib/visualization/prompt';
 import { formatPreviousChartsForPrompt, type ExtractedChart } from '@/lib/visualization/chart-data-extract';
-
-export { countTokens, truncateToTokens } from '@/lib/token-utils';
-
-export type { PromptLayerPriority, PromptLayerDiagnostic } from '@/types';
 
 export interface PromptBuildResult {
     prompt: string;
@@ -41,7 +37,7 @@ type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'g
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
-type ZiweiChartInput = ZiweiChartPromptInput;
+type ZiweiChartInput = ZiweiPromptInput;
 
 export interface PromptContext {
     modelId: string;
@@ -102,7 +98,7 @@ const MODEL_CONTEXT_CONFIGS: Record<string, ModelContextConfig> = {
 };
 
 // 计算系统提示词的总预算（token 级），防止挤压历史对话与输出空间
-function resolveModelContextConfig(modelId: string, reasoningEnabled?: boolean): ModelContextConfig {
+export function resolveModelContextConfig(modelId: string, reasoningEnabled?: boolean): ModelContextConfig {
     if (reasoningEnabled) {
         const reasoningId = `${modelId}-reasoner`;
         if (MODEL_CONTEXT_CONFIGS[reasoningId]) return MODEL_CONTEXT_CONFIGS[reasoningId];
@@ -115,15 +111,7 @@ function resolveModelContextConfig(modelId: string, reasoningEnabled?: boolean):
     return MODEL_CONTEXT_CONFIGS.default;
 }
 
-export function getModelContextInfo(modelId: string, reasoningEnabled?: boolean): ModelContextConfig {
-    return resolveModelContextConfig(modelId, reasoningEnabled);
-}
-
-export async function getPromptBudget(modelId: string, reasoningEnabled?: boolean): Promise<number> {
-    return calculatePromptBudget(modelId, reasoningEnabled);
-}
-
-async function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): Promise<number> {
+export async function calculatePromptBudget(modelId: string, reasoningEnabled?: boolean): Promise<number> {
     const config = resolveModelContextConfig(modelId, reasoningEnabled);
     // 可用于系统提示词的剩余上下文
     const available = config.maxContext - config.reserveOutput - config.reserveHistory;
@@ -316,11 +304,11 @@ function formatChartContextPrompt(chartContext: NonNullable<PromptContext['chart
     const parts: string[] = ['--- 用户已选择以下命盘作为对话参考 ---'];
 
     if (chartContext.baziChart) {
-        parts.push(formatBaziChartPromptBlock(chartContext.baziChart, chartContext.baziChart.caseProfile));
+        parts.push(formatBaziPromptText(chartContext.baziChart, chartContext.baziChart.caseProfile));
     }
 
     if (chartContext.ziweiChart) {
-        const ziweiText = formatZiweiChartPromptText(chartContext.ziweiChart);
+        const ziweiText = formatZiweiPromptText(chartContext.ziweiChart);
         if (ziweiText) {
             parts.push(ziweiText);
         } else {
@@ -355,17 +343,6 @@ function resolveDayPillar(chart?: BaziChartInput): string | null {
     if (!chart) return null;
     const data = (chart.chartData as Record<string, unknown> | undefined) ?? chart;
     return extractDayPillar(data as { fourPillars?: { day?: { stem?: string; branch?: string } } });
-}
-
-// 简化版提示词构建：不追踪 sources，适用于预览或测试
-export async function buildPersonalizedPrompt(context: PromptContext): Promise<PromptBuildResult> {
-    const result = await buildPromptWithSources(context);
-    return {
-        prompt: result.systemPrompt,
-        layers: result.diagnostics,
-        totalTokens: result.totalTokens,
-        budgetTotal: result.budgetTotal
-    };
 }
 
 // 完整构建：返回 systemPrompt + sources + 诊断信息，供 chat 路由使用
@@ -446,7 +423,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         if (tryInject('chart_context', 'P1', chartPrompt)) {
             if (context.chartContext.baziChart) {
                 const baziChart = context.chartContext.baziChart;
-                const baziContent = formatBaziChartPromptBlock(baziChart, baziChart.caseProfile);
+                const baziContent = formatBaziPromptText(baziChart, baziChart.caseProfile);
                 tracker.trackAndInject({
                     type: 'data_source',
                     sourceType: 'bazi_chart',
@@ -467,7 +444,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
             }
             if (context.chartContext.ziweiChart) {
                 const ziweiChart = context.chartContext.ziweiChart;
-                const ziweiContent = formatZiweiChartPromptText(ziweiChart) || formatZiweiFallback(ziweiChart);
+                const ziweiContent = formatZiweiPromptText(ziweiChart) || formatZiweiFallback(ziweiChart);
                 tracker.trackAndInject({
                     type: 'data_source',
                     sourceType: 'ziwei_chart',

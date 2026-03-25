@@ -22,7 +22,7 @@ import { FeatureGate } from '@/components/layout/FeatureGate';
 import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
+import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
 
 type ExpressionStyle = 'direct' | 'gentle';
@@ -98,7 +98,7 @@ function AISettingsContent() {
             const membership = await getMembershipInfo(session.user.id);
             setMembershipType(membership?.type || 'free');
 
-            const { settings, error } = await loadCurrentUserSettings();
+            const { settings, error } = await getCurrentUserSettings();
             if (error) {
                 setError(error.message || '加载个性化设置失败');
                 setSettingsLoadFailed(true);

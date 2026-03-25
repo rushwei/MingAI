@@ -1,5 +1,5 @@
 import type { FeatureModuleId } from '@/lib/app-settings';
-import { DATA_SOURCE_TYPES } from '@/lib/data-sources/contracts';
+import { DATA_SOURCE_TYPES } from '@/lib/data-sources/types';
 import type { DataSourceSummary, DataSourceType } from '@/lib/data-sources/types';
 import type { Mention } from '@/types';
 

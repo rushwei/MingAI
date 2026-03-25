@@ -12,11 +12,8 @@ import { supabase } from '@/lib/auth';
 import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import type { ChatStateReturn } from '@/lib/chat/use-chat-state';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
+import { filterMentionsByFeature, getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 import { readLocalVisualizationSettings } from '@/lib/visualization/settings';
-import {
-    sanitizeChatMentions,
-} from '@/lib/chat/feature-normalization';
 
 // AI 生成对话标题
 async function generateAITitle(messages: ChatMessage[]): Promise<string> {
@@ -99,7 +96,7 @@ export function useChatMessaging({
         [featureToggleLoading, isFeatureEnabled]
     );
     const sanitizeOutgoingMentions = useCallback(
-        (rawMentions: Mention[] | undefined) => sanitizeChatMentions(rawMentions, {
+        (rawMentions: Mention[] | undefined) => filterMentionsByFeature(rawMentions ?? [], {
             knowledgeBaseEnabled,
             enabledDataSourceTypes,
         }),

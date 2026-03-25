@@ -3,7 +3,7 @@ import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
 import { extractLongitudeFromChartData } from '@/lib/divination/place-resolution';
 
-export type BaziChartPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
+export type BaziPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
     id?: string;
     name?: string;
     gender?: BaziChart['gender'] | string;
@@ -24,7 +24,7 @@ export function hasCompletePillarDetails(chart: Omit<BaziChart, 'id' | 'createdA
     });
 }
 
-function rebuildBaziChart(chart: BaziChartPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
+function rebuildBaziChart(chart: BaziPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
     if (!chart.birthDate || !chart.birthTime) return null;
     const [birthYear, birthMonth, birthDay] = chart.birthDate.split('-').map(Number);
     const [birthHour, birthMinute] = chart.birthTime.split(':').map(Number);
@@ -57,10 +57,10 @@ function rebuildBaziChart(chart: BaziChartPromptInput): Omit<BaziChart, 'id' | '
     }
 }
 
-function resolveBaziChartData(chart?: BaziChartPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
+function resolveBaziChartData(chart?: BaziPromptInput): Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | null {
     if (!chart) return null;
     const chartData = chart.chartData as Omit<BaziChart, 'id' | 'createdAt' | 'userId'> | undefined;
-    const mergedInput: BaziChartPromptInput = {
+    const mergedInput: BaziPromptInput = {
         ...(chartData as Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId'>>),
         ...chart,
         chartData: chart.chartData,
@@ -85,7 +85,7 @@ function resolveBaziChartData(chart?: BaziChartPromptInput): Omit<BaziChart, 'id
     return null;
 }
 
-function formatBaziFallback(chart: BaziChartPromptInput): string {
+function formatBaziFallback(chart: BaziPromptInput): string {
     const gender = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : (chart.gender || '');
     return [
         '【八字命盘】',
@@ -95,8 +95,8 @@ function formatBaziFallback(chart: BaziChartPromptInput): string {
     ].filter(Boolean).join('\n');
 }
 
-export function formatBaziChartPromptBlock(
-    chart: BaziChartPromptInput,
+export function formatBaziPromptText(
+    chart: BaziPromptInput,
     profile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null,
 ): string {
     const resolvedChart = resolveBaziChartData(chart);

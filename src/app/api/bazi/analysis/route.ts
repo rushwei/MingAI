@@ -13,7 +13,7 @@ import { getSystemAdminClient, jsonError, jsonOk, requireUserContext } from '@/l
 import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
-import { formatBaziChartPromptBlock } from '@/lib/bazi-case-profile-prompt';
+import { formatBaziPromptText } from '@/lib/bazi-prompt';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 import { USER_SETTINGS_SELECT, normalizeUserSettings } from '@/lib/user/settings';
 import {
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         };
 
         const caseProfile = await getBaziCaseProfileByChartId(supabase, chartId, user.id);
-        const chartSummary = formatBaziChartPromptBlock({
+        const chartSummary = formatBaziPromptText({
             id: resolvedChart.id,
             name: resolvedChart.name || '命盘',
             gender: resolvedChart.gender || 'male',

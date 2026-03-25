@@ -52,7 +52,7 @@ function toProfileUpdateResult(result: Awaited<ReturnType<typeof requestBrowserJ
   };
 }
 
-export async function loadCurrentUserProfileBundle(): Promise<UserProfileBundle | null> {
+export async function getCurrentUserProfileBundle(): Promise<UserProfileBundle | null> {
   const result = await requestBrowserJson<UserProfileBundle>('/api/user/profile', {
     method: 'GET',
   });
@@ -66,7 +66,7 @@ export async function loadCurrentUserProfileBundle(): Promise<UserProfileBundle 
 }
 
 export async function getCurrentUserProfile(userId?: string): Promise<UserProfile | null> {
-  const bundle = await loadCurrentUserProfileBundle();
+  const bundle = await getCurrentUserProfileBundle();
   const profile = bundle?.profile ?? null;
 
   if (!profile) return null;

@@ -1,6 +1,6 @@
 import { getSystemAdminClient } from '@/lib/api-utils';
 import { type ZiweiChart } from '@/lib/divination/ziwei';
-import { formatZiweiChartPromptText } from '@/lib/ziwei-chart-prompt';
+import { formatZiweiPromptText } from '@/lib/ziwei-chart-prompt';
 import type { DataSourceProvider, DataSourceQueryContext, DataSourceSummary } from '@/lib/data-sources/types';
 
 type ZiweiRow = {
@@ -57,7 +57,7 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
-        const canonicalText = formatZiweiChartPromptText({
+        const canonicalText = formatZiweiPromptText({
             ...(chartData as Partial<ZiweiChart>),
             name,
             gender: (chart.gender === 'male' || chart.gender === 'female') ? chart.gender : undefined,

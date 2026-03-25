@@ -196,7 +196,7 @@ export async function callWithAISDK(
  * - result.textStream 获取纯文本流
  * - result.fullStream 获取完整事件流
  */
-export async function streamWithAISDK(
+export function streamWithAISDK(
     model: LanguageModel,
     messages: CoreMessage[],
     systemPrompt: string,
@@ -233,7 +233,13 @@ function gatewayFetch(url: string | URL | Request, init?: RequestInit): Promise<
     const headers = new Headers(init?.headers);
     headers.set('User-Agent', BROWSER_UA);
     if (!headers.has('Accept')) {
-        headers.set('Accept', 'text/event-stream');
+        let isStream = true;
+        try {
+            if (typeof init?.body === 'string') {
+                isStream = JSON.parse(init.body).stream !== false;
+            }
+        } catch { /* default to stream */ }
+        headers.set('Accept', isStream ? 'text/event-stream' : 'application/json');
     }
     return globalThis.fetch(url, { ...init, headers });
 }
@@ -255,8 +261,8 @@ function normalizeBaseUrl(apiUrl: string): string {
         url = url.replace(/\/chat\/completions$/, '');
     }
 
-    // 确保 URL 以 /v1 结尾（大多数 OpenAI 兼容网关需要此前缀）
-    if (!url.endsWith('/v1')) {
+    // 确保 URL 以版本段结尾（大多数 OpenAI 兼容网关需要 /v1 前缀）
+    if (!/\/v\d+$/.test(url)) {
         url += '/v1';
     }
 

@@ -12,14 +12,12 @@ import {
     normalizeAnalysisSourceData,
     type AnalysisSourceData,
     type AnalysisSourceType,
-} from '@/lib/ai/source-contract';
+} from '@/lib/source-contracts';
 import { replaceConversationMessages } from '@/lib/server/conversation-messages';
 import type { AIPersonality, ChatMessage } from '@/types';
 
-export type AIAnalysisSourceType = AnalysisSourceType;
 
-
-const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality>> = {
+const SOURCE_PERSONALITY_MAP: Partial<Record<AnalysisSourceType, AIPersonality>> = {
     bazi_wuxing: 'bazi',
     bazi_personality: 'bazi',
 };
@@ -27,7 +25,7 @@ const SOURCE_PERSONALITY_MAP: Partial<Record<AIAnalysisSourceType, AIPersonality
 // 创建 AI 分析对话记录的参数
 export interface CreateAIAnalysisParams {
     userId: string;
-    sourceType: AIAnalysisSourceType;
+    sourceType: AnalysisSourceType;
     sourceData: AnalysisSourceData;
     title: string;
     aiResponse: string;
