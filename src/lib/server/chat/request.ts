@@ -81,6 +81,7 @@ export async function parseChatRequestBody(request: NextRequest): Promise<ChatRe
   if (!body.messages || !Array.isArray(body.messages)) {
     return jsonError('无效的消息格式', 400);
   }
+  console.log(`[chat-parse] mentions=${JSON.stringify(body.mentions)} msgCount=${body.messages.length}`);
   body.visualizationSettings = normalizeVisualizationSettings(body.visualizationSettings);
   return body;
 }

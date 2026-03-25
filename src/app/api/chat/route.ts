@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       systemPrompt,
     } = preparedRequest;
 
+    console.log(`[chat-route] personality=${fallbackPersonality} systemPromptLen=${systemPrompt?.length ?? 0} stream=${resolvedBody.stream} model=${requestedModelId}`);
+
     if (resolvedBody.stream) {
       const streamResult = await callAIUIMessageResult(
         sanitizedMessages,

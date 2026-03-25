@@ -94,7 +94,10 @@ async function searchKnowledgeBases(userId: string, query: string, ctx?: DataSou
 }
 
 export async function resolveMention(mention: Mention, userId: string, ctx?: DataSourceQueryContext): Promise<string> {
-    if (!mention.id) return '';
+    if (!mention.id) {
+        console.warn(`[mention-resolve] SKIP: mention.id is missing for type=${mention.type} name=${mention.name}`);
+        return '';
+    }
     if (mention.type === 'knowledge_base') {
         return await resolveKnowledgeBase(mention.id, userId, ctx);
     }
@@ -102,8 +105,12 @@ export async function resolveMention(mention: Mention, userId: string, ctx?: Dat
     try {
         const provider = await getProvider(mention.type);
         const data = await provider.get(mention.id, userId, ctx);
+        if (!data) {
+            console.warn(`[mention-resolve] provider.get returned null for type=${mention.type} id=${mention.id}`);
+        }
         return data ? provider.formatForAI(data) : '';
-    } catch {
+    } catch (err) {
+        console.error(`[mention-resolve] ERROR for type=${mention.type} id=${mention.id}:`, err);
         return '';
     }
 }

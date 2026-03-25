@@ -8,9 +8,18 @@ import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mention
 import type { AIMessageMetadata, AIPersonality, ChatMessage } from '@/types';
 import type { Mention } from '@/types/mentions';
 import { buildDreamContextPayload } from '@/lib/chat/chat-context';
+import { extractUserQuestion } from '@/lib/chat/message-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import { isFeatureModuleEnabled } from '@/lib/app-settings';
 import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
+import { DEFAULT_DIMENSIONS } from '@/lib/visualization/dimensions';
+
+/** 用户未保存可视化设置时的默认配置 */
+const DEFAULT_VISUALIZATION_SETTINGS: VisualizationSettings = {
+  selectedDimensions: DEFAULT_DIMENSIONS,
+  dayunDisplayCount: 5,
+  chartStyle: 'modern',
+};
 
 function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatMessage[] {
   if (!prefix) return messages;
@@ -52,15 +61,6 @@ type ChatPromptContextResult = {
 
 type ResolvedMention = Mention & { resolvedContent: string };
 
-function extractUserQuestion(rawUserContent: string): string {
-  const marker = '【用户的问题如下】';
-  const idx = rawUserContent.lastIndexOf(marker);
-  if (idx >= 0) {
-    return rawUserContent.slice(idx + marker.length).trim();
-  }
-  return rawUserContent.trim();
-}
-
 function mergeMentions(rawUserContent: string, mentions?: Mention[]): Mention[] {
   const parsedMentions = parseMentions(rawUserContent);
   return [...(mentions || []), ...parsedMentions]
@@ -75,10 +75,12 @@ async function resolveMentionsForPrompt(
   maxTokens: number
 ): Promise<ResolvedMention[]> {
   return await Promise.all(mentions.map(async (mention) => {
+    console.log(`[mention-resolve] type=${mention.type} id=${mention.id ?? 'MISSING'} name=${mention.name}`);
     const resolvedContent = await resolveMention(mention, userId, {
       client: supabase,
       maxTokens,
     });
+    console.log(`[mention-resolve] result: type=${mention.type} contentLen=${resolvedContent?.length ?? 0}`);
     return { ...mention, resolvedContent };
   }));
 }
@@ -107,7 +109,7 @@ async function loadUserSettingsContext(
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
       ? row?.prompt_kb_ids.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
       : [],
-    visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings),
+    visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings) ?? DEFAULT_VISUALIZATION_SETTINGS,
   };
 }
 

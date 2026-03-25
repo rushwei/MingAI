@@ -393,7 +393,7 @@ export function useChatMessaging({
                     mangpaiMode: isMangpaiMode || undefined,
                     reasoning: reasoningEnabled,
                     difyContext,
-                    mentions: messageMentions,
+                    mentions: messageMentions.map(m => ({ ...m })),
                     dreamMode: isDreamMode || undefined,
                     visualizationSettings,
                 },
