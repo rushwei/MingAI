@@ -400,7 +400,7 @@ export class ChatStreamManager {
             return 'break';
         }
 
-        const delta = parsed as { type?: unknown; delta?: unknown };
+        const delta = parsed as { type?: unknown; delta?: unknown; textDelta?: unknown };
 
         let hasChanges = false;
         if (delta.type === 'reasoning-delta' && typeof delta.delta === 'string' && delta.delta.length > 0) {
@@ -411,8 +411,11 @@ export class ChatStreamManager {
             hasChanges = true;
         }
 
-        if (delta.type === 'text-delta' && typeof delta.delta === 'string' && delta.delta.length > 0) {
-            task.content += delta.delta;
+        // AI SDK toUIMessageStreamResponse 使用 textDelta，自定义 SSE 使用 delta
+        const textChunk = typeof delta.textDelta === 'string' ? delta.textDelta
+            : typeof delta.delta === 'string' ? delta.delta : '';
+        if (delta.type === 'text-delta' && textChunk.length > 0) {
+            task.content += textChunk;
             if (!task.hasVisibleToken) {
                 task.hasVisibleToken = true;
                 this.emit({ type: 'task_billed', task: this.buildSnapshot(task) });

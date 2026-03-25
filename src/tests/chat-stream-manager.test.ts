@@ -481,6 +481,48 @@ test('chat stream manager silently ignores unknown chunk types', async () => {
     unsubscribe();
 });
 
+test('chat stream manager parses AI SDK textDelta format', async () => {
+    const encoder = new TextEncoder();
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"text-delta","textDelta":"hello from AI SDK"}\n\n'));
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; content?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({ type: event.type, content: event.task.content });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-ai-sdk',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-ai-sdk'),
+    });
+    assert.equal(started.ok, true);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    unsubscribe();
+
+    const completed = events.find(e => e.type === 'task_completed');
+    assert.ok(completed, 'should complete');
+    assert.equal(completed?.content, 'hello from AI SDK');
+});
+
 test('chat stream manager fails empty streams instead of synthesizing fallback replies', async () => {
     const encoder = new TextEncoder();
     const saved: Array<{ conversationId: string; messages: ChatMessage[] }> = [];
