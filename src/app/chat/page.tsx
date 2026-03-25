@@ -18,7 +18,6 @@ import { useChatBootstrap } from '@/lib/chat/use-chat-bootstrap';
 import { useChatState } from '@/lib/chat/use-chat-state';
 import { useChatMessaging } from '@/lib/chat/use-chat-messaging';
 import { ChatLayout } from '@/components/chat/ChatLayout';
-import { BaziChartSelector } from '@/components/chat/BaziChartSelector';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 
@@ -32,8 +31,6 @@ export default function ChatPage() {
     const { user, loading: sessionLoading } = useSessionSafe();
     const knowledgeBaseEnabled = isFeatureEnabled('knowledge-base');
     const aiPersonalizationEnabled = isFeatureEnabled('ai-personalization');
-    const baziEnabled = isFeatureEnabled('bazi');
-    const ziweiEnabled = isFeatureEnabled('ziwei');
 
     const {
         userId, credits, membership, promptKnowledgeBases,
@@ -41,12 +38,6 @@ export default function ChatPage() {
     } = useChatBootstrap({ user, sessionLoading, knowledgeBaseEnabled });
 
     const state = useChatState({ userId, sessionLoading, bootstrapLoading, router, searchParams });
-    const {
-        chartSelectorOpen,
-        setChartSelectorOpen,
-        chartFocusType,
-        setChartFocusType,
-    } = state;
 
     const messaging = useChatMessaging({
         state, userId, user, membership, credits,
@@ -74,20 +65,6 @@ export default function ChatPage() {
         setMenuItems(menuItems);
         return () => clearMenuItems();
     }, [aiPersonalizationEnabled, clearMenuItems, knowledgeBaseEnabled, membership?.type, router, setMenuItems]);
-
-    useEffect(() => {
-        if (chartSelectorOpen && !baziEnabled && !ziweiEnabled) {
-            setChartSelectorOpen(false);
-            setChartFocusType(undefined);
-            return;
-        }
-        if (chartFocusType === 'bazi' && !baziEnabled) {
-            setChartFocusType(ziweiEnabled ? 'ziwei' : undefined);
-        }
-        if (chartFocusType === 'ziwei' && !ziweiEnabled) {
-            setChartFocusType(baziEnabled ? 'bazi' : undefined);
-        }
-    }, [baziEnabled, chartFocusType, chartSelectorOpen, setChartFocusType, setChartSelectorOpen, ziweiEnabled]);
 
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
@@ -126,15 +103,8 @@ export default function ChatPage() {
                 inputValue={state.inputValue}
                 onInputChange={state.setInputValue}
                 disabled={isCreditLocked}
-                selectedCharts={state.selectedCharts}
-                onSelectChart={(type) => {
-                    if (type === 'bazi' && !baziEnabled) return;
-                    if (type === 'ziwei' && !ziweiEnabled) return;
-                    if (!type && !baziEnabled && !ziweiEnabled) return;
-                    setChartFocusType(type);
-                    setChartSelectorOpen(true);
-                }}
-                onClearChart={(type) => { const next = { ...state.selectedCharts }; delete next[type]; state.setSelectedCharts(next); }}
+                chatMode={state.chatMode}
+                onChatModeChange={state.setChatMode}
                 selectedModel={state.selectedModel}
                 onModelChange={state.setSelectedModel}
                 reasoningEnabled={state.reasoningEnabled}
@@ -146,8 +116,6 @@ export default function ChatPage() {
                 mentions={state.mentions}
                 onMentionsChange={state.setMentions}
                 promptKnowledgeBases={promptKnowledgeBases}
-                dreamMode={state.dreamMode}
-                onDreamModeChange={state.setDreamMode}
                 dreamContext={state.dreamContext}
                 dreamContextLoading={state.dreamContextLoading}
                 knowledgeBaseEnabled={knowledgeBaseEnabled}
@@ -166,17 +134,6 @@ export default function ChatPage() {
                     />
                 )}
             </ChatLayout>
-
-            {userId && chartSelectorOpen && (baziEnabled || ziweiEnabled) && (
-                <BaziChartSelector
-                    isOpen={chartSelectorOpen}
-                    onClose={() => { setChartSelectorOpen(false); setChartFocusType(undefined); }}
-                    onSelect={(charts) => state.setSelectedCharts(charts)}
-                    userId={userId}
-                    currentSelection={state.selectedCharts}
-                    focusType={chartFocusType}
-                />
-            )}
 
             <CreditsModal
                 isOpen={state.showCreditsModal}

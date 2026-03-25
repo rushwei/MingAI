@@ -6,14 +6,14 @@
  */
 'use client';
 
-import { Paperclip, Orbit, X, Sparkles, Square, Plus, ArrowUp, BookOpenText, AtSign, Globe, Moon } from 'lucide-react';
+import { Paperclip, Orbit, Square, Plus, ArrowUp, BookOpenText, AtSign, Globe, Moon } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import type { MembershipType } from '@/lib/user/membership';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { PromptPreview } from '@/components/chat/composer/PromptPreview';
 import type { PromptLayerDiagnostic } from '@/types';
 import { getNavItemById } from '@/lib/navigation/registry';
+import type { ChatMode } from '@/lib/chat/use-chat-state';
 
 interface ComposerToolbarProps {
     // Menu
@@ -27,17 +27,11 @@ interface ComposerToolbarProps {
     hasWebSearch: boolean;
     canUseWeb: boolean;
     handleWebToggle: () => void;
-    // Charts
-    hasBazi: SelectedCharts['bazi'];
-    hasZiwei: SelectedCharts['ziwei'];
-    onSelectChart?: (type?: 'bazi' | 'ziwei') => void;
-    onClearChart?: (type: 'bazi' | 'ziwei') => void;
-    // Dream
-    dreamMode: boolean;
-    onDreamModeChange?: (enabled: boolean) => void;
+    // Charts & Dream (unified mode)
+    chatMode: ChatMode;
+    onChatModeChange?: (mode: ChatMode) => void;
+    canUseBazi: boolean;
     userId?: string | null;
-    canUseBaziChart: boolean;
-    canUseZiweiChart: boolean;
     // Knowledge base
     knowledgeBaseEnabled: boolean;
     canUseKnowledgeBase: boolean;
@@ -80,8 +74,8 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         menuOpen, setMenuOpen,
         fileInputRef, hasFile, handleFileChange,
         hasWebSearch, canUseWeb, handleWebToggle,
-        hasBazi, hasZiwei, onSelectChart, onClearChart,
-        dreamMode, onDreamModeChange, userId, canUseBaziChart, canUseZiweiChart,
+        chatMode, onChatModeChange, canUseBazi,
+        userId,
         knowledgeBaseEnabled, canUseKnowledgeBase, handleKnowledgeBaseOpen,
         textareaRef, inputValue, onInputChange, canMentionAnything,
         setMentionOpen, setMentionQuery, setMentionStartIndex,
@@ -92,7 +86,8 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         disabled, isLoading, isSendingToList, dreamContextLoading, handleButtonClick,
     } = props;
     const BaziNavIcon = getNavItemById('bazi')?.icon ?? Orbit;
-    const ZiweiNavIcon = getNavItemById('ziwei')?.icon ?? Sparkles;
+    const isDreamMode = chatMode === 'dream';
+    const isMangpaiMode = chatMode === 'mangpai';
 
     return (
         <div className="flex items-center justify-between border-border/50">
@@ -119,17 +114,17 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        if (dreamMode) return;
+                                        if (isDreamMode) return;
                                         fileInputRef.current?.click();
                                         setMenuOpen(false);
                                     }}
                                     className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${hasFile
                                         ? 'bg-blue-500/10 text-blue-600'
-                                        : dreamMode
+                                        : isDreamMode
                                             ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
                                             : 'hover:bg-background-secondary text-foreground-secondary'
                                         }`}
-                                    disabled={disabled || dreamMode}
+                                    disabled={disabled || isDreamMode}
                                 >
                                     <Paperclip className="w-4.5 h-4.5" />
                                     <span>{hasFile ? '更换附件' : '上传附件'}</span>
@@ -137,110 +132,54 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                                 {/* 搜索选项 */}
                                 <div className={`flex items-center w-full rounded-lg transition-all ${hasWebSearch
                                     ? 'bg-green-500/10 text-green-600'
-                                    : (!canUseWeb || dreamMode)
+                                    : (!canUseWeb || isDreamMode)
                                         ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
                                         : 'hover:bg-background-secondary text-foreground-secondary'
                                     }`}>
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            if (dreamMode) return;
+                                            if (isDreamMode) return;
                                             handleWebToggle();
                                             setMenuOpen(false);
                                         }}
                                         className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
-                                        disabled={disabled || dreamMode}
+                                        disabled={disabled || isDreamMode}
                                     >
                                         <Globe className="w-4.5 h-4.5" />
-                                        <span>{!canUseWeb ? '搜索 (Plus+)' : '搜索'}</span>
+                                        <span>{!canUseWeb ? '搜索' : '搜索'}</span>
                                     </button>
                                 </div>
-                                {onSelectChart && canUseBaziChart && (
-                                    <div className={`flex items-center w-full rounded-lg transition-all ${hasBazi
-                                        ? 'bg-orange-500/10 text-orange-600'
-                                        : dreamMode
-                                            ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
-                                            : 'hover:bg-background-secondary text-foreground-secondary'
-                                        }`}>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (dreamMode) return;
-                                                onSelectChart('bazi');
-                                                setMenuOpen(false);
-                                        }}
-                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
-                                        disabled={disabled || dreamMode}
-                                    >
-                                        <BaziNavIcon className="w-4.5 h-4.5" />
-                                        <span className="truncate flex flex-col items-start text-left">
-                                            <span className="truncate w-full">{hasBazi?.name || '八字命盘'}</span>
-                                            {hasBazi?.analysisMode && (
-                                                    <span className="text-[11px] opacity-70">
-                                                        {hasBazi.analysisMode === 'mangpai' ? '盲派分析' : '传统分析'}
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </button>
-                                        {hasBazi && !disabled && (
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onClearChart?.('bazi');
-                                                }}
-                                                className="p-1.5 mr-1 rounded-lg hover:bg-orange-500/20"
-                                                title="清除八字命盘"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {onSelectChart && canUseZiweiChart && (
-                                    <div className={`flex items-center w-full rounded-lg transition-all ${hasZiwei
-                                        ? 'bg-purple-500/10 text-purple-600'
-                                        : dreamMode
-                                            ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
-                                            : 'hover:bg-background-secondary text-foreground-secondary'
-                                        }`}>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (dreamMode) return;
-                                                onSelectChart('ziwei');
-                                                setMenuOpen(false);
-                                        }}
-                                        className="flex-1 flex items-center gap-2 px-3 py-2 text-sm"
-                                        disabled={disabled || dreamMode}
-                                    >
-                                        <ZiweiNavIcon className="w-4.5 h-4.5" />
-                                        <span className="truncate">{hasZiwei?.name || '紫微命盘'}</span>
-                                    </button>
-                                        {hasZiwei && !disabled && (
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onClearChart?.('ziwei');
-                                                }}
-                                                className="p-1.5 mr-1 rounded-lg hover:bg-purple-500/20"
-                                                title="清除紫微命盘"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {!!userId && onDreamModeChange && (
+                                {canUseBazi && !!userId && onChatModeChange && (
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            onDreamModeChange(!dreamMode);
+                                            if (isDreamMode) return;
+                                            onChatModeChange(isMangpaiMode ? 'normal' : 'mangpai');
                                             setMenuOpen(false);
                                             textareaRef.current?.focus();
                                         }}
-                                        className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${dreamMode
+                                        className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${isMangpaiMode
+                                            ? 'bg-orange-500/10 text-orange-600'
+                                            : isDreamMode
+                                                ? 'opacity-40 text-foreground-secondary cursor-not-allowed'
+                                                : 'hover:bg-background-secondary text-foreground-secondary'
+                                            }`}
+                                        disabled={disabled || isDreamMode}
+                                    >
+                                        <BaziNavIcon className="w-4.5 h-4.5" />
+                                        <span>盲派分析</span>
+                                    </button>
+                                )}
+                                {!!userId && onChatModeChange && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onChatModeChange(isDreamMode ? 'normal' : 'dream');
+                                            setMenuOpen(false);
+                                            textareaRef.current?.focus();
+                                        }}
+                                        className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg transition-all ${isDreamMode
                                             ? 'bg-purple-500/10 text-purple-600'
                                             : 'hover:bg-background-secondary text-foreground-secondary'
                                             }`}

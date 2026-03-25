@@ -6,7 +6,6 @@
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import type { Mention, PromptLayerDiagnostic } from '@/types';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
@@ -15,7 +14,7 @@ import { supabase } from '@/lib/auth';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
 import type { DataSourceType } from '@/lib/data-sources/types';
 import { filterMentionsByFeature } from '@/lib/data-sources/catalog';
-import { buildChatRequestChartIds, sanitizeSelectedCharts } from '@/lib/chat/feature-normalization';
+import type { ChatMode } from '@/lib/chat/use-chat-state';
 
 export type DataSourceSummary = {
     id: string;
@@ -41,17 +40,14 @@ export interface UseComposerStateOptions {
     membershipType?: MembershipType;
     selectedModel?: string;
     reasoningEnabled?: boolean;
-    selectedCharts?: SelectedCharts;
     mentions?: Mention[];
     contextMessages?: Array<{ content?: string }>;
     isLoading: boolean;
     isSendingToList?: boolean;
-    dreamMode?: boolean;
+    chatMode?: ChatMode;
     knowledgeBaseEnabled?: boolean;
     promptKnowledgeBases?: KnowledgeBaseSummary[];
     enabledDataSourceTypes?: readonly DataSourceType[];
-    baziEnabled?: boolean;
-    ziweiEnabled?: boolean;
 }
 
 export function useComposerState(opts: UseComposerStateOptions) {
@@ -60,17 +56,14 @@ export function useComposerState(opts: UseComposerStateOptions) {
         membershipType = 'free',
         selectedModel = DEFAULT_MODEL_ID,
         reasoningEnabled = false,
-        selectedCharts,
         mentions = [],
         contextMessages = [],
         isLoading,
         isSendingToList = false,
-        dreamMode = false,
+        chatMode = 'normal',
         knowledgeBaseEnabled = true,
         promptKnowledgeBases = [],
         enabledDataSourceTypes = [],
-        baziEnabled = true,
-        ziweiEnabled = true,
     } = opts;
 
     // --- Refs ---
@@ -114,13 +107,6 @@ export function useComposerState(opts: UseComposerStateOptions) {
     const canMentionDataSources = enabledDataSourceTypes.length > 0;
     const canMentionAnything = canMentionDataSources || canUseKnowledgeBase;
 
-    const availableCharts = useMemo(
-        () => sanitizeSelectedCharts(selectedCharts, { baziEnabled, ziweiEnabled }),
-        [baziEnabled, selectedCharts, ziweiEnabled]
-    );
-    const hasBazi = availableCharts.bazi;
-    const hasZiwei = availableCharts.ziwei;
-
     const promptUsageProgress = promptPreviewBudget > 0
         ? Math.min(promptPreviewTokens / promptPreviewBudget, 1)
         : 0;
@@ -158,10 +144,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
             return `知识库${kbName ? `·${kbName}` : ''}`;
         }
         if (layerId === 'chart_context') {
-            const parts: string[] = [];
-            if (availableCharts.bazi?.name) parts.push(`八字·${availableCharts.bazi.name}`);
-            if (availableCharts.ziwei?.name) parts.push(`紫微·${availableCharts.ziwei.name}`);
-            return parts.length > 0 ? `命盘·${parts.join(' / ')}` : '命盘';
+            return '命盘';
         }
         if (layerId === 'base_rules') return '通用准则';
         if (layerId === 'personality_role') return '专业分析师';
@@ -172,7 +155,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         if (layerId === 'dream_bazi') return '解梦·命盘信息';
         if (layerId === 'dream_fortune') return '解梦·今日运势';
         return layerId;
-    }, [availableCharts, kbNameMap, mentionMap]);
+    }, [kbNameMap, mentionMap]);
 
     const readMentionCache = useCallback(<T,>(key: string): T | null => {
         return readLocalCache<T>(key, MENTION_CACHE_TTL_MS);
@@ -270,11 +253,6 @@ export function useComposerState(opts: UseComposerStateOptions) {
         const loadPreview = async () => {
             setPromptPreviewLoading(true);
             try {
-                const chartIds = buildChatRequestChartIds(availableCharts, {
-                    baziEnabled,
-                    ziweiEnabled,
-                });
-
                 const resp = await fetch('/api/chat/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -283,8 +261,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
                         reasoning: reasoningEnabled,
                         mentions: previewMentions,
                         messages: contextMessages,
-                        chartIds,
-                        dreamMode
+                        dreamMode: chatMode === 'dream' || undefined
                     }),
                     signal: abortController.signal
                 });
@@ -313,7 +290,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
         return () => {
             abortController.abort();
         };
-    }, [availableCharts, baziEnabled, canRequestPreview, contextMessages, dreamMode, previewMentions, reasoningEnabled, selectedModel, userId, ziweiEnabled]);
+    }, [canRequestPreview, contextMessages, chatMode, previewMentions, reasoningEnabled, selectedModel, userId]);
 
     // Close diagnostics when no data
     useEffect(() => {
@@ -395,7 +372,6 @@ export function useComposerState(opts: UseComposerStateOptions) {
         // Derived
         canUseWeb, canUseBoth, canUseKnowledgeBase,
         canMentionAnything,
-        hasBazi, hasZiwei,
         promptUsageProgress, contextProgress,
         promptProgressPercent, contextProgressPercent,
         hasPromptDiagnostics, displayLayers, displayUserMessageTokens,

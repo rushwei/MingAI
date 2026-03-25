@@ -18,7 +18,7 @@ interface AttachmentBarProps {
     disabled: boolean;
     canUseKnowledgeBase: boolean;
     promptKnowledgeBases: KnowledgeBaseSummary[];
-    dreamMode: boolean;
+    isDreamMode: boolean;
     dreamContextLoading: boolean;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
 }
@@ -30,12 +30,12 @@ export function AttachmentBar({
     disabled,
     canUseKnowledgeBase,
     promptKnowledgeBases,
-    dreamMode,
+    isDreamMode,
     dreamContextLoading,
     dreamContext,
 }: AttachmentBarProps) {
     const showKbBadges = canUseKnowledgeBase && promptKnowledgeBases.length > 0;
-    const showDreamBadges = dreamMode;
+    const showDreamBadges = isDreamMode;
 
     return (
         <>
@@ -79,7 +79,7 @@ export function AttachmentBar({
                             <span className="max-w-[160px] truncate">{kb.name}</span>
                         </span>
                     ))}
-                    {dreamMode && (
+                    {isDreamMode && (
                         <>
                             {dreamContextLoading && (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-600 text-xs">

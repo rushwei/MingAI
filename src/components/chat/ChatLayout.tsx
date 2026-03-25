@@ -10,7 +10,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Sparkles, Lock } from 'lucide-react';
 import type { ChatMessage, Conversation, AttachmentState, Mention } from '@/types';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { VirtualizedChatMessageList } from '@/components/chat/VirtualizedChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -19,6 +18,7 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { ChatBootstrapKnowledgeBase } from '@/lib/chat/bootstrap';
 import type { MembershipType } from '@/lib/user/membership';
+import type { ChatMode } from '@/lib/chat/use-chat-state';
 
 interface ChatLayoutProps {
     // Sidebar
@@ -58,9 +58,8 @@ interface ChatLayoutProps {
     inputValue: string;
     onInputChange: (value: string) => void;
     disabled: boolean;
-    selectedCharts: SelectedCharts;
-    onSelectChart: (type?: 'bazi' | 'ziwei') => void;
-    onClearChart: (type: 'bazi' | 'ziwei') => void;
+    chatMode: ChatMode;
+    onChatModeChange: (mode: ChatMode) => void;
     selectedModel: string;
     onModelChange: (model: string) => void;
     reasoningEnabled: boolean;
@@ -72,8 +71,6 @@ interface ChatLayoutProps {
     mentions: Mention[];
     onMentionsChange: (mentions: Mention[]) => void;
     promptKnowledgeBases: ChatBootstrapKnowledgeBase[];
-    dreamMode: boolean;
-    onDreamModeChange: (mode: boolean) => void;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
     dreamContextLoading: boolean;
     knowledgeBaseEnabled: boolean;
@@ -98,11 +95,11 @@ export function ChatLayout(props: ChatLayoutProps) {
         onEditMessage, onRegenerateResponse, onSwitchVersion, onArchiveMessage,
         onSend, onStop,
         inputValue, onInputChange, disabled,
-        selectedCharts, onSelectChart, onClearChart,
+        chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
         userId, membershipType, attachmentState, onAttachmentChange,
         mentions, onMentionsChange, promptKnowledgeBases,
-        dreamMode, onDreamModeChange, dreamContext, dreamContextLoading,
+        dreamContext, dreamContextLoading,
         knowledgeBaseEnabled, aiPersonalizationEnabled,
         isPaymentPaused, isCreditLocked,
         children,
@@ -111,12 +108,12 @@ export function ChatLayout(props: ChatLayoutProps) {
     const composerProps = {
         inputValue, isLoading, isSendingToList,
         onInputChange, onSend, onStop, disabled,
-        selectedCharts, onSelectChart, onClearChart,
+        chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
         userId, membershipType, attachmentState, onAttachmentChange,
         mentions, onMentionsChange, promptKnowledgeBases,
         contextMessages: messages,
-        dreamMode, onDreamModeChange, dreamContext, dreamContextLoading,
+        dreamContext, dreamContextLoading,
         knowledgeBaseEnabled,
     };
 

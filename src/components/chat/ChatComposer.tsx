@@ -7,8 +7,7 @@
  */
 'use client';
 
-import { useEffect, useCallback, useMemo } from 'react';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AttachmentState, Mention } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import type { MembershipType } from '@/lib/user/membership';
@@ -23,6 +22,7 @@ import { useComposerState, type KnowledgeBaseSummary } from '@/components/chat/c
 import { MentionManager } from '@/components/chat/composer/MentionManager';
 import { AttachmentBar } from '@/components/chat/composer/AttachmentBar';
 import { ComposerToolbar } from '@/components/chat/composer/ComposerToolbar';
+import type { ChatMode } from '@/lib/chat/use-chat-state';
 
 const findLastAtOutsideTokens = (value: string, tokens: MentionToken[]): number => {
     for (let i = value.length - 1; i >= 0; i -= 1) {
@@ -41,9 +41,8 @@ interface ChatComposerProps {
     onSend: () => void;
     onStop?: () => void;
     disabled?: boolean;
-    selectedCharts?: SelectedCharts;
-    onSelectChart?: (type?: 'bazi' | 'ziwei') => void;
-    onClearChart?: (type: 'bazi' | 'ziwei') => void;
+    chatMode?: ChatMode;
+    onChatModeChange?: (mode: ChatMode) => void;
     selectedModel?: string;
     onModelChange?: (modelId: string) => void;
     reasoningEnabled?: boolean;
@@ -57,8 +56,6 @@ interface ChatComposerProps {
     promptKnowledgeBases?: KnowledgeBaseSummary[];
     contextMessages?: Array<{ content?: string }>;
     hideDisclaimer?: boolean;
-    dreamMode?: boolean;
-    onDreamModeChange?: (enabled: boolean) => void;
     dreamContext?: { baziChartName?: string; dailyFortune?: string };
     dreamContextLoading?: boolean;
     knowledgeBaseEnabled?: boolean;
@@ -72,9 +69,8 @@ export function ChatComposer({
     onSend,
     onStop,
     disabled = false,
-    selectedCharts,
-    onSelectChart,
-    onClearChart,
+    chatMode = 'normal',
+    onChatModeChange,
     selectedModel = DEFAULT_MODEL_ID,
     onModelChange,
     reasoningEnabled = false,
@@ -88,8 +84,6 @@ export function ChatComposer({
     promptKnowledgeBases = [],
     contextMessages = [],
     hideDisclaimer = false,
-    dreamMode = false,
-    onDreamModeChange,
     dreamContext,
     dreamContextLoading = false,
     knowledgeBaseEnabled = true,
@@ -97,20 +91,21 @@ export function ChatComposer({
     const { showToast } = useToast();
     const { isFeatureEnabled } = useFeatureToggles();
     const canUseBaziChart = isFeatureEnabled('bazi');
-    const canUseZiweiChart = isFeatureEnabled('ziwei');
     const enabledMentionDataSourceTypes = useMemo(
         () => getEnabledDataSourceTypes(isFeatureEnabled),
         [isFeatureEnabled]
     );
 
+    // 防止 mention 选中后 state 还未同步就触发发送
+    const mentionSettlingRef = useRef(false);
+    const isDreamMode = chatMode === 'dream';
+
     const state = useComposerState({
         userId, membershipType, selectedModel, reasoningEnabled,
-        selectedCharts, mentions, contextMessages,
-        isLoading, isSendingToList, dreamMode,
+        mentions, contextMessages,
+        isLoading, isSendingToList, chatMode,
         knowledgeBaseEnabled, promptKnowledgeBases,
         enabledDataSourceTypes: enabledMentionDataSourceTypes,
-        baziEnabled: canUseBaziChart,
-        ziweiEnabled: canUseZiweiChart,
     });
 
     const {
@@ -126,7 +121,6 @@ export function ChatComposer({
         knowledgeBaseSavingId,
         promptDiagnosticsOpen, setPromptDiagnosticsOpen,
         canUseWeb, canUseBoth, canUseKnowledgeBase,
-        hasBazi, hasZiwei,
         promptProgressPercent, contextProgressPercent,
         hasPromptDiagnostics, displayLayers, displayUserMessageTokens,
         promptUsageLabel, promptPreviewLoading,
@@ -288,7 +282,7 @@ export function ChatComposer({
                 }
             }
         }
-        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !isSendingToList && !dreamContextLoading && inputValue.trim()) {
+        if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !isSendingToList && !dreamContextLoading && !mentionSettlingRef.current && inputValue.trim()) {
             e.preventDefault();
             onSend();
         }
@@ -344,6 +338,9 @@ export function ChatComposer({
         }
         const next = [...mentions, mention].slice(0, 10);
         onMentionsChange(next);
+        // 标记 mention 正在同步，阻止在 state 更新前触发发送
+        mentionSettlingRef.current = true;
+        queueMicrotask(() => { mentionSettlingRef.current = false; });
         const token = buildMentionToken(mention);
         if (mentionStartIndex != null) {
             const prefix = inputValue.slice(0, mentionStartIndex).trimEnd();
@@ -365,7 +362,7 @@ export function ChatComposer({
     }, [inputValue, mentions]);
 
     const handleButtonClick = () => {
-        if (isSendingToList) return;
+        if (isSendingToList || mentionSettlingRef.current) return;
         if (isLoading && onStop) {
             onStop();
         } else if (inputValue.trim()) {
@@ -407,7 +404,7 @@ export function ChatComposer({
                         disabled={disabled}
                         canUseKnowledgeBase={canUseKnowledgeBase}
                         promptKnowledgeBases={promptKnowledgeBases}
-                        dreamMode={dreamMode}
+                        isDreamMode={isDreamMode}
                         dreamContextLoading={dreamContextLoading}
                         dreamContext={dreamContext}
                     />
@@ -430,7 +427,7 @@ export function ChatComposer({
                                     </span>
                                 ) : (
                                     <span className="text-foreground-secondary/80">
-                                        {disabled ? "请充值后继续使用" : dreamMode ? "\u{1F319} 做了什么梦" : "尽管问"}
+                                        {disabled ? "请充值后继续使用" : isDreamMode ? "\u{1F319} 做了什么梦" : "尽管问"}
                                     </span>
                                 )}
                             </div>
@@ -463,15 +460,10 @@ export function ChatComposer({
                         hasWebSearch={hasWebSearch}
                         canUseWeb={canUseWeb}
                         handleWebToggle={handleWebToggle}
-                        hasBazi={hasBazi}
-                        hasZiwei={hasZiwei}
-                        onSelectChart={onSelectChart}
-                        onClearChart={onClearChart}
-                        dreamMode={dreamMode}
-                        onDreamModeChange={onDreamModeChange}
+                        chatMode={chatMode}
+                        onChatModeChange={onChatModeChange}
+                        canUseBazi={canUseBaziChart}
                         userId={userId}
-                        canUseBaziChart={canUseBaziChart}
-                        canUseZiweiChart={canUseZiweiChart}
                         canMentionAnything={canMentionAnything}
                         knowledgeBaseEnabled={knowledgeBaseEnabled}
                         canUseKnowledgeBase={canUseKnowledgeBase}

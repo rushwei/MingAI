@@ -3,9 +3,8 @@
  *
  * 管理对话列表、当前对话、加载状态、侧边栏状态等
  */
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage, Conversation, Mention } from '@/types';
-import type { SelectedCharts } from '@/components/chat/BaziChartSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import {
     loadConversations,
@@ -16,8 +15,8 @@ import {
 } from '@/lib/chat/conversation';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import type { AttachmentState } from '@/types';
-import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { sanitizeSelectedCharts } from '@/lib/chat/feature-normalization';
+
+export type ChatMode = 'normal' | 'dream' | 'mangpai';
 
 export interface ChatStateReturn {
     // Conversation list
@@ -59,13 +58,9 @@ export interface ChatStateReturn {
     messageScrollContainerRef: React.MutableRefObject<HTMLDivElement | null>;
     shouldAutoScrollRef: React.MutableRefObject<boolean>;
 
-    // Chart selector
-    chartSelectorOpen: boolean;
-    setChartSelectorOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    selectedCharts: SelectedCharts;
-    setSelectedCharts: React.Dispatch<React.SetStateAction<SelectedCharts>>;
-    chartFocusType: 'bazi' | 'ziwei' | undefined;
-    setChartFocusType: React.Dispatch<React.SetStateAction<'bazi' | 'ziwei' | undefined>>;
+    // Chat mode (normal / dream / mangpai)
+    chatMode: ChatMode;
+    setChatMode: React.Dispatch<React.SetStateAction<ChatMode>>;
 
     // Model & reasoning
     selectedModel: string;
@@ -85,9 +80,7 @@ export interface ChatStateReturn {
     kbTargetMessage: ChatMessage | null;
     setKbTargetMessage: React.Dispatch<React.SetStateAction<ChatMessage | null>>;
 
-    // Dream mode
-    dreamMode: boolean;
-    setDreamMode: React.Dispatch<React.SetStateAction<boolean>>;
+    // Dream context (kept separate — only relevant when chatMode === 'dream')
     dreamContext: { baziChartName?: string; dailyFortune?: string } | undefined;
     setDreamContext: React.Dispatch<React.SetStateAction<{ baziChartName?: string; dailyFortune?: string } | undefined>>;
     dreamContextLoading: boolean;
@@ -125,10 +118,6 @@ export function useChatState({
     router: ReturnType<typeof import('next/navigation').useRouter>;
     searchParams: ReturnType<typeof import('next/navigation').useSearchParams>;
 }): ChatStateReturn {
-    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
-    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
-    const ziweiFeatureEnabled = !featureToggleLoading && isFeatureEnabled('ziwei');
-
     // Conversation list state
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationsLoading, setConversationsLoading] = useState(true);
@@ -162,10 +151,8 @@ export function useChatState({
         conversationsRef.current = conversations;
     }, [conversations]);
 
-    // Chart selector state
-    const [chartSelectorOpen, setChartSelectorOpen] = useState(false);
-    const [selectedCharts, setSelectedCharts] = useState<SelectedCharts>({});
-    const [chartFocusType, setChartFocusType] = useState<'bazi' | 'ziwei' | undefined>(undefined);
+    // Chat mode
+    const [chatMode, setChatMode] = useState<ChatMode>('normal');
 
     // Model & reasoning
     const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
@@ -177,21 +164,13 @@ export function useChatState({
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [kbTargetMessage, setKbTargetMessage] = useState<ChatMessage | null>(null);
 
-    // Dream mode
-    const [dreamMode, setDreamMode] = useState(false);
+    // Dream context
     const [dreamContext, setDreamContext] = useState<{ baziChartName?: string; dailyFortune?: string } | undefined>(undefined);
     const [dreamContextLoading, setDreamContextLoading] = useState(false);
 
     // Streaming state
     const [streamingConversationIds, setStreamingConversationIds] = useState<Set<string>>(new Set());
     const isLoading = activeConversationId ? streamingConversationIds.has(activeConversationId) : false;
-    const visibleSelectedCharts = useMemo(
-        () => sanitizeSelectedCharts(selectedCharts, {
-            baziEnabled: baziFeatureEnabled,
-            ziweiEnabled: ziweiFeatureEnabled,
-        }),
-        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
-    );
 
     // Sync refs
     useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
@@ -310,22 +289,7 @@ export function useChatState({
         const taskMessages = chatStreamManager.getTaskMessages(id);
         const sourceMessages = taskMessages || conv.messages;
         setMessages(sourceMessages);
-
-        // Restore chart display from last AI message
-        const lastAIMessage = [...sourceMessages].reverse().find(m => m.role === 'assistant' && m.chartInfo);
-        const chartInfo = lastAIMessage?.chartInfo;
-        const newChartSelection: SelectedCharts = {};
-        if (chartInfo?.baziName) {
-            newChartSelection.bazi = { id: '', name: chartInfo.baziName, info: '(历史)' };
-        }
-        if (chartInfo?.ziweiName) {
-            newChartSelection.ziwei = { id: '', name: chartInfo.ziweiName, info: '(历史)' };
-        }
-        setSelectedCharts(sanitizeSelectedCharts(newChartSelection, {
-            baziEnabled: baziFeatureEnabled,
-            ziweiEnabled: ziweiFeatureEnabled,
-        }));
-    }, [baziFeatureEnabled, router, searchParams, ziweiFeatureEnabled]);
+    }, [router, searchParams]);
 
     // New chat
     const handleNewChat = useCallback(async () => {
@@ -335,8 +299,8 @@ export function useChatState({
         setConversationLoading(false);
         setActiveConversationId(null);
         setMessages([]);
-        setSelectedCharts({});
         setSidebarOpen(false);
+        setChatMode('normal');
         if (searchParams.get('id')) {
             router.replace('/chat');
         }
@@ -398,16 +362,13 @@ export function useChatState({
         inputValue, setInputValue,
         isSendingToList, setIsSendingToList,
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
-        chartSelectorOpen, setChartSelectorOpen,
-        selectedCharts: visibleSelectedCharts, setSelectedCharts,
-        chartFocusType, setChartFocusType,
+        chatMode, setChatMode,
         selectedModel, setSelectedModel,
         reasoningEnabled, setReasoningEnabled,
         attachmentState, setAttachmentState,
         mentions, setMentions,
         kbModalOpen, setKbModalOpen,
         kbTargetMessage, setKbTargetMessage,
-        dreamMode, setDreamMode,
         dreamContext, setDreamContext,
         dreamContextLoading, setDreamContextLoading,
         streamingConversationIds, setStreamingConversationIds,

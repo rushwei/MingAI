@@ -13,9 +13,8 @@ import { resolveClientModelName } from '@/lib/ai/model-name-cache';
 import type { ChatStateReturn } from '@/lib/chat/use-chat-state';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
+import { readLocalVisualizationSettings } from '@/lib/visualization/settings';
 import {
-    buildChatMessageChartInfo,
-    buildChatRequestChartIds,
     sanitizeChatMentions,
 } from '@/lib/chat/feature-normalization';
 
@@ -73,12 +72,12 @@ export function useChatMessaging({
         activeConversationIdRef, conversationValidatedRef,
         manualRenamedConversationIdsRef, hasLoadedConversationsRef,
         messagesEndRef, messageScrollContainerRef, shouldAutoScrollRef,
-        selectedCharts,
+        chatMode,
         selectedModel, reasoningEnabled,
         attachmentState, setAttachmentState,
         mentions, setMentions,
-        dreamMode, dreamContextLoading,
-        setDreamContext,
+        dreamContextLoading,
+        setDreamContext, setDreamContextLoading,
         setStreamingConversationIds,
         isLoading,
         setConversations,
@@ -91,10 +90,10 @@ export function useChatMessaging({
         refreshConversationList,
         saveMessages,
     } = state;
+    const isDreamMode = chatMode === 'dream';
+    const isMangpaiMode = chatMode === 'mangpai';
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles({ enabled: !!userId });
     const knowledgeBaseEnabled = !featureToggleLoading && isFeatureEnabled('knowledge-base');
-    const baziFeatureEnabled = !featureToggleLoading && isFeatureEnabled('bazi');
-    const ziweiFeatureEnabled = !featureToggleLoading && isFeatureEnabled('ziwei');
     const enabledDataSourceTypes = useMemo(
         () => (featureToggleLoading ? [] : getEnabledDataSourceTypes(isFeatureEnabled)),
         [featureToggleLoading, isFeatureEnabled]
@@ -105,20 +104,6 @@ export function useChatMessaging({
             enabledDataSourceTypes,
         }),
         [enabledDataSourceTypes, knowledgeBaseEnabled]
-    );
-    const chatChartIds = useMemo(
-        () => buildChatRequestChartIds(selectedCharts, {
-            baziEnabled: baziFeatureEnabled,
-            ziweiEnabled: ziweiFeatureEnabled,
-        }),
-        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
-    );
-    const chatChartInfo = useMemo(
-        () => buildChatMessageChartInfo(selectedCharts, {
-            baziEnabled: baziFeatureEnabled,
-            ziweiEnabled: ziweiFeatureEnabled,
-        }),
-        [baziFeatureEnabled, selectedCharts, ziweiFeatureEnabled]
     );
 
     const markCreditsExhausted = useCallback((message?: string) => {
@@ -152,12 +137,12 @@ export function useChatMessaging({
     // Dream context fetch
     useEffect(() => {
         let isActive = true;
-        if (!dreamMode || !userId) {
+        if (!isDreamMode || !userId) {
             setDreamContext(undefined);
             return () => { isActive = false; };
         }
         const fetchDreamContext = async () => {
-            state.setDreamContextLoading(true);
+            setDreamContextLoading(true);
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 const headers: Record<string, string> = {};
@@ -172,12 +157,12 @@ export function useChatMessaging({
                 console.error('获取解梦上下文失败:', error);
                 setDreamContext(undefined);
             } finally {
-                if (isActive) state.setDreamContextLoading(false);
+                if (isActive) setDreamContextLoading(false);
             }
         };
         fetchDreamContext();
         return () => { isActive = false; };
-    }, [dreamMode, userId, setDreamContext, state]);
+    }, [isDreamMode, userId, setDreamContext, setDreamContextLoading]);
 
     // Stream manager subscription
     useEffect(() => {
@@ -267,7 +252,7 @@ export function useChatMessaging({
     const handleSend = async () => {
         const trimmedInput = inputValue.trim();
         if (!trimmedInput || isLoading || isSendingToList) return;
-        if (dreamMode && dreamContextLoading) return;
+        if (isDreamMode && dreamContextLoading) return;
         setIsSendingToList(true);
 
         const messageMentions = sanitizeOutgoingMentions(mentions);
@@ -286,8 +271,6 @@ export function useChatMessaging({
                     userId,
                     personality: 'general',
                     title: draftTitle || '新对话',
-                    baziChartId: chatChartIds?.baziId,
-                    ziweiChartId: chatChartIds?.ziweiId,
                 });
                 if (newId) {
                     conversationId = newId;
@@ -300,7 +283,7 @@ export function useChatMessaging({
                     const nowIso = new Date().toISOString();
                     setConversations(prev => {
                         const nextConversation: Conversation = {
-                            id: newId, userId, baziChartId: chatChartIds?.baziId, ziweiChartId: chatChartIds?.ziweiId,
+                            id: newId, userId,
                             personality: 'general', title: draftTitle || '新对话', messages: [],
                             createdAt: nowIso, updatedAt: nowIso, sourceType: 'chat', sourceData: {},
                             isArchived: false, archivedKbIds: [],
@@ -316,7 +299,7 @@ export function useChatMessaging({
             if (!conversationId) { showToast('error', '创建对话失败，请重试'); return; }
             if (chatStreamManager.isConversationRunning(conversationId)) { showToast('info', '当前会话正在生成中，请稍后再试'); return; }
 
-            const dreamInfo: DreamInterpretationInfo | undefined = dreamMode ? {
+            const dreamInfo: DreamInterpretationInfo | undefined = isDreamMode ? {
                 userName: user?.user_metadata?.nickname || ANONYMOUS_DISPLAY_NAME,
                 dreamDate: new Date().toISOString(),
                 dreamContent: trimmedInput.slice(0, 50),
@@ -333,7 +316,6 @@ export function useChatMessaging({
             const initialAssistantMessage: ChatMessage = {
                 id: assistantMessageId, role: 'assistant', content: '', createdAt: new Date().toISOString(), model: selectedModel,
                 modelName: resolveClientModelName(selectedModel, selectedModel),
-                chartInfo: chatChartInfo,
             };
             const optimisticMessages = [...newMessages, initialAssistantMessage];
             setMessages(optimisticMessages);
@@ -401,9 +383,23 @@ export function useChatMessaging({
                 }
             }
 
+            // 读取可视化设置
+            const visualizationSettings = readLocalVisualizationSettings(localStorage);
+
             const startResult = await chatStreamManager.startTask({
                 conversationId, requestHeaders: headers,
-                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, difyContext, mentions: messageMentions, dreamMode },
+                requestBody: {
+                    messages: newMessages,
+                    personality: 'general',
+                    stream: true,
+                    model: selectedModel,
+                    mangpaiMode: isMangpaiMode || undefined,
+                    reasoning: reasoningEnabled,
+                    difyContext,
+                    mentions: messageMentions,
+                    dreamMode: isDreamMode || undefined,
+                    visualizationSettings,
+                },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage,
             });
             if (!startResult.ok) {
@@ -459,7 +455,6 @@ export function useChatMessaging({
             createdAt: new Date().toISOString(),
             model: selectedModel,
             modelName: resolveClientModelName(selectedModel, selectedModel),
-            chartInfo: chatChartInfo,
         };
         if (isTargetActive()) setMessages([...newMessages, initialAssistantMessage]);
 
@@ -477,7 +472,7 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
+                requestBody: { messages: newMessages, personality: 'general', stream: true, model: selectedModel, mangpaiMode: isMangpaiMode || undefined, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode: isDreamMode || undefined, visualizationSettings: readLocalVisualizationSettings(localStorage) },
                 baseMessages: newMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
             });
             if (!startResult.ok) {
@@ -560,7 +555,7 @@ export function useChatMessaging({
 
             const startResult = await chatStreamManager.startTask({
                 conversationId: targetConversationId, requestHeaders: headers,
-                requestBody: { messages: updatedPreviousMessages, personality: 'general', stream: true, model: selectedModel, chartIds: chatChartIds, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode },
+                requestBody: { messages: updatedPreviousMessages, personality: 'general', stream: true, model: selectedModel, mangpaiMode: isMangpaiMode || undefined, reasoning: reasoningEnabled, mentions: messageMentions, dreamMode: isDreamMode || undefined, visualizationSettings: readLocalVisualizationSettings(localStorage) },
                 baseMessages: updatedPreviousMessages, assistantMessage: initialAssistantMessage, onBeforeSave,
             });
             if (!startResult.ok) {
