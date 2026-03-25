@@ -9,6 +9,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import type { Session, User } from '@supabase/supabase-js';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
+import { AnnouncementPopupHost } from '@/components/providers/AnnouncementPopupHost';
 import { supabase } from '@/lib/auth';
 import { getLinuxDoAuthErrorMessage } from '@/lib/auth-feedback';
 
@@ -89,6 +90,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
             <AuthCallbackFeedback />
             <ChatTaskToastBridge />
             <SessionContext.Provider value={state}>
+                <AnnouncementPopupHost userId={state.user?.id ?? null} authLoading={state.loading} />
                 {children}
             </SessionContext.Provider>
         </ToastProvider>

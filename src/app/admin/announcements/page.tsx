@@ -1,14 +1,11 @@
-/**
- * 管理员通知发布页面
- */
 'use client'; // 客户端组件：读取登录态并校验管理员权限
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { NotificationLaunchPanel } from '@/components/admin/NotificationLaunchPanel';
 import { loadAdminClientAccessState } from '@/lib/admin/client';
+import { AnnouncementManagementPanel } from '@/components/admin/AnnouncementManagementPanel';
 
 type AdminState = {
     loading: boolean;
@@ -16,9 +13,8 @@ type AdminState = {
     isAdmin: boolean;
 };
 
-export default function AdminNotificationsPage() {
+export default function AdminAnnouncementsPage() {
     const router = useRouter();
-    // useState: 控制权限加载状态
     const [state, setState] = useState<AdminState>({
         loading: true,
         isAuthed: false,
@@ -26,7 +22,6 @@ export default function AdminNotificationsPage() {
     });
 
     useEffect(() => {
-        // useEffect: 首次进入页面时验证管理员权限
         const checkAdmin = async () => {
             setState(await loadAdminClientAccessState());
         };
@@ -65,8 +60,7 @@ export default function AdminNotificationsPage() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in">
-            {/* 头部 */}
+        <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
             <div className="flex items-center gap-3 mb-6">
                 <button
                     onClick={() => router.push('/user')}
@@ -74,14 +68,16 @@ export default function AdminNotificationsPage() {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-xl font-bold">公告发布</h1>
+                <div>
+                    <h1 className="text-xl font-bold">公告管理</h1>
+                    <p className="text-sm text-foreground-secondary mt-1">
+                        公告独立于通知中心，支持编辑历史公告、版本递增和进站弹窗投放。
+                    </p>
+                </div>
             </div>
 
-            <p className="text-sm text-foreground-secondary mb-6">
-                仅管理员可使用。发送后将直接触达所有站内用户，不受个人通知偏好影响。
-            </p>
-
-            <NotificationLaunchPanel />
+            <AnnouncementManagementPanel />
         </div>
     );
 }
+
