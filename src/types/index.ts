@@ -240,6 +240,7 @@ export interface ChatMessage {
     chartInfo?: {
         baziName?: string;
         ziweiName?: string;
+        baziAnalysisMode?: 'traditional' | 'mangpai';
     };
     // 附件信息（仅用户消息）- 记录发送该消息时使用的附件/搜索
     attachments?: MessageAttachment;
@@ -328,8 +329,6 @@ export type { MentionType, Mention, MentionTarget } from '@/types/mentions';
 export interface Conversation {
     id: string;
     userId?: string;
-    baziChartId?: string;
-    ziweiChartId?: string;
     personality: AIPersonality;
     title: string;
     messages: ChatMessage[];

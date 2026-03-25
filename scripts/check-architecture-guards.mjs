@@ -142,18 +142,13 @@ mustMatch(
 );
 mustMatch(
   'src/app/api/chat/route.ts',
-  /from ['"]@\/lib\/server\/chat\/stream-response['"]/u,
-  'chat route should delegate stream response handling to the shared server helper',
-);
-mustMatch(
-  'src/app/api/chat/route.ts',
   /prepareChatRequest\(/u,
   'chat route should call prepareChatRequest',
 );
 mustMatch(
   'src/app/api/chat/route.ts',
-  /createChatStreamResponse\(/u,
-  'chat route should call createChatStreamResponse',
+  /callAIUIMessageResult\(/u,
+  'chat route should call callAIUIMessageResult for streaming',
 );
 mustMatch(
   'src/lib/server/chat/request.ts',

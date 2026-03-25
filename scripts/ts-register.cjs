@@ -98,3 +98,44 @@ function compileTs(module, filename) {
 
 Module._extensions['.ts'] = compileTs;
 Module._extensions['.tsx'] = compileTs;
+
+const isNodeTestRuntime = process.execArgv.some((arg) => arg.startsWith('--test'));
+const verboseTestLogs = process.env.MINGAI_TEST_VERBOSE_LOGS === '1';
+
+const QUIET_TEST_LOG_PATTERNS = [
+    /^\[chat\] 流式读取失败:/u,
+    /^\[credits\] Failed to get user info:/u,
+    /^\[credits\] RPC decrement failed:/u,
+    /^\[linuxdo-callback\] SignUp failed:/u,
+    /^\[linuxdo-callback\] Provider insert failed:/u,
+    /^\[reminders\] 创建通知失败:/u,
+    /^\[ai-models\] Failed to create primary binding:/u,
+    /^\[deepseek\] API error \d+:/u,
+    /^\[OAuth\] consumeAuthorizationCodeAtomically: no matching code/u,
+];
+
+function shouldSuppressTestLog(args) {
+    if (!isNodeTestRuntime || verboseTestLogs) return false;
+    if (!Array.isArray(args) || args.length === 0) return false;
+
+    const first = args[0];
+    const lead = typeof first === 'string' ? first : '';
+    if (!lead) return false;
+
+    return QUIET_TEST_LOG_PATTERNS.some((pattern) => pattern.test(lead));
+}
+
+if (isNodeTestRuntime && !verboseTestLogs) {
+    const originalError = console.error.bind(console);
+    const originalWarn = console.warn.bind(console);
+
+    console.error = (...args) => {
+        if (shouldSuppressTestLog(args)) return;
+        originalError(...args);
+    };
+
+    console.warn = (...args) => {
+        if (shouldSuppressTestLog(args)) return;
+        originalWarn(...args);
+    };
+}

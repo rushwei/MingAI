@@ -15,6 +15,7 @@
     "build:core": "pnpm -C packages/core build"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.48",
     "@capacitor/android": "^8.0.1",
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
@@ -29,6 +30,7 @@
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-virtual": "^3.13.18",
     "@vercel/analytics": "^1.6.1",
+    "ai": "^6.0.137",
     "html2canvas": "^1.4.1",
     "iztro": "^2.5.4",
     "lucide-react": "^0.562.0",

@@ -71,6 +71,43 @@ CREATE TABLE public.ai_models (
   custom_parameters jsonb,
   CONSTRAINT ai_models_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.announcements (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text NOT NULL,
+  cta_label text,
+  cta_href text,
+  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
+  priority text NOT NULL DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['normal'::text, 'critical'::text])),
+  display_order integer NOT NULL DEFAULT 0,
+  starts_at timestamp with time zone,
+  ends_at timestamp with time zone,
+  popup_enabled boolean NOT NULL DEFAULT true,
+  audience_scope text NOT NULL DEFAULT 'all_visitors'::text CHECK (audience_scope = ANY (ARRAY['all_visitors'::text, 'signed_in_only'::text])),
+  version integer NOT NULL DEFAULT 1 CHECK (version >= 1),
+  published_at timestamp with time zone,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT announcements_pkey PRIMARY KEY (id),
+  CONSTRAINT announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT announcements_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.announcement_user_states (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  announcement_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  version integer NOT NULL CHECK (version >= 1),
+  dismissed_until timestamp with time zone,
+  dismissed_permanently_at timestamp with time zone,
+  seen_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT announcement_user_states_pkey PRIMARY KEY (id),
+  CONSTRAINT announcement_user_states_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT announcement_user_states_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES public.announcements(id)
+);
 CREATE TABLE public.annual_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -137,6 +174,8 @@ CREATE TABLE public.bazi_charts (
   created_at timestamp with time zone DEFAULT now(),
   calendar_type text DEFAULT 'solar'::text,
   is_leap_month boolean DEFAULT false,
+  day_master text,
+  day_branch text,
   CONSTRAINT bazi_charts_pkey PRIMARY KEY (id),
   CONSTRAINT bazi_charts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -216,8 +255,6 @@ CREATE TABLE public.conversation_messages (
 CREATE TABLE public.conversations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
-  bazi_chart_id uuid,
-  ziwei_chart_id uuid,
   personality text DEFAULT 'master'::text,
   title text DEFAULT '新对话'::text,
   messages jsonb DEFAULT '[]'::jsonb,
@@ -226,9 +263,7 @@ CREATE TABLE public.conversations (
   source_type text DEFAULT 'chat'::text CHECK (source_type = ANY (ARRAY['chat'::text, 'bazi_wuxing'::text, 'bazi_personality'::text, 'tarot'::text, 'liuyao'::text, 'mbti'::text, 'hepan'::text, 'palm'::text, 'face'::text, 'dream'::text, 'qimen'::text, 'daliuren'::text])) NOT VALI),
   source_data jsonb,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
-  CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT conversations_bazi_chart_id_fkey FOREIGN KEY (bazi_chart_id) REFERENCES public.bazi_charts(id),
-  CONSTRAINT conversations_ziwei_chart_id_fkey FOREIGN KEY (ziwei_chart_id) REFERENCES public.ziwei_charts(id)
+  CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.credit_transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -537,6 +572,7 @@ CREATE TABLE public.tarot_readings (
   cards jsonb NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   conversation_id uuid,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT tarot_readings_pkey PRIMARY KEY (id),
   CONSTRAINT tarot_readings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT tarot_readings_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
@@ -588,6 +624,7 @@ CREATE TABLE public.user_settings (
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,
   prompt_kb_ids jsonb DEFAULT '[]'::jsonb,
+  visualization_settings jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT user_settings_default_bazi_chart_id_fkey FOREIGN KEY (default_bazi_chart_id) REFERENCES public.bazi_charts(id),
