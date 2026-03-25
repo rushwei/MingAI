@@ -213,6 +213,7 @@ export function jsonOk<TPayload>(payload: TPayload, status = 200, headers?: Reco
 
 export const SSE_HEADERS = {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
 } as const;

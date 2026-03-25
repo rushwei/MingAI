@@ -121,7 +121,7 @@ export function MentionPopover({ query, dataSources, knowledgeBases, enabledData
         if (activeLevel === 'search') {
             const dataItems = filteredDataSources.map((i) => ({
                 key: `data-${i.id}`,
-                label: `@数据 · ${i.name}`,
+                label: `@${TYPE_LABELS[i.type] || '数据'} · ${i.name}`,
                 hint: shouldShowHint(i) ? i.preview : '',
                 icon: TYPE_ICONS[i.type],
                 raw: i,

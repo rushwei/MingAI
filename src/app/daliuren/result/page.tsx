@@ -14,7 +14,8 @@ import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { useStreamingResponse } from '@/lib/hooks/useStreamingResponse';
+import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
+import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
@@ -26,6 +27,8 @@ import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { resolveHistoryConversationId } from '@/lib/history/client';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
+import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 
 const SHENSHA_DISPLAY = [
     '日德', '日禄', '生气', '桃花', '天喜', '天医', '成神',
@@ -48,7 +51,10 @@ export default function DaliurenResultPage() {
     const { showToast } = useToast();
     const [result, setResult] = useState<DaliurenOutput | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [modelId, setModelId] = useState<string | undefined>();
+    const [userId, setUserId] = useState<string | null>(null);
+    const [membershipType, setMembershipType] = useState<MembershipType>('free');
+    const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [showShensha, setShowShensha] = useState(false);
     const [showGongDetails, setShowGongDetails] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -56,6 +62,8 @@ export default function DaliurenResultPage() {
     const [divinationId, setDivinationId] = useState<string | undefined>();
     const [conversationId, setConversationId] = useState<string | undefined>();
     const [interpretation, setInterpretation] = useState<string | null>(null);
+    const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const hasAutoSavedRef = useRef(false);
 
@@ -118,6 +126,18 @@ export default function DaliurenResultPage() {
                 return;
             }
 
+            const session = await supabase.auth.getSession();
+            const sessionUserId = session.data.session?.user?.id || null;
+            setUserId(sessionUserId);
+            if (sessionUserId) {
+                const info = await getMembershipInfo(sessionUserId);
+                if (info) {
+                    setMembershipType(info.type);
+                }
+            } else {
+                setMembershipType('free');
+            }
+
             const nextDivinationId = typeof params.divinationId === 'string' ? params.divinationId : undefined;
             const nextConversationId = typeof params.conversationId === 'string' ? params.conversationId : undefined;
 
@@ -148,7 +168,6 @@ export default function DaliurenResultPage() {
                 setIsLoading(false);
 
                 if (!nextDivinationId && !hasAutoSavedRef.current) {
-                    const session = await supabase.auth.getSession();
                     const token = session.data.session?.access_token;
                     if (token) {
                         hasAutoSavedRef.current = true;
@@ -198,9 +217,16 @@ export default function DaliurenResultPage() {
 
             const messages = (conversation.messages as ChatMessage[]) || [];
             const sourceData = (conversation.sourceData || undefined) as Record<string, unknown> | undefined;
-            const { analysis } = extractAnalysisFromConversation(messages, sourceData);
+            const { analysis, reasoning, modelId: savedModelId } = extractAnalysisFromConversation(messages, sourceData);
             if (analysis) {
                 setInterpretation(analysis);
+            }
+            if (reasoning) {
+                setInterpretationReasoning(reasoning);
+                setReasoningEnabled(true);
+            }
+            if (savedModelId) {
+                setModelId(savedModelId);
             }
         };
 
@@ -253,6 +279,8 @@ export default function DaliurenResultPage() {
         if (!result) return;
         const params = readSessionJSON('daliuren_params') as Record<string, unknown> | null;
         setInterpretation(null);
+        setInterpretationReasoning(null);
+        setError(null);
 
         const session = await supabase.auth.getSession();
         const token = session.data.session?.access_token;
@@ -272,14 +300,25 @@ export default function DaliurenResultPage() {
                 question: params?.question,
                 divinationId: currentDivinationId,
                 modelId,
+                reasoning: reasoningEnabled,
+                stream: true,
             }),
         });
 
         const err = streamResult?.error;
         if (err) {
-            if (err.includes('积分')) setShowCreditsModal(true);
-            else if (err.includes('401') || err.includes('认证')) setShowAuthModal(true);
+            if (isCreditsError(err)) {
+                setShowCreditsModal(true);
+            } else if (err.includes('401') || err.includes('认证') || err.includes('请先登录')) {
+                setShowAuthModal(true);
+            } else {
+                setError(err);
+            }
             return;
+        }
+
+        if (streamResult?.reasoning) {
+            setInterpretationReasoning(streamResult.reasoning);
         }
 
         if (currentDivinationId) {
@@ -289,7 +328,7 @@ export default function DaliurenResultPage() {
                 persistSessionIds({ conversationId: resolvedConversationId });
             }
         }
-    }, [divinationId, modelId, persistSessionIds, result, saveDivinationRecord, streaming]);
+    }, [divinationId, modelId, persistSessionIds, reasoningEnabled, result, saveDivinationRecord, streaming]);
 
     if (isLoading) {
         return (
@@ -487,8 +526,41 @@ export default function DaliurenResultPage() {
                             <Brain className="w-4 h-4 text-cyan-500" />
                             AI 解读
                         </h3>
-                        <ModelSelector selectedModel={modelId} onModelChange={setModelId} />
+                        <ModelSelector
+                            selectedModel={modelId}
+                            onModelChange={setModelId}
+                            reasoningEnabled={reasoningEnabled}
+                            onReasoningChange={setReasoningEnabled}
+                            userId={userId}
+                            membershipType={membershipType}
+                        />
                     </div>
+
+                    {error && (
+                        <p data-testid="analysis-error" className="text-red-500 text-sm mb-4">
+                            {error}
+                        </p>
+                    )}
+
+                    {streaming.reasoning && !streaming.content && (
+                        <div className="mb-4">
+                            <ThinkingBlock
+                                content={streaming.reasoning}
+                                isStreaming={streaming.isStreaming}
+                                startTime={streaming.reasoningStartTime}
+                                duration={streaming.reasoningDuration}
+                            />
+                        </div>
+                    )}
+
+                    {!streaming.isStreaming && interpretationReasoning && (
+                        <div className="mb-4">
+                            <ThinkingBlock
+                                content={interpretationReasoning}
+                                duration={streaming.reasoningDuration}
+                            />
+                        </div>
+                    )}
 
                     {streaming.content ? (
                         <MarkdownContent content={streaming.content} />

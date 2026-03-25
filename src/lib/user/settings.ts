@@ -1,4 +1,8 @@
 import { requestBrowserJson, type BrowserApiError } from '@/lib/browser-api';
+import {
+  normalizeVisualizationSettings,
+  type VisualizationSettings,
+} from '@/lib/visualization/settings';
 
 export type ExpressionStyle = 'direct' | 'gentle';
 export type AppLanguage = 'zh' | 'en';
@@ -115,6 +119,7 @@ type UserSettingsRow = {
   custom_instructions?: unknown;
   user_profile?: unknown;
   prompt_kb_ids?: unknown;
+  visualization_settings?: unknown;
   sidebar_config?: unknown;
   notifications_enabled?: unknown;
   notify_email?: unknown;
@@ -144,6 +149,7 @@ export type UserSettingsSnapshot = {
   customInstructions: string;
   userProfile: unknown;
   promptKbIds: string[];
+  visualizationSettings: VisualizationSettings | undefined;
   sidebarConfig: SidebarConfig;
   notificationsEnabled: boolean;
   notifyEmail: boolean;
@@ -163,6 +169,7 @@ export type UserSettingsUpdateInput = Partial<{
   customInstructions: string | null;
   userProfile: unknown;
   promptKbIds: string[];
+  visualizationSettings: VisualizationSettings | null;
   sidebarConfig: SidebarConfig;
   notificationsEnabled: boolean;
   language: AppLanguage;
@@ -175,6 +182,7 @@ export const USER_SETTINGS_SELECT = `
   custom_instructions,
   user_profile,
   prompt_kb_ids,
+  visualization_settings,
   sidebar_config,
   notifications_enabled,
   notify_email,
@@ -211,6 +219,7 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
       ? row.prompt_kb_ids.filter((value): value is string => typeof value === 'string' && value.length > 0)
       : [],
+    visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings),
     sidebarConfig: normalizeSidebarConfig(row?.sidebar_config),
     notificationsEnabled: row?.notifications_enabled !== false,
     notifyEmail: row?.notify_email !== false,
@@ -265,6 +274,16 @@ export function buildUserSettingsUpdatePayload(
     payload.prompt_kb_ids = body.promptKbIds.filter(
       (value): value is string => typeof value === 'string' && value.length > 0,
     );
+  }
+  if (body.visualizationSettings !== undefined) {
+    if (body.visualizationSettings === null) {
+      payload.visualization_settings = null;
+    } else {
+      const normalizedVisualizationSettings = normalizeVisualizationSettings(body.visualizationSettings);
+      if (normalizedVisualizationSettings) {
+        payload.visualization_settings = normalizedVisualizationSettings;
+      }
+    }
   }
   if (body.sidebarConfig) {
     payload.sidebar_config = normalizeSidebarConfig(body.sidebarConfig);

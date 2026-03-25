@@ -35,14 +35,13 @@ export interface StreamingCallbacks {
 }
 
 interface ParsedSSEData {
-    choices?: Array<{
-        delta?: {
-            content?: string;
-            reasoning_content?: string;
-        };
-    }>;
+    type?: string;
+    delta?: string;
     error?: string;
+    errorText?: string;
     conversationId?: string | null;
+    metadata?: Record<string, unknown>;
+    messageMetadata?: Record<string, unknown>;
 }
 
 export interface ParsedStreamingSSEFrame {
@@ -60,11 +59,12 @@ export function parseStreamingSSEData(data: string): ParsedStreamingSSEFrame {
 
     try {
         const parsed: ParsedSSEData = JSON.parse(data);
-        const delta = parsed.choices?.[0]?.delta;
         return {
-            contentDelta: delta?.content,
-            reasoningDelta: delta?.reasoning_content,
-            error: typeof parsed.error === 'string' ? parsed.error : undefined,
+            contentDelta: parsed.type === 'text-delta' ? parsed.delta : undefined,
+            reasoningDelta: parsed.type === 'reasoning-delta' ? parsed.delta : undefined,
+            error: typeof parsed.errorText === 'string'
+                ? parsed.errorText
+                : (typeof parsed.error === 'string' ? parsed.error : undefined),
             conversationId: typeof parsed.conversationId === 'string' ? parsed.conversationId : null,
             done: false,
         };

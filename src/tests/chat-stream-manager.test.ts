@@ -48,11 +48,27 @@ function createInfiniteContentResponse(signal?: AbortSignal): Response {
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"A"}}]}\n\n'));
+            controller.enqueue(encoder.encode('data: {"type":"text-delta","delta":"A"}\n\n'));
             const onAbort = () => {
                 controller.error(new DOMException('aborted', 'AbortError'));
             };
             signal?.addEventListener('abort', onAbort, { once: true });
+        },
+    });
+    return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+    });
+}
+
+function createStalledResponse(signal?: AbortSignal): Response {
+    const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+            const onAbort = () => {
+                controller.error(new DOMException('aborted', 'AbortError'));
+            };
+            signal?.addEventListener('abort', onAbort, { once: true });
+            // Intentionally never emits or closes so the inactivity timeout is hit.
         },
     });
     return new Response(stream, {
@@ -339,4 +355,213 @@ test('chat stream manager invokes fetch with global this binding to avoid illega
     } finally {
         globalThis.fetch = originalFetch;
     }
+});
+
+test('chat stream manager handles SSE structured error event without throwing', async () => {
+    const encoder = new TextEncoder();
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"text-delta","delta":"partial"}\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"error","errorText":"积分不足"}\n\n'));
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-sse-error',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-sse-error'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'INSUFFICIENT_CREDITS');
+    assert.equal(failedEvent?.errorMessage, '积分不足');
+
+    unsubscribe();
+});
+
+test('chat stream manager updates metadata from AI SDK message-metadata chunks', async () => {
+    const encoder = new TextEncoder();
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"message-metadata","messageMetadata":{"modelId":"deepseek-v3.2"}}\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"text-delta","id":"t1","delta":"hello"}\n\n'));
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const started = await manager.startTask({
+        conversationId: 'conv-meta',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-meta'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => manager.getTaskSnapshot('conv-meta')?.status === 'completed');
+    const snapshot = manager.getTaskSnapshot('conv-meta');
+    assert.equal(snapshot?.metadata?.modelId, 'deepseek-v3.2');
+});
+
+test('chat stream manager silently ignores unknown chunk types', async () => {
+    const encoder = new TextEncoder();
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"text-delta","delta":"hello"}\n\n'));
+                    controller.enqueue(encoder.encode('data: {"type":"usage","usage":{"prompt_tokens":10,"completion_tokens":5}}\n\n'));
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async () => true,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; content?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({ type: event.type, content: event.task.content });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-usage',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-usage'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_completed'));
+    const completedEvent = events.find(e => e.type === 'task_completed');
+    assert.equal(completedEvent?.content, 'hello');
+
+    unsubscribe();
+});
+
+test('chat stream manager fails empty streams instead of synthesizing fallback replies', async () => {
+    const encoder = new TextEncoder();
+    const saved: Array<{ conversationId: string; messages: ChatMessage[] }> = [];
+    const manager = new ChatStreamManager({
+        fetcher: async () => {
+            const stream = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    controller.close();
+                },
+            });
+            return new Response(stream, {
+                status: 200,
+                headers: { 'Content-Type': 'text/event-stream' },
+            });
+        },
+        saveConversation: async (conversationId, messages) => {
+            saved.push({ conversationId, messages: messages as ChatMessage[] });
+            return true;
+        },
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-empty',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-empty'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'REQUEST_FAILED');
+    assert.equal(failedEvent?.errorMessage, '流式响应为空');
+    assert.equal(saved.length, 0);
+    assert.deepEqual(manager.getTaskMessages('conv-empty'), baseMessages);
+
+    unsubscribe();
+});
+
+test('chat stream manager reports timeout when stream stays idle too long', async () => {
+    const manager = new ChatStreamManager({
+        fetcher: async (_input, init) => createStalledResponse(init?.signal as AbortSignal | undefined),
+        saveConversation: async () => true,
+        streamInactivityTimeoutMs: 30,
+    });
+
+    const baseMessages = [createUserMessage()];
+    const events: Array<{ type: string; errorCode?: string; errorMessage?: string }> = [];
+    const unsubscribe = manager.subscribe((event) => {
+        events.push({
+            type: event.type,
+            errorCode: event.errorCode,
+            errorMessage: event.errorMessage,
+        });
+    });
+
+    const started = await manager.startTask({
+        conversationId: 'conv-timeout',
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody: { messages: baseMessages, stream: true },
+        baseMessages,
+        assistantMessage: createAssistantMessage('assistant-timeout'),
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => events.some(e => e.type === 'task_failed'));
+    const failedEvent = events.find(e => e.type === 'task_failed');
+    assert.equal(failedEvent?.errorCode, 'NETWORK_ERROR');
+    assert.equal(failedEvent?.errorMessage, '流式响应超时，请重试');
+
+    unsubscribe();
 });

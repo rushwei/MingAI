@@ -48,7 +48,6 @@ export interface StartChatStreamTaskParams {
     requestBody: Record<string, unknown>;
     baseMessages: ChatMessage[];
     assistantMessage: ChatMessage;
-    fallbackContent?: string;
     /** 保存前的钩子，可修改最终消息列表 */
     onBeforeSave?: BeforeSaveHook;
 }
@@ -74,7 +73,6 @@ interface ChatStreamTaskInternal {
     startedAt: number;
     updatedAt: number;
     hasVisibleToken: boolean;
-    fallbackContent: string;
     cleanupTimer: ReturnType<typeof setTimeout> | null;
     stopRequested: boolean;
     onBeforeSave?: BeforeSaveHook;
@@ -85,10 +83,11 @@ interface ChatStreamTaskInternal {
 interface ChatStreamManagerDeps {
     fetcher?: FetcherFn;
     saveConversation?: SaveConversationFn;
+    streamInactivityTimeoutMs?: number;
 }
 
-const DEFAULT_FALLBACK_CONTENT = '抱歉，我暂时无法回答这个问题。';
 const FINISHED_TASK_TTL_MS = 60 * 1000;
+const DEFAULT_STREAM_INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
 
 function stringifyRequestBody(body: Record<string, unknown>): string {
     const seen = new WeakSet<object>();
@@ -183,9 +182,12 @@ export class ChatStreamManager {
 
     private readonly saveConversationFn: SaveConversationFn;
 
+    private readonly streamInactivityTimeoutMs: number;
+
     constructor(deps: ChatStreamManagerDeps = {}) {
         this.fetcher = deps.fetcher ?? fetch;
         this.saveConversationFn = deps.saveConversation ?? saveConversation;
+        this.streamInactivityTimeoutMs = deps.streamInactivityTimeoutMs ?? DEFAULT_STREAM_INACTIVITY_TIMEOUT_MS;
     }
 
     subscribe(listener: ChatStreamListener): () => void {
@@ -238,7 +240,6 @@ export class ChatStreamManager {
             startedAt: now,
             updatedAt: now,
             hasVisibleToken: false,
-            fallbackContent: params.fallbackContent || DEFAULT_FALLBACK_CONTENT,
             cleanupTimer: null,
             stopRequested: false,
             onBeforeSave: params.onBeforeSave,
@@ -302,7 +303,14 @@ export class ChatStreamManager {
 
         try {
             while (true) {
-                const { done, value } = await reader.read();
+                // 超时保护：连续 N 秒没有收到任何数据，主动中止流
+                const readResult = await Promise.race([
+                    reader.read(),
+                    new Promise<{ done: true; value: undefined }>((_, reject) =>
+                        setTimeout(() => reject(new Error('STREAM_TIMEOUT')), this.streamInactivityTimeoutMs)
+                    ),
+                ]);
+                const { done, value } = readResult;
                 if (done) break;
                 if (!value) continue;
 
@@ -310,9 +318,15 @@ export class ChatStreamManager {
                 const lines = buffer.split('\n');
                 buffer = lines.pop() ?? '';
 
+                let shouldBreak = false;
                 for (const line of lines) {
-                    this.handleSseLine(task, line);
+                    const signal = this.handleSseLine(task, line);
+                    if (signal === 'break') {
+                        shouldBreak = true;
+                        break;
+                    }
                 }
+                if (shouldBreak) break;
             }
 
             // 处理尾部残留
@@ -331,11 +345,14 @@ export class ChatStreamManager {
                 await this.finishCompleted(task);
             }
         } catch (error) {
-            if (task.sseError) {
+            if (isAbortError(error) || task.stopRequested) {
+                await this.finishWithStatus(task, 'stopped');
+            } else if (task.sseError) {
                 // 后端发送了结构化错误事件，使用其错误码，不覆盖为通用网络错误
                 await this.finishWithStatus(task, 'failed', task.sseError);
-            } else if (isAbortError(error) || task.stopRequested) {
-                await this.finishWithStatus(task, 'stopped');
+            } else if (error instanceof Error && error.message === 'STREAM_TIMEOUT') {
+                task.controller.abort();
+                await this.finishWithStatus(task, 'failed', { code: 'NETWORK_ERROR', message: '流式响应超时，请重试' });
             } else {
                 await this.finishWithStatus(task, 'failed', { code: 'NETWORK_ERROR', message: '流式响应中断' });
             }
@@ -344,7 +361,7 @@ export class ChatStreamManager {
         }
     }
 
-    private handleSseLine(task: ChatStreamTaskInternal, rawLine: string): void {
+    private handleSseLine(task: ChatStreamTaskInternal, rawLine: string): 'break' | void {
         const line = rawLine.trim();
         if (!line.startsWith('data:')) return;
         const payload = line.replace(/^data:\s*/, '');
@@ -357,8 +374,10 @@ export class ChatStreamManager {
             return;
         }
 
-        if ((parsed as { type?: string }).type === 'meta') {
-            const nextMetadata = (parsed as { metadata?: AIMessageMetadata }).metadata;
+        const metadataType = (parsed as { type?: string }).type;
+        if (metadataType === 'meta' || metadataType === 'message-metadata' || metadataType === 'start' || metadataType === 'finish') {
+            const nextMetadata = (parsed as { metadata?: AIMessageMetadata; messageMetadata?: AIMessageMetadata }).metadata
+                ?? (parsed as { messageMetadata?: AIMessageMetadata }).messageMetadata;
             if (nextMetadata) {
                 task.metadata = nextMetadata;
                 task.updatedAt = Date.now();
@@ -368,32 +387,32 @@ export class ChatStreamManager {
         }
 
         // 处理后端发送的结构化错误事件（如流式扣费失败）
-        // 将错误信息存到 task 上，抛异常中断 runTask 的读取循环
+        // 将错误信息存到 task 上，返回 'break' 信号通知 runTask 退出读取循环
         if ((parsed as { type?: string }).type === 'error') {
-            const errorData = parsed as { code?: string; error?: string };
+            const errorData = parsed as { code?: string; error?: string; errorText?: string };
+            const message = errorData.errorText || errorData.error || '请求失败';
             task.sseError = {
-                code: errorData.code === 'INSUFFICIENT_CREDITS'
+                code: errorData.code === 'INSUFFICIENT_CREDITS' || message.includes('积分不足')
                     ? 'INSUFFICIENT_CREDITS'
                     : 'REQUEST_FAILED',
-                message: errorData.error || '请求失败',
+                message,
             };
-            throw new Error('SSE_STRUCTURED_ERROR');
+            return 'break';
         }
 
-        const delta = (parsed as { choices?: Array<{ delta?: { content?: unknown; reasoning_content?: unknown } }> })
-            .choices?.[0]?.delta;
+        const delta = parsed as { type?: unknown; delta?: unknown };
 
         let hasChanges = false;
-        if (typeof delta?.reasoning_content === 'string' && delta.reasoning_content.length > 0) {
+        if (delta.type === 'reasoning-delta' && typeof delta.delta === 'string' && delta.delta.length > 0) {
             if (!task.reasoningStartTime) {
                 task.reasoningStartTime = Date.now();
             }
-            task.reasoning += delta.reasoning_content;
+            task.reasoning += delta.delta;
             hasChanges = true;
         }
 
-        if (typeof delta?.content === 'string' && delta.content.length > 0) {
-            task.content += delta.content;
+        if (delta.type === 'text-delta' && typeof delta.delta === 'string' && delta.delta.length > 0) {
+            task.content += delta.delta;
             if (!task.hasVisibleToken) {
                 task.hasVisibleToken = true;
                 this.emit({ type: 'task_billed', task: this.buildSnapshot(task) });
@@ -408,20 +427,27 @@ export class ChatStreamManager {
     }
 
     private async finishCompleted(task: ChatStreamTaskInternal): Promise<void> {
+        if (task.content.trim().length === 0 && task.reasoning.trim().length === 0) {
+            await this.finishWithStatus(task, 'failed', {
+                code: 'REQUEST_FAILED',
+                message: '流式响应为空',
+            });
+            return;
+        }
+
         task.status = 'completed';
         task.updatedAt = Date.now();
 
-        const finalContent = task.content || task.fallbackContent;
-        let finalMessages = [...task.baseMessages, buildAssistantFromTask(task, finalContent)];
+        let finalMessages = [...task.baseMessages, buildAssistantFromTask(task, task.content)];
         if (task.onBeforeSave) {
-            finalMessages = task.onBeforeSave(finalMessages, finalContent);
+            finalMessages = task.onBeforeSave(finalMessages, task.content);
             // 将 onBeforeSave 处理后的 baseMessages 存回 task，
             // 使后续 getTaskSnapshot 能返回包含完整版本信息的消息
             task.baseMessages = finalMessages.slice(0, -1);
         }
         await this.saveConversationFn(task.conversationId, finalMessages);
 
-        this.emit({ type: 'task_completed', task: this.buildSnapshot(task, finalMessages, finalContent) });
+        this.emit({ type: 'task_completed', task: this.buildSnapshot(task, finalMessages, task.content) });
         this.scheduleCleanup(task.conversationId);
     }
 
@@ -492,8 +518,7 @@ export class ChatStreamManager {
             if (task.status === 'running') {
                 messages = [...task.baseMessages, buildAssistantFromTask(task, content)];
             } else if (task.status === 'completed') {
-                const finalContent = content || task.fallbackContent;
-                messages = [...task.baseMessages, buildAssistantFromTask(task, finalContent)];
+                messages = [...task.baseMessages, buildAssistantFromTask(task, content)];
             } else if (content.trim().length > 0 || task.reasoning.trim().length > 0) {
                 messages = [...task.baseMessages, buildAssistantFromTask(task, content)];
             } else {

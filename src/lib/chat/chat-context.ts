@@ -5,33 +5,6 @@ import { countTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
-import type { BaziCaseProfile } from '@/lib/bazi-case-profile';
-
-export interface ChartIds {
-    baziId?: string;
-    ziweiId?: string;
-    baziAnalysisMode?: 'traditional' | 'mangpai';
-}
-
-export interface ChartContext {
-    baziChart?: {
-        id?: string;
-        name: string;
-        gender: string;
-        birthDate: string;
-        birthTime?: string;
-        chartData?: Record<string, unknown>;
-        caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
-    };
-    ziweiChart?: {
-        id?: string;
-        name: string;
-        gender: string;
-        birthDate: string;
-        birthTime?: string;
-        chartData?: Record<string, unknown>;
-    };
-}
 
 export type DreamContextPayload = {
     baziChartName?: string;
@@ -50,58 +23,6 @@ function truncateToTokens(text: string, maxTokens: number): string {
     const ratio = maxTokens / tokens;
     const targetLength = Math.floor(text.length * ratio * 0.9);
     return text.slice(0, targetLength) + '...（已截断）';
-}
-
-// 加载命盘上下文（仅加载属于当前用户的命盘）
-export async function loadChartContext(chartIds: ChartIds, userId: string): Promise<ChartContext> {
-    const supabase = getSystemAdminClient();
-    const context: ChartContext = {};
-
-    if (chartIds.baziId) {
-        const { data } = await supabase
-            .from('bazi_charts')
-            .select('id, name, gender, birth_date, birth_time, chart_data')
-            .eq('id', chartIds.baziId)
-            .eq('user_id', userId)
-            .single();
-
-        if (data) {
-            const caseProfile = await getBaziCaseProfileByChartId(supabase, data.id, userId);
-            const genderLabel = data.gender === 'male' ? '男' : data.gender === 'female' ? '女' : '';
-            context.baziChart = {
-                id: data.id,
-                name: data.name,
-                gender: genderLabel,
-                birthDate: data.birth_date,
-                birthTime: data.birth_time,
-                chartData: data.chart_data,
-                caseProfile,
-            };
-        }
-    }
-
-    if (chartIds.ziweiId) {
-        const { data } = await supabase
-            .from('ziwei_charts')
-            .select('id, name, gender, birth_date, birth_time, chart_data')
-            .eq('id', chartIds.ziweiId)
-            .eq('user_id', userId)
-            .single();
-
-        if (data) {
-            const genderLabel = data.gender === 'male' ? '男' : data.gender === 'female' ? '女' : '';
-            context.ziweiChart = {
-                id: data.id,
-                name: data.name,
-                gender: genderLabel,
-                birthDate: data.birth_date,
-                birthTime: data.birth_time,
-                chartData: data.chart_data,
-            };
-        }
-    }
-
-    return context;
 }
 
 export async function buildDreamContextPayload(userId: string): Promise<{ payload: DreamContextPayload; context: { baziChartName?: string; dailyFortune?: string } }> {

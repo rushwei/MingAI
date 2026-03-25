@@ -12,16 +12,26 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     ArrowLeft, Save, BookOpenText,
-    MessageSquare, User, Eye, Zap, Layers
+    MessageSquare, User, Eye, Zap, Layers, TrendingUp
 } from 'lucide-react';
+import DimensionSelector from '@/components/visualization/shared/DimensionSelector';
+import { CORE_DIMENSIONS, type FortuneDimensionKey } from '@/lib/visualization/dimensions';
+import { readLocalVisualizationSettings, type VisualizationChartStyle } from '@/lib/visualization/settings';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 import { supabase } from '@/lib/auth';
 import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { loadCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
+import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
 
 type ExpressionStyle = 'direct' | 'gentle';
+
+const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string }> = [
+    { value: 'modern', label: '简约现代' },
+    { value: 'classic-chinese', label: '经典中式' },
+    { value: 'dark', label: '暗色系' },
+];
 
 const USER_PROFILE_LIMIT = 120;
 const CUSTOM_INSTRUCTIONS_LIMIT = 500;
@@ -55,6 +65,11 @@ function AISettingsContent() {
 
     const [expressionStyle, setExpressionStyle] = useState<ExpressionStyle>('direct');
     const [customInstructions, setCustomInstructions] = useState('');
+    const [selectedDimensions, setSelectedDimensions] = useState<FortuneDimensionKey[]>(
+        () => CORE_DIMENSIONS.slice(0, 6).map(d => d.key)
+    );
+    const [dayunPeriods, setDayunPeriods] = useState(5);
+    const [chartStyle, setChartStyle] = useState<VisualizationChartStyle>('modern');
     const [userProfile, setUserProfile] = useState({
         identity: '',
         occupation: '',
@@ -93,6 +108,18 @@ function AISettingsContent() {
             setSettingsLoadFailed(false);
             setExpressionStyle((settings?.expressionStyle || 'direct') as ExpressionStyle);
             setCustomInstructions((settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
+
+            const visualizationSettings = settings?.visualizationSettings || readLocalVisualizationSettings(localStorage);
+            if (visualizationSettings?.selectedDimensions?.length) {
+                setSelectedDimensions(visualizationSettings.selectedDimensions);
+            }
+            if (typeof visualizationSettings?.dayunDisplayCount === 'number') {
+                setDayunPeriods(visualizationSettings.dayunDisplayCount);
+            }
+            if (visualizationSettings?.chartStyle) {
+                setChartStyle(visualizationSettings.chartStyle);
+            }
+
             const profile = settings?.userProfile;
             if (typeof profile === 'string') {
                 setUserProfile({
@@ -155,6 +182,11 @@ function AISettingsContent() {
                             expressionStyle,
                             customInstructions,
                             userProfile: profilePayload,
+                            visualizationSettings: {
+                                selectedDimensions,
+                                dayunDisplayCount: dayunPeriods,
+                                chartStyle,
+                            },
                         }),
                     });
 
@@ -200,7 +232,7 @@ function AISettingsContent() {
             cancelled = true;
             clearTimeout(handle);
         };
-    }, [customInstructions, expressionStyle, userProfile]);
+    }, [chartStyle, customInstructions, dayunPeriods, expressionStyle, selectedDimensions, userProfile]);
 
     const handleSave = async () => {
         if (!userId) return;
@@ -223,10 +255,24 @@ function AISettingsContent() {
             expressionStyle,
             customInstructions: customInstructions || null,
             userProfile: profilePayload,
+            visualizationSettings: {
+                selectedDimensions,
+                dayunDisplayCount: dayunPeriods,
+                chartStyle,
+            },
         });
 
         setSaving(false);
-        if (!saved) {
+        const synced = syncVisualizationPreferencesAfterSave(
+            localStorage,
+            {
+                selectedDimensions,
+                dayunDisplayCount: dayunPeriods,
+                chartStyle,
+            },
+            saved,
+        );
+        if (!synced) {
             setError('保存失败');
         }
     };
@@ -477,6 +523,63 @@ function AISettingsContent() {
                                             className="w-full min-h-[80px] p-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all resize-y text-xs leading-relaxed placeholder:text-foreground-tertiary/50"
                                             placeholder="在此输入你希望 AI 遵循的特殊指令..."
                                         />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 运势可视化 */}
+                        <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
+                            <div className="flex items-center gap-3 mb-4">
+                                <TrendingUp className="w-4 h-4 text-purple-500" />
+                                <h2 className="text-sm font-semibold text-foreground">运势可视化</h2>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">默认展示维度</label>
+                                    <DimensionSelector
+                                        selected={selectedDimensions}
+                                        onChange={setSelectedDimensions}
+                                        minCount={3}
+                                        maxCount={12}
+                                        compact
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">大运展示期数</label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="range"
+                                            min="3"
+                                            max="10"
+                                            value={dayunPeriods}
+                                            onChange={(e) => setDayunPeriods(Number(e.target.value))}
+                                            className="flex-1"
+                                        />
+                                        <span className="text-sm font-mono text-foreground w-8 text-center">{dayunPeriods}</span>
+                                    </div>
+                                    <p className="text-xs text-foreground-secondary">默认显示 {dayunPeriods} 个大运周期</p>
+                                </div>
+
+                                {/* 图表风格 */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">图表风格</label>
+                                    <div className="flex gap-2">
+                                        {CHART_STYLE_OPTIONS.map((style) => (
+                                            <button
+                                                key={style.value}
+                                                onClick={() => setChartStyle(style.value)}
+                                                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                                                    chartStyle === style.value
+                                                        ? 'border-accent bg-accent/10 text-accent font-medium'
+                                                        : 'border-border bg-background-secondary/50 text-foreground-secondary hover:border-accent/50'
+                                                }`}
+                                            >
+                                                {style.label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

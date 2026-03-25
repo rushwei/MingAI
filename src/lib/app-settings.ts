@@ -1,4 +1,5 @@
 import { getSystemAdminClient } from "@/lib/api-utils";
+import { IS_NODE_TEST_RUNTIME } from "@/lib/runtime";
 
 const PAYMENTS_PAUSED_KEY = "payments_paused";
 
@@ -186,28 +187,49 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
 
 const FEATURE_PREFIX = 'feature_disabled:';
 
+type FeatureToggleRow = {
+  setting_key: string;
+  setting_value: unknown;
+};
+
+function normalizeFeatureToggleRows(rows: FeatureToggleRow[] | null | undefined): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (const row of rows ?? []) {
+    if (!row?.setting_key) continue;
+    const id = row.setting_key.replace(FEATURE_PREFIX, '');
+    result[id] = !!row.setting_value;
+  }
+  return result;
+}
+
+async function readFeatureToggleRows(
+  supabase: ReturnType<typeof getSystemAdminClient>
+): Promise<{ data: FeatureToggleRow[]; error: { message?: string } | null }> {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('setting_key, setting_value')
+    .like('setting_key', `${FEATURE_PREFIX}%`);
+  return { data: data ?? [], error };
+}
+
 /** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
 export async function getFeatureToggles(): Promise<Record<string, boolean>> {
   try {
     const supabase = getSystemAdminClient();
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('setting_key, setting_value')
-      .like('setting_key', `${FEATURE_PREFIX}%`);
+    const { data, error } = await readFeatureToggleRows(supabase);
 
     if (error) {
-      console.error('[app-settings] Failed to read feature toggles:', error.message);
+      if (!IS_NODE_TEST_RUNTIME) {
+        console.error('[app-settings] Failed to read feature toggles:', error.message);
+      }
       return {};
     }
 
-    const result: Record<string, boolean> = {};
-    for (const row of data ?? []) {
-      const id = row.setting_key.replace(FEATURE_PREFIX, '');
-      result[id] = !!row.setting_value;
-    }
-    return result;
+    return normalizeFeatureToggleRows(data);
   } catch (error) {
-    console.error('[app-settings] Failed to read feature toggles:', error);
+    if (!IS_NODE_TEST_RUNTIME) {
+      console.error('[app-settings] Failed to read feature toggles:', error);
+    }
     return {};
   }
 }

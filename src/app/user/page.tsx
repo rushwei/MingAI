@@ -671,7 +671,7 @@ export default function UserPage() {
                     ? [{
                         section: '管理',
                         items: [
-                            { icon: Megaphone, label: '通知发布', href: '/admin/notifications' },
+                            { icon: Megaphone, label: '公告管理', href: '/admin/announcements' },
                             { icon: Wallet, label: '功能与支付管理', href: '/admin/features' },
                             { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
                             { icon: Plug, label: 'MCP 管理', href: '/admin/mcp' },

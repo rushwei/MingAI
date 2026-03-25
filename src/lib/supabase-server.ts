@@ -17,6 +17,7 @@ let cachedAccessTokenExpiresAt = 0;
 let tokenPromise: Promise<string | null> | null = null;
 let hasWarnedMissingSystemSession = false;
 const SYSTEM_ADMIN_SESSION_REQUIRED = process.env.NODE_ENV === 'production';
+import { IS_NODE_TEST_RUNTIME } from '@/lib/runtime';
 const MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR = 'Missing SUPABASE_SYSTEM_ADMIN_EMAIL or SUPABASE_SYSTEM_ADMIN_PASSWORD';
 
 function getSystemAuthClient(): SupabaseClient {
@@ -91,7 +92,7 @@ export function getSystemAdminClient(): SupabaseClient {
         auth: { persistSession: false, autoRefreshToken: false },
         accessToken: async () => {
             const token = await getSystemAccessToken();
-            if (!token && !hasWarnedMissingSystemSession) {
+            if (!token && !hasWarnedMissingSystemSession && !IS_NODE_TEST_RUNTIME) {
                 hasWarnedMissingSystemSession = true;
                 const warning = SYSTEM_ADMIN_SESSION_REQUIRED
                     ? `[supabase-server] ${MISSING_SYSTEM_ADMIN_CREDENTIALS_ERROR}`

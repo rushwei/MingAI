@@ -2,14 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    buildChatMessageChartInfo,
-    buildChatRequestChartIds,
     getVisibleSourcePanelState,
     sanitizeChatMentions,
-    sanitizeSelectedCharts,
 } from '../lib/chat/feature-normalization';
 
-test('chat feature normalization should drop disabled mentions and chart payloads', () => {
+test('chat feature normalization should drop disabled mentions', () => {
     const mentions = sanitizeChatMentions(
         [
             { type: 'knowledge_base', id: 'kb-1', name: '知识库', preview: 'kb' },
@@ -25,69 +22,9 @@ test('chat feature normalization should drop disabled mentions and chart payload
     assert.deepEqual(mentions, [
         { type: 'ming_record', id: 'record-1', name: '记录', preview: 'record' },
     ]);
+});
 
-    const selectedCharts = sanitizeSelectedCharts(
-        {
-            bazi: { id: 'bazi-1', name: '甲子', info: '八字' },
-            ziwei: { id: 'ziwei-1', name: '紫微', info: '紫微' },
-        },
-        {
-            baziEnabled: false,
-            ziweiEnabled: true,
-        }
-    );
-
-    assert.deepEqual(selectedCharts, {
-        ziwei: { id: 'ziwei-1', name: '紫微', info: '紫微' },
-    });
-
-    assert.equal(
-        buildChatRequestChartIds(
-            {
-                bazi: { id: 'bazi-1', name: '甲子', info: '八字', analysisMode: 'mangpai' },
-                ziwei: { id: 'ziwei-1', name: '紫微', info: '紫微' },
-            },
-            {
-                baziEnabled: false,
-                ziweiEnabled: true,
-            }
-        )?.baziId,
-        undefined
-    );
-
-    assert.deepEqual(
-        buildChatRequestChartIds(
-            {
-                bazi: { id: 'bazi-1', name: '甲子', info: '八字', analysisMode: 'mangpai' },
-                ziwei: { id: 'ziwei-1', name: '紫微', info: '紫微' },
-            },
-            {
-                baziEnabled: true,
-                ziweiEnabled: false,
-            }
-        ),
-        {
-            baziId: 'bazi-1',
-            baziAnalysisMode: 'mangpai',
-        }
-    );
-
-    assert.deepEqual(
-        buildChatMessageChartInfo(
-            {
-                bazi: { id: 'bazi-1', name: '甲子', info: '八字' },
-                ziwei: { id: 'ziwei-1', name: '紫微', info: '紫微' },
-            },
-            {
-                baziEnabled: false,
-                ziweiEnabled: true,
-            }
-        ),
-        {
-            ziweiName: '紫微',
-        }
-    );
-
+test('getVisibleSourcePanelState should filter by enabled types', () => {
     assert.deepEqual(
         getVisibleSourcePanelState(
             {

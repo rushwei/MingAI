@@ -8,11 +8,6 @@ import { hydrateConversationMessages } from '@/lib/ai/ai-analysis-query';
 import { normalizeConversationSourceType } from '@/lib/source-contracts';
 import type { AIPersonality, ChatMessage, Conversation } from '@/types';
 
-export interface ConversationWithContext extends Conversation {
-    baziContext?: string;
-    ziweiContext?: string;
-}
-
 export interface PaginatedMessages {
     messages: ChatMessage[];
     total: number;
@@ -22,8 +17,6 @@ export interface PaginatedMessages {
 type ConversationApiRow = {
     id: string;
     user_id: string;
-    bazi_chart_id?: string | null;
-    ziwei_chart_id?: string | null;
     personality?: string | null;
     title?: string | null;
     messages?: ChatMessage[] | null;
@@ -33,11 +26,6 @@ type ConversationApiRow = {
     source_data?: Record<string, unknown> | null;
     is_archived?: boolean | null;
     archived_kb_ids?: string[] | null;
-};
-
-type ConversationContextResponse = {
-    baziName?: string;
-    ziweiName?: string;
 };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -65,8 +53,6 @@ function toConversation(row: ConversationApiRow): Conversation {
     return {
         id: row.id,
         userId: row.user_id,
-        baziChartId: row.bazi_chart_id ?? undefined,
-        ziweiChartId: row.ziwei_chart_id ?? undefined,
         personality: normalizePersonality(row.personality),
         title: row.title || '新对话',
         messages: hydrateConversationMessages(row.messages || [], row.source_data || undefined),
@@ -87,8 +73,6 @@ export async function createConversation(params: {
     userId: string;
     personality?: AIPersonality;
     title?: string;
-    baziChartId?: string;
-    ziweiChartId?: string;
 }): Promise<string | null> {
     void params.userId;
 
@@ -98,8 +82,6 @@ export async function createConversation(params: {
         body: JSON.stringify({
             personality: params.personality || 'general',
             title: params.title || '新对话',
-            baziChartId: params.baziChartId ?? null,
-            ziweiChartId: params.ziweiChartId ?? null,
             messages: [],
         }),
     });
@@ -227,51 +209,6 @@ export async function updateConversationPersonality(
     }
 
     return true;
-}
-
-export async function updateConversationCharts(
-    conversationId: string,
-    charts: { baziChartId?: string | null; ziweiChartId?: string | null }
-): Promise<boolean> {
-    const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'PATCH',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-            baziChartId: charts.baziChartId ?? null,
-            ziweiChartId: charts.ziweiChartId ?? null,
-        }),
-    });
-
-    if (!response.ok) {
-        console.error('[conversation] 更新对话命盘失败');
-        return false;
-    }
-
-    return true;
-}
-
-export async function getConversationContext(conversationId: string): Promise<string> {
-    const response = await fetch(`/api/conversations/${conversationId}?includeContext=1`, {
-        credentials: 'include',
-    });
-
-    if (!response.ok) {
-        return '';
-    }
-
-    const payload = await parseJson<{
-        context?: ConversationContextResponse | null;
-    }>(response);
-
-    const parts: string[] = [];
-    if (payload?.context?.baziName) {
-        parts.push(`用户八字命盘(${payload.context.baziName})已关联`);
-    }
-    if (payload?.context?.ziweiName) {
-        parts.push(`用户紫微命盘(${payload.context.ziweiName})已关联`);
-    }
-
-    return parts.join('。');
 }
 
 export function generateConversationTitle(messages: ChatMessage[]): string {

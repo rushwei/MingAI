@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { getModelContextInfo, getPromptBudget, buildPromptWithSources } from '@/lib/ai/prompt-builder';
-import { buildDreamContextPayload, loadChartContext, type ChartIds } from '@/lib/chat/chat-context';
+import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
@@ -12,6 +12,7 @@ import {
     normalizeUserSettings,
     USER_SETTINGS_SELECT,
 } from '@/lib/user/settings';
+import { normalizeVisualizationSettings } from '@/lib/visualization/settings';
 import type { requireUserContext } from '@/lib/api-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import type { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
@@ -27,7 +28,7 @@ const PREVIEW_TEXT_LIMIT = 500;
 export interface PreviewRequestBody {
     model?: unknown;
     reasoning?: unknown;
-    chartIds?: ChartIds;
+    mangpaiMode?: boolean;
     dreamMode?: unknown;
     difyContext?: DifyContext;
     mentions?: unknown;
@@ -36,6 +37,7 @@ export interface PreviewRequestBody {
     expressionStyle?: unknown;
     customInstructions?: unknown;
     userProfile?: unknown;
+    visualizationSettings?: unknown;
 }
 
 export type PreviewContextResult = {
@@ -93,7 +95,8 @@ function hasSettingsOverrides(body: PreviewRequestBody): boolean {
         || body.expressionStyle === 'gentle'
         || typeof body.customInstructions === 'string'
         || body.customInstructions === null
-        || body.userProfile !== undefined;
+        || body.userProfile !== undefined
+        || body.visualizationSettings !== undefined;
 }
 
 function mergeUserSettings(base: UserSettingsSnapshot, body: PreviewRequestBody): UserSettingsSnapshot {
@@ -104,12 +107,14 @@ function mergeUserSettings(base: UserSettingsSnapshot, body: PreviewRequestBody)
             ? ''
             : base.customInstructions;
     const userProfile = body.userProfile !== undefined ? body.userProfile : base.userProfile;
+    const visualizationSettings = normalizeVisualizationSettings(body.visualizationSettings) || base.visualizationSettings;
 
     return {
         ...base,
         expressionStyle: expressionStyle as ExpressionStyle,
         customInstructions,
         userProfile,
+        visualizationSettings,
     };
 }
 
@@ -213,12 +218,13 @@ async function buildSharedPreviewContext({
   const sharedContext = await sharedPromptContextBuilder({
         body: {
             messages: messagePayload,
-            chartIds: body.chartIds,
+            mangpaiMode: body.mangpaiMode,
             dreamMode: body.dreamMode === true,
             difyContext: body.difyContext,
             mentions: requestMentions,
             model: requestedModelId,
             reasoning: reasoningEnabled,
+            visualizationSettings: normalizeVisualizationSettings(body.visualizationSettings),
         },
         userId: auth.user.id,
         canSkipCredit: false,
@@ -293,11 +299,12 @@ async function buildOverridePreviewContext({
         ? await buildKnowledgeHits(auth, userQuestionForSearch, accessTokenForKB, promptKbIds)
         : [];
 
-    const chartContext = body.chartIds && (body.chartIds.baziId || body.chartIds.ziweiId)
-        ? await loadChartContext(body.chartIds, auth.user.id)
-        : undefined;
     const dreamPayload = body.dreamMode === true
         ? (await buildDreamContextPayload(auth.user.id)).payload
+        : undefined;
+
+    const promptChartContext = body.mangpaiMode
+        ? { analysisMode: 'mangpai' as const }
         : undefined;
 
     const promptBuild = await buildPromptWithSources({
@@ -307,7 +314,7 @@ async function buildOverridePreviewContext({
         mentions: resolvedMentions,
         knowledgeHits,
         userSettings,
-        chartContext: chartContext ? { ...chartContext, analysisMode: body.chartIds?.baziAnalysisMode } : undefined,
+        chartContext: promptChartContext,
         dreamMode: body.dreamMode === true ? {
             enabled: true,
             baziText: dreamPayload?.baziText,

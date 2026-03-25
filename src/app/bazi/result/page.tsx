@@ -110,11 +110,9 @@ function BaziResultContent() {
                 loadSavedChart('bazi', chartId),
                 loadLatestConversationAnalysisSnapshot({
                     sourceType: 'bazi_wuxing',
-                    baziChartId: chartId,
                 }),
                 loadLatestConversationAnalysisSnapshot({
                     sourceType: 'bazi_personality',
-                    baziChartId: chartId,
                 }),
             ]).then(([chartData, wuxingAnalysis, personalityAnalysis]) => {
                 const data = chartData as SavedBaziChartRow | null;

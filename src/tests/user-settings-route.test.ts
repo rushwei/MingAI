@@ -24,6 +24,11 @@ test('user settings route should return normalized settings bundle for the curre
                   custom_instructions: 'keep calm',
                   user_profile: { career: 'engineer' },
                   prompt_kb_ids: ['kb-2', 'kb-1'],
+                  visualization_settings: {
+                    selectedDimensions: ['career', 'wealth'],
+                    dayunDisplayCount: 6,
+                    chartStyle: 'dark',
+                  },
                   sidebar_config: { hiddenNavItems: ['qimen'] },
                 },
                 error: null,
@@ -46,6 +51,11 @@ test('user settings route should return normalized settings bundle for the curre
   assert.equal(response.status, 200);
   assert.equal(payload.settings.expressionStyle, 'gentle');
   assert.deepEqual(payload.settings.promptKbIds, ['kb-2', 'kb-1']);
+  assert.deepEqual(payload.settings.visualizationSettings, {
+    selectedDimensions: ['career', 'wealth'],
+    dayunDisplayCount: 6,
+    chartStyle: 'dark',
+  });
   assert.deepEqual(payload.settings.sidebarConfig.hiddenNavItems, ['qimen']);
 });
 
@@ -70,6 +80,11 @@ test('user settings route PATCH should update only user_settings without touchin
                   notifications_enabled: false,
                   notify_email: false,
                   notify_site: false,
+                  visualization_settings: {
+                    selectedDimensions: ['career', 'health'],
+                    dayunDisplayCount: 4,
+                    chartStyle: 'modern',
+                  },
                 },
                 error: null,
               }),
@@ -88,11 +103,23 @@ test('user settings route PATCH should update only user_settings without touchin
   const response = await PATCH(new NextRequest('http://localhost/api/user/settings', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notificationsEnabled: false }),
+    body: JSON.stringify({
+      notificationsEnabled: false,
+      visualizationSettings: {
+        selectedDimensions: ['career', 'health'],
+        dayunDisplayCount: 4,
+        chartStyle: 'modern',
+      },
+    }),
   }));
   const payload = await response.json();
 
   assert.equal(response.status, 200);
   assert.equal(payload.settings.notificationsEnabled, false);
+  assert.deepEqual(payload.settings.visualizationSettings, {
+    selectedDimensions: ['career', 'health'],
+    dayunDisplayCount: 4,
+    chartStyle: 'modern',
+  });
   assert.deepEqual(touchedTables, ['user_settings', 'user_settings']);
 });
