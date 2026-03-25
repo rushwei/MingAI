@@ -52,6 +52,8 @@ interface ComposerToolbarProps {
     contextProgressPercent: number;
     promptProgressPercent: number;
     promptUsageLabel: string;
+    promptPreviewTokens: number;
+    promptPreviewBudget: number;
     displayLayers: PromptLayerDiagnostic[];
     displayUserMessageTokens: number;
     formatLayerLabel: (layerId: string) => string;
@@ -82,6 +84,7 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
         promptPreviewLoading, hasPromptDiagnostics, promptDiagnosticsOpen,
         setPromptDiagnosticsOpen, contextProgressPercent, promptProgressPercent,
         promptUsageLabel, displayLayers, displayUserMessageTokens, formatLayerLabel,
+        promptPreviewTokens, promptPreviewBudget,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange, membershipType,
         disabled, isLoading, isSendingToList, dreamContextLoading, handleButtonClick,
     } = props;
@@ -256,6 +259,8 @@ export function ComposerToolbar(props: ComposerToolbarProps) {
                         contextProgressPercent={contextProgressPercent}
                         promptProgressPercent={promptProgressPercent}
                         promptUsageLabel={promptUsageLabel}
+                        promptPreviewTokens={promptPreviewTokens}
+                        promptPreviewBudget={promptPreviewBudget}
                         displayLayers={displayLayers}
                         displayUserMessageTokens={displayUserMessageTokens}
                         formatLayerLabel={formatLayerLabel}

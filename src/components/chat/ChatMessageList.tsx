@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import type { ChatMessage, Mention } from '@/types';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 
-export interface ChatMessageListProps {
+interface ChatMessageListProps {
     messages: ChatMessage[];
     isLoading: boolean;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;

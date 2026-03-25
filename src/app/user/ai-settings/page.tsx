@@ -24,6 +24,7 @@ import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
+import { formatPromptLayerLabel, groupPromptLayers } from '@/lib/chat/prompt-labels';
 
 type ExpressionStyle = 'direct' | 'gentle';
 
@@ -34,17 +35,7 @@ const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string
 ];
 
 const USER_PROFILE_LIMIT = 120;
-const CUSTOM_INSTRUCTIONS_LIMIT = 500;
-const LAYER_LABELS: Record<string, string> = {
-    base_rules: '通用准则',
-    personality_role: '专业分析师',
-    data_priority: '数据优先级',
-    mentioned_data: '显式提及',
-    knowledge_hits: '知识库命中',
-    expression_style: '表达风格',
-    user_profile: '关于你',
-    custom_instructions: '自定义指令'
-};
+const CUSTOM_INSTRUCTIONS_LIMIT = 4000;
 
 export default function AISettingsPage() {
     return (
@@ -81,7 +72,7 @@ function AISettingsContent() {
 
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
-    const [previewLayers, setPreviewLayers] = useState<Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>>([]);
+    const [previewLayers, setPreviewLayers] = useState<Array<{ id: string; priority?: string; reason?: string; included: boolean; tokens: number; truncated: boolean }>>([]);
     const [previewTotalTokens, setPreviewTotalTokens] = useState(0);
     const [previewBudgetTotal, setPreviewBudgetTotal] = useState(0);
     const [previewPromptKbs, setPreviewPromptKbs] = useState<Array<{ id: string; name: string }>>([]);
@@ -204,7 +195,7 @@ function AISettingsContent() {
                     const data = await resp.json() as {
                         totalTokens: number;
                         budgetTotal: number;
-                        diagnostics: Array<{ id: string; included: boolean; tokens: number; truncated: boolean }>;
+                        diagnostics: Array<{ id: string; priority?: string; reason?: string; included: boolean; tokens: number; truncated: boolean }>;
                         promptKnowledgeBases?: Array<{ id: string; name: string }>;
                     };
 
@@ -508,7 +499,7 @@ function AISettingsContent() {
                                 {/* 自定义指令 */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between gap-2 ml-1">
-                                        <label className="text-[10px] font-medium text-foreground-secondary">自定义指令 (System Prompt)</label>
+                                        <label className="text-[10px] font-medium text-foreground-secondary">自定义指令（系统提示词）</label>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded border ${customInstructions.length >= CUSTOM_INSTRUCTIONS_LIMIT
                                             ? 'bg-red-500/10 border-red-500/20 text-red-500'
                                             : 'bg-background border-border text-foreground-tertiary'
@@ -597,7 +588,7 @@ function AISettingsContent() {
                             <div className="space-y-6">
                                 {knowledgeBaseFeatureEnabled && (
                                 <div>
-                                    <label className="text-xs font-medium text-foreground-secondary mb-3 block uppercase tracking-wider">生效的知识库</label>
+                                    <label className="text-xs font-medium text-foreground-secondary mb-3 block">生效的知识库</label>
                                     {membershipType === 'free' ? (
                                         <div className="p-3 rounded-xl bg-background border border-border border-dashed text-xs text-foreground-secondary text-center">
                                             仅限 Plus 以上会员使用
@@ -629,7 +620,7 @@ function AISettingsContent() {
                                     <div className="bg-background rounded-2xl p-4 border border-border">
                                         <div className="flex items-center gap-2 text-xs text-foreground-secondary mb-2">
                                             <Zap className="w-3.5 h-3.5" />
-                                            Token 消耗
+                                            Token 用量
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <span className="text-2xl font-bold font-mono text-foreground">
@@ -682,8 +673,8 @@ function AISettingsContent() {
                                 )}
 
                                 <div className="space-y-2.5">
-                                    <label className="text-xs font-medium text-foreground-secondary block uppercase tracking-wider">Prompt 结构</label>
-                                    {previewLayers.map((layer, index) => (
+                                    <label className="text-xs font-medium text-foreground-secondary block">提示词结构</label>
+                                    {groupPromptLayers(previewLayers).map((layer, index) => (
                                         <div
                                             key={layer.id}
                                             className={`flex items-center justify-between gap-3 text-xs p-3 rounded-xl border transition-all ${layer.included
@@ -693,13 +684,13 @@ function AISettingsContent() {
                                         >
                                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                                 <span className="font-mono text-foreground-tertiary w-4 text-center">{index + 1}</span>
-                                                <span className="text-foreground font-medium truncate" title={LAYER_LABELS[layer.id] || layer.id}>
-                                                    {LAYER_LABELS[layer.id] || layer.id}
+                                                <span className="text-foreground font-medium truncate" title={formatPromptLayerLabel(layer.id)}>
+                                                    {formatPromptLayerLabel(layer.id)}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3 flex-shrink-0">
                                                 <span className="font-mono text-foreground-secondary bg-background px-1.5 py-0.5 rounded text-[10px]">
-                                                    {layer.tokens}t
+                                                    {layer.tokens}
                                                 </span>
                                                 {layer.included ? (
                                                     <div className={`w-2 h-2 rounded-full ring-2 ring-offset-1 ring-offset-background ${layer.truncated ? 'bg-amber-500 ring-amber-500/30' : 'bg-emerald-500 ring-emerald-500/30'}`} title={layer.truncated ? '截断' : '已注入'} />

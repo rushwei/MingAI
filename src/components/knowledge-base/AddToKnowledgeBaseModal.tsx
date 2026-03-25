@@ -13,8 +13,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
-
-type KnowledgeBaseSummary = { id: string; name: string; description: string | null };
+import type { KnowledgeBaseSummary } from '@/components/chat/composer/useComposerState';
 
 export function AddToKnowledgeBaseModal({
     open,

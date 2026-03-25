@@ -10,6 +10,7 @@ import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
+import { formatPromptLayerLabel } from '@/lib/chat/prompt-labels';
 import { supabase } from '@/lib/auth';
 import { mentionTypeLabels } from '@/components/chat/mentionStyles';
 import type { DataSourceType, DataSourceSummary, DataSourceLoadError } from '@/lib/data-sources/types';
@@ -121,30 +122,21 @@ export function useComposerState(opts: UseComposerStateOptions) {
 
     // --- Helpers ---
     const formatLayerLabel = useCallback((layerId: string) => {
-        if (layerId.startsWith('mention_')) {
-            const mentionId = layerId.replace('mention_', '');
-            const mention = mentionMap.get(mentionId);
-            if (!mention) return '提及·数据';
-            const typeLabel = mentionTypeLabels[mention.type] || mentionTypeLabels.default;
-            return `提及·${typeLabel}${mention.name ? `·${mention.name}` : ''}`;
-        }
-        if (layerId.startsWith('kb_')) {
-            const kbId = layerId.replace('kb_', '');
-            const kbName = kbNameMap.get(kbId);
-            return `知识库${kbName ? `·${kbName}` : ''}`;
-        }
-        if (layerId === 'chart_context') {
-            return '命盘';
-        }
-        if (layerId === 'base_rules') return '通用准则';
-        if (layerId === 'personality_role') return '专业分析师';
-        if (layerId === 'expression_style') return '表达风格';
-        if (layerId === 'user_profile') return '用户画像';
-        if (layerId === 'custom_instructions') return '自定义指令';
-        if (layerId === 'mangpai_data') return '盲派口诀';
-        if (layerId === 'dream_bazi') return '解梦·命盘信息';
-        if (layerId === 'dream_fortune') return '解梦·今日运势';
-        return layerId;
+        return formatPromptLayerLabel(layerId, (id) => {
+            if (id.startsWith('mention_')) {
+                const mentionId = id.replace('mention_', '');
+                const mention = mentionMap.get(mentionId);
+                if (!mention) return undefined;
+                const typeLabel = mentionTypeLabels[mention.type] || mentionTypeLabels.default;
+                return `提及·${typeLabel}${mention.name ? `·${mention.name}` : ''}`;
+            }
+            if (id.startsWith('kb_')) {
+                const kbId = id.replace('kb_', '');
+                const kbName = kbNameMap.get(kbId);
+                return `知识库${kbName ? `·${kbName}` : ''}`;
+            }
+            return undefined;
+        });
     }, [kbNameMap, mentionMap]);
 
     const readMentionCache = useCallback(<T,>(key: string): T | null => {
@@ -251,6 +243,7 @@ export function useComposerState(opts: UseComposerStateOptions) {
                         reasoning: reasoningEnabled,
                         mentions: previewMentions,
                         messages: contextMessages,
+                        mangpaiMode: chatMode === 'mangpai' || undefined,
                         dreamMode: chatMode === 'dream' || undefined
                     }),
                     signal: abortController.signal

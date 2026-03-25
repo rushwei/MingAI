@@ -7,6 +7,7 @@
 'use client';
 
 import type { PromptLayerDiagnostic } from '@/types';
+import { groupPromptLayers } from '@/lib/chat/prompt-labels';
 
 interface PromptPreviewProps {
     promptPreviewLoading: boolean;
@@ -16,6 +17,8 @@ interface PromptPreviewProps {
     contextProgressPercent: number;
     promptProgressPercent: number;
     promptUsageLabel: string;
+    promptPreviewTokens: number;
+    promptPreviewBudget: number;
     displayLayers: PromptLayerDiagnostic[];
     displayUserMessageTokens: number;
     formatLayerLabel: (layerId: string) => string;
@@ -29,6 +32,8 @@ export function PromptPreview({
     contextProgressPercent,
     promptProgressPercent,
     promptUsageLabel,
+    promptPreviewTokens,
+    promptPreviewBudget,
     displayLayers,
     displayUserMessageTokens,
     formatLayerLabel,
@@ -85,8 +90,14 @@ export function PromptPreview({
                         <div className="flex items-center justify-between font-medium text-foreground-secondary">
                             <span>提示词使用</span>
                             <span className="tabular-nums">
-                                {promptProgressPercent}%
+                                {promptPreviewTokens} / {promptPreviewBudget}
                             </span>
+                        </div>
+                        <div className="w-full bg-border/50 h-1 rounded-full mt-1.5 mb-2 overflow-hidden">
+                            <div
+                                className="h-full bg-accent transition-all duration-300"
+                                style={{ width: `${promptProgressPercent}%` }}
+                            />
                         </div>
                         <div className="mt-2 max-h-40 overflow-auto space-y-1">
                             {displayUserMessageTokens > 0 && (
@@ -99,7 +110,7 @@ export function PromptPreview({
                                     </span>
                                 </div>
                             )}
-                            {displayLayers.map((layer) => (
+                            {groupPromptLayers(displayLayers).map((layer) => (
                                 <div key={layer.id} className="flex items-center justify-between gap-2">
                                     <span className={`truncate ${layer.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
                                         {layer.priority ? `${layer.priority} · ` : ''}

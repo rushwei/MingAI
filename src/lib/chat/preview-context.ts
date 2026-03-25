@@ -18,6 +18,7 @@ import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import type { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
+import { extractUserQuestion } from '@/lib/chat/message-utils';
 
 type PreviewAuthContext = Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>;
 type PreviewMembershipType = ResolvedChatRequest['membershipType'];
@@ -79,15 +80,6 @@ function getRequestMentions(mentions: unknown): Mention[] {
         const item = entry as { type?: unknown; name?: unknown };
         return typeof item.type === 'string' && typeof item.name === 'string';
     });
-}
-
-function extractUserQuestion(rawUserContent: string): string {
-    const marker = '【用户的问题如下】';
-    const index = rawUserContent.lastIndexOf(marker);
-    if (index >= 0) {
-        return rawUserContent.slice(index + marker.length).trim();
-    }
-    return rawUserContent.trim();
 }
 
 function hasSettingsOverrides(body: PreviewRequestBody): boolean {

@@ -501,7 +501,7 @@ export function ImportExportModal({
 // =====================================================
 // 知识库归档模态框
 // =====================================================
-export interface KnowledgeBaseModalProps {
+interface KnowledgeBaseModalProps {
     targetRecord: MingRecord;
     kbLoading: boolean;
     kbSaving: boolean;

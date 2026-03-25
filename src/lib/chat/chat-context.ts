@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { countTokens } from '@/lib/token-utils';
+import { truncateToTokens } from '@/lib/token-utils';
 import { baziProvider } from '@/lib/data-sources/bazi';
 import { dailyFortuneProvider } from '@/lib/data-sources/fortune';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
@@ -14,16 +14,6 @@ export type DreamContextPayload = {
 
 const MAX_BAZI_TOKENS = 1500;
 const MAX_FORTUNE_TOKENS = 500;
-
-function truncateToTokens(text: string, maxTokens: number): string {
-    if (!text) return '';
-    const tokens = countTokens(text);
-    if (tokens <= maxTokens) return text;
-
-    const ratio = maxTokens / tokens;
-    const targetLength = Math.floor(text.length * ratio * 0.9);
-    return text.slice(0, targetLength) + '...（已截断）';
-}
 
 export async function buildDreamContextPayload(userId: string): Promise<{ payload: DreamContextPayload; context: { baziChartName?: string; dailyFortune?: string } }> {
     const supabase = getSystemAdminClient();

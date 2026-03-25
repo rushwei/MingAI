@@ -6,15 +6,7 @@
 
 import { NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { buildDreamContextPayload, type DreamContextPayload } from '@/lib/chat/chat-context';
-
-export interface DreamContextResponse {
-    dreamContext: {
-        baziChartName?: string;
-        dailyFortune?: string;
-    };
-    payload: DreamContextPayload;
-}
+import { buildDreamContextPayload } from '@/lib/chat/chat-context';
 
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);

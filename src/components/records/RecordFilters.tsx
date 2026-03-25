@@ -9,7 +9,7 @@
 import { Search, Filter } from 'lucide-react';
 import { RecordCategory, RECORD_CATEGORIES } from '@/lib/records';
 
-export interface RecordFiltersProps {
+interface RecordFiltersProps {
     search: string;
     onSearchChange: (value: string) => void;
     category: RecordCategory | '';

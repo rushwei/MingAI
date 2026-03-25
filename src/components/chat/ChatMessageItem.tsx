@@ -22,7 +22,7 @@ import { SourcePanel } from '@/components/chat/SourcePanel';
 import { buildMentionHighlightedParts } from '@/components/chat/mentionHighlight';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 
-export interface ChatMessageItemProps {
+interface ChatMessageItemProps {
     message: ChatMessage;
     isStreamingAI: boolean;
     isLastMessage: boolean;

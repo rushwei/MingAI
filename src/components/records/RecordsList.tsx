@@ -147,7 +147,7 @@ function RecordCard({
 // =====================================================
 // 记录列表（含分页）
 // =====================================================
-export interface RecordsListProps {
+interface RecordsListProps {
     loading: boolean;
     records: MingRecord[];
     page: number;

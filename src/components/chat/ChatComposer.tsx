@@ -123,6 +123,7 @@ export function ChatComposer({
         promptProgressPercent, contextProgressPercent,
         hasPromptDiagnostics, displayLayers, displayUserMessageTokens,
         promptUsageLabel, promptPreviewLoading,
+        promptPreviewTokens, promptPreviewBudget,
         canMentionAnything,
         promptKbIdSet,
         formatLayerLabel, refreshMentionData,
@@ -480,6 +481,8 @@ export function ChatComposer({
                         contextProgressPercent={contextProgressPercent}
                         promptProgressPercent={promptProgressPercent}
                         promptUsageLabel={promptUsageLabel}
+                        promptPreviewTokens={promptPreviewTokens}
+                        promptPreviewBudget={promptPreviewBudget}
                         displayLayers={displayLayers}
                         displayUserMessageTokens={displayUserMessageTokens}
                         formatLayerLabel={formatLayerLabel}
