@@ -18,7 +18,8 @@ const TREND_CONFIG = {
 const ICON_SIZE = { sm: 14, md: 18 } as const;
 
 export default function TrendIndicator({ trend, label, percentage, size = 'md' }: TrendIndicatorProps) {
-  const { Icon, color, prefix } = TREND_CONFIG[trend];
+  const config = TREND_CONFIG[trend] ?? TREND_CONFIG.stable;
+  const { Icon, color, prefix } = config;
   const iconSize = ICON_SIZE[size];
   const textClass = size === 'sm' ? 'text-xs' : 'text-sm';
 

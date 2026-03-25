@@ -54,6 +54,26 @@ export const ADVANCED_DIMENSIONS = ALL_DIMENSIONS.filter(d => d.tier === 'advanc
 
 const dimensionMap = new Map(ALL_DIMENSIONS.map(d => [d.key, d]));
 
+// 中文 label → 英文 key 反向映射（容错 AI 输出中文 key 的情况）
+const labelToKeyMap = new Map<string, FortuneDimensionKey>();
+for (const d of ALL_DIMENSIONS) {
+  labelToKeyMap.set(d.label, d.key);
+  // 支持无分隔符的变体（如"事业学业"→"career"）
+  const normalized = d.label.replace(/[/／·、]/g, '');
+  if (normalized !== d.label) {
+    labelToKeyMap.set(normalized, d.key);
+  }
+}
+
+/**
+ * 将可能的中文 label 或英文 key 归一化为标准 FortuneDimensionKey。
+ * 无法识别时返回 undefined。
+ */
+export function normalizeDimensionKey(raw: string): FortuneDimensionKey | undefined {
+  if (DIMENSION_KEYS.has(raw)) return raw as FortuneDimensionKey;
+  return labelToKeyMap.get(raw);
+}
+
 export function getDimensionConfig(key: FortuneDimensionKey): DimensionConfig {
   const config = dimensionMap.get(key);
   if (!config) throw new Error(`Unknown dimension key: ${key}`);

@@ -53,6 +53,22 @@ const staticComponents: Partial<Components> = {
         </blockquote>
     ),
     hr: () => <hr className="my-6 border-border" />,
+    table: ({ children }) => (
+        <div className="my-4 overflow-x-auto">
+            <table className="w-full border-collapse text-sm">{children}</table>
+        </div>
+    ),
+    thead: ({ children }) => (
+        <thead className="border-b-2 border-border bg-background-secondary/50">{children}</thead>
+    ),
+    tbody: ({ children }) => <tbody className="divide-y divide-border">{children}</tbody>,
+    tr: ({ children }) => <tr className="hover:bg-background-secondary/30">{children}</tr>,
+    th: ({ children }) => (
+        <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>
+    ),
+    td: ({ children }) => (
+        <td className="px-3 py-2 text-foreground-secondary">{children}</td>
+    ),
     strong: ({ children }) => (
         <strong className="font-semibold text-foreground">{children}</strong>
     ),

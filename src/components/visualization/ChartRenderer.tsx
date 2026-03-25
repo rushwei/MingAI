@@ -1,7 +1,8 @@
 'use client';
 
-import { lazy, Suspense, Component, type ReactNode } from 'react';
+import { lazy, Suspense, Component, type ReactNode, useMemo } from 'react';
 import type { ChartData, ChartType } from '@/lib/visualization/chart-types';
+import { normalizeChartData } from '@/lib/visualization/chart-data-extract';
 
 const chartComponents: Record<ChartType, ReturnType<typeof lazy>> = {
   life_fortune_trend: lazy(() => import('./charts/LifeFortuneTrend')),
@@ -78,21 +79,22 @@ class ChartErrorBoundary extends Component<{ children: ReactNode; resetKey: unkn
 }
 
 export default function ChartRenderer({ data, compact = false, className = '' }: ChartRendererProps) {
-  const ChartComponent = chartComponents[data.chartType as ChartType];
+  const normalizedData = useMemo(() => normalizeChartData(data), [data]);
+  const ChartComponent = chartComponents[normalizedData.chartType as ChartType];
 
   if (!ChartComponent) {
     return (
       <div className={`rounded-xl border border-[var(--color-border)] p-4 text-center text-sm text-[var(--color-foreground-secondary)] ${className}`}>
-        暂不支持的图表类型：{data.chartType}
+        暂不支持的图表类型：{normalizedData.chartType}
       </div>
     );
   }
 
   return (
-    <ChartErrorBoundary resetKey={data}>
+    <ChartErrorBoundary resetKey={normalizedData}>
       <Suspense fallback={<ChartSkeleton />}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <ChartComponent data={data as any} compact={compact} className={className} />
+        <ChartComponent data={normalizedData as any} compact={compact} className={className} />
       </Suspense>
     </ChartErrorBoundary>
   );

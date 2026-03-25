@@ -67,6 +67,127 @@ const CHART_HEIGHT_DESKTOP = 300;
 const CHART_HEIGHT_COMPACT = 200;
 const LOW_SCORE_THRESHOLD = 50;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function hasNumericDimensionScore(point: TrendDataPoint): boolean {
+  return Object.entries(point).some(
+    ([key, value]) => isDimensionKey(key) && typeof value === 'number' && Number.isFinite(value),
+  );
+}
+
+export function buildLifeFortuneTrendSeries(data: LifeFortuneTrendData, dayunCount = 5) {
+  const periods = data.data.periods.slice(0, dayunCount);
+  const points: TrendDataPoint[] = [];
+  const boundarySet = new Set<number>();
+  const warnings: Array<{ startAge: number; endAge: number }> = [];
+
+  for (let pIdx = 0; pIdx < periods.length; pIdx++) {
+    const period = periods[pIdx];
+    const scoreEntries = Object.entries(period.scores ?? {}).filter(
+      (entry): entry is [FortuneDimensionKey, number] => isDimensionKey(entry[0]) && isFiniteNumber(entry[1]),
+    );
+
+    if (scoreEntries.length === 0) {
+      continue;
+    }
+
+    if (isFiniteNumber(period.startAge)) {
+      boundarySet.add(period.startAge);
+    }
+
+    const overallScore = scoreEntries.reduce((sum, [, score]) => sum + score, 0) / scoreEntries.length;
+    if (
+      overallScore < LOW_SCORE_THRESHOLD
+      && isFiniteNumber(period.startAge)
+      && isFiniteNumber(period.endAge)
+      && period.endAge >= period.startAge
+    ) {
+      warnings.push({ startAge: period.startAge, endAge: period.endAge });
+    }
+
+    if (period.yearlyScores && period.yearlyScores.length > 0) {
+      for (const ys of period.yearlyScores) {
+        if (!isFiniteNumber(ys.age) || !isFiniteNumber(ys.year) || !isFiniteNumber(ys.overall)) {
+          continue;
+        }
+
+        const point: TrendDataPoint = {
+          age: ys.age,
+          year: ys.year,
+          periodLabel: period.label,
+          periodIndex: pIdx,
+          summary: period.summary,
+          highlights: period.highlights ?? [],
+          warnings: period.warnings ?? [],
+        };
+
+        for (const [key, dimScore] of scoreEntries) {
+          const ratio = overallScore > 0 ? dimScore / overallScore : 1;
+          point[key] = clampScore(ys.overall * ratio);
+        }
+
+        if (hasNumericDimensionScore(point)) {
+          points.push(point);
+        }
+      }
+
+      continue;
+    }
+
+    if (!isFiniteNumber(period.startAge) || !isFiniteNumber(period.endAge)) {
+      continue;
+    }
+
+    const midAge = Math.round((period.startAge + period.endAge) / 2);
+    const derivedYear = isFiniteNumber(data.data.currentYear) && isFiniteNumber(data.data.currentAge)
+      ? data.data.currentYear - data.data.currentAge + midAge
+      : (isFiniteNumber(period.startYear) && isFiniteNumber(period.endYear)
+        ? Math.round((period.startYear + period.endYear) / 2)
+        : Number.NaN);
+
+    if (!isFiniteNumber(derivedYear)) {
+      continue;
+    }
+
+    const point: TrendDataPoint = {
+      age: midAge,
+      year: derivedYear,
+      periodLabel: period.label,
+      periodIndex: pIdx,
+      summary: period.summary,
+      highlights: period.highlights ?? [],
+      warnings: period.warnings ?? [],
+    };
+
+    for (const [key, score] of scoreEntries) {
+      point[key] = clampScore(score);
+    }
+
+    if (hasNumericDimensionScore(point)) {
+      points.push(point);
+    }
+  }
+
+  const lastPeriod = periods[periods.length - 1];
+  if (lastPeriod && isFiniteNumber(lastPeriod.endAge)) {
+    boundarySet.add(lastPeriod.endAge);
+  }
+
+  points.sort((a, b) => a.age - b.age || a.year - b.year);
+
+  return {
+    chartData: points,
+    periodBoundaries: Array.from(boundarySet).sort((a, b) => a - b),
+    warningZones: warnings,
+  };
+}
+
 // ===== Custom Tooltip =====
 
 function TrendTooltip({
@@ -148,98 +269,35 @@ function LifeFortuneTrendInner({
     if (!data.data.periods.length) return DEFAULT_DIMENSIONS;
     const allKeys = new Set<FortuneDimensionKey>();
     for (const period of data.data.periods) {
-      for (const key of Object.keys(period.scores)) {
-        allKeys.add(key as FortuneDimensionKey);
+      for (const key of Object.keys(period.scores ?? {})) {
+        if (isDimensionKey(key)) {
+          allKeys.add(key);
+        }
       }
     }
-    return Array.from(allKeys);
+    return allKeys.size > 0 ? Array.from(allKeys) : DEFAULT_DIMENSIONS;
   }, [data.data.periods]);
+
+  const renderDimensions = useMemo(() => {
+    const selected = activeDimensions.filter((dim) => availableDimensions.includes(dim));
+    return selected.length > 0 ? selected : availableDimensions;
+  }, [activeDimensions, availableDimensions]);
 
   // Dimension toggle handler
   const toggleDimension = useCallback((dim: FortuneDimensionKey) => {
-    setActiveDimensions((prev) => {
-      if (prev.includes(dim)) {
-        if (prev.length === 1) return prev; // keep at least one
-        return prev.filter((d) => d !== dim);
+    setActiveDimensions(() => {
+      if (renderDimensions.includes(dim)) {
+        if (renderDimensions.length === 1) return renderDimensions; // keep at least one
+        return renderDimensions.filter((d) => d !== dim);
       }
-      return [...prev, dim];
+      return [...renderDimensions, dim];
     });
-  }, []);
+  }, [renderDimensions]);
 
-  // Flatten periods into data points for Recharts
-  // Each period becomes one data point at its midpoint age
-  const { chartData, periodBoundaries, warningZones } = useMemo(() => {
-    const periods = data.data.periods.slice(0, dayunCount);
-    const points: TrendDataPoint[] = [];
-    const boundaries: number[] = [];
-    const warnings: Array<{ startAge: number; endAge: number }> = [];
-
-    for (let pIdx = 0; pIdx < periods.length; pIdx++) {
-      const period = periods[pIdx];
-      boundaries.push(period.startAge);
-
-      // Compute overall from active dimensions for warning zone detection
-      const dimKeys = Object.keys(period.scores) as FortuneDimensionKey[];
-      const overallScore = dimKeys.length > 0
-        ? dimKeys.reduce((sum, k) => sum + (period.scores[k] ?? 0), 0) / dimKeys.length
-        : 0;
-
-      if (overallScore < LOW_SCORE_THRESHOLD) {
-        warnings.push({ startAge: period.startAge, endAge: period.endAge });
-      }
-
-      // If yearlyScores exist, use them for smoother curve
-      if (period.yearlyScores && period.yearlyScores.length > 0) {
-        for (const ys of period.yearlyScores) {
-          const point: TrendDataPoint = {
-            age: ys.age,
-            year: ys.year,
-            periodLabel: period.label,
-            periodIndex: pIdx,
-            summary: period.summary,
-            highlights: period.highlights,
-            warnings: period.warnings,
-          };
-          // Spread dimension scores as top-level keys
-          for (const [key, val] of Object.entries(period.scores)) {
-            // Scale per-year score relative to overall
-            const dimScore = val as number;
-            const ratio = ys.overall > 0 ? dimScore / overallScore : 1;
-            point[key] = Math.round(ys.overall * ratio);
-          }
-          points.push(point);
-        }
-      } else {
-        // Single point at midpoint of period
-        const midAge = Math.round((period.startAge + period.endAge) / 2);
-        const midYear = data.data.currentYear - data.data.currentAge + midAge;
-        const point: TrendDataPoint = {
-          age: midAge,
-          year: midYear,
-          periodLabel: period.label,
-          periodIndex: pIdx,
-          summary: period.summary,
-          highlights: period.highlights,
-          warnings: period.warnings,
-        };
-        for (const [key, val] of Object.entries(period.scores)) {
-          point[key] = val as number;
-        }
-        points.push(point);
-      }
-    }
-
-    // Add last boundary
-    const lastPeriod = periods[periods.length - 1];
-    if (lastPeriod) {
-      boundaries.push(lastPeriod.endAge);
-    }
-
-    // Sort by age
-    points.sort((a, b) => a.age - b.age);
-
-    return { chartData: points, periodBoundaries: boundaries, warningZones: warnings };
-  }, [data, dayunCount]);
+  const { chartData, periodBoundaries, warningZones } = useMemo(
+    () => buildLifeFortuneTrendSeries(data, dayunCount),
+    [data, dayunCount],
+  );
 
   // Current age marker
   const currentAge = data.data.currentAge;
@@ -252,7 +310,7 @@ function LifeFortuneTrendInner({
     let min = 100;
     let max = 0;
     for (const point of chartData) {
-      for (const dim of activeDimensions) {
+      for (const dim of renderDimensions) {
         const val = point[dim];
         if (typeof val === 'number') {
           if (val < min) min = val;
@@ -260,13 +318,26 @@ function LifeFortuneTrendInner({
         }
       }
     }
+    if (max < min) {
+      return [0, 100];
+    }
     return [Math.max(0, Math.floor(min / 10) * 10 - 10), Math.min(100, Math.ceil(max / 10) * 10 + 10)];
-  }, [chartData, activeDimensions]);
+  }, [chartData, renderDimensions]);
 
   const { lifeHighlight } = data.data;
+  const hasBestPeriod = Boolean(
+    lifeHighlight?.bestPeriod?.label || lifeHighlight?.bestPeriod?.ages || lifeHighlight?.bestPeriod?.reason,
+  );
+  const hasCurrentStatus = Boolean(lifeHighlight?.currentStatus);
+  const hasTurningPoint = isFiniteNumber(lifeHighlight?.nextTurningPoint?.age);
 
-  if (chartData.length === 0) {
-    return <ChartEmpty message="暂无大运数据" />;
+  const hasRenderableScores = useMemo(
+    () => chartData.some((point) => renderDimensions.some((dim) => typeof point[dim] === 'number')),
+    [chartData, renderDimensions],
+  );
+
+  if (chartData.length === 0 || !hasRenderableScores) {
+    return <ChartEmpty message="图表评分数据不完整" />;
   }
 
   return (
@@ -288,7 +359,7 @@ function LifeFortuneTrendInner({
       {/* Dimension Toggle Chips */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {getDimensionsByKeys(availableDimensions).map((dim) => {
-          const isActive = activeDimensions.includes(dim.key);
+          const isActive = renderDimensions.includes(dim.key);
           return (
             <button
               key={dim.key}
@@ -321,7 +392,7 @@ function LifeFortuneTrendInner({
             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
           >
             <defs>
-              {activeDimensions.map((dim) => (
+              {renderDimensions.map((dim) => (
                 <linearGradient
                   key={`gradient-${dim}`}
                   id={`gradient-${dim}`}
@@ -414,22 +485,24 @@ function LifeFortuneTrendInner({
             ))}
 
             {/* "You are here" reference line */}
-            <ReferenceLine
-              x={currentAge}
-              stroke="var(--color-accent, #D4AF37)"
-              strokeWidth={2}
-              strokeDasharray="4 4"
-              label={{
-                value: '当前',
-                position: 'top',
-                fill: 'var(--color-accent, #D4AF37)',
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            />
+            {isFiniteNumber(currentAge) && (
+              <ReferenceLine
+                x={currentAge}
+                stroke="var(--color-accent, #D4AF37)"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                label={{
+                  value: '当前',
+                  position: 'top',
+                  fill: 'var(--color-accent, #D4AF37)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              />
+            )}
 
             {/* Area layers for each active dimension */}
-            {activeDimensions.map((dim, idx) => (
+            {renderDimensions.map((dim, idx) => (
               <Area
                 key={dim}
                 type="monotone"
@@ -455,9 +528,10 @@ function LifeFortuneTrendInner({
       </div>
 
       {/* Life Highlight Section */}
-      {!compact && lifeHighlight && (
+      {!compact && (hasBestPeriod || hasCurrentStatus || hasTurningPoint) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Best Period */}
+          {hasBestPeriod && (
           <div className="bg-[var(--color-background-secondary)]/50 border border-[var(--color-border)]/50 rounded-xl p-3">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Star className="w-3.5 h-3.5 text-amber-500" />
@@ -475,8 +549,10 @@ function LifeFortuneTrendInner({
               {lifeHighlight.bestPeriod.reason}
             </div>
           </div>
+          )}
 
           {/* Current Status */}
+          {hasCurrentStatus && (
           <div className="bg-[var(--color-background-secondary)]/50 border border-[var(--color-border)]/50 rounded-xl p-3">
             <div className="flex items-center gap-1.5 mb-1.5">
               <MapPin className="w-3.5 h-3.5 text-[var(--color-accent,#D4AF37)]" />
@@ -488,8 +564,10 @@ function LifeFortuneTrendInner({
               {lifeHighlight.currentStatus}
             </div>
           </div>
+          )}
 
           {/* Next Turning Point */}
+          {hasTurningPoint && (
           <div className="bg-[var(--color-background-secondary)]/50 border border-[var(--color-border)]/50 rounded-xl p-3">
             <div className="flex items-center gap-1.5 mb-1.5">
               {lifeHighlight.nextTurningPoint.direction === 'up' ? (
@@ -508,16 +586,17 @@ function LifeFortuneTrendInner({
               {lifeHighlight.nextTurningPoint.reason}
             </div>
           </div>
+          )}
         </div>
       )}
 
       {/* Warning indicators for periods with warnings (non-compact only) */}
-      {!compact && data.data.periods.some((p) => p.warnings.length > 0) && (
+      {!compact && data.data.periods.some((p) => (p.warnings ?? []).length > 0) && (
         <div className="flex items-start gap-2 text-xs text-[var(--color-foreground-secondary)] bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
           <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             {data.data.periods
-              .filter((p) => p.warnings.length > 0)
+              .filter((p) => (p.warnings ?? []).length > 0)
               .slice(0, 3)
               .map((p, i) => (
                 <div key={i}>
