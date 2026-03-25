@@ -83,7 +83,7 @@ test('buildPromptWithSources injects dream and mangpai layers', async () => {
     assert.ok(res.systemPrompt.includes('【今日运势】'));
     assert.ok(res.systemPrompt.includes('盲派'));
     assert.ok(res.systemPrompt.includes('【盲派口诀】'));
-    assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'personality_role' && layer.included));
+    assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id.startsWith('personality_role') && layer.included));
     assert.ok(res.diagnostics.some((layer: { id: string; included: boolean }) => layer.id === 'mangpai_data' && layer.included));
 });
 
@@ -417,8 +417,8 @@ test('buildPersonalityPrompt composes single and multi roles', () => {
     assert.ok(!single.includes('你同时具备以下专业能力'));
 
     const multi = pb.buildPersonalityPrompt(['bazi', 'ziwei']);
-    assert.ok(multi.includes('你同时具备以下专业能力'));
     assert.ok(multi.includes('【八字宗师】'));
-    assert.ok(multi.includes('【紫微宗师】'));
-    assert.ok(multi.includes('综合结论'));
+    assert.ok(multi.includes('【紫微斗数】'));
+    // 多人格直接拼接，不再包装额外指令
+    assert.ok(!multi.includes('你同时具备以下专业能力'));
 });

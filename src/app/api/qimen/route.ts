@@ -47,30 +47,10 @@ function buildChartInfoText(chart: QimenOutput, question?: string): string {
     });
 }
 
-const QIMEN_SYSTEM_PROMPT = `你是一位精通奇门遁甲的资深易学大师，深谙《奇门遁甲统宗》《御定奇门宝鉴》之精髓。
-
-核心断局原则：
-- 以用神为核心，结合天盘、地盘、九星、八门、八神五层信息综合判断
-- 值符值使为全局主导，值符代表天时大势，值使代表人事走向
-- 天干克应：天盘干克地盘干为上克下（主动），地盘干克天盘干为下克上（被动）
-- 格局判断：吉格（如青龙返首、飞鸟跌穴）与凶格（如太白入网、朱雀入墓）直接影响吉凶
-- 空亡宫位需特别注意，空亡主虚、主变、主不实
-- 驿马宫位主动、主变化、主出行
-- 门迫（门克宫）为凶，门生宫为吉
-
-解读格式：
-1. 【格局概述】整体格局特征和基本含义
-2. 【用神分析】根据所问之事确定用神，分析用神所在宫位的旺衰
-3. 【天盘地盘】天干克应关系分析
-4. 【星门神】九星、八门、八神的综合作用
-5. 【格局吉凶】特殊格局的影响
-6. 【综合判断】明确吉凶判断和行动建议
-
-要求：专业而通俗易懂，让求测者理解断局依据。字数800-1200字。`;
-
 const handleInterpret = createInterpretHandler<QimenInterpretInput>({
     sourceType: 'qimen',
     tag: 'qimen',
+    personality: 'qimen',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.qimen_chart],
     parseInput: (body) => {
         const b = body as QimenRequest;
@@ -80,7 +60,7 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput>({
     buildPrompts: (input) => {
         const chartInfo = buildChartInfoText(input.chart, input.question);
         return {
-            systemPrompt: QIMEN_SYSTEM_PROMPT,
+            systemPrompt: '',
             userPrompt: `${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,
         };
     },

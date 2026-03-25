@@ -122,6 +122,7 @@ async function updateTarotReading(
 const handleInterpret = createInterpretHandler<TarotInterpretInput>({
     sourceType: 'tarot',
     tag: 'tarot',
+    personality: 'tarot',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.tarot_reading],
     parseInput: (body) => {
         const b = body as TarotRequest;
@@ -139,15 +140,6 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
         };
     },
     buildPrompts: (input) => {
-        const systemPrompt = `你是一位专业的塔罗牌解读师，精通韦特塔罗牌体系。请根据提供的塔罗牌信息，给出深入、有洞察力的解读。
-
-解读要求：
-1. 结合每张牌的含义和位置进行综合分析
-2. 注意牌之间的关联和互动
-3. 给出具体可操作的建议
-4. 语言温暖有同理心，避免过于负面的表述
-5. 解读应该在 300-500 字之间`;
-
         const spreadName = TAROT_SPREADS.find((spread) => spread.id === input.spreadId)?.name || input.spreadId || '自定义牌阵';
         const userPrompt = generateTarotReadingText({
             spreadName,
@@ -159,7 +151,7 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
             birthDate: input.birthDate,
         });
 
-        return { systemPrompt, userPrompt };
+        return { systemPrompt: '', userPrompt };
     },
     buildSourceData: (input, modelId, reasoningEnabled) => ({
         cards: input.cards,

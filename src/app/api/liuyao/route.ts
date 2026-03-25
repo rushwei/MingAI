@@ -77,37 +77,12 @@ function parseQuestionInput(value: unknown): { question: string; error?: string 
     return { question: value };
 }
 
-const LIUYAO_SYSTEM_PROMPT = `你是一位精通《周易》的资深易学大师，深谙野鹤老人《增删卜易》、王洪绪《卜筮正宗》之精髓。
-
-核心断卦原则：
-- 月建为纲，日辰为领：月建主宰爻的旺衰，日辰可生克冲合
-- 旺相休囚死：爻在月令的五种状态决定其根本力量
-- 暗动与日破：静爻旺相逢日冲为暗动（有力），静爻休囚逢日冲为日破（无力）
-- 空亡论断：静空、动空、冲空、临建都要结合月日与动变，不能单凭一条征象直接定吉凶
-- 用神为核心：先定用神，再看旺衰、生克、动静、空实与世应
-- 取用顺序：本卦明现优先；本卦无用神而变爻化出者，先取变爻；本卦与变爻俱无，再看月建日辰是否可代用；仍无稳定落点时才转伏神
-- 原神忌神仇神：原神生用神为吉，忌神克用神为凶，仇神克原神助忌神
-- 三合局论断：三合、半合都必须结合成局条件，不能见合即断成局
-- 六冲卦论断：六冲多主变动、分散之象，但不能脱离用神独断
-- 伏神论断：伏神只是线索，不等于已经明现；若 selectionStatus=ambiguous，必须说明并看而不是伪造唯一答案
-
-解读格式：
-1. 【卦象概述】本卦象征和基本含义
-2. 【用神分析】用神旺衰、空亡、月日生克情况
-3. 【神系作用】原神、忌神、仇神对用神的影响
-4. 【动变分析】动爻的化进化退、回头生克等（若有动爻）
-5. 【伏神论断】伏神可用性分析（若用神不上卦）
-6. 【世应关系】世爻与应爻的关系分析
-7. 【综合判断】明确吉凶判断和应期建议
-
-要求：专业而通俗易懂，让求卦者理解断卦依据。字数800-1200字。`;
-
-let _liuyaoFullSystemPrompt: string | null = null;
-function getLiuyaoFullSystemPrompt(): string {
-    if (!_liuyaoFullSystemPrompt) {
-        _liuyaoFullSystemPrompt = `${LIUYAO_SYSTEM_PROMPT}\n\n${buildVisualizationOutputContractPrompt([...SOURCE_CHART_TYPE_MAP.liuyao_divination])}`;
+let _liuyaoVizContract: string | null = null;
+function getLiuyaoVizContract(): string {
+    if (!_liuyaoVizContract) {
+        _liuyaoVizContract = buildVisualizationOutputContractPrompt([...SOURCE_CHART_TYPE_MAP.liuyao_divination]);
     }
-    return _liuyaoFullSystemPrompt;
+    return _liuyaoVizContract;
 }
 
 export async function POST(request: NextRequest) {
@@ -266,8 +241,8 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
     try {
         if (stream) {
             const streamResult = await callAIUIMessageResult(
-                [{ role: 'user', content: userPrompt }], 'general',
-                `\n\n${getLiuyaoFullSystemPrompt()}\n\n`, resolvedModelId,
+                [{ role: 'user', content: userPrompt }], 'liuyao',
+                `\n\n${getLiuyaoVizContract()}\n\n`, resolvedModelId,
                 { reasoning: reasoningEnabled, temperature: 0.7 },
             );
             return createPersistentStreamResponse({
@@ -289,8 +264,8 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
         }
 
         const { content, reasoning: reasoningText } = await callAIWithReasoning(
-            [{ role: 'user', content: userPrompt }], 'general', resolvedModelId,
-            `\n\n${getLiuyaoFullSystemPrompt()}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
+            [{ role: 'user', content: userPrompt }], 'liuyao', resolvedModelId,
+            `\n\n${getLiuyaoVizContract()}\n\n`, { reasoning: reasoningEnabled, temperature: 0.7 },
         );
         const conversationId = await persist(content, reasoningText ?? null);
         return jsonOk({ success: true, data: { interpretation: content, reasoning: reasoningText, conversationId } });

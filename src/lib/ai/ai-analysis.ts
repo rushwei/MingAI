@@ -20,6 +20,12 @@ import type { AIPersonality, ChatMessage } from '@/types';
 const SOURCE_PERSONALITY_MAP: Partial<Record<AnalysisSourceType, AIPersonality>> = {
     bazi_wuxing: 'bazi',
     bazi_personality: 'bazi',
+    tarot: 'tarot',
+    liuyao: 'liuyao',
+    mbti: 'mbti',
+    hepan: 'hepan',
+    qimen: 'qimen',
+    daliuren: 'daliuren',
 };
 
 // 创建 AI 分析对话记录的参数

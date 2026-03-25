@@ -37,6 +37,7 @@ interface MBTIInterpretInput extends InterpretInput {
 const handleInterpret = createInterpretHandler<MBTIInterpretInput>({
     sourceType: 'mbti',
     tag: 'mbti',
+    personality: 'mbti',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.mbti_reading],
     parseInput: (body) => {
         const b = body as MBTIRequest;
@@ -52,18 +53,6 @@ const handleInterpret = createInterpretHandler<MBTIInterpretInput>({
     },
     buildPrompts: (input) => {
         const basic = PERSONALITY_BASICS[input.type];
-        const systemPrompt = `你是一位专业的心理学家和 MBTI 性格分析专家。
-请根据用户的 MBTI 测试结果，提供个性化的深度分析和建议。
-
-分析应包括：
-1. 对该类型的深入解读
-2. 结合维度百分比的个性化分析
-3. 职业发展建议
-4. 人际关系建议
-5. 个人成长建议
-
-语言应专业但易懂，具有鼓励性和建设性。
-字数控制在 600-800 字。`;
 
         const userPrompt = `用户的 MBTI 测试结果：
 
@@ -78,7 +67,7 @@ ${basic.description}
 
 请为这位用户提供个性化的深度分析。`;
 
-        return { systemPrompt, userPrompt };
+        return { systemPrompt: '', userPrompt };
     },
     buildSourceData: (input, modelId, reasoningEnabled) => ({
         mbti_type: input.type,

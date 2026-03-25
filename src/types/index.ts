@@ -7,6 +7,7 @@
 
 import type { Mention } from '@/types/mentions';
 import type { ConversationSourceType } from '@/lib/source-contracts';
+import type { InjectedSource } from '@/lib/source-tracker';
 export type { ConversationSourceType } from '@/lib/source-contracts';
 
 // ===== 基础类型 =====
@@ -176,7 +177,7 @@ export interface BaziFormData {
 // ===== AI 对话相关类型 =====
 
 /** AI 人格类型 */
-export type AIPersonality = 'bazi' | 'ziwei' | 'dream' | 'mangpai' | 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'general';
+export type AIPersonality = 'bazi' | 'ziwei' | 'dream' | 'mangpai' | 'tarot' | 'liuyao' | 'mbti' | 'hepan' | 'qimen' | 'daliuren' | 'general';
 
 /** AI 人格配置 */
 export interface AIPersonalityConfig {
@@ -248,15 +249,7 @@ export interface ChatMessage {
     dreamInfo?: DreamInterpretationInfo;
 }
 
-export interface InjectedSource {
-    type: 'knowledge_base' | 'data_source' | 'mention';
-    sourceType?: string;
-    id: string;
-    name: string;
-    preview: string;
-    tokens: number;
-    truncated: boolean;
-}
+export type { InjectedSource };
 
 /** 提示词层优先级 */
 export type PromptLayerPriority = 'P0' | 'P1' | 'P2';
@@ -427,17 +420,6 @@ export interface AIModelConfig {
 export type FortuneLevel = '大吉' | '吉' | '中吉' | '平' | '小凶' | '凶';
 
 // ===== 用户相关类型 =====
-
-/** 用户 */
-export interface User {
-    id: string;
-    phone?: string;
-    wechatOpenId?: string;
-    nickname?: string;
-    avatarUrl?: string;
-    createdAt: string;
-    updatedAt: string;
-}
 
 // ===== Dify 增强功能相关类型 =====
 

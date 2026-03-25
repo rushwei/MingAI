@@ -33,14 +33,6 @@ interface DaliurenInterpretInput extends InterpretInput {
     divinationId?: string;
 }
 
-const DALIUREN_SYSTEM_PROMPT = `你是一位精通大六壬的命理大师，擅长根据六壬课式进行详细解读。
-请根据提供的排盘数据，按以下结构进行分析：
-1. 课义：概括本课的核心含义
-2. 解日：详细解读日干支与三传四课的关系
-3. 断日：给出具体的判断
-4. 分类占：根据占事类型给出具体建议（天时、家宅、功名、求财、婚姻、疾病、出行等）
-请用传统六壬术语，语言简洁有力。`;
-
 function buildDaliurenPrompt(result: DaliurenOutput, question?: string): string {
     return `${generateDaliurenResultText({
         ...result,
@@ -51,6 +43,7 @@ function buildDaliurenPrompt(result: DaliurenOutput, question?: string): string 
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
     sourceType: 'daliuren',
     tag: 'daliuren',
+    personality: 'daliuren',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.daliuren_divination],
     parseInput: (body) => {
         const b = body as DaliurenRequest;
@@ -64,7 +57,7 @@ const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
         };
     },
     buildPrompts: (input) => ({
-        systemPrompt: DALIUREN_SYSTEM_PROMPT,
+        systemPrompt: '',
         userPrompt: buildDaliurenPrompt(input.resultData, input.question as string | undefined),
     }),
     buildSourceData: (input, modelId) => ({

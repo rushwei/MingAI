@@ -26,6 +26,7 @@ interface HepanInterpretInput extends InterpretInput {
 const handleInterpret = createInterpretHandler<HepanInterpretInput>({
     sourceType: 'hepan',
     tag: 'hepan',
+    personality: 'hepan',
     allowedChartTypes: [...SOURCE_CHART_TYPE_MAP.hepan_chart],
     parseInput: (body) => {
         const b = body as HepanRequest;
@@ -41,19 +42,6 @@ const handleInterpret = createInterpretHandler<HepanInterpretInput>({
         const conflictsSummary = result.conflicts.length > 0
             ? result.conflicts.map(c => `[${c.severity}] ${c.title}: ${c.description}`).join('\n')
             : '无明显冲突';
-
-        const systemPrompt = `你是一位资深的命理学家和关系咨询师，精通八字合盘分析。
-请根据提供的合盘分析结果，给出专业、实用的深度解读和相处建议。
-
-分析应包括：
-1. 对整体契合度的解读
-2. 双方相处的优势分析
-3. 需要注意的问题和化解方法
-4. 针对具体关系类型的实用建议
-5. 未来发展展望
-
-语言应温和、建设性，避免过于绝对的论断。
-字数控制在 600-800 字。`;
 
         const userPrompt = `合盘类型：${typeName}
 
@@ -71,7 +59,7 @@ ${conflictsSummary}
 
 请为这对关系提供深度分析和相处建议。`;
 
-        return { systemPrompt, userPrompt };
+        return { systemPrompt: '', userPrompt };
     },
     buildSourceData: (input, modelId, reasoningEnabled) => ({
         type: input.result.type,

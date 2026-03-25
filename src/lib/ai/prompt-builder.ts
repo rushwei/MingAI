@@ -37,8 +37,6 @@ type BaziChartInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'g
     caseProfile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null;
 };
 
-type ZiweiChartInput = ZiweiPromptInput;
-
 export interface PromptContext {
     modelId: string;
     reasoningEnabled?: boolean;
@@ -53,7 +51,7 @@ export interface PromptContext {
     };
     chartContext?: {
         baziChart?: BaziChartInput;
-        ziweiChart?: ZiweiChartInput;
+        ziweiChart?: ZiweiPromptInput;
         analysisMode?: 'traditional' | 'mangpai';
     };
     dreamMode?: {
@@ -121,7 +119,7 @@ export async function calculatePromptBudget(modelId: string, reasoningEnabled?: 
     // 模型默认输出上限，用于估算提示词占比
     const defaultMax = model?.defaultMaxTokens ?? 4000;
     // 提示词占默认输出上限的比例与上限
-    const capRatio = config.promptCapRatio ?? 0.4;
+    const capRatio = config.promptCapRatio ?? 1.0;
     const capLimit = config.maxPromptTokens ?? 4000;
     // 提示词预算下限，避免过低
     const minLimit = config.minPromptTokens ?? 1000;
@@ -143,18 +141,25 @@ function getBaseRulesPrompt(): string {
 3. 再次使用系统已有的命盘和历史数据
 4. 信息不足时明确提示「条件不足，无法准确判断」
 5. 禁止编造不存在的数据
-6. 推理结论需注明数据来源
-
-## 注意事项
-- 保持专业但不迷信
-- 强调命理是参考而非定数
-- 传递积极正向的人生观`;
+6. 推理结论需注明数据来源`;
 }
 
 export interface PersonalityResolution {
     personalities: AIPersonality[];
     isMultiple: boolean;
 }
+
+/** mention.type → AIPersonality 映射（数据驱动，新增占术只需加一行） */
+const MENTION_PERSONALITY_MAP: Partial<Record<string, AIPersonality>> = {
+    bazi_chart: 'bazi',
+    ziwei_chart: 'ziwei',
+    tarot_reading: 'tarot',
+    liuyao_divination: 'liuyao',
+    mbti_reading: 'mbti',
+    hepan_chart: 'hepan',
+    qimen_chart: 'qimen',
+    daliuren_divination: 'daliuren',
+};
 
 export function resolvePersonalities(context: {
     chartContext?: PromptContext['chartContext'];
@@ -174,42 +179,20 @@ export function resolvePersonalities(context: {
 
     if (context.chartContext?.analysisMode === 'mangpai') {
         addPersonality('mangpai');
-    } else {
-        const hasBaziChart = !!context.chartContext?.baziChart;
-        const hasBaziMention = (context.mentions || []).some(mention => mention.type === 'bazi_chart');
-        if (hasBaziChart || hasBaziMention) {
-            addPersonality('bazi');
-        }
+    } else if (context.chartContext?.baziChart) {
+        addPersonality('bazi');
     }
 
-    const hasZiweiChart = !!context.chartContext?.ziweiChart;
-    const hasZiweiMention = (context.mentions || []).some(mention => mention.type === 'ziwei_chart');
-    if (hasZiweiChart || hasZiweiMention) {
+    if (context.chartContext?.ziweiChart) {
         addPersonality('ziwei');
     }
 
-    // 塔罗牌提及
-    const hasTarotMention = (context.mentions || []).some(mention => mention.type === 'tarot_reading');
-    if (hasTarotMention) {
-        addPersonality('tarot');
-    }
-
-    // 六爻提及
-    const hasLiuyaoMention = (context.mentions || []).some(mention => mention.type === 'liuyao_divination');
-    if (hasLiuyaoMention) {
-        addPersonality('liuyao');
-    }
-
-    // MBTI 提及
-    const hasMbtiMention = (context.mentions || []).some(mention => mention.type === 'mbti_reading');
-    if (hasMbtiMention) {
-        addPersonality('mbti');
-    }
-
-    // 合盘提及
-    const hasHepanMention = (context.mentions || []).some(mention => mention.type === 'hepan_chart');
-    if (hasHepanMention) {
-        addPersonality('hepan');
+    // 根据 mention 类型自动匹配人格
+    for (const mention of context.mentions || []) {
+        const personality = MENTION_PERSONALITY_MAP[mention.type];
+        if (personality) {
+            addPersonality(personality);
+        }
     }
 
     if (personalities.length === 0) {
@@ -227,17 +210,11 @@ export function buildPersonalityPrompt(personalities: AIPersonality[]): string {
         return AI_PERSONALITIES[personalities[0]].systemPrompt;
     }
 
-    const roleDescriptions = personalities.map(personality => {
+    // 多人格场景：直接拼接各分析师提示词
+    return personalities.map(personality => {
         const config = AI_PERSONALITIES[personality];
         return `【${config.name}】\n${config.systemPrompt}`;
-    });
-
-    return `你同时具备以下专业能力：
-
-${roleDescriptions.join('\n\n')}
-
-请根据用户问题和提供的数据，选择合适的角色进行分析。
-如涉及多种数据，请分别从各角度分析，最后给出综合结论。`;
+    }).join('\n\n');
 }
 
 const VISUALIZATION_MENTION_TYPES = new Set(
@@ -289,7 +266,7 @@ function formatUserProfile(profile?: unknown): string {
     }
 }
 
-function formatZiweiFallback(chart: ZiweiChartInput): string {
+function formatZiweiFallback(chart: ZiweiPromptInput): string {
     const gender = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : (chart.gender || '');
     return [
         '【紫微命盘】',
@@ -416,9 +393,11 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
         dreamMode: context.dreamMode,
         mentions: context.mentions
     });
-    tryInject('personality_role', 'P0', buildPersonalityPrompt(personalityResolution.personalities));
+    // 层级 ID 编码人格名称，便于客户端显示具体分析师类型
+    const personalityTag = personalityResolution.personalities.join('+');
+    tryInject(`personality_role:${personalityTag}`, 'P0', buildPersonalityPrompt(personalityResolution.personalities));
 
-    if (context.chartContext) {
+    if (context.chartContext && (context.chartContext.baziChart || context.chartContext.ziweiChart)) {
         const chartPrompt = formatChartContextPrompt(context.chartContext);
         if (tryInject('chart_context', 'P1', chartPrompt)) {
             if (context.chartContext.baziChart) {
@@ -531,7 +510,11 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     }
 
     for (const mention of context.mentions || []) {
-        if (!mention.resolvedContent || !mention.id) continue;
+        if (!mention.resolvedContent || !mention.id) {
+            console.log(`[prompt-build] SKIP mention: id=${mention.id ?? 'MISSING'} hasContent=${!!mention.resolvedContent}`);
+            continue;
+        }
+        console.log(`[prompt-build] mention: id=${mention.id} type=${mention.type} contentLen=${mention.resolvedContent.length} remaining=${remaining}`);
         const prepared = tracker.trackAndInject({
             type: 'mention',
             sourceType: mention.type === 'knowledge_base' ? undefined : mention.type,
@@ -594,6 +577,11 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
 
     const userMessagePrefix = formatDifyContextAsUserPrefix(context.difyContext);
     const userMessageTokens = userMessagePrefix ? countTokens(userMessagePrefix) : 0;
+
+    console.log(`[prompt-build] FINAL: parts=${parts.length} totalTokens=${budget - remaining} budget=${budget}`);
+    for (const d of diagnostics) {
+        console.log(`[prompt-build]   layer: id=${d.id} included=${d.included} tokens=${d.tokens} reason=${d.reason ?? '-'}`);
+    }
 
     return {
         systemPrompt: parts.join('\n\n'),
