@@ -5,10 +5,22 @@
  * 此工具函数提取并解析这些 JSON 块，用于图表数据复用。
  */
 
-import type { ChartData, ChartType } from '@/lib/visualization/chart-types';
+import type {
+    ChartData,
+    ChartType,
+    FortuneRadarData,
+    LifeFortuneTrendData,
+} from '@/lib/visualization/chart-types';
 import { getDimensionConfig, normalizeDimensionKey } from '@/lib/visualization/dimensions';
 
 const CHART_BLOCK_REGEX = /```chart\s*\n([\s\S]*?)```/g;
+
+type FortuneRadarPayload = FortuneRadarData['data'];
+type FortuneRadarScores = FortuneRadarPayload['scores'];
+type LifeFortuneTrendPayload = LifeFortuneTrendData['data'];
+type LifeFortuneTrendPeriod = LifeFortuneTrendPayload['periods'][number];
+type LifeFortuneTrendYearlyScore = NonNullable<LifeFortuneTrendPeriod['yearlyScores']>[number];
+type LifeFortuneTrendTurningDirection = LifeFortuneTrendPayload['lifeHighlight']['nextTurningPoint']['direction'];
 
 export interface ExtractedChart {
     chartType: ChartType;
@@ -109,7 +121,7 @@ export function normalizeChartData(chart: ChartData): ChartData {
     return chart;
 }
 
-function normalizeFortuneRadarData(data: Record<string, unknown>) {
+function normalizeFortuneRadarData(data: Record<string, unknown>): FortuneRadarPayload {
     const scores = normalizeRadarScores(data.scores);
     const previousScores = normalizeNumericDimensionScores(data.previousScores);
     const computedOverall = average(Object.values(scores).map((entry) => entry.score));
@@ -125,7 +137,7 @@ function normalizeFortuneRadarData(data: Record<string, unknown>) {
     };
 }
 
-function normalizeLifeFortuneTrendData(data: Record<string, unknown>) {
+function normalizeLifeFortuneTrendData(data: Record<string, unknown>): LifeFortuneTrendPayload {
     const currentAge = toFiniteNumber(data.currentAge);
     const currentYear = toFiniteNumber(data.currentYear);
     const rawPeriods = Array.isArray(data.periods) ? data.periods : [];
@@ -138,7 +150,8 @@ function normalizeLifeFortuneTrendData(data: Record<string, unknown>) {
     const rawBestPeriod = asRecord(rawLifeHighlight?.bestPeriod);
     const rawTurningPoint = asRecord(rawLifeHighlight?.nextTurningPoint);
     const normalizedTurningAge = toFiniteNumber(rawTurningPoint?.age);
-    const normalizedDirection = rawTurningPoint?.direction === 'up' || rawTurningPoint?.direction === 'down'
+    const normalizedDirection: LifeFortuneTrendTurningDirection | undefined =
+        rawTurningPoint?.direction === 'up' || rawTurningPoint?.direction === 'down'
         ? rawTurningPoint.direction
         : undefined;
 
@@ -168,7 +181,7 @@ function normalizeLifeFortuneTrendPeriod(
     index: number,
     currentAge: number | undefined,
     currentYear: number | undefined,
-) {
+): LifeFortuneTrendPeriod | null {
     if (!period) return null;
 
     const scores = normalizeNumericDimensionScores(period.scores);
@@ -218,11 +231,11 @@ function normalizeLifeFortuneTrendPeriod(
     };
 }
 
-function normalizeRadarScores(input: unknown) {
+function normalizeRadarScores(input: unknown): FortuneRadarScores {
     const rawScores = asRecord(input);
     if (!rawScores) return {};
 
-    const result: Record<string, { score: number; label: string; trend: 'up' | 'down' | 'stable' }> = {};
+    const result: FortuneRadarScores = {};
     for (const [rawKey, rawValue] of Object.entries(rawScores)) {
         const key = normalizeDimensionKey(rawKey);
         if (!key) continue;
@@ -240,11 +253,11 @@ function normalizeRadarScores(input: unknown) {
     return result;
 }
 
-function normalizeNumericDimensionScores(input: unknown) {
+function normalizeNumericDimensionScores(input: unknown): LifeFortuneTrendPeriod['scores'] {
     const rawScores = asRecord(input);
     if (!rawScores) return {};
 
-    const result: Record<string, number> = {};
+    const result: LifeFortuneTrendPeriod['scores'] = {};
     for (const [rawKey, rawValue] of Object.entries(rawScores)) {
         const key = normalizeDimensionKey(rawKey);
         if (!key) continue;
@@ -257,7 +270,7 @@ function normalizeNumericDimensionScores(input: unknown) {
     return result;
 }
 
-function normalizeYearlyScores(input: unknown) {
+function normalizeYearlyScores(input: unknown): LifeFortuneTrendYearlyScore[] {
     if (!Array.isArray(input)) return [];
 
     return input
@@ -272,7 +285,7 @@ function normalizeYearlyScores(input: unknown) {
 
             return { age, year, overall };
         })
-        .filter((item): item is { age: number; year: number; overall: number } => item !== null)
+        .filter((item): item is LifeFortuneTrendYearlyScore => item !== null)
         .sort((a, b) => a.age - b.age || a.year - b.year);
 }
 
