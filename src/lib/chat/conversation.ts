@@ -14,6 +14,14 @@ export interface PaginatedMessages {
     hasMore: boolean;
 }
 
+export interface PaginatedConversations {
+    conversations: Conversation[];
+    pagination: {
+        hasMore: boolean;
+        nextOffset: number | null;
+    };
+}
+
 type ConversationApiRow = {
     id: string;
     user_id: string;
@@ -29,7 +37,7 @@ type ConversationApiRow = {
 };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
-const CONVERSATION_PAGE_SIZE = 100;
+const CONVERSATION_PAGE_SIZE = 20;
 const CONVERSATION_MAX_PAGES = 50;
 
 const normalizePersonality = (value?: string | null): AIPersonality => {
@@ -95,35 +103,126 @@ export async function createConversation(params: {
     return payload?.id || null;
 }
 
-export async function loadConversations(userId: string): Promise<Conversation[]> {
+export async function loadConversations(
+    userId: string,
+    options: {
+        limit?: number;
+        offset?: number;
+        signal?: AbortSignal;
+    } = {},
+): Promise<PaginatedConversations | null> {
     void userId;
-    const rows: ConversationApiRow[] = [];
+    const { limit = CONVERSATION_PAGE_SIZE, offset = 0, signal } = options;
+    const response = await fetch(`/api/conversations?limit=${limit}&offset=${offset}`, {
+        credentials: 'include',
+        signal,
+    });
+
+    if (!response.ok) {
+        console.error('[conversation] 加载对话列表失败');
+        return null;
+    }
+
+    const payload = await parseJson<{
+        conversations?: ConversationApiRow[];
+        pagination?: { hasMore?: boolean; nextOffset?: number | null };
+    }>(response);
+
+    return {
+        conversations: (payload?.conversations || []).map(toConversation),
+        pagination: {
+            hasMore: payload?.pagination?.hasMore === true,
+            nextOffset: payload?.pagination?.nextOffset ?? null,
+        },
+    };
+}
+
+export async function loadAllConversations(
+    userId: string,
+    options: {
+        pageSize?: number;
+        signal?: AbortSignal;
+    } = {},
+): Promise<Conversation[]> {
+    const { pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
+    const rows: Conversation[] = [];
     let offset = 0;
 
     for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
-        const response = await fetch(`/api/conversations?limit=${CONVERSATION_PAGE_SIZE}&offset=${offset}`, {
-            credentials: 'include',
+        const payload = await loadConversations(userId, {
+            limit: pageSize,
+            offset,
+            signal,
         });
 
-        if (!response.ok) {
-            console.error('[conversation] 加载对话列表失败');
+        if (!payload) {
             return [];
         }
 
-        const payload = await parseJson<{
-            conversations?: ConversationApiRow[];
-            pagination?: { hasMore?: boolean; nextOffset?: number | null };
-        }>(response);
-
-        rows.push(...(payload?.conversations || []));
-        if (payload?.pagination?.hasMore !== true || payload.pagination.nextOffset == null) {
+        rows.push(...payload.conversations);
+        if (!payload.pagination.hasMore || payload.pagination.nextOffset == null) {
             break;
         }
 
         offset = payload.pagination.nextOffset;
     }
 
-    return rows.map(toConversation);
+    return rows;
+}
+
+export async function loadConversationWindow(
+    userId: string,
+    options: {
+        targetCount: number;
+        preserveIds?: string[];
+        pageSize?: number;
+        signal?: AbortSignal;
+    }
+): Promise<PaginatedConversations | null> {
+    const { targetCount, preserveIds = [], pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
+    const minimumCount = Math.max(targetCount, pageSize);
+    const remainingIds = new Set(preserveIds);
+    const rows: Conversation[] = [];
+    let offset = 0;
+    let hasMore = false;
+    let nextOffset: number | null = null;
+
+    for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
+        const payload = await loadConversations(userId, {
+            limit: pageSize,
+            offset,
+            signal,
+        });
+
+        if (!payload) {
+            return null;
+        }
+
+        rows.push(...payload.conversations);
+        payload.conversations.forEach((conversation) => {
+            remainingIds.delete(conversation.id);
+        });
+        hasMore = payload.pagination.hasMore;
+        nextOffset = payload.pagination.nextOffset;
+
+        if (
+            (rows.length >= minimumCount && remainingIds.size === 0)
+            || !hasMore
+            || nextOffset == null
+        ) {
+            break;
+        }
+
+        offset = nextOffset;
+    }
+
+    return {
+        conversations: rows,
+        pagination: {
+            hasMore,
+            nextOffset,
+        },
+    };
 }
 
 export async function loadConversation(conversationId: string): Promise<Conversation | null> {
@@ -247,4 +346,3 @@ export async function loadInitialMessages(
         offset: 0,
     });
 }
-

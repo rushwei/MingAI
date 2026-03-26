@@ -1,8 +1,9 @@
 /**
  * 左侧导航栏组件
- * 
+ *
  * 设计说明：
  * - 包含所有命理体系入口（八字、紫微、塔罗等）
+ * - AI 区域下方内嵌对话列表（新聊天/搜索/对话列表）
  * - 桌面端显示在左侧，移动端隐藏（使用 MobileNav 代替）
  * - 支持展开/收起状态
  * - 底部包含用户信息
@@ -11,7 +12,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
     PanelLeft,
     LogIn,
@@ -19,25 +20,32 @@ import {
 import { useState, useCallback, useMemo } from 'react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { SidebarUserCard } from '@/components/layout/UserMenu';
+import { SidebarConversations } from '@/components/layout/SidebarConversations';
 import { useSidebarSafe } from '@/components/layout/SidebarContext';
-import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { getSidebarNavItems, getSidebarToolItems } from '@/lib/navigation/registry';
+import { useConversationList } from '@/lib/chat/ConversationListContext';
+import { useRouter } from 'next/navigation';
 
 // Derive from registry once at module level
 const navItems = getSidebarNavItems().map(n => ({ ...n, available: true }));
 const toolItems = getSidebarToolItems().map(n => ({ ...n, available: true }));
 
 export function Sidebar() {
+    const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { collapsed, setCollapsed } = useSidebarSafe();
-    const { config: sidebarConfig, loading: sidebarConfigLoading, refreshing: sidebarConfigRefreshing } = useSidebarConfigSafe();
     const [isHoveringLogo, setIsHoveringLogo] = useState(false);
     const { user } = useSessionSafe();
     const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
+    const { handleNewChat } = useConversationList();
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing;
+    const isNavLoading = featureLoading || featureRefreshing;
+
+    // 当前是否在具体某个对话中
+    const activeConvId = searchParams.get('id');
 
     // 切换折叠状态
     const toggleCollapsed = useCallback((newState: boolean) => {
@@ -45,60 +53,48 @@ export function Sidebar() {
         setIsHoveringLogo(false);
     }, [setCollapsed]);
 
-    // 根据配置过滤并排序导航项
+    // 根据 feature toggle 过滤导航项
     const filteredNavItems = useMemo(() => navItems
-        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
-        .filter(item => !sidebarConfig.hiddenNavItems?.includes(item.href.replace('/', '')))
-        .sort((a, b) => {
-            const orderA = sidebarConfig.navOrder?.indexOf(a.href.replace('/', '')) ?? -1;
-            const orderB = sidebarConfig.navOrder?.indexOf(b.href.replace('/', '')) ?? -1;
-            return orderA - orderB;
-        }), [sidebarConfig.hiddenNavItems, sidebarConfig.navOrder, isFeatureEnabled]);
+        .filter(item => isFeatureEnabled(item.id)),
+    [isFeatureEnabled]);
 
     const filteredToolItems = useMemo(() => toolItems
-        .filter(item => isFeatureEnabled(item.href.replace('/', '')))
-        .filter(item => !sidebarConfig.hiddenToolItems?.includes(item.href.replace('/user/', '').replace('/', '')))
-        .sort((a, b) => {
-            const idA = a.href.replace('/user/', '').replace('/', '');
-            const idB = b.href.replace('/user/', '').replace('/', '');
-            const orderA = sidebarConfig.toolOrder?.indexOf(idA) ?? -1;
-            const orderB = sidebarConfig.toolOrder?.indexOf(idB) ?? -1;
-            return orderA - orderB;
-        }), [sidebarConfig.hiddenToolItems, sidebarConfig.toolOrder, isFeatureEnabled]);
+        .filter(item => isFeatureEnabled(item.id)),
+    [isFeatureEnabled]);
 
     if (isNavLoading) {
         return (
             <aside
                 className={`
                     hidden lg:flex flex-col h-screen sticky top-0
-                    bg-background border-r border-border
-                    transition-all duration-300 ease-in-out
+                    bg-[#f7f6f3] border-r border-gray-200
+                    transition-all duration-150 ease-in-out
                     ${collapsed ? 'w-[72px]' : 'w-[240px]'}
                 `}
             >
-                <div className={`flex items-center h-16 px-4 border-b border-border ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                <div className={`flex items-center h-16 px-4 border-b border-gray-200 ${collapsed ? 'justify-center' : 'justify-between'}`}>
                     <Link href="/" className="flex items-center gap-2 min-w-0">
                         <Image
                             src="/Logo.svg"
                             alt="MingAI Logo"
                             width={28}
                             height={28}
-                            className="rounded-lg flex-shrink-0 dark:invert"
+                            className="rounded-md flex-shrink-0 dark:invert"
                         />
                         {!collapsed && (
-                            <span className="font-bold text-base text-foreground whitespace-nowrap">
+                            <span className="font-bold text-base text-[#37352f] whitespace-nowrap">
                                 MingAI
                             </span>
                         )}
                     </Link>
-                    {!collapsed && <div className="w-8 h-8 rounded-lg bg-background-secondary animate-pulse" />}
+                    {!collapsed && <div className="w-8 h-8 rounded-md bg-[#efedea] animate-pulse" />}
                 </div>
 
                 <div className="flex-1 py-4 px-2 space-y-3">
                     {Array.from({ length: collapsed ? 7 : 9 }).map((_, index) => (
                         <div
                             key={index}
-                            className={`rounded-xl bg-background-secondary animate-pulse ${collapsed ? 'h-10 w-10 mx-auto' : 'h-10 w-full'}`}
+                            className={`rounded-md bg-[#efedea] animate-pulse ${collapsed ? 'h-10 w-10 mx-auto' : 'h-10 w-full'}`}
                         />
                     ))}
                 </div>
@@ -111,13 +107,13 @@ export function Sidebar() {
             <aside
                 className={`
                     hidden lg:flex flex-col h-screen sticky top-0
-                    bg-background border-r border-border
-                    transition-all duration-300 ease-in-out
+                    bg-[#f7f6f3] border-r border-gray-200
+                    transition-all duration-150 ease-in-out
                     ${collapsed ? 'w-[72px]' : 'w-[240px]'}
                 `}
             >
                 {/* Logo 区域 */}
-                <div className={`flex items-center h-16 px-4 border-b border-border transition-all duration-300 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                <div className={`flex items-center h-16 px-4 border-b border-gray-200 transition-all duration-150 flex-shrink-0 ${collapsed ? 'justify-center' : 'justify-between'}`}>
                     {collapsed ? (
                         <div
                             className="relative flex items-center justify-center w-10 h-10"
@@ -126,21 +122,21 @@ export function Sidebar() {
                         >
                             <Link
                                 href="/"
-                                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isHoveringLogo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-150 ${isHoveringLogo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                             >
                                 <Image
                                     src="/Logo.svg"
                                     alt="MingAI Logo"
                                     width={28}
                                     height={28}
-                                    className="rounded-lg dark:invert"
+                                    className="rounded-md dark:invert"
                                 />
                             </Link>
                             <button
                                 onClick={() => toggleCollapsed(false)}
-                                className={`absolute inset-0 flex items-center justify-center p-1.5 rounded-lg text-foreground-secondary 
-                                   hover:bg-background-secondary hover:text-foreground
-                                   transition-all duration-300 ${isHoveringLogo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                                className={`absolute inset-0 flex items-center justify-center p-1.5 rounded-md text-[#37352f]/60
+                                   hover:bg-[#efedea] hover:text-[#37352f]
+                                   transition-all duration-150 ${isHoveringLogo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                                 aria-label="展开侧边栏"
                                 tabIndex={isHoveringLogo ? 0 : -1}
                             >
@@ -155,17 +151,17 @@ export function Sidebar() {
                                     alt="MingAI Logo"
                                     width={28}
                                     height={28}
-                                    className="rounded-lg flex-shrink-0 dark:invert"
+                                    className="rounded-md flex-shrink-0 dark:invert"
                                 />
-                                <span className={`font-bold text-base text-foreground whitespace-nowrap transition-opacity duration-300 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
+                                <span className={`font-bold text-base text-[#37352f] whitespace-nowrap transition-opacity duration-150 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
                                     MingAI
                                 </span>
                             </Link>
                             <button
                                 onClick={() => toggleCollapsed(true)}
-                                className="p-1.5 rounded-lg text-foreground-secondary flex-shrink-0
-                                   hover:bg-background-secondary hover:text-foreground
-                                   transition-all duration-300"
+                                className="p-1.5 rounded-md text-[#37352f]/60 flex-shrink-0
+                                   hover:bg-[#efedea] hover:text-[#37352f]
+                                   transition-all duration-150"
                                 aria-label="收起侧边栏"
                             >
                                 <PanelLeft className="w-5 h-5" />
@@ -174,13 +170,14 @@ export function Sidebar() {
                     )}
                 </div>
 
-                {/* 主导航区域 */}
-                <nav className="flex-1 overflow-y-auto py-4 px-2">
-                    <div className="mb-6">
-                        <div className={`px-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider transition-all duration-300 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-2'}`}>
+                {/* 侧边栏内容区：上部固定，下部滚动 */}
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    {/* 固定区域：仅命理体系 */}
+                    <div className="pt-4 px-2 flex-shrink-0 border-b border-gray-100/50">
+                        <div className={`px-3 text-[11px] font-semibold text-[#37352f]/50 uppercase tracking-wider transition-all duration-150 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-1'}`}>
                             命理体系
                         </div>
-                        <ul className="space-y-1">
+                        <ul className="space-y-0.5">
                             {filteredNavItems.map((item) => {
                                 const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                                 const Icon = item.icon;
@@ -190,20 +187,20 @@ export function Sidebar() {
                                         <Link
                                             href={item.available ? item.href : '#'}
                                             className={`
-                                                flex items-center px-2.5 py-2.5 rounded-lg
-                                                transition-all duration-300
+                                                flex items-center py-1.5 rounded-md
+                                                transition-colors duration-150
                                                 ${isActive
-                                                    ? 'bg-accent/10 text-accent'
-                                                    : 'text-foreground-secondary hover:bg-background-secondary hover:text-foreground'
+                                                    ? 'bg-[#e3e1db] text-[#37352f]'
+                                                    : 'text-[#37352f] hover:bg-[#efedea]'
                                                 }
                                                 ${!item.available && 'opacity-50 cursor-not-allowed'}
-                                                ${collapsed ? 'justify-center' : 'gap-2'}
+                                                ${collapsed ? 'px-2 justify-center' : 'px-3 gap-2'}
                                             `}
                                             onClick={(e) => !item.available && e.preventDefault()}
                                             title={collapsed ? item.label : undefined}
                                         >
-                                            <Icon className="w-4.5 h-4.5 flex-shrink-0" />
-                                            <div className={`min-w-0 transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 flex-1'}`}>
+                                            <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f]' : 'text-[#37352f]/70'}`} />
+                                            <div className={`min-w-0 transition-all duration-150 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 flex-1'}`}>
                                                 <div className="text-sm font-medium truncate">{item.label}</div>
                                             </div>
                                         </Link>
@@ -213,14 +210,20 @@ export function Sidebar() {
                         </ul>
                     </div>
 
-                    {/* 工具区域 */}
-                    <div className="mb-6">
-                        <div className={`px-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider transition-all duration-300 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-2'}`}>
-                            工具
+                    {/* 滚动区域：包含 AI 标题(吸顶) + AI 选项 + 对话列表 */}
+                    <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 px-2">
+                        {/* AI 标题 - 吸顶，增加背景覆盖和 z-index */}
+                        <div className={`sticky top-0 z-30 bg-[#f7f6f3] px-3 pt-3 pb-1.5 text-[11px] font-semibold text-[#37352f]/50 uppercase tracking-wider transition-all duration-150 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-10'}`}>
+                            AI
                         </div>
-                        <ul className="space-y-1">
+
+                        {/* AI 功能项 */}
+                        <ul className="space-y-0.5">
                             {filteredToolItems.map((item) => {
-                                const isActive = pathname === item.href;
+                                const isChatItem = item.id === 'chat';
+                                const isActive = isChatItem 
+                                    ? pathname === item.href && !activeConvId
+                                    : pathname === item.href;
                                 const Icon = item.icon;
 
                                 return (
@@ -228,66 +231,58 @@ export function Sidebar() {
                                         <Link
                                             href={item.available ? item.href : '#'}
                                             className={`
-                                                flex items-center px-2.5 py-2.5 rounded-lg
-                                                transition-all duration-300
+                                                flex items-center py-1.5 rounded-md
+                                                transition-colors duration-150
                                                 ${isActive
-                                                    ? 'bg-accent/10 text-accent'
-                                                    : 'text-foreground-secondary hover:bg-background-secondary hover:text-foreground'
+                                                    ? 'bg-[#e3e1db] text-[#37352f]'
+                                                    : 'text-[#37352f] hover:bg-[#efedea]'
                                                 }
-                                                ${collapsed ? 'justify-center' : 'gap-2'}
+                                                ${collapsed ? 'px-2 justify-center' : 'px-3 gap-2'}
                                             `}
+                                            onClick={(e) => {
+                                                if (!item.available) {
+                                                    e.preventDefault();
+                                                    return;
+                                                }
+                                                if (isChatItem) {
+                                                    e.preventDefault();
+                                                    handleNewChat().then(() => {
+                                                        router.push('/chat');
+                                                    });
+                                                }
+                                            }}
                                             title={collapsed ? item.label : undefined}
                                         >
-                                            <Icon className="w-4.5 h-4.5 flex-shrink-0" />
-                                            <span className={`text-sm font-medium transition-all duration-300 whitespace-nowrap ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                                            <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? 'text-[#37352f]' : 'text-[#37352f]/70'}`} />
+                                            <span className={`text-sm font-medium transition-all duration-150 whitespace-nowrap ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
                                                 {item.label}
                                             </span>
                                         </Link>
+
+                                        {/* 对话列表内嵌在“新聊天”项下方 */}
+                                        {isChatItem && user && !collapsed && (
+                                            <SidebarConversations collapsed={collapsed} />
+                                        )}
                                     </li>
                                 );
                             })}
                         </ul>
-                    </div>
-
-                    {/* GitHub 反馈 */}
-                    {/* <div className="mb-2">
-                        <div className={`px-3 text-xs font-medium text-foreground-secondary uppercase tracking-wider transition-all duration-300 overflow-hidden ${collapsed ? 'opacity-0 max-h-0 mb-0' : 'opacity-100 max-h-6 mb-2'}`}>
-                            反馈
-                        </div>
-                        <a
-                            href="https://github.com/hhszzzz/MingAI/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`
-                                flex items-center px-2.5 py-2.5 rounded-lg
-                                transition-all duration-300
-                                text-foreground-secondary hover:bg-background-secondary hover:text-foreground
-                                ${collapsed ? 'justify-center' : 'gap-2'}
-                            `}
-                            title={collapsed ? 'GitHub - 反馈' : undefined}
-                        >
-                            <Github className="w-4.5 h-4.5 flex-shrink-0" />
-                            <span className={`text-sm font-medium transition-all duration-300 whitespace-nowrap ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
-                                反馈
-                            </span>
-                        </a>
-                    </div> */}
-                </nav>
+                    </nav>
+                </div>
 
                 {/* 底部用户区域 */}
-                <div className="border-t border-border p-3">
-                    {/* 用户卡片 */}
+                <div className="border-t border-gray-200 p-3 flex-shrink-0">
                     {user ? (
                         <SidebarUserCard user={user} collapsed={collapsed} />
                     ) : (
                         <button
                             onClick={() => setShowAuthModal(true)}
                             className={`
-                                flex items-center rounded-lg w-full
+                                flex items-center rounded-md w-full
                                 text-sm font-medium
-                                bg-accent text-white
-                                hover:bg-accent/90
-                                transition-all duration-200
+                                bg-[#2383e2] text-white
+                                hover:bg-[#2383e2]/90 active:bg-[#1a65b0]
+                                transition-colors duration-150
                                 ${collapsed ? 'p-2 justify-center' : 'gap-1.5 px-3 py-2 justify-center'}
                             `}
                             title={collapsed ? '登录' : undefined}

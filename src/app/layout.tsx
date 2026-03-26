@@ -15,8 +15,8 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
-import { SidebarConfigProvider } from "@/components/layout/SidebarConfigContext";
 import { HeaderMenuProvider } from "@/components/layout/HeaderMenuContext";
+import { ConversationListProvider } from "@/lib/chat/ConversationListContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
@@ -97,8 +97,8 @@ export default function RootLayout({
         {/* ThemeProvider 提供主题上下文，包裹整个应用 */}
         <ThemeProvider>
           <ClientProviders>
-            <HeaderMenuProvider>
-              <SidebarConfigProvider>
+            <ConversationListProvider>
+              <HeaderMenuProvider>
                 <SidebarProvider>
                 <div className="flex min-h-screen">
                   {/* 左侧导航栏 - 仅桌面端显示 */}
@@ -121,8 +121,8 @@ export default function RootLayout({
                 {/* 移动端底部导航 - 仅移动端显示 */}
                 <MobileNav />
               </SidebarProvider>
-            </SidebarConfigProvider>
-          </HeaderMenuProvider>
+            </HeaderMenuProvider>
+          </ConversationListProvider>
           </ClientProviders>
         </ThemeProvider>
         {process.env.NODE_ENV === "production" ? <Analytics /> : null}

@@ -1,27 +1,26 @@
 /**
  * 对话管理状态 hook
  *
- * 管理对话列表、当前对话、加载状态、侧边栏状态等
+ * 管理当前对话、加载状态、消息、模型选择等。
+ * 对话列表数据由全局 ConversationListContext 管理。
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ChatMessage, Conversation, Mention } from '@/types';
+import type { ChatMessage, Mention } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import {
-    loadConversations,
     loadConversation,
     saveConversation,
-    deleteConversation,
-    renameConversation,
 } from '@/lib/chat/conversation';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
+import { useConversationList } from '@/lib/chat/ConversationListContext';
 import type { AttachmentState } from '@/types';
 
 export type ChatMode = 'normal' | 'dream' | 'mangpai';
 
 export interface ChatStateReturn {
-    // Conversation list
-    conversations: Conversation[];
-    setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
+    // Conversation list (from global context)
+    conversations: import('@/types').Conversation[];
+    setConversations: React.Dispatch<React.SetStateAction<import('@/types').Conversation[]>>;
     conversationsLoading: boolean;
     conversationLoading: boolean;
     hasLoadedConversations: boolean;
@@ -39,13 +38,7 @@ export interface ChatStateReturn {
     conversationSelectRequestRef: React.MutableRefObject<number>;
     hasLoadedConversationsRef: React.MutableRefObject<boolean>;
     manualRenamedConversationIdsRef: React.MutableRefObject<Set<string>>;
-    conversationsRef: React.MutableRefObject<Conversation[]>;
-
-    // Sidebar
-    sidebarOpen: boolean;
-    setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    sidebarCollapsed: boolean;
-    setSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+    conversationsRef: React.MutableRefObject<import('@/types').Conversation[]>;
 
     // Messages
     messages: ChatMessage[];
@@ -118,18 +111,27 @@ export function useChatState({
     router: ReturnType<typeof import('next/navigation').useRouter>;
     searchParams: ReturnType<typeof import('next/navigation').useSearchParams>;
 }): ChatStateReturn {
-    // Conversation list state
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [conversationsLoading, setConversationsLoading] = useState(true);
-    const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
-    const [pendingSidebarTitle, setPendingSidebarTitle] = useState<string | null>(null);
-    const [titleGeneratingConversationIds, setTitleGeneratingConversationIds] = useState<Set<string>>(new Set());
+    // Get conversation list state from global context
+    const convList = useConversationList();
+    const {
+        conversations,
+        setConversations,
+        conversationsLoading,
+        hasLoadedConversations,
+        setHasLoadedConversations,
+        pendingSidebarTitle,
+        setPendingSidebarTitle,
+        titleGeneratingConversationIds,
+        setTitleGeneratingConversationIds,
+        refreshConversationList,
+        triggerConversationListLoad,
+        manualRenamedConversationIdsRef,
+        conversationsRef,
+    } = convList;
+
+    // Active conversation state (local to chat page)
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [conversationLoading, setConversationLoading] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(() => false);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
-        typeof window !== 'undefined' && window.innerWidth >= 1024
-    );
     const [showCreditsModal, setShowCreditsModal] = useState(false);
 
     // Messages state
@@ -139,17 +141,10 @@ export function useChatState({
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const messageScrollContainerRef = useRef<HTMLDivElement | null>(null);
     const shouldAutoScrollRef = useRef(true);
-    const manualRenamedConversationIdsRef = useRef<Set<string>>(new Set());
     const activeConversationIdRef = useRef<string | null>(null);
     const hasLoadedConversationsRef = useRef(false);
     const conversationSelectRequestRef = useRef(0);
-    const conversationsRef = useRef(conversations);
     const conversationValidatedRef = useRef(false);
-
-    // Update ref in effect to avoid render-time mutation
-    useEffect(() => {
-        conversationsRef.current = conversations;
-    }, [conversations]);
 
     // Chat mode
     const [chatMode, setChatMode] = useState<ChatMode>('normal');
@@ -176,72 +171,17 @@ export function useChatState({
     useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
     useEffect(() => { hasLoadedConversationsRef.current = hasLoadedConversations; }, [hasLoadedConversations]);
 
-    // Actions
-    const refreshConversationList = useCallback(async (targetUserId?: string | null) => {
-        const id = targetUserId ?? userId;
-        if (!id) return;
-        const list = await loadConversations(id);
-        setConversations(list);
-        setHasLoadedConversations(true);
-        const currentActiveConversationId = activeConversationIdRef.current;
-        if (currentActiveConversationId && !list.find(c => c.id === currentActiveConversationId)) {
+    // Init: reset on logout
+    useEffect(() => {
+        if (sessionLoading || bootstrapLoading) return;
+        if (!userId) {
+            setMessages([]); // eslint-disable-line react-hooks/set-state-in-effect -- intentional: reset on logout
             activeConversationIdRef.current = null;
-            setActiveConversationId(null);
+            conversationSelectRequestRef.current += 1;
             setConversationLoading(false);
-            setMessages([]);
+            setActiveConversationId(null);
         }
-    }, [userId]);
-
-    const triggerConversationListLoad = useCallback((source: 'idle' | 'interaction') => {
-        if (hasLoadedConversations || !userId) return;
-        setConversationsLoading(true);
-        void refreshConversationList(userId).finally(() => {
-            setConversationsLoading(false);
-            if (source === 'interaction') {
-                setHasLoadedConversations(true);
-            }
-        });
-    }, [hasLoadedConversations, refreshConversationList, userId]);
-
-    // Init: load conversations
-    useEffect(() => {
-        let isActive = true;
-        const init = async () => {
-            if (sessionLoading || bootstrapLoading) return;
-            if (!userId) {
-                if (!isActive) return;
-                setConversations([]);
-                setMessages([]);
-                activeConversationIdRef.current = null;
-                conversationSelectRequestRef.current += 1;
-                setConversationLoading(false);
-                setActiveConversationId(null);
-                setConversationsLoading(false);
-                setHasLoadedConversations(false);
-                return;
-            }
-            setConversationsLoading(false);
-            const idleCallback = (cb: () => void) => {
-                if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-                    (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb);
-                    return;
-                }
-                setTimeout(cb, 1200);
-            };
-            idleCallback(() => {
-                if (!isActive) return;
-                triggerConversationListLoad('idle');
-            });
-        };
-        void init();
-        return () => { isActive = false; };
-    }, [bootstrapLoading, sessionLoading, triggerConversationListLoad, userId]);
-
-    // Load conversations when sidebar opens
-    useEffect(() => {
-        if (!sidebarOpen) return;
-        triggerConversationListLoad('interaction'); // eslint-disable-line react-hooks/set-state-in-effect -- intentional: sidebar open triggers data fetch
-    }, [sidebarOpen, triggerConversationListLoad]);
+    }, [bootstrapLoading, sessionLoading, userId]);
 
     // Select conversation
     const handleSelectConversation = useCallback(async (
@@ -254,7 +194,6 @@ export function useChatState({
 
         activeConversationIdRef.current = id;
         setActiveConversationId(id);
-        setSidebarOpen(false);
         conversationValidatedRef.current = false;
 
         const runningMessages = chatStreamManager.getTaskMessages(id);
@@ -289,7 +228,7 @@ export function useChatState({
         const taskMessages = chatStreamManager.getTaskMessages(id);
         const sourceMessages = taskMessages || conv.messages;
         setMessages(sourceMessages);
-    }, [router, searchParams]);
+    }, [router, searchParams, conversationsRef]);
 
     // New chat
     const handleNewChat = useCallback(async () => {
@@ -299,7 +238,6 @@ export function useChatState({
         setConversationLoading(false);
         setActiveConversationId(null);
         setMessages([]);
-        setSidebarOpen(false);
         setChatMode('normal');
         if (searchParams.get('id')) {
             router.replace('/chat');
@@ -314,32 +252,30 @@ export function useChatState({
         void handleSelectConversation(targetConversationId, { updateUrl: false }); // eslint-disable-line react-hooks/set-state-in-effect -- intentional: URL change triggers conversation selection
     }, [handleSelectConversation, searchParams, userId]);
 
-    // Delete conversation (optimistic)
+    // Handle global new chat signal
+    useEffect(() => {
+        const handler = () => {
+            void handleNewChat();
+        };
+        window.addEventListener('mingai:chat:new', handler);
+        return () => window.removeEventListener('mingai:chat:new', handler);
+    }, [handleNewChat]);
+
+    // Delete conversation — delegate to context, clean up local active state
     const handleDeleteConversation = useCallback(async (id: string) => {
-        const previousConversations = conversations;
-        setConversations(prev => prev.filter(c => c.id !== id));
         if (activeConversationIdRef.current === id) {
             activeConversationIdRef.current = null;
             setActiveConversationId(null);
             setConversationLoading(false);
             setMessages([]);
         }
-        const success = await deleteConversation(id);
-        if (!success) {
-            setConversations(previousConversations);
-        }
-    }, [conversations]);
+        await convList.handleDeleteConversation(id);
+    }, [convList]);
 
-    // Rename conversation (optimistic)
+    // Rename conversation — delegate to context
     const handleRenameConversation = useCallback(async (id: string, title: string) => {
-        manualRenamedConversationIdsRef.current.add(id);
-        const previousConversations = conversations;
-        setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c));
-        const success = await renameConversation(id, title);
-        if (!success) {
-            setConversations(previousConversations);
-        }
-    }, [conversations]);
+        await convList.handleRenameConversation(id, title);
+    }, [convList]);
 
     // Save messages
     const saveMessagesAction = useCallback(async (conversationId: string, newMessages: ChatMessage[], title?: string) => {
@@ -356,8 +292,6 @@ export function useChatState({
         activeConversationIdRef, conversationValidatedRef,
         conversationSelectRequestRef, hasLoadedConversationsRef,
         manualRenamedConversationIdsRef, conversationsRef,
-        sidebarOpen, setSidebarOpen,
-        sidebarCollapsed, setSidebarCollapsed,
         messages, setMessages,
         inputValue, setInputValue,
         isSendingToList, setIsSendingToList,

@@ -1,5 +1,7 @@
 /**
- * Chat 主布局：侧边栏 + 聊天区域
+ * Chat 主布局：消息区域 + 输入组件
+ *
+ * 对话侧边栏已合并到全局 Sidebar，此组件仅渲染聊天内容。
  *
  * 'use client' 标记说明：
  * - 使用 React hooks 和交互状态
@@ -9,35 +11,21 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Sparkles, Lock } from 'lucide-react';
-import type { ChatMessage, Conversation, AttachmentState, Mention } from '@/types';
+import type { ChatMessage, AttachmentState, Mention } from '@/types';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { VirtualizedChatMessageList } from '@/components/chat/VirtualizedChatMessageList';
 import { ChatComposer } from '@/components/chat/ChatComposer';
-import { ConversationSidebar } from '@/components/chat/ConversationSidebar';
 import { ChatHeader } from '@/components/chat/ChatHeader';
+import { MobileChatDrawer } from '@/components/chat/MobileChatDrawer';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { ChatBootstrapKnowledgeBase } from '@/lib/chat/bootstrap';
 import type { MembershipType } from '@/lib/user/membership';
 import type { ChatMode } from '@/lib/chat/use-chat-state';
 
 interface ChatLayoutProps {
-    // Sidebar
-    conversations: Conversation[];
+    // Active conversation
     activeConversationId: string | null;
-    pendingSidebarTitle: string | null;
-    generatingTitleConversationIds: Set<string>;
-    onSelectConversation: (id: string, options?: { updateUrl?: boolean }) => Promise<void>;
-    onNewChat: () => Promise<void>;
-    onDeleteConversation: (id: string) => Promise<void>;
-    onRenameConversation: (id: string, title: string) => Promise<void>;
-    sidebarOpen: boolean;
-    onSidebarClose: () => void;
-    onSidebarToggle: (open: boolean) => void;
-    sidebarCollapsed: boolean;
-    onSidebarCollapse: (collapsed: boolean) => void;
-    conversationsLoading: boolean;
     conversationLoading: boolean;
-    hasLoadedConversations: boolean;
 
     // Messages
     messages: ChatMessage[];
@@ -86,10 +74,7 @@ interface ChatLayoutProps {
 
 export function ChatLayout(props: ChatLayoutProps) {
     const {
-        conversations, activeConversationId, pendingSidebarTitle, generatingTitleConversationIds,
-        onSelectConversation, onNewChat, onDeleteConversation, onRenameConversation,
-        sidebarOpen, onSidebarClose, onSidebarToggle, sidebarCollapsed, onSidebarCollapse,
-        conversationsLoading, conversationLoading, hasLoadedConversations,
+        activeConversationId, conversationLoading,
         messages, isLoading, isSendingToList,
         messagesEndRef, messageScrollContainerRef, onMessageListScroll,
         onEditMessage, onRegenerateResponse, onSwitchVersion, onArchiveMessage,
@@ -118,37 +103,21 @@ export function ChatLayout(props: ChatLayoutProps) {
     };
 
     return (
-        <div className="flex h-[calc(100vh-var(--mobile-header-height)-5rem)] lg:h-screen">
-            <ConversationSidebar
-                conversations={conversations}
-                activeId={activeConversationId || undefined}
-                pendingTitle={pendingSidebarTitle}
-                generatingTitleConversationIds={generatingTitleConversationIds}
-                onSelect={onSelectConversation}
-                onNew={onNewChat}
-                onDelete={onDeleteConversation}
-                onRename={onRenameConversation}
-                isOpen={sidebarOpen}
-                onClose={onSidebarClose}
-                onToggle={onSidebarToggle}
-                isCollapsed={sidebarCollapsed}
-                onCollapse={onSidebarCollapse}
-                isLoading={conversationsLoading}
-                hasLoaded={hasLoadedConversations}
-            />
+        <div className="flex h-[calc(100vh-var(--mobile-header-height)-5rem)] lg:h-screen bg-background">
+            {/* 移动端对话抽屉 */}
+            <MobileChatDrawer />
 
-            <div className="flex-1 flex flex-col min-w-0 relative">
+            <div className="flex-1 flex flex-col min-w-0 relative bg-background">
                 <ChatHeader
-                    sidebarCollapsed={sidebarCollapsed}
                     membershipType={membershipType}
                     knowledgeBaseEnabled={knowledgeBaseEnabled}
                     aiPersonalizationEnabled={aiPersonalizationEnabled}
                 />
 
                 {conversationLoading ? (
-                    <SoundWaveLoader variant="block" text="加载中..." />
+                    <SoundWaveLoader variant="block" text="" />
                 ) : messages.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
+                    <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 bg-background">
                         <p className="text-xl text-foreground-secondary mb-8 animate-fade-in-up">今天运势如何？</p>
                         {isCreditLocked && (
                             <CreditLockBanner isPaymentPaused={isPaymentPaused} />
@@ -160,7 +129,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                 ) : (
                     <>
                         {messages.length > 20 ? (
-                            <div className="flex-1 px-4 py-4 relative">
+                            <div className="flex-1 px-4 py-4 relative bg-background">
                                 <VirtualizedChatMessageList
                                     messages={messages} isLoading={isLoading || isSendingToList}
                                     onEditMessage={onEditMessage} onRegenerateResponse={onRegenerateResponse}
@@ -170,7 +139,7 @@ export function ChatLayout(props: ChatLayoutProps) {
                                 />
                             </div>
                         ) : (
-                            <div ref={messageScrollContainerRef} onScroll={onMessageListScroll} className="flex-1 overflow-y-auto px-4 py-4 relative">
+                            <div ref={messageScrollContainerRef} onScroll={onMessageListScroll} className="flex-1 overflow-y-auto px-4 py-4 relative bg-background">
                                 <ChatMessageList
                                     messages={messages} isLoading={isLoading || isSendingToList} messagesEndRef={messagesEndRef}
                                     onEditMessage={onEditMessage} onRegenerateResponse={onRegenerateResponse}

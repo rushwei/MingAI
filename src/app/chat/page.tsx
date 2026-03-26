@@ -72,22 +72,8 @@ export default function ChatPage() {
     return (
         <>
             <ChatLayout
-                conversations={state.conversations}
                 activeConversationId={state.activeConversationId}
-                pendingSidebarTitle={state.pendingSidebarTitle}
-                generatingTitleConversationIds={state.titleGeneratingConversationIds}
-                onSelectConversation={state.handleSelectConversation}
-                onNewChat={state.handleNewChat}
-                onDeleteConversation={state.handleDeleteConversation}
-                onRenameConversation={state.handleRenameConversation}
-                sidebarOpen={state.sidebarOpen}
-                onSidebarClose={() => state.setSidebarOpen(false)}
-                onSidebarToggle={state.setSidebarOpen}
-                sidebarCollapsed={state.sidebarCollapsed}
-                onSidebarCollapse={state.setSidebarCollapsed}
-                conversationsLoading={state.conversationsLoading}
                 conversationLoading={state.conversationLoading}
-                hasLoadedConversations={state.hasLoadedConversations}
                 messages={state.messages}
                 isLoading={state.isLoading}
                 isSendingToList={state.isSendingToList}
