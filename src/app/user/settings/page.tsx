@@ -20,8 +20,6 @@ import {
     ChevronRight
 } from 'lucide-react';
 import { useTheme } from '@/components/ui/ThemeProvider';
-import { SidebarCustomizer } from '@/components/settings/SidebarCustomizer';
-import { MobileNavCustomizer } from '@/components/settings/MobileNavCustomizer';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 
@@ -140,18 +138,7 @@ export default function SettingsPage() {
         language: 'zh',
     });
     const [userId, setUserId] = useState<string | null>(null);
-    const [isMobile, setIsMobile] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
-
-    // 检测设备类型
-    useEffect(() => {
-        const checkDevice = () => {
-            setIsMobile(window.innerWidth < 1024); // lg breakpoint
-        };
-        checkDevice();
-        window.addEventListener('resize', checkDevice);
-        return () => window.removeEventListener('resize', checkDevice);
-    }, []);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -203,27 +190,21 @@ export default function SettingsPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-background">
-                <div className="max-w-2xl mx-auto px-4 py-4 md:py-6">
+                <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
                     {/* 标题骨架 */}
-                    <div className="hidden md:block mb-6">
-                        <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse" />
-                        <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse mt-1" />
+                    <div className="space-y-2">
+                        <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse" />
                     </div>
-                    {/* 设置卡片骨架 */}
-                    <div className="space-y-4">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-background rounded-2xl border border-border/50 p-5">
-                                <div className="h-5 w-28 rounded bg-foreground/10 animate-pulse mb-4" />
+                    {/* 设置列表骨架 */}
+                    <div className="space-y-6">
+                        {[1, 2].map(i => (
+                            <div key={i} className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
+                                <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse mb-2" />
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-foreground/5 animate-pulse" />
-                                            <div className="space-y-1.5">
-                                                <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse" />
-                                                <div className="h-3 w-32 rounded bg-foreground/5 animate-pulse" />
-                                            </div>
-                                        </div>
-                                        <div className="h-7 w-12 rounded-full bg-foreground/10 animate-pulse" />
+                                        <div className="h-4 w-32 rounded bg-foreground/5 animate-pulse" />
+                                        <div className="h-6 w-10 rounded bg-foreground/10 animate-pulse" />
                                     </div>
                                 </div>
                             </div>
@@ -235,198 +216,159 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-4 md:py-6">
-                {/* 桌面端头部 */}
-                <div className="hidden md:block mb-6">
-                    <h1 className="text-xl font-bold text-foreground">偏好设置</h1>
-                </div>
+        <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
+            <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in space-y-10">
+                {/* 标题 */}
+                <header className="space-y-1">
+                    <h1 className="text-2xl font-bold">设置</h1>
+                    <p className="text-sm text-foreground/50">管理您的账户偏好与应用配置</p>
+                </header>
 
-                <div className="sm:space-y-6 space-y-2">
+                <div className="space-y-8">
                     {loadError && (
-                        <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl px-4 py-3 text-sm text-red-600 dark:text-red-400">
+                        <div className="bg-[#eb5757]/10 border border-[#eb5757]/20 rounded-md px-4 py-3 text-sm text-[#eb5757]">
                             {loadError}
                         </div>
                     )}
+
                     {/* 外观与语言 */}
-                    <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
-                        <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <h2 className="text-sm font-bold text-foreground">外观与显示</h2>
-                        </div>
-
-                        {/* 主题切换 */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                {themeMode === 'system' ? (
-                                    <Monitor className="w-5 h-5" />
-                                ) : theme === 'dark' ? (
-                                    <Moon className="w-5 h-5" />
-                                ) : (
-                                    <Sun className="w-5 h-5" />
-                                )}
-                                <div>
-                                    <p className="text-sm font-medium text-foreground">外观模式</p>
-                                    <p className="text-xs text-foreground-secondary">
-                                        {themeMode === 'system'
-                                            ? '跟随系统自动切换'
-                                            : themeMode === 'dark'
-                                                ? '当前已开启深色外观'
-                                                : '当前使用浅色外观'}
-                                    </p>
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">基础偏好</h2>
+                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                            {/* 主题选择 */}
+                            <div className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded bg-[#efedea] text-foreground/70">
+                                        {themeMode === 'system' ? <Monitor className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium">外观界面</p>
+                                        <p className="text-xs text-foreground/40">选择应用显示主题</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center bg-[#efedea] p-1 rounded-md">
+                                    {(['light', 'dark', 'system'] as const).map((mode) => (
+                                        <button
+                                            key={mode}
+                                            onClick={() => setThemeMode(mode)}
+                                            className={`px-3 py-1 text-xs rounded transition-all ${
+                                                themeMode === mode
+                                                    ? 'bg-background shadow-sm text-foreground font-semibold'
+                                                    : 'text-foreground/40 hover:text-foreground'
+                                            }`}
+                                        >
+                                            {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '自动'}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="flex gap-1 bg-background-secondary rounded-lg p-1">
-                                <button
-                                    onClick={() => setThemeMode('light')}
-                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'light' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
-                                    title="浅色模式"
-                                >
-                                    <Sun className={`w-4 h-4 ${themeMode === 'light' ? 'text-amber-500' : 'text-foreground-secondary'}`} />
-                                </button>
-                                <button
-                                    onClick={() => setThemeMode('dark')}
-                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'dark' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
-                                    title="深色模式"
-                                >
-                                    <Moon className={`w-4 h-4 ${themeMode === 'dark' ? 'text-blue-500' : 'text-foreground-secondary'}`} />
-                                </button>
-                                <button
-                                    onClick={() => setThemeMode('system')}
-                                    className={`p-1.5 rounded-md transition-colors ${themeMode === 'system' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
-                                    title="跟随系统"
-                                >
-                                    <Monitor className={`w-4 h-4 ${themeMode === 'system' ? 'text-accent' : 'text-foreground-secondary'}`} />
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* 语言设置 */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Globe className="w-5 h-5" />
-                                <div>
-                                    <p className="text-sm font-medium text-foreground">界面语言</p>
-                                    <p className="text-xs text-foreground-secondary">选择您偏好的显示语言</p>
+                            {/* 语言设置 */}
+                            <div className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded bg-[#efedea] text-foreground/70">
+                                        <Globe className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium">语言设置</p>
+                                        <p className="text-xs text-foreground/40">选择界面显示语言</p>
+                                    </div>
+                                </div>
+                                <div className="relative">
+                                    <select
+                                        value={settings.language}
+                                        onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
+                                        disabled={Boolean(loadError)}
+                                        className="appearance-none pl-3 pr-8 py-1.5 rounded-md bg-[#efedea] text-xs font-medium focus:outline-none transition-colors border-none"
+                                    >
+                                        <option value="zh">简体中文</option>
+                                        <option value="en" disabled>English (即将上线)</option>
+                                    </select>
+                                    <ChevronRight className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/40 rotate-90" />
                                 </div>
                             </div>
-                            <div className="relative">
-                                <select
-                                    value={settings.language}
-                                    onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
-                                    disabled={Boolean(loadError)}
-                                    className="appearance-none pl-3 pr-8 py-1.5 rounded-lg bg-background-secondary border border-border hover:border-accent text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-medium"
-                                >
-                                    <option value="zh">简体中文</option>
-                                    <option value="en" disabled>English (即将上线)</option>
-                                </select>
-                                <ChevronRight className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-secondary rotate-90" />
-                            </div>
                         </div>
-                    </div>
+                    </section>
 
                     {/* 通知与提醒 */}
-                    <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5 flex flex-col gap-5">
-                        <div className="flex items-center gap-2 pb-3 border-b border-border/50">
-                            <h2 className="text-sm font-bold text-foreground">通知与提醒</h2>
-                        </div>
-
-                        {/* 全局通知开关 */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-xl transition-colors ${settings.notifications ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-400'}`}>
-                                    <Bell className="w-5 h-5" />
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">通知与提醒</h2>
+                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                            <div className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded ${settings.notifications ? 'bg-blue-50 text-[#2eaadc]' : 'bg-[#efedea] text-foreground/30'}`}>
+                                        <Bell className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium">推送通知</p>
+                                        <p className="text-xs text-foreground/40">接收每日运势和重要提醒</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-foreground">推送通知</p>
-                                    <p className="text-xs text-foreground-secondary">
-                                        接收每日运势和重要提醒
-                                    </p>
+                                <button
+                                    onClick={() => updateSetting('notifications', !settings.notifications)}
+                                    disabled={Boolean(loadError)}
+                                    className={`
+                                        w-10 h-6 rounded-full transition-all duration-200 relative
+                                        ${settings.notifications ? 'bg-[#2eaadc]' : 'bg-gray-200'}
+                                    `}
+                                >
+                                    <div className={`
+                                        w-4.5 h-4.5 rounded-full bg-white absolute top-0.75 transition-transform duration-200
+                                        ${settings.notifications ? 'translate-x-4.75' : 'translate-x-0.75'}
+                                    `} />
+                                </button>
+                            </div>
+
+                            {/* 订阅管理子项 - 符合 Notion 风格的嵌套行 */}
+                            <div className="px-4 py-2 bg-gray-50/50">
+                                <div className="space-y-1">
+                                    <ReminderToggle
+                                        type="solar_term"
+                                        label="节气提醒"
+                                        description="节气当天养生建议"
+                                        userId={userId}
+                                        accessToken={session?.access_token || null}
+                                        disabled={Boolean(loadError)}
+                                    />
+                                    <ReminderToggle
+                                        type="fortune"
+                                        label="运势提醒"
+                                        description="每日运势变化提醒"
+                                        userId={userId}
+                                        accessToken={session?.access_token || null}
+                                        disabled={Boolean(loadError)}
+                                    />
+                                    <ReminderToggle
+                                        type="key_date"
+                                        label="关键日提醒"
+                                        description="重要日期提醒"
+                                        userId={userId}
+                                        accessToken={session?.access_token || null}
+                                        disabled={Boolean(loadError)}
+                                    />
                                 </div>
                             </div>
-                            <button
-                                onClick={() => updateSetting('notifications', !settings.notifications)}
-                                disabled={Boolean(loadError)}
-                                className={`
-                                    w-12 h-7 rounded-full transition-all duration-300 relative shadow-inner
-                                    ${settings.notifications ? 'bg-accent' : 'bg-slate-200'}
-                                `}
-                            >
-                                <div className={`
-                                    w-5 h-5 rounded-full bg-white absolute top-1 shadow-md transition-transform duration-300
-                                    ${settings.notifications ? 'translate-x-6' : 'translate-x-1'}
-                                `} />
-                            </button>
                         </div>
+                    </section>
 
-                        {/* 提醒订阅细项 */}
-                        <div className="bg-background-secondary/30 rounded-xl p-3 border border-border/50">
-                            <h3 className="text-[10px] font-bold text-foreground-secondary uppercase tracking-wider mb-2 ml-1">订阅管理</h3>
-                            <div className="space-y-1">
-                                <ReminderToggle
-                                    type="solar_term"
-                                    label="节气提醒"
-                                    description="每个节气当天收到养生建议"
-                                    userId={userId}
-                                    accessToken={session?.access_token || null}
-                                    disabled={Boolean(loadError)}
-                                />
-                                <div className="h-px bg-border/50" />
-                                <ReminderToggle
-                                    type="fortune"
-                                    label="运势提醒"
-                                    description="每日运势变化提醒"
-                                    userId={userId}
-                                    accessToken={session?.access_token || null}
-                                    disabled={Boolean(loadError)}
-                                />
-                                <div className="h-px bg-border/50" />
-                                <ReminderToggle
-                                    type="key_date"
-                                    label="关键日提醒"
-                                    description="重要日期（如本命年）提醒"
-                                    userId={userId}
-                                    accessToken={session?.access_token || null}
-                                    disabled={Boolean(loadError)}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 界面自定义 */}
-                    <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                            <h2 className="text-sm font-bold text-foreground">界面自定义</h2>
-                        </div>
-                        {isMobile ? (
-                            <MobileNavCustomizer userId={userId} />
-                        ) : (
-                            <SidebarCustomizer userId={userId} />
-                        )}
-                    </div>
-
-                    {/* 隐私与安全 */}
-                    <div className="bg-background rounded-2xl border border-border/50 shadow-sm overflow-hidden p-5">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                            <h2 className="text-sm font-bold text-foreground">隐私与安全</h2>
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20 rounded-xl">
+                    {/* 安全设置 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">数据隐私</h2>
+                        <div className="p-4 bg-[#0f7b6c]/5 border border-[#0f7b6c]/10 rounded-md flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400">
-                                    <Shield className="w-5 h-5" />
+                                <div className="p-2 bg-[#0f7b6c]/10 rounded text-[#0f7b6c]">
+                                    <Shield className="w-4 h-4" />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-1.5">
                                         <p className="text-sm font-medium text-foreground">数据安全保护中</p>
-                                        <Check className="w-3.5 h-3.5 text-green-500" />
+                                        <Check className="w-3.5 h-3.5 text-[#0f7b6c]" />
                                     </div>
-                                    <p className="text-xs text-foreground-secondary">
-                                        您的数据已通过 AES-256 加密存储
-                                    </p>
+                                    <p className="text-xs text-[#0f7b6c]/60">您的所有数据均已通过 AES-256 加密存储</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>

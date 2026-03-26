@@ -7,22 +7,12 @@ import {
 export type ExpressionStyle = 'direct' | 'gentle';
 export type AppLanguage = 'zh' | 'en';
 
-export interface SidebarConfig {
-  hiddenNavItems: string[];
-  hiddenToolItems: string[];
-  navOrder: string[];
-  toolOrder: string[];
-  mobileMainItems: string[];
-  mobileDrawerOrder: string[];
-  hiddenMobileItems: string[];
-}
-
 export const DEFAULT_NAV_ORDER = [
-  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti',
+  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti', 'daily', 'monthly',
 ] as const;
 
 export const DEFAULT_TOOL_ORDER = [
-  'checkin', 'chat', 'daily', 'monthly', 'records', 'community',
+  'checkin', 'chat', 'records', 'community',
 ] as const;
 
 export const DEFAULT_MOBILE_MAIN_ITEMS = [
@@ -37,90 +27,12 @@ export const DEFAULT_MOBILE_DRAWER_ORDER = [
   'user/charts',
 ] as const;
 
-const ALL_DESKTOP_NAV_IDS = [...DEFAULT_NAV_ORDER];
-const ALL_TOOL_IDS = [...DEFAULT_TOOL_ORDER];
-const ALL_MOBILE_NAV_IDS = Array.from(new Set([...DEFAULT_MOBILE_MAIN_ITEMS, ...DEFAULT_MOBILE_DRAWER_ORDER]));
-
-export const DEFAULT_SIDEBAR_CONFIG: SidebarConfig = {
-  hiddenNavItems: [],
-  hiddenToolItems: [],
-  navOrder: [...DEFAULT_NAV_ORDER],
-  toolOrder: [...DEFAULT_TOOL_ORDER],
-  mobileMainItems: [...DEFAULT_MOBILE_MAIN_ITEMS],
-  mobileDrawerOrder: [...DEFAULT_MOBILE_DRAWER_ORDER],
-  hiddenMobileItems: [],
-};
-
-type MobileDrawerProjectionInput = Partial<Pick<SidebarConfig, 'mobileMainItems' | 'mobileDrawerOrder' | 'hiddenMobileItems'>>;
-
-type MobileDrawerProjectionOptions = {
-  includeHidden?: boolean;
-};
-
-export function getEffectiveMobileDrawerOrder(
-  config: MobileDrawerProjectionInput,
-  options: MobileDrawerProjectionOptions = {},
-): string[] {
-  const mainItems = filterUniqueIds(config.mobileMainItems, ALL_MOBILE_NAV_IDS).slice(0, 4);
-  const configuredOrder = filterUniqueIds(config.mobileDrawerOrder, ALL_MOBILE_NAV_IDS);
-  const hiddenItems = filterUniqueIds(config.hiddenMobileItems, ALL_MOBILE_NAV_IDS);
-  const hiddenSet = new Set(hiddenItems);
-  const mainSet = new Set(mainItems);
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  const append = (id: string) => {
-    if (seen.has(id) || mainSet.has(id)) {
-      return;
-    }
-    if (!options.includeHidden && hiddenSet.has(id)) {
-      return;
-    }
-    seen.add(id);
-    result.push(id);
-  };
-
-  for (const id of configuredOrder) {
-    append(id);
-  }
-  for (const id of DEFAULT_MOBILE_DRAWER_ORDER) {
-    append(id);
-  }
-  for (const id of ALL_MOBILE_NAV_IDS) {
-    append(id);
-  }
-
-  return result;
-}
-
-function filterUniqueIds(raw: unknown, allowedIds: readonly string[]): string[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-
-  const allowed = new Set(allowedIds);
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const value of raw) {
-    if (typeof value !== 'string' || !allowed.has(value) || seen.has(value)) {
-      continue;
-    }
-    seen.add(value);
-    result.push(value);
-  }
-
-  return result;
-}
-
-
 type UserSettingsRow = {
   expression_style?: unknown;
   custom_instructions?: unknown;
   user_profile?: unknown;
   prompt_kb_ids?: unknown;
   visualization_settings?: unknown;
-  sidebar_config?: unknown;
   notifications_enabled?: unknown;
   notify_email?: unknown;
   notify_site?: unknown;
@@ -150,7 +62,6 @@ export type UserSettingsSnapshot = {
   userProfile: unknown;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | undefined;
-  sidebarConfig: SidebarConfig;
   notificationsEnabled: boolean;
   notifyEmail: boolean;
   notifySite: boolean;
@@ -170,7 +81,6 @@ export type UserSettingsUpdateInput = Partial<{
   userProfile: unknown;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | null;
-  sidebarConfig: SidebarConfig;
   notificationsEnabled: boolean;
   language: AppLanguage;
   defaultBaziChartId: string | null;
@@ -183,7 +93,6 @@ export const USER_SETTINGS_SELECT = `
   user_profile,
   prompt_kb_ids,
   visualization_settings,
-  sidebar_config,
   notifications_enabled,
   notify_email,
   notify_site,
@@ -191,25 +100,6 @@ export const USER_SETTINGS_SELECT = `
   default_bazi_chart_id,
   default_ziwei_chart_id
 `;
-
-export function normalizeSidebarConfig(raw: unknown): SidebarConfig {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return DEFAULT_SIDEBAR_CONFIG;
-  }
-
-  const value = raw as Partial<SidebarConfig>;
-  const mobileMainItems = filterUniqueIds(value.mobileMainItems, ALL_MOBILE_NAV_IDS).slice(0, 4);
-
-  return {
-    hiddenNavItems: filterUniqueIds(value.hiddenNavItems, ALL_DESKTOP_NAV_IDS),
-    hiddenToolItems: filterUniqueIds(value.hiddenToolItems, ALL_TOOL_IDS),
-    navOrder: filterUniqueIds(value.navOrder, ALL_DESKTOP_NAV_IDS),
-    toolOrder: filterUniqueIds(value.toolOrder, ALL_TOOL_IDS),
-    mobileMainItems,
-    mobileDrawerOrder: filterUniqueIds(value.mobileDrawerOrder, ALL_MOBILE_NAV_IDS),
-    hiddenMobileItems: filterUniqueIds(value.hiddenMobileItems, ALL_MOBILE_NAV_IDS),
-  };
-}
 
 export function normalizeUserSettings(row: UserSettingsRow | null | undefined): UserSettingsSnapshot {
   return {
@@ -220,7 +110,6 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
       ? row.prompt_kb_ids.filter((value): value is string => typeof value === 'string' && value.length > 0)
       : [],
     visualizationSettings: normalizeVisualizationSettings(row?.visualization_settings),
-    sidebarConfig: normalizeSidebarConfig(row?.sidebar_config),
     notificationsEnabled: row?.notifications_enabled !== false,
     notifyEmail: row?.notify_email !== false,
     notifySite: row?.notify_site !== false,
@@ -284,9 +173,6 @@ export function buildUserSettingsUpdatePayload(
         payload.visualization_settings = normalizedVisualizationSettings;
       }
     }
-  }
-  if (body.sidebarConfig) {
-    payload.sidebar_config = normalizeSidebarConfig(body.sidebarConfig);
   }
   if (typeof body.notificationsEnabled === 'boolean') {
     payload.notifications_enabled = body.notificationsEnabled;

@@ -63,7 +63,6 @@ test('user profile route should update profile fields and return the normalized 
               custom_instructions: 'keep calm',
               user_profile: { identity: 'tester' },
               prompt_kb_ids: ['kb-1'],
-              sidebar_config: { hiddenNavItems: ['community'] },
             },
             error: null,
           }),

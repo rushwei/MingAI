@@ -1,8 +1,7 @@
 /**
  * Navigation Registry — single source of truth for all navigation items.
  *
- * Every consumer (Sidebar, MobileNav, SidebarCustomizer, MobileNavCustomizer,
- * FeatureTogglePanel) imports helpers from this module instead of maintaining
+ * Every consumer (Sidebar, MobileNav, FeatureTogglePanel) imports helpers from this module instead of maintaining
  * its own duplicated item arrays.
  */
 import {
@@ -104,11 +103,12 @@ export const NAV_REGISTRY: readonly NavItemDef[] = [
   { id: 'palm', href: '/palm', label: '手相', icon: Hand, emoji: '🖐️', description: '手相分析', category: 'divination' },
   { id: 'mbti', href: '/mbti', label: 'MBTI', icon: Brain, emoji: '🧩', description: '性格测试', category: 'divination' },
 
+  { id: 'daily', href: '/daily', label: '日运', icon: Sun, category: 'divination' },
+  { id: 'monthly', href: '/monthly', label: '月运', icon: CalendarRange, category: 'divination' },
+
   // ── Tools ───────────────────────────────────────────────────────────────
   { id: 'checkin', href: '/checkin', label: '签到', icon: CalendarCheck, category: 'tool' },
-  { id: 'chat', href: '/chat', label: 'AI', icon: BotMessageSquare, category: 'tool' },
-  { id: 'daily', href: '/daily', label: '日运', icon: Sun, category: 'tool' },
-  { id: 'monthly', href: '/monthly', label: '月运', icon: CalendarRange, category: 'tool' },
+  { id: 'chat', href: '/chat', label: '新聊天', icon: BotMessageSquare, category: 'tool' },
   { id: 'records', href: '/records', label: '命理记录', icon: Tags, category: 'tool' },
   { id: 'community', href: '/community', label: '社区', icon: Aperture, category: 'tool' },
 
@@ -159,17 +159,7 @@ export function getSidebarToolItems() {
   );
 }
 
-/** SidebarCustomizer — all divination items (same as sidebar nav). */
-export function getCustomizerNavItems() {
-  return NAV_REGISTRY.filter(n => n.category === 'divination');
-}
-
-/** SidebarCustomizer — all tool items (includes checkin). */
-export function getCustomizerToolItems() {
-  return NAV_REGISTRY.filter(n => n.category === 'tool');
-}
-
-/** MobileNav / MobileNavCustomizer — all items keyed by id. */
+/** MobileNav — all items keyed by id. */
 export function getMobileItemsRecord(): Record<string, { href: string; label: string; icon: NavIcon }> {
   const record: Record<string, { href: string; label: string; icon: NavIcon }> = {};
   for (const n of NAV_REGISTRY) {
@@ -178,7 +168,7 @@ export function getMobileItemsRecord(): Record<string, { href: string; label: st
   return record;
 }
 
-/** MobileNavCustomizer — flat array of { id, label, icon }. */
+/** Flat array of { id, label, icon } for mobile nav items. */
 export function getMobileItemsList(): { id: string; label: string; icon: NavIcon }[] {
   return NAV_REGISTRY.map(n => ({ id: n.id, label: n.label, icon: n.icon }));
 }

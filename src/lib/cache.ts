@@ -143,7 +143,6 @@ export type LocalCacheScope =
     | 'models'
     | 'data_sources'
     | 'knowledge_bases'
-    | 'sidebar_config'
     | 'default_bazi_chart';
 
 const CACHE_SCOPE_PREFIXES: Record<Exclude<LocalCacheScope, 'default_bazi_chart'>, string> = {
@@ -153,7 +152,6 @@ const CACHE_SCOPE_PREFIXES: Record<Exclude<LocalCacheScope, 'default_bazi_chart'
     models: 'mingai.models.',
     data_sources: 'mingai.data_sources.',
     knowledge_bases: 'mingai.knowledge_bases.',
-    sidebar_config: 'mingai.sidebar_config.',
 };
 
 const CACHE_SCOPE_KEYS: Record<'default_bazi_chart', string[]> = {

@@ -54,8 +54,8 @@ function resolveCacheScopesByPath(pathname: string): LocalCacheScope[] {
   if (pathname.startsWith('/api/credits')) return ['membership', 'level'];
   if (pathname.startsWith('/api/checkin')) return ['level'];
   if (pathname.startsWith('/api/activation-keys')) return ['profile', 'membership', 'level'];
-  if (pathname.startsWith('/api/auth')) return ['profile', 'membership', 'level', 'sidebar_config'];
-  if (pathname.startsWith('/api/user/settings')) return ['profile', 'sidebar_config', 'default_bazi_chart'];
+  if (pathname.startsWith('/api/auth')) return ['profile', 'membership', 'level'];
+  if (pathname.startsWith('/api/user/settings')) return ['profile', 'default_bazi_chart'];
   return [];
 }
 

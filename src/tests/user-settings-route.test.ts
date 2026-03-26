@@ -29,7 +29,6 @@ test('user settings route should return normalized settings bundle for the curre
                     dayunDisplayCount: 6,
                     chartStyle: 'dark',
                   },
-                  sidebar_config: { hiddenNavItems: ['qimen'] },
                 },
                 error: null,
               }),
@@ -56,7 +55,6 @@ test('user settings route should return normalized settings bundle for the curre
     dayunDisplayCount: 6,
     chartStyle: 'dark',
   });
-  assert.deepEqual(payload.settings.sidebarConfig.hiddenNavItems, ['qimen']);
 });
 
 test('user settings route PATCH should update only user_settings without touching removed feature subscriptions', async (t) => {

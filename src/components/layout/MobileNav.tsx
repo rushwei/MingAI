@@ -1,9 +1,9 @@
 /**
  * 移动端底部导航组件
- * 
+ *
  * 设计说明：
  * - 仅在移动端显示（lg 以下屏幕）
- * - 固定在底部，提供 5 个主要入口
+ * - 固定在底部，提供主要入口
  * - 第五个是"更多"按钮，点击展开抽屉显示所有入口
  */
 'use client';
@@ -14,12 +14,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Plus,
     X,
-    SlidersHorizontal,
 } from 'lucide-react';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
-import { useSidebarConfigSafe } from '@/components/layout/SidebarConfigContext';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { DEFAULT_MOBILE_MAIN_ITEMS, getEffectiveMobileDrawerOrder } from '@/lib/user/settings';
+import { DEFAULT_MOBILE_MAIN_ITEMS, DEFAULT_MOBILE_DRAWER_ORDER } from '@/lib/user/settings';
 import { getMobileItemsRecord, toFeatureId } from '@/lib/navigation/registry';
 
 const ALL_NAV_ITEMS = getMobileItemsRecord();
@@ -35,28 +33,25 @@ export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
-    const { config, loading: sidebarConfigLoading, refreshing: sidebarConfigRefreshing } = useSidebarConfigSafe();
     const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
-    const isNavLoading = sidebarConfigLoading || sidebarConfigRefreshing || featureLoading || featureRefreshing;
+    const isNavLoading = featureLoading || featureRefreshing;
 
-    // 根据配置计算底部导航栏项目
+    // 底部导航栏项目（硬编码默认顺序）
     const mainNavItems = useMemo(() => {
-        const items = config.mobileMainItems ?? [...DEFAULT_MOBILE_MAIN_ITEMS];
-        return items
+        return [...DEFAULT_MOBILE_MAIN_ITEMS]
             .filter(id => isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-    }, [config.mobileMainItems, isFeatureEnabled]);
+    }, [isFeatureEnabled]);
 
-    // 根据配置计算抽屉中的项目
+    // 抽屉中的项目（硬编码默认顺序）
     const drawerNavItems = useMemo(() => {
-        const order = getEffectiveMobileDrawerOrder(config);
-        const orderedItems = order
-            .filter(id => isFeatureEnabled(toFeatureId(id)))
+        const mainSet = new Set<string>(DEFAULT_MOBILE_MAIN_ITEMS);
+        return [...DEFAULT_MOBILE_DRAWER_ORDER]
+            .filter(id => !mainSet.has(id) && isFeatureEnabled(toFeatureId(id)))
             .map(id => ALL_NAV_ITEMS[id])
             .filter((item): item is typeof ALL_NAV_ITEMS[string] => !!item);
-        return orderedItems;
-    }, [config, isFeatureEnabled]);
+    }, [isFeatureEnabled]);
 
     // 点击外部或链接时关闭抽屉
     const closeDrawer = useCallback(() => {
@@ -120,14 +115,6 @@ export function MobileNav() {
                 <div className="flex items-center justify-between p-4 border-b border-border">
                     <h3 className="font-medium text-foreground">全部功能</h3>
                     <div className="flex items-center gap-1">
-                        <Link
-                            href="/user/settings"
-                            onClick={closeDrawer}
-                            className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
-                            title="自定义导航"
-                        >
-                            <SlidersHorizontal className="w-5 h-5" />
-                        </Link>
                         <button
                             onClick={closeDrawer}
                             className="p-2 rounded-full hover:bg-background-secondary text-foreground-secondary"
