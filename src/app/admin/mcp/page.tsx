@@ -43,7 +43,7 @@ export default function AdminMcpPage() {
     if (state.loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <SoundWaveLoader variant="block" text="加载中" />
+                <SoundWaveLoader variant="block" text="" />
             </div>
         );
     }

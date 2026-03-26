@@ -25,13 +25,13 @@ function MBTIPageContent() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-background md:pb-12">
+        <div className="min-h-screen bg-[#f7f6f3] md:pb-12 text-[#37352f]">
             {/* 页面标题 */}
             <div className="text-center pt-8 md:pt-12 pb-6">
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+                <h1 className="text-2xl lg:text-3xl font-bold">
                     MBTI 性格测试
                 </h1>
-                <p className="text-foreground-secondary mt-2 max-w-md mx-auto">
+                <p className="text-[#37352f]/60 mt-2 max-w-md mx-auto">
                     探索你的性格类型，发现你与生俱来的天赋与倾向
                 </p>
 
@@ -40,12 +40,11 @@ function MBTIPageContent() {
                         <button
                             onClick={() => router.push('/mbti/test')}
                             disabled={questions.length === 0}
-                            className="group relative inline-flex items-center gap-2 px-8 py-4 bg-accent text-white rounded-full
-                                text-lg font-medium shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/40 hover:-translate-y-0.5
-                                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none
-                                transition-all duration-300 overflow-hidden"
+                            className="group relative inline-flex items-center gap-2 px-8 py-4 bg-[#2383e2] text-white rounded-md
+                                text-lg font-bold shadow-sm hover:bg-[#2383e2]/90 active:bg-[#1a65b0]
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                                transition-all duration-150 overflow-hidden"
                         >
-                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {questions.length === 0 ? (
                                 <>
                                     <SoundWaveLoader variant="inline" />
@@ -58,7 +57,7 @@ function MBTIPageContent() {
                                 </>
                             )}
                         </button>
-                        <p className="mt-3 text-sm text-foreground-tertiary">
+                        <p className="mt-3 text-sm text-[#37352f]/40 font-medium">
                             共 {questions.length || 93} 道题目 · 约需 10-15 分钟
                         </p>
                     </div>
@@ -67,11 +66,11 @@ function MBTIPageContent() {
             <div className="max-w-5xl mx-auto px-4 py-12">
                 {/* 16种人格预览 */}
                 <div className="mb-8 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                        <span className="w-1 h-6 bg-accent rounded-full" />
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        <span className="w-1 h-6 bg-[#37352f] rounded-full" />
                         16型人格图鉴
                     </h2>
-                    <span className="text-sm text-foreground-secondary">
+                    <span className="text-sm font-medium text-[#37352f]/50">
                         点击查看详细解读
                     </span>
                 </div>
@@ -81,24 +80,24 @@ function MBTIPageContent() {
                         <button
                             key={type}
                             onClick={() => router.push(`/mbti/personality/${type}`)}
-                            className="bg-background border border-border rounded-xl p-4 text-center
-                                hover:border-accent/50 hover:shadow-md hover:shadow-accent/5 hover:-translate-y-1
-                                transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                            className="bg-white border border-gray-200 rounded-lg p-4 text-center
+                                hover:bg-[#efedea] active:bg-[#e3e1db] shadow-sm
+                                transition-all duration-150 cursor-pointer group relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <Eye className="w-4 h-4 text-accent" />
+                            <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                <Eye className="w-4 h-4 text-[#2383e2]" />
                             </div>
 
-                            <div className="text-4xl mb-3 transform group-hover:scale-110 transition-transform duration-300">
+                            <div className="text-4xl mb-3">
                                 {info.emoji}
                             </div>
-                            <div className="text-lg font-bold text-foreground font-mono tracking-wide mb-1">
+                            <div className="text-lg font-bold font-mono tracking-wide mb-1">
                                 {type}
                             </div>
-                            <div className="text-sm font-medium text-accent mb-1">
+                            <div className="text-sm font-bold text-[#2383e2] mb-1">
                                 {info.title}
                             </div>
-                            <div className="text-xs text-foreground-secondary line-clamp-1 opacity-70">
+                            <div className="text-xs text-[#37352f]/60 line-clamp-1">
                                 {info.description}
                             </div>
                         </button>

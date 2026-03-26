@@ -75,7 +75,7 @@ const membershipLabels: Record<string, string> = {
 };
 
 const Skeleton = ({ className }: { className: string }) => (
-    <div className={`animate-pulse bg-background-secondary ${className}`} />
+    <div className={`animate-pulse bg-[#efedea] ${className}`} />
 );
 
 type ProfileSnapshot = {
@@ -464,42 +464,46 @@ export default function UserPage() {
     // 未登录状态
     if (!user && !loading) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-                <div className="text-center py-16">
-                    <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-6">
-                        <User className="w-10 h-10 text-accent" />
+            <div className="min-h-screen bg-[#f7f6f3]">
+                <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+                    <div className="text-center py-16">
+                        <div className="w-20 h-20 rounded-full bg-[#efedea] flex items-center justify-center mx-auto mb-6">
+                            <User className="w-10 h-10 text-[#37352f]/50" />
+                        </div>
+                        <h1 className="text-2xl font-bold mb-2 text-[#37352f]">欢迎来到 MingAI</h1>
+                        <p className="text-[#37352f]/60 mb-8">
+                            登录后可保存命盘、享受更多积分
+                        </p>
+                        <button
+                            onClick={() => setShowAuthModal(true)}
+                            className="inline-flex items-center gap-2 px-8 py-3 rounded-md bg-[#2383e2] text-white font-semibold hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-colors duration-150"
+                        >
+                            <LogIn className="w-5 h-5" />
+                            登录 / 注册
+                        </button>
                     </div>
-                    <h1 className="text-2xl font-bold mb-2">欢迎来到 MingAI</h1>
-                    <p className="text-foreground-secondary mb-8">
-                        登录后可保存命盘、享受更多积分
-                    </p>
-                    <button
-                        onClick={() => setShowAuthModal(true)}
-                        className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
-                    >
-                        <LogIn className="w-5 h-5" />
-                        登录 / 注册
-                    </button>
-                </div>
 
-                <AuthModal
-                    isOpen={showAuthModal}
-                    onClose={() => setShowAuthModal(false)}
-                />
+                    <AuthModal
+                        isOpen={showAuthModal}
+                        onClose={() => setShowAuthModal(false)}
+                    />
+                </div>
             </div>
         );
     }
 
     if (!user && loading) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-                <div className="text-center py-16">
-                    <Skeleton className="w-20 h-20 rounded-full mx-auto mb-6" />
-                    <Skeleton className="h-6 w-40 rounded-lg mx-auto mb-3" />
-                    <Skeleton className="h-4 w-56 rounded-md mx-auto mb-8" />
-                    <Skeleton className="h-11 w-40 rounded-xl mx-auto" />
+            <div className="min-h-screen bg-[#f7f6f3]">
+                <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+                    <div className="text-center py-16">
+                        <Skeleton className="w-20 h-20 rounded-full mx-auto mb-6" />
+                        <Skeleton className="h-6 w-40 rounded-md mx-auto mb-3" />
+                        <Skeleton className="h-4 w-56 rounded-md mx-auto mb-8" />
+                        <Skeleton className="h-11 w-40 rounded-md mx-auto" />
+                    </div>
+                    <Skeleton className="h-3 w-24 rounded-md mx-auto mt-6" />
                 </div>
-                <Skeleton className="h-3 w-24 rounded-md mx-auto mt-6" />
             </div>
         );
     }
@@ -538,245 +542,259 @@ export default function UserPage() {
 
     // 已登录状态
     return (
-        <div className="max-w-2xl mx-auto px-4 py-2 md:py-8 animate-fade-in">
-            {/* 用户信息卡片 */}
-            <div className="bg-background rounded-2xl p-4 mb-2 md:mb-6">
-                <Link
-                    href="/user/profile"
-                    className="flex items-center gap-4 hover:bg-background-secondary/50 transition-colors rounded-xl p-2 -m-2"
-                >
-                    <div className="w-14 h-14 rounded-full bg-background flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
-                        {isProfileLoading ? (
-                            <Skeleton className="w-full h-full rounded-full" />
-                        ) : avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
-                        ) : (
-                            <User className="w-7 h-7 text-foreground-secondary" />
-                        )}
+        <div className="min-h-screen bg-[#f7f6f3]">
+            <div className="max-w-2xl mx-auto px-4 py-2 md:py-8 animate-fade-in">
+                {/* 用户信息卡片 */}
+                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-2 md:mb-6 group relative">
+                    <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                        ⋮⋮
                     </div>
-                    <div className="flex-1 min-w-0">
-                        {isProfileLoading ? (
-                            <>
-                                <Skeleton className="h-5 w-28 rounded-md" />
-                                <Skeleton className="h-4 w-40 rounded-md mt-2" />
-                            </>
+                    <Link
+                        href="/user/profile"
+                        className="flex items-center gap-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 rounded-md py-2 pl-6 pr-2 -m-2"
+                    >
+                        <div className="w-14 h-14 rounded-full bg-[#f7f6f3] flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
+                            {isProfileLoading ? (
+                                <Skeleton className="w-full h-full rounded-full" />
+                            ) : avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="w-7 h-7 text-[#37352f]/50" />
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            {isProfileLoading ? (
+                                <>
+                                    <Skeleton className="h-5 w-28 rounded-md" />
+                                    <Skeleton className="h-4 w-40 rounded-md mt-2" />
+                                </>
+                            ) : (
+                                <>
+                                    <h1 className="text-lg font-bold truncate text-[#37352f]">{displayName}</h1>
+                                    <p className="text-sm text-[#37352f]/60 truncate">{userEmail}</p>
+                                </>
+                            )}
+                            {!isMembershipLoading && expiryText && (
+                                <p className="text-xs text-[#37352f]/50 mt-0.5">{expiryText}</p>
+                            )}
+                            {isMembershipLoading && (
+                                <Skeleton className="h-3 w-24 rounded-md mt-2" />
+                            )}
+                        </div>
+                        {isMembershipLoading ? (
+                            <Skeleton className="h-7 w-16 rounded-md flex-shrink-0" />
+                        ) : upgradeFeatureEnabled && !isPaymentPaused ? (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.location.href = '/user/upgrade';
+                                }}
+                                className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer ${membership?.type === 'pro'
+                                    ? 'bg-purple-50 text-purple-600'
+                                    : membership?.type === 'plus'
+                                        ? 'bg-blue-50 text-[#2eaadc]'
+                                        : 'bg-[#efedea] text-[#37352f]/70'
+                                    }`}>
+                                {membershipLabel}
+                            </button>
                         ) : (
-                            <>
-                                <h1 className="text-lg font-bold truncate">{displayName}</h1>
-                                <p className="text-sm text-foreground-secondary truncate">{userEmail}</p>
-                            </>
-                        )}
-                        {!isMembershipLoading && expiryText && (
-                            <p className="text-xs text-foreground-secondary mt-0.5">{expiryText}</p>
-                        )}
-                        {isMembershipLoading && (
-                            <Skeleton className="h-3 w-24 rounded-md mt-2" />
-                        )}
-                    </div>
-                    {isMembershipLoading ? (
-                        <Skeleton className="h-7 w-16 rounded-xl flex-shrink-0" />
-                    ) : upgradeFeatureEnabled && !isPaymentPaused ? (
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                window.location.href = '/user/upgrade';
-                            }}
-                            className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer ${membership?.type === 'pro'
-                                ? 'bg-purple-500/10 text-purple-500'
-                                : membership?.type === 'plus'
-                                    ? 'bg-amber-500/10 text-amber-500'
-                                    : 'bg-gray-500/10 text-gray-500'
-                                }`}>
-                            {membershipLabel}
-                        </button>
-                    ) : (
-                        <span
-                            className={`px-4 py-1 rounded-xl text-sm font-bold flex-shrink-0 ${membership?.type === 'pro'
-                                ? 'bg-purple-500/10 text-purple-500'
-                                : membership?.type === 'plus'
-                                    ? 'bg-amber-500/10 text-amber-500'
-                                    : 'bg-gray-500/10 text-gray-500'
-                                }`}
-                        >
-                            {membershipLabel}
-                        </span>
-                    )}
-                </Link>
-
-                {/* 经验进度条（签到功能关闭时隐藏） */}
-                {checkinFeatureEnabled && level && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <Trophy className="w-4 h-4 text-amber-500" />
-                                <span className="text-sm font-medium">Lv.{level.level} {level.title}</span>
-                                <button
-                                    onClick={() => checkinStatus?.todayCheckedIn ? setShowCalendarModal(true) : setShowCheckinModal(true)}
-                                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${checkinStatus?.todayCheckedIn
-                                            ? 'bg-green-500/10 text-green-600 border border-green-500/20'
-                                            : 'bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20'
-                                        }`}
-                                >
-                                    <CalendarCheck className="w-3 h-3" />
-                                    {checkinStatus?.todayCheckedIn ? '已签到' : '签到'}
-                                </button>
-                            </div>
-                            <span className="text-xs text-foreground-secondary">
-                                {level.experience} / {getNextLevelXp(level.level)} XP
+                            <span
+                                className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold flex-shrink-0 ${membership?.type === 'pro'
+                                    ? 'bg-purple-50 text-purple-600'
+                                    : membership?.type === 'plus'
+                                        ? 'bg-blue-50 text-[#2eaadc]'
+                                        : 'bg-[#efedea] text-[#37352f]/70'
+                                    }`}
+                            >
+                                {membershipLabel}
                             </span>
-                        </div>
-                        <div className="h-2 bg-background-secondary rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
-                                style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
-                            />
-                        </div>
-                    </div>
-                )}
-                {checkinFeatureEnabled && !level && isLevelLoading && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-24 rounded-md" />
-                                <Skeleton className="h-5 w-12 rounded-md" />
-                            </div>
-                            <Skeleton className="h-3 w-20 rounded-md" />
-                        </div>
-                        <Skeleton className="h-2 w-full rounded-full" />
-                    </div>
-                )}
-
-                {/* 升级会员入口 */}
-                {isMembershipLoading && (
-                    <Skeleton className="h-11 w-full rounded-xl mt-4" />
-                )}
-                {!isMembershipLoading && membership?.type === 'free' && !isPaymentPaused && upgradeFeatureEnabled && (
-                    <Link
-                        href="/user/upgrade"
-                        className="w-full mt-4 py-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <span>升级会员，解锁全部功能</span>
+                        )}
                     </Link>
-                )}
-            </div>
 
-
-
-            {/* 菜单列表 */}
-            {
-                [...menuItems,
-                ...(isAdmin
-                    ? [{
-                        section: '管理',
-                        items: [
-                            { icon: Megaphone, label: '公告管理', href: '/admin/announcements' },
-                            { icon: Wallet, label: '功能与支付管理', href: '/admin/features' },
-                            { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
-                            { icon: Plug, label: 'MCP 管理', href: '/admin/mcp' },
-                        ],
-                    }]
-                    : [])
-                ].map((section, sectionIndex) => (
-                    <div key={sectionIndex} className="mb-6">
-                        <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
-                            {section.section}
-                        </h2>
-                        <div className="bg-background rounded-xl border border-border overflow-hidden">
-                            {section.items.map((item, itemIndex) => {
-                                const featureId = 'featureId' in item ? (item as { featureId?: string }).featureId : undefined;
-                                if (featureId && !isFeatureEnabled(featureId)) {
-                                    return null;
-                                }
-                                const Icon = item.icon;
-                                const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
-                                const isSubscription = item.href === '/user/upgrade';
-                                const isDisabledByPayment = isSubscription && isPaymentPaused;
-                                const requiresPlus = 'requiresPlus' in item && item.requiresPlus;
-                                const isDisabledByMembership = requiresPlus && membership?.type === 'free';
-
-                                if (isDisabledByPayment) {
-                                    return null;
-                                }
-
-                                if (isDisabledByMembership) {
-                                    return (
-                                        <div
-                                            key={itemIndex}
-                                            className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 text-foreground-secondary cursor-not-allowed opacity-60"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Icon className="w-5 h-5 text-foreground-secondary" />
-                                                <span>{item.label}</span>
-                                            </div>
-                                            <span className="text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                                                Plus+
-                                            </span>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <Link
-                                        key={itemIndex}
-                                        href={item.href!}
-                                        className="flex items-center justify-between px-4 py-3 hover:bg-background-secondary transition-colors border-b border-border last:border-b-0"
+                    {/* 经验进度条（签到功能关闭时隐藏） */}
+                    {checkinFeatureEnabled && level && (
+                        <div className="mt-4 pt-4 border-t border-gray-100 pl-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Trophy className="w-4 h-4 text-[#dfab01]" />
+                                    <span className="text-sm font-semibold text-[#37352f]">Lv.{level.level} {level.title}</span>
+                                    <button
+                                        onClick={() => checkinStatus?.todayCheckedIn ? setShowCalendarModal(true) : setShowCheckinModal(true)}
+                                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 ${checkinStatus?.todayCheckedIn
+                                                ? 'bg-green-50 text-[#0f7b6c]'
+                                                : 'bg-amber-50 text-[#dfab01] hover:bg-amber-100'
+                                            }`}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <Icon className="w-5 h-5 text-foreground-secondary" />
-                                            <span>{item.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {showUnread && (
-                                                <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
-                                                    {effectiveUnreadCount > 99 ? '99+' : effectiveUnreadCount}
+                                        <CalendarCheck className="w-3 h-3" />
+                                        {checkinStatus?.todayCheckedIn ? '已签到' : '签到'}
+                                    </button>
+                                </div>
+                                <span className="text-xs text-[#37352f]/50">
+                                    {level.experience} / {getNextLevelXp(level.level)} XP
+                                </span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-[#dfab01] transition-all duration-500"
+                                    style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {checkinFeatureEnabled && !level && isLevelLoading && (
+                        <div className="mt-4 pt-4 border-t border-gray-100 pl-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-4 w-24 rounded-md" />
+                                    <Skeleton className="h-5 w-12 rounded-md" />
+                                </div>
+                                <Skeleton className="h-3 w-20 rounded-md" />
+                            </div>
+                            <Skeleton className="h-1.5 w-full rounded-full" />
+                        </div>
+                    )}
+
+                    {/* 升级会员入口 */}
+                    {isMembershipLoading && (
+                        <Skeleton className="h-11 w-full rounded-md mt-4 ml-4" />
+                    )}
+                    {!isMembershipLoading && membership?.type === 'free' && !isPaymentPaused && upgradeFeatureEnabled && (
+                        <Link
+                            href="/user/upgrade"
+                            className="w-[calc(100%-1rem)] ml-4 mt-4 py-2.5 rounded-md bg-[#2383e2] text-white font-semibold hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-colors duration-150 flex items-center justify-center gap-2"
+                        >
+                            <span>升级会员，解锁全部功能</span>
+                        </Link>
+                    )}
+                </div>
+
+
+
+                {/* 菜单列表 */}
+                {
+                    [...menuItems,
+                    ...(isAdmin
+                        ? [{
+                            section: '管理',
+                            items: [
+                                { icon: Megaphone, label: '公告管理', href: '/admin/announcements' },
+                                { icon: Wallet, label: '功能与支付管理', href: '/admin/features' },
+                                { icon: Bot, label: 'AI 服务', href: '/admin/ai-services' },
+                                { icon: Plug, label: 'MCP 管理', href: '/admin/mcp' },
+                            ],
+                        }]
+                        : [])
+                    ].map((section, sectionIndex) => (
+                        <div key={sectionIndex} className="mb-6">
+                            <h2 className="text-xs font-semibold text-[#37352f]/50 mb-2 px-1 uppercase tracking-wider">
+                                {section.section}
+                            </h2>
+                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100 shadow-sm">
+                                {section.items.map((item, itemIndex) => {
+                                    const featureId = 'featureId' in item ? (item as { featureId?: string }).featureId : undefined;
+                                    if (featureId && !isFeatureEnabled(featureId)) {
+                                        return null;
+                                    }
+                                    const Icon = item.icon;
+                                    const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
+                                    const isSubscription = item.href === '/user/upgrade';
+                                    const isDisabledByPayment = isSubscription && isPaymentPaused;
+                                    const requiresPlus = 'requiresPlus' in item && item.requiresPlus;
+                                    const isDisabledByMembership = requiresPlus && membership?.type === 'free';
+
+                                    if (isDisabledByPayment) {
+                                        return null;
+                                    }
+
+                                    if (isDisabledByMembership) {
+                                        return (
+                                            <div
+                                                key={itemIndex}
+                                                className="flex items-center justify-between px-4 py-3 text-[#37352f]/40 cursor-not-allowed group relative"
+                                            >
+                                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                                    ⋮⋮
+                                                </div>
+                                                <div className="flex items-center gap-3 pl-4">
+                                                    <Icon className="w-5 h-5 opacity-70" />
+                                                    <span className="font-medium text-sm">{item.label}</span>
+                                                </div>
+                                                <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md font-bold">
+                                                    Plus+
                                                 </span>
-                                            )}
-                                            <ChevronRight className="w-4 h-4 text-foreground-secondary" />
-                                        </div>
-                                    </Link>
-                                );
-                            })}
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <Link
+                                            key={itemIndex}
+                                            href={item.href!}
+                                            className="flex items-center justify-between py-3 pr-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 group relative"
+                                        >
+                                            <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                                ⋮⋮
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[#37352f] pl-5">
+                                                <Icon className="w-5 h-5 text-[#37352f]/70" />
+                                                <span className="font-medium text-sm">{item.label}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {showUnread && (
+                                                    <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#2383e2] text-white rounded-full flex items-center justify-center">
+                                                        {effectiveUnreadCount > 99 ? '99+' : effectiveUnreadCount}
+                                                    </span>
+                                                )}
+                                                <ChevronRight className="w-4 h-4 text-[#37352f]/30" />
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))
+                }
+
+                {/* 帮助 */}
+                {isFeatureEnabled('help') && (
+                    <div className="mb-6">
+                        <h2 className="text-xs font-semibold text-[#37352f]/50 mb-2 px-1 uppercase tracking-wider">
+                            帮助
+                        </h2>
+                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                            <Link
+                                href="/help"
+                                className="flex items-center justify-between py-3 pr-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 group relative"
+                            >
+                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                    ⋮⋮
+                                </div>
+                                <div className="flex items-center gap-3 text-[#37352f] pl-5">
+                                    <HelpCircle className="w-5 h-5 text-[#37352f]/70" />
+                                    <span className="font-medium text-sm">帮助中心</span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-[#37352f]/30" />
+                            </Link>
                         </div>
                     </div>
-                ))
-            }
-
-            {/* 帮助 */}
-            {isFeatureEnabled('help') && (
-            <div className="mb-6">
-                <h2 className="text-sm font-medium text-foreground-secondary mb-2 px-1">
-                    帮助
-                </h2>
-                <div className="bg-background rounded-xl border border-border overflow-hidden">
-                    <Link
-                        href="/help"
-                        className="flex items-center justify-between px-4 py-3 hover:bg-background-secondary transition-colors"
-                    >
-                        <div className="flex items-center gap-3">
-                            <HelpCircle className="w-5 h-5 text-foreground-secondary" />
-                            <span>帮助中心</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-foreground-secondary" />
-                    </Link>
-                </div>
-            </div>
-            )}
-
-            {/* 退出登录 */}
-            <button
-                onClick={handleSignOut}
-                disabled={signingOut}
-                className="w-full py-3 rounded-xl border border-border text-foreground-secondary hover:border-red-500 hover:text-red-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {signingOut ? (
-                    <SoundWaveLoader variant="inline" />
-                ) : (
-                    <LogOut className="w-4 h-4" />
                 )}
-                {signingOut ? '正在退出...' : '退出登录'}
-            </button>
+
+                {/* 退出登录 */}
+                <button
+                    onClick={handleSignOut}
+                    disabled={signingOut}
+                    className="w-full py-2.5 rounded-md border border-gray-200 text-[#37352f]/60 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {signingOut ? (
+                        <SoundWaveLoader variant="inline" />
+                    ) : (
+                        <LogOut className="w-4 h-4" />
+                    )}
+                    <span className="font-medium text-sm">{signingOut ? '正在退出...' : '退出登录'}</span>
+                </button>
+            </div>
 
             {/* 弹窗 */}
             {checkinFeatureEnabled && (
@@ -794,6 +812,10 @@ export default function UserPage() {
                 />
             )}
 
-        </div >
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
+        </div>
     );
 }

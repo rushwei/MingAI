@@ -5,19 +5,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Camera, User as UserIcon } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/auth';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import type { User } from '@/lib/auth';
 import { uploadAvatarForCurrentUser } from '@/lib/user/profile';
-import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { AvatarSection } from '@/components/profile/AvatarSection';
 import { StatusBanner } from '@/components/profile/StatusBanner';
-import { NicknameField } from '@/components/profile/NicknameField';
-import { EmailSection } from '@/components/profile/EmailSection';
 import { PasswordSection } from '@/components/profile/PasswordSection';
-import { CreatedAtField } from '@/components/profile/CreatedAtField';
 import { getUserEmailDisplay } from '@/lib/user-email';
 
 export default function ProfilePage() {
@@ -148,29 +145,31 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8">
-                {/* 标题骨架 */}
-                <div className="mb-8">
-                    <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
-                    <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse mt-2" />
-                </div>
-                {/* 头像骨架 */}
-                <div className="flex justify-center mb-8">
-                    <div className="w-24 h-24 rounded-full bg-foreground/10 animate-pulse" />
-                </div>
-                {/* 表单骨架 */}
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
-                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+            <div className="min-h-screen bg-background text-foreground">
+                <div className="max-w-2xl mx-auto px-4 py-8">
+                    {/* 标题骨架 */}
+                    <div className="mb-8">
+                        <div className="h-7 w-24 rounded bg-gray-200 animate-pulse" />
+                        <div className="h-4 w-40 rounded bg-gray-200 animate-pulse mt-2" />
                     </div>
-                    <div className="space-y-2">
-                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
-                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                    {/* 头像骨架 */}
+                    <div className="flex justify-center mb-8">
+                        <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse" />
                     </div>
-                    <div className="space-y-2">
-                        <div className="h-4 w-12 rounded bg-foreground/5 animate-pulse" />
-                        <div className="h-11 w-full rounded-xl bg-foreground/5 animate-pulse" />
+                    {/* 表单骨架 */}
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -178,34 +177,112 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-            <ProfileHeader />
+        <div className="min-h-screen bg-background">
+            <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in text-foreground space-y-10">
+                {/* 标题 */}
+                <header className="space-y-1">
+                    <h1 className="text-2xl font-bold">个人资料</h1>
+                    <p className="text-sm text-foreground/50">管理您的账户信息与公开偏好</p>
+                </header>
 
-            <AvatarSection
-                fileInputRef={fileInputRef}
-                avatarUrl={avatarUrl}
-                uploadingAvatar={uploadingAvatar}
-                onAvatarClick={handleAvatarClick}
-                onAvatarChange={handleAvatarChange}
-            />
-
-            {/* 表单 */}
-            <div className="space-y-6">
                 <StatusBanner error={error} success={success} />
 
-                <NicknameField
-                    nickname={nickname}
-                    onChange={setNickname}
-                    hasChanges={hasNicknameChanges}
-                    onSave={handleSave}
-                    saving={saving}
-                />
+                <div className="space-y-8">
+                    {/* 头像区域 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">头像设置</h2>
+                        <div className="bg-background border border-gray-200 rounded-md p-6 flex flex-col items-center gap-4">
+                            <div className="relative group">
+                                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#efedea] border border-gray-100">
+                                    {avatarUrl ? (
+                                        <Image
+                                            src={avatarUrl}
+                                            alt="Avatar"
+                                            width={96}
+                                            height={96}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-foreground/20">
+                                            <UserIcon className="w-10 h-10" />
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleAvatarClick}
+                                    className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-full transition-opacity"
+                                >
+                                    <Camera className="w-6 h-6" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleAvatarChange}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs text-foreground/40">推荐使用 256x256px 以上的图片</p>
+                                {uploadingAvatar && <p className="text-xs text-[#2eaadc] mt-1 animate-pulse">上传中...</p>}
+                            </div>
+                        </div>
+                    </section>
 
-                <EmailSection currentEmail={user?.email || ''} displayEmail={displayEmail} />
+                    {/* 基本信息 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">基本信息</h2>
+                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                            {/* 昵称 */}
+                            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-0.5">
+                                    <p className="text-sm font-medium">显示昵称</p>
+                                    <p className="text-xs text-foreground/40">公开显示的名称</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={nickname}
+                                        onChange={(e) => setNickname(e.target.value)}
+                                        className="px-3 py-1.5 bg-[#efedea] rounded-md text-sm border-none focus:outline-none w-48"
+                                    />
+                                    {hasNicknameChanges && (
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={saving}
+                                            className="px-3 py-1.5 bg-[#2383e2] text-white text-xs font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors disabled:opacity-50"
+                                        >
+                                            {saving ? '保存中...' : '保存'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
 
-                <PasswordSection email={user?.email || ''} />
+                            {/* 邮箱 */}
+                            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-0.5">
+                                    <p className="text-sm font-medium">电子邮箱</p>
+                                    <p className="text-xs text-foreground/40">用于账户登录与重要通知</p>
+                                </div>
+                                <div className="px-3 py-1.5 bg-[#efedea]/50 rounded-md text-sm text-foreground/40 font-mono">
+                                    {displayEmail}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
-                <CreatedAtField createdAt={user?.created_at || null} />
+                    {/* 账号安全 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">安全设置</h2>
+                        <div className="bg-background border border-gray-200 rounded-md p-4">
+                            <div className="mb-4 space-y-0.5">
+                                <p className="text-sm font-medium">重置密码</p>
+                                <p className="text-xs text-foreground/40">定期更新密码以保障账户安全</p>
+                            </div>
+                            <PasswordSection email={user?.email || ''} />
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
     );

@@ -218,11 +218,11 @@ export function MBTITestFlow() {
 
     if (isCalculating) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="min-h-screen bg-[#f7f6f3] flex items-center justify-center">
                 <div className="text-center">
-                    <Brain className="w-16 h-16 text-accent mx-auto mb-4 animate-pulse" />
-                    <h2 className="text-xl font-semibold text-foreground mb-2">正在分析你的性格类型...</h2>
-                    <p className="text-foreground-secondary">请稍候</p>
+                    <Brain className="w-16 h-16 text-[#2383e2] mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-[#37352f] mb-2">正在分析你的性格类型...</h2>
+                    <p className="text-[#37352f]/60 font-medium tracking-wide">请稍候</p>
                 </div>
             </div>
         );
@@ -230,10 +230,10 @@ export function MBTITestFlow() {
 
     if (!showIntroModal && isLoading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="min-h-screen bg-[#f7f6f3] flex items-center justify-center">
                 <div className="text-center">
                     <SoundWaveLoader variant="inline" />
-                    <p className="text-foreground-secondary mt-4">正在加载题目...</p>
+                    <p className="text-[#37352f]/60 mt-4 font-medium">正在加载题目...</p>
                 </div>
             </div>
         );
@@ -241,12 +241,12 @@ export function MBTITestFlow() {
 
     if (!showIntroModal && !isLoading && questions.length === 0) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center px-4">
+            <div className="min-h-screen bg-[#f7f6f3] flex items-center justify-center px-4">
                 <div className="text-center">
-                    <p className="text-foreground-secondary">题库加载失败，请稍后再试</p>
+                    <p className="text-[#37352f]/60 font-medium">题库加载失败，请稍后再试</p>
                     <button
                         onClick={() => router.push('/mbti')}
-                        className="mt-4 px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
+                        className="mt-4 px-6 py-2 rounded-md bg-[#2383e2] text-white font-bold hover:bg-[#2383e2]/90 transition-all duration-150"
                     >
                         返回首页
                     </button>
@@ -259,24 +259,24 @@ export function MBTITestFlow() {
     const allAnswered = answers.length === questions.length;
 
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="min-h-screen bg-[#f7f6f3] pb-32 text-[#37352f]">
             {!showIntroModal && !isLoading && questions.length > 0 && (
                 <>
                     <div className="max-w-2xl mx-auto px-4 py-6">
                         <Link
                             href="/mbti"
-                            className="inline-flex items-center gap-2 text-sm text-foreground-secondary
-                                hover:text-foreground transition-colors mb-4"
+                            className="inline-flex items-center gap-2 text-sm font-bold text-[#37352f]/50
+                                hover:text-[#37352f] transition-colors mb-4"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             返回首页
                         </Link>
                         {/* 页面头部 */}
                         <div className="flex items-center justify-between mb-6">
-                            <div className="text-sm text-foreground-secondary">
+                            <div className="text-xs font-bold uppercase tracking-wider text-[#37352f]/40">
                                 第 {currentPage + 1} / {totalPages} 页
                             </div>
-                            <div className="text-sm text-foreground-secondary">
+                            <div className="text-xs font-bold uppercase tracking-wider text-[#37352f]/40">
                                 已完成 {answers.length} / {questions.length}
                             </div>
                         </div>
@@ -292,7 +292,7 @@ export function MBTITestFlow() {
                                     <div
                                         key={globalIndex}
                                         id={`question-${globalIndex}`}
-                                        className={`transition-all duration-500 ${isHighlighted ? 'ring-2 ring-accent ring-offset-4 ring-offset-background rounded-xl' : ''}`}
+                                        className={`bg-white rounded-lg border border-gray-200 p-6 shadow-sm transition-all duration-150 ${isHighlighted ? 'ring-2 ring-[#2383e2] ring-offset-4 ring-offset-[#f7f6f3]' : ''}`}
                                     >
                                         <QuestionCard
                                             question={question}
@@ -307,12 +307,12 @@ export function MBTITestFlow() {
                         </div>
 
                         {/* 分页导航 */}
-                        <div className="flex justify-between mt-8">
+                        <div className="flex justify-between mt-12">
                             <button
                                 onClick={goToPreviousPage}
                                 disabled={currentPage === 0}
-                                className="flex items-center gap-2 px-4 py-2 text-foreground-secondary
-                                    disabled:opacity-30 hover:text-foreground transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#37352f]/60
+                                    disabled:opacity-20 hover:bg-[#efedea] rounded-md transition-all duration-150"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 上一页
@@ -322,8 +322,8 @@ export function MBTITestFlow() {
                                 <button
                                     onClick={finishTest}
                                     disabled={!allAnswered}
-                                    className="flex items-center gap-2 px-6 py-2 bg-accent text-white rounded-lg
-                                        disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent/90 transition-all"
+                                    className="flex items-center gap-2 px-8 py-2 bg-[#2383e2] text-white rounded-md font-bold
+                                        disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-all duration-150"
                                 >
                                     <Check className="w-4 h-4" />
                                     完成测试
@@ -332,8 +332,8 @@ export function MBTITestFlow() {
                                 <button
                                     onClick={goToNextPage}
                                     disabled={!currentPageAllAnswered}
-                                    className="flex items-center gap-2 px-4 py-2 text-foreground-secondary
-                                        disabled:opacity-30 hover:text-foreground transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#37352f]/60
+                                        disabled:opacity-20 hover:bg-[#efedea] rounded-md transition-all duration-150"
                                 >
                                     下一页
                                     <ArrowRight className="w-4 h-4" />
@@ -357,34 +357,49 @@ export function MBTITestFlow() {
                     className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     data-role="mbti-intro-modal"
                 >
-                    <div className="absolute inset-0 bg-black/50" />
-                    <div className="relative w-full max-w-lg rounded-2xl bg-background border border-border p-6 shadow-xl">
-                        <h3 className="text-lg font-semibold text-foreground mb-4">测试说明</h3>
-                        <ul className="space-y-2 text-foreground-secondary">
-                            <li>• 本测试共 {questions.length || '...'} 道题，每页 {QUESTIONS_PER_PAGE} 题</li>
-                            <li>• 请根据你的第一反应作答，不要过度思考</li>
-                            <li>• 用量表选择你的倾向程度（左侧或右侧代表不同选项）</li>
-                            <li>• 必须完成当前页所有题目才能翻到下一页</li>
+                    <div className="absolute inset-0 bg-[#37352f]/20 backdrop-blur-[2px]" />
+                    <div className="relative w-full max-w-lg rounded-lg bg-white border border-gray-200 p-8 shadow-xl text-[#37352f]">
+                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                            <Brain className="w-5 h-5 text-[#2383e2]" />
+                            测试说明
+                        </h3>
+                        <ul className="space-y-4 text-sm font-medium text-[#37352f]/70">
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2] mt-1.5 flex-shrink-0" />
+                                <span>本测试共 {questions.length || '93'} 道题，每页 {QUESTIONS_PER_PAGE} 题</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2] mt-1.5 flex-shrink-0" />
+                                <span>请根据你的第一反应作答，不要过度思考</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2] mt-1.5 flex-shrink-0" />
+                                <span>用量表选择你的倾向程度（左侧或右侧代表不同选项）</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2] mt-1.5 flex-shrink-0" />
+                                <span>必须完成当前页所有题目才能翻到下一页</span>
+                            </li>
                         </ul>
                         {isLoading && (
-                            <div className="mt-4 flex items-center gap-2 text-sm text-foreground-secondary">
+                            <div className="mt-6 flex items-center gap-2 text-xs font-bold text-[#37352f]/40 uppercase tracking-wider">
                                 <SoundWaveLoader variant="inline" />
                                 正在加载题目...
                             </div>
                         )}
-                        <div className="mt-6 flex items-center justify-end gap-3">
+                        <div className="mt-10 flex items-center justify-end gap-3">
                             <button
                                 onClick={() => router.push('/mbti')}
-                                className="px-4 py-2 rounded-lg bg-background-secondary text-foreground
-                                    hover:bg-background-secondary/80 transition-colors"
+                                className="px-6 py-2 rounded-md bg-transparent border border-gray-200 text-sm font-bold
+                                    hover:bg-[#efedea] active:bg-[#e3e1db] transition-all duration-150"
                             >
                                 返回首页
                             </button>
                             <button
                                 onClick={() => setShowIntroModal(false)}
                                 disabled={isLoading || questions.length === 0}
-                                className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors
-                                    disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-8 py-2 rounded-md bg-[#2383e2] text-white text-sm font-bold hover:bg-[#2383e2]/90
+                                    active:bg-[#1a65b0] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 shadow-sm"
                             >
                                 开始测试
                             </button>

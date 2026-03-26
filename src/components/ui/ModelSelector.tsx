@@ -209,7 +209,7 @@ export function ModelSelector({
                         )}
                         <span className={`${compact ? 'max-w-[104px]' : 'max-w-[125px]'} truncate`}>
                             {modelsLoading
-                                ? '模型加载中...'
+                                ? ''
                                 : models.length === 0
                                     ? '暂无可用模型'
                                     : currentModelConfig.name}

@@ -33,63 +33,47 @@ export function QuestionCard({
     selectedValue,
     showProgress = false
 }: QuestionCardProps) {
-    // 获取选项颜色
+    // 获取选项颜色 - 使用 Notion 风格的辅助色
     const getOptionStyle = (value: LikertValue, isSelected: boolean) => {
         if (!isSelected) {
-            // 未选中状态：显示渐变颜色边框
-            if (value <= 3) {
-                const intensity = (4 - value) / 3; // 1->1, 2->0.66, 3->0.33
-                return {
-                    borderColor: `rgba(16, 185, 129, ${0.3 + intensity * 0.4})`, // green
-                    backgroundColor: 'transparent',
-                };
-            } else if (value === 4) {
-                return {
-                    borderColor: 'rgba(156, 163, 175, 0.5)', // gray
-                    backgroundColor: 'transparent',
-                };
-            } else {
-                const intensity = (value - 4) / 3; // 5->0.33, 6->0.66, 7->1
-                return {
-                    borderColor: `rgba(139, 92, 246, ${0.3 + intensity * 0.4})`, // purple
-                    backgroundColor: 'transparent',
-                };
-            }
+            // 未选中状态：淡灰色边框
+            return {
+                borderColor: '#e2e8f0',
+                backgroundColor: 'transparent',
+            };
         }
 
-        // 选中状态：填充颜色
+        // 选中状态：Notion 强调色
         if (value <= 3) {
-            const intensity = (4 - value) / 3;
             return {
-                borderColor: `rgba(16, 185, 129, ${0.6 + intensity * 0.4})`,
-                backgroundColor: `rgba(16, 185, 129, ${0.3 + intensity * 0.5})`,
+                borderColor: '#0f7b6c', // green
+                backgroundColor: '#0f7b6c',
             };
         } else if (value === 4) {
             return {
-                borderColor: 'rgba(156, 163, 175, 0.8)',
-                backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                borderColor: '#37352f', // dark gray
+                backgroundColor: '#37352f',
             };
         } else {
-            const intensity = (value - 4) / 3;
             return {
-                borderColor: `rgba(139, 92, 246, ${0.6 + intensity * 0.4})`,
-                backgroundColor: `rgba(139, 92, 246, ${0.3 + intensity * 0.5})`,
+                borderColor: '#a083ff', // purple/violet
+                backgroundColor: '#a083ff',
             };
         }
     };
 
     return (
-        <div className="w-full">
+        <div className="w-full text-[#37352f]">
             {/* 进度条（可选） */}
             {showProgress && (
-                <div className="mb-4">
-                    <div className="flex justify-between text-sm text-foreground-secondary mb-2">
+                <div className="mb-6">
+                    <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-[#37352f]/40 mb-2">
                         <span>问题 {questionNumber}/{totalQuestions}</span>
                         <span>{Math.round((questionNumber / totalQuestions) * 100)}%</span>
                     </div>
-                    <div className="h-2 bg-background-secondary rounded-full overflow-hidden">
+                    <div className="h-1 bg-[#efedea] rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-accent transition-all duration-300"
+                            className="h-full bg-[#2383e2] transition-all duration-300"
                             style={{ width: `${(questionNumber / totalQuestions) * 100}%` }}
                         />
                     </div>
@@ -97,17 +81,17 @@ export function QuestionCard({
             )}
 
             {/* 题号 */}
-            <div className="text-sm text-accent font-medium mb-2">第 {questionNumber} 题</div>
+            <div className="text-[11px] font-bold uppercase tracking-widest text-[#2383e2] mb-3">QUESTION {questionNumber}</div>
 
             {/* 问题 */}
-            <div className="bg-background-secondary rounded-xl p-4 mb-6">
-                <p className="text-base text-foreground font-medium text-center">
+            <div className="bg-[#f7f6f3] rounded-md p-5 mb-8 border border-gray-100">
+                <p className="text-base font-bold text-center leading-relaxed">
                     {question.question}
                 </p>
             </div>
 
             {/* Likert 量表 */}
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {/* 圆圈选项 */}
                 <div className="flex items-center justify-between px-2">
                     {LIKERT_OPTIONS.map(({ value, size }) => {
@@ -118,7 +102,7 @@ export function QuestionCard({
                             <button
                                 key={value}
                                 onClick={() => onAnswer(value)}
-                                className="transition-all duration-200 rounded-full border-2 hover:scale-110"
+                                className={`transition-all duration-150 rounded-full border-2 ${isSelected ? '' : 'hover:border-[#37352f]/30'}`}
                                 style={{
                                     width: size,
                                     height: size,
@@ -132,15 +116,14 @@ export function QuestionCard({
                 </div>
 
                 {/* 选项文字说明 - 使用实际选项文字 */}
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                     <div className="flex-1 text-left">
-                        <p className="text-sm text-emerald-600 dark:text-emerald-400 px-1 line-clamp-2">
+                        <p className="text-xs font-bold text-[#0f7b6c] px-1 line-clamp-2 uppercase tracking-tight">
                             {question.choice_a.text}
                         </p>
                     </div>
-                    <div className="w-8" />
                     <div className="flex-1 text-right">
-                        <p className="text-sm text-violet-600 dark:text-violet-400 px-1 line-clamp-2">
+                        <p className="text-xs font-bold text-[#a083ff] px-1 line-clamp-2 uppercase tracking-tight">
                             {question.choice_b.text}
                         </p>
                     </div>

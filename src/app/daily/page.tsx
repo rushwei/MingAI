@@ -17,7 +17,6 @@ import {
     Star,
     Sparkles,
     User,
-    Compass,
     X,
     Share2,
 } from 'lucide-react';
@@ -32,7 +31,6 @@ import { supabase } from '@/lib/auth';
 import { calculateDailyFortune, calculateGenericDailyFortune, calculateWeeklyTrend, fortuneLevelToChartValue, isLevelFavorable, type DailyFortune } from '@/lib/divination/fortune';
 import { generateFortuneInterpretation } from '@/lib/divination/fortune-interpretations';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
-import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
 import type { BaziChart, FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -161,28 +159,6 @@ function DailyPageContent() {
         } as DailyFortune;
     }, [baziChart, selectedDate]);
 
-    const dayStemElement = useMemo(() => {
-        if (!fortune.dayStem) return null;
-        return getStemElement(String(fortune.dayStem));
-    }, [fortune.dayStem]);
-
-    const dayBranchElement = useMemo(() => {
-        if (!fortune.dayBranch) return null;
-        return getBranchElement(String(fortune.dayBranch));
-    }, [fortune.dayBranch]);
-
-    const dayStemStyle = useMemo(() => {
-        if (!dayStemElement) return undefined;
-        return { color: getElementColor(dayStemElement) };
-    }, [dayStemElement]);
-
-    const dayBranchStyle = useMemo(() => {
-        if (!dayBranchElement) return undefined;
-        return { color: getElementColor(dayBranchElement) };
-    }, [dayBranchElement]);
-
-
-
     const changeDate = (days: number) => {
         const newDate = new Date(selectedDate);
         newDate.setDate(newDate.getDate() + days);
@@ -248,31 +224,24 @@ function DailyPageContent() {
     if (loading) {
         return (
             <div className="min-h-screen bg-background">
-                <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* 左侧黄历骨架 */}
-                        <div className="bg-background/60 rounded-xl shadow-sm p-4 space-y-4">
+                        <div className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
                             <div className="flex items-center justify-between">
-                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
-                                <div className="h-10 w-32 rounded bg-foreground/10 animate-pulse" />
-                                <div className="h-8 w-8 rounded-lg bg-foreground/5 animate-pulse" />
+                                <div className="h-6 w-6 rounded bg-foreground/5 animate-pulse" />
+                                <div className="h-8 w-32 rounded bg-foreground/10 animate-pulse" />
+                                <div className="h-6 w-6 rounded bg-foreground/5 animate-pulse" />
                             </div>
-                            <div className="h-24 w-full rounded-xl bg-foreground/5 animate-pulse" />
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="h-20 rounded-xl bg-foreground/5 animate-pulse" />
-                                <div className="h-20 rounded-xl bg-foreground/5 animate-pulse" />
-                            </div>
+                            <div className="h-32 w-full rounded bg-foreground/5 animate-pulse" />
                         </div>
                         {/* 右侧运势骨架 */}
                         <div className="space-y-6">
-                            <div className="bg-background/60 rounded-2xl p-4 space-y-4">
-                                <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse" />
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[1, 2, 3, 4, 5, 6].map(i => (
-                                        <div key={i} className="space-y-2">
-                                            <div className="h-4 w-20 rounded bg-foreground/5 animate-pulse" />
-                                            <div className="h-2 w-full rounded-full bg-foreground/5 animate-pulse" />
-                                        </div>
+                            <div className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
+                                <div className="h-5 w-24 rounded bg-foreground/10 animate-pulse" />
+                                <div className="space-y-3">
+                                    {[1, 2, 3, 4].map(i => (
+                                        <div key={i} className="h-4 w-full rounded bg-foreground/5 animate-pulse" />
                                     ))}
                                 </div>
                             </div>
@@ -284,20 +253,8 @@ function DailyPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-background relative overflow-hidden md:pb-24">
-            <div className="max-w-7xl mx-auto md:px-4 px-2 md:py-8 py-2 relative z-10 space-y-6">
-
-                {/* 顶部标题 - 仅桌面端显示 */}
-                {/* <header className="hidden md:block text-center mb-8 pt-4">
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 mb-2">
-                        每日运势
-                    </h1>
-                    <p className="text-foreground-secondary/80 text-sm">
-                        洞察天机，把握当下 | {formatDate(new Date())}
-                    </p>
-                </header> */}
-
-                {/* 命盘选择器弹窗 */}
+        <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
+            <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {baziFeatureEnabled && userId && (
                     <ChartPickerModal
                         isOpen={showChartSelector}
@@ -309,20 +266,20 @@ function DailyPageContent() {
                     />
                 )}
 
-                {/* 分享卡片弹窗 */}
+                {/* 分享卡片弹窗 - 采用 Notion 风格弹窗 */}
                 {showShareCard && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                        <div className="bg-background rounded-2xl p-6 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200" style={{ maxHeight: 'calc(100vh - 32px)' }}>
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                    <Share2 className="w-5 h-5 text-purple-500" />
+                    <div className="fixed inset-0 bg-black/20 z-50 flex items-center justify-center p-4">
+                        <div className="bg-background border border-gray-200 rounded-lg p-6 max-w-md w-full shadow-md">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-sm font-semibold flex items-center gap-2">
+                                    <Share2 className="w-4 h-4 text-[#2eaadc]" />
                                     分享运势
                                 </h2>
                                 <button
                                     onClick={() => setShowShareCard(false)}
-                                    className="p-2 rounded-full hover:bg-background-secondary transition-colors"
+                                    className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"
                                 >
-                                    <X className="w-5 h-5 text-foreground-secondary" />
+                                    <X className="w-4 h-4" />
                                 </button>
                             </div>
                             <ShareCard
@@ -337,76 +294,71 @@ function DailyPageContent() {
                 )}
 
                 {/* 主要内容网格区域 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
-                    {/* 左侧：黄历信息 */}
-                    <div className="h-full">
-                        <div className="bg-background/60 backdrop-blur-md rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 h-full">
-                            <CalendarAlmanac
-                                date={selectedDate}
-                                onDateChange={changeDate}
-                                onGoToday={goToToday}
-                                isToday={isToday}
-                                chartName={baziChart?.name}
-                                onChartSelect={baziFeatureEnabled ? () => setShowChartSelector(true) : undefined}
-                                isPersonalized={isPersonalized}
-                                dayStem={fortune.dayStem}
-                                dayBranch={fortune.dayBranch}
-                                tenGod={fortune.tenGod}
-                            />
-                        </div>
+                    {/* 左侧：黄历信息 - 纯白/米色卡片，细边框 */}
+                    <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                        <CalendarAlmanac
+                            date={selectedDate}
+                            onDateChange={changeDate}
+                            onGoToday={goToToday}
+                            isToday={isToday}
+                            chartName={baziChart?.name}
+                            onChartSelect={baziFeatureEnabled ? () => setShowChartSelector(true) : undefined}
+                            isPersonalized={isPersonalized}
+                            dayStem={fortune.dayStem}
+                            dayBranch={fortune.dayBranch}
+                            tenGod={fortune.tenGod}
+                        />
                     </div>
 
                     {/* 右侧：趋势图 + 运势分析 */}
-                    <div className="flex flex-col gap-6">
+                    <div className="space-y-6">
                         {/* 1. 7日运势趋势 (仅个性化模式显示) */}
                         {isPersonalized && trendData.length > 0 && (
-                            <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-                                <div className="p-4">
-                                    <div className="w-full">
-                                        <FortuneTrendChart
-                                            data={trendData}
-                                            selectedDate={fortune.date}
-                                            height={220}
-                                            multiDimension={false}
-                                            title={
-                                                <div className="flex items-center gap-2">
-                                                    <Activity className="w-5 h-5 text-purple-500" />
-                                                    7日运势趋势
-                                                </div>
-                                            }
-                                        />
-                                    </div>
+                            <section className="bg-background border border-gray-200 rounded-md p-6">
+                                <div className="w-full">
+                                    <FortuneTrendChart
+                                        data={trendData}
+                                        selectedDate={fortune.date}
+                                        height={200}
+                                        multiDimension={false}
+                                        title={
+                                            <div className="flex items-center gap-2 text-sm font-semibold">
+                                                <Activity className="w-4 h-4 text-[#2eaadc]" />
+                                                7日运势趋势
+                                            </div>
+                                        }
+                                    />
                                 </div>
                             </section>
                         )}
 
                         {/* 2. 详细运势评分与分析 */}
-                        <section className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-lg relative overflow-hidden flex flex-col">
+                        <section className="bg-background border border-gray-200 rounded-md p-6 flex flex-col">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
-                                    <h2 className="text-lg font-bold flex items-center gap-2">
-                                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                                    <h2 className="text-sm font-semibold flex items-center gap-2">
+                                        <Star className="w-4 h-4 text-[#dfab01]" />
                                         运势分析
                                     </h2>
                                     {fortune.dayStem && fortune.dayBranch && (
-                                        <span className="text-xs text-foreground-secondary">
-                                            日干支：
-                                            <span className="font-semibold" style={dayStemStyle}>{fortune.dayStem}</span>
-                                            <span className="font-semibold" style={dayBranchStyle}>{fortune.dayBranch}</span>
+                                        <span className="text-[11px] text-foreground/40 uppercase tracking-wider">
+                                            日干支：{fortune.dayStem}{fortune.dayBranch}
                                         </span>
                                     )}
                                 </div>
                                 <button
                                     onClick={() => setShowShareCard(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/10 to-indigo-500/10 text-purple-600 dark:text-purple-400 hover:from-purple-500/20 hover:to-indigo-500/20 border border-purple-200 dark:border-purple-800 transition-all active:scale-95"
+                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-gray-200 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors"
                                 >
                                     <Share2 className="w-3.5 h-3.5" />
-                                    分享好运
+                                    分享
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-4 flex-none">
+                            {/* 评分条 - 移除渐变，使用 Notion 强调色 */}
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-8">
                                 {scoreItems.map(item => {
                                     const level = fortune[item.key as keyof typeof fortune] as FortuneLevel;
                                     const chartValue = fortuneLevelToChartValue(level);
@@ -416,22 +368,20 @@ function DailyPageContent() {
 
                                     return (
                                         <div key={item.key} className="group">
-                                            <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center justify-between mb-1.5">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`p-1 rounded-md ${item.color.replace('text-', 'bg-').replace('500', '500/10')} ${item.color}`}>
-                                                        <Icon className="w-3.5 h-3.5" />
-                                                    </div>
-                                                    <span className="font-medium text-xs text-foreground/90">{item.label}</span>
+                                                    <Icon className={`w-3.5 h-3.5 ${item.color}`} />
+                                                    <span className="text-xs font-medium text-foreground/80">{item.label}</span>
                                                 </div>
-                                                <span className={`text-xs font-bold ${isFavorable ? 'text-green-600' : isNeutral ? 'text-amber-600' : 'text-red-600'}`}>
+                                                <span className={`text-xs font-semibold ${isFavorable ? 'text-[#0f7b6c]' : isNeutral ? 'text-[#dfab01]' : 'text-[#eb5757]'}`}>
                                                     {level}
                                                 </span>
                                             </div>
-                                            <div className="h-1.5 bg-background-secondary/50 rounded-full overflow-hidden border border-border/30">
+                                            <div className="h-1 bg-[#efedea] rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden ${isFavorable ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
-                                                        isNeutral ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
-                                                            'bg-gradient-to-r from-red-400 to-rose-500'
+                                                    className={`h-full transition-all duration-1000 ease-out rounded-full ${isFavorable ? 'bg-[#0f7b6c]' :
+                                                        isNeutral ? 'bg-[#dfab01]' :
+                                                            'bg-[#eb5757]'
                                                         }`}
                                                     style={{ width: `${chartValue}%` }}
                                                 />
@@ -441,36 +391,26 @@ function DailyPageContent() {
                                 })}
                             </div>
 
-                            <div className="flex-1 flex flex-col gap-1">
-                                {/* 幸运信息 */}
+                            <div className="space-y-6">
+                                {/* 幸运信息 - 列表样式 */}
                                 {isPersonalized && fortune.luckyColor && (
-                                    <div className="grid grid-cols-2 gap-3 py-3 border-t border-border/50">
-                                        <div className="bg-background-secondary/30 rounded-xl p-2.5 flex items-center gap-2.5 border border-border/50">
-                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-                                                <span className="text-xs">色</span>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-[10px] text-foreground-secondary leading-none mb-1">幸运色</div>
-                                                <div className="font-bold text-sm text-foreground truncate">{fortune.luckyColor}</div>
-                                            </div>
+                                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] uppercase tracking-wider text-foreground/40 font-semibold">幸运色</span>
+                                            <span className="text-sm font-medium">{fortune.luckyColor}</span>
                                         </div>
-                                        <div className="bg-background-secondary/30 rounded-xl p-2.5 flex items-center gap-2.5 border border-border/50">
-                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-                                                <Compass className="w-3.5 h-3.5" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-[10px] text-foreground-secondary leading-none mb-1">吉方位</div>
-                                                <div className="font-bold text-sm text-foreground truncate">{fortune.luckyDirection}</div>
-                                            </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] uppercase tracking-wider text-foreground/40 font-semibold">吉方位</span>
+                                            <span className="text-sm font-medium">{fortune.luckyDirection}</span>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* 建议区域 */}
-                                <div className="pt-1 border-t border-border/50 flex-1">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                                {/* 指引区域 - 纯文本/列表风格 */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                                            <Sparkles className="w-3.5 h-3.5 text-[#a083ff]" />
                                             运势指引
                                         </h3>
                                         {isPersonalized && (
@@ -481,47 +421,45 @@ function DailyPageContent() {
                                             />
                                         )}
                                     </div>
-                                    <div className="bg-background-secondary/30 rounded-xl p-3 border border-border/50 h-full max-h-[200px] overflow-y-auto custom-scrollbar">
-                                        <ul className="space-y-2.5">
-                                            {interpretedAdvice.map((advice, index) => (
-                                                <li key={index} className="flex gap-2.5 text-xs text-foreground/90 leading-relaxed">
-                                                    <span className="flex-shrink-0 w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold mt-0.5">
-                                                        {index + 1}
-                                                    </span>
-                                                    <span>{advice}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                                    <ul className="space-y-3">
+                                        {interpretedAdvice.map((advice, index) => (
+                                            <li key={index} className="flex gap-3 text-sm text-foreground/80 leading-relaxed group">
+                                                <span className="flex-shrink-0 w-5 h-5 rounded bg-[#efedea] text-[10px] font-bold flex items-center justify-center mt-0.5">
+                                                    {index + 1}
+                                                </span>
+                                                <span>{advice}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             </div>
                         </section>
                     </div>
                 </div>
 
-                {/* AI Chat 模块 */}
-                <section className="bg-background/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-sm overflow-hidden mt-6">
-                    <div className="p-1">
-                        {userId ? (
+                {/* AI Chat 模块 - 嵌入式极简设计 */}
+                <section className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                    {userId ? (
+                        <div className="p-1">
                             <DailyAIChat date={selectedDate} userId={userId} />
-                        ) : (
-                            <div className="p-8 text-center bg-gradient-to-b from-purple-500/5 to-transparent">
-                                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/20 rotate-3">
-                                    <Sparkles className="w-8 h-8 text-white" />
-                                </div>
-                                <h3 className="text-xl font-bold mb-2">AI 命理师在线解读</h3>
-                                <p className="text-foreground-secondary mb-6 max-w-sm mx-auto">
-                                    登录即可解锁 AI 智能对话，针对您的命盘进行深度的一对一运势分析
-                                </p>
-                                <button
-                                    onClick={() => setShowAuthModal(true)}
-                                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all hover:scale-105 active:scale-95"
-                                >
-                                    立即登录体验
-                                </button>
+                        </div>
+                    ) : (
+                        <div className="p-12 text-center">
+                            <div className="w-12 h-12 bg-[#efedea] rounded-md flex items-center justify-center mx-auto mb-4">
+                                <Sparkles className="w-6 h-6 text-[#a083ff]" />
                             </div>
-                        )}
-                    </div>
+                            <h3 className="text-base font-semibold mb-2">AI 命理师在线解读</h3>
+                            <p className="text-sm text-foreground/60 mb-6 max-w-sm mx-auto">
+                                登录即可解锁 AI 智能对话，针对您的命盘进行深度的一对一分析。
+                            </p>
+                            <button
+                                onClick={() => setShowAuthModal(true)}
+                                className="px-6 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-colors"
+                            >
+                                立即登录
+                            </button>
+                        </div>
+                    )}
                 </section>
             </div>
 

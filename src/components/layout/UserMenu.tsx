@@ -52,7 +52,7 @@ function Avatar({ src, alt, size = 32 }: { src: string | null; alt: string; size
     if (!src || error) {
         return (
             <div
-                className="rounded-full bg-gradient-to-br from-accent/50 to-accent flex items-center justify-center text-white font-medium flex-shrink-0"
+                className="rounded-full bg-gray-200 flex items-center justify-center text-[#37352f] font-medium flex-shrink-0"
                 style={{ width: size, height: size, fontSize: size * 0.4 }}
             >
                 {alt[0]?.toUpperCase() || 'U'}
@@ -67,7 +67,7 @@ function Avatar({ src, alt, size = 32 }: { src: string | null; alt: string; size
             alt={alt}
             width={size}
             height={size}
-            className="rounded-full flex-shrink-0 object-cover"
+            className="rounded-full flex-shrink-0 object-cover border border-gray-100"
             style={{ width: size, height: size }}
             onError={() => setError(true)}
         />
@@ -152,7 +152,7 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
         return (
             <Link
                 href="/user"
-                className="flex items-center justify-center p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                className="flex items-center justify-center p-2 rounded-md hover:bg-[#efedea] transition-colors duration-150"
                 title={displayName}
             >
                 <Avatar src={avatarUrl} alt={displayName} size={28} />
@@ -165,58 +165,58 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
             {/* 用户信息卡片 - 始终显示 */}
             <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-background-secondary transition-colors"
+                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-colors duration-150 ${isMenuOpen ? 'bg-[#e3e1db]' : 'hover:bg-[#efedea]'}`}
             >
                 <Avatar src={avatarUrl} alt={displayName} size={32} />
                 <div className="flex-1 min-w-0 text-left">
-                    <div className="text-sm font-medium truncate">{displayName}</div>
-                    <div className={`text-xs flex items-center gap-1 ${membershipColors[membershipType]}`}>
+                    <div className="text-sm font-medium truncate text-[#37352f]">{displayName}</div>
+                    <div className={`text-xs flex items-center gap-1 font-semibold ${membershipColors[membershipType]}`}>
                         {/* <Crown className="w-3 h-3" /> */}
                         {membershipLabels[membershipType]}
                     </div>
                 </div>
                 {isMenuOpen ? (
-                    <ChevronUp className="w-4 h-4 text-foreground-secondary flex-shrink-0" />
+                    <ChevronUp className="w-4 h-4 text-[#37352f]/60 flex-shrink-0" />
                 ) : (
-                    <ChevronDown className="w-4 h-4 text-foreground-secondary flex-shrink-0" />
+                    <ChevronDown className="w-4 h-4 text-[#37352f]/60 flex-shrink-0" />
                 )}
             </button>
 
             {/* 下拉菜单 */}
             {isMenuOpen && (
-                <div className="absolute z-50 bottom-full mb-2 left-0 right-0 bg-background border border-border rounded-xl shadow-lg py-2 animate-fade-in">
+                <div className="absolute z-50 bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-md py-1 animate-fade-in transition-all duration-150">
                     {/* 用户信息头部 - 点击跳转到用户主页 */}
-                    <div className="px-2 pb-2 border-b border-border">
+                    <div className="px-1 pb-1 border-b border-gray-100">
                         <Link
                             href="/user"
                             onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-background-secondary transition-colors"
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#efedea] transition-colors duration-150"
                         >
                             <Avatar src={avatarUrl} alt={displayName} size={32} />
                             <div className="min-w-0 flex-1">
-                                <div className="font-medium text-sm truncate">{displayName}</div>
-                                <div className="text-xs text-foreground-secondary truncate">{handle}</div>
+                                <div className="font-semibold text-sm truncate text-[#37352f]">{displayName}</div>
+                                <div className="text-xs text-[#37352f]/50 truncate">{handle}</div>
                             </div>
                         </Link>
                     </div>
 
                     {/* 菜单项 */}
-                    <div className="px-2 py-1">
+                    <div className="px-1 py-1">
                         <Link
                             href="/user"
                             onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 text-[#37352f]"
                         >
-                            <User className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <User className="w-4 h-4 text-[#37352f]/70" />
                             <span>我的</span>
                         </Link>
                         {isPaymentPaused || !upgradeFeatureEnabled ? null : (
                             <Link
                                 href="/user/upgrade"
                                 onClick={() => setIsMenuOpen(false)}
-                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                                className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 text-[#37352f]"
                             >
-                                <CircleStar className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <CircleStar className="w-4 h-4 text-[#37352f]/70" />
                                 <span>订阅</span>
                             </Link>
                         )}
@@ -224,12 +224,12 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <Link
                                 href="/user/notifications"
                                 onClick={() => setIsMenuOpen(false)}
-                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                                className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 text-[#37352f]"
                             >
-                                <Bell className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <Bell className="w-4 h-4 text-[#37352f]/70" />
                                 <span>消息</span>
                                 {unreadCount > 0 && (
-                                    <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent text-white rounded-full flex items-center justify-center">
+                                    <span className="ml-auto min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#2383e2] text-white rounded-full flex items-center justify-center">
                                         {unreadCount > 99 ? '99+' : unreadCount}
                                     </span>
                                 )}
@@ -239,33 +239,33 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                             <Link
                                 href="/user/charts"
                                 onClick={() => setIsMenuOpen(false)}
-                                className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                                className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 text-[#37352f]"
                             >
-                                <Scroll className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <Scroll className="w-4 h-4 text-[#37352f]/70" />
                                 <span>命盘</span>
                             </Link>
                         )}
                         <Link
                             href="/user/settings"
                             onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors"
+                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 text-[#37352f]"
                         >
-                            <Settings className="w-4.5 h-4.5 text-foreground-secondary" />
+                            <Settings className="w-4 h-4 text-[#37352f]/70" />
                             <span>设置</span>
                         </Link>
                     </div>
 
                     {/* 退出登录 */}
-                    <div className="border-t border-border px-2 pt-1">
+                    <div className="border-t border-gray-100 px-1 pt-1">
                         <button
                             onClick={handleSignOut}
                             disabled={signingOut}
-                            className="flex items-center gap-3 px-2 py-2 text-sm rounded-lg hover:bg-background-secondary transition-colors w-full disabled:opacity-50"
+                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] transition-colors duration-150 w-full disabled:opacity-50 text-[#37352f]"
                         >
                             {signingOut ? (
                                 <SoundWaveLoader variant="inline" />
                             ) : (
-                                <LogOut className="w-4.5 h-4.5 text-foreground-secondary" />
+                                <LogOut className="w-4 h-4 text-[#37352f]/70" />
                             )}
                             <span>{signingOut ? '退出中...' : '退出登录'}</span>
                         </button>

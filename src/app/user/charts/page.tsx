@@ -1,9 +1,7 @@
 /**
- * 命盘管理页面
+ * 我的命盘页面
  *
- * 'use client' 标记说明：
- * - 使用 React hooks (useState, useEffect)
- * - 使用 useRouter 进行客户端导航
+ * 对齐 Notion 风格：极简列表、柔和边框、线性图标
  */
 'use client';
 
@@ -17,8 +15,14 @@ import { FeatureGate } from '@/components/layout/FeatureGate';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
+import { getNavItemById } from '@/lib/navigation/registry';
 
 type ChartType = 'bazi' | 'ziwei';
+
+const CHART_NAV_ICONS = {
+    bazi: getNavItemById('bazi')?.icon ?? ScrollText,
+    ziwei: getNavItemById('ziwei')?.icon ?? Star,
+} as const;
 
 interface ChartItem {
     id: string;
@@ -31,21 +35,6 @@ interface ChartItem {
     created_at: string;
     is_default: boolean;
 }
-
-const getChartIcon = (type: ChartType) => {
-    if (type === 'bazi') {
-        return (
-            <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30">
-                <ScrollText className="w-5 h-5" />
-            </div>
-        );
-    }
-    return (
-        <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
-            <Star className="w-5 h-5" />
-        </div>
-    );
-};
 
 const getGenderLabel = (gender: ChartItem['gender']) => {
     return gender === 'female' ? '女' : '男';
@@ -70,97 +59,94 @@ function ChartList({
     onDelete,
     onSetDefault,
 }: ChartListProps) {
+    const ChartIcon = CHART_NAV_ICONS[type];
+
     return (
-        <div className="sm:mb-8 mb-4">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    {type === 'bazi' ? <span className="w-1.5 h-6 rounded-full bg-orange-500 block" /> : <span className="w-1.5 h-6 rounded-full bg-purple-500 block" />}
+        <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+                <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest">
                     {title}
                 </h2>
-                <Link href={onCreateLink} className="text-sm font-medium text-accent hover:underline flex items-center gap-1">
-                    <Plus className="w-4 h-4" />
+                <Link href={onCreateLink} className="text-xs font-medium text-[#2eaadc] hover:underline flex items-center gap-1">
+                    <Plus className="w-3 h-3" />
                     {onCreateText}
                 </Link>
             </div>
 
             {list.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
+                <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
                     {list.map((chart) => (
                         <Link
                             key={`${chart.type}-${chart.id}`}
                             href={chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`}
-                            className={`
-                                group relative bg-background rounded-2xl p-5 border transition-all duration-300 min-h-[110px]
-                                ${chart.is_default ? 'border-accent shadow-sm ring-1 ring-accent/10' : 'border-border hover:border-accent/30 hover:shadow-md'}
-                            `}
+                            className="group flex items-center gap-4 p-4 transition-colors hover:bg-[#efedea]"
                         >
-                            {chart.is_default && (
-                                <div className="absolute top-4 right-4 flex items-center gap-1 text-xs font-bold text-accent bg-accent/5 px-2 py-1 rounded-full border border-accent/10">
-                                    <Star className="w-3 h-3 fill-current" />
-                                    默认
-                                </div>
-                            )}
+                            <div className="p-2 rounded shrink-0 text-foreground/60">
+                                <ChartIcon className="w-5 h-5" />
+                            </div>
 
-                            <div className="flex items-start gap-4">
-                                {getChartIcon(chart.type)}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-bold text-base text-foreground truncate">{chart.name}</h3>
-                                        <span className={`px-2 py-0.5 text-[10px] rounded-md font-medium border ${chart.gender === 'female' ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 border-pink-100 dark:border-pink-900/30' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30'}`}>
-                                            {getGenderLabel(chart.gender)}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <h3 className="text-sm font-medium text-foreground truncate">{chart.name}</h3>
+                                    <span className={`text-[10px] font-bold px-1 rounded uppercase tracking-wider ${chart.gender === 'female' ? 'text-pink-500/60' : 'text-blue-500/60'}`}>
+                                        {getGenderLabel(chart.gender)}
+                                    </span>
+                                    {chart.is_default && (
+                                        <span className="text-[10px] font-bold text-[#dfab01] bg-[#dfab01]/5 px-1.5 py-0.5 rounded border border-[#dfab01]/10 uppercase tracking-widest flex items-center gap-1">
+                                            <Star className="w-2.5 h-2.5 fill-current" />
+                                            DEFAULT
                                         </span>
-                                    </div>
-                                    <div className="text-xs text-foreground-secondary/80 space-y-1">
-                                        <p className="flex items-center gap-1.5">
-                                            <Calendar className="w-3 h-3 opacity-70" />
-                                            {new Date(chart.birth_date).toLocaleDateString('zh-CN')} {chart.birth_time || '未知时辰'}
-                                        </p>
-                                        <p className="flex items-center gap-1.5">
-                                            <MapPin className="w-3 h-3 opacity-70" />
-                                            {chart.city || '未知地点'}
-                                        </p>
-                                    </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-4 text-[11px] text-foreground/40">
+                                    <span className="flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        {new Date(chart.birth_date).toLocaleDateString('zh-CN')} {chart.birth_time || ''}
+                                    </span>
+                                    {chart.city && (
+                                        <span className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3" />
+                                            {chart.city}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Action Buttons - Absolute positioned at bottom right */}
-                            <div className="group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 flex items-center gap-1 md:opacity-0">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {!chart.is_default && (
                                     <button
                                         onClick={(e) => onSetDefault(chart.id, chart.type, e)}
-                                        className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 text-foreground-secondary hover:text-amber-500 transition-colors"
+                                        className="p-1.5 rounded hover:bg-[#dfab01]/10 text-foreground/30 hover:text-[#dfab01] transition-colors"
                                         title="设为默认"
                                     >
-                                        <Star className="w-4 h-4" />
+                                        <Star className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                                 <button
                                     onClick={(e) => onDelete(chart.id, chart.type, e)}
-                                    className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-foreground-secondary hover:text-red-500 transition-colors"
+                                    className="p-1.5 rounded hover:bg-[#eb5757]/10 text-foreground/30 hover:text-[#eb5757] transition-colors"
                                     title="删除"
                                 >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                                <div className="p-2 text-accent">
-                                    <ChevronRight className="w-4 h-4" />
-                                </div>
+                                <ChevronRight className="w-4 h-4 text-foreground/20" />
                             </div>
                         </Link>
                     ))}
                 </div>
             ) : (
-                <div className="bg-background-secondary/50 rounded-2xl border border-dashed border-border text-center py-10">
-                    <p className="text-sm text-foreground-secondary mb-4">暂无{title}</p>
+                <div className="bg-background border border-dashed border-gray-200 rounded-md py-12 text-center">
+                    <p className="text-sm text-foreground/40 mb-4">暂无{title}</p>
                     <Link
                         href={onCreateLink}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-white bg-foreground/80 px-4 py-2 rounded-lg hover:bg-foreground transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#2383e2] text-white text-xs font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors"
                     >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5" />
                         新建{title}
                     </Link>
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
@@ -255,69 +241,76 @@ function ChartsContent() {
         }
     };
 
-    return (
-        <div className="md:min-h-screen bg-background">
-            <div className="max-w-2xl mx-auto px-4 py-4 md:py-6 animate-fade-in">
-                {/* 桌面端头部 */}
-                <div className="hidden md:flex items-center justify-between mb-8 sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-20 border-b border-transparent transition-all">
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-xl font-bold">我的命盘</h1>
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
+                <div className="max-w-3xl mx-auto px-4 py-8 space-y-10">
+                    <div className="space-y-2">
+                        <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse" />
                     </div>
-                </div>
-
-                {loading ? (
                     <div className="space-y-8">
                         {[1, 2].map(i => (
                             <div key={i} className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse" />
-                                    <div className="h-5 w-20 rounded bg-foreground/5 animate-pulse" />
-                                </div>
-                                <div className="bg-background rounded-2xl p-5 border border-border">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-lg bg-foreground/10 animate-pulse" />
-                                        <div className="flex-1 space-y-2">
-                                            <div className="h-5 w-32 rounded bg-foreground/10 animate-pulse" />
-                                            <div className="h-4 w-48 rounded bg-foreground/5 animate-pulse" />
-                                            <div className="h-4 w-36 rounded bg-foreground/5 animate-pulse" />
+                                <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse mb-2" />
+                                <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                                    {[1, 2].map(j => (
+                                        <div key={j} className="p-4 flex gap-4 animate-pulse">
+                                            <div className="w-8 h-8 rounded bg-foreground/10" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 w-32 rounded bg-foreground/10" />
+                                                <div className="h-3 w-48 rounded bg-foreground/5" />
+                                            </div>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <div>
-                        <ChartList
-                            title="八字命盘"
-                            list={baziCharts}
-                            type="bazi"
-                            onCreateLink="/bazi"
-                            onCreateText="新建八字"
-                            onDelete={(id, type, e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setPendingDelete({ id, type });
-                            }}
-                            onSetDefault={handleSetDefault}
-                        />
-
-                        <ChartList
-                            title="紫微命盘"
-                            list={ziweiCharts}
-                            type="ziwei"
-                            onCreateLink="/ziwei"
-                            onCreateText="新建紫微"
-                            onDelete={(id, type, e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setPendingDelete({ id, type });
-                            }}
-                            onSetDefault={handleSetDefault}
-                        />
-                    </div>
-                )}
+                </div>
             </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
+            <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in space-y-10">
+                {/* 标题 */}
+                <header className="space-y-1">
+                    <h1 className="text-2xl font-bold">我的命盘</h1>
+                </header>
+
+                <div className="space-y-12">
+                    <ChartList
+                        title="八字命盘"
+                        list={baziCharts}
+                        type="bazi"
+                        onCreateLink="/bazi"
+                        onCreateText="新建八字"
+                        onDelete={(id, type, e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingDelete({ id, type });
+                        }}
+                        onSetDefault={handleSetDefault}
+                    />
+
+                    <ChartList
+                        title="紫微命盘"
+                        list={ziweiCharts}
+                        type="ziwei"
+                        onCreateLink="/ziwei"
+                        onCreateText="新建紫微"
+                        onDelete={(id, type, e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingDelete({ id, type });
+                        }}
+                        onSetDefault={handleSetDefault}
+                    />
+                </div>
+            </div>
+
             <ConfirmDialog
                 isOpen={!!pendingDelete}
                 onClose={() => setPendingDelete(null)}

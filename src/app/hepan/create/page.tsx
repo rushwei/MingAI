@@ -417,7 +417,7 @@ export default function HepanCreatePage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <SoundWaveLoader variant="block" text="加载中" />
+                <SoundWaveLoader variant="block" text="" />
             </div>
         }>
             <HepanCreateContent />

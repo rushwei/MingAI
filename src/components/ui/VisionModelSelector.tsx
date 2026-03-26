@@ -158,7 +158,7 @@ export function VisionModelSelector({
                         )}
                         <span className={`${compact ? 'max-w-[80px]' : 'max-w-[100px]'} truncate`}>
                             {loading
-                                ? '加载中...'
+                                ? ''
                                 : models.length === 0
                                     ? '无可用模型'
                                     : currentModel?.name || '选择模型'}

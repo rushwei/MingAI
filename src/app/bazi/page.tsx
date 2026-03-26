@@ -316,28 +316,30 @@ function BaziPageContent() {
     };
 
     return (
-        <div className="max-w-xl mx-auto px-4 md:pt-8 pt-4 animate-fade-in">
-            {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
-            <div className="hidden md:block text-center mb-8">
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">八字排盘</h1>
-                <p className="text-foreground-secondary mt-2">
-                    请填写您的出生信息，我们将为您生成八字命盘
-                </p>
-            </div>
+        <div className="min-h-screen bg-[#f7f6f3]">
+            <div className="max-w-xl mx-auto px-4 md:pt-8 pt-4 animate-fade-in">
+                {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
+                <div className="hidden md:block text-center mb-8">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-[#37352f]">八字排盘</h1>
+                    <p className="text-[#37352f]/60 mt-2">
+                        请填写您的出生信息，我们将为您生成八字命盘
+                    </p>
+                </div>
 
 
 
-            <div className="space-y-6">
-                <BaziForm
-                    formData={formData}
-                    onUpdate={updateField}
-                    unknownTime={unknownTime}
-                    onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
-                    onSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                />
+                <div className="space-y-6">
+                    <BaziForm
+                        formData={formData}
+                        onUpdate={updateField}
+                        unknownTime={unknownTime}
+                        onToggleUnknownTime={() => setUnknownTime((prev) => !prev)}
+                        onSubmit={handleSubmit}
+                        isSubmitting={isSubmitting}
+                    />
 
-                <InstantBaziPreview onUseInstant={handleUseInstant} />
+                    <InstantBaziPreview onUseInstant={handleUseInstant} />
+                </div>
             </div>
         </div>
     );
@@ -347,7 +349,7 @@ function BaziPageContent() {
 export default function BaziPage() {
     return (
         <Suspense fallback={
-            <SoundWaveLoader variant="block" text="加载中" />
+            <SoundWaveLoader variant="block" text="" />
         }>
             <BaziPageContent />
         </Suspense>

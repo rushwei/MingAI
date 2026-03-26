@@ -34,7 +34,7 @@ export function FeatureGate({ featureId, children }: FeatureGateProps) {
 
     if (!hydrated || isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="flex items-center justify-center min-h-[60vh] bg-background">
                 <SoundWaveLoader variant="block" />
             </div>
         );

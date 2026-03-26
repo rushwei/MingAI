@@ -12,15 +12,15 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --mobile-header-height: calc(4rem + var(--sat));
 
-  /* 浅色主题 - 参考 PRD 设计规范 */
-  --background: #ffffff;
-  --background-secondary: #f5f5f5;
-  --foreground: #000000;
-  --foreground-secondary: #666666;
+  /* 浅色主题 - 参考 Notion 设计规范 */
+  --background: #f7f6f3;
+  --background-secondary: #efedea;
+  --foreground: #37352f;
+  --foreground-secondary: rgba(55, 53, 47, 0.65);
 
-  /* 强调色 - 金色点缀 */
-  --accent: #D4AF37;
-  --accent-light: #f5e6b8;
+  /* 强调色 - Notion 蓝色 */
+  --accent: #2eaadc;
+  --accent-light: #eff6ff;
 
   /* 边框和分隔线 */
   --border: #e5e5e5;

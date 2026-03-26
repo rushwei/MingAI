@@ -101,17 +101,17 @@ export default function QimenPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background md:pb-12">
+        <div className="min-h-screen bg-[#f7f6f3] md:pb-12 text-[#37352f]">
             {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
             <div className="hidden md:block text-center py-8">
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">奇门遁甲</h1>
-                <p className="text-foreground-secondary mt-2">三式之首，洞察天时地利</p>
+                <h1 className="text-2xl lg:text-3xl font-bold">奇门遁甲</h1>
+                <p className="text-[#37352f]/60 mt-2">三式之首，洞察天时地利</p>
             </div>
 
             <div className="max-w-2xl mx-auto px-4 mt-4 sm:mt-0">
                 {/* 占事输入 */}
                 <div className="mb-6 text-center">
-                    <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                    <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
                         占事（选填）
                     </label>
                     <input
@@ -119,35 +119,35 @@ export default function QimenPage() {
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
                         placeholder="例如：此次合作能否成功？"
-                        className="w-full px-6 py-4 bg-background rounded-xl border border-border shadow-sm
-                            focus:border-indigo-500 focus:ring-0 focus:outline-none
-                            text-center text-lg placeholder:text-foreground-tertiary/70
-                            transition-all duration-300"
+                        className="w-full px-6 py-4 bg-white rounded-lg border border-gray-200 shadow-sm
+                            focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none
+                            text-center text-lg placeholder:text-[#37352f]/30
+                            transition-all duration-150"
                     />
                 </div>
 
                 {/* 时间模式 */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-foreground-secondary mb-3">
+                    <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
                         时间模式
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setTimeMode('now')}
-                            className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                            className={`px-4 py-3 rounded-md border text-sm font-semibold transition-all duration-150 ${
                                 timeMode === 'now'
-                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500'
-                                    : 'border-border bg-background text-foreground-secondary hover:border-indigo-500/50'
+                                    ? 'border-[#2383e2] bg-[#2383e2] text-white'
+                                    : 'border-gray-200 bg-white text-[#37352f] hover:bg-[#efedea]'
                             }`}
                         >
                             正时（当前时间）
                         </button>
                         <button
                             onClick={() => setTimeMode('custom')}
-                            className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                            className={`px-4 py-3 rounded-md border text-sm font-semibold transition-all duration-150 ${
                                 timeMode === 'custom'
-                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500'
-                                    : 'border-border bg-background text-foreground-secondary hover:border-indigo-500/50'
+                                    ? 'border-[#2383e2] bg-[#2383e2] text-white'
+                                    : 'border-gray-200 bg-white text-[#37352f] hover:bg-[#efedea]'
                             }`}
                         >
                             活时（自选时间）
@@ -158,31 +158,25 @@ export default function QimenPage() {
                 {/* 自选时间 */}
                 {timeMode === 'custom' && (
                     <div className="mb-6 grid grid-cols-5 gap-2 animate-fade-in">
-                        <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">年</label>
-                            <input type="number" value={year} onChange={e => setYear(Number(e.target.value))}
-                                className="w-full px-2 py-2 bg-background rounded-lg border border-border text-center text-sm focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">月</label>
-                            <input type="number" min={1} max={12} value={month} onChange={e => setMonth(Number(e.target.value))}
-                                className="w-full px-2 py-2 bg-background rounded-lg border border-border text-center text-sm focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">日</label>
-                            <input type="number" min={1} max={31} value={day} onChange={e => setDay(Number(e.target.value))}
-                                className="w-full px-2 py-2 bg-background rounded-lg border border-border text-center text-sm focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">时</label>
-                            <input type="number" min={0} max={23} value={hour} onChange={e => setHour(Number(e.target.value))}
-                                className="w-full px-2 py-2 bg-background rounded-lg border border-border text-center text-sm focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-foreground-secondary mb-1">分</label>
-                            <input type="number" min={0} max={59} value={minute} onChange={e => setMinute(Number(e.target.value))}
-                                className="w-full px-2 py-2 bg-background rounded-lg border border-border text-center text-sm focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-                        </div>
+                        {[
+                            { label: '年', value: year, onChange: setYear },
+                            { label: '月', value: month, onChange: setMonth, min: 1, max: 12 },
+                            { label: '日', value: day, onChange: setDay, min: 1, max: 31 },
+                            { label: '时', value: hour, onChange: setHour, min: 0, max: 23 },
+                            { label: '分', value: minute, onChange: setMinute, min: 0, max: 59 },
+                        ].map((item) => (
+                            <div key={item.label}>
+                                <label className="block text-xs text-[#37352f]/60 mb-1">{item.label}</label>
+                                <input 
+                                    type="number" 
+                                    min={item.min} 
+                                    max={item.max} 
+                                    value={item.value} 
+                                    onChange={e => item.onChange(Number(e.target.value))}
+                                    className="w-full px-2 py-2 bg-white rounded-md border border-gray-200 text-center text-sm text-[#37352f] focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150" 
+                                />
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -190,37 +184,37 @@ export default function QimenPage() {
                 <div className="mb-8">
                     <button
                         onClick={() => setShowSettings(!showSettings)}
-                        className="flex items-center gap-1 text-sm text-foreground-secondary hover:text-foreground transition-colors"
+                        className="flex items-center gap-1 text-sm text-[#37352f]/60 hover:text-[#37352f] transition-colors"
                     >
                         {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         高级设置
                     </button>
                     {showSettings && (
-                        <div className="mt-3 space-y-4 p-4 rounded-xl border border-border bg-background-secondary/30 animate-fade-in">
+                        <div className="mt-3 space-y-4 p-4 rounded-lg border border-gray-200 bg-white shadow-sm animate-fade-in">
                             {/* 盘式 */}
                             <div>
-                                <label className="block text-xs font-medium text-foreground-secondary mb-2">盘式</label>
+                                <label className="block text-xs font-bold text-[#37352f]/60 mb-2 uppercase tracking-wider">盘式</label>
                                 <div className="flex gap-2">
-                                    <span className="px-3 py-1.5 rounded-lg border border-indigo-500 bg-indigo-500/10 text-indigo-500 text-xs font-medium">
+                                    <span className="px-3 py-1.5 rounded-md border border-[#2383e2] bg-blue-50 text-[#2eaadc] text-xs font-bold">
                                         转盘
                                     </span>
-                                    <span className="px-3 py-1.5 rounded-lg border border-border text-foreground-tertiary text-xs cursor-not-allowed opacity-50">
+                                    <span className="px-3 py-1.5 rounded-md border border-gray-100 text-[#37352f]/30 text-xs cursor-not-allowed">
                                         飞盘（暂不支持）
                                     </span>
                                 </div>
                             </div>
                             {/* 定局法 */}
                             <div>
-                                <label className="block text-xs font-medium text-foreground-secondary mb-2">定局法</label>
+                                <label className="block text-xs font-bold text-[#37352f]/60 mb-2 uppercase tracking-wider">定局法</label>
                                 <div className="flex gap-2">
                                     {(['chaibu', 'maoshan'] as const).map(m => (
                                         <button
                                             key={m}
                                             onClick={() => setJuMethod(m)}
-                                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                                            className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all duration-150 ${
                                                 juMethod === m
-                                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500'
-                                                    : 'border-border text-foreground-secondary hover:border-indigo-500/50'
+                                                    ? 'border-[#2383e2] bg-blue-50 text-[#2eaadc]'
+                                                    : 'border-gray-200 bg-transparent text-[#37352f]/60 hover:bg-[#efedea]'
                                             }`}
                                         >
                                             {m === 'chaibu' ? '拆补' : '茅山'}
@@ -230,16 +224,16 @@ export default function QimenPage() {
                             </div>
                             {/* 六甲直符寄宫 */}
                             <div>
-                                <label className="block text-xs font-medium text-foreground-secondary mb-2">六甲直符寄宫</label>
+                                <label className="block text-xs font-bold text-[#37352f]/60 mb-2 uppercase tracking-wider">六甲直符寄宫</label>
                                 <div className="flex gap-2">
                                     {(['jiLiuYi', 'jiWuGong'] as const).map(z => (
                                         <button
                                             key={z}
                                             onClick={() => setZhiFuJiGong(z)}
-                                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                                            className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all duration-150 ${
                                                 zhiFuJiGong === z
-                                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500'
-                                                    : 'border-border text-foreground-secondary hover:border-indigo-500/50'
+                                                    ? 'border-[#2383e2] bg-blue-50 text-[#2eaadc]'
+                                                    : 'border-gray-200 bg-transparent text-[#37352f]/60 hover:bg-[#efedea]'
                                             }`}
                                         >
                                             {z === 'jiLiuYi' ? '寄六仪' : '寄戊宫'}
@@ -256,7 +250,7 @@ export default function QimenPage() {
                     <button
                         onClick={handleSubmit}
                         disabled={isLoading}
-                        className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        className="inline-flex items-center gap-2 px-8 py-4 bg-[#2383e2] hover:bg-[#2383e2]/90 active:bg-[#1a65b0] text-white rounded-md font-bold text-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                         {isLoading ? (
                             <>
@@ -268,29 +262,29 @@ export default function QimenPage() {
                 </div>
 
                 {/* 说明 */}
-                <div className="bg-background-secondary/30 rounded-2xl p-5 md:p-8 border border-border/50 mb-8">
-                    <h3 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6 flex items-center gap-2">
-                        <span className="w-1 h-4 md:h-5 bg-foreground rounded-full" />
+                <div className="bg-white rounded-lg p-5 md:p-8 border border-gray-200 shadow-sm mb-8">
+                    <h3 className="text-base md:text-lg font-bold text-[#37352f] mb-4 md:mb-6 flex items-center gap-2">
+                        <span className="w-1 h-4 md:h-5 bg-[#37352f] rounded-full" />
                         奇门遁甲说明
                     </h3>
                     <div className="grid md:grid-cols-2 gap-6 md:gap-8 text-sm leading-relaxed">
                         <div className="space-y-4">
                             <div>
-                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                     什么是奇门遁甲？
                                 </h4>
-                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
                                     奇门遁甲是中国古代三式之首，融合天文、地理、人事于一体，
-                                    通过九宫格局分析时空能量，预测事物发展趋势。
+                                    通过九宫格局 analysis 时空能量，预测事物发展趋势。
                                 </p>
                             </div>
                             <div>
-                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                     正时与活时
                                 </h4>
-                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
                                     正时使用当前时间起盘，适合即时预测；
                                     活时可自选时间，适合分析特定时刻的格局。
                                 </p>
@@ -298,21 +292,21 @@ export default function QimenPage() {
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                     九宫格局
                                 </h4>
-                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
                                     九宫按洛书排列，每宫包含天干、九星、八门、八神四层信息，
                                     通过各层之间的生克关系判断吉凶。
                                 </p>
                             </div>
                             <div>
-                                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                     注意事项
                                 </h4>
-                                <p className="text-xs md:text-sm text-foreground-secondary pl-3.5 border-l border-border/50">
+                                <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
                                     起课时心诚则灵，专注于所问之事。
                                     同一问题不宜反复起课，以第一次结果为准。
                                 </p>

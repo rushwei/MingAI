@@ -508,4 +508,3 @@ export function ChatComposer({
         </div>
     );
 }
-

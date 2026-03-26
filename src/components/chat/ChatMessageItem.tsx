@@ -151,8 +151,8 @@ export const ChatMessageItem = memo(function ChatMessageItem({
         return (
             <div className="group flex justify-end">
                 {editingId === message.id ? (
-                    <div className="w-full max-w-[75%] space-y-2">
-                        <div className="relative w-full rounded-2xl bg-background-secondary border border-border focus-within:ring-2 focus-within:ring-accent/30">
+                    <div className="w-full max-w-[85%] space-y-2">
+                        <div className="relative w-full rounded-lg bg-background-secondary border border-border focus-within:ring-2 focus-within:ring-accent/30">
                             <div
                                 ref={editOverlayRef}
                                 className="pointer-events-none absolute inset-0 px-4 py-3 whitespace-pre-wrap break-words text-base leading-relaxed text-foreground overflow-y-auto"
@@ -177,7 +177,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                         editOverlayRef.current.scrollTop = e.currentTarget.scrollTop;
                                     }
                                 }}
-                                className="w-full bg-transparent px-4 py-3 rounded-2xl text-base leading-relaxed resize-none text-transparent caret-foreground focus:outline-none overflow-y-auto"
+                                className="w-full bg-transparent px-4 py-3 rounded-lg text-base leading-relaxed resize-none text-transparent caret-foreground focus:outline-none overflow-y-auto"
                                 rows={3}
                                 autoFocus
                             />
@@ -185,54 +185,54 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={handleSaveEdit}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-white text-sm hover:bg-accent/90 transition-colors"
+                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-accent text-white text-xs font-bold hover:bg-accent/90 active:bg-accent/80 transition-all duration-150"
                             >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-3.5 h-3.5" />
                                 发送
                             </button>
                             <button
                                 onClick={handleCancelEdit}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-background-secondary transition-colors"
+                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md border border-border bg-background text-xs font-bold text-foreground hover:bg-background-secondary active:bg-background-tertiary transition-all duration-150"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
                                 取消
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-end w-full max-w-[75%]">
+                    <div className="flex flex-col items-end w-full max-w-[85%]">
                         {/* 附件信息显示 */}
                         {message.attachments && (message.attachments.fileName || message.attachments.webSearchEnabled) && (
                             <div className="flex items-center gap-2 mb-2">
                                 {message.attachments.fileName && (
-                                    <div className="flex items-center gap-3 px-3 py-2.5 bg-background border border-border rounded-xl max-w-[240px]">
-                                        <div className="flex-shrink-0 w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
-                                            <FileText className="w-5 h-5 text-white" />
+                                    <div className="flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-md max-w-[240px] shadow-sm">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-accent/10 rounded flex items-center justify-center border border-accent/10">
+                                            <FileText className="w-4 h-4 text-accent" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-foreground truncate">
+                                            <p className="text-xs font-bold text-foreground truncate">
                                                 {message.attachments.fileName}
                                             </p>
-                                            <p className="text-xs text-foreground-secondary">文件</p>
+                                            <p className="text-[10px] font-bold text-foreground-secondary uppercase tracking-tight">文件</p>
                                         </div>
                                     </div>
                                 )}
                                 {message.attachments.webSearchEnabled && (
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-xl text-green-600">
-                                        <Globe className="w-4 h-4" />
-                                        <span className="text-sm">搜索</span>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-md text-green-600 shadow-sm">
+                                        <Globe className="w-3.5 h-3.5" />
+                                        <span className="text-xs font-bold uppercase tracking-tight">网络搜索</span>
                                     </div>
                                 )}
                             </div>
                         )}
                         {message.dreamInfo && (
-                            <div className="flex items-center gap-2 mb-1.5 text-xs text-purple-500/70 dark:text-purple-400/70">
+                            <div className="flex items-center gap-2 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-purple-500/70 dark:text-purple-400/70">
                                 <span>解梦</span>
                                 <span>·</span>
                                 <span>{new Date(message.dreamInfo.dreamDate).toLocaleDateString('zh-CN')}</span>
                             </div>
                         )}
-                        <div className={`px-4 py-3 rounded-2xl rounded-tr-md shadow-sm text-foreground ${message.dreamInfo
+                        <div className={`px-4 py-2.5 rounded-lg rounded-tr-none shadow-sm text-foreground border ${message.dreamInfo
                             ? 'bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20'
                             : 'bg-accent/10 border border-accent/20'
                         }`}>
@@ -279,7 +279,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 />
             )}
             {message.dreamInfo && (
-                <div className="mb-2 flex items-center gap-2 text-xs text-purple-500/70 dark:text-purple-400/70">
+                <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-purple-500/70 dark:text-purple-400/70">
                     <span>🌙</span>
                     <span>解梦</span>
                     <span>·</span>
@@ -289,16 +289,16 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                     {message.dreamInfo.baziChartName && (
                         <>
                             <span>·</span>
-                            <span>📜 {message.dreamInfo.baziChartName}</span>
+                            <span className="text-foreground-secondary">📜 {message.dreamInfo.baziChartName}</span>
                         </>
                     )}
                 </div>
             )}
-            <MarkdownContent content={message.content} className="text-base text-foreground" />
+            <MarkdownContent content={message.content} className="text-base text-foreground leading-relaxed" />
             {isCurrentStreaming && !message.content && (
-                <div className="mt-2 inline-flex items-center gap-[2px] h-4">
+                <div className="mt-3 inline-flex items-center gap-[3px] h-4">
                     {[0, 1, 2, 3].map((i) => (
-                        <span key={i} className="sound-wave-bar w-[2px] rounded-full bg-foreground/60" style={{ animationDelay: `${i * 0.15}s` }} />
+                        <span key={i} className="sound-wave-bar w-[3px] rounded-full bg-foreground/30" style={{ animationDelay: `${i * 0.15}s` }} />
                     ))}
                 </div>
             )}
@@ -347,20 +347,20 @@ function UserMessageActions({
     setHoveredAction,
 }: UserMessageActionsProps) {
     return (
-        <div className="flex items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             <button
                 onClick={onCopy}
                 onMouseEnter={() => setHoveredAction(`copy-user-${message.id}`)}
                 onMouseLeave={() => setHoveredAction(null)}
-                className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                className="relative p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-md transition-all duration-150"
             >
                 {copiedId === message.id ? (
-                    <Check className="w-4.5 h-4.5 text-green-500" />
+                    <Check className="w-4 h-4 text-green-600" />
                 ) : (
-                    <Copy className="w-4.5 h-4.5" />
+                    <Copy className="w-4 h-4" />
                 )}
                 {hoveredAction === `copy-user-${message.id}` && (
-                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
+                    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 text-[10px] font-bold bg-foreground text-background rounded shadow-md whitespace-nowrap z-10 uppercase tracking-wider">
                         {copiedId === message.id ? '已复制' : '复制'}
                     </span>
                 )}
@@ -369,17 +369,17 @@ function UserMessageActions({
                 onClick={onStartEdit}
                 onMouseEnter={() => setHoveredAction(`edit-${message.id}`)}
                 onMouseLeave={() => setHoveredAction(null)}
-                className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                className="relative p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-md transition-all duration-150"
             >
-                <Pencil className="w-4.5 h-4.5" />
+                <Pencil className="w-4 h-4" />
                 {hoveredAction === `edit-${message.id}` && (
-                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
+                    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 text-[10px] font-bold bg-foreground text-background rounded shadow-md whitespace-nowrap z-10 uppercase tracking-wider">
                         编辑消息
                     </span>
                 )}
             </button>
             {message.versions && message.versions.length > 1 && onSwitchVersion && (
-                <div className="flex items-center gap-1 text-foreground-secondary">
+                <div className="flex items-center gap-1 text-foreground-secondary ml-1">
                     <button
                         onClick={() => {
                             const currentIdx = message.currentVersionIndex ?? message.versions!.length - 1;
@@ -388,12 +388,12 @@ function UserMessageActions({
                             }
                         }}
                         disabled={(message.currentVersionIndex ?? message.versions.length - 1) === 0}
-                        className="pt-1 pb-1 hover:bg-background-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-1 hover:bg-background-secondary hover:text-foreground rounded-md disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-150"
                     >
-                        <ChevronLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="text-base min-w-[2rem] text-center">
-                        {(message.currentVersionIndex ?? message.versions.length - 1) + 1}/{message.versions.length}
+                    <span className="text-[10px] font-bold min-w-[1.5rem] text-center uppercase tracking-tighter">
+                        {(message.currentVersionIndex ?? message.versions.length - 1) + 1} / {message.versions.length}
                     </span>
                     <button
                         onClick={() => {
@@ -403,9 +403,9 @@ function UserMessageActions({
                             }
                         }}
                         disabled={(message.currentVersionIndex ?? message.versions.length - 1) === message.versions.length - 1}
-                        className="pt-1 pb-1 hover:bg-background-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-1 hover:bg-background-secondary hover:text-foreground rounded-md disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-150"
                     >
-                        <ChevronRight className="w-6 h-6" />
+                        <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>
             )}
@@ -450,7 +450,7 @@ function SourcePanelSection({
     const isExpanded = !!expandedSources[message.id];
     if (showKnowledgeBaseMiss && !isCurrentStreaming) {
         return (
-            <div className="mt-2 border-t border-border/50 pt-2 px-2 text-xs text-foreground-secondary">
+            <div className="mt-3 border-t border-border/50 pt-2 px-2 text-[10px] font-bold uppercase tracking-wider text-foreground-secondary">
                 本次未命中知识库
             </div>
         );
@@ -490,20 +490,20 @@ function AIMessageActions({
     const resolvedModelName = message.modelName || resolveClientModelName(message.model || '', message.model || '');
 
     return (
-        <div className="flex gap-1 mt-2">
+        <div className="flex gap-1 mt-3">
             <button
                 onClick={onCopy}
                 onMouseEnter={() => setHoveredAction(`copy-${message.id}`)}
                 onMouseLeave={() => setHoveredAction(null)}
-                className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                className="relative p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-md transition-all duration-150"
             >
                 {copiedId === message.id ? (
-                    <Check className="w-4.5 h-4.5 text-green-500" />
+                    <Check className="w-4 h-4 text-green-600" />
                 ) : (
-                    <Copy className="w-4.5 h-4.5" />
+                    <Copy className="w-4 h-4" />
                 )}
                 {hoveredAction === `copy-${message.id}` && (
-                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
+                    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 text-[10px] font-bold bg-foreground text-background rounded shadow-md whitespace-nowrap z-10 uppercase tracking-wider">
                         {copiedId === message.id ? '已复制' : '复制'}
                     </span>
                 )}
@@ -513,14 +513,14 @@ function AIMessageActions({
                     onClick={() => onRegenerateResponse(message.id)}
                     onMouseEnter={() => setHoveredAction(`regen-${message.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}
-                    className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                    className="relative p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-md transition-all duration-150"
                 >
-                    <RefreshCw className="w-4.5 h-4.5" />
+                    <RefreshCw className="w-4 h-4" />
                     {hoveredAction === `regen-${message.id}` && (
-                        <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
-                            <div>重试...</div>
+                        <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 text-[10px] font-bold bg-foreground text-background rounded shadow-md whitespace-nowrap z-10 uppercase tracking-widest leading-tight">
+                            <div>重新生成</div>
                             {resolvedModelName && (
-                                <div className="opacity-70">已使用 {resolvedModelName}</div>
+                                <div className="text-background/70 mt-1 lowercase font-medium">{resolvedModelName}</div>
                             )}
                         </span>
                     )}
@@ -531,11 +531,11 @@ function AIMessageActions({
                     onClick={() => onArchiveMessage(message)}
                     onMouseEnter={() => setHoveredAction(`archive-${message.id}`)}
                     onMouseLeave={() => setHoveredAction(null)}
-                    className="relative p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+                    className="relative p-1.5 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-md transition-all duration-150"
                 >
-                    <BookOpenText className="w-4.5 h-4.5" />
+                    <BookOpenText className="w-4 h-4" />
                     {hoveredAction === `archive-${message.id}` && (
-                        <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-foreground text-background rounded-lg whitespace-nowrap z-10">
+                        <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 text-[10px] font-bold bg-foreground text-background rounded shadow-md whitespace-nowrap z-10 uppercase tracking-wider">
                             加入知识库
                         </span>
                     )}
@@ -543,7 +543,7 @@ function AIMessageActions({
             )}
             {/* 命盘信息显示 */}
             {(message.chartInfo?.baziName || message.chartInfo?.ziweiName) && (
-                <div className="flex items-center gap-1.5 ml-2 text-xs text-foreground-secondary">
+                <div className="flex items-center gap-2 ml-2 text-[10px] font-bold uppercase tracking-widest text-foreground-secondary">
                     <span className="opacity-60">|</span>
                     {message.chartInfo.baziName && (
                         <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">

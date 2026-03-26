@@ -1,9 +1,7 @@
 /**
- * 命理记账页面
+ * 命理记录页面
  *
- * 'use client' 标记说明：
- * - 使用 React hooks (useState, useEffect, useCallback)
- * - 有搜索、筛选、导入导出等交互功能
+ * 对齐 Notion 风格：极简布局、柔和边框、列表化展示
  */
 'use client';
 
@@ -241,132 +239,114 @@ export default function RecordsPage() {
     const totalPages = Math.ceil(total / PAGE_SIZE);
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
-                {/* 顶部 Hero 区域 - 移动端隐藏 */}
-                <div className="hidden md:block relative overflow-hidden border-b border-border/50 pb-12 pt-20 mb-8">
-                    <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
+        <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
+            <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-10">
+                {/* 标题与操作栏 */}
+                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-gray-100">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-bold">命理记录</h1>
+                        <p className="text-sm text-foreground/50">追踪运势变化，积累命理智慧</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowImportExport(true)}
+                            className="p-2 rounded-md border border-gray-200 hover:bg-[#efedea] transition-colors text-foreground/70"
+                            title="数据管理"
+                        >
+                            <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setShowRecordForm(true)}
+                            className="flex items-center gap-2 px-4 py-1.5 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>新建记录</span>
+                        </button>
+                    </div>
+                </header>
 
-                    <div className="max-w-4xl mx-auto px-4 relative z-10">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div className="text-center md:text-left">
-                                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 mb-4 tracking-tight">
-                                    命理记录
-                                </h1>
-                                <p className="text-lg text-foreground-secondary/80 max-w-lg">
-                                    记录你的修行与感悟，追踪运势变化，积累命理智慧。
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setShowImportExport(true)}
-                                    className="p-3 bg-background border border-border rounded-xl text-foreground-secondary hover:text-foreground hover:border-foreground/20 hover:shadow-sm transition-all shadow-sm"
-                                    title="数据管理"
-                                >
-                                    <Download className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={() => setShowRecordForm(true)}
-                                    className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
-                                >
-                                    <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-                                    <span className="font-medium">新建记录</span>
-                                </button>
+                <div className="space-y-10">
+                    {/* 小记区域 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">今日小记</h2>
+                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                            <DailyNotes notes={notes} onRefresh={loadNotes} />
+                        </div>
+                    </section>
+
+                    {/* 筛选与列表 */}
+                    <section className="space-y-4">
+                        <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">所有记录</h2>
+                        <div className="space-y-4">
+                            <RecordFilters
+                                search={search}
+                                onSearchChange={(v) => { setSearch(v); setPage(1); }}
+                                category={category}
+                                onCategoryChange={(v) => { setCategory(v); setPage(1); }}
+                            />
+
+                            <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                                <RecordsList
+                                    loading={loading}
+                                    records={records}
+                                    page={page}
+                                    totalPages={totalPages}
+                                    onPageChange={setPage}
+                                    onEdit={(record) => { setEditingRecord(record); setShowRecordForm(true); }}
+                                    onDelete={(id) => setDeleteRecordId(id)}
+                                    onTogglePin={handleTogglePin}
+                                    onAddToKnowledgeBase={openAddToKb}
+                                    onCreateNew={() => setShowRecordForm(true)}
+                                />
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
-                {/* 移动端操作栏 */}
-                <div className="md:hidden flex items-center justify-end gap-2 px-4 py-3">
-                    <button
-                        onClick={() => setShowImportExport(true)}
-                        className="p-2 bg-background border border-border rounded-lg text-foreground-secondary"
-                        title="数据管理"
-                    >
-                        <Download className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => setShowRecordForm(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm rounded-lg shadow-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>新建</span>
-                    </button>
-                </div>
-
-                <div className="max-w-4xl mx-auto px-4 space-y-8">
-                    {/* 小记区域 */}
-                    <div className="bg-background-secondary/30 border-border/50 rounded-2xl p-1 backdrop-blur-sm">
-                        <DailyNotes notes={notes} onRefresh={loadNotes} />
-                    </div>
-
-                    {/* 搜索和筛选 */}
-                    <RecordFilters
-                        search={search}
-                        onSearchChange={(v) => { setSearch(v); setPage(1); }}
-                        category={category}
-                        onCategoryChange={(v) => { setCategory(v); setPage(1); }}
+                {/* 模态框 */}
+                {showRecordForm && (
+                    <RecordFormModal
+                        record={editingRecord}
+                        onClose={() => { setShowRecordForm(false); setEditingRecord(null); }}
+                        onSave={() => { setShowRecordForm(false); setEditingRecord(null); loadRecords(); }}
                     />
+                )}
 
-                    {/* 记录列表 */}
-                    <RecordsList
-                        loading={loading}
-                        records={records}
-                        page={page}
-                        totalPages={totalPages}
-                        onPageChange={setPage}
-                        onEdit={(record) => { setEditingRecord(record); setShowRecordForm(true); }}
-                        onDelete={(id) => setDeleteRecordId(id)}
-                        onTogglePin={handleTogglePin}
-                        onAddToKnowledgeBase={openAddToKb}
-                        onCreateNew={() => setShowRecordForm(true)}
+                {showImportExport && (
+                    <ImportExportModal
+                        onClose={() => setShowImportExport(false)}
+                        onImport={() => { loadRecords(); loadNotes(); }}
                     />
+                )}
 
-                    {/* 记录表单模态框 */}
-                    {showRecordForm && (
-                        <RecordFormModal
-                            record={editingRecord}
-                            onClose={() => { setShowRecordForm(false); setEditingRecord(null); }}
-                            onSave={() => { setShowRecordForm(false); setEditingRecord(null); loadRecords(); }}
-                        />
-                    )}
-
-                    {/* 导入导出模态框 */}
-                    {showImportExport && (
-                        <ImportExportModal
-                            onClose={() => setShowImportExport(false)}
-                            onImport={() => { loadRecords(); loadNotes(); }}
-                        />
-                    )}
-
-                    {/* 知识库归档模态框 */}
-                    {kbModalOpen && kbTargetRecord && (
-                        <KnowledgeBaseModal
-                            targetRecord={kbTargetRecord}
-                            kbLoading={kbLoading}
-                            kbSaving={kbSaving}
-                            kbError={kbError}
-                            kbSuccess={kbSuccess}
-                            kbList={kbList}
-                            kbSelectedId={kbSelectedId}
-                            kbNewName={kbNewName}
-                            onSelectKb={setKbSelectedId}
-                            onNewNameChange={setKbNewName}
-                            onCreateKb={createKnowledgeBase}
-                            onIngest={ingestRecordToKb}
-                            onClose={closeKbModal}
-                        />
-                    )}
-                    <ConfirmDialog
-                        isOpen={!!deleteRecordId}
-                        onClose={() => setDeleteRecordId(null)}
-                        onConfirm={() => deleteRecordId ? handleDelete(deleteRecordId) : undefined}
-                        title="确认删除"
-                        description="确定要删除这条记录吗？此操作无法撤销。"
-                        confirmText="确认删除"
-                        variant="danger"
+                {kbModalOpen && kbTargetRecord && (
+                    <KnowledgeBaseModal
+                        targetRecord={kbTargetRecord}
+                        kbLoading={kbLoading}
+                        kbSaving={kbSaving}
+                        kbError={kbError}
+                        kbSuccess={kbSuccess}
+                        kbList={kbList}
+                        kbSelectedId={kbSelectedId}
+                        kbNewName={kbNewName}
+                        onSelectKb={setKbSelectedId}
+                        onNewNameChange={setKbNewName}
+                        onCreateKb={createKnowledgeBase}
+                        onIngest={ingestRecordToKb}
+                        onClose={closeKbModal}
                     />
-                </div>
+                )}
+
+                <ConfirmDialog
+                    isOpen={!!deleteRecordId}
+                    onClose={() => setDeleteRecordId(null)}
+                    onConfirm={() => deleteRecordId ? handleDelete(deleteRecordId) : undefined}
+                    title="确认删除"
+                    description="确定要删除这条记录吗？此操作无法撤销。"
+                    confirmText="确认删除"
+                    variant="danger"
+                />
             </div>
+        </div>
     );
 }

@@ -87,17 +87,17 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
     }
 
     return (
-        <div className="bg-background rounded-xl md:p-6 p-4 shadow-sm border border-border/50 animate-fade-in">
+        <div className="bg-white rounded-lg md:p-6 p-4 shadow-sm border border-gray-200 animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-accent" />
+                <h2 className="text-lg font-bold flex items-center gap-2 text-[#37352f]">
+                    <Sparkles className="w-5 h-5 text-[#2383e2]" />
                     即时排盘
                 </h2>
                 <button
                     type="button"
                     onClick={onUseInstant}
-                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium
-                        hover:bg-accent/90 transition-all duration-200 hover:scale-105"
+                    className="px-4 py-2 bg-[#2383e2] text-white rounded-md text-sm font-semibold
+                        hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-all duration-150"
                 >
                     使用此时间
                 </button>
@@ -113,13 +113,13 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
                 ].map(({ label, pillar }) => (
                     <div
                         key={label}
-                        className="bg-background-secondary/30 rounded-lg p-3 text-center border border-border/30"
+                        className="bg-[#f7f6f3] rounded-md p-3 text-center border border-gray-100"
                     >
-                        <div className="text-xs text-foreground-secondary mb-1">{label}</div>
-                        <div className="text-2xl font-bold text-foreground">
+                        <div className="text-[11px] font-semibold text-[#37352f]/50 uppercase tracking-wider mb-1">{label}</div>
+                        <div className="text-2xl font-bold text-[#37352f]">
                             {pillar.stem}
                         </div>
-                        <div className="text-2xl font-bold text-foreground">
+                        <div className="text-2xl font-bold text-[#37352f]">
                             {pillar.branch}
                         </div>
                     </div>
@@ -127,7 +127,7 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
             </div>
 
             {/* 时间信息 */}
-            <div className="text-sm text-foreground-secondary space-y-1">
+            <div className="text-sm text-[#37352f]/60 space-y-1">
                 <div>
                     农历：{lunarInfo.year}年
                     {['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月'][lunarInfo.month - 1]}

@@ -78,22 +78,22 @@ export function TimeInputModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
             {/* 遮罩层 */}
             <div
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-[#37352f]/20 backdrop-blur-[2px]"
                 onClick={onClose}
             />
 
             {/* 模态框内容 */}
-            <div className="relative bg-background rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 text-[#37352f]">
                 {/* 头部 */}
-                <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-accent" />
+                <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-[#2383e2]" />
                         出生时辰
                     </h2>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-foreground-secondary hover:text-foreground transition-colors"
+                        className="text-[#37352f]/40 hover:text-[#37352f] hover:bg-[#efedea] p-1 rounded-md transition-all duration-150"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -103,21 +103,21 @@ export function TimeInputModal({
                 <div className="p-6 space-y-6">
                     {/* 不知时辰开关 */}
                     <label className="flex items-center justify-between cursor-pointer group">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-bold uppercase tracking-wider text-[#37352f]/60">
                             {knowTime ? '已知时辰' : '不知时辰'}
                         </span>
                         <div
                             onClick={() => setLocalUnknownTime(!localUnknownTime)}
                             className={`
-                                relative w-12 h-6 rounded-full transition-all duration-300 ease-out flex items-center
-                                ${knowTime ? 'bg-accent' : 'bg-foreground-secondary/20'}
+                                relative w-10 h-5 rounded-full transition-all duration-150 ease-out flex items-center
+                                ${knowTime ? 'bg-[#2383e2]' : 'bg-gray-200'}
                             `}
                         >
                             <div
                                 className={`
-                                    absolute w-5 h-5 bg-white rounded-full shadow-sm
-                                    transition-all duration-300 cubic-bezier(0.4, 0.0, 0.2, 1)
-                                    ${knowTime ? 'translate-x-6' : 'translate-x-0.5'}
+                                    absolute w-4 h-4 bg-white rounded-full shadow-sm
+                                    transition-all duration-150
+                                    ${knowTime ? 'translate-x-5.5' : 'translate-x-0.5'}
                                 `}
                             />
                         </div>
@@ -125,29 +125,29 @@ export function TimeInputModal({
 
                     {/* 具体时间输入 - 仅当知道时辰时显示 */}
                     {knowTime && (
-                        <div className="space-y-6 animate-fade-in-up">
+                        <div className="space-y-6 animate-fade-in">
                             {/* 精确时间输入框 */}
-                            <div className="flex items-center gap-4 bg-background-secondary/30 p-4 rounded-xl border border-border/50">
-                                <label className="text-sm font-medium whitespace-nowrap text-foreground-secondary">
+                            <div className="flex items-center gap-4 bg-[#f7f6f3] p-4 rounded-md border border-gray-100">
+                                <label className="text-xs font-bold uppercase tracking-wider text-[#37352f]/50 whitespace-nowrap">
                                     精确时间
                                 </label>
                                 <input
                                     type="time"
                                     value={formatTimeValue()}
                                     onChange={handleTimeChange}
-                                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2 text-center font-mono text-lg
-                                        focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
-                                        transition-all duration-200"
+                                    className="flex-1 bg-white border border-gray-200 rounded-md px-4 py-2 text-center font-mono text-lg text-[#37352f]
+                                        focus:outline-none focus:ring-2 focus:ring-[#2383e2]/10 focus:border-[#2383e2]
+                                        transition-all duration-150"
                                 />
                             </div>
 
                             {/* 时辰快捷选择 */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
-                                    <label className="text-sm font-medium text-foreground-secondary">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-[#37352f]/50">
                                         快捷选择时辰
                                     </label>
-                                    <span className="text-xs text-foreground-tertiary">
+                                    <span className="text-[10px] font-medium text-[#37352f]/30">
                                         点击选择将自动修正时间
                                     </span>
                                 </div>
@@ -165,18 +165,18 @@ export function TimeInputModal({
                                                 }}
                                                 className={`
                                                     relative overflow-hidden
-                                                    py-2 px-1 rounded-lg border text-sm transition-all duration-200
+                                                    py-2 px-1 rounded-md border text-sm transition-all duration-150
                                                     flex flex-col items-center justify-center gap-0.5
                                                     ${isSelected
-                                                        ? 'bg-accent text-white border-accent shadow-md shadow-accent/20'
-                                                        : 'bg-background border-border hover:border-accent/50 hover:bg-background-secondary'
+                                                        ? 'bg-[#2383e2] text-white border-[#2383e2]'
+                                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
                                                     }
                                                 `}
                                             >
-                                                <span className={`font-medium ${isSelected ? 'text-white' : ''}`}>
+                                                <span className={`font-bold ${isSelected ? 'text-white' : ''}`}>
                                                     {name}
                                                 </span>
-                                                <span className={`text-[10px] scale-90 ${isSelected ? 'text-white/80' : 'text-foreground-tertiary'}`}>
+                                                <span className={`text-[10px] ${isSelected ? 'text-white/70' : 'text-[#37352f]/40 font-medium'}`}>
                                                     {time}
                                                 </span>
                                             </button>
@@ -189,20 +189,20 @@ export function TimeInputModal({
                 </div>
 
                 {/* 底部按钮 */}
-                <div className="sticky bottom-0 bg-background border-t border-border px-6 py-4 flex gap-3">
+                <div className="sticky bottom-0 bg-[#f7f6f3]/80 backdrop-blur-md border-t border-gray-100 px-6 py-4 flex gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 px-4 py-2 border border-border rounded-lg text-sm font-medium
-                            hover:bg-background-secondary transition-colors"
+                        className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-semibold text-[#37352f]
+                            hover:bg-[#efedea] active:bg-[#e3e1db] transition-all duration-150"
                     >
                         取消
                     </button>
                     <button
                         type="button"
                         onClick={handleConfirm}
-                        className="flex-1 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium
-                            hover:bg-accent/90 transition-colors"
+                        className="flex-1 px-4 py-2 bg-[#2383e2] text-white rounded-md text-sm font-semibold
+                            hover:bg-[#2383e2]/90 active:bg-[#1a65b0] transition-all duration-150"
                     >
                         确定
                     </button>

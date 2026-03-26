@@ -105,13 +105,13 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
         <div className="grid grid-cols-3 gap-2">
             {/* 省份选择 */}
             <div>
-                <label className="block text-xs text-foreground-secondary mb-1">省/直辖市</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#37352f]/50 mb-1">省/直辖市</label>
                 <div className="relative">
                     <select
                         value={selectedProvince}
                         onChange={(e) => handleProvinceChange(e.target.value)}
-                        className="w-full px-2 py-2 pr-6 border border-border rounded-lg bg-background text-sm
-                            focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+                        className="w-full px-2 py-2 pr-6 border border-gray-200 rounded-md bg-white text-sm text-[#37352f]
+                            focus:outline-none focus:ring-2 focus:ring-[#2383e2]/10 focus:border-[#2383e2]
                             appearance-none cursor-pointer"
                     >
                         <option value="">省份</option>
@@ -121,20 +121,20 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary pointer-events-none" />
+                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-[#37352f]/30 pointer-events-none" />
                 </div>
             </div>
 
             {/* 城市选择 */}
             <div>
-                <label className="block text-xs text-foreground-secondary mb-1">市/区</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#37352f]/50 mb-1">市/区</label>
                 <div className="relative">
                     <select
                         value={selectedCity}
                         onChange={(e) => handleCityChange(e.target.value)}
                         disabled={cities.length === 0}
-                        className="w-full px-2 py-2 pr-6 border border-border rounded-lg bg-background text-sm
-                            focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+                        className="w-full px-2 py-2 pr-6 border border-gray-200 rounded-md bg-white text-sm text-[#37352f]
+                            focus:outline-none focus:ring-2 focus:ring-[#2383e2]/10 focus:border-[#2383e2]
                             appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <option value="">城市</option>
@@ -144,20 +144,20 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary pointer-events-none" />
+                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-[#37352f]/30 pointer-events-none" />
                 </div>
             </div>
 
             {/* 区县选择 */}
             <div>
-                <label className="block text-xs text-foreground-secondary mb-1">区/县</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#37352f]/50 mb-1">区/县</label>
                 <div className="relative">
                     <select
                         value={selectedDistrict}
                         onChange={(e) => handleDistrictChange(e.target.value)}
                         disabled={districts.length === 0}
-                        className="w-full px-2 py-2 pr-6 border border-border rounded-lg bg-background text-sm
-                            focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent
+                        className="w-full px-2 py-2 pr-6 border border-gray-200 rounded-md bg-white text-sm text-[#37352f]
+                            focus:outline-none focus:ring-2 focus:ring-[#2383e2]/10 focus:border-[#2383e2]
                             appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <option value="">区县</option>
@@ -167,7 +167,7 @@ export function RegionPicker({ value, onChange }: RegionPickerProps) {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-secondary pointer-events-none" />
+                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 text-[#37352f]/30 pointer-events-none" />
                 </div>
             </div>
         </div>
