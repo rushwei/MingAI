@@ -136,7 +136,7 @@ test('bazi case profile GET returns current profile with events for owned chart'
     assert.equal(payload.profile.events[0].category, '事业');
 });
 
-test('bazi case profile PUT rejects freeform values outside the allowed catalog', async (t) => {
+test('bazi case profile PUT rejects invalid enumerated values like strengthLevel', async (t) => {
     const apiUtils = require('../lib/api-utils') as {
         requireUserContext: typeof import('../lib/api-utils').requireUserContext;
         getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
@@ -214,4 +214,174 @@ test('bazi case profile PUT rejects freeform values outside the allowed catalog'
 
     assert.equal(response.status, 400);
     assert.match(payload.error, /strengthLevel/u);
+});
+
+test('bazi case profile PUT accepts custom family and temperament tags', async (t) => {
+    const apiUtils = require('../lib/api-utils') as {
+        requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+        getSystemAdminClient: typeof import('../lib/api-utils').getSystemAdminClient;
+    };
+    const originalRequireUserContext = apiUtils.requireUserContext;
+    const originalGetSystemAdminClient = apiUtils.getSystemAdminClient;
+
+    let savedOwnerFeedback: Record<string, unknown> | null = null;
+
+    apiUtils.requireUserContext = (async () => ({
+        user: { id: 'user-1' },
+        supabase: {},
+    })) as unknown as typeof apiUtils.requireUserContext;
+
+    apiUtils.getSystemAdminClient = (() => ({
+        from(table: string) {
+            if (table === 'bazi_charts') {
+                return {
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: { id: '11111111-1111-1111-1111-111111111111' },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === 'bazi_case_profiles') {
+                return {
+                    upsert(payload: Record<string, unknown>) {
+                        savedOwnerFeedback = payload.owner_feedback as Record<string, unknown>;
+                        return {
+                            select() {
+                                return {
+                                    single: async () => ({
+                                        data: {
+                                            id: 'profile-1',
+                                            user_id: 'user-1',
+                                            bazi_chart_id: '11111111-1111-1111-1111-111111111111',
+                                            master_review: payload.master_review,
+                                            owner_feedback: payload.owner_feedback,
+                                            created_at: '2026-03-20T00:00:00.000Z',
+                                            updated_at: '2026-03-20T00:00:00.000Z',
+                                        },
+                                        error: null,
+                                    }),
+                                };
+                            },
+                        };
+                    },
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return {
+                                            maybeSingle: async () => ({
+                                                data: {
+                                                    id: 'profile-1',
+                                                    user_id: 'user-1',
+                                                    bazi_chart_id: '11111111-1111-1111-1111-111111111111',
+                                                    master_review: {
+                                                        strengthLevel: '偏强',
+                                                        patterns: ['财格'],
+                                                        yongShen: { basic: ['水'], advanced: ['壬'] },
+                                                        xiShen: { basic: [], advanced: [] },
+                                                        jiShen: { basic: [], advanced: [] },
+                                                        xianShen: { basic: [], advanced: [] },
+                                                        summary: '测试',
+                                                    },
+                                                    owner_feedback: savedOwnerFeedback,
+                                                    created_at: '2026-03-20T00:00:00.000Z',
+                                                    updated_at: '2026-03-20T00:00:00.000Z',
+                                                },
+                                                error: null,
+                                            }),
+                                        };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === 'bazi_case_events') {
+                return {
+                    delete() {
+                        return {
+                            eq() {
+                                return {
+                                    eq() {
+                                        return { error: null };
+                                    },
+                                };
+                            },
+                        };
+                    },
+                    select() {
+                        return {
+                            eq() {
+                                return {
+                                    order: async () => ({
+                                        data: [],
+                                        error: null,
+                                    }),
+                                };
+                            },
+                        };
+                    },
+                };
+            }
+
+            throw new Error(`Unexpected table: ${table}`);
+        },
+    })) as unknown as typeof apiUtils.getSystemAdminClient;
+
+    t.after(() => {
+        apiUtils.requireUserContext = originalRequireUserContext;
+        apiUtils.getSystemAdminClient = originalGetSystemAdminClient;
+    });
+
+    const { PUT } = await import('../app/api/bazi/case-profile/route');
+    const request = new NextRequest('http://localhost/api/bazi/case-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chartId: '11111111-1111-1111-1111-111111111111',
+            masterReview: {
+                strengthLevel: '偏强',
+                patterns: ['财格'],
+                yongShen: { basic: ['水'], advanced: ['壬'] },
+                xiShen: { basic: [], advanced: [] },
+                jiShen: { basic: [], advanced: [] },
+                xianShen: { basic: [], advanced: [] },
+                summary: '',
+            },
+            ownerFeedback: {
+                occupation: '上班族',
+                education: '本科',
+                wealthLevel: '小康',
+                marriageStatus: '已婚',
+                healthStatus: '健康稳定',
+                familyStatusTags: ['父母助力', '父子关系紧张'],
+                temperamentTags: ['务实', '嘴硬心软'],
+                summary: '',
+            },
+            events: [],
+        }),
+    });
+
+    const response = await PUT(request);
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload.profile.ownerFeedback.familyStatusTags, ['父母助力', '父子关系紧张']);
+    assert.deepEqual(payload.profile.ownerFeedback.temperamentTags, ['务实', '嘴硬心软']);
 });

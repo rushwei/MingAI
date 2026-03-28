@@ -9,6 +9,7 @@ process.env.INTERNAL_API_SECRET = 'internal-secret';
 const waitForMicrotask = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 interface MockState {
+    authInfoCalls: number;
     useCreditCalls: number;
     addCreditCalls: number;
     aiUiCalls: number;
@@ -81,25 +82,25 @@ function setupRouteMocks(
     t: { after: (fn: () => void) => void },
     streamBody: ReadableStream<unknown>
 ): MockState {
+    const routeModulePath = require.resolve('../app/api/chat/route');
+    const requestModulePath = require.resolve('../lib/server/chat/request');
     const aiModule = require('../lib/ai/ai') as any;
     const creditsModule = require('../lib/user/credits') as any;
     const aiConfigServerModule = require('../lib/server/ai-config') as any;
     const aiAccessModule = require('../lib/ai/ai-access') as any;
-    const membershipServerModule = require('../lib/user/membership-server') as any;
     const promptBuilderModule = require('../lib/ai/prompt-builder') as any;
     const supabaseServerModule = require('../lib/supabase-server') as any;
     const apiUtilsModule = require('../lib/api-utils') as any;
 
     const originalCallAIStream = aiModule.callAIStream;
     const originalCallAIUIMessageResult = aiModule.callAIUIMessageResult;
-    const originalHasCredits = creditsModule.hasCredits;
+    const originalGetUserAuthInfo = creditsModule.getUserAuthInfo;
     const originalUseCredit = creditsModule.useCredit;
     const originalAddCredits = creditsModule.addCredits;
     const originalGetModelConfigAsync = aiConfigServerModule.getModelConfigAsync;
     const originalGetDefaultModelConfigAsync = aiConfigServerModule.getDefaultModelConfigAsync;
     const originalIsModelAllowedForMembership = aiAccessModule.isModelAllowedForMembership;
     const originalIsReasoningAllowedForMembership = aiAccessModule.isReasoningAllowedForMembership;
-    const originalGetEffectiveMembershipType = membershipServerModule.getEffectiveMembershipType;
     const originalBuildPromptWithSources = promptBuilderModule.buildPromptWithSources;
     const originalGetPromptBudget = promptBuilderModule.calculatePromptBudget;
     const originalResolvePersonalities = promptBuilderModule.resolvePersonalities;
@@ -107,6 +108,7 @@ function setupRouteMocks(
     const originalRequireUserContext = apiUtilsModule.requireUserContext;
 
     const state: MockState = {
+        authInfoCalls: 0,
         useCreditCalls: 0,
         addCreditCalls: 0,
         aiUiCalls: 0,
@@ -142,7 +144,14 @@ function setupRouteMocks(
 
         return createMockUIMessageResult(chunks, { parts: responseParts });
     };
-    creditsModule.hasCredits = async () => true;
+    creditsModule.getUserAuthInfo = async () => {
+        state.authInfoCalls += 1;
+        return {
+            credits: 1,
+            effectiveMembership: 'free',
+            hasCredits: true,
+        };
+    };
     creditsModule.useCredit = async () => {
         state.useCreditCalls += 1;
         return 0;
@@ -164,7 +173,6 @@ function setupRouteMocks(
     aiConfigServerModule.getDefaultModelConfigAsync = async () => mockModelConfig;
     aiAccessModule.isModelAllowedForMembership = () => true;
     aiAccessModule.isReasoningAllowedForMembership = () => true;
-    membershipServerModule.getEffectiveMembershipType = async () => 'free';
 
     promptBuilderModule.calculatePromptBudget = async () => 1024;
     promptBuilderModule.resolvePersonalities = () => ({ personalities: ['general'] });
@@ -219,22 +227,26 @@ function setupRouteMocks(
         },
     });
 
+    delete require.cache[routeModulePath];
+    delete require.cache[requestModulePath];
+
     t.after(() => {
         aiModule.callAIStream = originalCallAIStream;
         aiModule.callAIUIMessageResult = originalCallAIUIMessageResult;
-        creditsModule.hasCredits = originalHasCredits;
+        creditsModule.getUserAuthInfo = originalGetUserAuthInfo;
         creditsModule.useCredit = originalUseCredit;
         creditsModule.addCredits = originalAddCredits;
         aiConfigServerModule.getModelConfigAsync = originalGetModelConfigAsync;
         aiConfigServerModule.getDefaultModelConfigAsync = originalGetDefaultModelConfigAsync;
         aiAccessModule.isModelAllowedForMembership = originalIsModelAllowedForMembership;
         aiAccessModule.isReasoningAllowedForMembership = originalIsReasoningAllowedForMembership;
-        membershipServerModule.getEffectiveMembershipType = originalGetEffectiveMembershipType;
         promptBuilderModule.buildPromptWithSources = originalBuildPromptWithSources;
         promptBuilderModule.calculatePromptBudget = originalGetPromptBudget;
         promptBuilderModule.resolvePersonalities = originalResolvePersonalities;
         supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
         apiUtilsModule.requireUserContext = originalRequireUserContext;
+        delete require.cache[routeModulePath];
+        delete require.cache[requestModulePath];
     });
 
     return state;
@@ -272,8 +284,36 @@ test('chat route does not charge when stream ends before visible content', async
     await response.text();
     await waitForMicrotask();
 
+    assert.equal(state.authInfoCalls, 1);
     assert.equal(state.useCreditCalls, 1);
     assert.equal(state.addCreditCalls, 1);
+});
+
+test('chat route blocks before deduction when combined auth info reports no credits', async (t) => {
+    const streamBody = createUIChunkStream([
+        { type: 'text-delta', id: 't1', delta: '你好' },
+    ]);
+    const state = setupRouteMocks(t, streamBody);
+    const creditsModule = require('../lib/user/credits') as any;
+    creditsModule.getUserAuthInfo = async () => {
+        state.authInfoCalls += 1;
+        return {
+            credits: 0,
+            effectiveMembership: 'free',
+            hasCredits: false,
+        };
+    };
+
+    const { POST } = await import('../app/api/chat/route');
+
+    const response = await POST(createChatRequest());
+    const payload = await response.json();
+
+    assert.equal(response.status, 402);
+    assert.equal(payload.code, 'INSUFFICIENT_CREDITS');
+    assert.equal(state.authInfoCalls, 1);
+    assert.equal(state.useCreditCalls, 0);
+    assert.equal(state.aiUiCalls, 0);
 });
 
 test('chat route rejects streamed requests when upfront credit deduction fails', async (t) => {

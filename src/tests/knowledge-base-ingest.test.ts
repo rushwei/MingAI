@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const ingestModule = require('../lib/knowledge-base/ingest') as any;
-const supabaseServerModule = require('../lib/supabase-server') as any;
+const apiUtilsModule = require('../lib/api-utils') as any;
 
 test('ingestChatMessageAsService stores chat_message entries with metadata', async () => {
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
     const inserted: Array<{ source_type: string; source_id: string; metadata: Record<string, unknown> }> = [];
 
-    supabaseServerModule.getSystemAdminClient = () => ({
+    apiUtilsModule.getSystemAdminClient = () => ({
         from: (table: string) => {
             if (table === 'conversations') {
                 return {
@@ -19,16 +19,64 @@ test('ingestChatMessageAsService stores chat_message entries with metadata', asy
                                     data: {
                                         id: 'conv-1',
                                         user_id: 'user-1',
-                                        messages: [
-                                            { id: 'u1', role: 'user', content: '你好' },
-                                            { id: 'a1', role: 'assistant', content: '你好，我在' },
-                                        ]
                                     },
                                     error: null
                                 })
                             })
                         })
                     })
+                };
+            }
+            if (table === 'conversation_messages') {
+                return {
+                    select: () => ({
+                        eq(column: string) {
+                            if (column === 'conversation_id') {
+                                return {
+                                    eq(innerColumn: string) {
+                                        if (innerColumn === 'message_id') {
+                                            return {
+                                                maybeSingle: async () => ({
+                                                    data: {
+                                                        sequence: 2,
+                                                        message_id: 'a1',
+                                                        role: 'assistant',
+                                                        content: '你好，我在',
+                                                        metadata: null,
+                                                        created_at: '2026-03-27T00:00:00.000Z',
+                                                    },
+                                                    error: null,
+                                                }),
+                                            };
+                                        }
+                                        if (innerColumn === 'role') {
+                                            return {
+                                                lt: () => ({
+                                                    order: () => ({
+                                                        limit: () => ({
+                                                            maybeSingle: async () => ({
+                                                                data: {
+                                                                    sequence: 1,
+                                                                    message_id: 'u1',
+                                                                    role: 'user',
+                                                                    content: '你好',
+                                                                    metadata: null,
+                                                                    created_at: '2026-03-27T00:00:00.000Z',
+                                                                },
+                                                                error: null,
+                                                            }),
+                                                        }),
+                                                    }),
+                                                }),
+                                            };
+                                        }
+                                        throw new Error(`Unexpected conversation_messages eq: ${innerColumn}`);
+                                    },
+                                };
+                            }
+                            throw new Error(`Unexpected conversation_messages select eq: ${column}`);
+                        },
+                    }),
                 };
             }
             if (table === 'knowledge_entries') {
@@ -61,7 +109,8 @@ test('ingestChatMessageAsService stores chat_message entries with metadata', asy
         assert.equal(inserted[0]?.source_id, 'a1');
         assert.equal(inserted[0]?.metadata?.conversation_id, 'conv-1');
         assert.equal(inserted[0]?.metadata?.message_id, 'a1');
+        assert.equal(inserted[0]?.metadata?.user_message_id, 'u1');
     } finally {
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
     }
 });

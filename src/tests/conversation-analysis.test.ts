@@ -126,3 +126,39 @@ test('replaceConversationMessages should no-op safely when rpc is unavailable', 
 
     assert.equal(result.error, null);
 });
+
+test('loadConversationAnalysisSnapshot reads lightweight snapshot payload', async (t) => {
+    const originalFetch = global.fetch;
+    const analysisModulePath = require.resolve('../lib/chat/conversation-analysis');
+
+    global.fetch = (async (input: RequestInfo | URL) => {
+        assert.equal(String(input), '/api/conversations/conv-1?snapshot=analysis');
+        return new Response(JSON.stringify({
+            snapshot: {
+                analysis: 'saved analysis',
+                reasoning: 'saved reasoning',
+                modelId: 'glm-4',
+                reasoningEnabled: true,
+            },
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }) as typeof global.fetch;
+
+    t.after(() => {
+        global.fetch = originalFetch;
+        delete require.cache[analysisModulePath];
+    });
+
+    delete require.cache[analysisModulePath];
+    const { loadConversationAnalysisSnapshot } = require('../lib/chat/conversation-analysis') as typeof import('../lib/chat/conversation-analysis');
+    const snapshot = await loadConversationAnalysisSnapshot('conv-1');
+
+    assert.deepEqual(snapshot, {
+        analysis: 'saved analysis',
+        reasoning: 'saved reasoning',
+        modelId: 'glm-4',
+        reasoningEnabled: true,
+    });
+});

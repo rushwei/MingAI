@@ -1,0 +1,378 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { NextRequest } from 'next/server';
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
+
+test('knowledge-base archive route should page merged archive rows and virtual chat messages', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const featureUtilsModule = require('../lib/feature-gate-utils') as any;
+  const routePath = require.resolve('../app/api/knowledge-base/archive/route');
+
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalJsonOk = apiUtilsModule.jsonOk;
+  const originalJsonError = apiUtilsModule.jsonError;
+  const originalEnsureFeatureRouteEnabled = featureUtilsModule.ensureFeatureRouteEnabled;
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  featureUtilsModule.ensureFeatureRouteEnabled = async () => null;
+  apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
+  apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
+
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from(table: string) {
+      if (table === 'knowledge_bases') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({ data: { id: 'kb-1' }, error: null }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      if (table === 'archived_sources') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      order() {
+                        return {
+                          range: async () => ({
+                            data: [
+                              {
+                                id: 'archived-chat',
+                                kb_id: 'kb-1',
+                                source_type: 'chat_message',
+                                source_id: 'm-1',
+                                created_at: '2026-03-27T03:00:00.000Z',
+                              },
+                              {
+                                id: 'archived-record',
+                                kb_id: 'kb-1',
+                                source_type: 'record',
+                                source_id: 'record-1',
+                                created_at: '2026-03-27T01:00:00.000Z',
+                              },
+                            ],
+                            error: null,
+                          }),
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      if (table === 'knowledge_entries') {
+        return {
+          select(columns: string) {
+            if (columns === 'source_type, source_id, created_at') {
+              return {
+                eq() {
+                  return {
+                    eq() {
+                      return {
+                        order() {
+                          return {
+                            range: async () => ({
+                              data: [
+                                {
+                                  source_type: 'chat_message',
+                                  source_id: 'm-1',
+                                  created_at: '2026-03-27T03:00:00.000Z',
+                                },
+                                {
+                                  source_type: 'chat_message',
+                                  source_id: 'm-2',
+                                  created_at: '2026-03-27T02:00:00.000Z',
+                                },
+                              ],
+                              error: null,
+                            }),
+                          };
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            }
+
+            return {
+              eq() {
+                return {
+                  in() {
+                    return {
+                      in() {
+                        return {
+                          eq() {
+                            return {
+                              limit: async () => ({
+                                data: [
+                                  {
+                                    source_type: 'chat_message',
+                                    source_id: 'm-1',
+                                    content: 'AI：已归档聊天内容',
+                                  },
+                                  {
+                                    source_type: 'chat_message',
+                                    source_id: 'm-2',
+                                    content: 'AI：虚拟聊天内容',
+                                  },
+                                ],
+                                error: null,
+                              }),
+                            };
+                          },
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    apiUtilsModule.jsonOk = originalJsonOk;
+    apiUtilsModule.jsonError = originalJsonError;
+    featureUtilsModule.ensureFeatureRouteEnabled = originalEnsureFeatureRouteEnabled;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/knowledge-base/archive/route') as typeof import('../app/api/knowledge-base/archive/route');
+  const response = await routeModule.GET(
+    new NextRequest('http://localhost/api/knowledge-base/archive?kbId=kb-1&limit=2&offset=0'),
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload.archivedSources.map((item: { id: string }) => item.id), [
+    'archived-chat',
+    'chat_message:kb-1:m-2',
+  ]);
+  assert.equal(payload.archivedSources[0]?.preview, '已归档聊天内容');
+  assert.equal(payload.archivedSources[1]?.preview, '虚拟聊天内容');
+  assert.equal(payload.pagination.hasMore, true);
+  assert.equal(payload.pagination.nextOffset, 2);
+});
+
+test('knowledge-base archive route should continue fetching batches for deep offsets', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const featureUtilsModule = require('../lib/feature-gate-utils') as any;
+  const routePath = require.resolve('../app/api/knowledge-base/archive/route');
+
+  const originalRequireUserContext = apiUtilsModule.requireUserContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalJsonOk = apiUtilsModule.jsonOk;
+  const originalJsonError = apiUtilsModule.jsonError;
+  const originalEnsureFeatureRouteEnabled = featureUtilsModule.ensureFeatureRouteEnabled;
+
+  const archivedCalls: Array<[number, number]> = [];
+  const virtualCalls: Array<[number, number]> = [];
+
+  apiUtilsModule.requireUserContext = async () => ({
+    user: { id: 'user-1' },
+    supabase: {},
+  });
+  featureUtilsModule.ensureFeatureRouteEnabled = async () => null;
+  apiUtilsModule.jsonOk = (payload: unknown, status = 200) => Response.json(payload, { status });
+  apiUtilsModule.jsonError = (message: string, status = 400) => Response.json({ error: message }, { status });
+
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from(table: string) {
+      if (table === 'knowledge_bases') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({ data: { id: 'kb-1' }, error: null }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      if (table === 'archived_sources') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      order() {
+                        return {
+                          range: async (start: number, end: number) => {
+                            archivedCalls.push([start, end]);
+                            const size = end - start + 1;
+                            if (start === 0) {
+                              return {
+                                data: Array.from({ length: size }, (_, index) => ({
+                                  id: `archived-${index + 1}`,
+                                  kb_id: 'kb-1',
+                                  source_type: 'record',
+                                  source_id: `record-${index + 1}`,
+                                  created_at: new Date(2026, 2, 27, 12, 0, 0 - (index + 1)).toISOString(),
+                                })),
+                                error: null,
+                              };
+                            }
+
+                            return {
+                              data: [
+                                {
+                                  id: 'archived-71',
+                                  kb_id: 'kb-1',
+                                  source_type: 'record',
+                                  source_id: 'record-71',
+                                  created_at: new Date(2026, 2, 27, 11, 0, 0).toISOString(),
+                                },
+                              ],
+                              error: null,
+                            };
+                          },
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      if (table === 'knowledge_entries') {
+        return {
+          select(columns: string) {
+            if (columns === 'source_type, source_id, created_at') {
+              return {
+                eq() {
+                  return {
+                    eq() {
+                      return {
+                        order() {
+                          return {
+                            range: async (start: number, end: number) => {
+                              virtualCalls.push([start, end]);
+                              const size = end - start + 1;
+                              if (start === 0) {
+                                return {
+                                  data: Array.from({ length: size }, (_, index) => ({
+                                    source_type: 'chat_message',
+                                    source_id: `m-${index + 1}`,
+                                    created_at: new Date(2026, 2, 27, 10, 0, 0 - (index + 1)).toISOString(),
+                                  })),
+                                  error: null,
+                                };
+                              }
+
+                              return {
+                                data: [],
+                                error: null,
+                              };
+                            },
+                          };
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            }
+
+            return {
+              eq() {
+                return {
+                  in() {
+                    return {
+                      in() {
+                        return {
+                          eq() {
+                            return {
+                              limit: async () => ({
+                                data: [
+                                  {
+                                    source_type: 'record',
+                                    source_id: 'record-71',
+                                    content: '深分页记录内容',
+                                  },
+                                ],
+                                error: null,
+                              }),
+                            };
+                          },
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireUserContext = originalRequireUserContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    apiUtilsModule.jsonOk = originalJsonOk;
+    apiUtilsModule.jsonError = originalJsonError;
+    featureUtilsModule.ensureFeatureRouteEnabled = originalEnsureFeatureRouteEnabled;
+    delete require.cache[routePath];
+  });
+
+  delete require.cache[routePath];
+  const routeModule = require('../app/api/knowledge-base/archive/route') as typeof import('../app/api/knowledge-base/archive/route');
+  const response = await routeModule.GET(
+    new NextRequest('http://localhost/api/knowledge-base/archive?kbId=kb-1&limit=20&offset=70'),
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.archivedSources.length, 20);
+  assert.equal(payload.archivedSources[0]?.source_id, 'record-71');
+  assert.ok(archivedCalls.length >= 2);
+  assert.ok(virtualCalls.length >= 1);
+});

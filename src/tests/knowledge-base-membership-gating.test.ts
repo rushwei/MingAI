@@ -28,3 +28,72 @@ test('searchKnowledge should honor explicit membershipType without env', async (
   const results = await searchKnowledge('test', { membershipType: 'free' });
   assert.deepEqual(results, []);
 });
+
+test('searchKnowledge should reuse explicit userId for KB weights without auth lookup', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+  const originalCreateAuthedClient = apiUtilsModule.createAuthedClient;
+  const modulePath = require.resolve('../lib/knowledge-base/search');
+
+  apiUtilsModule.getSystemAdminClient = (() => ({
+    rpc(fn: string) {
+      if (fn === 'search_knowledge_fts') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 'entry-1',
+              kb_id: 'kb-1',
+              content: '命理知识',
+              metadata: {},
+              rank: 0.9,
+            },
+          ],
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected rpc: ${fn}`);
+    },
+    from(table: string) {
+      assert.equal(table, 'knowledge_bases');
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                in: async () => ({
+                  data: [{ id: 'kb-1', weight: 'normal' }],
+                  error: null,
+                }),
+              };
+            },
+          };
+        },
+      };
+    },
+  })) as unknown as typeof apiUtilsModule.getSystemAdminClient;
+
+  apiUtilsModule.createAuthedClient = (() => {
+    throw new Error('auth lookup should not be used when userId is provided');
+  }) as unknown as typeof apiUtilsModule.createAuthedClient;
+
+  t.after(() => {
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+    apiUtilsModule.createAuthedClient = originalCreateAuthedClient;
+    delete require.cache[modulePath];
+  });
+
+  delete require.cache[modulePath];
+  const { searchKnowledge } = require('../lib/knowledge-base/search') as typeof import('../lib/knowledge-base/search');
+  const results = await searchKnowledge('test', {
+    membershipType: 'pro',
+    userId: 'user-1',
+    useVector: false,
+    searchConfig: {
+      enableTrigram: false,
+    },
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0]?.kbId, 'kb-1');
+});

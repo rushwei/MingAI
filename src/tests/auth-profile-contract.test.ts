@@ -3,6 +3,56 @@ import assert from 'node:assert/strict';
 
 type FetchLike = typeof global.fetch;
 
+test('auth session bootstrap should reuse one /api/auth request across getSession and onAuthStateChange', async () => {
+  const originalFetch = global.fetch;
+  let authGetCount = 0;
+
+  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method || 'GET';
+
+    if (url.endsWith('/api/auth') && method === 'GET') {
+      authGetCount += 1;
+      return new Response(JSON.stringify({
+        session: {
+          user: { id: 'user-1' },
+          access_token: 'token-1',
+        },
+        user: {
+          id: 'user-1',
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as FetchLike;
+
+  try {
+    const authPath = require.resolve('../lib/auth');
+    delete require.cache[authPath];
+    const authModule = require('../lib/auth') as typeof import('../lib/auth');
+
+    const initialSessions: Array<string | null> = [];
+    const { data: { subscription } } = authModule.supabase.auth.onAuthStateChange((_event, session) => {
+      initialSessions.push(session?.user?.id ?? null);
+    });
+
+    const { data: { session } } = await authModule.supabase.auth.getSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(session?.user?.id, 'user-1');
+    assert.equal(authGetCount, 1);
+    assert.deepEqual(initialSessions, ['user-1']);
+
+    subscription.unsubscribe();
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('profile helpers should parse raw /api/user/profile payload shape', async () => {
   const originalFetch = global.fetch;
 
@@ -33,6 +83,25 @@ test('profile helpers should parse raw /api/user/profile payload shape', async (
           defaultBaziChartId: null,
           defaultZiweiChartId: null,
         },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (url.includes('/api/user/profile?scope=profile')) {
+      return new Response(JSON.stringify({
+        profile: {
+          id: 'user-1',
+          nickname: '命理爱好者',
+          avatar_url: 'https://example.com/avatar.png',
+          is_admin: true,
+          membership: 'plus',
+          membership_expires_at: null,
+          ai_chat_count: 9,
+          last_credit_restore_at: null,
+        },
+        settings: null,
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
