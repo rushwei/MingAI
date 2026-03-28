@@ -4,11 +4,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { searchKnowledge } from '@/lib/knowledge-base/search';
 import { stripMentionTokens } from '@/lib/mentions';
 import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
+import type { MembershipType } from '@/lib/user/membership';
 
 export interface BuildKnowledgeHitsOptions {
     query: string;
     userId: string;
-    membershipType: 'free' | 'basic' | 'pro';
+    membershipType: MembershipType;
     accessToken: string | null;
     promptKbIds: string[];
     supabase: SupabaseClient;

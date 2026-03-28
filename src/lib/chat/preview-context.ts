@@ -15,6 +15,7 @@ import type { requireUserContext } from '@/lib/api-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import type { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import type { ChatMessage, DifyContext } from '@/types';
+import type { Mention } from '@/types/mentions';
 import { parseMentions, resolveMention } from '@/lib/mentions';
 import { extractUserQuestion } from '@/lib/chat/message-utils';
 

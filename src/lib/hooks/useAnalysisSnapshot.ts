@@ -6,6 +6,7 @@ import {
     type ConversationAnalysisSnapshot,
 } from '@/lib/chat/conversation-analysis';
 import { resolveHistoryConversationId } from '@/lib/history/client';
+import type { HistoryType } from '@/lib/history/registry';
 
 export interface AnalysisSnapshotCallbacks {
     /** Called when a saved analysis text is found */
@@ -26,7 +27,7 @@ export interface UseAnalysisSnapshotOptions {
     /** Divination/reading record ID used to look up conversation from history */
     recordId: string | null | undefined;
     /** Divination type for history lookup (e.g. 'tarot', 'liuyao', 'bazi') */
-    divinationType: string;
+    divinationType: HistoryType;
     /** Session storage key for history lookup */
     sessionKey: string;
     /** Skip loading if analysis already exists */

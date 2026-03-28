@@ -24,6 +24,8 @@ import type { DaliurenOutput } from '@mingai/core/daliuren';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
+import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { resolveHistoryConversationId } from '@/lib/history/client';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 
