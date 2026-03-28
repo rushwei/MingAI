@@ -315,23 +315,43 @@ async function claimReminder(reminderId: string, staleBefore: string): Promise<s
     // 使用 service client 绕过 RLS
     const serviceClient = getSystemAdminClient();
     const claimedAt = new Date().toISOString();
-    const { data, error } = await serviceClient
+    const claimOpenLease = await serviceClient
         .from('scheduled_reminders')
         .update({
             sent_at: claimedAt,
         })
         .eq('id', reminderId)
         .eq('sent', false)
-        .or(`sent_at.is.null,sent_at.lte.${staleBefore}`)
+        .is('sent_at', null)
         .select('id')
         .maybeSingle();
 
-    if (error) {
-        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, error);
+    if (claimOpenLease.error) {
+        console.error(`[reminders] 占用提醒 ${reminderId} 失败:`, claimOpenLease.error);
         return null;
     }
 
-    return data ? claimedAt : null;
+    if (claimOpenLease.data) {
+        return claimedAt;
+    }
+
+    const claimStaleLease = await serviceClient
+        .from('scheduled_reminders')
+        .update({
+            sent_at: claimedAt,
+        })
+        .eq('id', reminderId)
+        .eq('sent', false)
+        .lte('sent_at', staleBefore)
+        .select('id')
+        .maybeSingle();
+
+    if (claimStaleLease.error) {
+        console.error(`[reminders] 占用过期提醒 ${reminderId} 失败:`, claimStaleLease.error);
+        return null;
+    }
+
+    return claimStaleLease.data ? claimedAt : null;
 }
 
 /**

@@ -50,13 +50,14 @@ test('createNotification uses service client for inserts', async (t) => {
 
 function createScheduledReminderMock(options: {
     reminder: Record<string, unknown>;
-    claimResult?: { data: { id: string } | null; error: null | { message: string } };
+    claimResults?: Array<{ data: { id: string } | null; error: null | { message: string } }>;
 }) {
     const updates: Array<{ id: string; action: 'claim' | 'sent' | 'release' }> = [];
     const state = {
         sent: Boolean(options.reminder.sent),
         sent_at: typeof options.reminder.sent_at === 'string' ? options.reminder.sent_at : null as string | null,
     };
+    let claimIndex = 0;
 
     return {
         updates,
@@ -77,17 +78,24 @@ function createScheduledReminderMock(options: {
                 eq: (_column: string, id: string) => ({
                     eq: () => {
                         if (typeof payload.sent_at === 'string' && payload.sent === undefined) {
+                            const resolveClaim = async () => {
+                                updates.push({ id, action: 'claim' });
+                                const claimResult = options.claimResults?.[claimIndex] ?? { data: { id }, error: null };
+                                claimIndex += 1;
+                                if (claimResult.data) {
+                                    state.sent_at = payload.sent_at as string;
+                                }
+                                return claimResult;
+                            };
                             return {
-                                or: () => ({
+                                is: () => ({
                                     select: () => ({
-                                        maybeSingle: async () => {
-                                            updates.push({ id, action: 'claim' });
-                                            const claimResult = options.claimResult ?? { data: { id }, error: null };
-                                            if (claimResult.data) {
-                                                state.sent_at = payload.sent_at as string;
-                                            }
-                                            return claimResult;
-                                        },
+                                        maybeSingle: resolveClaim,
+                                    }),
+                                }),
+                                lte: () => ({
+                                    select: () => ({
+                                        maybeSingle: resolveClaim,
                                     }),
                                 }),
                             };
@@ -271,7 +279,10 @@ test('processScheduledReminders skips sending when reminder claim was already ta
     };
     const scheduledMock = createScheduledReminderMock({
         reminder,
-        claimResult: { data: null, error: null },
+        claimResults: [
+            { data: null, error: null },
+            { data: null, error: null },
+        ],
     });
 
     notificationModule.createNotification = async () => {
@@ -324,5 +335,88 @@ test('processScheduledReminders skips sending when reminder claim was already ta
 
     assert.equal(processed, 0);
     assert.equal(notified, false);
-    assert.deepEqual(scheduledMock.updates, [{ id: 'rem-3', action: 'claim' }]);
+    assert.deepEqual(scheduledMock.updates, [
+        { id: 'rem-3', action: 'claim' },
+        { id: 'rem-3', action: 'claim' },
+    ]);
+});
+
+test('processScheduledReminders can reclaim a stale reminder lease on the second claim attempt', async (t) => {
+    const notificationModule = require('../lib/notification-server') as any;
+    const supabaseServerModule = require('../lib/supabase-server') as any;
+
+    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalCreateNotification = notificationModule.createNotification;
+
+    let notified = false;
+    const reminder = {
+        id: 'rem-4',
+        user_id: 'user-1',
+        reminder_type: 'fortune',
+        sent_at: '2026-03-28T00:00:00.000Z',
+        content: { summary: 'Summary' },
+    };
+    const scheduledMock = createScheduledReminderMock({
+        reminder,
+        claimResults: [
+            { data: null, error: null },
+            { data: { id: 'rem-4' }, error: null },
+        ],
+    });
+
+    notificationModule.createNotification = async () => {
+        notified = true;
+        return true;
+    };
+
+    supabaseServerModule.getSystemAdminClient = () => ({
+        from: (table: string) => {
+            if (table === 'scheduled_reminders') {
+                return scheduledMock.table;
+            }
+            if (table === 'reminder_subscriptions') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => ({
+                                maybeSingle: async () => ({
+                                    data: { enabled: true, notify_site: true },
+                                    error: null,
+                                }),
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'user_settings') {
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: async () => ({
+                                data: { notifications_enabled: true, notify_site: true },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            return {};
+        },
+    });
+
+    t.after(() => {
+        notificationModule.createNotification = originalCreateNotification;
+        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+    });
+
+    const { processScheduledReminders } = await import('../lib/reminders');
+    const processed = await processScheduledReminders();
+
+    assert.equal(processed, 1);
+    assert.equal(notified, true);
+    assert.deepEqual(scheduledMock.updates, [
+        { id: 'rem-4', action: 'claim' },
+        { id: 'rem-4', action: 'claim' },
+        { id: 'rem-4', action: 'sent' },
+    ]);
 });
