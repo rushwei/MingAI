@@ -194,10 +194,10 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                             relative
                             flex items-center justify-center
                             w-10 h-16
-                            bg-white
+                            bg-background
                             rounded-l-md
                             transition-colors duration-150
-                            border-y border-l border-gray-200
+                            border-y border-l border-border
                             border-r-0
                             -mr-[1px]
                             shadow-sm
@@ -216,9 +216,9 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     {/* 下方反向圆角 */}
                     <svg width="16" height="16" className="relative -mt-[1px] z-30 pointer-events-none">
                         {/* 填充：右上角区域，左下为凹弧 */}
-                        <path d="M 16 16 L 16 0 L 0 0 A 16 16 0 0 1 16 16 Z" className="fill-white" />
+                        <path d="M 16 16 L 16 0 L 0 0 A 16 16 0 0 1 16 16 Z" className="fill-background" />
                         {/* 描边：仅描绘弧线部分 */}
-                        <path d="M 0 0 A 16 16 0 0 1 16 16" className="stroke-gray-200 fill-none" strokeWidth="1" />
+                        <path d="M 0 0 A 16 16 0 0 1 16 16" className="stroke-border fill-none" strokeWidth="1" />
                     </svg>
                 </div>
 
@@ -227,17 +227,17 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     手机端使用 h-full 自适应，桌面端使用固定高度
                 */}
                 <div
-                    className="h-full md:h-[90vh] bg-[#f7f6f3] border-y border-l border-gray-200 rounded-l-lg shadow-md flex flex-col overflow-hidden relative text-[#37352f]"
+                    className="h-full md:h-[90vh] bg-background border-y border-l border-border rounded-l-lg shadow-md flex flex-col overflow-hidden relative text-foreground"
                     style={{
                         width: PANEL_WIDTH,
                         marginLeft: '-1px' // 消除缝隙
                     }}
                 >
                     {/* 头部 */}
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-background/80 backdrop-blur-sm">
                         <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm uppercase tracking-wider text-[#37352f]/60">{config.label}</span>
-                            <span className="px-2 py-0.5 rounded-md bg-[#efedea] text-[#37352f] text-[10px] font-bold">
+                            <span className="font-bold text-sm uppercase tracking-wider text-foreground/60">{config.label}</span>
+                            <span className="px-2 py-0.5 rounded-md bg-background-secondary text-foreground text-[10px] font-bold">
                                 {items.length}
                             </span>
                         </div>
@@ -256,14 +256,14 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                             <div className="space-y-2">
                                 {/* 骨架屏 - 模拟历史记录项 */}
                                 {[1, 2, 3, 4, 5].map((i) => (
-                                    <div key={i} className="p-3 rounded-md bg-white border border-gray-100 animate-pulse">
-                                        <div className="h-4 w-3/4 rounded bg-[#efedea] mb-2" />
-                                        <div className="h-3 w-1/2 rounded bg-[#efedea]" />
+                                    <div key={i} className="p-3 rounded-md bg-background border border-border/60 animate-pulse">
+                                        <div className="h-4 w-3/4 rounded bg-background-secondary mb-2" />
+                                        <div className="h-3 w-1/2 rounded bg-background-secondary" />
                                     </div>
                                 ))}
                             </div>
                         ) : items.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-64 text-[#37352f]/40 gap-3">
+                            <div className="flex flex-col items-center justify-center h-64 text-foreground/40 gap-3">
                                 <History className="w-8 h-8 opacity-20" />
                                 <span className="text-xs font-medium">暂无历史记录</span>
                             </div>
@@ -272,22 +272,22 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                 {items.map(item => (
                                     <div
                                         key={item.id}
-                                        className={`group/item relative p-3 rounded-md bg-white border border-gray-100 hover:bg-[#efedea] active:bg-[#e3e1db] transition-all duration-150 cursor-pointer overflow-hidden shadow-sm ${navigating === item.id ? 'opacity-60' : ''}`}
+                                        className={`group/item relative p-3 rounded-md bg-background border border-border/60 hover:bg-background-secondary active:bg-background-tertiary transition-all duration-150 cursor-pointer overflow-hidden shadow-sm ${navigating === item.id ? 'opacity-60' : ''}`}
                                         onClick={() => !navigating && handleViewItem(item.id)}
                                     >
                                         {/* 加载指示器 */}
                                         {navigating === item.id && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-20">
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
                                                 <SoundWaveLoader variant="inline" />
                                             </div>
                                         )}
                                         <div className="flex items-start gap-3 relative z-10">
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-[#37352f] truncate flex items-center gap-1.5">
+                                                <h4 className="text-sm font-bold text-foreground truncate flex items-center gap-1.5">
                                                     <span className="truncate">{item.title}</span>
                                                     {item.changedTitle && (
                                                         <>
-                                                            <span className="text-[10px] text-[#37352f]/40 font-normal">变</span>
+                                                            <span className="text-[10px] text-foreground/40 font-normal">变</span>
                                                             <span className="truncate font-medium">{item.changedTitle}</span>
                                                         </>
                                                     )}
@@ -297,7 +297,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                                             ${item.subType === '情侣' ? 'bg-rose-50 text-rose-600' :
                                                                 item.subType === '商业' ? 'bg-blue-50 text-blue-600' :
                                                                     item.subType === '亲子' ? 'bg-amber-50 text-amber-600' :
-                                                                        'bg-[#efedea] text-[#37352f]/60'}
+                                                                        'bg-background-secondary text-foreground/60'}
                                                         `}>
                                                             {item.subType}
                                                         </span>
@@ -305,17 +305,17 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                                 </h4>
                                                 {/* 问题显示在标题下方 */}
                                                 {item.question && (
-                                                    <p className="text-[11px] text-[#37352f]/50 truncate mt-0.5 font-medium">
+                                                    <p className="text-[11px] text-foreground/50 truncate mt-0.5 font-medium">
                                                         {item.question}
                                                     </p>
                                                 )}
                                                 <div className="flex items-center gap-2 mt-2">
-                                                    <span className="text-[10px] text-[#37352f]/40 font-bold flex items-center gap-1">
+                                                    <span className="text-[10px] text-foreground/40 font-bold flex items-center gap-1">
                                                         <Calendar className="w-3 h-3" />
                                                         {formatDate(item.createdAt)}
                                                     </span>
                                                     {item.modelName && (
-                                                        <span className="text-[10px] text-[#37352f]/40 font-bold border-l border-gray-200 pl-2">
+                                                        <span className="text-[10px] text-foreground/40 font-bold border-l border-border pl-2">
                                                             {item.modelName}
                                                         </span>
                                                     )}
@@ -327,11 +327,11 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                 {hasMore && (
                                     <div ref={loadMoreSentinelRef} className="py-3 flex justify-center">
                                         {loadingMore ? (
-                                            <div className="flex items-center gap-2 text-xs text-[#37352f]/50">
+                                            <div className="flex items-center gap-2 text-xs text-foreground/50">
                                                 <SoundWaveLoader variant="inline" />
                                             </div>
                                         ) : (
-                                            <div className="text-xs text-[#37352f]/50">
+                                            <div className="text-xs text-foreground/50">
                                                 继续下滑加载更多
                                             </div>
                                         )}
