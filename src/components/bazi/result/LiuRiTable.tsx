@@ -11,8 +11,8 @@ export function LiuRiTable({
     onSelect: (date: string) => void;
 }) {
     return (
-        <div className="overflow-x-auto sm:-mx-4 sm:px-4 scrollbar-hide">
-            <div className="flex sm:gap-1.5 gap-1 min-w-max sm:pb-2">
+        <div className="overflow-x-auto -mx-2 px-2 scrollbar-thin">
+            <div className="flex gap-2 min-w-max">
                 {liuRi.map((ri) => {
                     const isSelected = ri.date === selectedDate;
                     const ganElement = getStemElement(ri.gan);
@@ -24,24 +24,25 @@ export function LiuRiTable({
                             type="button"
                             onClick={() => onSelect(ri.date)}
                             className={`
-                                flex-shrink-0 w-10.5 sm:w-13 text-center sm:p-1.5 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-12 text-center p-2 rounded-md border transition-colors
                                 ${isSelected
-                                    ? 'border-accent bg-accent/10'
-                                    : 'border-transparent bg-background hover:bg-background-secondary'
+                                    ? 'border-[#2eaadc] bg-blue-50/30'
+                                    : 'border-gray-200 bg-background hover:bg-[#efedea]'
                                 }
                             `}
                         >
-                            <div className="text-xs text-foreground-secondary">{ri.date.slice(5)}</div>
-                            {/* <div className="text-base font-semibold">{ri.day}</div> */}
-                            <div className="flex flex-col items-center gap-0.5 text-xs mt-0.5">
+                            <div className="text-[10px] font-mono text-foreground/40 mb-1.5 leading-none">
+                                {ri.date.split('-')[1]}/{ri.date.split('-')[2]}
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5">
                                 <span
-                                    className="font-semibold"
+                                    className="text-xs font-bold"
                                     style={{ color: ganElement ? getElementColor(ganElement) : undefined }}
                                 >
                                     {ri.gan}
                                 </span>
                                 <span
-                                    className="font-semibold"
+                                    className="text-xs font-bold"
                                     style={{ color: zhiElement ? getElementColor(zhiElement) : undefined }}
                                 >
                                     {ri.zhi}

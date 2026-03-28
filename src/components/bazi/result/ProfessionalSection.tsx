@@ -1,4 +1,4 @@
-import { Calendar, TrendingUp, Sparkles } from 'lucide-react';
+import { Calendar, TrendingUp } from 'lucide-react';
 import type { BaziCanonicalJSON } from '@mingai/core/json';
 import { calculateProfessionalData, type DaYunInfo, type LiuNianInfo, type LiuYueInfo, type LiuRiInfo } from '@/lib/divination/bazi';
 import { DaYunTable } from '@/components/bazi/result/DaYunTable';
@@ -44,57 +44,16 @@ export function ProfessionalSection({
     const activeDaYun: DaYunInfo | undefined = proData.daYun[selectedDaYunIndex];
     const activeLiuNian: LiuNianInfo | undefined = currentLiuNian.find(ln => ln.year === selectedLiuNianYear);
     const activeLiuRi: LiuRiInfo | undefined = liuRi.find(lr => lr.date === selectedLiuRiDate);
-    const chartMetadata = [
-        canonicalChart.basicInfo.trueSolarTime
-            ? {
-                label: '真太阳时',
-                value: `${canonicalChart.basicInfo.trueSolarTime.trueSolarTime}（钟表 ${canonicalChart.basicInfo.trueSolarTime.clockTime}）`,
-            }
-            : null,
-        canonicalChart.basicInfo.taiYuan ? { label: '胎元', value: canonicalChart.basicInfo.taiYuan } : null,
-        canonicalChart.basicInfo.mingGong ? { label: '命宫', value: canonicalChart.basicInfo.mingGong } : null,
-    ].filter((item): item is { label: string; value: string } => Boolean(item));
     const relationHighlights = isUnknownTime ? [] : canonicalChart.relations;
     const hasGanZhiHighlights = relationHighlights.length > 0;
 
     return (
-        <div className="sm:space-y-4 space-y-1">
-            <section className="bg-background rounded-xl md:p-4 p-1 border border-border overflow-x-hidden w-full mx-auto sm:max-w-none">
-                <h2 className="text-base font-semibold mb-3">四柱详解</h2>
-                {(chartMetadata.length > 0 || hasGanZhiHighlights) && (
-                    <div className="mb-3 rounded-xl border border-border bg-background-secondary/40 p-3 space-y-3">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <Sparkles className="w-4 h-4 text-accent" />
-                            排盘元信息
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                <div className="text-xs text-foreground-secondary mb-1">命主五行</div>
-                                <div className="font-medium">
-                                    {canonicalChart.basicInfo.dayMasterElement}
-                                </div>
-                            </div>
-                            {chartMetadata.map((item) => (
-                                <div key={item.label} className="rounded-lg border border-border bg-background px-3 py-2">
-                                    <div className="text-xs text-foreground-secondary mb-1">{item.label}</div>
-                                    <div className="font-medium">{item.value}</div>
-                                </div>
-                            ))}
-                        </div>
-                        {hasGanZhiHighlights ? (
-                            <div className="rounded-lg border border-border bg-background px-3 py-2">
-                                <div className="text-xs text-foreground-secondary mb-1">干支关系</div>
-                                <div className="flex flex-wrap gap-2">
-                                    {relationHighlights.map((item, index) => (
-                                        <span key={`${item}-${index}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-500">
-                                            {item}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-                )}
+        <div className="space-y-8">
+            <section className="bg-background border border-gray-200 rounded-md px-1 pb-4 pt-2">
+                {/* <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#2eaadc]" />
+                    命盘详情
+                </h2> */}
                 <ProfessionalTable
                     canonicalChart={canonicalChart}
                     isUnknownTime={isUnknownTime}
@@ -104,15 +63,29 @@ export function ProfessionalSection({
                     activeLiuYue={activeLiuYue ?? undefined}
                     activeLiuRi={activeLiuRi}
                 />
-                <div className="mt-1 sm:mt-3 sm:pt-3 border-t border-border sm:text-sm text-xs text-foreground-secondary">
-                    起运：{proData.startAgeDetail}
+                <div className="px-4 mt-4 border-t border-gray-100 space-y-2 text-xs text-foreground/45 font-medium">
+                    <div>
+                        起运：{proData.startAgeDetail}
+                        {canonicalChart.basicInfo.taiYuan ? `　胎元：${canonicalChart.basicInfo.taiYuan}` : ''}
+                        {canonicalChart.basicInfo.mingGong ? `　命宫：${canonicalChart.basicInfo.mingGong}` : ''}
+                    </div>
+                    {hasGanZhiHighlights ? (
+                        <div>
+                            干支关系：{relationHighlights.join('、')}
+                        </div>
+                    ) : null}
+                    {canonicalChart.basicInfo.trueSolarTime ? (
+                        <div>
+                            真太阳时：{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}（钟表 {canonicalChart.basicInfo.trueSolarTime.clockTime}）
+                        </div>
+                    ) : null}
                 </div>
             </section>
 
-            <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
-                <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-accent" />
-                    大运（每运10年）
+            <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#2eaadc]" />
+                    大运排布
                 </h2>
                 <DaYunTable
                     daYun={proData.daYun}
@@ -122,10 +95,10 @@ export function ProfessionalSection({
             </section>
 
             {currentLiuNian.length > 0 && (
-                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
-                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-accent" />
-                        流年
+                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                    <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#2eaadc]" />
+                        流年运势
                     </h2>
                     <LiuNianTable
                         liuNian={currentLiuNian}
@@ -136,27 +109,27 @@ export function ProfessionalSection({
             )}
 
             {liuYue.length > 0 && (
-                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
-                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-accent" />
-                        {selectedLiuNianYear}年流月
+                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                    <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#2eaadc]" />
+                        {selectedLiuNianYear}年 流月
                     </h2>
                     <LiuYueTable
                         liuYue={liuYue}
                         selectedMonth={selectedLiuYueMonth}
                         onSelect={onSelectLiuYue}
                     />
-                    <p className="mt-2 text-xs text-foreground-secondary">
-                        点击流月可查看对应的流日
+                    <p className="mt-4 text-[11px] text-foreground/30 font-medium italic">
+                        * 点击特定流月以展开流日详情
                     </p>
                 </section>
             )}
 
             {liuRi.length > 0 && activeLiuYue && (
-                <section className="bg-background rounded-xl md:p-4 p-1 max-w-[390px] mx-auto sm:max-w-none">
-                    <h2 className="text-base font-semibold sm:mb-3 mb-1 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-accent" />
-                        流日（{activeLiuYue.startDate} ~ {activeLiuYue.endDate}）
+                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                    <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#2eaadc]" />
+                        流日记录（{activeLiuYue.startDate} — {activeLiuYue.endDate}）
                     </h2>
                     <LiuRiTable
                         liuRi={liuRi}
@@ -165,7 +138,6 @@ export function ProfessionalSection({
                     />
                 </section>
             )}
-
         </div>
     );
 }

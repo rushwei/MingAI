@@ -11,8 +11,8 @@ export function LiuYueTable({
     onSelect: (month: number) => void;
 }) {
     return (
-        <div className="overflow-x-auto sm:-mx-4 sm:px-4 scrollbar-hide">
-            <div className="flex sm:gap-1.5 gap-1 min-w-max sm:pb-2">
+        <div className="overflow-x-auto -mx-2 px-2 scrollbar-thin">
+            <div className="flex gap-2 min-w-max">
                 {liuYue.map((ly, index) => {
                     const isSelected = ly.month === selectedMonth;
                     const gan = ly.gan;
@@ -20,27 +20,24 @@ export function LiuYueTable({
                     const ganElement = getStemElement(gan);
                     const zhiElement = getBranchElement(zhi);
 
-
                     return (
                         <button
                             key={index}
                             type="button"
                             onClick={() => onSelect(ly.month)}
                             className={`
-                                flex-shrink-0 w-9 sm:w-12 text-center sm:p-1.5 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-12 text-center p-2 rounded-md border transition-colors
                                 ${isSelected
-                                    ? 'border-accent bg-accent/10'
-                                    : 'border-transparent bg-background hover:bg-background-secondary'
+                                    ? 'border-[#2eaadc] bg-blue-50/30'
+                                    : 'border-gray-200 bg-background hover:bg-[#efedea]'
                                 }
                             `}
                         >
-                            <div className="text-xs text-foreground-secondary truncate">{ly.jieQi}</div>
-                            <div className="flex justify-center w-full">
-                                <span className="text-[12px] text-foreground-secondary whitespace-nowrap tracking-tighter">
-                                    {Number(ly.startDate.split('-')[1])}.{Number(ly.startDate.split('-')[2])}
-                                </span>
+                            <div className="text-[10px] font-bold text-foreground/30 uppercase truncate mb-0.5">{ly.jieQi}</div>
+                            <div className="text-[10px] font-mono text-foreground/40 mb-1.5 leading-none">
+                                {Number(ly.startDate.split('-')[1])}/{Number(ly.startDate.split('-')[2])}
                             </div>
-                            <div className="flex flex-col items-center mt-0.5">
+                            <div className="flex flex-col items-center gap-0.5">
                                 <span
                                     className="text-sm font-bold"
                                     style={{ color: ganElement ? getElementColor(ganElement) : undefined }}

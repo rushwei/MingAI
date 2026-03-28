@@ -48,11 +48,6 @@ export function PalaceCard({
     onClick
 }: PalaceCardProps) {
     const shenSha = palace.shenSha.join('、');
-    const flowSummary = [
-        palace.ages?.length ? `小限 ${palace.ages.slice(0, 3).join('、')}` : null,
-        palace.liuNianAges?.length ? `流年 ${palace.liuNianAges.slice(0, 3).join('、')}` : null,
-    ].filter((value): value is string => Boolean(value));
-
     // 获取边框样式（支持多色）
     const getBorderClasses = () => {
         if (isSelected) return 'border-accent bg-accent/5 shadow-md';
@@ -110,6 +105,11 @@ export function PalaceCard({
                             身宫
                         </span>
                     )}
+                    {palace.isOriginalPalace && (
+                        <span className="ml-1 px-1 py-0.5 text-[9px] bg-sky-500/15 text-sky-600 rounded font-medium">
+                            来因宫
+                        </span>
+                    )}
                 </span>
                 <span className="text-[10px] text-foreground-secondary">
                     {palace.ganZhi}
@@ -131,11 +131,9 @@ export function PalaceCard({
                 ))}
             </div>
 
-            {(shenSha || flowSummary.length > 0 || palace.isOriginalPalace) && (
+            {shenSha && (
                 <div className="mt-1 space-y-1 text-[9px] text-foreground-secondary">
                     {shenSha && <div>神煞：{shenSha}</div>}
-                    {flowSummary.length > 0 && <div>{flowSummary.join(' · ')}</div>}
-                    {palace.isOriginalPalace && <div>标记：来因宫</div>}
                 </div>
             )}
 

@@ -138,7 +138,7 @@ export function QimenGrid({ palaces, monthPhaseMap, ju }: QimenGridProps) {
     const palaceMap = new Map(palaces.map(p => [p.palaceIndex, p]));
 
     return (
-        <div className="grid grid-cols-3 gap-[1px] bg-border/40 rounded-xl overflow-hidden border border-border/60">
+        <div className="grid grid-cols-3 gap-[1px] bg-border/40 rounded-xl overflow-hidden border-border/60">
             {LUOSHU_ORDER.map((num) => {
                 const palace = palaceMap.get(num);
                 if (!palace) return <div key={num} />;

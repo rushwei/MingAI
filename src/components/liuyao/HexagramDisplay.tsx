@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { LiuyaoYaoJSON } from '@mingai/core/json';
 import {
     type Yao,
@@ -83,27 +83,40 @@ export function HexagramDisplay({
         Boolean(displayFullYaos?.some((yao) => getYaoShenSha(yao).length > 0)),
         [displayFullYaos]
     );
+    const [expandedShenShaRows, setExpandedShenShaRows] = useState<Set<number>>(new Set());
+
+    const toggleShenShaRow = (position: number) => {
+        setExpandedShenShaRows((prev) => {
+            const next = new Set(prev);
+            if (next.has(position)) {
+                next.delete(position);
+            } else {
+                next.add(position);
+            }
+            return next;
+        });
+    };
 
     return (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-4">
             {/* 卦象 */}
-            <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+            <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
                 {/* 本卦 */}
                 <div className="flex flex-col items-center" data-hexagram="base">
                     {/* 卦名 */}
-                    <div className="text-center mb-2">
-                        <span className="text-xs text-foreground-secondary">本卦</span>
+                    <div className="text-center mb-3 space-y-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/35">本卦</span>
                         <h3 className="text-lg font-semibold text-foreground">
                             {hexagram.name}
                         </h3>
-                        <p className="text-xs text-foreground-secondary">
+                        <p className="text-xs text-foreground/45">
                             {hexagram.upperTrigram}/{hexagram.lowerTrigram} · {hexagram.element}
                         </p>
                     </div>
 
                     {/* 爻表格 - 整合所有信息 */}
-                    <div className="bg-white/5 border border-white/5 rounded-lg overflow-hidden">
-                        <table className="text-xs">
+                    <div className="overflow-hidden rounded-lg">
+                        <table className="text-xs text-foreground/80">
                             <tbody>
                                 {displayYaos.map((yao, index) => {
                                     const fullYao = displayFullYaos?.[index];
@@ -112,35 +125,39 @@ export function HexagramDisplay({
                                     const normalizedPosition = normalizePosition(fullYao?.position);
                                     const isYongShen = typeof normalizedPosition === 'number' ? yongShenPositions.includes(normalizedPosition) : false;
                                     const isChanging = yao.change === 'changing';
+                                    const yaoShenSha = getYaoShenSha(fullYao);
+                                    const isShenShaExpanded = expandedShenShaRows.has(yao.position);
+                                    const primaryShenSha = yaoShenSha[0];
+                                    const remainingShenShaCount = Math.max(0, yaoShenSha.length - 1);
 
                                     return (
                                         <tr
                                             key={yao.position}
-                                            className={`${isYongShen ? 'bg-accent/10' : ''} ${isChanging ? 'bg-red-500/5' : ''}`}
+                                            className={`border-b border-gray-100 last:border-b-0 ${isYongShen ? 'bg-sky-50/60' : ''} ${isChanging ? 'bg-red-50/70' : ''}`}
                                         >
                                             {/* 爻位 */}
-                                            <td className={`px-1.5 py-1 text-center ${isChanging ? 'text-red-500 font-medium' : 'text-foreground-secondary'}`}>
+                                            <td className={`px-2 py-2 text-center text-sm ${isChanging ? 'text-red-500 font-semibold' : 'text-foreground/45'}`}>
                                                 {YAO_LABELS[yao.position - 1]}
                                                 {isChanging && '○'}
                                             </td>
 
                                             {/* 六亲 + 用神标记 */}
                                             {showTraditional && fullYao && (
-                                                <td className={`px-1.5 py-1 text-center ${isYongShen ? 'text-accent font-bold' : 'text-foreground'}`}>
+                                                <td className={`px-2 py-2 text-center ${isYongShen ? 'text-[#2eaadc] font-bold' : 'text-foreground'}`}>
                                                     {fullYao.liuQin}
-                                                    {isYongShen && <span className="text-accent ml-0.5">★</span>}
+                                                    {isYongShen && <span className="text-[#2eaadc] ml-0.5">★</span>}
                                                 </td>
                                             )}
 
                                             {/* 纳甲 + 五行 */}
                                             {showTraditional && fullYao && (
-                                                <td className="px-1.5 py-1 text-center text-foreground-secondary">
+                                                <td className="px-2 py-2 text-center text-foreground/55">
                                                     {fullYao.naJia}{fullYao.wuXing}
                                                 </td>
                                             )}
 
                                             {/* 卦象 */}
-                                            <td className="px-2 py-1">
+                                            <td className="px-3 py-2">
                                                 <div className={`flex items-center justify-center ${ROW_HEIGHT}`}>
                                                     <YaoLine yao={yao} size={size} />
                                                 </div>
@@ -148,15 +165,15 @@ export function HexagramDisplay({
 
                                             {/* 世应 */}
                                             {showTraditional && fullYao && (
-                                                <td className="px-1 py-1 text-center w-5">
-                                                    {('isShiYao' in fullYao && fullYao.isShiYao) || canonicalYao?.shiYing === '世' ? <span className="text-accent font-bold">世</span> : null}
+                                                <td className="px-1 py-2 text-center w-5">
+                                                    {('isShiYao' in fullYao && fullYao.isShiYao) || canonicalYao?.shiYing === '世' ? <span className="text-[#2eaadc] font-bold">世</span> : null}
                                                     {('isYingYao' in fullYao && fullYao.isYingYao) || canonicalYao?.shiYing === '应' ? <span className="text-blue-500 font-bold">应</span> : null}
                                                 </td>
                                             )}
 
                                             {/* 六神 */}
                                             {showTraditional && fullYao && (
-                                                <td className={`px-1.5 py-1 text-center ${LIU_SHEN_COLORS[fullYao.liuShen] || 'text-foreground-secondary'}`}>
+                                                <td className={`px-2 py-2 text-center ${LIU_SHEN_COLORS[fullYao.liuShen] || 'text-foreground/45'}`}>
                                                     {fullYao.liuShen}
                                                 </td>
                                             )}
@@ -175,7 +192,7 @@ export function HexagramDisplay({
                                                 </td>
                                             )}
                                             {showTraditional && !hasExtendedInfo && canonicalYao && (
-                                                <td className="px-1.5 py-1 text-center">
+                                                <td className="px-2 py-2 text-center">
                                                     <span>{canonicalYao.wangShuai}</span>
                                                     {canonicalYao.kongWang && (
                                                         <span className="text-red-400 ml-1">{canonicalYao.kongWang}</span>
@@ -185,10 +202,25 @@ export function HexagramDisplay({
 
                                             {/* 神煞 */}
                                             {showTraditional && hasYaoShenSha && (
-                                                <td className="px-1.5 py-1 text-center text-[10px] text-foreground-secondary">
-                                                    {getYaoShenSha(fullYao).length > 0
-                                                        ? getYaoShenSha(fullYao).join('、')
-                                                        : <span className="text-foreground-tertiary">-</span>}
+                                                <td className="px-1.5 py-2 text-left text-[10px] text-foreground/45">
+                                                    {yaoShenSha.length > 0 ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="leading-4">
+                                                                {isShenShaExpanded ? yaoShenSha.join('、') : primaryShenSha}
+                                                            </span>
+                                                            {remainingShenShaCount > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleShenShaRow(yao.position)}
+                                                                    className="shrink-0 px-1 py-0.5 rounded border border-gray-200 text-[10px] text-foreground/40 hover:text-foreground hover:bg-[#efedea] transition-colors"
+                                                                >
+                                                                    {isShenShaExpanded ? '收起' : `+${remainingShenShaCount}`}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-foreground/25">-</span>
+                                                    )}
                                                 </td>
                                             )}
                                         </tr>
@@ -203,23 +235,23 @@ export function HexagramDisplay({
                 {changedHexagram && changedLines.length > 0 && (
                     <>
                         <div className="flex items-center self-center transform rotate-90 md:rotate-0">
-                            <span className="text-xl text-foreground-secondary">→</span>
+                            <span className="text-xl text-foreground/30">→</span>
                         </div>
                         <div className="flex flex-col items-center" data-hexagram="changed">
                             {/* 卦名 */}
-                            <div className="text-center mb-2">
-                                <span className="text-xs text-foreground-secondary">变卦</span>
+                            <div className="text-center mb-3 space-y-1">
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/35">变卦</span>
                                 <h4 className="text-lg font-semibold text-foreground">
                                     {changedHexagram.name}
                                 </h4>
-                                <p className="text-xs text-foreground-secondary">
+                                <p className="text-xs text-foreground/45">
                                     {changedHexagram.upperTrigram}/{changedHexagram.lowerTrigram} · {changedHexagram.element}
                                 </p>
                             </div>
 
                             {/* 变卦爻表格 */}
-                            <div className="bg-white/5 border border-white/5 rounded-lg overflow-hidden">
-                                <table className="text-xs">
+                            <div className="overflow-hidden rounded-lg">
+                                <table className="text-xs text-foreground/80">
                                     <tbody>
                                         {displayYaos.map((yao) => {
                                             const isChanged = changedLines.includes(yao.position);
@@ -227,11 +259,11 @@ export function HexagramDisplay({
                                                 ? { ...yao, type: yao.type === 1 ? 0 : 1, change: 'stable' }
                                                 : { ...yao, change: 'stable' };
                                             return (
-                                                <tr key={yao.position}>
-                                                    <td className="px-1.5 py-1 text-center text-foreground-secondary">
+                                                <tr key={yao.position} className="border-b border-gray-100 last:border-b-0">
+                                                    <td className="px-2 py-2 text-center text-sm text-foreground/45">
                                                         {YAO_LABELS[yao.position - 1]}
                                                     </td>
-                                                    <td className="px-2 py-1">
+                                                    <td className="px-3 py-2">
                                                         <div className={`flex items-center justify-center ${ROW_HEIGHT}`}>
                                                             <YaoLine yao={changedYao} size={size} />
                                                         </div>
@@ -250,11 +282,11 @@ export function HexagramDisplay({
             {/* 简要解读 */}
             {showDetails && (
                 <div className="text-center max-w-md">
-                    <p className="text-sm text-foreground-secondary">
+                    <p className="text-sm text-foreground/65">
                         {getHexagramBrief(hexagram.name)}
                     </p>
                     {changedLines.length > 0 && (
-                        <p className="text-xs text-red-500 mt-1">
+                        <p className="text-xs text-red-500 mt-2">
                             变爻：{changedLines.map(l => `第${l}爻`).join('、')}
                         </p>
                     )}

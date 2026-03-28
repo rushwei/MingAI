@@ -133,8 +133,6 @@ export function ZiweiChartGrid({
 
     const lifePalaceBranch = canonicalChart.palaces.find((p) => p.name === '命宫')?.ganZhi.slice(-1) || '';
     const bodyPalaceBranch = canonicalChart.palaces.find((p) => p.isBodyPalace)?.ganZhi.slice(-1) || '';
-    const smallLimitSummary = canonicalChart.smallLimit?.slice(0, 4) || [];
-
     return (
         <div className="w-full">
             {/* 工具栏 */}
@@ -241,9 +239,9 @@ export function ZiweiChartGrid({
                                         y1={`${from.y}%`}
                                         x2={`${to.x}%`}
                                         y2={`${to.y}%`}
-                                        stroke="#9ca3af"
-                                        strokeWidth="1.5"
-                                        strokeOpacity="0.8"
+                                        stroke="#b8bec8"
+                                        strokeWidth="0.8"
+                                        strokeOpacity="0.6"
                                     />
                                 );
                             });
@@ -318,12 +316,20 @@ export function ZiweiChartGrid({
                                                     <span>身宫：<span className="text-amber-500">{bodyPalaceBranch}</span></span>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-1 text-[10px] text-center">
-                                                    {canonicalChart.basicInfo.douJun && <span>斗君：{canonicalChart.basicInfo.douJun}</span>}
-                                                    {canonicalChart.basicInfo.lifeMasterStar && <span>命主星：{canonicalChart.basicInfo.lifeMasterStar}</span>}
-                                                    {canonicalChart.basicInfo.bodyMasterStar && <span>身主星：{canonicalChart.basicInfo.bodyMasterStar}</span>}
-                                                    {canonicalChart.basicInfo.trueSolarTime && <span>真太阳时：{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}</span>}
-                                                </div>
+                                                {(canonicalChart.basicInfo.douJun || canonicalChart.basicInfo.lifeMasterStar || canonicalChart.basicInfo.bodyMasterStar) && (
+                                                    <div className="flex flex-wrap justify-center gap-4 text-xs">
+                                                        {canonicalChart.basicInfo.douJun && <span>斗君：<span className="font-semibold">{canonicalChart.basicInfo.douJun}</span></span>}
+                                                        {canonicalChart.basicInfo.lifeMasterStar && <span>命主星：<span className="font-semibold">{canonicalChart.basicInfo.lifeMasterStar}</span></span>}
+                                                        {canonicalChart.basicInfo.bodyMasterStar && <span>身主星：<span className="font-semibold">{canonicalChart.basicInfo.bodyMasterStar}</span></span>}
+                                                    </div>
+                                                )}
+
+                                                {canonicalChart.basicInfo.trueSolarTime && (
+                                                    <div className="flex justify-center gap-2 text-xs">
+                                                        <span className="text-foreground-secondary">真太阳时</span>
+                                                        <span>{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}</span>
+                                                    </div>
+                                                )}
 
                                                 <div className="text-center">
                                                     <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
@@ -367,22 +373,6 @@ export function ZiweiChartGrid({
                 </div>
             </div>
 
-            {smallLimitSummary.length > 0 && (
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <section className="rounded-xl border border-border bg-background-secondary p-3">
-                        <div className="mb-2 text-xs font-medium text-foreground-secondary">小限 / 流年</div>
-                        <div className="space-y-1.5 text-xs">
-                            {smallLimitSummary.map((item) => (
-                                <div key={item.palaceName} className="flex items-start justify-between gap-3">
-                                    <span className="text-foreground-secondary">{item.palaceName}</span>
-                                    <span className="text-right">{item.ages.slice(0, 5).join('、')}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-2 text-[11px] text-foreground-tertiary">宫位卡片中继续展示神煞与流年标记。</div>
-                    </section>
-                </div>
-            )}
         </div >
     );
 }

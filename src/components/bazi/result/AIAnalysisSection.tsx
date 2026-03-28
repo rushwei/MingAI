@@ -17,7 +17,8 @@ import { AIAnalysisLock } from '@/components/bazi/result/AIAnalysisLock';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import type { MembershipType } from '@/lib/user/membership';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
@@ -74,9 +75,12 @@ export function AIAnalysisSection({
     const [copied, setCopied] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const streaming = useStreamingResponse();
+    const { userId: sessionUserId, membershipInfo } = useSessionMembership();
+    const membershipType: MembershipType = sessionUserId === userId
+        ? (membershipInfo?.type ?? 'free')
+        : 'free';
 
     useEffect(() => {
         if (savedAnalysis) {
@@ -92,13 +96,6 @@ export function AIAnalysisSection({
         if (savedModelId) setSelectedModel(savedModelId);
         if (savedReasoning) setReasoningEnabled(true);
     }, [savedModelId, savedReasoning]);
-
-    useEffect(() => {
-        if (!userId) { setMembershipType('free'); return; }
-        getMembershipInfo(userId).then(info => {
-            if (info) setMembershipType(info.type);
-        });
-    }, [userId]);
 
     const handleUnlock = async () => {
         setIsUnlocked(true);

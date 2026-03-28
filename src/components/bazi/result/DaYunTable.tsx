@@ -11,8 +11,8 @@ export function DaYunTable({
     onSelect: (index: number) => void;
 }) {
     return (
-        <div className="overflow-x-auto sm:-mx-4 sm:px-4">
-            <div className="flex sm:gap-2 gap-1 min-w-max sm:pb-2">
+        <div className="overflow-x-auto -mx-2 px-2 scrollbar-thin">
+            <div className="flex gap-2 min-w-max">
                 {daYun.map((dy, index) => {
                     const isSelected = selectedIndex === index;
                     const ganElement = getStemElement(dy.gan);
@@ -23,24 +23,24 @@ export function DaYunTable({
                             key={index}
                             onClick={() => onSelect(index)}
                             className={`
-                                flex-shrink-0 w-9.5 sm:w-16 text-center sm:p-2 rounded-lg border-2 transition-all
+                                flex-shrink-0 w-16 text-center p-2.5 rounded-md border transition-colors
                                 ${isSelected
-                                    ? 'border-accent bg-accent/10'
-                                    : 'border-transparent bg-background hover:bg-background'
+                                    ? 'border-[#2eaadc] bg-blue-50/30'
+                                    : 'border-gray-200 bg-background hover:bg-[#efedea]'
                                 }
                             `}
                         >
-                            <div className="text-xs text-foreground-secondary">{dy.startYear}</div>
-                            <div className="text-xs text-foreground-secondary">{dy.startAge}岁</div>
-                            <div className="flex flex-col items-center mt-1">
+                            <div className="text-[10px] font-bold text-foreground/30 uppercase tracking-wider">{dy.startYear}</div>
+                            <div className="text-[11px] font-semibold text-foreground/50 mb-1.5">{dy.startAge}岁</div>
+                            <div className="flex flex-col items-center gap-0.5">
                                 <span
-                                    className="text-base sm:text-lg font-bold"
+                                    className="text-base font-bold"
                                     style={{ color: ganElement ? getElementColor(ganElement) : undefined }}
                                 >
                                     {dy.gan}
                                 </span>
                                 <span
-                                    className="text-base sm:text-lg font-bold"
+                                    className="text-base font-bold"
                                     style={{ color: zhiElement ? getElementColor(zhiElement) : undefined }}
                                 >
                                     {dy.zhi}
