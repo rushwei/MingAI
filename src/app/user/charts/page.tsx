@@ -5,24 +5,38 @@
  */
 'use client';
 
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect, type MouseEvent, createElement, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Trash2, ScrollText, Star, MapPin, ChevronRight, Calendar } from 'lucide-react';
+import { Plus, Trash2, MapPin, ChevronRight, Calendar, Star as LucideStar } from 'lucide-react';
+import { YinYangIcon, CompassRoseIcon } from '@phosphor-icons/react';
 import { supabase } from '@/lib/auth';
 import { writeLocalCache } from '@/lib/cache';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
-import { getNavItemById } from '@/lib/navigation/registry';
 
 type ChartType = 'bazi' | 'ziwei';
 
-const CHART_NAV_ICONS = {
-    bazi: getNavItemById('bazi')?.icon ?? ScrollText,
-    ziwei: getNavItemById('ziwei')?.icon ?? Star,
-} as const;
+/** Icon type that accepts both Lucide and Phosphor icon components. */
+type NavIcon = ComponentType<{ className?: string; size?: number | string }>;
+
+/**
+ * Wrap a Phosphor icon so it visually matches Lucide's stroke weight.
+ */
+function phosphor(Icon: ComponentType<Record<string, unknown>>): NavIcon {
+    const Wrapped: NavIcon = (props) =>
+        createElement(Icon, {
+            ...props,
+            style: { transform: 'scale(1.1)' },
+        });
+    Wrapped.displayName = `Phosphor(${Icon.displayName ?? Icon.name})`;
+    return Wrapped;
+}
+
+const PYinYang = phosphor(YinYangIcon);
+const PCompassRose = phosphor(CompassRoseIcon);
 
 interface ChartItem {
     id: string;
@@ -59,12 +73,13 @@ function ChartList({
     onDelete,
     onSetDefault,
 }: ChartListProps) {
-    const ChartIcon = CHART_NAV_ICONS[type];
+    const SectionIcon = type === 'bazi' ? PYinYang : PCompassRose;
 
     return (
         <section className="space-y-4">
             <div className="flex items-center justify-between px-1">
-                <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest">
+                <h2 className="flex items-center gap-2 text-[11px] font-semibold text-foreground/40 uppercase tracking-widest">
+                    <SectionIcon className="w-4 h-4" />
                     {title}
                 </h2>
                 <Link href={onCreateLink} className="text-xs font-medium text-[#2eaadc] hover:underline flex items-center gap-1">
@@ -79,12 +94,8 @@ function ChartList({
                         <Link
                             key={`${chart.type}-${chart.id}`}
                             href={chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`}
-                            className="group flex items-center gap-4 p-4 transition-colors hover:bg-[#efedea]"
+                            className="group flex items-center gap-3 px-4 p-2 transition-colors hover:bg-[#efedea]"
                         >
-                            <div className="p-2 rounded shrink-0 text-foreground/60">
-                                <ChartIcon className="w-5 h-5" />
-                            </div>
-
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <h3 className="text-sm font-medium text-foreground truncate">{chart.name}</h3>
@@ -93,8 +104,8 @@ function ChartList({
                                     </span>
                                     {chart.is_default && (
                                         <span className="text-[10px] font-bold text-[#dfab01] bg-[#dfab01]/5 px-1.5 py-0.5 rounded border border-[#dfab01]/10 uppercase tracking-widest flex items-center gap-1">
-                                            <Star className="w-2.5 h-2.5 fill-current" />
-                                            DEFAULT
+                                            <LucideStar className="w-2.5 h-2.5 fill-current" />
+                                            默认
                                         </span>
                                     )}
                                 </div>
@@ -119,7 +130,7 @@ function ChartList({
                                         className="p-1.5 rounded hover:bg-[#dfab01]/10 text-foreground/30 hover:text-[#dfab01] transition-colors"
                                         title="设为默认"
                                     >
-                                        <Star className="w-3.5 h-3.5" />
+                                        <LucideStar className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                                 <button
@@ -255,8 +266,7 @@ function ChartsContent() {
                                 <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse mb-2" />
                                 <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
                                     {[1, 2].map(j => (
-                                        <div key={j} className="p-4 flex gap-4 animate-pulse">
-                                            <div className="w-8 h-8 rounded bg-foreground/10" />
+                                        <div key={j} className="p-4 flex gap-3 animate-pulse">
                                             <div className="flex-1 space-y-2">
                                                 <div className="h-4 w-32 rounded bg-foreground/10" />
                                                 <div className="h-3 w-48 rounded bg-foreground/5" />
@@ -278,6 +288,7 @@ function ChartsContent() {
                 {/* 标题 */}
                 <header className="space-y-1">
                     <h1 className="text-2xl font-bold">我的命盘</h1>
+                    <p className="text-sm text-foreground/50">管理您保存的所有八字与紫微命盘</p>
                 </header>
 
                 <div className="space-y-12">

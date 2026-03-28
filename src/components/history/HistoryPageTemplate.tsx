@@ -8,14 +8,15 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Trash2, Search, BookOpenText, MessageSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { supabase } from '@/lib/auth';
+import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { ConfirmDeleteModal } from '@/components/common/ConfirmDeleteModal';
 import {
     applyHistoryRestorePayload,
@@ -89,6 +90,8 @@ export interface CardActions {
     canAddToKnowledgeBase: boolean;
     formatDate: (dateStr: string) => string;
 }
+
+const HISTORY_PAGE_BATCH_SIZE = 12;
 
 const HISTORY_THEME_STYLES: Record<string, {
     cardBorder: string;
@@ -278,58 +281,94 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
     } = config;
 
     const router = useRouter();
+    const { user, loading: sessionLoading } = useSessionSafe();
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [items, setItems] = useState<HistorySummaryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [nextOffset, setNextOffset] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [kbTarget, setKbTarget] = useState<HistorySummaryItem | null>(null);
+    const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
     const basePath = `/${sourceType}`;
 
-    const loadItems = useCallback(async () => {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
+    const loadItems = useCallback(async (options?: { append?: boolean; offset?: number }) => {
+        if (!user?.id) {
             router.push(basePath);
             return;
         }
 
-        const firstPage = await loadHistorySummariesPage(sourceType);
-        setItems(firstPage.items);
-        setLoading(false);
+        const append = options?.append === true;
+        if (append) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+        }
 
-        if (!firstPage.pagination.hasMore || firstPage.pagination.nextOffset == null) {
+        try {
+            const page = await loadHistorySummariesPage(sourceType, {
+                limit: HISTORY_PAGE_BATCH_SIZE,
+                offset: options?.offset ?? 0,
+            });
+
+            setItems((prev) => append ? [...prev, ...page.items] : page.items);
+            setHasMore(page.pagination.hasMore);
+            setNextOffset(page.pagination.nextOffset);
+        } finally {
+            if (append) {
+                setLoadingMore(false);
+            } else {
+                setLoading(false);
+            }
+        }
+    }, [basePath, router, sourceType, user?.id]);
+
+    useEffect(() => {
+        if (sessionLoading) {
             return;
         }
 
-        let offset = firstPage.pagination.nextOffset;
-        const bufferedItems = [...firstPage.items];
-        for (let page = 0; page < 49; page += 1) {
-            try {
-                const nextPage = await loadHistorySummariesPage(sourceType, { offset });
-                bufferedItems.push(...nextPage.items);
-                setItems([...bufferedItems]);
-                if (!nextPage.pagination.hasMore || nextPage.pagination.nextOffset == null) {
-                    break;
-                }
-                offset = nextPage.pagination.nextOffset;
-            } catch {
-                // 后续分页加载失败时中断，保留已加载的数据
-                break;
-            }
-        }
-    }, [router, sourceType, basePath]);
-
-    useEffect(() => {
         const timer = setTimeout(() => { void loadItems(); }, 0);
         return () => clearTimeout(timer);
-    }, [loadItems]);
+    }, [loadItems, sessionLoading]);
+
+    useEffect(() => {
+        if (
+            loading
+            || loadingMore
+            || !hasMore
+            || nextOffset == null
+            || !loadMoreSentinelRef.current
+        ) {
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                void loadItems({ append: true, offset: nextOffset });
+            }
+        }, {
+            rootMargin: '160px 0px',
+        });
+
+        observer.observe(loadMoreSentinelRef.current);
+        return () => observer.disconnect();
+    }, [hasMore, loadItems, loading, loadingMore, nextOffset]);
 
     const handleDelete = async (id: string) => {
         const success = await deleteHistorySummary(sourceType, id);
         if (success) {
-            setItems(prev => prev.filter(r => r.id !== id));
+            let removed = false;
+            setItems(prev => {
+                removed = prev.some((record) => record.id === id);
+                return prev.filter(r => r.id !== id);
+            });
+            if (removed) {
+                setNextOffset((prev) => prev == null ? null : Math.max(prev - 1, 0));
+            }
             if (invalidateTypes?.length) {
                 window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate', { detail: { types: invalidateTypes } }));
             }
@@ -424,6 +463,20 @@ export function HistoryPageTemplate(config: HistoryPageConfig) {
                                 ? <div key={item.id}>{renderCard(item, actions)}</div>
                                 : <DefaultListCard key={item.id} item={item} actions={actions} themeColor={themeColor} />;
                         })}
+                    </div>
+                )}
+
+                {!loading && hasMore && (
+                    <div ref={loadMoreSentinelRef} className="mt-8 py-4 flex justify-center">
+                        {loadingMore ? (
+                            <div className="flex items-center gap-2 text-sm text-foreground-secondary">
+                                <SoundWaveLoader variant="inline" />
+                            </div>
+                        ) : (
+                            <div className="text-sm text-foreground-secondary">
+                                继续下滑加载更多
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -12,8 +12,6 @@ import Link from 'next/link';
 import {
     Settings,
     LogOut,
-    ChevronDown,
-    ChevronUp,
     CircleStar,
     Bell,
     User,
@@ -175,11 +173,6 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                         {membershipLabels[membershipType]}
                     </div>
                 </div>
-                {isMenuOpen ? (
-                    <ChevronUp className="w-4 h-4 text-[#37352f]/60 flex-shrink-0" />
-                ) : (
-                    <ChevronDown className="w-4 h-4 text-[#37352f]/60 flex-shrink-0" />
-                )}
             </button>
 
             {/* 下拉菜单 */}

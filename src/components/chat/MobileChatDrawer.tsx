@@ -16,7 +16,7 @@ import {
     PanelLeftClose, PanelLeft,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import type { Conversation, ConversationSourceType } from '@/types';
+import type { ConversationListItem, ConversationSourceType } from '@/types';
 import { useConversationList } from '@/lib/chat/ConversationListContext';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -47,12 +47,12 @@ export function MobileChatDrawer() {
     const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState<Set<ConversationSourceType>>(new Set());
-    const [actionConv, setActionConv] = useState<Conversation | null>(null);
+    const [actionConv, setActionConv] = useState<ConversationListItem | null>(null);
     const [actionView, setActionView] = useState<'menu' | 'rename' | 'delete'>('menu');
     const [actionMenuPos, setActionMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
-    const [archiveTarget, setArchiveTarget] = useState<Conversation | null>(null);
+    const [archiveTarget, setArchiveTarget] = useState<ConversationListItem | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -69,7 +69,7 @@ export function MobileChatDrawer() {
             ? conversations.filter(conv => (conv.title ?? '').toLowerCase().includes(query))
             : conversations;
 
-        const groups: Record<ConversationSourceType, Conversation[]> = {
+        const groups: Record<ConversationSourceType, ConversationListItem[]> = {
             chat: [], dream: [], bazi_wuxing: [], bazi_personality: [],
             tarot: [], liuyao: [], mbti: [], hepan: [],
             palm: [], face: [], qimen: [], daliuren: [],
@@ -109,7 +109,7 @@ export function MobileChatDrawer() {
         const nextOpen = !isOpen;
         setIsOpen(nextOpen);
         if (nextOpen) {
-            triggerConversationListLoad('interaction');
+            triggerConversationListLoad();
         }
     }, [isOpen, triggerConversationListLoad]);
 
@@ -120,7 +120,7 @@ export function MobileChatDrawer() {
         setActionMenuPos(null);
     }, []);
 
-    const openActionSheet = useCallback((conv: Conversation, e: React.MouseEvent) => {
+    const openActionSheet = useCallback((conv: ConversationListItem, e: React.MouseEvent) => {
         const rect = e.currentTarget.getBoundingClientRect();
         setActionMenuPos({ top: rect.bottom + 4, left: rect.left });
         setActionConv(conv);
@@ -163,7 +163,7 @@ export function MobileChatDrawer() {
         closeActionSheet();
     }, [actionConv, closeActionSheet]);
 
-    const formatMenuTitle = useCallback((conv: Conversation) => {
+    const formatMenuTitle = useCallback((conv: ConversationListItem) => {
         let title = conv.title.replace(/ -> /g, ' 变 ');
         if ((conv.sourceType === 'liuyao' || conv.sourceType === 'tarot') && title.includes(' - ')) {
             title = title.split(' - ').slice(1).join(' - ');
@@ -300,6 +300,7 @@ export function MobileChatDrawer() {
                                             type={type}
                                             label={config.label}
                                             items={items}
+                                            showLabel={type !== 'chat'}
                                             isGroupCollapsed={isGroupCollapsed}
                                             onToggleGroup={toggleGroup}
                                             activeId={activeId}

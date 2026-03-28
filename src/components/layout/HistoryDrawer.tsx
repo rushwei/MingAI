@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, X } from 'lucide-react';
@@ -32,28 +32,55 @@ interface HistoryDrawerProps {
     className?: string;
 }
 
+const HISTORY_DRAWER_BATCH_SIZE = 10;
+
 export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
     const router = useRouter();
     const { user, loading: sessionLoading } = useSessionSafe();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [nextOffset, setNextOffset] = useState<number | null>(null);
     const [navigating, setNavigating] = useState<string | null>(null);
     const [items, setItems] = useState<HistorySummaryItem[]>([]);
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
     const defaultTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
     const config = HISTORY_CONFIG[type];
 
-    const loadHistory = useCallback(async () => {
+    const loadHistory = useCallback(async (options?: { append?: boolean; offset?: number }) => {
         if (!user?.id) return;
-        setLoading(true);
+
+        const append = options?.append === true;
+        if (append) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+        }
+
         try {
-            const result = await loadHistorySummariesPage(type, { limit: 10, offset: 0 });
-            setItems(result.items);
+            const result = await loadHistorySummariesPage(type, {
+                limit: HISTORY_DRAWER_BATCH_SIZE,
+                offset: options?.offset ?? 0,
+            });
+            setItems((prev) => append ? [...prev, ...result.items] : result.items);
+            setHasMore(result.pagination.hasMore);
+            setNextOffset(result.pagination.nextOffset);
         } catch (error) {
             console.error('[history-drawer] failed to load history:', error);
-            setItems([]);
+            if (!append) {
+                setItems([]);
+                setHasMore(false);
+                setNextOffset(null);
+            }
         } finally {
-            setLoading(false);
+            if (append) {
+                setLoadingMore(false);
+            } else {
+                setLoading(false);
+            }
         }
     }, [type, user?.id]);
 
@@ -63,6 +90,32 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
         }
         setIsOpen(!isOpen);
     }, [isOpen, loadHistory]);
+
+    useEffect(() => {
+        if (
+            !isOpen
+            || loading
+            || loadingMore
+            || !hasMore
+            || nextOffset == null
+            || !scrollContainerRef.current
+            || !loadMoreSentinelRef.current
+        ) {
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                void loadHistory({ append: true, offset: nextOffset });
+            }
+        }, {
+            root: scrollContainerRef.current,
+            rootMargin: '120px 0px',
+        });
+
+        observer.observe(loadMoreSentinelRef.current);
+        return () => observer.disconnect();
+    }, [hasMore, isOpen, loadHistory, loading, loadingMore, nextOffset]);
 
     // 点击查看历史记录详情
     const handleViewItem = useCallback(async (itemId: string) => {
@@ -198,7 +251,7 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                     </div>
 
                     {/* 列表 */}
-                    <div className="flex-1 overflow-y-auto p-3">
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-3">
                         {loading ? (
                             <div className="space-y-2">
                                 {/* 骨架屏 - 模拟历史记录项 */}
@@ -271,6 +324,19 @@ export function HistoryDrawer({ type, className = '' }: HistoryDrawerProps) {
                                         </div>
                                     </div>
                                 ))}
+                                {hasMore && (
+                                    <div ref={loadMoreSentinelRef} className="py-3 flex justify-center">
+                                        {loadingMore ? (
+                                            <div className="flex items-center gap-2 text-xs text-[#37352f]/50">
+                                                <SoundWaveLoader variant="inline" />
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-[#37352f]/50">
+                                                继续下滑加载更多
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

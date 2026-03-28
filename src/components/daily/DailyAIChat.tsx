@@ -9,8 +9,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Send, Calendar, RefreshCw, Info } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getCalendarAlmanac } from '@/lib/divination/calendar';
-import { getMembershipInfo } from '@/lib/user/membership';
-import { supabase } from '@/lib/auth';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 interface DailyAIChatProps {
@@ -38,21 +37,10 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
-
-    // 获取剩余次数
-    const loadCredits = useCallback(async () => {
-        if (!userId) return;
-        const info = await getMembershipInfo(userId);
-        if (info) {
-            setRemainingCredits(info.aiChatCount);
-        }
-    }, [userId]);
-
-    // useEffect: 登录状态或日期变化时同步额度与清理对话
-    useEffect(() => {
-        loadCredits();
-    }, [loadCredits]);
+    const { session, userId: sessionUserId, membershipInfo, refreshMembership } = useSessionMembership();
+    const remainingCredits = sessionUserId === userId
+        ? (membershipInfo?.aiChatCount ?? null)
+        : null;
 
     useEffect(() => {
         setMessages([]);
@@ -115,7 +103,6 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
 请基于以上黄历信息，用专业但易懂的方式回答用户的问题。`;
 
             // 获取访问令牌
-            const { data: { session } } = await supabase.auth.getSession();
             const accessToken = session?.access_token;
 
             // 调用AI API
@@ -152,7 +139,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
             setMessages(prev => [...prev, assistantMessage]);
 
             // 刷新剩余次数
-            loadCredits();
+            void refreshMembership();
         } catch (err) {
             console.error('AI问答错误:', err);
             setError('网络错误，请重试');
@@ -161,7 +148,7 @@ export function DailyAIChat({ date, userId }: DailyAIChatProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [userId, dateDisplay, almanac, loadCredits, isLoading]);
+    }, [userId, dateDisplay, almanac, isLoading, refreshMembership, session?.access_token]);
 
     const handleSubmit = useCallback(() => {
         sendMessage(inputValue);

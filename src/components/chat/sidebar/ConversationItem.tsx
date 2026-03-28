@@ -9,16 +9,16 @@
 import { memo } from 'react';
 import { Archive, Check, Ellipsis, X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import type { Conversation } from '@/types';
+import type { ConversationListItem } from '@/types';
 
 interface ConversationItemProps {
-    conv: Conversation;
+    conv: ConversationListItem;
     isActive: boolean;
     isActionActive: boolean;
     isGeneratingTitle: boolean;
     isSidebarCollapsed: boolean;
     onSelect: (id: string) => void;
-    onOpenAction: (conv: Conversation, e: React.MouseEvent) => void;
+    onOpenAction: (conv: ConversationListItem, e: React.MouseEvent) => void;
     isEditing?: boolean;
     editTitle?: string;
     onEditTitleChange?: (value: string) => void;
@@ -43,7 +43,7 @@ export const ConversationItem = memo(function ConversationItem({
     onCancelRename,
     compact = false,
 }: ConversationItemProps) {
-    const question = typeof conv.sourceData?.question === 'string' ? conv.sourceData.question : null;
+    const question = conv.questionPreview || null;
 
     let mainTitle = conv.title.replace(/ -> /g, ' 变 ');
     let subTitle: string | null = null;
