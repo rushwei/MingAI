@@ -6,8 +6,9 @@
  */
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpenText, MessageCircleHeart } from 'lucide-react';
+import { AuthModal } from '@/components/auth/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
@@ -68,6 +69,7 @@ export default function ChatPage() {
 
     const isUnlimited = membership ? membership.type !== 'free' && membership.isActive : false;
     const isCreditLocked = !isUnlimited && credits === 0;
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     return (
         <>
@@ -86,6 +88,7 @@ export default function ChatPage() {
                 onArchiveMessage={state.activeConversationId && knowledgeBaseEnabled ? messaging.handleArchiveMessage : undefined}
                 onSend={messaging.handleSend}
                 onStop={messaging.handleStop}
+                onAuthRequired={!userId ? () => setShowAuthModal(true) : undefined}
                 inputValue={state.inputValue}
                 onInputChange={state.setInputValue}
                 disabled={isCreditLocked}
@@ -124,6 +127,10 @@ export default function ChatPage() {
             <CreditsModal
                 isOpen={state.showCreditsModal}
                 onClose={() => state.setShowCreditsModal(false)}
+            />
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
             />
         </>
     );

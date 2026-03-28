@@ -67,6 +67,7 @@ interface ChatLayoutProps {
     // Credit lock
     isPaymentPaused: boolean;
     isCreditLocked: boolean;
+    onAuthRequired?: () => void;
 
     // Modals (rendered by parent)
     children?: ReactNode;
@@ -87,12 +88,13 @@ export function ChatLayout(props: ChatLayoutProps) {
         dreamContext, dreamContextLoading,
         knowledgeBaseEnabled, aiPersonalizationEnabled,
         isPaymentPaused, isCreditLocked,
+        onAuthRequired,
         children,
     } = props;
 
     const composerProps = {
         inputValue, isLoading, isSendingToList,
-        onInputChange, onSend, onStop, disabled,
+        onInputChange, onSend, onStop, onAuthRequired, disabled,
         chatMode, onChatModeChange,
         selectedModel, onModelChange, reasoningEnabled, onReasoningChange,
         userId, membershipType, attachmentState, onAttachmentChange,

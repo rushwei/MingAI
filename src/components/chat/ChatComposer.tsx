@@ -39,6 +39,7 @@ interface ChatComposerProps {
     onInputChange: (value: string) => void;
     onSend: () => void;
     onStop?: () => void;
+    onAuthRequired?: () => void;
     disabled?: boolean;
     chatMode?: ChatMode;
     onChatModeChange?: (mode: ChatMode) => void;
@@ -67,6 +68,7 @@ export function ChatComposer({
     onInputChange,
     onSend,
     onStop,
+    onAuthRequired,
     disabled = false,
     chatMode = 'normal',
     onChatModeChange,
@@ -284,6 +286,10 @@ export function ChatComposer({
         }
         if (e.key === 'Enter' && !e.shiftKey && !disabled && !isLoading && !isSendingToList && !dreamContextLoading && !mentionSettlingRef.current && inputValue.trim()) {
             e.preventDefault();
+            if (!userId && onAuthRequired) {
+                onAuthRequired();
+                return;
+            }
             onSend();
         }
     };
@@ -366,6 +372,10 @@ export function ChatComposer({
         if (isLoading && onStop) {
             onStop();
         } else if (inputValue.trim()) {
+            if (!userId && onAuthRequired) {
+                onAuthRequired();
+                return;
+            }
             onSend();
         }
     };
