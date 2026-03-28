@@ -19,7 +19,6 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { useSidebarSafe } from '@/components/layout/SidebarContext';
 
 interface BottomBarProps {
     show: boolean;
@@ -33,10 +32,6 @@ interface BottomBarProps {
     expandedMaxHeight?: string;
 }
 
-// 侧边栏宽度常量
-const SIDEBAR_COLLAPSED_WIDTH = 72;
-const SIDEBAR_EXPANDED_WIDTH = 240;
-
 export function BottomBar({
     show,
     children,
@@ -45,19 +40,14 @@ export function BottomBar({
     expanded = false,
     expandedMaxHeight = '280px',
 }: BottomBarProps) {
-    const { collapsed } = useSidebarSafe();
-
     if (!show) return null;
-
-    // 计算左侧偏移量（桌面端需要考虑侧边栏）
-    const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
 
     return (
         <>
             {/* 桌面端 - 需要偏移侧边栏宽度 */}
             <div
                 className={`hidden lg:block fixed bottom-0 right-0 z-50 transition-all duration-300 ${className}`}
-                style={{ left: sidebarWidth }}
+                style={{ left: 'var(--sidebar-width)' }}
             >
                 <div className="max-w-2xl mx-auto px-4">
                     <div className="bg-background border border-border rounded-t-xl shadow-lg overflow-hidden">

@@ -22,7 +22,7 @@ export const DEFAULT_MOBILE_MAIN_ITEMS = [
 export const DEFAULT_MOBILE_DRAWER_ORDER = [
   'bazi', 'records', 'community', 'hepan', 'ziwei', 'tarot', 'qimen', 'daliuren',
   'face', 'palm', 'mbti', 'monthly', 'user', 'user/settings',
-  'user/upgrade', 'user/notifications', 'user/orders',
+  'user/upgrade', 'user/orders',
   'user/settings/ai', 'user/knowledge-base', 'user/help',
   'user/charts',
 ] as const;

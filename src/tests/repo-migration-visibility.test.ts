@@ -1,24 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-test('schema dump should define announcements before announcement_user_states', () => {
+test('schema dump should keep only the simplified announcements table', () => {
     const snapshot = readFileSync(join(process.cwd(), 'supabase/tabel_export_from_supabase.sql'), 'utf8');
-    const announcementsIndex = snapshot.indexOf('CREATE TABLE public.announcements');
-    const statesIndex = snapshot.indexOf('CREATE TABLE public.announcement_user_states');
 
-    assert.notEqual(announcementsIndex, -1);
-    assert.notEqual(statesIndex, -1);
-    assert.ok(announcementsIndex < statesIndex);
+    assert.notEqual(snapshot.indexOf('CREATE TABLE public.announcements'), -1);
+    assert.equal(snapshot.includes('CREATE TABLE public.announcement_user_states'), false);
+    assert.match(snapshot, /CREATE TABLE public\.announcements \(\s+id uuid NOT NULL DEFAULT gen_random_uuid\(\),\s+content text NOT NULL,\s+published_at timestamp with time zone NOT NULL DEFAULT now\(\)/u);
 });
 
-test('repo should include migration adding user_settings.visualization_settings', () => {
-    const migration = readFileSync(
-        join(process.cwd(), 'supabase/migrations/20260323_add_visualization_settings_to_user_settings.sql'),
-        'utf8',
+test('repo should include migration simplifying announcements for the unified center', () => {
+    const migrationPath = join(
+        process.cwd(),
+        'supabase/migrations/20260328_simplify_announcements_for_unified_center.sql',
     );
 
-    assert.match(migration, /ALTER TABLE public\.user_settings/u);
-    assert.match(migration, /ADD COLUMN IF NOT EXISTS visualization_settings/u);
+    assert.equal(existsSync(migrationPath), true);
+    const migration = readFileSync(migrationPath, 'utf8');
+
+    assert.match(migration, /DROP TABLE IF EXISTS public\.announcement_user_states/u);
+    assert.match(migration, /CREATE TABLE public\.announcements/u);
+    assert.match(migration, /content text NOT NULL/u);
+    assert.match(migration, /published_at timestamp with time zone NOT NULL DEFAULT now\(\)/u);
+});
+
+test('repo should include migration fixing announcements admin RLS policies', () => {
+    const migrationPath = join(
+        process.cwd(),
+        'supabase/migrations/20260328_fix_announcements_admin_rls.sql',
+    );
+
+    assert.equal(existsSync(migrationPath), true);
+    const migration = readFileSync(migrationPath, 'utf8');
+
+    assert.match(migration, /CREATE POLICY announcements_admin_select/u);
+    assert.match(migration, /CREATE POLICY announcements_admin_insert/u);
+    assert.match(migration, /CREATE POLICY announcements_admin_update/u);
+    assert.match(migration, /CREATE POLICY announcements_admin_delete/u);
 });

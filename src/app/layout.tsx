@@ -14,7 +14,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
-import { SidebarProvider } from "@/components/layout/SidebarContext";
 import { HeaderMenuProvider } from "@/components/layout/HeaderMenuContext";
 import { ConversationListProvider } from "@/lib/chat/ConversationListContext";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -22,6 +21,51 @@ import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
+
+const themeInitScript = `
+(() => {
+  const parseStoredValue = (key) => {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && 'value' in parsed) {
+        return parsed.value ?? null;
+      }
+      return parsed;
+    } catch {
+      return raw;
+    }
+  };
+
+  const storedThemeMode = parseStoredValue('mingai.pref.themeMode');
+  const legacyTheme = parseStoredValue('mingai.pref.theme');
+  const themeMode =
+    storedThemeMode === 'light' || storedThemeMode === 'dark' || storedThemeMode === 'system'
+      ? storedThemeMode
+      : legacyTheme === 'light' || legacyTheme === 'dark'
+        ? legacyTheme
+        : 'system';
+
+  const theme =
+    themeMode === 'dark'
+      ? 'dark'
+      : themeMode === 'light'
+        ? 'light'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+
+  const root = document.documentElement;
+  root.classList.toggle('dark', theme === 'dark');
+  root.style.colorScheme = theme;
+
+  const themeColorMetas = document.querySelectorAll('meta[name="theme-color"]');
+  themeColorMetas.forEach((meta) => {
+    meta.setAttribute('content', theme === 'dark' ? '#0a0a0a' : '#f7f6f3');
+  });
+})();
+`;
 
 // SEO 元数据配置
 export const metadata: Metadata = {
@@ -72,7 +116,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
@@ -94,12 +138,12 @@ export default function RootLayout({
       <body
         className="antialiased min-h-screen"
       >
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         {/* ThemeProvider 提供主题上下文，包裹整个应用 */}
         <ThemeProvider>
           <ClientProviders>
             <ConversationListProvider>
               <HeaderMenuProvider>
-                <SidebarProvider>
                 <div className="flex min-h-screen">
                   {/* 左侧导航栏 - 仅桌面端显示 */}
                   <Sidebar />
@@ -120,7 +164,6 @@ export default function RootLayout({
 
                 {/* 移动端底部导航 - 仅移动端显示 */}
                 <MobileNav />
-              </SidebarProvider>
             </HeaderMenuProvider>
           </ConversationListProvider>
           </ClientProviders>

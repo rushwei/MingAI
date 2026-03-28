@@ -1,278 +1,181 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Megaphone, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { requestBrowserJson } from '@/lib/browser-api';
+import { SidebarAnnouncementCenter } from '@/components/layout/SidebarAnnouncementCenter';
 import {
-    buildAnnouncementLocalStateKey,
-    executeAnnouncementCtaNavigation,
-    resolveAnnouncementViewerScope,
-    shouldApplyAnnouncementLoadResult,
-    type AnnouncementDismissState,
-    getAnnouncementDismissState,
-    shouldSuppressAnnouncement,
+    ANNOUNCEMENT_CENTER_STORAGE_KEY,
+    getAnnouncementCenterLocalState,
+    getEndOfLocalDayIso,
+    getAnnouncementPromptIdentity,
+    shouldPromptLatestAnnouncement,
     type Announcement,
+    type AnnouncementCenterLocalState,
 } from '@/lib/announcement';
+import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
-function getEndOfLocalDayIso(now: Date) {
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-    return end.toISOString();
-}
+export type AnnouncementCenterTab = 'notifications' | 'announcements';
 
-function readLocalDismissState(announcementId: string, version: number, userId: string | null) {
-    if (typeof window === 'undefined') return {};
+type OpenAnnouncementCenterOptions = {
+    tab?: AnnouncementCenterTab;
+};
+
+type CloseAnnouncementCenterOptions = {
+    dismissAnnouncementForToday?: boolean;
+};
+
+type AnnouncementCenterContextValue = {
+    openAnnouncementCenter: (options?: OpenAnnouncementCenterOptions) => void;
+    closeAnnouncementCenter: (options?: CloseAnnouncementCenterOptions) => void;
+    announcementPromptCount: number;
+};
+
+const AnnouncementCenterContext = createContext<AnnouncementCenterContextValue | null>(null);
+
+function readAnnouncementCenterLocalState() {
+    if (typeof window === 'undefined') {
+        return {};
+    }
+
     try {
-        const raw = window.localStorage.getItem(buildAnnouncementLocalStateKey(announcementId, version, userId));
-        return getAnnouncementDismissState(raw ? JSON.parse(raw) : null);
+        const raw = window.localStorage.getItem(ANNOUNCEMENT_CENTER_STORAGE_KEY);
+        return getAnnouncementCenterLocalState(raw ? JSON.parse(raw) : null);
     } catch {
         return {};
     }
 }
 
-function writeLocalDismissState(
-    announcementId: string,
-    version: number,
-    userId: string | null,
-    value: AnnouncementDismissState,
-) {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-        buildAnnouncementLocalStateKey(announcementId, version, userId),
-        JSON.stringify(value),
-    );
+function writeAnnouncementCenterLocalState(value: AnnouncementCenterLocalState) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.setItem(ANNOUNCEMENT_CENTER_STORAGE_KEY, JSON.stringify(value));
+}
+
+export function useAnnouncementCenterSafe() {
+    return useContext(AnnouncementCenterContext) ?? {
+        openAnnouncementCenter: () => { },
+        closeAnnouncementCenter: () => { },
+        announcementPromptCount: 0,
+    };
 }
 
 export function AnnouncementPopupHost({
     userId,
     authLoading,
+    children,
 }: {
     userId: string | null;
     authLoading: boolean;
+    children: ReactNode;
 }) {
     const pathname = usePathname();
-    const router = useRouter();
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isOpen, setIsOpen] = useState(false);
+    const { isFeatureEnabled } = useFeatureToggles();
+    const notificationsEnabled = isFeatureEnabled('notifications');
+    const [open, setOpen] = useState(false);
+    const [preferredTab, setPreferredTab] = useState<AnnouncementCenterTab>('announcements');
+    const [latestAnnouncement, setLatestAnnouncement] = useState<Announcement | null>(null);
+    const [announcementPromptCount, setAnnouncementPromptCount] = useState(0);
     const requestSequenceRef = useRef(0);
-    const scopeUserId = resolveAnnouncementViewerScope(userId, authLoading);
+    const openRef = useRef(false);
 
-    const loadAnnouncements = useCallback(async () => {
+    useEffect(() => {
+        openRef.current = open;
+    }, [open]);
+
+    const closeAnnouncementCenter = useCallback((options: CloseAnnouncementCenterOptions = {}) => {
+        if (options.dismissAnnouncementForToday && latestAnnouncement?.publishedAt) {
+            writeAnnouncementCenterLocalState({
+                latestAnnouncementKey: getAnnouncementPromptIdentity(latestAnnouncement) ?? undefined,
+                latestPublishedAt: latestAnnouncement.publishedAt,
+                dismissedUntil: getEndOfLocalDayIso(new Date()),
+            });
+            setAnnouncementPromptCount(0);
+        }
+
+        setOpen(false);
+    }, [latestAnnouncement]);
+
+    const openAnnouncementCenter = useCallback((options: OpenAnnouncementCenterOptions = {}) => {
+        const wantsNotifications = options.tab === 'notifications' && !!userId && notificationsEnabled;
+        setPreferredTab(wantsNotifications ? 'notifications' : 'announcements');
+        setOpen(true);
+    }, [notificationsEnabled, userId]);
+
+    const loadLatestAnnouncement = useCallback(async () => {
         const requestId = ++requestSequenceRef.current;
 
         if (pathname.startsWith('/admin')) {
-            setAnnouncements([]);
-            setCurrentIndex(0);
-            setIsOpen(false);
-            return;
-        }
-        if (scopeUserId === undefined) {
+            setAnnouncementPromptCount(0);
+            setLatestAnnouncement(null);
+            setOpen(false);
             return;
         }
 
-        const result = await requestBrowserJson<{ announcements?: Announcement[] }>('/api/announcements/active', {
+        if (authLoading) {
+            return;
+        }
+
+        const result = await requestBrowserJson<{ announcement?: Announcement | null }>('/api/announcements?latest=1', {
             method: 'GET',
         });
 
         if (result.error) {
-            console.error('[announcements][popup] load failed:', result.error.message);
+            console.error('[announcement-center] failed to load latest announcement:', result.error.message);
             return;
         }
 
-        const nowIso = new Date().toISOString();
-        const visibleAnnouncements = (result.data?.announcements || []).filter((announcement) => (
-            !shouldSuppressAnnouncement(
-                readLocalDismissState(announcement.id, announcement.version, scopeUserId),
-                nowIso,
-            )
-        ));
-
-        if (!shouldApplyAnnouncementLoadResult({
-            pathname,
-            requestId,
-            currentRequestId: requestSequenceRef.current,
-            viewerScope: scopeUserId,
-        })) {
+        if (requestId !== requestSequenceRef.current) {
             return;
         }
-        setAnnouncements(visibleAnnouncements);
-        setCurrentIndex(0);
-        setIsOpen(visibleAnnouncements.length > 0);
-    }, [pathname, scopeUserId]);
+
+        const announcement = result.data?.announcement ?? null;
+        setLatestAnnouncement(announcement);
+
+        const shouldPrompt = shouldPromptLatestAnnouncement({
+            announcementKey: getAnnouncementPromptIdentity(announcement),
+            state: readAnnouncementCenterLocalState(),
+        });
+        const nextPromptCount = shouldPrompt ? 1 : 0;
+        setAnnouncementPromptCount(nextPromptCount);
+
+        if (shouldPrompt && !openRef.current) {
+            setPreferredTab('announcements');
+            setOpen(true);
+        }
+    }, [authLoading, pathname]);
 
     useEffect(() => {
-        if (scopeUserId === undefined) {
-            requestSequenceRef.current += 1;
-            return;
-        }
         const timer = window.setTimeout(() => {
-            void loadAnnouncements();
+            void loadLatestAnnouncement();
         }, 0);
 
         return () => {
             window.clearTimeout(timer);
         };
-    }, [loadAnnouncements, scopeUserId]);
+    }, [loadLatestAnnouncement, pathname, userId]);
 
-    const current = announcements[currentIndex] ?? null;
-    const pageLabel = useMemo(() => (
-        announcements.length > 1 ? `${currentIndex + 1} / ${announcements.length}` : null
-    ), [announcements.length, currentIndex]);
-
-    const dismissCurrent = useCallback(async (mode: 'today' | 'permanent') => {
-        const active = announcements[currentIndex];
-        if (!active) return;
-
-        const now = new Date();
-        const localState = mode === 'today'
-            ? { dismissedUntil: getEndOfLocalDayIso(now) }
-            : { dismissedPermanentlyAt: now.toISOString() };
-
-        writeLocalDismissState(active.id, active.version, scopeUserId ?? null, localState);
-
-        if (scopeUserId) {
-            const payload = mode === 'today'
-                ? {
-                    announcementId: active.id,
-                    version: active.version,
-                    mode,
-                    dismissedUntil: localState.dismissedUntil,
-                }
-                : {
-                    announcementId: active.id,
-                    version: active.version,
-                    mode,
-                };
-
-            void requestBrowserJson('/api/announcements/dismiss', {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            });
-        }
-
-        setAnnouncements((currentList) => {
-            const nextList = currentList.filter((_, index) => index !== currentIndex);
-            setCurrentIndex((index) => Math.min(index, Math.max(0, nextList.length - 1)));
-            setIsOpen(nextList.length > 0);
-            return nextList;
-        });
-    }, [announcements, currentIndex, scopeUserId]);
-
-    const navigateToHref = useCallback((href: string) => {
-        executeAnnouncementCtaNavigation({
-            href,
-            origin: window.location.origin,
-            dismiss: () => {
-                void dismissCurrent('today');
-            },
-            navigateInternal: (targetHref) => {
-                router.push(targetHref);
-            },
-            navigateExternal: (targetHref) => {
-                window.location.assign(targetHref);
-            },
-            onBlocked: (rawHref) => {
-                console.error('[announcements][popup] blocked unsafe CTA href:', rawHref);
-            },
-        });
-    }, [dismissCurrent, router]);
-
-    if (!isOpen || !current) {
-        return null;
-    }
+    const contextValue = useMemo<AnnouncementCenterContextValue>(() => ({
+        openAnnouncementCenter,
+        closeAnnouncementCenter,
+        announcementPromptCount,
+    }), [announcementPromptCount, closeAnnouncementCenter, openAnnouncementCenter]);
 
     return (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
-            <div
-                className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(127,29,29,0.22),rgba(15,23,42,0.66))] backdrop-blur-sm"
-                onClick={() => dismissCurrent('today')}
-            />
-            <div className="relative w-full max-w-2xl rounded-[32px] border border-red-200 bg-white shadow-[0_30px_80px_rgba(127,29,29,0.32)] overflow-hidden">
-                <button
-                    onClick={() => dismissCurrent('today')}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-white/80 hover:bg-white transition-colors text-slate-500"
-                    aria-label="关闭公告"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-
-                <div className="px-6 py-5 border-b border-red-100 bg-[linear-gradient(135deg,rgba(254,226,226,1),rgba(255,255,255,0.96))]">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-red-500 text-white flex items-center justify-center shadow-[0_10px_24px_rgba(239,68,68,0.28)]">
-                                <Megaphone className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs px-2.5 py-1 rounded-full bg-red-500 text-white font-semibold tracking-[0.18em]">公告</span>
-                                    <span className="text-xs px-2.5 py-1 rounded-full bg-white text-red-600 border border-red-200">
-                                        {current.priority === 'critical' ? '高优先级' : '站点通知'}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-red-700 mt-2">
-                                    {current.publishedAt ? new Date(current.publishedAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }) : '即时公告'}
-                                </div>
-                            </div>
-                        </div>
-                        {pageLabel ? (
-                            <div className="flex items-center gap-2 text-xs text-foreground-secondary">
-                                <button
-                                    onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}
-                                    disabled={currentIndex === 0}
-                                    className="p-2 rounded-full bg-white border border-border disabled:opacity-40"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </button>
-                                <span>{pageLabel}</span>
-                                <button
-                                    onClick={() => setCurrentIndex((index) => Math.min(announcements.length - 1, index + 1))}
-                                    disabled={currentIndex >= announcements.length - 1}
-                                    className="p-2 rounded-full bg-white border border-border disabled:opacity-40"
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-
-                <div className="px-6 py-6 sm:px-8 sm:py-8">
-                    <h2 className="text-2xl font-semibold text-slate-900 pr-10">
-                        {current.title}
-                    </h2>
-                    <p className="mt-4 text-[15px] leading-8 text-slate-600 whitespace-pre-wrap">
-                        {current.content}
-                    </p>
-                </div>
-
-                <div className="px-6 py-5 sm:px-8 border-t border-red-100 bg-red-50/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => dismissCurrent('today')}
-                            className="px-4 py-2.5 rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                            今日关闭
-                        </button>
-                        <button
-                            onClick={() => dismissCurrent('permanent')}
-                            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-900 text-white hover:bg-slate-800 transition-colors"
-                        >
-                            关闭公告
-                        </button>
-                    </div>
-                    {current.ctaHref && current.ctaLabel ? (
-                        <button
-                            onClick={() => navigateToHref(current.ctaHref!)}
-                            className="px-4 py-2.5 rounded-xl bg-red-500 text-white hover:bg-red-500/90 transition-colors inline-flex items-center justify-center gap-2"
-                        >
-                            {current.ctaLabel}
-                            <ExternalLink className="w-4 h-4" />
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-        </div>
+        <AnnouncementCenterContext.Provider value={contextValue}>
+            {children}
+            {open ? (
+                <SidebarAnnouncementCenter
+                    key={`${preferredTab}-${userId ?? 'visitor'}`}
+                    open={open}
+                    userId={userId}
+                    notificationsEnabled={notificationsEnabled}
+                    initialTab={preferredTab}
+                    onClose={closeAnnouncementCenter}
+                />
+            ) : null}
+        </AnnouncementCenterContext.Provider>
     );
 }

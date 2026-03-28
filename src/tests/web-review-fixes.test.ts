@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost';
@@ -11,6 +11,12 @@ test('legacy notifications launch route should be removed after announcement sys
     existsSync(join(process.cwd(), 'src/app/api/notifications/launch/route.ts')),
     false,
   );
+});
+
+test('user notifications page should remain directly accessible even when entry links are hidden', () => {
+  const source = readFileSync(join(process.cwd(), 'src/app/user/notifications/page.tsx'), 'utf8');
+
+  assert.equal(source.includes('FeatureGate'), false);
 });
 
 test('history restore payload should use a fresh timestamp query instead of the static history id', async () => {

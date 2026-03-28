@@ -7,6 +7,7 @@
 import { NextRequest } from 'next/server';
 import { processScheduledReminders, scheduleAllUsersReminders } from '@/lib/reminders';
 import { jsonError, jsonOk } from '@/lib/api-utils';
+import { pruneExpiredNotifications } from '@/lib/notification-server';
 
 /**
  * 验证 Cron 请求
@@ -45,13 +46,15 @@ export async function GET(request: NextRequest) {
 
         // 2. 为所有启用提醒的用户调度新提醒
         const scheduled = await scheduleAllUsersReminders();
+        const prunedNotifications = await pruneExpiredNotifications();
 
-        console.log(`[cron/process-reminders] 处理了 ${processed} 条提醒，调度了 ${scheduled} 条新提醒`);
+        console.log(`[cron/process-reminders] 处理了 ${processed} 条提醒，调度了 ${scheduled} 条新提醒，清理了 ${prunedNotifications} 条过期通知`);
 
         return jsonOk({
             success: true,
             processed,
             scheduled,
+            prunedNotifications,
         });
     } catch (error) {
         console.error('[cron/process-reminders] 处理失败:', error);

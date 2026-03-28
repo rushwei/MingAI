@@ -6,28 +6,15 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon';
 
 type InsertedAnnouncementPayload = {
-  title: string;
-  status: string;
-  priority: string;
-  popup_enabled: boolean;
-  audience_scope: string;
-  version: number;
-  created_by: string;
-  updated_by: string;
-  published_at?: string | null;
+  content: string;
+  published_at: string;
 };
 
 type UpdatedAnnouncementPayload = {
-  title: string;
   content: string;
-  cta_label: string | null;
-  cta_href: string | null;
-  published_at?: string | null;
-  version?: number;
-  updated_by: string;
 };
 
-test('admin announcements POST should create a published announcement with popup defaults', async (t) => {
+test('admin announcements POST should create a published announcement with content only', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
   const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
@@ -50,8 +37,8 @@ test('admin announcements POST should create a published announcement with popup
                 data: {
                   id: 'announcement-1',
                   ...payload,
-                  created_at: '2026-03-23T00:00:00.000Z',
-                  updated_at: '2026-03-23T00:00:00.000Z',
+                  created_at: '2026-03-28T10:00:00.000Z',
+                  updated_at: '2026-03-28T10:00:00.000Z',
                 },
                 error: null,
               }),
@@ -72,12 +59,7 @@ test('admin announcements POST should create a published announcement with popup
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      title: '系统维护公告',
       content: '今晚 23:00 到 23:30 进行短时维护',
-      status: 'published',
-      priority: 'critical',
-      ctaLabel: '查看详情',
-      ctaHref: '/status',
     }),
   });
 
@@ -89,41 +71,22 @@ test('admin announcements POST should create a published announcement with popup
     throw new Error('expected insertedPayload to be captured');
   }
   const createdPayload: InsertedAnnouncementPayload = insertedPayload;
-  assert.equal(createdPayload.title, '系统维护公告');
-  assert.equal(createdPayload.status, 'published');
-  assert.equal(createdPayload.priority, 'critical');
-  assert.equal(createdPayload.popup_enabled, true);
-  assert.equal(createdPayload.audience_scope, 'all_visitors');
-  assert.equal(createdPayload.version, 1);
-  assert.equal(createdPayload.created_by, 'admin-1');
-  assert.equal(createdPayload.updated_by, 'admin-1');
+  assert.equal(createdPayload.content, '今晚 23:00 到 23:30 进行短时维护');
   assert.equal(typeof createdPayload.published_at, 'string');
   assert.equal(payload.announcement.id, 'announcement-1');
 });
 
-test('admin announcements POST should reject unsafe CTA urls', async (t) => {
+test('admin announcements POST should reject empty content', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
-  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
-
-  let insertCalled = false;
 
   apiUtilsModule.requireAdminContext = async () => ({
     user: { id: 'admin-1' },
     supabase: {},
   });
-  apiUtilsModule.getSystemAdminClient = () => ({
-    from: () => ({
-      insert: () => {
-        insertCalled = true;
-        throw new Error('insert should not be called for unsafe CTA');
-      },
-    }),
-  });
 
   t.after(() => {
     apiUtilsModule.requireAdminContext = originalRequireAdminContext;
-    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
   });
 
   const { POST } = await import('../app/api/admin/announcements/route');
@@ -131,10 +94,7 @@ test('admin announcements POST should reject unsafe CTA urls', async (t) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      title: '危险公告',
-      content: '请不要保存',
-      ctaLabel: '点我',
-      ctaHref: 'javascript:alert(1)',
+      content: '   ',
     }),
   });
 
@@ -142,11 +102,10 @@ test('admin announcements POST should reject unsafe CTA urls', async (t) => {
   const payload = await response.json();
 
   assert.equal(response.status, 400);
-  assert.equal(payload.error, '按钮链接不安全');
-  assert.equal(insertCalled, false);
+  assert.equal(payload.error, '公告内容不能为空');
 });
 
-test('admin announcements PATCH should bump version when editing a published announcement', async (t) => {
+test('admin announcements PATCH should update content without changing published_at', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
   const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
@@ -163,22 +122,13 @@ test('admin announcements PATCH should bump version when editing a published ann
       return {
         select: () => ({
           eq: () => ({
-            single: async () => ({
+            maybeSingle: async () => ({
               data: {
                 id: 'announcement-1',
-                title: '旧标题',
                 content: '旧内容',
-                cta_label: '旧按钮',
-                cta_href: '/old',
-                status: 'published',
-                priority: 'normal',
-                display_order: 0,
-                starts_at: null,
-                ends_at: null,
-                popup_enabled: true,
-                audience_scope: 'all_visitors',
-                version: 2,
-                published_at: '2026-03-21T10:00:00.000Z',
+                published_at: '2026-03-28T10:00:00.000Z',
+                created_at: '2026-03-28T10:00:00.000Z',
+                updated_at: '2026-03-28T10:00:00.000Z',
               },
               error: null,
             }),
@@ -192,8 +142,10 @@ test('admin announcements PATCH should bump version when editing a published ann
                 single: async () => ({
                   data: {
                     id: 'announcement-1',
-                    ...payload,
-                    updated_at: '2026-03-23T00:00:00.000Z',
+                    content: payload.content,
+                    published_at: '2026-03-28T10:00:00.000Z',
+                    created_at: '2026-03-28T10:00:00.000Z',
+                    updated_at: '2026-03-28T12:00:00.000Z',
                   },
                   error: null,
                 }),
@@ -215,34 +167,26 @@ test('admin announcements PATCH should bump version when editing a published ann
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      title: '新标题',
-      content: '新内容',
-      ctaLabel: '立即查看',
-      ctaHref: '/new',
+      content: '更新后的公告内容',
     }),
   });
 
   const response = await PATCH(request, { params: Promise.resolve({ id: 'announcement-1' }) });
+  const payload = await response.json();
 
   assert.equal(response.status, 200);
   if (!updatedPayload) {
     throw new Error('expected updatedPayload to be captured');
   }
   const patchedPayload: UpdatedAnnouncementPayload = updatedPayload;
-  assert.equal(patchedPayload.title, '新标题');
-  assert.equal(patchedPayload.content, '新内容');
-  assert.equal(patchedPayload.cta_label, '立即查看');
-  assert.equal(patchedPayload.cta_href, '/new');
-  assert.equal(patchedPayload.version, 3);
-  assert.equal(patchedPayload.updated_by, 'admin-1');
+  assert.equal(patchedPayload.content, '更新后的公告内容');
+  assert.equal(payload.announcement.publishedAt, '2026-03-28T10:00:00.000Z');
 });
 
-test('admin announcements PATCH should bump version when republishing an edited archived announcement', async (t) => {
+test('admin announcements PATCH should return 404 when announcement does not exist', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as any;
   const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
   const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
-
-  let updatedPayload: UpdatedAnnouncementPayload | null = null;
 
   apiUtilsModule.requireAdminContext = async () => ({
     user: { id: 'admin-1' },
@@ -254,44 +198,12 @@ test('admin announcements PATCH should bump version when republishing an edited 
       return {
         select: () => ({
           eq: () => ({
-            single: async () => ({
-              data: {
-                id: 'announcement-2',
-                title: '旧公告',
-                content: '旧内容',
-                cta_label: null,
-                cta_href: null,
-                status: 'archived',
-                priority: 'normal',
-                display_order: 0,
-                starts_at: null,
-                ends_at: null,
-                popup_enabled: true,
-                audience_scope: 'all_visitors',
-                version: 2,
-                published_at: '2026-03-21T10:00:00.000Z',
-              },
+            maybeSingle: async () => ({
+              data: null,
               error: null,
             }),
           }),
         }),
-        update: (payload: UpdatedAnnouncementPayload) => {
-          updatedPayload = payload;
-          return {
-            eq: () => ({
-              select: () => ({
-                single: async () => ({
-                  data: {
-                    id: 'announcement-2',
-                    ...payload,
-                    updated_at: '2026-03-23T00:00:00.000Z',
-                  },
-                  error: null,
-                }),
-              }),
-            }),
-          };
-        },
       };
     },
   });
@@ -302,26 +214,110 @@ test('admin announcements PATCH should bump version when republishing an edited 
   });
 
   const { PATCH } = await import('../app/api/admin/announcements/[id]/route');
-  const request = new NextRequest('http://localhost/api/admin/announcements/announcement-2', {
+  const response = await PATCH(new NextRequest('http://localhost/api/admin/announcements/missing', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: '重新发布公告',
-      content: '新内容',
-      status: 'published',
-    }),
+    body: JSON.stringify({ content: '新内容' }),
+  }), { params: Promise.resolve({ id: 'missing' }) });
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.error, '公告不存在');
+});
+
+test('admin announcements DELETE should delete the target announcement', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+  let deletedId: string | null = null;
+
+  apiUtilsModule.requireAdminContext = async () => ({
+    user: { id: 'admin-1' },
+    supabase: {},
+  });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      assert.equal(table, 'announcements');
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: 'announcement-1',
+                content: '旧内容',
+                published_at: '2026-03-28T10:00:00.000Z',
+                created_at: '2026-03-28T10:00:00.000Z',
+                updated_at: '2026-03-28T10:00:00.000Z',
+              },
+              error: null,
+            }),
+          }),
+        }),
+        delete: () => ({
+          eq: async (_column: string, value: string) => {
+            deletedId = value;
+            return { error: null };
+          },
+        }),
+      };
+    },
   });
 
-  const response = await PATCH(request, { params: Promise.resolve({ id: 'announcement-2' }) });
+  t.after(() => {
+    apiUtilsModule.requireAdminContext = originalRequireAdminContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+  });
+
+  const { DELETE } = await import('../app/api/admin/announcements/[id]/route');
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/admin/announcements/announcement-1', { method: 'DELETE' }),
+    { params: Promise.resolve({ id: 'announcement-1' }) },
+  );
+  const payload = await response.json();
 
   assert.equal(response.status, 200);
-  if (!updatedPayload) {
-    throw new Error('expected updatedPayload to be captured');
-  }
-  const republishedPayload: UpdatedAnnouncementPayload = updatedPayload;
-  assert.equal(republishedPayload.title, '重新发布公告');
-  assert.equal(republishedPayload.content, '新内容');
-  assert.equal(republishedPayload.version, 3);
-  assert.equal(typeof republishedPayload.published_at, 'string');
-  assert.notEqual(republishedPayload.published_at, '2026-03-21T10:00:00.000Z');
+  assert.equal(payload.success, true);
+  assert.equal(deletedId, 'announcement-1');
+});
+
+test('admin announcements DELETE should return 404 when announcement does not exist', async (t) => {
+  const apiUtilsModule = require('../lib/api-utils') as any;
+  const originalRequireAdminContext = apiUtilsModule.requireAdminContext;
+  const originalGetSystemAdminClient = apiUtilsModule.getSystemAdminClient;
+
+  apiUtilsModule.requireAdminContext = async () => ({
+    user: { id: 'admin-1' },
+    supabase: {},
+  });
+  apiUtilsModule.getSystemAdminClient = () => ({
+    from: (table: string) => {
+      assert.equal(table, 'announcements');
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: null,
+              error: null,
+            }),
+          }),
+        }),
+      };
+    },
+  });
+
+  t.after(() => {
+    apiUtilsModule.requireAdminContext = originalRequireAdminContext;
+    apiUtilsModule.getSystemAdminClient = originalGetSystemAdminClient;
+  });
+
+  const { DELETE } = await import('../app/api/admin/announcements/[id]/route');
+  const response = await DELETE(
+    new NextRequest('http://localhost/api/admin/announcements/missing', { method: 'DELETE' }),
+    { params: Promise.resolve({ id: 'missing' }) },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(payload.error, '公告不存在');
 });

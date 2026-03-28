@@ -27,7 +27,6 @@ import {
     markSelectedAsRead,
     type Notification,
 } from '@/lib/notification';
-import { FeatureGate } from '@/components/layout/FeatureGate';
 import {
     filterNotifications,
     groupNotificationsByDay,
@@ -70,11 +69,7 @@ function formatTime(dateStr: string): string {
 }
 
 export default function NotificationsPage() {
-    return (
-        <FeatureGate featureId="notifications">
-            <NotificationsContent />
-        </FeatureGate>
-    );
+    return <NotificationsContent />;
 }
 
 function NotificationsContent() {

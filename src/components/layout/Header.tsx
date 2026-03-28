@@ -18,12 +18,14 @@ import {
     MoreVertical,
     Moon,
     Sun,
+    Megaphone,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useTheme } from '@/components/ui/ThemeProvider';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
+import { useAnnouncementCenterSafe } from '@/components/providers/AnnouncementPopupHost';
 
 // 路由到标题的映射
 const ROUTE_LABELS: Record<string, string> = {
@@ -109,8 +111,10 @@ export function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const { user } = useSessionSafe();
+    const { openAnnouncementCenter } = useAnnouncementCenterSafe();
     const headerMenuContext = useHeaderMenuSafe();
     const customMenuItems = headerMenuContext?.menuItems || [];
+    const announcementMenuLabel = user ? '通知 / 公告' : '公告';
 
     // 获取当前页面标题
     const getPageTitle = () => {
@@ -186,6 +190,23 @@ export function Header() {
 
                     {menuOpen && (
                         <div className="absolute right-0 top-full mt-1 w-44 bg-background border border-border rounded-xl shadow-lg py-1 z-50">
+                            {!pathname?.startsWith('/admin') && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            openAnnouncementCenter({
+                                                tab: user ? 'notifications' : 'announcements',
+                                            });
+                                            setMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-background-secondary transition-colors"
+                                    >
+                                        <Megaphone className="w-4 h-4" />
+                                        {announcementMenuLabel}
+                                    </button>
+                                    <div className="my-1 border-t border-border" />
+                                </>
+                            )}
                             {/* 页面自定义菜单项 */}
                             {customMenuItems.map((item) => (
                                 <button

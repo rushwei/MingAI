@@ -73,40 +73,11 @@ CREATE TABLE public.ai_models (
 );
 CREATE TABLE public.announcements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  title text NOT NULL,
   content text NOT NULL,
-  cta_label text,
-  cta_href text,
-  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
-  priority text NOT NULL DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['normal'::text, 'critical'::text])),
-  display_order integer NOT NULL DEFAULT 0,
-  starts_at timestamp with time zone,
-  ends_at timestamp with time zone,
-  popup_enabled boolean NOT NULL DEFAULT true,
-  audience_scope text NOT NULL DEFAULT 'all_visitors'::text CHECK (audience_scope = ANY (ARRAY['all_visitors'::text, 'signed_in_only'::text])),
-  version integer NOT NULL DEFAULT 1 CHECK (version >= 1),
-  published_at timestamp with time zone,
-  created_by uuid,
-  updated_by uuid,
+  published_at timestamp with time zone NOT NULL DEFAULT now(),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT announcements_pkey PRIMARY KEY (id),
-  CONSTRAINT announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT announcements_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.announcement_user_states (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  announcement_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  version integer NOT NULL CHECK (version >= 1),
-  dismissed_until timestamp with time zone,
-  dismissed_permanently_at timestamp with time zone,
-  seen_at timestamp with time zone,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT announcement_user_states_pkey PRIMARY KEY (id),
-  CONSTRAINT announcement_user_states_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT announcement_user_states_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES public.announcements(id)
+  CONSTRAINT announcements_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.annual_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -619,7 +590,6 @@ CREATE TABLE public.user_settings (
   updated_at timestamp with time zone DEFAULT now(),
   default_bazi_chart_id uuid,
   default_ziwei_chart_id uuid,
-  sidebar_config jsonb DEFAULT '{}'::jsonb,
   custom_instructions text,
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,

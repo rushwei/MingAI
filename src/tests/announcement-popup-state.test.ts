@@ -2,107 +2,78 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildAnnouncementLocalStateKey,
-  getAnnouncementDismissState,
-  shouldApplyAnnouncementLoadResult,
-  resolveAnnouncementViewerScope,
-  shouldSuppressAnnouncement,
-  type AnnouncementDismissState,
+    getAnnouncementCenterLocalState,
+    getEndOfLocalDayIso,
+    getAnnouncementPromptIdentity,
+    shouldPromptLatestAnnouncement,
 } from '../lib/announcement';
 
-test('buildAnnouncementLocalStateKey should include announcement id and version', () => {
-  assert.equal(
-    buildAnnouncementLocalStateKey('announcement-1', 4, null),
-    'mingai:announcement:visitor:announcement-1:v4',
-  );
-});
-
-test('buildAnnouncementLocalStateKey should scope signed-in local state to the current user', () => {
-  assert.equal(
-    buildAnnouncementLocalStateKey('announcement-1', 4, 'user-1'),
-    'mingai:announcement:user-1:announcement-1:v4',
-  );
-});
-
-test('resolveAnnouncementViewerScope should wait until auth bootstrap finishes', () => {
-  assert.equal(resolveAnnouncementViewerScope('user-1', true), undefined);
-  assert.equal(resolveAnnouncementViewerScope('user-1', false), 'user-1');
-  assert.equal(resolveAnnouncementViewerScope(null, false), null);
-});
-
-test('shouldApplyAnnouncementLoadResult should reject stale or admin-route popup responses', () => {
-  assert.equal(
-    shouldApplyAnnouncementLoadResult({
-      pathname: '/admin/announcements',
-      requestId: 2,
-      currentRequestId: 2,
-      viewerScope: 'user-1',
-    }),
-    false,
-  );
-
-  assert.equal(
-    shouldApplyAnnouncementLoadResult({
-      pathname: '/chat',
-      requestId: 2,
-      currentRequestId: 3,
-      viewerScope: 'user-1',
-    }),
-    false,
-  );
-
-  assert.equal(
-    shouldApplyAnnouncementLoadResult({
-      pathname: '/chat',
-      requestId: 3,
-      currentRequestId: 3,
-      viewerScope: 'user-1',
-    }),
-    true,
-  );
-});
-
-test('shouldSuppressAnnouncement should treat permanent dismiss as highest priority', () => {
-  const state: AnnouncementDismissState = {
-    dismissedUntil: '2026-03-23T15:59:59.999Z',
-    dismissedPermanentlyAt: '2026-03-23T01:00:00.000Z',
-  };
-
-  assert.equal(
-    shouldSuppressAnnouncement(state, '2026-03-23T02:00:00.000Z'),
-    true,
-  );
-});
-
-test('shouldSuppressAnnouncement should treat future today-dismiss window as suppressed', () => {
-  assert.equal(
-    shouldSuppressAnnouncement(
-      { dismissedUntil: '2026-03-23T15:59:59.999Z' },
-      '2026-03-23T10:00:00.000Z',
-    ),
-    true,
-  );
-
-  assert.equal(
-    shouldSuppressAnnouncement(
-      { dismissedUntil: '2026-03-23T15:59:59.999Z' },
-      '2026-03-23T16:00:00.000Z',
-    ),
-    false,
-  );
-});
-
-test('getAnnouncementDismissState should normalize unknown local payloads', () => {
-  assert.deepEqual(getAnnouncementDismissState(null), {});
-  assert.deepEqual(getAnnouncementDismissState({ dismissedUntil: 123 }), {});
+test('getAnnouncementCenterLocalState should normalize unknown local payloads', () => {
+  assert.deepEqual(getAnnouncementCenterLocalState(null), {});
+  assert.deepEqual(getAnnouncementCenterLocalState({ latestPublishedAt: 123 }), {});
   assert.deepEqual(
-    getAnnouncementDismissState({
-      dismissedUntil: '2026-03-23T15:59:59.999Z',
-      dismissedPermanentlyAt: '2026-03-23T01:00:00.000Z',
+    getAnnouncementCenterLocalState({
+      latestPublishedAt: '2026-03-28T10:00:00.000Z',
+      dismissedUntil: '2026-03-28T15:59:59.999Z',
     }),
     {
-      dismissedUntil: '2026-03-23T15:59:59.999Z',
-      dismissedPermanentlyAt: '2026-03-23T01:00:00.000Z',
+      latestPublishedAt: '2026-03-28T10:00:00.000Z',
+      dismissedUntil: '2026-03-28T15:59:59.999Z',
     },
+  );
+});
+
+test('shouldPromptLatestAnnouncement should prompt when latest announcement changes', () => {
+    assert.equal(
+        shouldPromptLatestAnnouncement({
+            announcementKey: 'announcement-1:2026-03-28T10:00:00.000Z',
+            state: {
+                latestAnnouncementKey: 'announcement-1:2026-03-27T10:00:00.000Z',
+                dismissedUntil: '2026-03-28T15:59:59.999Z',
+            },
+        }),
+    true,
+  );
+});
+
+test('shouldPromptLatestAnnouncement should suppress prompting for the same latest announcement until dismissed window ends', () => {
+    assert.equal(
+        shouldPromptLatestAnnouncement({
+            announcementKey: 'announcement-1:2026-03-28T10:00:00.000Z',
+            state: {
+                latestAnnouncementKey: 'announcement-1:2026-03-28T10:00:00.000Z',
+                dismissedUntil: '2026-03-28T15:59:59.999Z',
+            },
+            nowIso: '2026-03-28T12:00:00.000Z',
+    }),
+    false,
+  );
+
+  assert.equal(
+    shouldPromptLatestAnnouncement({
+      announcementKey: 'announcement-1:2026-03-28T10:00:00.000Z',
+      state: {
+        latestAnnouncementKey: 'announcement-1:2026-03-28T10:00:00.000Z',
+        dismissedUntil: '2026-03-28T15:59:59.999Z',
+      },
+      nowIso: '2026-03-28T16:00:00.000Z',
+    }),
+    true,
+  );
+});
+
+test('getEndOfLocalDayIso should return the end of the local day', () => {
+  const result = getEndOfLocalDayIso(new Date('2026-03-28T08:12:34.000+08:00'));
+  assert.equal(result, '2026-03-28T15:59:59.999Z');
+});
+
+test('getAnnouncementPromptIdentity should change when latest announcement content revision updates updatedAt', () => {
+  assert.equal(
+    getAnnouncementPromptIdentity({
+      id: 'announcement-1',
+      publishedAt: '2026-03-28T10:00:00.000Z',
+      updatedAt: '2026-03-28T12:00:00.000Z',
+    }),
+    'announcement-1:2026-03-28T12:00:00.000Z',
   );
 });

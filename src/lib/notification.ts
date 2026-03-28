@@ -30,6 +30,16 @@ export interface Notification {
     created_at: string;
 }
 
+export interface NotificationPagination {
+    hasMore: boolean;
+    nextOffset: number | null;
+}
+
+export interface NotificationPageResult {
+    notifications: Notification[];
+    pagination: NotificationPagination;
+}
+
 /**
  * 获取未读通知数量
  */
@@ -70,18 +80,46 @@ export async function getNotifications(
     userId: string,
     limit: number = 20
 ): Promise<Notification[]> {
-    void userId;
+    const page = await getNotificationsPage(userId, { limit });
+    return page.notifications;
+}
 
-    const result = await requestBrowserJson<{ notifications?: Notification[] }>(`/api/notifications?limit=${limit}`, {
+export async function getNotificationsPage(
+    userId: string,
+    options: {
+        limit?: number;
+        offset?: number;
+    } = {},
+): Promise<NotificationPageResult> {
+    void userId;
+    const limit = options.limit ?? 20;
+    const offset = options.offset ?? 0;
+
+    const result = await requestBrowserJson<{
+        notifications?: Notification[];
+        pagination?: NotificationPagination;
+    }>(`/api/notifications?limit=${limit}&offset=${offset}`, {
         method: 'GET',
     });
 
     if (result.error) {
         console.error('获取通知列表失败:', result.error.message);
-        return [];
+        return {
+            notifications: [],
+            pagination: {
+                hasMore: false,
+                nextOffset: null,
+            },
+        };
     }
 
-    return result.data?.notifications ?? [];
+    return {
+        notifications: result.data?.notifications ?? [],
+        pagination: result.data?.pagination ?? {
+            hasMore: false,
+            nextOffset: null,
+        },
+    };
 }
 
 /**

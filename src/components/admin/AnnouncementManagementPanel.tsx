@@ -1,114 +1,40 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { Plus, RefreshCw, Save, Megaphone, ChevronRight, X, Star, LayoutGrid, Tag } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Megaphone, PencilLine, Plus, RefreshCw, Save, Trash2, GripVertical } from 'lucide-react';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
-import {
-    resolveAnnouncementEditorStateAfterLoad,
-    type AnnouncementEditorState,
-} from '@/lib/announcement-admin-view';
-import type {
-    Announcement,
-    AnnouncementAudienceScope,
-    AnnouncementPriority,
-    AnnouncementStatus,
-} from '@/lib/announcement';
+import type { Announcement } from '@/lib/announcement';
+
+type EditorMode = 'create' | 'edit';
 
 type AnnouncementFormState = {
     id: string | null;
-    title: string;
     content: string;
-    ctaLabel: string;
-    ctaHref: string;
-    status: AnnouncementStatus;
-    priority: AnnouncementPriority;
-    displayOrder: number;
-    startsAt: string;
-    endsAt: string;
-    popupEnabled: boolean;
-    audienceScope: AnnouncementAudienceScope;
-    version: number;
     publishedAt: string | null;
-    updatedAt: string | null;
 };
-
-const STATUS_OPTIONS: Array<{ value: AnnouncementStatus; label: string }> = [
-    { value: 'draft', label: '草稿' },
-    { value: 'published', label: '已发布' },
-    { value: 'archived', label: '已归档' },
-];
-
-const PRIORITY_OPTIONS: Array<{ value: AnnouncementPriority; label: string }> = [
-    { value: 'normal', label: '普通公告' },
-    { value: 'critical', label: '重要紧急' },
-];
-
-const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudienceScope; label: string }> = [
-    { value: 'all_visitors', label: '全站访客' },
-    { value: 'signed_in_only', label: '仅登录用户' },
-];
-
-function toDatetimeLocalValue(value: string | null) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const pad = (part: number) => String(part).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 function emptyFormState(): AnnouncementFormState {
     return {
         id: null,
-        title: '',
         content: '',
-        ctaLabel: '',
-        ctaHref: '',
-        status: 'draft',
-        priority: 'normal',
-        displayOrder: 0,
-        startsAt: '',
-        endsAt: '',
-        popupEnabled: true,
-        audienceScope: 'all_visitors',
-        version: 1,
         publishedAt: null,
-        updatedAt: null,
     };
 }
 
 function announcementToFormState(announcement: Announcement): AnnouncementFormState {
     return {
         id: announcement.id,
-        title: announcement.title,
         content: announcement.content,
-        ctaLabel: announcement.ctaLabel || '',
-        ctaHref: announcement.ctaHref || '',
-        status: announcement.status,
-        priority: announcement.priority,
-        displayOrder: announcement.displayOrder,
-        startsAt: toDatetimeLocalValue(announcement.startsAt),
-        endsAt: toDatetimeLocalValue(announcement.endsAt),
-        popupEnabled: announcement.popupEnabled,
-        audienceScope: announcement.audienceScope,
-        version: announcement.version,
         publishedAt: announcement.publishedAt,
-        updatedAt: announcement.updatedAt,
     };
 }
 
-function statusTone(status: AnnouncementStatus) {
-    if (status === 'published') return 'bg-blue-50 text-[#2eaadc] border-blue-100';
-    if (status === 'archived') return 'bg-background-secondary text-foreground/40 border-border';
-    return 'bg-[#dfab01]/5 text-[#dfab01] border-[#dfab01]/10';
-}
-
-function formatTime(value: string | null) {
+function formatPublishedAt(value: string | null) {
     if (!value) return '未发布';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '时间无效';
-    return date.toLocaleString('zh-CN', {
+    return new Date(value).toLocaleString('zh-CN', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -116,37 +42,41 @@ function formatTime(value: string | null) {
     });
 }
 
+function getPreviewText(content: string) {
+    const normalized = content.replace(/\s+/g, ' ').trim();
+    if (!normalized) return '暂无内容';
+    return normalized.length > 72 ? `${normalized.slice(0, 72)}...` : normalized;
+}
+
 export function AnnouncementManagementPanel() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [editorState, setEditorState] = useState<AnnouncementEditorState>({
-        mode: 'create',
-        selectedId: null,
-    });
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [mode, setMode] = useState<EditorMode>('create');
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [form, setForm] = useState<AnnouncementFormState>(emptyFormState());
     const [error, setError] = useState<string | null>(null);
     const { showToast } = useToast();
-    const editorStateRef = useRef(editorState);
+    const selectedIdRef = useRef<string | null>(selectedId);
 
     useEffect(() => {
-        editorStateRef.current = editorState;
-    }, [editorState]);
+        selectedIdRef.current = selectedId;
+    }, [selectedId]);
 
     const getToken = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
         return session?.access_token || null;
     }, []);
 
-    const loadAnnouncements = useCallback(async (preferredState?: AnnouncementEditorState) => {
+    const loadAnnouncements = useCallback(async (preferredSelectedId?: string | null) => {
         setLoading(true);
         setError(null);
 
         try {
             const token = await getToken();
             if (!token) {
-                setError('未登录');
-                return;
+                throw new Error('未登录');
             }
 
             const response = await fetch('/api/admin/announcements', {
@@ -159,22 +89,31 @@ export function AnnouncementManagementPanel() {
 
             const nextAnnouncements = (payload.announcements || []) as Announcement[];
             setAnnouncements(nextAnnouncements);
-            const nextEditorState = resolveAnnouncementEditorStateAfterLoad(
-                editorStateRef.current,
-                nextAnnouncements,
-                preferredState,
-            );
-            setEditorState(nextEditorState);
-            if (nextEditorState.mode === 'create') {
-                setForm(emptyFormState());
-            } else if (nextEditorState.selectedId) {
-                const selected = nextAnnouncements.find((item) => item.id === nextEditorState.selectedId);
-                if (selected) {
-                    setForm(announcementToFormState(selected));
-                }
+
+            const nextSelectedId = preferredSelectedId ?? selectedIdRef.current;
+            if (!nextSelectedId) {
+                return;
             }
-        } catch (e) {
-            setError(e instanceof Error ? e.message : '获取公告列表失败');
+
+            const selected = nextAnnouncements.find((item) => item.id === nextSelectedId);
+            if (!selected) {
+                setMode('create');
+                setSelectedId(null);
+                setForm(emptyFormState());
+                return;
+            }
+
+            setMode('edit');
+            setSelectedId(selected.id);
+
+            // Only hydrate the editor when the caller explicitly asks to sync it
+            // (initial save/select/delete flows). Background refreshes should not
+            // overwrite the admin's in-progress edits.
+            if (preferredSelectedId !== undefined) {
+                setForm(announcementToFormState(selected));
+            }
+        } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : '获取公告列表失败');
         } finally {
             setLoading(false);
         }
@@ -185,47 +124,34 @@ export function AnnouncementManagementPanel() {
     }, [loadAnnouncements]);
 
     const selectedAnnouncement = useMemo(
-        () => announcements.find((item) => item.id === editorState.selectedId) || null,
-        [announcements, editorState.selectedId],
+        () => announcements.find((item) => item.id === selectedId) || null,
+        [announcements, selectedId],
     );
 
     const startCreateAnnouncement = () => {
-        setEditorState({
-            mode: 'create',
-            selectedId: null,
-        });
+        setMode('create');
+        setSelectedId(null);
         setForm(emptyFormState());
     };
 
     const selectAnnouncement = (announcement: Announcement) => {
-        setEditorState({
-            mode: 'edit',
-            selectedId: announcement.id,
-        });
+        setMode('edit');
+        setSelectedId(announcement.id);
         setForm(announcementToFormState(announcement));
     };
 
     const saveAnnouncement = async () => {
+        if (!form.content.trim()) {
+            showToast('error', '公告内容不能为空');
+            return;
+        }
+
         setSaving(true);
         try {
             const token = await getToken();
             if (!token) {
                 throw new Error('未登录');
             }
-
-            const payload = {
-                title: form.title,
-                content: form.content,
-                ctaLabel: form.ctaLabel.trim() || null,
-                ctaHref: form.ctaHref.trim() || null,
-                status: form.status,
-                priority: form.priority,
-                displayOrder: form.displayOrder,
-                startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
-                endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
-                popupEnabled: form.popupEnabled,
-                audienceScope: form.audienceScope,
-            };
 
             const response = await fetch(
                 form.id ? `/api/admin/announcements/${form.id}` : '/api/admin/announcements',
@@ -235,346 +161,231 @@ export function AnnouncementManagementPanel() {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({
+                        content: form.content,
+                    }),
                 },
             );
-            const data = await response.json().catch(() => ({}));
+            const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(typeof data.error === 'string' ? data.error : '保存公告失败');
+                throw new Error(typeof payload.error === 'string' ? payload.error : '保存公告失败');
             }
 
-            const saved = data.announcement as Announcement;
-            const preferredState: AnnouncementEditorState = {
-                mode: 'edit',
-                selectedId: saved.id,
-            };
-            setEditorState(preferredState);
+            const saved = payload.announcement as Announcement;
+            setMode('edit');
+            setSelectedId(saved.id);
             setForm(announcementToFormState(saved));
-            showToast('success', form.id ? '公告已更新' : '公告已创建');
-            await loadAnnouncements(preferredState);
-        } catch (e) {
-            showToast('error', e instanceof Error ? e.message : '保存公告失败');
+            showToast('success', form.id ? '公告已更新' : '公告已发布');
+            await loadAnnouncements(saved.id);
+        } catch (saveError) {
+            showToast('error', saveError instanceof Error ? saveError.message : '保存公告失败');
         } finally {
             setSaving(false);
         }
     };
 
-    if (loading) {
-        return <SoundWaveLoader variant="block" text="加载公告中" />;
-    }
+    const deleteAnnouncement = async (announcement: Announcement) => {
+        setDeletingId(announcement.id);
+        try {
+            const token = await getToken();
+            if (!token) {
+                throw new Error('未登录');
+            }
 
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 bg-background text-center">
-                <p className="text-red-500 mb-6 text-sm font-medium">{error}</p>
-                <button
-                    onClick={() => { void loadAnnouncements(); }}
-                    className="px-4 py-2 rounded-md bg-[#2383e2] text-white text-sm font-bold hover:bg-[#2383e2]/90 transition-all"
-                >
-                    重试
-                </button>
-            </div>
-        );
-    }
+            const response = await fetch(`/api/admin/announcements/${announcement.id}`, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(typeof payload.error === 'string' ? payload.error : '删除公告失败');
+            }
+
+            if (selectedId === announcement.id) {
+                startCreateAnnouncement();
+            }
+            showToast('success', '公告已删除');
+            await loadAnnouncements(selectedId === announcement.id ? null : selectedId);
+        } catch (deleteError) {
+            showToast('error', deleteError instanceof Error ? deleteError.message : '删除公告失败');
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     return (
-        <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-8">
-            {/* 左侧列表 */}
-            <div className="space-y-6">
-                <div className="bg-background border border-border rounded-md p-4">
-                    <div className="flex items-center justify-between gap-3 mb-1">
-                        <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">公告列表</h2>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => { void loadAnnouncements(); }}
-                                className="p-1.5 rounded-md hover:bg-background-secondary text-foreground/40 transition-colors"
-                                title="刷新"
-                            >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                                onClick={startCreateAnnouncement}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-[#2383e2] text-white text-xs font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                新建
-                            </button>
-                        </div>
+        <div className="flex flex-col lg:flex-row h-full border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+            {/* 左侧公告列表 */}
+            <aside className="w-full lg:w-[320px] flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-200 bg-[#fbfaf7]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-[#fbfaf7]">
+                    <div className="flex items-center gap-2">
+                        <Megaphone className="w-4 h-4 text-[#37352f]/60" />
+                        <h2 className="text-sm font-semibold text-[#37352f]">公告历史</h2>
                     </div>
-                    <p className="text-[11px] text-foreground/30">管理站点轮播公告与紧急通知</p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => void loadAnnouncements()}
+                            className="p-1.5 rounded-md text-[#37352f]/45 hover:text-[#37352f] hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150"
+                            aria-label="刷新公告列表"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={startCreateAnnouncement}
+                            className="p-1.5 rounded-md text-[#37352f]/45 hover:text-[#37352f] hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150"
+                            aria-label="新公告"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
-                <div className="space-y-2 max-h-[72vh] overflow-y-auto pr-1 no-scrollbar">
-                    {announcements.length === 0 ? (
-                        <div className="rounded-md border border-dashed border-border p-8 text-[11px] text-foreground/30 text-center uppercase tracking-widest">
-                            No announcements
+                <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                    {loading ? (
+                        <div className="flex min-h-[220px] items-center justify-center">
+                            <SoundWaveLoader variant="inline" />
                         </div>
-                    ) : announcements.map((announcement) => (
-                        <button
-                            key={announcement.id}
-                            onClick={() => selectAnnouncement(announcement)}
-                            className={`w-full text-left rounded-md border p-4 transition-all duration-150 ${
-                                editorState.selectedId === announcement.id && editorState.mode === 'edit'
-                                    ? 'border-[#2eaadc] bg-blue-50/20 shadow-sm'
-                                    : 'border-border bg-background hover:bg-background-secondary hover:border-border'
-                            }`}
-                        >
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold uppercase tracking-tighter ${statusTone(announcement.status)}`}>
-                                        {STATUS_OPTIONS.find((item) => item.value === announcement.status)?.label}
-                                    </span>
-                                    {announcement.priority === 'critical' && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-[#eb5757] border border-red-100 font-bold uppercase tracking-tighter">
-                                            Critical
-                                        </span>
-                                    )}
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-background border border-border/60 text-foreground/30 font-mono">
-                                        v{announcement.version}
-                                    </span>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-sm font-bold text-foreground/80 truncate">{announcement.title}</div>
-                                    <div className="text-xs text-foreground/40 line-clamp-2 leading-relaxed">
-                                        {announcement.content}
+                    ) : error ? (
+                        <div className="px-4 py-8 text-center">
+                            <p className="text-sm text-[#37352f]/45">{error}</p>
+                        </div>
+                    ) : announcements.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                            <p className="text-sm text-[#37352f]/45">还没有任何公告</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {announcements.map((announcement) => {
+                                const isSelected = announcement.id === selectedId;
+                                return (
+                                    <div
+                                        key={announcement.id}
+                                        className={`group relative flex items-start gap-1 rounded-md px-2 py-2 transition-colors duration-150 ${
+                                            isSelected
+                                                ? 'bg-[#efedea]'
+                                                : 'bg-transparent hover:bg-[#efedea]'
+                                        }`}
+                                    >
+                                        {/* Drag Handle Illusion */}
+                                        <div className="pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer text-[#37352f]/30">
+                                            <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <button
+                                                onClick={() => selectAnnouncement(announcement)}
+                                                className="w-full text-left block"
+                                            >
+                                                <div className="text-[11px] font-medium text-[#37352f]/40 font-mono tracking-tight">
+                                                    {formatPublishedAt(announcement.publishedAt)}
+                                                </div>
+                                                <div className="mt-1 text-sm leading-relaxed text-[#37352f]/80 line-clamp-2">
+                                                    {getPreviewText(announcement.content)}
+                                                </div>
+                                            </button>
+                                            
+                                            {/* 操作按钮 - 仅hover时或选中时显示 */}
+                                            <div className="mt-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                                                <button
+                                                    onClick={() => selectAnnouncement(announcement)}
+                                                    className="p-1 rounded text-[#37352f]/45 hover:text-[#2eaadc] hover:bg-[#e3e1db] transition-colors"
+                                                    title="编辑"
+                                                >
+                                                    <PencilLine className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => void deleteAnnouncement(announcement)}
+                                                    disabled={deletingId === announcement.id}
+                                                    className="p-1 rounded text-[#37352f]/45 hover:text-[#eb5757] hover:bg-[#e3e1db] transition-colors disabled:opacity-50"
+                                                    title="删除"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="text-[10px] font-mono text-foreground/20 uppercase">
-                                    {formatTime(announcement.publishedAt || announcement.createdAt)}
-                                </div>
-                            </div>
-                        </button>
-                    ))}
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-            </div>
+            </aside>
 
             {/* 右侧编辑区 */}
-            <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_380px] gap-8">
-                <div className="bg-background border border-border rounded-md overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-border/60 bg-background/50 flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">
-                                {selectedAnnouncement ? 'Edit Announcement' : 'Create New'}
-                            </h2>
-                            <p className="text-[11px] text-foreground/30 italic">
-                                {selectedAnnouncement ? '编辑后版本号将自动递增' : '填写下方表单发布新公告'}
-                            </p>
-                        </div>
-                        <button
-                            onClick={saveAnnouncement}
-                            disabled={saving}
-                            className="flex items-center gap-2 px-4 py-1.5 bg-[#2383e2] text-white text-xs font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors disabled:opacity-50"
-                        >
-                            {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-3.5 h-3.5" />}
-                            保存并发布
-                        </button>
+            <main className="flex-1 flex flex-col bg-white min-w-0">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 className="text-lg font-semibold text-[#37352f]">
+                            {mode === 'create' ? '新建公告' : '编辑公告'}
+                        </h2>
+                    </div>
+                    <button
+                        onClick={() => void saveAnnouncement()}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#2383e2] text-white text-sm font-medium hover:bg-[#1d74c9] active:bg-[#1a64b0] transition-colors duration-150 disabled:opacity-50"
+                    >
+                        <Save className="w-4 h-4" />
+                        {saving ? '保存中...' : mode === 'create' ? '发布公告' : '保存修改'}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                    <div className="flex items-center gap-4 text-sm border-b border-gray-100 pb-4">
+                        <span className="text-[#37352f]/45 w-20 flex-shrink-0">发布状态</span>
+                        <span className="text-[#37352f] flex-1">
+                            {selectedAnnouncement 
+                                ? `已发布于 ${formatPublishedAt(selectedAnnouncement.publishedAt)}`
+                                : '未发布（保存即时生效）'
+                            }
+                        </span>
                     </div>
 
-                    <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
-                        <div className="grid md:grid-cols-[1fr_120px] gap-6">
-                            <Field label="公告标题" icon={TypeIcon}>
-                                <input
-                                    type="text"
-                                    value={form.title}
-                                    onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:border-[#2eaadc] outline-none transition-colors"
-                                    placeholder="例如：系统维护公告"
-                                />
-                            </Field>
-                            <Field label="顺序" icon={LayoutGrid}>
-                                <input
-                                    type="number"
-                                    value={form.displayOrder}
-                                    onChange={(e) => setForm((current) => ({ ...current, displayOrder: Number(e.target.value) || 0 }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:border-[#2eaadc] outline-none transition-colors"
-                                />
-                            </Field>
-                        </div>
-
-                        <Field label="内容正文" icon={Megaphone}>
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-6 pb-6">
+                        <section className="flex flex-col space-y-3 min-w-0">
+                            <div className="space-y-1">
+                                <label className="block text-sm text-[#37352f]/45">公告内容</label>
+                                <p className="text-xs text-[#37352f]/35">
+                                    支持 Markdown，建议用标题、列表、加粗、链接等基础语法。
+                                </p>
+                            </div>
                             <textarea
                                 value={form.content}
-                                onChange={(e) => setForm((current) => ({ ...current, content: e.target.value }))}
-                                className="w-full min-h-[200px] px-3 py-3 rounded-md border border-border bg-background text-sm leading-7 text-foreground focus:border-[#2eaadc] outline-none transition-colors resize-none placeholder:text-foreground/10"
-                                placeholder="公告正文内容，支持换行..."
+                                onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))}
+                                className="w-full min-h-[220px] max-h-[320px] rounded-md border border-gray-200 bg-transparent px-4 py-3 text-sm leading-relaxed text-[#37352f] outline-none focus:border-gray-300 focus:ring-2 focus:ring-blue-500/20 transition-all duration-150 resize-y"
+                                placeholder="输入公告内容，支持多段文本..."
                             />
-                        </Field>
+                        </section>
 
-                        <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-gray-50">
-                            <Field label="按钮文案" icon={Tag}>
-                                <input
-                                    type="text"
-                                    value={form.ctaLabel}
-                                    onChange={(e) => setForm((current) => ({ ...current, ctaLabel: e.target.value }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:border-[#2eaadc] outline-none transition-colors"
-                                    placeholder="例如：查看详情"
-                                />
-                            </Field>
-                            <Field label="按钮链接" icon={ChevronRight}>
-                                <input
-                                    type="text"
-                                    value={form.ctaHref}
-                                    onChange={(e) => setForm((current) => ({ ...current, ctaHref: e.target.value }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:border-[#2eaadc] outline-none transition-colors font-mono"
-                                    placeholder="/path 或 https://..."
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="grid md:grid-cols-3 gap-4 pt-4 border-t border-gray-50">
-                            <Field label="状态" icon={RefreshCw}>
-                                <select
-                                    value={form.status}
-                                    onChange={(e) => setForm((current) => ({ ...current, status: e.target.value as AnnouncementStatus }))}
-                                    className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-sm text-foreground outline-none cursor-pointer hover:bg-background-secondary transition-colors"
-                                >
-                                    {STATUS_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                            </Field>
-                            <Field label="优先级" icon={Star}>
-                                <select
-                                    value={form.priority}
-                                    onChange={(e) => setForm((current) => ({ ...current, priority: e.target.value as AnnouncementPriority }))}
-                                    className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-sm text-foreground outline-none cursor-pointer hover:bg-background-secondary transition-colors"
-                                >
-                                    {PRIORITY_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                            </Field>
-                            <Field label="范围" icon={LayoutGrid}>
-                                <select
-                                    value={form.audienceScope}
-                                    onChange={(e) => setForm((current) => ({ ...current, audienceScope: e.target.value as AnnouncementAudienceScope }))}
-                                    className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-sm text-foreground outline-none cursor-pointer hover:bg-background-secondary transition-colors"
-                                >
-                                    {AUDIENCE_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                            </Field>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-gray-50">
-                            <Field label="生效时间" icon={Plus}>
-                                <input
-                                    type="datetime-local"
-                                    value={form.startsAt}
-                                    onChange={(e) => setForm((current) => ({ ...current, startsAt: e.target.value }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none"
-                                />
-                            </Field>
-                            <Field label="失效时间" icon={X}>
-                                <input
-                                    type="datetime-local"
-                                    value={form.endsAt}
-                                    onChange={(e) => setForm((current) => ({ ...current, endsAt: e.target.value }))}
-                                    className="w-full px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none"
-                                />
-                            </Field>
-                        </div>
-
-                        <label className="flex items-center justify-between p-4 rounded-md border border-border/60 bg-background/50 cursor-pointer hover:bg-background-secondary/50 transition-colors">
-                            <div className="space-y-0.5">
-                                <div className="text-xs font-bold text-foreground/70 uppercase">Enable Popup</div>
-                                <div className="text-[11px] text-foreground/30">开启后将进入全站弹窗轮播列表</div>
-                            </div>
-                            <input
-                                type="checkbox"
-                                checked={form.popupEnabled}
-                                onChange={(e) => setForm((current) => ({ ...current, popupEnabled: e.target.checked }))}
-                                className="w-4 h-4 rounded border-border text-[#2eaadc] focus:ring-[#2eaadc]/30"
-                            />
-                        </label>
-                    </div>
-                </div>
-
-                {/* 预览区 */}
-                <div className="space-y-6">
-                    <div className="bg-background border border-border rounded-md overflow-hidden">
-                        <div className="px-5 py-4 border-b border-border/60 bg-background/50">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/60">Live Preview</h3>
-                            <p className="text-[11px] text-foreground/30 mt-1">
-                                这是用户在进入网站时看到的真实样式。
-                            </p>
-                        </div>
-                        <div className="p-10 bg-background-secondary/20 flex items-center justify-center">
-                            <div className="w-full max-w-sm bg-background border border-border rounded-lg shadow-xl overflow-hidden pointer-events-none">
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-background/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1.5 rounded bg-blue-50 text-[#2eaadc]">
-                                            <Megaphone className="w-3.5 h-3.5" />
-                                        </div>
-                                        <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">Announcement</span>
-                                    </div>
-                                    <X className="w-3.5 h-3.5 text-foreground/20" />
-                                </div>
-                                <div className="p-6 space-y-3">
-                                    <h4 className="text-base font-bold text-foreground leading-tight">
-                                        {form.title || '这里展示公告标题'}
-                                    </h4>
-                                    <p className="text-xs text-foreground/50 leading-relaxed line-clamp-4 whitespace-pre-wrap">
-                                        {form.content || '这里展示公告内容，支持较长正文，用于维护通知、活动公告或重要更新提醒。'}
+                        <section className="min-w-0 flex flex-col">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <div>
+                                    <h3 className="text-sm font-medium text-[#37352f]">Markdown 预览</h3>
+                                    <p className="text-xs text-[#37352f]/35 mt-1">
+                                        发布前预览实际展示效果。
                                     </p>
                                 </div>
-                                <div className="px-6 py-3 border-t border-border/60 bg-background/30 flex items-center justify-between">
-                                    <div className="text-[10px] font-mono text-foreground/20 uppercase">v{form.version}</div>
-                                    <button className="px-3 py-1 bg-[#2383e2] text-white text-[10px] font-bold rounded transition-colors">
-                                        {form.ctaLabel || '了解详情'}
-                                    </button>
+                                <div className="text-[11px] font-medium text-[#37352f]/35 whitespace-nowrap">
+                                    实时更新
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div className="bg-background border border-border rounded-md p-4 space-y-3">
-                        <div className="flex justify-between items-center text-[11px]">
-                            <span className="font-bold text-foreground/30 uppercase tracking-widest">Database ID</span>
-                            <span className="font-mono text-foreground/60">{selectedAnnouncement ? selectedAnnouncement.id : 'NEW_RECORD'}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                            <span className="font-bold text-foreground/30 uppercase tracking-widest">Published At</span>
-                            <span className="text-foreground/60">{formatTime(form.publishedAt)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                            <span className="font-bold text-foreground/30 uppercase tracking-widest">Version Control</span>
-                            <span className="px-1.5 py-0.5 rounded bg-background-secondary font-mono text-foreground/60">REV_{form.version}</span>
-                        </div>
+                            <div className="min-h-[220px] max-h-[420px] overflow-y-auto rounded-md border border-gray-200 bg-[#fbfaf7] px-4 py-4 custom-scrollbar">
+                                {form.content.trim() ? (
+                                    <MarkdownContent
+                                        content={form.content}
+                                        className="text-sm leading-relaxed text-[#37352f]/85"
+                                    />
+                                ) : (
+                                    <div className="h-full min-h-[180px] flex items-center justify-center text-sm text-[#37352f]/35">
+                                        输入公告内容后，这里会显示 Markdown 预览
+                                    </div>
+                                )}
+                            </div>
+                        </section>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
-    );
-}
-
-function Field({
-    label,
-    icon: Icon,
-    children,
-}: {
-    label: string;
-    icon?: ComponentType<{ className?: string }>;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block space-y-2">
-            <div className="flex items-center gap-2 px-1 text-[11px] font-bold text-foreground/30 uppercase tracking-widest">
-                {Icon && <Icon className="w-3.5 h-3.5" />}
-                {label}
-            </div>
-            {children}
-        </label>
-    );
-}
-
-function TypeIcon({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <polyline points="4 7 4 4 20 4 20 7" />
-            <line x1="9" y1="20" x2="15" y2="20" />
-            <line x1="12" y1="4" x2="12" y2="20" />
-        </svg>
     );
 }

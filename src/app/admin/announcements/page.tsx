@@ -39,9 +39,9 @@ export default function AdminAnnouncementsPage() {
 
     if (!state.isAuthed) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-10">
-                <h1 className="text-xl font-semibold mb-3">请先登录</h1>
-                <p className="text-sm text-foreground-secondary">
+            <div className="max-w-2xl mx-auto px-6 py-12">
+                <h1 className="text-2xl font-semibold text-[#37352f] mb-4">请先登录</h1>
+                <p className="text-sm text-[#37352f]/60">
                     登录后系统会自动识别管理员账号。
                 </p>
             </div>
@@ -50,9 +50,9 @@ export default function AdminAnnouncementsPage() {
 
     if (!state.isAdmin) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-10">
-                <h1 className="text-xl font-semibold mb-3">无权限访问</h1>
-                <p className="text-sm text-foreground-secondary">
+            <div className="max-w-2xl mx-auto px-6 py-12">
+                <h1 className="text-2xl font-semibold text-[#37352f] mb-4">无权限访问</h1>
+                <p className="text-sm text-[#37352f]/60">
                     当前账号不在管理员名单中。
                 </p>
             </div>
@@ -60,24 +60,25 @@ export default function AdminAnnouncementsPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
-            <div className="flex items-center gap-3 mb-6">
+        <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8 h-[calc(100vh-60px)] flex flex-col">
+            <div className="flex items-center gap-4 mb-6 flex-shrink-0">
                 <button
                     onClick={() => router.push('/user')}
-                    className="p-2 rounded-lg hover:bg-background-secondary transition-colors"
+                    className="p-1.5 rounded-md text-[#37352f]/60 hover:text-[#37352f] hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150"
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div>
-                    <h1 className="text-xl font-bold">公告管理</h1>
-                    <p className="text-sm text-foreground-secondary mt-1">
-                        公告独立于通知中心，支持编辑历史公告、版本递增和进站弹窗投放。
+                    <h1 className="text-xl font-bold text-[#37352f]">公告管理</h1>
+                    <p className="text-sm text-[#37352f]/60 mt-0.5">
+                        管理系统公告；发布即生效，历史公告可随时编辑或删除。
                     </p>
                 </div>
             </div>
 
-            <AnnouncementManagementPanel />
+            <div className="flex-1 min-h-0 pb-6">
+                <AnnouncementManagementPanel />
+            </div>
         </div>
     );
 }
-

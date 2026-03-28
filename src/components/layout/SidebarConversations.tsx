@@ -25,11 +25,7 @@ import { SOURCE_TYPE_CONFIG, SOURCE_TYPE_ORDER } from '@/lib/chat/conversation-g
 
 const EMPTY_GENERATING_TITLE_IDS: ReadonlySet<string> = new Set<string>();
 
-interface SidebarConversationsProps {
-    collapsed: boolean;
-}
-
-export function SidebarConversations({ collapsed }: SidebarConversationsProps) {
+export function SidebarConversations() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -204,8 +200,6 @@ export function SidebarConversations({ collapsed }: SidebarConversationsProps) {
         return () => observer.disconnect();
     }, [hasLoadedConversations, hasMoreConversations, loadMoreConversations, loadingMoreConversations]);
 
-    if (collapsed) return null;
-
     return (
         <>
             {/* 对话区域 — 紧凑内嵌在 Chat 项下方 */}
@@ -299,7 +293,7 @@ export function SidebarConversations({ collapsed }: SidebarConversationsProps) {
                                         activeId={activeId}
                                         actionConvId={actionConv?.id}
                                         generatingTitleConversationIds={titleGeneratingConversationIds ?? EMPTY_GENERATING_TITLE_IDS}
-                                        isSidebarCollapsed={collapsed}
+                                        isSidebarCollapsed={false}
                                         onSelect={handleSelect}
                                         onOpenAction={openActionSheet}
                                         editingId={editingId}

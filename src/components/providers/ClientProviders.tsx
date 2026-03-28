@@ -90,8 +90,9 @@ export function ClientProviders({ children }: ClientProvidersProps) {
             <AuthCallbackFeedback />
             <ChatTaskToastBridge />
             <SessionContext.Provider value={state}>
-                <AnnouncementPopupHost userId={state.user?.id ?? null} authLoading={state.loading} />
-                {children}
+                <AnnouncementPopupHost userId={state.user?.id ?? null} authLoading={state.loading}>
+                    {children}
+                </AnnouncementPopupHost>
             </SessionContext.Provider>
         </ToastProvider>
     );

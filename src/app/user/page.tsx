@@ -14,7 +14,6 @@ import {
     ChevronRight,
     LogOut,
     LogIn,
-    Bell,
     Megaphone,
     Wallet,
     HelpCircle,
@@ -35,7 +34,6 @@ import { supabase } from '@/lib/auth';
 import { signOut, getUserProfile, ensureUserRecord } from '@/lib/auth';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
 import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { getUserEmailDisplay } from '@/lib/user-email';
@@ -48,7 +46,6 @@ const menuItems = [
         items: [
             { icon: CircleStar, label: '订阅', href: '/user/upgrade', featureId: 'upgrade' },
             { icon: Scroll, label: '我的命盘', href: '/user/charts', featureId: 'charts' },
-            { icon: Bell, label: '消息', href: '/user/notifications', showBadge: true, featureId: 'notifications' },
             { icon: CreditCard, label: '订单', href: '/user/orders', featureId: 'orders' },
         ],
     },
@@ -214,12 +211,7 @@ export default function UserPage() {
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
     const checkinFeatureEnabled = !featureToggleLoading && isFeatureEnabled('checkin');
-    const notificationsFeatureEnabled = !featureToggleLoading && isFeatureEnabled('notifications');
     const upgradeFeatureEnabled = !featureToggleLoading && isFeatureEnabled('upgrade');
-    const unreadCount = useNotificationUnreadCount(user?.id ?? null, {
-        enabled: notificationsFeatureEnabled,
-    });
-    const effectiveUnreadCount = user && notificationsFeatureEnabled ? unreadCount : 0;
 
     // 弹窗状态
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -698,7 +690,6 @@ export default function UserPage() {
                                         return null;
                                     }
                                     const Icon = item.icon;
-                                    const showUnread = item.href === '/user/notifications' && effectiveUnreadCount > 0;
                                     const isSubscription = item.href === '/user/upgrade';
                                     const isDisabledByPayment = isSubscription && isPaymentPaused;
                                     const requiresPlus = 'requiresPlus' in item && item.requiresPlus;
@@ -742,11 +733,6 @@ export default function UserPage() {
                                                 <span className="font-medium text-sm">{item.label}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {showUnread && (
-                                                    <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#2383e2] text-white rounded-full flex items-center justify-center">
-                                                        {effectiveUnreadCount > 99 ? '99+' : effectiveUnreadCount}
-                                                    </span>
-                                                )}
                                                 <ChevronRight className="w-4 h-4 text-foreground/30" />
                                             </div>
                                         </Link>
