@@ -5,6 +5,7 @@ import { getSystemAdminClient } from '@/lib/api-utils';
 import { generateEmbeddings } from '@/lib/knowledge-base/embedding-config';
 import type { IngestResult } from '@/lib/knowledge-base/types';
 import { createKbClient } from '@/lib/knowledge-base/client';
+import { isConversationMessageInfraMissing, type StoredConversationMessageRow } from '@/lib/server/conversation-messages';
 
 interface ChunkConfig {
     maxChunkSize: number;
@@ -30,10 +31,29 @@ interface ChunkData {
     metadata: Record<string, unknown>;
 }
 
-interface IngestResultWithVectors extends IngestResult {
+interface VectorBackfillResult extends IngestResult {
     processed?: number;
     skipped?: number;
     alreadyExists?: number;
+}
+
+async function loadConversationMessagesFallback(
+    supabase: ReturnType<typeof getSystemAdminClient>,
+    conversationId: string,
+    userId: string,
+) {
+    const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id, user_id, messages')
+        .eq('id', conversationId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (!conversation) {
+        throw new Error('Conversation not found');
+    }
+
+    return (conversation.messages as ChatMessage[]) || [];
 }
 
 export async function ingestConversation(
@@ -200,28 +220,76 @@ export async function ingestChatMessageAsService(
     const supabase = getSystemAdminClient();
     const { data: conversation } = await supabase
         .from('conversations')
-        .select('id, user_id, messages')
+        .select('id, user_id')
         .eq('id', conversationId)
         .eq('user_id', userId)
         .maybeSingle();
 
     if (!conversation) throw new Error('Conversation not found');
+    let target: ChatMessage | null = null;
+    let previousUser: ChatMessage | null = null;
 
-    const messages = (conversation.messages as ChatMessage[]) || [];
-    const index = messages.findIndex(m => m.id === messageId);
-    if (index < 0) throw new Error('Message not found');
+    const targetMessageResult = await supabase
+        .from('conversation_messages')
+        .select('sequence, message_id, role, content, metadata, created_at')
+        .eq('conversation_id', conversationId)
+        .eq('message_id', messageId)
+        .maybeSingle();
 
-    const target = messages[index];
-    if (!target.content?.trim()) {
-        return { entriesCreated: 0, chunks: 0 };
+    if (!targetMessageResult.error && targetMessageResult.data) {
+        const targetRow = targetMessageResult.data as StoredConversationMessageRow;
+        target = {
+            id: targetRow.message_id,
+            role: targetRow.role,
+            content: targetRow.content,
+            createdAt: targetRow.created_at,
+            ...((targetRow.metadata || {}) as Omit<ChatMessage, 'id' | 'role' | 'content' | 'createdAt'>),
+        };
+
+        const previousUserResult = await supabase
+            .from('conversation_messages')
+            .select('sequence, message_id, role, content, metadata, created_at')
+            .eq('conversation_id', conversationId)
+            .eq('role', 'user')
+            .lt('sequence', targetRow.sequence)
+            .order('sequence', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (previousUserResult.error && !isConversationMessageInfraMissing(previousUserResult.error)) {
+            throw previousUserResult.error;
+        }
+
+        if (previousUserResult.data) {
+            const previousUserRow = previousUserResult.data as StoredConversationMessageRow;
+            previousUser = {
+                id: previousUserRow.message_id,
+                role: previousUserRow.role,
+                content: previousUserRow.content,
+                createdAt: previousUserRow.created_at,
+                ...((previousUserRow.metadata || {}) as Omit<ChatMessage, 'id' | 'role' | 'content' | 'createdAt'>),
+            };
+        }
+    } else if (targetMessageResult.error && !isConversationMessageInfraMissing(targetMessageResult.error)) {
+        throw targetMessageResult.error;
     }
 
-    let previousUser: ChatMessage | null = null;
-    for (let i = index - 1; i >= 0; i--) {
-        if (messages[i]?.role === 'user' && messages[i]?.content?.trim()) {
-            previousUser = messages[i];
-            break;
+    if (!target) {
+        const messages = await loadConversationMessagesFallback(supabase, conversationId, userId);
+        const index = messages.findIndex(m => m.id === messageId);
+        if (index < 0) throw new Error('Message not found');
+
+        target = messages[index];
+        for (let i = index - 1; i >= 0; i--) {
+            if (messages[i]?.role === 'user' && messages[i]?.content?.trim()) {
+                previousUser = messages[i];
+                break;
+            }
         }
+    }
+
+    if (!target.content?.trim()) {
+        return { entriesCreated: 0, chunks: 0 };
     }
 
     const content = [
@@ -492,7 +560,7 @@ export async function upsertEntriesAsService(kbId: string, chunks: ChunkData[]):
 export async function backfillVectors(
     kbId: string,
     batchSize: number = 100
-): Promise<IngestResultWithVectors> {
+): Promise<VectorBackfillResult> {
     const supabase = await createKbClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -549,7 +617,7 @@ export async function backfillVectorsAsService(
     kbId: string,
     userId: string,
     batchSize: number = 100
-): Promise<IngestResultWithVectors> {
+): Promise<VectorBackfillResult> {
     const supabase = getSystemAdminClient();
 
     const { data: kb } = await supabase

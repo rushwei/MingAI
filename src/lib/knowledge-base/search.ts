@@ -287,7 +287,7 @@ export async function searchKnowledge(query: string, options: SearchOptions = {}
         ...options,
         useVector: membership === 'pro' && options.useVector !== false
     });
-    const weighted = await applyKnowledgeBaseWeights(candidates, options.accessToken);
+    const weighted = await applyKnowledgeBaseWeights(candidates, options.accessToken, undefined, options.userId);
     let weightedCandidates = weighted.candidates;
     const highKbIds = weighted.highKbIds;
 
@@ -301,7 +301,7 @@ export async function searchKnowledge(query: string, options: SearchOptions = {}
                 limit: baseLimit + 10,
                 useVector: options.useVector !== false
             });
-            const weightedExtra = await applyKnowledgeBaseWeights(extraCandidates, options.accessToken);
+            const weightedExtra = await applyKnowledgeBaseWeights(extraCandidates, options.accessToken, undefined, options.userId);
             weightedCandidates = deduplicateResults([...weightedCandidates, ...weightedExtra.candidates]);
         } catch (error) {
             console.warn('[knowledge-base] extra high-weight candidate search failed:', error);

@@ -53,6 +53,7 @@ export interface SearchOptions {
     topK?: number;
     useVector?: boolean;
     accessToken?: string;
+    userId?: string;
     membershipType?: MembershipType;
     searchConfig?: Partial<{
         ftsConfig: SearchConfig;

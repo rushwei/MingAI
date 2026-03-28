@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
     const results = await searchKnowledge(query, {
         kbIds: body.kbIds,
         topK: body.topK,
-        accessToken: token || undefined
+        accessToken: token || undefined,
+        userId: auth.user.id,
     });
     const first = (results as Array<SearchCandidate | RankedResult>)[0];
 
