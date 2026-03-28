@@ -105,13 +105,6 @@ export function AnnouncementManagementPanel() {
 
             setMode('edit');
             setSelectedId(selected.id);
-
-            // Only hydrate the editor when the caller explicitly asks to sync it
-            // (initial save/select/delete flows). Background refreshes should not
-            // overwrite the admin's in-progress edits.
-            if (preferredSelectedId !== undefined) {
-                setForm(announcementToFormState(selected));
-            }
         } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : '获取公告列表失败');
         } finally {
