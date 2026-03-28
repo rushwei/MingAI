@@ -6,7 +6,7 @@ import { createMemoryCache } from "@/lib/cache";
 const CACHE_TTL_MS = 30_000;
 const togglesCache = createMemoryCache<Record<string, boolean>>(CACHE_TTL_MS);
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   // feature-toggles 是公共配置，匿名用户也需要知道哪些功能开启
 
   const cached = togglesCache.get('all');
