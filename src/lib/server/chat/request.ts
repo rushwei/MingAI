@@ -3,11 +3,11 @@ import 'server-only';
 import type { NextRequest } from 'next/server';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { getDefaultModelConfigAsync, getModelConfigAsync } from '@/lib/server/ai-config';
-import { getEffectiveMembershipType } from '@/lib/user/membership-server';
 import { isModelAllowedForMembership, isReasoningAllowedForMembership } from '@/lib/ai/ai-access';
 import { getAuthContext, getSystemAdminClient, jsonError, requireUserContext } from '@/lib/api-utils';
 import { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
-import { addCredits, hasCredits, useCredit as deductCredit } from '@/lib/user/credits';
+import { addCredits, getUserAuthInfo, useCredit as deductCredit } from '@/lib/user/credits';
+import type { MembershipType } from '@/lib/user/membership';
 import type { ChatMessage, DifyContext } from '@/types';
 import type { Mention } from '@/types/mentions';
 import { normalizeVisualizationSettings, type VisualizationSettings } from '@/lib/visualization/settings';
@@ -37,7 +37,7 @@ export interface ResolvedChatRequest {
   canSkipCredit: boolean;
   accessTokenForKB: string | null;
   requestedModelId: string;
-  membershipType: Awaited<ReturnType<typeof getEffectiveMembershipType>>;
+  membershipType: MembershipType;
   reasoningEnabled: boolean;
   creditDeducted: boolean;
 }
@@ -145,9 +145,10 @@ export async function resolveChatRequest(
     return jsonError('无效的模型', 400);
   }
 
-  const membershipType = userId
-    ? await getEffectiveMembershipType(userId)
-    : 'free';
+  const authInfo = userId
+    ? await getUserAuthInfo(userId)
+    : null;
+  const membershipType = authInfo?.effectiveMembership ?? 'free';
   if (!isModelAllowedForMembership(modelConfig, membershipType)) {
     return jsonError('当前会员等级无法使用该模型', 403);
   }
@@ -157,7 +158,7 @@ export async function resolveChatRequest(
 
   let creditDeducted = false;
   if (userId && !canSkipCredit) {
-    const hasEnough = await hasCredits(userId);
+    const hasEnough = authInfo?.hasCredits ?? false;
     if (!hasEnough) {
       return jsonError('积分不足，请充值后继续使用', 402, {
         code: 'INSUFFICIENT_CREDITS',

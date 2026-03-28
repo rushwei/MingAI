@@ -6,7 +6,7 @@
 
 import { hydrateConversationMessages } from '@/lib/ai/ai-analysis-query';
 import { normalizeConversationSourceType } from '@/lib/source-contracts';
-import type { AIPersonality, ChatMessage, Conversation } from '@/types';
+import type { AIPersonality, ChatMessage, Conversation, ConversationListItem } from '@/types';
 
 export interface PaginatedMessages {
     messages: ChatMessage[];
@@ -15,14 +15,14 @@ export interface PaginatedMessages {
 }
 
 export interface PaginatedConversations {
-    conversations: Conversation[];
+    conversations: ConversationListItem[];
     pagination: {
         hasMore: boolean;
         nextOffset: number | null;
     };
 }
 
-type ConversationApiRow = {
+type ConversationDetailApiRow = {
     id: string;
     user_id: string;
     personality?: string | null;
@@ -36,38 +36,62 @@ type ConversationApiRow = {
     archived_kb_ids?: string[] | null;
 };
 
+type ConversationListApiRow = {
+    id: string;
+    user_id: string;
+    personality?: string | null;
+    title?: string | null;
+    created_at: string;
+    updated_at: string;
+    source_type?: string | null;
+    question_preview?: string | null;
+    is_archived?: boolean | null;
+    archived_kb_ids?: string[] | null;
+};
+
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
-const CONVERSATION_PAGE_SIZE = 20;
+const CONVERSATION_PAGE_SIZE = 7;
 const CONVERSATION_MAX_PAGES = 50;
+export const DEFAULT_CONVERSATION_TITLE = '新对话';
+
+const AI_PERSONALITY_VALUES: ReadonlySet<string> = new Set<AIPersonality>([
+    'bazi', 'ziwei', 'dream', 'mangpai', 'tarot', 'liuyao',
+    'mbti', 'hepan', 'qimen', 'daliuren', 'general',
+]);
 
 const normalizePersonality = (value?: string | null): AIPersonality => {
-    if (
-        value === 'bazi'
-        || value === 'ziwei'
-        || value === 'dream'
-        || value === 'mangpai'
-        || value === 'general'
-        || value === 'tarot'
-        || value === 'liuyao'
-        || value === 'mbti'
-        || value === 'hepan'
-    ) {
-        return value;
+    if (value && AI_PERSONALITY_VALUES.has(value)) {
+        return value as AIPersonality;
     }
     return 'general';
 };
 
-function toConversation(row: ConversationApiRow): Conversation {
+function toConversation(row: ConversationDetailApiRow): Conversation {
     return {
         id: row.id,
         userId: row.user_id,
         personality: normalizePersonality(row.personality),
-        title: row.title || '新对话',
+        title: row.title || DEFAULT_CONVERSATION_TITLE,
         messages: hydrateConversationMessages(row.messages || [], row.source_data || undefined),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         sourceType: normalizeConversationSourceType(row.source_type),
         sourceData: row.source_data || undefined,
+        isArchived: row.is_archived ?? false,
+        archivedKbIds: row.archived_kb_ids ?? [],
+    };
+}
+
+function toConversationListItem(row: ConversationListApiRow): ConversationListItem {
+    return {
+        id: row.id,
+        userId: row.user_id,
+        personality: normalizePersonality(row.personality),
+        title: row.title || DEFAULT_CONVERSATION_TITLE,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        sourceType: normalizeConversationSourceType(row.source_type),
+        questionPreview: typeof row.question_preview === 'string' ? row.question_preview : null,
         isArchived: row.is_archived ?? false,
         archivedKbIds: row.archived_kb_ids ?? [],
     };
@@ -89,7 +113,7 @@ export async function createConversation(params: {
         headers: JSON_HEADERS,
         body: JSON.stringify({
             personality: params.personality || 'general',
-            title: params.title || '新对话',
+            title: params.title || DEFAULT_CONVERSATION_TITLE,
             messages: [],
         }),
     });
@@ -124,12 +148,12 @@ export async function loadConversations(
     }
 
     const payload = await parseJson<{
-        conversations?: ConversationApiRow[];
+        conversations?: ConversationListApiRow[];
         pagination?: { hasMore?: boolean; nextOffset?: number | null };
     }>(response);
 
     return {
-        conversations: (payload?.conversations || []).map(toConversation),
+        conversations: (payload?.conversations || []).map(toConversationListItem),
         pagination: {
             hasMore: payload?.pagination?.hasMore === true,
             nextOffset: payload?.pagination?.nextOffset ?? null,
@@ -143,9 +167,9 @@ export async function loadAllConversations(
         pageSize?: number;
         signal?: AbortSignal;
     } = {},
-): Promise<Conversation[]> {
+): Promise<ConversationListItem[]> {
     const { pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
-    const rows: Conversation[] = [];
+    const rows: ConversationListItem[] = [];
     let offset = 0;
 
     for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
@@ -182,7 +206,7 @@ export async function loadConversationWindow(
     const { targetCount, preserveIds = [], pageSize = CONVERSATION_PAGE_SIZE, signal } = options;
     const minimumCount = Math.max(targetCount, pageSize);
     const remainingIds = new Set(preserveIds);
-    const rows: Conversation[] = [];
+    const rows: ConversationListItem[] = [];
     let offset = 0;
     let hasMore = false;
     let nextOffset: number | null = null;
@@ -235,7 +259,7 @@ export async function loadConversation(conversationId: string): Promise<Conversa
         return null;
     }
 
-    const payload = await parseJson<{ conversation?: ConversationApiRow | null }>(response);
+    const payload = await parseJson<{ conversation?: ConversationDetailApiRow | null }>(response);
     return payload?.conversation ? toConversation(payload.conversation) : null;
 }
 
@@ -315,7 +339,7 @@ export async function loadConversationMessages(
     }
 
     const payload = await parseJson<{
-        conversation?: ConversationApiRow | null;
+        conversation?: ConversationDetailApiRow | null;
         pagination?: {
             total?: number;
             hasMore?: boolean;

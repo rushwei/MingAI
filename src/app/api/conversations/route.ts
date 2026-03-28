@@ -11,7 +11,7 @@ const CONVERSATION_LIST_SELECT = [
     'created_at',
     'updated_at',
     'source_type',
-    'source_data',
+    'question_preview:source_data->>question',
     'is_archived',
     'archived_kb_ids',
 ].join(', ');

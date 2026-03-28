@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { jsonError, jsonOk, requireUserContext } from '@/lib/api-utils';
-import { loadAllConversationMessages, loadConversationMessagePage, replaceConversationMessages } from '@/lib/server/conversation-messages';
+import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
+import { loadAllConversationMessages, loadConversationAnalysisMessage, loadConversationMessagePage, replaceConversationMessages } from '@/lib/server/conversation-messages';
 import { deleteConversationGraph } from '@/lib/chat/conversation-delete';
 import type { ChatMessage } from '@/types';
 
@@ -23,6 +24,12 @@ type ConversationDetailRow = {
     archived_kb_ids?: unknown;
 };
 
+type ConversationAnalysisSnapshotRow = {
+    id: string;
+    user_id: string;
+    source_data?: unknown;
+};
+
 const CONVERSATION_DETAIL_SELECT = [
     'id',
     'user_id',
@@ -36,7 +43,13 @@ const CONVERSATION_DETAIL_SELECT = [
     'archived_kb_ids',
 ].join(', ');
 
-function isConversationDetailRow(value: unknown): value is ConversationDetailRow {
+const CONVERSATION_ANALYSIS_SNAPSHOT_SELECT = [
+    'id',
+    'user_id',
+    'source_data',
+].join(', ');
+
+function isNonErrorRow<T>(value: unknown): value is T {
     return !!value && typeof value === 'object' && !Array.isArray(value) && !('error' in value);
 }
 
@@ -50,12 +63,16 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const includeContext = searchParams.get('includeContext') === '1';
+    const snapshotMode = searchParams.get('snapshot');
     const messageLimit = Number(searchParams.get('messageLimit') || 0);
     const messageOffset = Math.max(Number(searchParams.get('messageOffset') || 0), 0);
+    const selectColumns = snapshotMode === 'analysis'
+        ? CONVERSATION_ANALYSIS_SNAPSHOT_SELECT
+        : CONVERSATION_DETAIL_SELECT;
 
     const { data, error } = await auth.supabase
         .from('conversations_with_archive_status')
-        .select(CONVERSATION_DETAIL_SELECT)
+        .select(selectColumns)
         .eq('id', id)
         .eq('user_id', auth.user.id)
         .maybeSingle();
@@ -64,14 +81,45 @@ export async function GET(
         console.error('[conversations] failed to load conversation:', error);
         return jsonError('加载对话失败', 500);
     }
-    if (!data || !isConversationDetailRow(data)) {
+    if (!data) {
+        return jsonError('对话不存在', 404);
+    }
+
+    if (snapshotMode === 'analysis') {
+        if (!isNonErrorRow<ConversationAnalysisSnapshotRow>(data)) {
+            return jsonError('对话不存在', 404);
+        }
+
+        const sourceData = data.source_data as Record<string, unknown> | undefined;
+        const analysisMessageResult = await loadConversationAnalysisMessage(auth.supabase, id);
+        if (analysisMessageResult.error) {
+            console.error('[conversations] failed to load analysis snapshot:', analysisMessageResult.error);
+            return jsonError('加载对话失败', 500);
+        }
+
+        const { analysis, reasoning, modelId } = extractAnalysisFromConversation(
+            analysisMessageResult.message ? [analysisMessageResult.message] : [],
+            sourceData,
+        );
+
+        return jsonOk({
+            snapshot: {
+                analysis,
+                reasoning,
+                modelId,
+                reasoningEnabled: typeof sourceData?.reasoning === 'boolean' ? sourceData.reasoning : false,
+            },
+        });
+    }
+
+    if (!isNonErrorRow<ConversationDetailRow>(data)) {
         return jsonError('对话不存在', 404);
     }
 
     const conversationRow: ConversationDetailRow = data;
 
-    const paginationRequested = Number.isFinite(messageLimit) && messageLimit > 0;
-    const messageResult = paginationRequested
+    const isPaginationRequested = Number.isFinite(messageLimit) && messageLimit > 0;
+    const messageResult = isPaginationRequested
         ? await loadConversationMessagePage(auth.supabase, id, {
             limit: messageLimit,
             offset: messageOffset,
@@ -91,7 +139,7 @@ export async function GET(
     if (!includeContext) {
         return jsonOk({
             conversation,
-            ...(paginationRequested ? {
+            ...(isPaginationRequested ? {
                 pagination: {
                     total: 'total' in messageResult ? messageResult.total : messageResult.messages.length,
                     hasMore: 'hasMore' in messageResult ? messageResult.hasMore : false,
@@ -105,7 +153,7 @@ export async function GET(
     return jsonOk({
         conversation,
         context: {},
-        ...(paginationRequested ? {
+        ...(isPaginationRequested ? {
             pagination: {
                 total: 'total' in messageResult ? messageResult.total : messageResult.messages.length,
                 hasMore: 'hasMore' in messageResult ? messageResult.hasMore : false,

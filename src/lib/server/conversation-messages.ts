@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ChatMessage } from '@/types';
 
-type StoredConversationMessageRow = {
+export type StoredConversationMessageRow = {
     sequence: number;
     message_id: string;
     role: ChatMessage['role'];
@@ -26,7 +26,7 @@ function toSyncError(error: unknown): ConversationMessageSyncError | null {
     };
 }
 
-function isConversationMessageInfraMissing(error: ConversationMessageSyncError | null | undefined) {
+export function isConversationMessageInfraMissing(error: ConversationMessageSyncError | null | undefined) {
     const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
     return text.includes('replace_conversation_messages')
         || text.includes('conversation_messages')
@@ -166,6 +166,32 @@ export async function loadConversationMessagePage(
         messages: orderedMessages,
         total: count ?? orderedMessages.length,
         hasMore: (count ?? orderedMessages.length) > offset + orderedMessages.length,
+        error: null,
+    };
+}
+
+export async function loadConversationAnalysisMessage(
+    supabase: SupabaseClient,
+    conversationId: string,
+) {
+    const { data, error } = await supabase
+        .from('conversation_messages')
+        .select('sequence, message_id, role, content, metadata, created_at')
+        .eq('conversation_id', conversationId)
+        .eq('role', 'assistant')
+        .order('sequence', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        return {
+            message: null,
+            error,
+        };
+    }
+
+    return {
+        message: data ? fromStoredConversationMessage(data as StoredConversationMessageRow) : null,
         error: null,
     };
 }

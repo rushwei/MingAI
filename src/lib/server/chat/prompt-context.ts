@@ -2,8 +2,7 @@ import 'server-only';
 
 import { buildPromptWithSources, calculatePromptBudget, resolvePersonalities } from '@/lib/ai/prompt-builder';
 import { getSystemAdminClient } from '@/lib/api-utils';
-import { searchKnowledge } from '@/lib/knowledge-base/search';
-import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
+import { buildKnowledgeHits } from '@/lib/knowledge-base/hits';
 import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
 import type { AIMessageMetadata, AIPersonality, ChatMessage } from '@/types';
 import type { Mention } from '@/types/mentions';
@@ -130,51 +129,6 @@ function applyUserSettingsOverrides(
   };
 }
 
-async function buildKnowledgeHits(
-  query: string,
-  userId: string,
-  membershipType: ResolvedChatRequest['membershipType'],
-  accessTokenForKB: string | null,
-  userSettings: UserSettingsContext,
-  supabase: ReturnType<typeof getSystemAdminClient>
-): Promise<KnowledgeHit[]> {
-  if (membershipType === 'free') return [];
-
-  const cleanedQuery = stripMentionTokens(query);
-  if (!cleanedQuery) return [];
-
-  const kbScopeIds = Array.from(new Set(userSettings.promptKbIds));
-  if (kbScopeIds.length === 0) return [];
-
-  const results = await searchKnowledge(cleanedQuery, {
-    limit: 12,
-    topK: 5,
-    accessToken: accessTokenForKB || undefined,
-    kbIds: kbScopeIds.length > 0 ? kbScopeIds : undefined,
-  });
-  const candidates = results as Array<SearchCandidate | RankedResult>;
-  const kbIds = Array.from(new Set(candidates.map((result) => result.kbId).filter(Boolean))) as string[];
-  if (kbIds.length === 0) return [];
-
-  const { data: kbRows } = await supabase
-    .from('knowledge_bases')
-    .select('id, name, weight')
-    .eq('user_id', userId)
-    .in('id', kbIds);
-
-  const kbMap = new Map<string, { name: string; weight: string }>();
-  (kbRows || []).forEach((kb: { id: string; name: string; weight: string }) => {
-    kbMap.set(kb.id, { name: kb.name, weight: kb.weight });
-  });
-
-  return candidates.slice(0, 8).map((result): KnowledgeHit => ({
-    kbId: result.kbId,
-    kbName: kbMap.get(result.kbId)?.name || '知识库',
-    content: result.content,
-    score: result.score || 0,
-  }));
-}
-
 export async function buildChatPromptContext(
   resolvedRequest: ResolvedChatRequest,
 ): Promise<ChatPromptContextResult> {
@@ -237,14 +191,14 @@ export async function buildChatPromptContext(
     : [];
 
   const knowledgeHits = userId && canUsePromptKnowledgeBase
-    ? await buildKnowledgeHits(
-      userQuestionForSearch,
-      userId,
-      membershipType,
-      accessTokenForKB,
-      effectiveUserSettings,
-      supabase
-    )
+    ? await buildKnowledgeHits({
+        query: userQuestionForSearch,
+        userId,
+        membershipType,
+        accessToken: accessTokenForKB,
+        promptKbIds: effectiveUserSettings.promptKbIds,
+        supabase,
+      })
     : [];
 
   const promptChartContext = body.mangpaiMode

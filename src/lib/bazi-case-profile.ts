@@ -1,6 +1,6 @@
 import type { FiveElement } from '@/types';
 
-export const BAZI_CASE_STRENGTH_LEVELS = ['极弱', '偏弱', '中和', '偏强', '极强'] as const;
+export const BAZI_CASE_STRENGTH_LEVELS = ['极弱', '偏弱', '中和', '偏强', '极强', '从格'] as const;
 export const BAZI_CASE_PATTERN_OPTIONS = [
     '正官格',
     '七杀格',
@@ -125,7 +125,7 @@ export const BAZI_CASE_ADVANCED_GOD_OPTIONS = [
 ] as const;
 
 export type BaziCaseStrengthLevel = typeof BAZI_CASE_STRENGTH_LEVELS[number];
-export type BaziCasePattern = typeof BAZI_CASE_PATTERN_OPTIONS[number];
+export type BaziCasePattern = string;
 export type BaziCaseBasicElement = typeof BAZI_CASE_BASIC_ELEMENTS[number];
 export type BaziCaseAdvancedGod = typeof BAZI_CASE_ADVANCED_GOD_OPTIONS[number];
 export type BaziCaseOccupation = typeof BAZI_CASE_OCCUPATION_OPTIONS[number];
@@ -133,8 +133,8 @@ export type BaziCaseEducation = typeof BAZI_CASE_EDUCATION_OPTIONS[number];
 export type BaziCaseWealthLevel = typeof BAZI_CASE_WEALTH_LEVEL_OPTIONS[number];
 export type BaziCaseMarriageStatus = typeof BAZI_CASE_MARRIAGE_STATUS_OPTIONS[number];
 export type BaziCaseHealthStatus = typeof BAZI_CASE_HEALTH_STATUS_OPTIONS[number];
-export type BaziCaseFamilyTag = typeof BAZI_CASE_FAMILY_TAG_OPTIONS[number];
-export type BaziCaseTemperamentTag = typeof BAZI_CASE_TEMPERAMENT_TAG_OPTIONS[number];
+export type BaziCaseFamilyTag = string;
+export type BaziCaseTemperamentTag = string;
 export type BaziCaseEventCategory = typeof BAZI_CASE_EVENT_CATEGORY_OPTIONS[number];
 
 export interface BaziCaseGodSelection {
@@ -233,6 +233,24 @@ function assertChoiceArray<T extends readonly string[]>(value: unknown, options:
     return unique;
 }
 
+function parseTextArray(value: unknown, field: string, maxLength: number): string[] {
+    if (value == null) return [];
+    if (!Array.isArray(value)) {
+        throw new Error(`${field} 必须为数组`);
+    }
+    const unique: string[] = [];
+    for (const item of value) {
+        const next = trimText(item, maxLength);
+        if (!next) {
+            continue;
+        }
+        if (!unique.includes(next)) {
+            unique.push(next);
+        }
+    }
+    return unique;
+}
+
 function parseGodSelection(value: unknown, field: string): BaziCaseGodSelection {
     if (value == null) {
         return createEmptyGodSelection();
@@ -291,7 +309,7 @@ export function parseBaziCaseMasterReview(value: unknown): BaziCaseMasterReview 
     if (!isObjectLike(value)) return createEmptyBaziCaseMasterReview();
     return {
         strengthLevel: assertChoice(value.strengthLevel, BAZI_CASE_STRENGTH_LEVELS, 'masterReview.strengthLevel', { allowNull: true }),
-        patterns: assertChoiceArray(value.patterns, BAZI_CASE_PATTERN_OPTIONS, 'masterReview.patterns'),
+        patterns: parseTextArray(value.patterns, 'masterReview.patterns', 24),
         yongShen: parseGodSelection(value.yongShen, 'masterReview.yongShen'),
         xiShen: parseGodSelection(value.xiShen, 'masterReview.xiShen'),
         jiShen: parseGodSelection(value.jiShen, 'masterReview.jiShen'),
@@ -308,8 +326,8 @@ export function parseBaziCaseOwnerFeedback(value: unknown): BaziCaseOwnerFeedbac
         wealthLevel: assertChoice(value.wealthLevel, BAZI_CASE_WEALTH_LEVEL_OPTIONS, 'ownerFeedback.wealthLevel', { allowNull: true }),
         marriageStatus: assertChoice(value.marriageStatus, BAZI_CASE_MARRIAGE_STATUS_OPTIONS, 'ownerFeedback.marriageStatus', { allowNull: true }),
         healthStatus: assertChoice(value.healthStatus, BAZI_CASE_HEALTH_STATUS_OPTIONS, 'ownerFeedback.healthStatus', { allowNull: true }),
-        familyStatusTags: assertChoiceArray(value.familyStatusTags, BAZI_CASE_FAMILY_TAG_OPTIONS, 'ownerFeedback.familyStatusTags'),
-        temperamentTags: assertChoiceArray(value.temperamentTags, BAZI_CASE_TEMPERAMENT_TAG_OPTIONS, 'ownerFeedback.temperamentTags'),
+        familyStatusTags: parseTextArray(value.familyStatusTags, 'ownerFeedback.familyStatusTags', 24),
+        temperamentTags: parseTextArray(value.temperamentTags, 'ownerFeedback.temperamentTags', 24),
         summary: trimText(value.summary, 300),
     };
 }

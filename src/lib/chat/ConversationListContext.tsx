@@ -18,8 +18,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { usePathname } from 'next/navigation';
-import type { Conversation } from '@/types';
+import type { ConversationListItem } from '@/types';
 import {
   loadConversations,
   loadConversationWindow,
@@ -29,8 +28,8 @@ import {
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 
 interface ConversationListContextType {
-  conversations: Conversation[];
-  setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
+  conversations: ConversationListItem[];
+  setConversations: React.Dispatch<React.SetStateAction<ConversationListItem[]>>;
   conversationsLoading: boolean;
   loadingMoreConversations: boolean;
   hasLoadedConversations: boolean;
@@ -41,19 +40,19 @@ interface ConversationListContextType {
   titleGeneratingConversationIds: Set<string>;
   setTitleGeneratingConversationIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   refreshConversationList: (targetUserId?: string | null) => Promise<void>;
-  triggerConversationListLoad: (source: 'idle' | 'interaction') => void;
+  triggerConversationListLoad: () => void;
   loadMoreConversations: () => Promise<void>;
   handleDeleteConversation: (id: string) => Promise<void>;
   handleRenameConversation: (id: string, title: string) => Promise<void>;
   handleNewChat: () => Promise<void>;
   manualRenamedConversationIdsRef: React.MutableRefObject<Set<string>>;
-  conversationsRef: React.MutableRefObject<Conversation[]>;
+  conversationsRef: React.MutableRefObject<ConversationListItem[]>;
 }
 
 const ConversationListContext = createContext<ConversationListContextType | undefined>(undefined);
-const INITIAL_CONVERSATION_LOAD_LIMIT = 20;
+const INITIAL_CONVERSATION_LOAD_LIMIT = 7;
 
-function mergeConversations(current: Conversation[], incoming: Conversation[]) {
+function mergeConversations(current: ConversationListItem[], incoming: ConversationListItem[]) {
   if (incoming.length === 0) {
     return current;
   }
@@ -65,10 +64,9 @@ function mergeConversations(current: Conversation[], incoming: Conversation[]) {
 
 export function ConversationListProvider({ children }: { children: ReactNode }) {
   const { user, loading: sessionLoading } = useSessionSafe();
-  const pathname = usePathname();
   const userId = user?.id ?? null;
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
@@ -244,9 +242,8 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     }
   }, [userId]);
 
-  const triggerConversationListLoad = useCallback((source: 'idle' | 'interaction') => {
+  const triggerConversationListLoad = useCallback(() => {
     if (hasLoadedRef.current || !userId || loadingRef.current || loadingMoreRef.current) return;
-    void source;
     void refreshConversationList(userId);
   }, [refreshConversationList, userId]);
 
@@ -282,7 +279,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     resetConversationState();
   }, [clearScheduledIdleLoad, resetConversationState, sessionLoading, userId]);
 
-  // Only preload the first page while already on the chat route.
+  // Preload the first page after sign-in, regardless of the current route.
   useEffect(() => {
     clearScheduledIdleLoad();
 
@@ -290,7 +287,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       sessionLoading
       || !userId
       || hasLoadedRef.current
-      || !pathname?.startsWith('/chat')
     ) {
       return;
     }
@@ -300,18 +296,18 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
         window as Window & { requestIdleCallback: (cb: () => void) => number }
       ).requestIdleCallback(() => {
         idleCallbackHandleRef.current = null;
-        triggerConversationListLoad('idle');
+        triggerConversationListLoad();
       });
       return clearScheduledIdleLoad;
     }
 
     idleTimeoutHandleRef.current = globalThis.setTimeout(() => {
       idleTimeoutHandleRef.current = null;
-      triggerConversationListLoad('idle');
+      triggerConversationListLoad();
     }, 1200);
 
     return clearScheduledIdleLoad;
-  }, [clearScheduledIdleLoad, pathname, sessionLoading, triggerConversationListLoad, userId]);
+  }, [clearScheduledIdleLoad, sessionLoading, triggerConversationListLoad, userId]);
 
   const handleDeleteConversation = useCallback(async (id: string) => {
     const previousConversations = conversationsRef.current;

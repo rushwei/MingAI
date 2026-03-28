@@ -2,9 +2,7 @@ import 'server-only';
 
 import { resolveModelContextConfig, calculatePromptBudget, buildPromptWithSources } from '@/lib/ai/prompt-builder';
 import { buildDreamContextPayload } from '@/lib/chat/chat-context';
-import { searchKnowledge } from '@/lib/knowledge-base/search';
-import type { KnowledgeHit, RankedResult, SearchCandidate } from '@/lib/knowledge-base/types';
-import { parseMentions, resolveMention, stripMentionTokens } from '@/lib/mentions';
+import { buildKnowledgeHits } from '@/lib/knowledge-base/hits';
 import { countMessageTokens } from '@/lib/token-utils';
 import {
     type ExpressionStyle,
@@ -17,7 +15,7 @@ import type { requireUserContext } from '@/lib/api-utils';
 import type { ResolvedChatRequest } from '@/lib/server/chat/request';
 import type { buildChatPromptContext } from '@/lib/server/chat/prompt-context';
 import type { ChatMessage, DifyContext } from '@/types';
-import type { Mention } from '@/types/mentions';
+import { parseMentions, resolveMention } from '@/lib/mentions';
 import { extractUserQuestion } from '@/lib/chat/message-utils';
 
 type PreviewAuthContext = Exclude<Awaited<ReturnType<typeof requireUserContext>>, { error: unknown }>;
@@ -147,53 +145,6 @@ async function loadNormalizedUserSettings(auth: PreviewAuthContext): Promise<Use
     return normalizeUserSettings((data ?? null) as Record<string, unknown> | null);
 }
 
-async function buildKnowledgeHits(
-    auth: PreviewAuthContext,
-    query: string,
-    accessTokenForKB: string | null,
-    promptKbIds: string[],
-): Promise<KnowledgeHit[]> {
-    const cleanedQuery = stripMentionTokens(query);
-    if (!cleanedQuery || promptKbIds.length === 0) {
-        return [];
-    }
-
-    const results = await searchKnowledge(cleanedQuery, {
-        limit: 12,
-        topK: 5,
-        accessToken: accessTokenForKB || undefined,
-        kbIds: promptKbIds,
-    });
-    const candidates = results as Array<SearchCandidate | RankedResult>;
-    const kbIds = Array.from(new Set(candidates.map((result) => result.kbId).filter(Boolean))) as string[];
-    if (kbIds.length === 0) {
-        return [];
-    }
-
-    const { data: kbRows } = await auth.supabase
-        .from('knowledge_bases')
-        .select('id, name, weight')
-        .eq('user_id', auth.user.id)
-        .in('id', kbIds);
-
-    const kbMap = new Map<string, { name: string; weight: string }>();
-    for (const kb of kbRows || []) {
-        if (typeof kb.id === 'string' && typeof kb.name === 'string') {
-            kbMap.set(kb.id, {
-                name: kb.name,
-                weight: typeof kb.weight === 'string' ? kb.weight : 'normal',
-            });
-        }
-    }
-
-    return candidates.slice(0, 8).map((result): KnowledgeHit => ({
-        kbId: result.kbId,
-        kbName: kbMap.get(result.kbId)?.name || '知识库',
-        content: result.content,
-        score: result.score || 0,
-    }));
-}
-
 async function buildSharedPreviewContext({
     auth,
     body,
@@ -288,7 +239,14 @@ async function buildOverridePreviewContext({
         ? await loadPromptKnowledgeBases(auth, promptKbIds)
         : [];
     const knowledgeHits = canUsePromptKnowledgeBase
-        ? await buildKnowledgeHits(auth, userQuestionForSearch, accessTokenForKB, promptKbIds)
+        ? await buildKnowledgeHits({
+            query: userQuestionForSearch,
+            userId: auth.user.id,
+            membershipType,
+            accessToken: accessTokenForKB,
+            promptKbIds,
+            supabase: auth.supabase,
+          })
         : [];
 
     const dreamPayload = body.dreamMode === true

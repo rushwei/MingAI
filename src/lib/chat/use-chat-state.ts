@@ -5,11 +5,12 @@
  * 对话列表数据由全局 ConversationListContext 管理。
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ChatMessage, Mention } from '@/types';
+import type { ChatMessage, Mention, Conversation, ConversationListItem } from '@/types';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import {
     loadConversation,
     saveConversation,
+    DEFAULT_CONVERSATION_TITLE,
 } from '@/lib/chat/conversation';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
 import { useConversationList } from '@/lib/chat/ConversationListContext';
@@ -17,10 +18,15 @@ import type { AttachmentState } from '@/types';
 
 export type ChatMode = 'normal' | 'dream' | 'mangpai';
 
+type ConversationDetailOverrides = Partial<Pick<
+    Conversation,
+    'userId' | 'personality' | 'title' | 'createdAt' | 'updatedAt' | 'sourceType' | 'sourceData' | 'isArchived' | 'archivedKbIds'
+>>;
+
 export interface ChatStateReturn {
     // Conversation list (from global context)
-    conversations: import('@/types').Conversation[];
-    setConversations: React.Dispatch<React.SetStateAction<import('@/types').Conversation[]>>;
+    conversations: ConversationListItem[];
+    setConversations: React.Dispatch<React.SetStateAction<ConversationListItem[]>>;
     conversationsLoading: boolean;
     conversationLoading: boolean;
     hasLoadedConversations: boolean;
@@ -38,7 +44,7 @@ export interface ChatStateReturn {
     conversationSelectRequestRef: React.MutableRefObject<number>;
     hasLoadedConversationsRef: React.MutableRefObject<boolean>;
     manualRenamedConversationIdsRef: React.MutableRefObject<Set<string>>;
-    conversationsRef: React.MutableRefObject<import('@/types').Conversation[]>;
+    conversationsRef: React.MutableRefObject<ConversationListItem[]>;
 
     // Messages
     messages: ChatMessage[];
@@ -90,12 +96,15 @@ export interface ChatStateReturn {
 
     // Actions
     refreshConversationList: (targetUserId?: string | null) => Promise<void>;
-    triggerConversationListLoad: (source: 'idle' | 'interaction') => void;
+    triggerConversationListLoad: () => void;
     handleSelectConversation: (id: string, options?: { updateUrl?: boolean }) => Promise<void>;
     handleNewChat: () => Promise<void>;
     handleDeleteConversation: (id: string) => Promise<void>;
     handleRenameConversation: (id: string, title: string) => Promise<void>;
     saveMessages: (conversationId: string, newMessages: ChatMessage[], title?: string) => Promise<boolean | undefined>;
+    cacheConversationDetail: (conversation: Conversation) => void;
+    cacheConversationMessages: (conversationId: string, messages: ChatMessage[], overrides?: ConversationDetailOverrides) => void;
+    removeConversationDetail: (conversationId: string) => void;
 }
 
 export function useChatState({
@@ -145,6 +154,7 @@ export function useChatState({
     const hasLoadedConversationsRef = useRef(false);
     const conversationSelectRequestRef = useRef(0);
     const conversationValidatedRef = useRef(false);
+    const conversationDetailsRef = useRef<Map<string, Conversation>>(new Map());
 
     // Chat mode
     const [chatMode, setChatMode] = useState<ChatMode>('normal');
@@ -171,6 +181,49 @@ export function useChatState({
     useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
     useEffect(() => { hasLoadedConversationsRef.current = hasLoadedConversations; }, [hasLoadedConversations]);
 
+    const buildConversationDetail = useCallback((
+        conversationId: string,
+        messagesToCache: ChatMessage[],
+        overrides: ConversationDetailOverrides = {},
+    ): Conversation => {
+        const existing = conversationDetailsRef.current.get(conversationId) ?? null;
+        const listItem = conversationsRef.current.find((conversation) => conversation.id === conversationId) ?? null;
+        const nowIso = new Date().toISOString();
+
+        return {
+            id: conversationId,
+            userId: overrides.userId ?? existing?.userId ?? listItem?.userId,
+            personality: overrides.personality ?? existing?.personality ?? listItem?.personality ?? 'general',
+            title: overrides.title ?? existing?.title ?? listItem?.title ?? DEFAULT_CONVERSATION_TITLE,
+            messages: messagesToCache,
+            createdAt: overrides.createdAt ?? existing?.createdAt ?? listItem?.createdAt ?? nowIso,
+            updatedAt: overrides.updatedAt ?? existing?.updatedAt ?? listItem?.updatedAt ?? nowIso,
+            sourceType: overrides.sourceType ?? existing?.sourceType ?? listItem?.sourceType ?? 'chat',
+            sourceData: overrides.sourceData ?? existing?.sourceData,
+            isArchived: overrides.isArchived ?? existing?.isArchived ?? listItem?.isArchived ?? false,
+            archivedKbIds: overrides.archivedKbIds ?? existing?.archivedKbIds ?? listItem?.archivedKbIds ?? [],
+        };
+    }, [conversationsRef]);
+
+    const cacheConversationDetail = useCallback((conversation: Conversation) => {
+        conversationDetailsRef.current.set(conversation.id, conversation);
+    }, []);
+
+    const cacheConversationMessages = useCallback((
+        conversationId: string,
+        messagesToCache: ChatMessage[],
+        overrides: ConversationDetailOverrides = {},
+    ) => {
+        conversationDetailsRef.current.set(
+            conversationId,
+            buildConversationDetail(conversationId, messagesToCache, overrides),
+        );
+    }, [buildConversationDetail]);
+
+    const removeConversationDetail = useCallback((conversationId: string) => {
+        conversationDetailsRef.current.delete(conversationId);
+    }, []);
+
     // Init: reset on logout
     useEffect(() => {
         if (sessionLoading || bootstrapLoading) return;
@@ -180,6 +233,7 @@ export function useChatState({
             conversationSelectRequestRef.current += 1;
             setConversationLoading(false);
             setActiveConversationId(null);
+            conversationDetailsRef.current.clear();
         }
     }, [bootstrapLoading, sessionLoading, userId]);
 
@@ -200,15 +254,25 @@ export function useChatState({
         if (runningMessages) {
             setConversationLoading(false);
             setMessages(runningMessages);
+            cacheConversationMessages(id, runningMessages);
+            conversationValidatedRef.current = true;
         } else {
-            const cachedConversation = conversationsRef.current.find(conv => conv.id === id);
+            const cachedConversation = conversationDetailsRef.current.get(id);
             const cachedMessages = cachedConversation?.messages || [];
-            setConversationLoading(cachedMessages.length === 0);
+            const hasCachedDetail = cachedMessages.length > 0;
+            setConversationLoading(!hasCachedDetail);
             setMessages(cachedMessages);
+            if (hasCachedDetail) {
+                conversationValidatedRef.current = true;
+            }
         }
 
         if (options?.updateUrl !== false && searchParams.get('id') !== id) {
             router.replace(`/chat?id=${id}`);
+        }
+
+        if (runningMessages || conversationDetailsRef.current.has(id)) {
+            return;
         }
 
         const conv = await loadConversation(id);
@@ -225,10 +289,14 @@ export function useChatState({
         }
 
         conversationValidatedRef.current = true;
+        cacheConversationDetail(conv);
         const taskMessages = chatStreamManager.getTaskMessages(id);
         const sourceMessages = taskMessages || conv.messages;
         setMessages(sourceMessages);
-    }, [router, searchParams, conversationsRef]);
+        if (taskMessages) {
+            cacheConversationMessages(id, taskMessages);
+        }
+    }, [cacheConversationDetail, cacheConversationMessages, router, searchParams]);
 
     // New chat
     const handleNewChat = useCallback(async () => {
@@ -263,6 +331,7 @@ export function useChatState({
 
     // Delete conversation — delegate to context, clean up local active state
     const handleDeleteConversation = useCallback(async (id: string) => {
+        removeConversationDetail(id);
         if (activeConversationIdRef.current === id) {
             activeConversationIdRef.current = null;
             setActiveConversationId(null);
@@ -270,18 +339,33 @@ export function useChatState({
             setMessages([]);
         }
         await convList.handleDeleteConversation(id);
-    }, [convList]);
+    }, [convList, removeConversationDetail]);
 
     // Rename conversation — delegate to context
     const handleRenameConversation = useCallback(async (id: string, title: string) => {
+        const existing = conversationDetailsRef.current.get(id);
+        if (existing) {
+            conversationDetailsRef.current.set(id, {
+                ...existing,
+                title,
+            });
+        }
         await convList.handleRenameConversation(id, title);
     }, [convList]);
 
     // Save messages
     const saveMessagesAction = useCallback(async (conversationId: string, newMessages: ChatMessage[], title?: string) => {
         if (!userId) return false;
-        return saveConversation(conversationId, newMessages, title);
-    }, [userId]);
+        const success = await saveConversation(conversationId, newMessages, title);
+        if (success) {
+            cacheConversationMessages(conversationId, newMessages, {
+                title,
+                updatedAt: new Date().toISOString(),
+                userId,
+            });
+        }
+        return success;
+    }, [cacheConversationMessages, userId]);
 
     return {
         conversations, setConversations,
@@ -315,5 +399,8 @@ export function useChatState({
         handleDeleteConversation,
         handleRenameConversation,
         saveMessages: saveMessagesAction,
+        cacheConversationDetail,
+        cacheConversationMessages,
+        removeConversationDetail,
     };
 }

@@ -14,29 +14,105 @@ export type DreamContextPayload = {
 
 const MAX_BAZI_TOKENS = 1500;
 const MAX_FORTUNE_TOKENS = 500;
+const DREAM_CONTEXT_TTL_MS = 30 * 60 * 1000;
+const MAX_CACHE_SIZE = 1000;
 
-export async function buildDreamContextPayload(userId: string): Promise<{ payload: DreamContextPayload; context: { baziChartName?: string; dailyFortune?: string } }> {
+type DreamContextResult = {
+    payload: DreamContextPayload;
+    context: { baziChartName?: string; dailyFortune?: string };
+};
+
+type DreamContextCacheEntry = {
+    expiresAt: number;
+    result: DreamContextResult;
+};
+
+const dreamContextCache = new Map<string, DreamContextCacheEntry>();
+
+function formatDayKey(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function pruneDreamContextCache(now = Date.now()) {
+    for (const [cacheKey, entry] of dreamContextCache.entries()) {
+        if (entry.expiresAt <= now) {
+            dreamContextCache.delete(cacheKey);
+        }
+    }
+    if (dreamContextCache.size > MAX_CACHE_SIZE) {
+        const entries = Array.from(dreamContextCache.entries());
+        entries.sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+        const toDelete = entries.slice(0, dreamContextCache.size - MAX_CACHE_SIZE);
+        for (const [key] of toDelete) {
+            dreamContextCache.delete(key);
+        }
+    }
+}
+
+export async function buildDreamContextPayload(userId: string): Promise<DreamContextResult> {
     const supabase = getSystemAdminClient();
+    pruneDreamContextCache();
 
-    const { data: settings } = await supabase
-        .from('user_settings')
-        .select('default_bazi_chart_id')
-        .eq('user_id', userId)
-        .maybeSingle();
+    const [{ data: settings }, dayKey] = await Promise.all([
+        supabase
+            .from('user_settings')
+            .select('default_bazi_chart_id')
+            .eq('user_id', userId)
+            .maybeSingle(),
+        Promise.resolve(formatDayKey(new Date())),
+    ]);
+
     const defaultBaziId = (settings as { default_bazi_chart_id?: string | null } | null)?.default_bazi_chart_id ?? null;
+    const resolvedChartMeta = defaultBaziId
+        ? await supabase
+            .from('bazi_charts')
+            .select('id, updated_at')
+            .eq('user_id', userId)
+            .eq('id', defaultBaziId)
+            .maybeSingle()
+        : await supabase
+            .from('bazi_charts')
+            .select('id, updated_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-    const baziQuery = supabase
-        .from('bazi_charts')
-        .select('*')
-        .eq('user_id', userId);
-    const { data: baziChart } = defaultBaziId
-        ? await baziQuery.eq('id', defaultBaziId).maybeSingle()
-        : await baziQuery.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const resolvedChartId = (resolvedChartMeta.data as { id?: string | null } | null)?.id ?? null;
+    const chartUpdatedAt = (resolvedChartMeta.data as { updated_at?: string | null } | null)?.updated_at ?? null;
+
+    const caseProfileMeta = resolvedChartId
+        ? await supabase
+            .from('bazi_case_profiles')
+            .select('updated_at')
+            .eq('bazi_chart_id', resolvedChartId)
+            .eq('user_id', userId)
+            .maybeSingle()
+        : { data: null };
+    const caseProfileUpdatedAt = (caseProfileMeta.data as { updated_at?: string | null } | null)?.updated_at ?? null;
+
+    const cacheKey = `${userId}:${resolvedChartId ?? 'none'}:${chartUpdatedAt ?? 'none'}:${caseProfileUpdatedAt ?? 'none'}:${dayKey}`;
+    const cached = dreamContextCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.result;
+    }
+
+    const [baziChartResult, fortune] = await Promise.all([
+        resolvedChartId
+            ? supabase
+                .from('bazi_charts')
+                .select('id, user_id, name, gender, birth_date, birth_time, birth_place, calendar_type, is_leap_month, chart_data, created_at, updated_at')
+                .eq('user_id', userId)
+                .eq('id', resolvedChartId)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        dailyFortuneProvider.get('today', userId, { client: supabase }),
+    ]);
+
+    const baziChart = baziChartResult.data;
     const caseProfile = baziChart?.id
         ? await getBaziCaseProfileByChartId(supabase, baziChart.id, userId)
         : null;
-
-    const fortune = await dailyFortuneProvider.get('today', userId, { client: supabase });
 
     let baziText = baziChart
         ? baziProvider.formatForAI({
@@ -59,5 +135,11 @@ export async function buildDreamContextPayload(userId: string): Promise<{ payloa
         dailyFortune: fortuneText ? '已参考' : undefined
     };
 
-    return { payload, context };
+    const result = { payload, context };
+    dreamContextCache.set(cacheKey, {
+        expiresAt: Date.now() + DREAM_CONTEXT_TTL_MS,
+        result,
+    });
+
+    return result;
 }

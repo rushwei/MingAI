@@ -1,10 +1,10 @@
 /**
  * 消息发送、流式响应、中止、重试逻辑 hook
  */
-import { useCallback, useEffect, useMemo } from 'react';
-import type { ChatMessage, Conversation, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { ChatMessage, ConversationListItem, DifyContext, Mention, AIMessageMetadata, DreamInterpretationInfo } from '@/types';
 import { ANONYMOUS_DISPLAY_NAME } from '@/types';
-import { createConversation, deleteConversation, renameConversation } from '@/lib/chat/conversation';
+import { createConversation, deleteConversation, renameConversation, DEFAULT_CONVERSATION_TITLE } from '@/lib/chat/conversation';
 import { buildDraftTitle } from '@/lib/chat/draft-title';
 import { isNearBottom } from '@/lib/chat/chat-scroll';
 import { chatStreamManager } from '@/lib/chat/chat-stream-manager';
@@ -18,7 +18,7 @@ import { readLocalVisualizationSettings } from '@/lib/visualization/settings';
 // AI 生成对话标题
 async function generateAITitle(messages: ChatMessage[]): Promise<string> {
     const firstUserMessage = messages.find(m => m.role === 'user');
-    if (!firstUserMessage) return '新对话';
+    if (!firstUserMessage) return DEFAULT_CONVERSATION_TITLE;
     try {
         const response = await fetch('/api/chat/title', {
             method: 'POST',
@@ -86,6 +86,8 @@ export function useChatMessaging({
         setShowCreditsModal,
         refreshConversationList,
         saveMessages,
+        cacheConversationMessages,
+        removeConversationDetail,
     } = state;
     const isDreamMode = chatMode === 'dream';
     const isMangpaiMode = chatMode === 'mangpai';
@@ -95,6 +97,18 @@ export function useChatMessaging({
         () => (featureToggleLoading ? [] : getEnabledDataSourceTypes(isFeatureEnabled)),
         [featureToggleLoading, isFeatureEnabled]
     );
+
+    const refreshBootstrapTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const debouncedRefreshBootstrap = useCallback(() => {
+        if (refreshBootstrapTimerRef.current) {
+            clearTimeout(refreshBootstrapTimerRef.current);
+        }
+        refreshBootstrapTimerRef.current = setTimeout(() => {
+            void refreshBootstrap();
+            refreshBootstrapTimerRef.current = null;
+        }, 300);
+    }, [refreshBootstrap]);
+
     const sanitizeOutgoingMentions = useCallback(
         (rawMentions: Mention[] | undefined) => filterMentionsByFeature(rawMentions ?? [], {
             knowledgeBaseEnabled,
@@ -172,9 +186,15 @@ export function useChatMessaging({
                 || event.errorMessage?.includes('请先登录') === true;
 
             if (event.type === 'task_started') {
-                setStreamingConversationIds(prev => { const next = new Set(prev); next.add(convId); return next; });
+                setStreamingConversationIds(prev => {
+                    if (prev.has(convId)) return prev;
+                    const next = new Set(prev); next.add(convId); return next;
+                });
             } else if (event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed') {
-                setStreamingConversationIds(prev => { const next = new Set(prev); next.delete(convId); return next; });
+                setStreamingConversationIds(prev => {
+                    if (!prev.has(convId)) return prev;
+                    const next = new Set(prev); next.delete(convId); return next;
+                });
             }
 
             if (isActiveConversationEvent) {
@@ -197,8 +217,14 @@ export function useChatMessaging({
                 if (taskDreamContext) setDreamContext(taskDreamContext);
             }
 
+            if (event.task.messages.length > 0) {
+                cacheConversationMessages(convId, event.task.messages, {
+                    updatedAt: new Date().toISOString(),
+                });
+            }
+
             if (event.type === 'task_billed' || event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed') {
-                void refreshBootstrap();
+                debouncedRefreshBootstrap();
             }
             if (hasLoadedConversationsRef.current && (event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed')) {
                 void refreshConversationList();
@@ -211,7 +237,7 @@ export function useChatMessaging({
             }
         });
         return unsubscribe;
-    }, [markCreditsExhausted, refreshBootstrap, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext]);
+    }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshBootstrap, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext]);
 
     // KB event listeners
     useEffect(() => {
@@ -220,13 +246,13 @@ export function useChatMessaging({
             if (detail?.sourceType === 'conversation') void refreshConversationList();
         };
         window.addEventListener('mingai:knowledge-base:ingested', handler as EventListener);
-        const onPromptUpdate = () => { void refreshBootstrap(); };
+        const onPromptUpdate = () => { debouncedRefreshBootstrap(); };
         window.addEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
         return () => {
             window.removeEventListener('mingai:knowledge-base:ingested', handler as EventListener);
             window.removeEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
         };
-    }, [refreshBootstrap, refreshConversationList]);
+    }, [debouncedRefreshBootstrap, refreshConversationList]);
 
     const handleArchiveMessage = useCallback((message: ChatMessage) => {
         if (!activeConversationId || !knowledgeBaseEnabled) return;
@@ -262,12 +288,12 @@ export function useChatMessaging({
                 return;
             }
             if (isNewConversation && userId) {
-                setPendingSidebarTitle(draftTitle || '新对话');
+                setPendingSidebarTitle(draftTitle || DEFAULT_CONVERSATION_TITLE);
                 setHasLoadedConversations(true);
                 const newId = await createConversation({
                     userId,
                     personality: 'general',
-                    title: draftTitle || '新对话',
+                    title: draftTitle || DEFAULT_CONVERSATION_TITLE,
                 });
                 if (newId) {
                     conversationId = newId;
@@ -279,10 +305,10 @@ export function useChatMessaging({
                     setTitleGeneratingConversationIds(prev => { const next = new Set(prev); next.add(newId); return next; });
                     const nowIso = new Date().toISOString();
                     setConversations(prev => {
-                        const nextConversation: Conversation = {
+                        const nextConversation: ConversationListItem = {
                             id: newId, userId,
-                            personality: 'general', title: draftTitle || '新对话', messages: [],
-                            createdAt: nowIso, updatedAt: nowIso, sourceType: 'chat', sourceData: {},
+                            personality: 'general', title: draftTitle || DEFAULT_CONVERSATION_TITLE,
+                            createdAt: nowIso, updatedAt: nowIso, sourceType: 'chat', questionPreview: null,
                             isArchived: false, archivedKbIds: [],
                         };
                         return [nextConversation, ...prev.filter(c => c.id !== newId)];
@@ -330,6 +356,7 @@ export function useChatMessaging({
                         setMessages([]);
                         router.replace('/chat');
                     }
+                    removeConversationDetail(conversationId);
                     setConversations(prev => prev.filter(conv => conv.id !== conversationId));
                     setPendingSidebarTitle(null);
                     setHasLoadedConversations(true);

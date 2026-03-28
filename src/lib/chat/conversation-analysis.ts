@@ -1,6 +1,3 @@
-import { extractAnalysisFromConversation } from '@/lib/ai/ai-analysis-query';
-import { loadConversation } from '@/lib/chat/conversation';
-
 export type ConversationAnalysisSnapshot = {
   analysis: string | null;
   reasoning: string | null;
@@ -11,23 +8,19 @@ export type ConversationAnalysisSnapshot = {
 export async function loadConversationAnalysisSnapshot(
   conversationId: string,
 ): Promise<ConversationAnalysisSnapshot | null> {
-  const conversation = await loadConversation(conversationId);
-  if (!conversation) {
+  const response = await fetch(`/api/conversations/${conversationId}?snapshot=analysis`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
     return null;
   }
 
-  const sourceData = conversation.sourceData as Record<string, unknown> | undefined;
-  const { analysis, reasoning, modelId } = extractAnalysisFromConversation(
-    conversation.messages,
-    sourceData,
-  );
+  const payload = await response.json().catch(() => null) as {
+    snapshot?: ConversationAnalysisSnapshot | null;
+  } | null;
 
-  return {
-    analysis,
-    reasoning,
-    modelId,
-    reasoningEnabled: typeof sourceData?.reasoning === 'boolean' ? sourceData.reasoning : false,
-  };
+  return payload?.snapshot ?? null;
 }
 
 export async function loadLatestConversationAnalysisSnapshot(filters: {

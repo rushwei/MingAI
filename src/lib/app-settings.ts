@@ -186,20 +186,28 @@ export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
 };
 
 const FEATURE_PREFIX = 'feature_disabled:';
+const FEATURE_TOGGLE_CACHE_TTL_MS = 30_000;
 
 type FeatureToggleRow = {
   setting_key: string;
   setting_value: unknown;
 };
 
+type FeatureToggleCacheEntry = {
+  disabled: boolean;
+  expiresAt: number;
+};
+
+const featureToggleCache = new Map<FeatureModuleId, FeatureToggleCacheEntry>();
+
 function normalizeFeatureToggleRows(rows: FeatureToggleRow[] | null | undefined): Record<string, boolean> {
-  const result: Record<string, boolean> = {};
+  const toggleStates: Record<string, boolean> = {};
   for (const row of rows ?? []) {
     if (!row?.setting_key) continue;
     const id = row.setting_key.replace(FEATURE_PREFIX, '');
-    result[id] = !!row.setting_value;
+    toggleStates[id] = !!row.setting_value;
   }
-  return result;
+  return toggleStates;
 }
 
 async function readFeatureToggleRows(
@@ -210,6 +218,40 @@ async function readFeatureToggleRows(
     .select('setting_key, setting_value')
     .like('setting_key', `${FEATURE_PREFIX}%`);
   return { data: data ?? [], error };
+}
+
+function getCachedFeatureToggle(featureId: FeatureModuleId): boolean | null {
+  const cached = featureToggleCache.get(featureId);
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    featureToggleCache.delete(featureId);
+    return null;
+  }
+
+  return cached.disabled;
+}
+
+function setCachedFeatureToggle(featureId: FeatureModuleId, disabled: boolean) {
+  featureToggleCache.set(featureId, {
+    disabled,
+    expiresAt: Date.now() + FEATURE_TOGGLE_CACHE_TTL_MS,
+  });
+}
+
+async function readFeatureToggleValue(
+  supabase: ReturnType<typeof getSystemAdminClient>,
+  featureId: FeatureModuleId
+): Promise<{ data: { setting_value?: unknown } | null; error: { message?: string } | null }> {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('setting_value')
+    .eq('setting_key', `${FEATURE_PREFIX}${featureId}`)
+    .maybeSingle();
+
+  return { data: data ?? null, error };
 }
 
 /** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
@@ -256,6 +298,7 @@ export async function setFeatureToggle(
       console.error('[app-settings] Failed to set feature toggle:', error.message);
       return false;
     }
+    setCachedFeatureToggle(featureId, disabled);
     return true;
   } catch (error) {
     console.error('[app-settings] Failed to set feature toggle:', error);
@@ -264,6 +307,29 @@ export async function setFeatureToggle(
 }
 
 export async function isFeatureModuleEnabled(featureId: FeatureModuleId): Promise<boolean> {
-  const toggles = await getFeatureToggles();
-  return toggles[featureId] !== true;
+  const cached = getCachedFeatureToggle(featureId);
+  if (cached !== null) {
+    return cached !== true;
+  }
+
+  try {
+    const supabase = getSystemAdminClient();
+    const { data, error } = await readFeatureToggleValue(supabase, featureId);
+
+    if (error) {
+      if (!IS_NODE_TEST_RUNTIME) {
+        console.error('[app-settings] Failed to read feature toggle:', error.message);
+      }
+      return true;
+    }
+
+    const disabled = !!data?.setting_value;
+    setCachedFeatureToggle(featureId, disabled);
+    return disabled !== true;
+  } catch (error) {
+    if (!IS_NODE_TEST_RUNTIME) {
+      console.error('[app-settings] Failed to read feature toggle:', error);
+    }
+    return true;
+  }
 }
