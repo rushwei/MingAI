@@ -49,6 +49,19 @@ async function loadSettings(auth: Exclude<Awaited<ReturnType<typeof requireUserC
 export async function GET(request: NextRequest) {
     const auth = await requireUserContext(request);
     if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
+    const profileOnly = new URL(request.url).searchParams.get('scope') === 'profile';
+
+    if (profileOnly) {
+        const profileResult = await loadProfile(auth);
+        if (profileResult.error) {
+            return jsonError('获取用户资料失败', 500);
+        }
+
+        return jsonOk({
+            profile: profileResult.data ?? null,
+            settings: null,
+        });
+    }
 
     const [profileResult, settingsResult] = await Promise.all([
         loadProfile(auth),

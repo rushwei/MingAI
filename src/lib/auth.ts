@@ -35,6 +35,9 @@ type OtpType = 'signup' | 'magiclink' | 'recovery' | 'email_change' | 'email';
 
 const authListeners = new Set<AuthListener>();
 let cachedSession: Session | null = null;
+let cachedUser: SupabaseUser | null = null;
+let hasInitializedSession = false;
+let sessionBootstrapPromise: Promise<AuthPayload<{ session: Session | null; user: SupabaseUser | null }>> | null = null;
 
 function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
     for (const listener of authListeners) {
@@ -48,6 +51,8 @@ function emitAuthEvent(event: AuthChangeEvent, session: Session | null) {
 
 function applySession(session: Session | null, event?: AuthChangeEvent) {
     cachedSession = session;
+    cachedUser = session?.user ?? null;
+    hasInitializedSession = true;
     if (event) {
         emitAuthEvent(event, session);
     }
@@ -67,14 +72,39 @@ async function postAuthAction<T>(action: string, payload: Record<string, unknown
     });
 }
 
+function getCachedSessionPayload(): AuthPayload<{ session: Session | null; user: SupabaseUser | null }> {
+    return {
+        data: {
+            session: cachedSession,
+            user: cachedUser ?? cachedSession?.user ?? null,
+        },
+        error: null,
+    };
+}
+
 async function loadSessionFromServer(): Promise<AuthPayload<{ session: Session | null; user: SupabaseUser | null }>> {
-    const result = await requestJson<{ session: Session | null; user: SupabaseUser | null }>('/api/auth', {
-        method: 'GET',
-    });
-    if (!result.error) {
-        applySession(result.data?.session ?? null);
+    if (hasInitializedSession) {
+        return getCachedSessionPayload();
     }
-    return result;
+
+    if (sessionBootstrapPromise) {
+        return await sessionBootstrapPromise;
+    }
+
+    sessionBootstrapPromise = requestJson<{ session: Session | null; user: SupabaseUser | null }>('/api/auth', {
+        method: 'GET',
+    }).then((result) => {
+        if (!result.error) {
+            cachedSession = result.data?.session ?? null;
+            cachedUser = result.data?.user ?? result.data?.session?.user ?? null;
+            hasInitializedSession = true;
+        }
+        return result;
+    }).finally(() => {
+        sessionBootstrapPromise = null;
+    });
+
+    return await sessionBootstrapPromise;
 }
 
 export const supabase = {
@@ -156,7 +186,10 @@ export const supabase = {
 
         onAuthStateChange(callback: AuthListener) {
             authListeners.add(callback);
-            void this.getSession().then((res) => {
+            const bootstrap = hasInitializedSession
+                ? Promise.resolve(getCachedSessionPayload())
+                : (sessionBootstrapPromise ?? loadSessionFromServer());
+            void bootstrap.then((res) => {
                 callback('INITIAL_SESSION', res.data?.session ?? null);
             });
             return {
@@ -311,8 +344,7 @@ export async function ensureUserRecord(user: SupabaseUser, accessToken?: string)
     }
 }
 
-export async function updateNickname(userId: string, nickname: string): Promise<AuthResult> {
-    void userId;
+export async function updateNickname(_userId: string, nickname: string): Promise<AuthResult> {
 
     const result = await updateNicknameProfile(nickname);
 

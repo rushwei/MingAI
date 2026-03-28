@@ -66,8 +66,10 @@ export async function getCurrentUserProfileBundle(): Promise<UserProfileBundle |
 }
 
 export async function getCurrentUserProfile(userId?: string): Promise<UserProfile | null> {
-  const bundle = await getCurrentUserProfileBundle();
-  const profile = bundle?.profile ?? null;
+  const result = await requestBrowserJson<UserProfileBundle>('/api/user/profile?scope=profile', {
+    method: 'GET',
+  });
+  const profile = result.error ? null : (result.data?.profile ?? null);
 
   if (!profile) return null;
   if (userId && profile.id !== userId) return null;

@@ -7,7 +7,7 @@
  * - Pro: 立即+200次，每小时+1次，上限200次
  */
 
-import { getCurrentUserProfileBundle } from '@/lib/auth';
+import { requestBrowserJson } from '@/lib/browser-api';
 
 export type MembershipType = 'free' | 'plus' | 'pro';
 
@@ -18,6 +18,11 @@ export interface MembershipInfo {
     aiChatCount: number;
     lastCreditRestoreAt: Date | null;
 }
+
+export type MembershipLookupResult = {
+    ok: boolean;
+    info: MembershipInfo | null;
+};
 
 export type MembershipInfoSource = {
     membership?: MembershipType | null;
@@ -134,18 +139,35 @@ export function getCreditLimit(type: MembershipType): number {
 /**
  * 获取用户会员信息
  */
+export async function getMembershipInfoResult(userId: string): Promise<MembershipLookupResult> {
+    const result = await requestBrowserJson<{
+        userId?: string | null;
+        membership?: MembershipInfo | null;
+    }>('/api/user/membership', {
+        method: 'GET',
+    });
+
+    if (result.error) {
+        return { ok: false, info: null };
+    }
+
+    const payloadUserId = result.data?.userId ?? null;
+    if (!payloadUserId || payloadUserId !== userId) {
+        return { ok: false, info: null };
+    }
+
+    return {
+        ok: true,
+        info: result.data?.membership ?? null,
+    };
+}
+
+/**
+ * 获取用户会员信息
+ */
 export async function getMembershipInfo(userId: string): Promise<MembershipInfo | null> {
-    const bundle = await getCurrentUserProfileBundle();
-    const profile = bundle?.profile ?? null;
-
-    if (!profile) {
-        return null;
-    }
-    if (profile.id !== userId) {
-        return null;
-    }
-
-    return buildMembershipInfo(profile);
+    const result = await getMembershipInfoResult(userId);
+    return result.ok ? result.info : null;
 }
 
 export function buildMembershipInfo(source: MembershipInfoSource | null): MembershipInfo {
@@ -184,4 +206,3 @@ export function buildMembershipInfo(source: MembershipInfoSource | null): Member
         lastCreditRestoreAt,
     };
 }
-

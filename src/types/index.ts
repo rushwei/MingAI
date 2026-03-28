@@ -334,6 +334,19 @@ export interface Conversation {
     archivedKbIds?: string[];
 }
 
+export interface ConversationListItem {
+    id: string;
+    userId?: string;
+    personality: AIPersonality;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    sourceType?: ConversationSourceType;
+    questionPreview?: string | null;
+    isArchived?: boolean;
+    archivedKbIds?: string[];
+}
+
 // ===== AI 模型相关类型 =====
 
 /** AI 供应商 */
