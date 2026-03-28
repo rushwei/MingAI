@@ -26,7 +26,7 @@ export function LiuNianTable({
                                 flex-shrink-0 w-14 text-center p-2.5 rounded-md border transition-colors
                                 ${isSelected
                                     ? 'border-[#2eaadc] bg-blue-50/30'
-                                    : 'border-gray-200 bg-background hover:bg-[#efedea]'
+                                    : 'border-border bg-background hover:bg-background-secondary'
                                 }
                             `}
                         >

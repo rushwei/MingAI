@@ -93,17 +93,17 @@ export default function DaliurenPage() {
 
     return (
         <FeatureGate featureId="daliuren">
-            <div className="min-h-screen bg-[#f7f6f3] md:pb-12 text-[#37352f]">
+            <div className="min-h-screen bg-background md:pb-12 text-foreground">
                 {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
                 <div className="hidden md:block text-center py-8">
                     <h1 className="text-2xl lg:text-3xl font-bold">大六壬</h1>
-                    <p className="text-[#37352f]/60 mt-2">三式之一，推演时空吉凶</p>
+                    <p className="text-foreground/60 mt-2">三式之一，推演时空吉凶</p>
                 </div>
 
                 <div className="max-w-2xl mx-auto px-4 sm:mt-0 mt-8">
                     {/* 占事输入 */}
                     <div className="sm:mt-8 mb-6 text-center">
-                        <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
+                        <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
                             占事（选填）
                         </label>
                         <input
@@ -111,15 +111,15 @@ export default function DaliurenPage() {
                             value={question}
                             onChange={(e) => setQuestion(e.target.value)}
                             placeholder="例如：此事能否顺利？"
-                            className="w-full px-6 py-4 bg-white rounded-lg border border-gray-200 shadow-sm
+                            className="w-full px-6 py-4 bg-background rounded-lg border border-border shadow-sm
                                 focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none
-                                text-center text-lg text-[#37352f] placeholder:text-[#37352f]/30
+                                text-center text-lg text-foreground placeholder:text-foreground/30
                                 transition-all duration-150"
                         />
                     </div>
                     {/* 时间模式 */}
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
+                        <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
                             时间模式
                         </label>
                         <div className="grid grid-cols-2 gap-3">
@@ -128,7 +128,7 @@ export default function DaliurenPage() {
                                 className={`px-4 py-3 rounded-md border text-sm font-semibold transition-all duration-150 ${
                                     timeMode === 'now'
                                         ? 'border-[#2383e2] bg-[#2383e2] text-white'
-                                        : 'border-gray-200 bg-white text-[#37352f] hover:bg-[#efedea]'
+                                        : 'border-border bg-background text-foreground hover:bg-background-secondary'
                                 }`}
                             >
                                 正时（当前时间）
@@ -138,7 +138,7 @@ export default function DaliurenPage() {
                                 className={`px-4 py-3 rounded-md border text-sm font-semibold transition-all duration-150 ${
                                     timeMode === 'custom'
                                         ? 'border-[#2383e2] bg-[#2383e2] text-white'
-                                        : 'border-gray-200 bg-white text-[#37352f] hover:bg-[#efedea]'
+                                        : 'border-border bg-background text-foreground hover:bg-background-secondary'
                                 }`}
                             >
                                 活时（自选时间）
@@ -157,14 +157,14 @@ export default function DaliurenPage() {
                                 { label: '分', value: minute, onChange: setMinute, min: 0, max: 59 },
                             ].map((item) => (
                                 <div key={item.label}>
-                                    <label className="block text-xs text-[#37352f]/60 mb-1">{item.label}</label>
+                                    <label className="block text-xs text-foreground/60 mb-1">{item.label}</label>
                                     <input 
                                         type="number" 
                                         min={item.min} 
                                         max={item.max} 
                                         value={item.value} 
                                         onChange={e => item.onChange(Number(e.target.value))}
-                                        className="w-full px-2 py-2 bg-white rounded-md border border-gray-200 text-center text-sm text-[#37352f] focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150" 
+                                        className="w-full px-2 py-2 bg-background rounded-md border border-border text-center text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150" 
                                     />
                                 </div>
                             ))}
@@ -174,30 +174,30 @@ export default function DaliurenPage() {
                     <div className="mb-8">
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="flex items-center gap-1 text-sm text-[#37352f]/60 hover:text-[#37352f] transition-colors"
+                            className="flex items-center gap-1 text-sm text-foreground/60 hover:text-foreground transition-colors"
                         >
                             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             本命设置（可选）
                         </button>
                         {showAdvanced && (
-                            <div className="mt-3 space-y-4 p-4 rounded-lg border border-gray-200 bg-white shadow-sm animate-fade-in">
+                            <div className="mt-3 space-y-4 p-4 rounded-lg border border-border bg-background shadow-sm animate-fade-in">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-[#37352f]/60 mb-2 uppercase tracking-wider">出生年份</label>
+                                        <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">出生年份</label>
                                         <input
                                             type="number"
                                             value={birthYear}
                                             onChange={e => setBirthYear(e.target.value)}
                                             placeholder="如 1990"
-                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-gray-200 text-sm text-[#37352f] focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
+                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-[#37352f]/60 mb-2 uppercase tracking-wider">性别</label>
+                                        <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">性别</label>
                                         <select
                                             value={gender}
                                             onChange={e => setGender(e.target.value as 'male' | 'female' | '')}
-                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-gray-200 text-sm text-[#37352f] focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
+                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
                                         >
                                             <option value="">不填</option>
                                             <option value="male">男</option>
@@ -226,29 +226,29 @@ export default function DaliurenPage() {
                     </div>
 
                     {/* 说明 */}
-                    <div className="bg-white rounded-lg p-5 md:p-8 border border-gray-200 shadow-sm mb-8">
-                        <h3 className="text-base md:text-lg font-bold text-[#37352f] mb-4 md:mb-6 flex items-center gap-2">
+                    <div className="bg-background rounded-lg p-5 md:p-8 border border-border shadow-sm mb-8">
+                        <h3 className="text-base md:text-lg font-bold text-foreground mb-4 md:mb-6 flex items-center gap-2">
                             <span className="w-1 h-4 md:h-5 bg-[#37352f] rounded-full" />
                             大六壬说明
                         </h3>
                         <div className="grid md:grid-cols-2 gap-6 md:gap-8 text-sm leading-relaxed">
                             <div className="space-y-4">
                                 <div>
-                                    <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <h4 className="font-bold text-foreground mb-2 flex items-center gap-2 text-sm">
                                         <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                         什么是大六壬？
                                     </h4>
-                                    <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
+                                    <p className="text-xs md:text-sm text-foreground/60 pl-3.5 border-l border-border/60">
                                         大六壬是中国古代三式之一，以天地盘、四课三传为核心，
                                         通过时空信息推演事物发展，判断吉凶趋势。
                                     </p>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <h4 className="font-bold text-foreground mb-2 flex items-center gap-2 text-sm">
                                         <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                         正时与活时
                                     </h4>
-                                    <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
+                                    <p className="text-xs md:text-sm text-foreground/60 pl-3.5 border-l border-border/60">
                                         正时使用当前时间起课，适合即时预测；
                                         活时可自选时间，适合分析特定时刻的格局。
                                     </p>
@@ -256,21 +256,21 @@ export default function DaliurenPage() {
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <h4 className="font-bold text-foreground mb-2 flex items-center gap-2 text-sm">
                                         <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                         四课三传
                                     </h4>
-                                    <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
+                                    <p className="text-xs md:text-sm text-foreground/60 pl-3.5 border-l border-border/60">
                                         四课由日干、日支与天地盘组合而成，
                                         三传从四课中取出，代表事物的起因、经过与结果。
                                     </p>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-[#37352f] mb-2 flex items-center gap-2 text-sm">
+                                    <h4 className="font-bold text-foreground mb-2 flex items-center gap-2 text-sm">
                                         <span className="w-1.5 h-1.5 rounded-full bg-[#2383e2]" />
                                         注意事项
                                     </h4>
-                                    <p className="text-xs md:text-sm text-[#37352f]/60 pl-3.5 border-l border-gray-100">
+                                    <p className="text-xs md:text-sm text-foreground/60 pl-3.5 border-l border-border/60">
                                         起课时心诚则灵，专注于所问之事。
                                         同一问题不宜反复起课，以第一次结果为准。
                                     </p>

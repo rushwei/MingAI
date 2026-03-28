@@ -21,24 +21,30 @@ export function ChatHeader({
     aiPersonalizationEnabled,
 }: ChatHeaderProps) {
     return (
-        <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-col gap-2 items-end">
+        <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-wrap justify-end gap-2">
             {aiPersonalizationEnabled && (
                 <Link
                     href="/user/settings/ai"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
                     title="个性化"
                 >
                     <MessageCircleHeart className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
+                    <span className="text-sm font-medium text-foreground-secondary group-hover:text-accent transition-colors">
+                        个性化
+                    </span>
                 </Link>
             )}
 
             {membershipType !== 'free' && knowledgeBaseEnabled && (
                 <Link
                     href="/user/knowledge-base"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
                     title="知识库"
                 >
                     <BookOpenText className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors" />
+                    <span className="text-sm font-medium text-foreground-secondary group-hover:text-accent transition-colors">
+                        知识库
+                    </span>
                 </Link>
             )}
         </div>

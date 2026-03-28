@@ -270,7 +270,7 @@ function NotificationsContent() {
                         <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse" />
                     </div>
                     {/* 列表骨架 */}
-                    <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                    <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="p-4 flex gap-4 animate-pulse">
                                 <div className="w-8 h-8 rounded bg-foreground/10" />
@@ -308,7 +308,7 @@ function NotificationsContent() {
                             <button
                                 onClick={handleMarkAllRead}
                                 disabled={isProcessing || unreadCount === 0}
-                                className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 hover:bg-[#efedea] transition-colors disabled:opacity-50 flex items-center gap-2"
+                                className="px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-background-secondary transition-colors disabled:opacity-50 flex items-center gap-2"
                             >
                                 {isProcessing ? <SoundWaveLoader variant="inline" /> : <CheckCheck className="w-3.5 h-3.5" />}
                                 一键已读
@@ -318,7 +318,7 @@ function NotificationsContent() {
                             <button
                                 onClick={toggleSelectMode}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                                    selectMode ? 'bg-[#2eaadc] text-white border-[#2eaadc]' : 'border-gray-200 hover:bg-[#efedea]'
+                                    selectMode ? 'bg-[#2eaadc] text-white border-[#2eaadc]' : 'border-border hover:bg-background-secondary'
                                 }`}
                             >
                                 {selectMode ? '完成' : '选择'}
@@ -330,7 +330,7 @@ function NotificationsContent() {
                 <div className="space-y-8">
                     {/* 筛选器 - 极简药丸 */}
                     {notifications.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-6 text-xs text-foreground/40 border-b border-gray-100 pb-4">
+                        <div className="flex flex-wrap items-center gap-6 text-xs text-foreground/40 border-b border-border/60 pb-4">
                             <div className="flex items-center gap-2">
                                 <span className="font-semibold uppercase tracking-widest text-[10px]">阅读状态</span>
                                 <div className="flex items-center gap-1">
@@ -340,8 +340,8 @@ function NotificationsContent() {
                                             onClick={() => updateFilters({ read: option.value })}
                                             className={`px-2 py-0.5 rounded transition-colors ${
                                                 filters.read === option.value
-                                                    ? 'bg-[#e3e1db] text-foreground font-semibold'
-                                                    : 'hover:bg-[#efedea] hover:text-foreground'
+                                                    ? 'bg-background-tertiary text-foreground font-semibold'
+                                                    : 'hover:bg-background-secondary hover:text-foreground'
                                             }`}
                                         >
                                             {option.label}
@@ -358,8 +358,8 @@ function NotificationsContent() {
                                             onClick={() => updateFilters({ type: option.value })}
                                             className={`px-2 py-0.5 rounded transition-colors ${
                                                 filters.type === option.value
-                                                    ? 'bg-[#e3e1db] text-foreground font-semibold'
-                                                    : 'hover:bg-[#efedea] hover:text-foreground'
+                                                    ? 'bg-background-tertiary text-foreground font-semibold'
+                                                    : 'hover:bg-background-secondary hover:text-foreground'
                                             }`}
                                         >
                                             {option.label}
@@ -371,12 +371,12 @@ function NotificationsContent() {
                     )}
 
                     {notifications.length === 0 ? (
-                        <div className="text-center py-20 border border-dashed border-gray-200 rounded-md">
+                        <div className="text-center py-20 border border-dashed border-border rounded-md">
                             <Bell className="w-8 h-8 text-foreground/10 mx-auto mb-3" />
                             <p className="text-sm text-foreground/40">暂无任何通知</p>
                         </div>
                     ) : visibleNotifications.length === 0 ? (
-                        <div className="text-center py-20 border border-dashed border-gray-200 rounded-md">
+                        <div className="text-center py-20 border border-dashed border-border rounded-md">
                             <p className="text-sm text-foreground/40">当前筛选下暂无相关消息</p>
                         </div>
                     ) : (
@@ -386,7 +386,7 @@ function NotificationsContent() {
                                     <h3 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">
                                         {group.label}
                                     </h3>
-                                    <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                                    <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                                         {group.items.map((notification) => {
                                             const style = typeStyles[notification.type] || typeStyles.system;
                                             const isSelected = selectedIds.has(notification.id);
@@ -397,14 +397,14 @@ function NotificationsContent() {
                                                     onClick={() => handleClick(notification)}
                                                     className={`
                                                         group w-full text-left p-4 cursor-pointer transition-colors flex gap-4
-                                                        ${!notification.is_read ? 'bg-blue-50/20' : 'hover:bg-[#efedea]'}
+                                                        ${!notification.is_read ? 'bg-blue-50/20' : 'hover:bg-background-secondary'}
                                                         ${isSelected ? 'bg-blue-50/40' : ''}
                                                     `}
                                                 >
                                                     {selectMode && (
                                                         <div className="flex items-center shrink-0">
                                                             <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                                                                isSelected ? 'bg-[#2eaadc] border-[#2eaadc]' : 'border-gray-300 bg-white'
+                                                                isSelected ? 'bg-[#2eaadc] border-[#2eaadc]' : 'border-border bg-background'
                                                             }`}>
                                                                 {isSelected && <CheckSquare className="w-3 h-3 text-white" />}
                                                             </div>

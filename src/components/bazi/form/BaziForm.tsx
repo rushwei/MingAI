@@ -57,10 +57,10 @@ export function BaziForm({
 
     return (
         <>
-            <form onSubmit={onSubmit} className="bg-white rounded-lg p-4 md:p-6 shadow-sm border border-gray-200 space-y-3 mb-5 md:space-y-6">
+            <form onSubmit={onSubmit} className="bg-background rounded-lg p-4 md:p-6 shadow-sm border border-border space-y-3 mb-5 md:space-y-6">
                 {/* 姓名输入 */}
                 <div>
-                    <label className="block text-xs md:text-sm font-medium text-[#37352f]/60 mb-1.5 md:mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-foreground/60 mb-1.5 md:mb-2">
                         姓名（可选）
                     </label>
                     <input
@@ -68,7 +68,7 @@ export function BaziForm({
                         value={formData.name}
                         onChange={(e) => onUpdate('name', e.target.value)}
                         placeholder="请输入姓名"
-                        className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-md bg-transparent text-sm text-[#37352f]
+                        className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-border rounded-md bg-transparent text-sm text-foreground
                             focus:outline-none focus:ring-2 focus:ring-[#2383e2]/20 focus:border-[#2383e2]
                             transition-all duration-150"
                     />
@@ -78,7 +78,7 @@ export function BaziForm({
                 <div className="grid grid-cols-2 gap-10 md:gap-20">
                     {/* 性别选择 */}
                     <div>
-                        <label className="block text-xs md:text-sm font-medium text-[#37352f]/60 mb-1.5 md:mb-2">
+                        <label className="block text-xs md:text-sm font-medium text-foreground/60 mb-1.5 md:mb-2">
                             性别
                         </label>
                         <div className="grid grid-cols-2 gap-1.5 md:gap-2">
@@ -88,7 +88,7 @@ export function BaziForm({
                                 className={`py-1.5 md:py-2.5 px-1 md:px-2 rounded-md border text-xs md:text-sm font-medium transition-all duration-150
                                     ${formData.gender === 'male'
                                         ? 'bg-[#2383e2] text-white border-[#2383e2]'
-                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
+                                        : 'bg-transparent border-border text-foreground hover:bg-background-secondary'
                                     }`}
                             >
                                 男
@@ -99,7 +99,7 @@ export function BaziForm({
                                 className={`py-1.5 md:py-2.5 px-1 md:px-2 rounded-md border text-xs md:text-sm font-medium transition-all duration-150
                                     ${formData.gender === 'female'
                                         ? 'bg-[#2383e2] text-white border-[#2383e2]'
-                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
+                                        : 'bg-transparent border-border text-foreground hover:bg-background-secondary'
                                     }`}
                             >
                                 女
@@ -109,7 +109,7 @@ export function BaziForm({
 
                     {/* 历法选择 */}
                     <div>
-                        <label className="block text-xs md:text-sm font-medium text-[#37352f]/60 mb-1.5 md:mb-2">
+                        <label className="block text-xs md:text-sm font-medium text-foreground/60 mb-1.5 md:mb-2">
                             历法
                         </label>
                         <div className="grid grid-cols-3 gap-1 md:gap-2">
@@ -119,7 +119,7 @@ export function BaziForm({
                                 className={`py-1.5 md:py-2.5 px-1 md:px-2 rounded-md border text-xs md:text-sm font-medium transition-all duration-150
                                     ${formData.calendarType === 'solar'
                                         ? 'bg-[#2383e2] text-white border-[#2383e2]'
-                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
+                                        : 'bg-transparent border-border text-foreground hover:bg-background-secondary'
                                     }`}
                             >
                                 公历
@@ -130,7 +130,7 @@ export function BaziForm({
                                 className={`py-1.5 md:py-2.5 px-1 md:px-2 rounded-md border text-xs md:text-sm font-medium transition-all duration-150
                                     ${formData.calendarType === 'lunar'
                                         ? 'bg-[#2383e2] text-white border-[#2383e2]'
-                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
+                                        : 'bg-transparent border-border text-foreground hover:bg-background-secondary'
                                     }`}
                             >
                                 农历
@@ -141,7 +141,7 @@ export function BaziForm({
                                 className={`py-1.5 md:py-2.5 px-1 md:px-2 rounded-md border text-xs md:text-sm font-medium transition-all duration-150
                                     ${formData.calendarType === 'pillars'
                                         ? 'bg-[#2383e2] text-white border-[#2383e2]'
-                                        : 'bg-transparent border-gray-200 text-[#37352f] hover:bg-[#efedea]'
+                                        : 'bg-transparent border-border text-foreground hover:bg-background-secondary'
                                     }`}
                             >
                                 四柱
@@ -156,11 +156,11 @@ export function BaziForm({
                         {/* 日期选择 */}
                         <div className="grid grid-cols-3 gap-3">
                             <div>
-                                <label className="block text-xs text-[#37352f]/60 mb-1">年</label>
+                                <label className="block text-xs text-foreground/60 mb-1">年</label>
                                 <select
                                     value={formData.birthYear}
                                     onChange={(e) => onUpdate('birthYear', Number(e.target.value))}
-                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-md bg-transparent text-sm text-[#37352f]
+                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-border rounded-md bg-transparent text-sm text-foreground
                                         focus:outline-none focus:ring-2 focus:ring-[#2383e2]/20 focus:border-[#2383e2]"
                                 >
                                     {YEAR_OPTIONS.map((year) => (
@@ -169,11 +169,11 @@ export function BaziForm({
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-[#37352f]/60 mb-1">月</label>
+                                <label className="block text-xs text-foreground/60 mb-1">月</label>
                                 <select
                                     value={formData.birthMonth}
                                     onChange={(e) => onUpdate('birthMonth', Number(e.target.value))}
-                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-md bg-transparent text-sm text-[#37352f]
+                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-border rounded-md bg-transparent text-sm text-foreground
                                         focus:outline-none focus:ring-2 focus:ring-[#2383e2]/20 focus:border-[#2383e2]"
                                 >
                                     {MONTH_OPTIONS.map((month) => (
@@ -184,11 +184,11 @@ export function BaziForm({
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-[#37352f]/60 mb-1">日</label>
+                                <label className="block text-xs text-foreground/60 mb-1">日</label>
                                 <select
                                     value={formData.birthDay}
                                     onChange={(e) => onUpdate('birthDay', Number(e.target.value))}
-                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-md bg-transparent text-sm text-[#37352f]
+                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-border rounded-md bg-transparent text-sm text-foreground
                                         focus:outline-none focus:ring-2 focus:ring-[#2383e2]/20 focus:border-[#2383e2]"
                                 >
                                     {dayOptions.map((day) => (
@@ -205,9 +205,9 @@ export function BaziForm({
                                     type="checkbox"
                                     checked={formData.isLeapMonth}
                                     onChange={(e) => onUpdate('isLeapMonth', e.target.checked)}
-                                    className="w-4 h-4 text-[#2383e2] border-gray-200 rounded focus:ring-[#2383e2]"
+                                    className="w-4 h-4 text-[#2383e2] border-border rounded focus:ring-[#2383e2]"
                                 />
-                                <span className="text-sm text-[#37352f]/60">闰月</span>
+                                <span className="text-sm text-foreground/60">闰月</span>
                             </label>
                         )}
                     </div>
@@ -239,20 +239,20 @@ export function BaziForm({
                     <button
                         type="button"
                         onClick={() => setTimeModalOpen(true)}
-                        className="w-full flex items-center justify-between p-3 md:p-4 border border-gray-200 rounded-md
-                            hover:bg-[#efedea] transition-all duration-150"
+                        className="w-full flex items-center justify-between p-3 md:p-4 border border-border rounded-md
+                            hover:bg-background-secondary transition-all duration-150"
                     >
                         <div className="flex items-center gap-2 md:gap-3">
                             <Clock className="w-4 h-4 md:w-5 md:h-5 text-[#2383e2]" />
-                            <span className="text-xs md:text-sm font-medium text-[#37352f]">出生时间</span>
-                            <span className="text-xs text-[#37352f]/60">
+                            <span className="text-xs md:text-sm font-medium text-foreground">出生时间</span>
+                            <span className="text-xs text-foreground/60">
                                 {unknownTime
                                     ? '不知时辰'
                                     : `${String(formData.birthHour).padStart(2, '0')}:${String(formData.birthMinute).padStart(2, '0')}`
                                 }
                             </span>
                         </div>
-                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-[#37352f]/30" />
+                        <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-foreground/30" />
                     </button>
                 )}
 
@@ -260,17 +260,17 @@ export function BaziForm({
                 <button
                     type="button"
                     onClick={() => setPlaceModalOpen(true)}
-                    className="w-full flex items-center justify-between p-3 md:p-4 border border-gray-200 rounded-md
-                        hover:bg-[#efedea] transition-all duration-150"
+                    className="w-full flex items-center justify-between p-3 md:p-4 border border-border rounded-md
+                        hover:bg-background-secondary transition-all duration-150"
                 >
                     <div className="flex items-center gap-2 md:gap-3">
                         <MapPin className="w-4 h-4 md:w-5 md:h-5 text-[#2383e2]" />
-                        <span className="text-xs md:text-sm font-medium text-[#37352f]">出生地点</span>
-                        <span className="text-xs text-[#37352f]/60 truncate">
+                        <span className="text-xs md:text-sm font-medium text-foreground">出生地点</span>
+                        <span className="text-xs text-foreground/60 truncate">
                             {placeSummary}
                         </span>
                     </div>
-                    <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-[#37352f]/30" />
+                    <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-foreground/30" />
                 </button>
 
                 {/* 提交按钮 */}
@@ -293,7 +293,7 @@ export function BaziForm({
                 </button>
 
                 {/* 免责声明 */}
-                <p className="text-[10px] md:text-xs text-center text-[#37352f]/40">
+                <p className="text-[10px] md:text-xs text-center text-foreground/40">
                     八字排盘仅供参考，不构成任何建议
                 </p>
             </form>

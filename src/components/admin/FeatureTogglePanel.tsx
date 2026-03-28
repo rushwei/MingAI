@@ -113,7 +113,7 @@ export function FeatureTogglePanel() {
                                     <SoundWaveLoader variant="inline" />
                                 ) : (
                                     <span
-                                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform ${
                                             enabled ? "translate-x-5" : "translate-x-0"
                                         }`}
                                     />

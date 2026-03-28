@@ -118,7 +118,7 @@ function PropertyRow<T extends string>({
                 <select
                     value={value ?? ''}
                     onChange={(e) => onChange((e.target.value || null) as T | null)}
-                    className="w-full appearance-none bg-transparent text-sm text-foreground/80 outline-none cursor-pointer hover:bg-[#efedea] px-2 py-0.5 rounded transition-colors"
+                    className="w-full appearance-none bg-transparent text-sm text-foreground/80 outline-none cursor-pointer hover:bg-background-secondary px-2 py-0.5 rounded transition-colors"
                 >
                     <option value="">未设置</option>
                     {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -191,7 +191,7 @@ function PropertyTags<T extends string>({
                                 onChange([...values, nextValue]);
                             }
                         }}
-                        className="appearance-none bg-transparent border border-dashed border-gray-300 text-foreground/40 text-[10px] px-2 py-0.5 rounded cursor-pointer outline-none hover:bg-[#efedea] hover:text-foreground transition-colors"
+                        className="appearance-none bg-transparent border border-dashed border-border text-foreground/40 text-[10px] px-2 py-0.5 rounded cursor-pointer outline-none hover:bg-background-secondary hover:text-foreground transition-colors"
                     >
                         <option value="" disabled>+ 选择</option>
                         {availableOptions.map((option) => (
@@ -212,7 +212,7 @@ function PropertyTags<T extends string>({
                         }}
                         onBlur={commitDraft}
                         placeholder={placeholder}
-                        className="min-w-[120px] flex-1 bg-transparent border-b border-dashed border-gray-300 text-[11px] text-foreground/60 px-1 py-1 outline-none placeholder:text-foreground/20 focus:border-foreground/30"
+                        className="min-w-[120px] flex-1 bg-transparent border-b border-dashed border-border text-[11px] text-foreground/60 px-1 py-1 outline-none placeholder:text-foreground/20 focus:border-foreground/30"
                     />
                 ) : null}
             </div>
@@ -314,7 +314,7 @@ function ElementsPreferences({ profile, setProfile }: { profile: BaziCaseProfile
                          !selectedOptions.some((selected) => selected.label === option.label),
                      );
                      return (
-                         <div key={el} className="flex flex-col gap-2 p-2 rounded-md hover:bg-[#efedea]/50 transition-colors border border-transparent hover:border-gray-100">
+                         <div key={el} className="flex flex-col gap-2 p-2 rounded-md hover:bg-background-secondary/50 transition-colors border border-transparent hover:border-border/60">
                              <span className="text-xs font-bold text-center text-foreground/80">{el}</span>
                              <select 
                                  value={role} 
@@ -366,8 +366,8 @@ function ElementsPreferences({ profile, setProfile }: { profile: BaziCaseProfile
                                          className={cx(
                                              "w-full appearance-none rounded border border-dashed px-1 py-0.5 text-center text-[10px] outline-none transition-colors",
                                              availableOptions.length > 0
-                                                 ? 'border-gray-300 text-foreground/50 hover:bg-black/5'
-                                                 : 'cursor-not-allowed border-gray-200 text-foreground/20'
+                                                 ? 'border-border text-foreground/50 hover:bg-black/5'
+                                                 : 'cursor-not-allowed border-border text-foreground/20'
                                          )}
                                          style={{ textAlignLast: 'center' }}
                                      >
@@ -416,7 +416,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
 
     if (!chartId) {
         return (
-            <div className="rounded-md border border-gray-200 bg-white p-12 text-center space-y-4">
+            <div className="rounded-md border border-border bg-background p-12 text-center space-y-4">
                 <BookOpenText className="w-8 h-8 text-foreground/10 mx-auto" />
                 <p className="text-sm text-foreground/40">保存当前命盘后即可开启断事笔记</p>
             </div>
@@ -426,7 +426,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* 顶栏操作 */}
-            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div className="flex items-center justify-between gap-4 border-b border-border/60 pb-4">
                 <div className="flex gap-6">
                     {[
                         { id: 'owner', label: '命主真实反馈' },
@@ -468,7 +468,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
                                     ...prev,
                                     events: [{ eventDate: new Date().toISOString().slice(0, 10), category: '其他', title: '', detail: '' }, ...prev.events]
                                 }))}
-                                className="p-1 hover:bg-[#efedea] rounded text-[#2eaadc] transition-colors"
+                                className="p-1 hover:bg-background-secondary rounded text-[#2eaadc] transition-colors"
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
@@ -478,7 +478,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
                             {profile.events.length === 0 ? (
                                 <p className="text-xs text-foreground/20 italic py-4">点击上方“+”号添加重要历史事件，辅助 AI 精准断事</p>
                             ) : profile.events.map((ev, idx) => (
-                                <div key={idx} className="group rounded-md border border-gray-100 px-3 py-3 hover:bg-[#efedea]/40 transition-colors">
+                                <div key={idx} className="group rounded-md border border-border/60 px-3 py-3 hover:bg-background-secondary/40 transition-colors">
                                     <div className="flex items-start gap-4">
                                         <input
                                             type="date"
@@ -487,7 +487,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
                                                 ...prev,
                                                 events: prev.events.map((item, i) => i === idx ? { ...item, eventDate: e.target.value } : item)
                                             }))}
-                                            className="bg-transparent text-[11px] font-mono text-foreground/40 outline-none w-24 shrink-0 mt-1 cursor-pointer hover:bg-white rounded px-1 transition-colors"
+                                            className="bg-transparent text-[11px] font-mono text-foreground/40 outline-none w-24 shrink-0 mt-1 cursor-pointer hover:bg-background rounded px-1 transition-colors"
                                         />
                                         <div className="flex-1 space-y-2">
                                             <div className="flex items-center gap-3">
@@ -497,7 +497,7 @@ export function CaseNotesSection({ chartId }: { chartId?: string | null }) {
                                                         ...prev,
                                                         events: prev.events.map((item, i) => i === idx ? { ...item, category: e.target.value as BaziCaseEvent['category'] } : item)
                                                     }))}
-                                                    className="bg-transparent text-[11px] font-bold text-foreground/40 uppercase outline-none cursor-pointer hover:bg-white rounded px-1 transition-colors"
+                                                    className="bg-transparent text-[11px] font-bold text-foreground/40 uppercase outline-none cursor-pointer hover:bg-background rounded px-1 transition-colors"
                                                 >
                                                     {BAZI_CASE_EVENT_CATEGORY_OPTIONS.map((option) => (
                                                         <option key={option} value={option}>{option}</option>

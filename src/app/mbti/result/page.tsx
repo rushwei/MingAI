@@ -117,10 +117,10 @@ function MBTIResultContent() {
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部导航 */}
-                <div className="hidden md:flex items-center justify-between border-b border-gray-100 pb-6">
-                    <Link href="/mbti" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors flex items-center gap-1"><ChevronLeft className="w-4 h-4" />返回 MBTI 首页</Link>
+                <div className="hidden md:flex items-center justify-between border-b border-border/60 pb-6">
+                    <Link href="/mbti" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors flex items-center gap-1"><ChevronLeft className="w-4 h-4" />返回 MBTI 首页</Link>
                     <div className="flex items-center gap-2">
-                        {isTestMode && <button onClick={() => router.push('/mbti')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCw className="w-3.5 h-3.5" />重新测试</button>}
+                        {isTestMode && <button onClick={() => router.push('/mbti')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><RotateCw className="w-3.5 h-3.5" />重新测试</button>}
                     </div>
                 </div>
 
@@ -129,12 +129,12 @@ function MBTIResultContent() {
 
                 {/* AI 深度分析 */}
                 {isTestMode && (
-                    <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                    <div className="bg-background border border-border rounded-md p-6 space-y-6">
+                        <div className="flex items-center justify-between border-b border-border/60 pb-4">
                             <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#2eaadc]" />AI 深度分析</h3>
                             <div className="flex items-center gap-3">
                                 <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
-                                {aiAnalysis && <button onClick={handleGetAIAnalysis} disabled={loadingAI} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${loadingAI ? 'animate-spin' : ''}`} /></button>}
+                                {aiAnalysis && <button onClick={handleGetAIAnalysis} disabled={loadingAI} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${loadingAI ? 'animate-spin' : ''}`} /></button>}
                             </div>
                         </div>
 
@@ -163,7 +163,7 @@ function MBTIResultContent() {
                 {/* 底部收藏操作 */}
                 {knowledgeBaseEnabled && !!readingId && (
                     <div className="flex justify-center pt-4">
-                        <button onClick={() => setKbModalOpen(true)} className="flex items-center gap-2 px-6 py-2 rounded-md border border-gray-200 text-sm font-medium hover:bg-[#efedea] transition-colors text-foreground/60"><BookOpenText className="w-4 h-4" />收藏至知识库</button>
+                        <button onClick={() => setKbModalOpen(true)} className="flex items-center gap-2 px-6 py-2 rounded-md border border-border text-sm font-medium hover:bg-background-secondary transition-colors text-foreground/60"><BookOpenText className="w-4 h-4" />收藏至知识库</button>
                     </div>
                 )}
 

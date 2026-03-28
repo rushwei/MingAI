@@ -242,7 +242,7 @@ export default function RecordsPage() {
         <div className="min-h-screen bg-background text-foreground pb-20 lg:pb-8">
             <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-10">
                 {/* 标题与操作栏 */}
-                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-gray-100">
+                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/60">
                     <div className="space-y-1">
                         <h1 className="text-2xl font-bold">命理记录</h1>
                         <p className="text-sm text-foreground/50">追踪运势变化，积累命理智慧</p>
@@ -250,7 +250,7 @@ export default function RecordsPage() {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowImportExport(true)}
-                            className="p-2 rounded-md border border-gray-200 hover:bg-[#efedea] transition-colors text-foreground/70"
+                            className="p-2 rounded-md border border-border hover:bg-background-secondary transition-colors text-foreground/70"
                             title="数据管理"
                         >
                             <Download className="w-4 h-4" />
@@ -269,7 +269,7 @@ export default function RecordsPage() {
                     {/* 小记区域 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">今日小记</h2>
-                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                        <div className="bg-background border border-border rounded-md overflow-hidden">
                             <DailyNotes notes={notes} onRefresh={loadNotes} />
                         </div>
                     </section>
@@ -285,7 +285,7 @@ export default function RecordsPage() {
                                 onCategoryChange={(v) => { setCategory(v); setPage(1); }}
                             />
 
-                            <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                            <div className="bg-background border border-border rounded-md overflow-hidden">
                                 <RecordsList
                                     loading={loading}
                                     records={records}

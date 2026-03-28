@@ -43,7 +43,7 @@ function HepanPageContent() {
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] -translate-x-1/2 translate-y-1/2 pointer-events-none" />
 
                 <div className="max-w-4xl mx-auto px-4 relative z-10 text-center animate-fade-in-up">
-                    <div className="inline-flex items-center justify-center p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl mb-8 shadow-2xl shadow-rose-500/10">
+                    <div className="inline-flex items-center justify-center p-4 bg-background/5 backdrop-blur-xl border border-white/10 rounded-3xl mb-8 shadow-2xl shadow-rose-500/10">
                         <HeartHandshake className="w-12 h-12 text-rose-500" />
                     </div>
                     <h1 className="text-5xl font-bold text-foreground tracking-tight mb-6">
@@ -63,8 +63,8 @@ function HepanPageContent() {
                             <Link
                                 key={type}
                                 href={`/hepan/create?type=${type}`}
-                                className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-8
-                                    hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center md:block gap-4 md:gap-0"
+                                className="group relative bg-background/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-8
+                                    hover:bg-background/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center md:block gap-4 md:gap-0"
                             >
                                 <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl ${bg} flex items-center justify-center mb-0 md:mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300 shrink-0`}>
                                     <Icon className="w-6 h-6 md:w-8 md:h-8 text-white" />
@@ -82,7 +82,7 @@ function HepanPageContent() {
 
                                 <div className="hidden md:flex items-center justify-between text-sm font-medium">
                                     <span className="text-foreground-secondary group-hover:text-foreground transition-colors">开始分析</span>
-                                    <div className={`p-2 rounded-full ${bg}/10 ${color} group-hover:bg-white group-hover:text-foreground transition-all duration-300`}>
+                                    <div className={`p-2 rounded-full ${bg}/10 ${color} group-hover:bg-background group-hover:text-foreground transition-all duration-300`}>
                                         <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -96,7 +96,7 @@ function HepanPageContent() {
 
                 {/* 说明部分 - 仅桌面端显示 */}
                 {/* 说明部分 */}
-                <div className="md:block bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden">
+                <div className="md:block bg-background/5 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden">
                     <div className="p-6 md:p-12">
                         <div className="flex items-center gap-3 mb-8">
                             <div className="h-8 w-1 bg-rose-500 rounded-full" />

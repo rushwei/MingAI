@@ -325,7 +325,7 @@ function FortuneCalendarInner({
 
                     {/* Highlight dot */}
                     {hasHighlight && (
-                      <div className="w-1 h-1 rounded-full bg-white/80 mt-0.5" />
+                      <div className="w-1 h-1 rounded-full bg-background/80 mt-0.5" />
                     )}
                   </button>
 

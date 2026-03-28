@@ -274,7 +274,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                                 : showCoinResult
                                     ? lastResult!.coins[coinIndex]
                                         ? 'border-yellow-500 bg-yellow-500/20 text-yellow-600'
-                                        : 'border-gray-400 bg-gray-200 text-gray-600'
+                                        : 'border-gray-400 bg-background-secondary text-gray-600'
                                     : 'border-border bg-background-secondary'
                             }`}
                     >
@@ -391,7 +391,7 @@ export function CoinToss({ onComplete, disabled = false }: CoinTossProps) {
                     ) : (
                         <button
                             onClick={enableShakeDetection}
-                            className="flex items-center gap-[6px] px-3 py-1.5 bg-white/5 hover:bg-white/10
+                            className="flex items-center gap-[6px] px-3 py-1.5 bg-background/5 hover:bg-background/10
                                 rounded text-foreground-secondary hover:text-foreground transition-all text-xs"
                         >
                             <Smartphone className="w-3 h-3" />

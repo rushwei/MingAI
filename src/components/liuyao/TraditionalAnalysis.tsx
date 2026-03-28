@@ -25,17 +25,17 @@ function CollapsibleSection({
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+        <div className="border border-border rounded-lg overflow-hidden bg-background">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[#f8f7f4] hover:bg-[#efedea] transition-colors duration-150 text-sm"
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#f8f7f4] hover:bg-background-secondary transition-colors duration-150 text-sm"
             >
                 <span className="font-medium text-foreground">{title}</span>
                 <ChevronDown className={`w-4 h-4 text-foreground/45 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             <div className={`grid transition-[grid-template-rows] duration-200 ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                 <div className="overflow-hidden">
-                    <div className="p-4 text-sm bg-white">{children}</div>
+                    <div className="p-4 text-sm bg-background">{children}</div>
                 </div>
             </div>
         </div>
@@ -156,7 +156,7 @@ export function TraditionalAnalysis({
             {analysis.ganZhiTime.length > 0 && (
                 <div className="space-y-1.5">
                     <div className="overflow-x-auto">
-                        <div className="min-w-max overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="min-w-max overflow-hidden rounded-lg border border-border bg-background shadow-sm">
                             <table className="w-full text-xs text-center">
                                 <tbody className="divide-y divide-gray-200">
                                     <tr className="divide-x divide-gray-200">
@@ -203,7 +203,7 @@ export function TraditionalAnalysis({
                 </div>
             )}
 
-            <div className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm">
+            <div className="rounded-lg border border-border bg-background px-4 py-4 shadow-sm">
                 <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
                     <div className="space-y-3">
                         {(analysis.hexagramInfo.nuclearHexagram || analysis.hexagramInfo.oppositeHexagram || analysis.hexagramInfo.reversedHexagram || analysis.hexagramInfo.guaShen) && (
@@ -235,7 +235,7 @@ export function TraditionalAnalysis({
                         )}
                     </div>
 
-                    <div className="space-y-3 border-t border-gray-100 pt-3 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-4 lg:pt-0">
+                    <div className="space-y-3 border-t border-border/60 pt-3 lg:border-t-0 lg:border-l lg:border-border/60 lg:pl-4 lg:pt-0">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/30">关键信号</div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                             {movementStats.changing > 0 && (
@@ -273,7 +273,7 @@ export function TraditionalAnalysis({
             </div>
 
             {analysis.yongShenAnalysis.length > 0 && (
-                <div className="rounded-lg border border-gray-200 bg-white shadow-sm divide-y divide-gray-100 overflow-hidden">
+                <div className="rounded-lg border border-border bg-background shadow-sm divide-y divide-border/60 overflow-hidden">
                     {analysis.yongShenAnalysis.map((group, groupIndex) => {
                         const selectedSourceLabel = getCandidateSourceLabel(group.selected.source);
                         const selectedKongState = group.selected.kongWangState;
@@ -373,7 +373,7 @@ export function TraditionalAnalysis({
                         )}
 
                         {analysis.hexagramInfo.changedHexagram?.changingYaoCi && analysis.hexagramInfo.changedHexagram.changingYaoCi.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
+                            <div className="mt-2 pt-2 border-t border-border/60">
                                 <div className="text-foreground/45 mb-1">变爻爻辞：</div>
                                 {analysis.hexagramInfo.changedHexagram.changingYaoCi.map((yaoText) => {
                                     return (
@@ -390,7 +390,7 @@ export function TraditionalAnalysis({
                         )}
 
                         {analysis.hexagramInfo.changedHexagram && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
+                            <div className="mt-2 pt-2 border-t border-border/60">
                                 {analysis.hexagramInfo.changedHexagram.guaCi && (
                                     <div>
                                         <span className="text-foreground/45">变卦 {analysis.hexagramInfo.changedHexagram.name} 卦辞：</span>

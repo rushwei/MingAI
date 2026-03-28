@@ -43,7 +43,7 @@ export function TrigramSelector({ label, value, onChange }: TrigramSelectorProps
                         className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg transition-all
                             ${value === t.code
                                 ? 'bg-accent text-white ring-2 ring-accent/50'
-                                : 'bg-white/5 border border-white/10 text-foreground hover:bg-white/10'
+                                : 'bg-background/5 border border-white/10 text-foreground hover:bg-background/10'
                             }`}
                     >
                         <span className="text-xl">{t.symbol}</span>

@@ -75,7 +75,7 @@ const membershipLabels: Record<string, string> = {
 };
 
 const Skeleton = ({ className }: { className: string }) => (
-    <div className={`animate-pulse bg-[#efedea] ${className}`} />
+    <div className={`animate-pulse bg-background-secondary ${className}`} />
 );
 
 type ProfileSnapshot = {
@@ -464,14 +464,14 @@ export default function UserPage() {
     // 未登录状态
     if (!user && !loading) {
         return (
-            <div className="min-h-screen bg-[#f7f6f3]">
+            <div className="min-h-screen bg-background">
                 <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
                     <div className="text-center py-16">
-                        <div className="w-20 h-20 rounded-full bg-[#efedea] flex items-center justify-center mx-auto mb-6">
-                            <User className="w-10 h-10 text-[#37352f]/50" />
+                        <div className="w-20 h-20 rounded-full bg-background-secondary flex items-center justify-center mx-auto mb-6">
+                            <User className="w-10 h-10 text-foreground/50" />
                         </div>
-                        <h1 className="text-2xl font-bold mb-2 text-[#37352f]">欢迎来到 MingAI</h1>
-                        <p className="text-[#37352f]/60 mb-8">
+                        <h1 className="text-2xl font-bold mb-2 text-foreground">欢迎来到 MingAI</h1>
+                        <p className="text-foreground/60 mb-8">
                             登录后可保存命盘、享受更多积分
                         </p>
                         <button
@@ -494,7 +494,7 @@ export default function UserPage() {
 
     if (!user && loading) {
         return (
-            <div className="min-h-screen bg-[#f7f6f3]">
+            <div className="min-h-screen bg-background">
                 <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
                     <div className="text-center py-16">
                         <Skeleton className="w-20 h-20 rounded-full mx-auto mb-6" />
@@ -542,25 +542,25 @@ export default function UserPage() {
 
     // 已登录状态
     return (
-        <div className="min-h-screen bg-[#f7f6f3]">
+        <div className="min-h-screen bg-background">
             <div className="max-w-2xl mx-auto px-4 py-2 md:py-8 animate-fade-in">
                 {/* 用户信息卡片 */}
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-2 md:mb-6 group relative">
-                    <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                <div className="bg-background border border-border rounded-lg shadow-sm p-4 mb-2 md:mb-6 group relative">
+                    <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-foreground/20 select-none pointer-events-none">
                         ⋮⋮
                     </div>
                     <Link
                         href="/user/profile"
-                        className="flex items-center gap-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 rounded-md py-2 pl-6 pr-2 -m-2"
+                        className="flex items-center gap-4 hover:bg-background-secondary active:bg-background-tertiary transition-colors duration-150 rounded-md py-2 pl-6 pr-2 -m-2"
                     >
-                        <div className="w-14 h-14 rounded-full bg-[#f7f6f3] flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
+                        <div className="w-14 h-14 rounded-full bg-background flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
                             {isProfileLoading ? (
                                 <Skeleton className="w-full h-full rounded-full" />
                             ) : avatarUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={avatarUrl} alt="用户头像" className="w-full h-full object-cover" />
                             ) : (
-                                <User className="w-7 h-7 text-[#37352f]/50" />
+                                <User className="w-7 h-7 text-foreground/50" />
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -571,12 +571,12 @@ export default function UserPage() {
                                 </>
                             ) : (
                                 <>
-                                    <h1 className="text-lg font-bold truncate text-[#37352f]">{displayName}</h1>
-                                    <p className="text-sm text-[#37352f]/60 truncate">{userEmail}</p>
+                                    <h1 className="text-lg font-bold truncate text-foreground">{displayName}</h1>
+                                    <p className="text-sm text-foreground/60 truncate">{userEmail}</p>
                                 </>
                             )}
                             {!isMembershipLoading && expiryText && (
-                                <p className="text-xs text-[#37352f]/50 mt-0.5">{expiryText}</p>
+                                <p className="text-xs text-foreground/50 mt-0.5">{expiryText}</p>
                             )}
                             {isMembershipLoading && (
                                 <Skeleton className="h-3 w-24 rounded-md mt-2" />
@@ -595,7 +595,7 @@ export default function UserPage() {
                                     ? 'bg-purple-50 text-purple-600'
                                     : membership?.type === 'plus'
                                         ? 'bg-blue-50 text-[#2eaadc]'
-                                        : 'bg-[#efedea] text-[#37352f]/70'
+                                        : 'bg-background-secondary text-foreground/70'
                                     }`}>
                                 {membershipLabel}
                             </button>
@@ -605,7 +605,7 @@ export default function UserPage() {
                                     ? 'bg-purple-50 text-purple-600'
                                     : membership?.type === 'plus'
                                         ? 'bg-blue-50 text-[#2eaadc]'
-                                        : 'bg-[#efedea] text-[#37352f]/70'
+                                        : 'bg-background-secondary text-foreground/70'
                                     }`}
                             >
                                 {membershipLabel}
@@ -615,11 +615,11 @@ export default function UserPage() {
 
                     {/* 经验进度条（签到功能关闭时隐藏） */}
                     {checkinFeatureEnabled && level && (
-                        <div className="mt-4 pt-4 border-t border-gray-100 pl-4">
+                        <div className="mt-4 pt-4 border-t border-border/60 pl-4">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     <Trophy className="w-4 h-4 text-[#dfab01]" />
-                                    <span className="text-sm font-semibold text-[#37352f]">Lv.{level.level} {level.title}</span>
+                                    <span className="text-sm font-semibold text-foreground">Lv.{level.level} {level.title}</span>
                                     <button
                                         onClick={() => checkinStatus?.todayCheckedIn ? setShowCalendarModal(true) : setShowCheckinModal(true)}
                                         className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 ${checkinStatus?.todayCheckedIn
@@ -631,11 +631,11 @@ export default function UserPage() {
                                         {checkinStatus?.todayCheckedIn ? '已签到' : '签到'}
                                     </button>
                                 </div>
-                                <span className="text-xs text-[#37352f]/50">
+                                <span className="text-xs text-foreground/50">
                                     {level.experience} / {getNextLevelXp(level.level)} XP
                                 </span>
                             </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-1.5 bg-background-secondary rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-[#dfab01] transition-all duration-500"
                                     style={{ width: `${Math.min(level.experience / getNextLevelXp(level.level) * 100, 100)}%` }}
@@ -644,7 +644,7 @@ export default function UserPage() {
                         </div>
                     )}
                     {checkinFeatureEnabled && !level && isLevelLoading && (
-                        <div className="mt-4 pt-4 border-t border-gray-100 pl-4">
+                        <div className="mt-4 pt-4 border-t border-border/60 pl-4">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     <Skeleton className="h-4 w-24 rounded-md" />
@@ -688,10 +688,10 @@ export default function UserPage() {
                         : [])
                     ].map((section, sectionIndex) => (
                         <div key={sectionIndex} className="mb-6">
-                            <h2 className="text-xs font-semibold text-[#37352f]/50 mb-2 px-1 uppercase tracking-wider">
+                            <h2 className="text-xs font-semibold text-foreground/50 mb-2 px-1 uppercase tracking-wider">
                                 {section.section}
                             </h2>
-                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100 shadow-sm">
+                            <div className="bg-background rounded-lg border border-border overflow-hidden divide-y divide-border/60 shadow-sm">
                                 {section.items.map((item, itemIndex) => {
                                     const featureId = 'featureId' in item ? (item as { featureId?: string }).featureId : undefined;
                                     if (featureId && !isFeatureEnabled(featureId)) {
@@ -712,9 +712,9 @@ export default function UserPage() {
                                         return (
                                             <div
                                                 key={itemIndex}
-                                                className="flex items-center justify-between px-4 py-3 text-[#37352f]/40 cursor-not-allowed group relative"
+                                                className="flex items-center justify-between px-4 py-3 text-foreground/40 cursor-not-allowed group relative"
                                             >
-                                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-foreground/20 select-none pointer-events-none">
                                                     ⋮⋮
                                                 </div>
                                                 <div className="flex items-center gap-3 pl-4">
@@ -732,13 +732,13 @@ export default function UserPage() {
                                         <Link
                                             key={itemIndex}
                                             href={item.href!}
-                                            className="flex items-center justify-between py-3 pr-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 group relative"
+                                            className="flex items-center justify-between py-3 pr-4 hover:bg-background-secondary active:bg-background-tertiary transition-colors duration-150 group relative"
                                         >
-                                            <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                            <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-foreground/20 select-none pointer-events-none">
                                                 ⋮⋮
                                             </div>
-                                            <div className="flex items-center gap-3 text-[#37352f] pl-5">
-                                                <Icon className="w-5 h-5 text-[#37352f]/70" />
+                                            <div className="flex items-center gap-3 text-foreground pl-5">
+                                                <Icon className="w-5 h-5 text-foreground/70" />
                                                 <span className="font-medium text-sm">{item.label}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -747,7 +747,7 @@ export default function UserPage() {
                                                         {effectiveUnreadCount > 99 ? '99+' : effectiveUnreadCount}
                                                     </span>
                                                 )}
-                                                <ChevronRight className="w-4 h-4 text-[#37352f]/30" />
+                                                <ChevronRight className="w-4 h-4 text-foreground/30" />
                                             </div>
                                         </Link>
                                     );
@@ -760,22 +760,22 @@ export default function UserPage() {
                 {/* 帮助 */}
                 {isFeatureEnabled('help') && (
                     <div className="mb-6">
-                        <h2 className="text-xs font-semibold text-[#37352f]/50 mb-2 px-1 uppercase tracking-wider">
+                        <h2 className="text-xs font-semibold text-foreground/50 mb-2 px-1 uppercase tracking-wider">
                             帮助
                         </h2>
-                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                        <div className="bg-background rounded-lg border border-border overflow-hidden shadow-sm">
                             <Link
                                 href="/help"
-                                className="flex items-center justify-between py-3 pr-4 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors duration-150 group relative"
+                                className="flex items-center justify-between py-3 pr-4 hover:bg-background-secondary active:bg-background-tertiary transition-colors duration-150 group relative"
                             >
-                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-gray-300 select-none pointer-events-none">
+                                <div className="absolute left-[4px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-foreground/20 select-none pointer-events-none">
                                     ⋮⋮
                                 </div>
-                                <div className="flex items-center gap-3 text-[#37352f] pl-5">
-                                    <HelpCircle className="w-5 h-5 text-[#37352f]/70" />
+                                <div className="flex items-center gap-3 text-foreground pl-5">
+                                    <HelpCircle className="w-5 h-5 text-foreground/70" />
                                     <span className="font-medium text-sm">帮助中心</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-[#37352f]/30" />
+                                <ChevronRight className="w-4 h-4 text-foreground/30" />
                             </Link>
                         </div>
                     </div>
@@ -785,7 +785,7 @@ export default function UserPage() {
                 <button
                     onClick={handleSignOut}
                     disabled={signingOut}
-                    className="w-full py-2.5 rounded-md border border-gray-200 text-[#37352f]/60 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-2.5 rounded-md border border-border text-foreground/60 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {signingOut ? (
                         <SoundWaveLoader variant="inline" />

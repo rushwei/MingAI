@@ -176,29 +176,29 @@ export default function DaliurenResultPage() {
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部导航 */}
-                <div className="hidden md:flex items-center justify-between border-b border-gray-100 pb-6">
+                <div className="hidden md:flex items-center justify-between border-b border-border/60 pb-6">
                     <div className="flex items-center gap-4">
-                        <Link href="/daliuren" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
+                        <Link href="/daliuren" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
                         <div className="flex flex-col">
                             <span className="text-sm font-bold">{basicInfo.keName}</span>
                             <span className="text-[10px] font-bold text-[#2eaadc] uppercase tracking-wider">{basicInfo.keTi.subTypes.join(' · ')}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => router.push('/daliuren')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCcw className="w-3.5 h-3.5" />重新起课</button>
-                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制</button>
+                        <button onClick={() => router.push('/daliuren')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><RotateCcw className="w-3.5 h-3.5" />重新起课</button>
+                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制</button>
                     </div>
                 </div>
 
                 {/* 基础参数 */}
-                <div className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6 space-y-4">
+                <div className="bg-background-secondary/30 border border-border rounded-md p-6 space-y-4">
                     <div className="flex items-center gap-3">
                         <Info className="w-4 h-4 text-foreground/30" />
                         <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">排盘参数</h2>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {[ { label: '公历时间', value: basicInfo.date }, { label: '农历时间', value: basicInfo.lunarDate }, { label: '四柱干支', value: basicInfo.bazi }, { label: '月将信息', value: `${basicInfo.yueJiang} (旬空：${basicInfo.kongWang.join('')})` } ].map(item => (
-                            <div key={item.label} className="bg-background border border-gray-100 rounded-md p-3">
+                            <div key={item.label} className="bg-background border border-border/60 rounded-md p-3">
                                 <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">{item.label}</div>
                                 <div className="text-xs font-medium text-foreground/80">{item.value}</div>
                             </div>
@@ -208,11 +208,11 @@ export default function DaliurenResultPage() {
 
                 {/* 三传四课 */}
                 <div className="grid gap-8 lg:grid-cols-2">
-                    <section className="bg-background border border-gray-200 rounded-md p-6">
+                    <section className="bg-background border border-border rounded-md p-6">
                         <h3 className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest mb-6">三传分析</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {sanChuan.map((data, i) => (
-                                <div key={i} className="flex flex-col items-center p-3 rounded-md bg-[#efedea]/30 border border-gray-100">
+                                <div key={i} className="flex flex-col items-center p-3 rounded-md bg-background-secondary/30 border border-border/60">
                                     <span className="text-[10px] text-foreground/40 font-bold mb-2">{['初传', '中传', '末传'][i]}</span>
                                     <span className="text-xl font-bold mb-1">{data?.branch}</span>
                                     <span className="text-xs font-medium text-foreground/60">{data?.tianJiang}</span>
@@ -221,16 +221,16 @@ export default function DaliurenResultPage() {
                             ))}
                         </div>
                     </section>
-                    <section className="bg-background border border-gray-200 rounded-md p-6">
+                    <section className="bg-background border border-border rounded-md p-6">
                         <h3 className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest mb-6">四课排布</h3>
                         <div className="grid grid-cols-4 gap-2">
                             {['四课', '三课', '二课', '一课'].map(label => {
                                 const data = siKe.find(item => item.ke === label);
                                 return (
-                                    <div key={label} className="flex flex-col items-center p-2 rounded-md bg-[#efedea]/30 border border-gray-100">
+                                    <div key={label} className="flex flex-col items-center p-2 rounded-md bg-background-secondary/30 border border-border/60">
                                         <span className="text-[10px] font-bold text-[#2eaadc] mb-1">{data?.tianJiang}</span>
                                         <span className="text-lg font-bold">{data?.upper}</span>
-                                        <div className="w-4 h-px bg-gray-200 my-1" />
+                                        <div className="w-4 h-px bg-background-secondary my-1" />
                                         <span className="text-xs font-medium text-foreground/60">{data?.lower}</span>
                                     </div>
                                 );
@@ -240,18 +240,18 @@ export default function DaliurenResultPage() {
                 </div>
 
                 {/* 天地盘 */}
-                <section className="bg-background border border-gray-200 rounded-md p-6">
+                <section className="bg-background border border-border rounded-md p-6">
                     <h3 className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest mb-6">天地盘九宫</h3>
                     <TianDiPanGrid result={canonicalResult!} />
                 </section>
 
                 {/* AI 解读 */}
-                <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="bg-background border border-border rounded-md p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Brain className="w-4 h-4 text-[#2eaadc]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
                             <ModelSelector compact selectedModel={modelId} onModelChange={setModelId} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
-                            {interpretation && <button onClick={handleInterpret} disabled={streaming.isStreaming} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${streaming.isStreaming ? 'animate-spin' : ''}`} /></button>}
+                            {interpretation && <button onClick={handleInterpret} disabled={streaming.isStreaming} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${streaming.isStreaming ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
                     {error && (

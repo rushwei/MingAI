@@ -61,12 +61,12 @@ export default function HelpPage() {
                 {/* 常见问题 */}
                 <section className="space-y-4">
                     <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">常见问题</h2>
-                    <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                    <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                         {faqList.map((faq, index) => (
                             <div key={index} className="transition-colors">
                                 <button
                                     onClick={() => setExpandedFAQ(expandedFAQ === index ? null : index)}
-                                    className="flex items-center gap-3 w-full p-4 text-left hover:bg-[#efedea] transition-colors"
+                                    className="flex items-center gap-3 w-full p-4 text-left hover:bg-background-secondary transition-colors"
                                 >
                                     <ChevronDown className={`w-4 h-4 transition-transform duration-200 text-foreground/30 ${expandedFAQ === index ? 'rotate-0' : '-rotate-90'}`} />
                                     <span className={`text-sm font-medium ${expandedFAQ === index ? 'text-[#2eaadc]' : 'text-foreground'}`}>
@@ -91,14 +91,14 @@ export default function HelpPage() {
                 {/* 联系我们 */}
                 <section className="space-y-4">
                     <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">联系我们</h2>
-                    <div className="bg-background border border-gray-200 rounded-md p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                    <div className="bg-background border border-border rounded-md p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                         <div className="flex-1 space-y-1">
                             <h3 className="text-sm font-semibold">需要更多帮助？</h3>
                             <p className="text-xs text-foreground/50 leading-relaxed">
                                 如果您没有找到需要的答案，或者有任何建议和反馈，欢迎随时联系。
                             </p>
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#efedea] text-xs font-medium border border-gray-200">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-background-secondary text-xs font-medium border border-border">
                             <Mail className="w-3.5 h-3.5 text-[#2eaadc]" />
                             <span>support@mingai.fun</span>
                         </div>
@@ -106,10 +106,10 @@ export default function HelpPage() {
                 </section>
 
                 {/* 法律声明 */}
-                <footer className="border-t border-gray-100">
+                <footer className="border-t border-border/60">
                     <div className="flex items-center justify-center gap-6 text-xs text-foreground/40">
                         <Link href="/privacy" className="hover:text-foreground hover:underline underline-offset-4">隐私政策</Link>
-                        <span className="w-1 h-1 rounded-full bg-gray-200" />
+                        <span className="w-1 h-1 rounded-full bg-background-secondary" />
                         <Link href="/terms" className="hover:text-foreground hover:underline underline-offset-4">服务条款</Link>
                     </div>
                 </footer>

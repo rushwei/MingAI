@@ -89,7 +89,7 @@ export function CalendarAlmanac({
     }, []);
 
     return (
-        <section className="bg-background rounded-xl border border-border overflow-hidden">
+        <section className="bg-background rounded-xl border-border overflow-hidden">
             {/* 顶部控制栏：日期切换（含日期信息）+ 流日/主神 + 命盘选择 */}
             {onDateChange && (
                 <div className="px-3 py-4 md:py-8 border-b border-border/50 bg-background">
@@ -230,9 +230,9 @@ export function CalendarAlmanac({
                         {isPersonalized && onChartSelect ? (
                             <button
                                 onClick={onChartSelect}
-                                className="flex items-center gap-1 px-2 py-1 bg-background hover:bg-background-secondary rounded-xl border border-border/60 hover:border-purple-500/30 transition-all text-sm"
+                                className="flex items-center gap-1 px-2 py-1 bg-background hover:bg-background-secondary rounded-md border border-border/60 hover:border-purple-500/30 transition-all text-sm"
                             >
-                                当前命盘为:
+                                命主:
                                 <span className="font-medium text-purple-600 dark:text-purple-400 max-w-[50px] truncate">
                                     {chartName}
                                 </span>
@@ -266,16 +266,18 @@ export function CalendarAlmanac({
 
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
                 {/* 生肖 & 干支 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm">
-                    <div>
-                        <span className="text-foreground-secondary">生肖：</span>
-                        <span>{data.shengXiao.year} {data.shengXiao.month} {data.shengXiao.day}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="text-foreground-secondary whitespace-nowrap">生肖：</span>
+                        <span className="whitespace-nowrap">{data.shengXiao.year}年</span>
+                        <span className="whitespace-nowrap">{data.shengXiao.month}月</span>
+                        <span className="whitespace-nowrap">{data.shengXiao.day}日</span>
                     </div>
-                    <div>
-                        <span className="text-foreground-secondary">干支：</span>
-                        <span>
-                            {renderGanZhi(data.ganZhi.year)} {renderGanZhi(data.ganZhi.month)} {renderGanZhi(data.ganZhi.day)}
-                        </span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="text-foreground-secondary whitespace-nowrap">干支：</span>
+                        <span className="whitespace-nowrap">{renderGanZhi(data.ganZhi.year)}年</span>
+                        <span className="whitespace-nowrap">{renderGanZhi(data.ganZhi.month)}月</span>
+                        <span className="whitespace-nowrap">{renderGanZhi(data.ganZhi.day)}日</span>
                     </div>
                 </div>
 
@@ -338,7 +340,7 @@ export function CalendarAlmanac({
                                             onClick={() => setYiExpanded(!yiExpanded)}
                                             className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
                                         >
-                                            {yiExpanded ? '收起' : `+${data.yi.length - 4}`}
+                                            {yiExpanded ? '收起' : `+${data.yi.length - 4} ↓`}
                                         </button>
                                     )}
                                 </>

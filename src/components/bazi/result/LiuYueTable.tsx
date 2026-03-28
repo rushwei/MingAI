@@ -29,7 +29,7 @@ export function LiuYueTable({
                                 flex-shrink-0 w-12 text-center p-2 rounded-md border transition-colors
                                 ${isSelected
                                     ? 'border-[#2eaadc] bg-blue-50/30'
-                                    : 'border-gray-200 bg-background hover:bg-[#efedea]'
+                                    : 'border-border bg-background hover:bg-background-secondary'
                                 }
                             `}
                         >

@@ -221,7 +221,7 @@ export default function HepanResultPage() {
                 <div className="hidden md:flex items-center justify-between mb-8">
                     <Link
                         href="/hepan"
-                        className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+                        className="inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-background/5"
                     >
                         <span className="text-sm font-medium">返回列表</span>
                     </Link>
@@ -229,7 +229,7 @@ export default function HepanResultPage() {
                         <button
                             type="button"
                             onClick={() => setKbModalOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-background/5 hover:bg-background/10 border border-white/10 transition-all"
                         >
                             加入知识库
                         </button>
@@ -249,7 +249,7 @@ export default function HepanResultPage() {
                 </div>
 
                 {/* 兼容性图表 */}
-                <div className="mb-8 bg-white/5 backdrop-blur-md rounded-3xl p-6 border border-white/10 shadow-xl">
+                <div className="mb-8 bg-background/5 backdrop-blur-md rounded-3xl p-6 border border-white/10 shadow-xl">
                     <CompatibilityChart
                         dimensions={result.dimensions}
                         overallScore={result.overallScore}
@@ -258,7 +258,7 @@ export default function HepanResultPage() {
 
                 {/* 走势曲线 */}
                 <div className="mb-8">
-                    <div className="mt-4 p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 animate-fade-in-down space-y-6">
+                    <div className="mt-4 p-6 bg-background/5 backdrop-blur-md rounded-3xl border border-white/10 animate-fade-in-down space-y-6">
                         <CompatibilityTrendChart
                             data={trendData}
                             period={trendPeriod}
@@ -267,7 +267,7 @@ export default function HepanResultPage() {
 
                         {/* 发展建议 */}
                         {relationshipAdvice.length > 0 && (
-                            <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
+                            <div className="bg-background/5 rounded-2xl p-5 border border-white/5">
                                 <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
                                     <Lightbulb className="w-4 h-4 text-amber-500" />
                                     发展建议
@@ -289,12 +289,12 @@ export default function HepanResultPage() {
                 </div>
 
                 {/* 冲突点 */}
-                <div className="mb-8 bg-white/5 backdrop-blur-md rounded-3xl p-6 border border-white/10">
+                <div className="mb-8 bg-background/5 backdrop-blur-md rounded-3xl p-6 border border-white/10">
                     <ConflictPoints conflicts={result.conflicts} hepanType={result.type} />
                 </div>
 
                 {/* AI 深度分析 */}
-                <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 relative mb-12 group">
+                <div className="bg-background/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 relative mb-12 group">
                     {/* Background decorations Removed */}
 
                     <div className="flex items-center justify-between mb-6 flex-wrap gap-4 relative z-10">
@@ -319,7 +319,7 @@ export default function HepanResultPage() {
                                     data-testid="reanalyze-button"
                                     onClick={handleGetAIAnalysis}
                                     disabled={loadingAI}
-                                    className="p-2 rounded-lg bg-white/5 text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
+                                    className="p-2 rounded-lg bg-background/5 text-foreground-secondary hover:text-foreground hover:bg-background/10 transition-colors disabled:opacity-50"
                                     title="重新分析"
                                 >
                                     {loadingAI ? (
@@ -344,7 +344,7 @@ export default function HepanResultPage() {
                                         duration={streaming.reasoningDuration}
                                     />
                                 )}
-                                <div className="bg-white/5 rounded-2xl p-6 border border-white/5 shadow-inner">
+                                <div className="bg-background/5 rounded-2xl p-6 border border-white/5 shadow-inner">
                                     <MarkdownContent content={aiAnalysis} className="text-[15px] leading-relaxed text-foreground-secondary/90" />
                                 </div>
                             </div>
@@ -354,7 +354,7 @@ export default function HepanResultPage() {
                             {errorBanner}
 
                             {!user ? (
-                                <div className="max-w-sm mx-auto p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                                <div className="max-w-sm mx-auto p-6 rounded-2xl bg-background/5 border border-white/10 backdrop-blur-sm">
                                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-accent/10 text-accent mb-4">
                                         <Quote className="w-6 h-6" />
                                     </div>
@@ -399,8 +399,8 @@ export default function HepanResultPage() {
                     <Link
                         href="/hepan"
                         className="inline-flex items-center gap-2 px-8 py-3 rounded-xl
-                            bg-white/5 text-foreground font-medium border border-white/10
-                            hover:bg-white/10 transition-all"
+                            bg-background/5 text-foreground font-medium border border-white/10
+                            hover:bg-background/10 transition-all"
                     >
                         <RotateCw className="w-4 h-4" />
                         重新分析

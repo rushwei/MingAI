@@ -1136,11 +1136,11 @@ export function AIModelPanel() {
                                             updateModel(model.id, { isEnabled: !model.isEnabled });
                                         }}
                                         disabled={isUpdating}
-                                        className={`w-10 h-6 rounded-full relative transition-colors ${model.isEnabled ? 'bg-green-500' : 'bg-gray-300'
+                                        className={`w-10 h-6 rounded-full relative transition-colors ${model.isEnabled ? 'bg-green-500' : 'bg-background-tertiary'
                                             }`}
                                     >
                                         <span
-                                            className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${model.isEnabled ? 'left-5' : 'left-1'
+                                            className={`absolute top-1 w-4 h-4 rounded-full bg-background transition-transform ${model.isEnabled ? 'left-5' : 'left-1'
                                                 }`}
                                         />
                                     </button>

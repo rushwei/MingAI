@@ -6,8 +6,9 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, Search, Orbit, Star } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, createElement, type ComponentType } from 'react';
+import { X, Search, Star } from 'lucide-react';
+import { YinYangIcon } from '@phosphor-icons/react';
 import { loadUserChartBundle } from '@/lib/user/charts-client';
 
 export interface ChartItem {
@@ -33,6 +34,20 @@ export interface ChartPickerModalProps {
 }
 
 type ChartQueryRow = Pick<ChartItem, 'id' | 'name' | 'gender' | 'birth_date' | 'birth_time'>;
+
+type PickerIcon = ComponentType<{ className?: string; size?: number | string }>;
+
+function phosphor(Icon: ComponentType<Record<string, unknown>>): PickerIcon {
+    const Wrapped: PickerIcon = (props) =>
+        createElement(Icon, {
+            ...props,
+            style: { transform: 'scale(1.1)' },
+        });
+    Wrapped.displayName = `Phosphor(${Icon.displayName ?? Icon.name})`;
+    return Wrapped;
+}
+
+const PYinYang = phosphor(YinYangIcon);
 
 function toChartRows(value: unknown): ChartQueryRow[] {
     if (!Array.isArray(value)) {
@@ -212,7 +227,7 @@ export function ChartPickerModal({
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${chart.type === 'bazi' ? 'bg-orange-500/10' : 'bg-purple-500/10'
                                         }`}>
                                         {chart.type === 'bazi' ? (
-                                            <Orbit className="w-4 h-4 text-orange-500" />
+                                            <PYinYang className="w-4 h-4 text-orange-500" />
                                         ) : (
                                             <Star className="w-4 h-4 text-purple-500" />
                                         )}

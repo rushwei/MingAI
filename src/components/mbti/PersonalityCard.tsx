@@ -32,7 +32,7 @@ function DimensionBar({ left, right, leftPercent, rightPercent }: {
                     {rightPercent}% ({right}) {rightInfo.name}
                 </span>
             </div>
-            <div className="h-2.5 bg-white/5 rounded-full overflow-hidden flex ring-1 ring-white/10">
+            <div className="h-2.5 bg-background/5 rounded-full overflow-hidden flex ring-1 ring-white/10">
                 <div
                     className={`h-full transition-all duration-1000 ease-out ${isLeftDominant ? 'bg-gradient-to-r from-blue-400 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-transparent'}`}
                     style={{ width: `${leftPercent}%` }}
@@ -94,7 +94,7 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
 
             {/* 维度分析 - 可选显示 */}
             {showDimensions && result.percentages && (
-                <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl">
+                <div className="bg-background/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                         <span className="w-1 h-5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
                         维度分析
@@ -130,14 +130,14 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
                     {/* 标题骨架 */}
                     <div className="flex items-center gap-2 px-2">
                         <div className="w-1 h-5 rounded-full bg-purple-500/30 animate-pulse" />
-                        <div className="h-5 w-20 rounded bg-white/10 animate-pulse" />
+                        <div className="h-5 w-20 rounded bg-background/10 animate-pulse" />
                     </div>
                     {/* 折叠卡片骨架 */}
                     {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-5">
+                        <div key={i} className="bg-background/5 border border-white/5 rounded-2xl p-5">
                             <div className="flex items-center justify-between">
-                                <div className="h-5 w-32 rounded bg-white/10 animate-pulse" />
-                                <div className="w-5 h-5 rounded bg-white/10 animate-pulse" />
+                                <div className="h-5 w-32 rounded bg-background/10 animate-pulse" />
+                                <div className="w-5 h-5 rounded bg-background/10 animate-pulse" />
                             </div>
                         </div>
                     ))}
@@ -151,7 +151,7 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
                     {Object.entries(personalityData.sections).map(([title, content]) => (
                         <div
                             key={title}
-                            className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-white/[0.07]"
+                            className="bg-background/5 border border-white/5 rounded-2xl overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-background/[0.07]"
                         >
                             <button
                                 onClick={() => toggleSection(title)}
@@ -167,7 +167,7 @@ export function PersonalityCard({ result, showDimensions = true }: PersonalityCa
                             </button>
                             {expandedSections.includes(title) && (
                                 <div className="px-5 pb-5 pt-0 animate-fade-in">
-                                    <div className="h-px w-full bg-white/5 mb-4" />
+                                    <div className="h-px w-full bg-background/5 mb-4" />
                                     <p className="text-foreground-secondary text-sm md:text-base whitespace-pre-line leading-relaxed">
                                         {content}
                                     </p>

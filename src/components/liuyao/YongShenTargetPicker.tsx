@@ -67,7 +67,7 @@ export function YongShenTargetPicker({
 
     if (variant === 'block') {
         return (
-            <div className={`rounded-xl border border-white/10 bg-white/[0.02] p-3 ${className}`}>
+            <div className={`rounded-xl border border-white/10 bg-background/[0.02] p-3 ${className}`}>
                 <div className="text-sm font-medium text-foreground mb-2">请选择分析目标（可多选）</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                     {YONG_SHEN_TARGET_OPTIONS.map((item) => {
@@ -80,7 +80,7 @@ export function YongShenTargetPicker({
                                 className={`text-left rounded-lg border px-3 py-2 transition-colors ${
                                     checked
                                         ? 'border-accent/50 bg-accent/10 text-accent'
-                                        : 'border-white/10 bg-white/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
+                                        : 'border-white/10 bg-background/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
                                 }`}
                             >
                                 <div className="flex items-center justify-between gap-2">
@@ -158,7 +158,7 @@ export function YongShenTargetPicker({
                                                 className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
                                                     checked
                                                         ? 'border-accent/40 bg-accent/10 text-accent'
-                                                        : 'border-white/10 bg-white/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
+                                                        : 'border-white/10 bg-background/[0.02] text-foreground-secondary hover:border-white/20 hover:text-foreground'
                                                 }`}
                                             >
                                                 <div className="flex items-center justify-between gap-2">

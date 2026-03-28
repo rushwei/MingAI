@@ -84,7 +84,7 @@ export function ConflictPoints({ conflicts, hepanType }: ConflictPointsProps) {
                 return (
                     <div
                         key={index}
-                        className={`bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:border-white/20 hover:shadow-lg`}
+                        className={`bg-background/5 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:border-white/20 hover:shadow-lg`}
                     >
                         {/* Summary Section */}
                         <div
@@ -108,7 +108,7 @@ export function ConflictPoints({ conflicts, hepanType }: ConflictPointsProps) {
                                         {conflict.description}
                                     </p>
 
-                                    <div className="flex items-start gap-2 text-sm bg-white/5 p-3 rounded-lg border border-white/5">
+                                    <div className="flex items-start gap-2 text-sm bg-background/5 p-3 rounded-lg border border-white/5">
                                         <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                                         <span className="text-foreground-secondary/90">{conflict.suggestion}</span>
                                     </div>
@@ -124,7 +124,7 @@ export function ConflictPoints({ conflicts, hepanType }: ConflictPointsProps) {
 
                         {/* Expanded Details */}
                         {isExpanded && conflict.triggerFactors && (
-                            <div className="border-t border-white/10 bg-white/5 p-5 space-y-6 animate-fade-in">
+                            <div className="border-t border-white/10 bg-background/5 p-5 space-y-6 animate-fade-in">
                                 {/* Trigger Factors */}
                                 <div>
                                     <h5 className="font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -135,7 +135,7 @@ export function ConflictPoints({ conflicts, hepanType }: ConflictPointsProps) {
                                         {conflict.triggerFactors.map((trigger, tIdx) => (
                                             <div
                                                 key={tIdx}
-                                                className="bg-white/5 rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors"
+                                                className="bg-background/5 rounded-xl p-4 border border-white/5 hover:bg-background/10 transition-colors"
                                             >
                                                 <div className="text-sm font-semibold text-foreground mb-2">
                                                     {trigger.scenario}
@@ -168,7 +168,7 @@ export function ConflictPoints({ conflicts, hepanType }: ConflictPointsProps) {
                                         }}
                                         className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${showTemplate === index
                                                 ? 'bg-indigo-500/10 border-indigo-500/30'
-                                                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                                : 'bg-background/5 border-white/10 hover:bg-background/10'
                                             }`}
                                     >
                                         <span className="font-semibold text-foreground flex items-center gap-2">
@@ -219,7 +219,7 @@ function CommunicationTemplateCard({ template }: { template: CommunicationTempla
 
             <div>
                 <div className="text-xs font-semibold text-indigo-400 mb-2 uppercase tracking-wide">参考话术</div>
-                <div className="bg-white/5 rounded-xl p-4 text-sm text-foreground leading-relaxed italic border border-white/10 relative">
+                <div className="bg-background/5 rounded-xl p-4 text-sm text-foreground leading-relaxed italic border border-white/10 relative">
                     <span className="absolute top-2 left-2 text-white/10 text-2xl font-serif">&quot;</span>
                     <span className="relative z-10 px-2 block">{template.script}</span>
                     <span className="absolute bottom-2 right-2 text-white/10 text-2xl font-serif">&quot;</span>

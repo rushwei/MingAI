@@ -253,7 +253,7 @@ export function DailyNotes({
     };
 
     return (
-        <div className="bg-white/50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-border/50 shadow-sm relative overflow-hidden group">
+        <div className="bg-background/50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-border/50 shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-emerald-500/10 transition-colors duration-700" />
 
             <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -277,8 +277,8 @@ export function DailyNotes({
                                 className={`
                                     relative w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all
                                     ${mood === m.value
-                                        ? 'bg-white dark:bg-zinc-800 shadow-sm scale-110 z-10 ring-1 ring-border/50'
-                                        : 'hover:bg-white/50 dark:hover:bg-zinc-800/50 hover:scale-105 opacity-60 hover:opacity-100'
+                                        ? 'bg-background dark:bg-zinc-800 shadow-sm scale-110 z-10 ring-1 ring-border/50'
+                                        : 'hover:bg-background/50 dark:hover:bg-zinc-800/50 hover:scale-105 opacity-60 hover:opacity-100'
                                     }
                                 `}
                                 title={m.label}

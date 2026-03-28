@@ -200,7 +200,7 @@ function FortuneHubContent() {
                                     <div className="flex items-start justify-between mb-2 md:mb-4">
                                         <div className={`
                                             p-2 md:p-3 rounded-lg md:rounded-xl bg-background-secondary/80 backdrop-blur-sm
-                                            group-hover:bg-white/90 dark:group-hover:bg-black/20
+                                            group-hover:bg-background/90 dark:group-hover:bg-black/20
                                             transition-colors duration-300
                                         `}>
                                             <Icon className={`w-5 h-5 md:w-6 md:h-6 ${service.iconColor}`} />

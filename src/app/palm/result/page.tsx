@@ -136,7 +136,7 @@ export default function PalmResultPage() {
         return (
             <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
                 {/* Background Effects Removed */}
-                <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
+                <div className="relative z-10 text-center animate-fade-in p-8 rounded-3xl bg-background/5 border border-white/10 backdrop-blur-md">
                     <div className="relative mb-6 mx-auto w-16 h-16 flex items-center justify-center">
                         <div className="absolute inset-0 bg-amber-500/20 rounded-full animate-ping opacity-75" />
                         <div className="relative z-10 bg-amber-500/10 p-4 rounded-full border border-amber-500/20">
@@ -153,8 +153,8 @@ export default function PalmResultPage() {
         return (
             <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
                 {/* Background Effects Removed */}
-                <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
-                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
+                <div className="relative z-10 max-w-md w-full mx-4 text-center p-8 rounded-3xl bg-background/5 border border-white/10 backdrop-blur-md shadow-2xl">
+                    <div className="w-16 h-16 bg-background/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
                         <Hand className="w-8 h-8 text-amber-500/50" />
                     </div>
                     <h3 className="text-xl font-bold text-foreground mb-2">未找到分析结果</h3>
@@ -181,7 +181,7 @@ export default function PalmResultPage() {
                     {/* 返回按钮 - 仅桌面端显示 */}
                     <button
                         onClick={() => router.push('/palm')}
-                        className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all mb-6"
+                        className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-background/5 transition-all mb-6"
                     >
                         <span className="text-sm font-medium">返回</span>
                     </button>
@@ -215,7 +215,7 @@ export default function PalmResultPage() {
                     )}
 
                     {/* 分析结果 */}
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 mb-8 shadow-xl">
+                    <div className="bg-background/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 mb-8 shadow-xl">
                         {analysis ? (
                             <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-amber-400">
                                 <MarkdownContent
@@ -236,7 +236,7 @@ export default function PalmResultPage() {
                             <button
                                 type="button"
                                 onClick={() => setKbModalOpen(true)}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-foreground transition-all hover:scale-[1.02] active:scale-95"
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-background/5 hover:bg-background/10 border border-white/10 hover:border-white/20 text-foreground transition-all hover:scale-[1.02] active:scale-95"
                             >
                                 加入知识库
                             </button>
@@ -252,7 +252,7 @@ export default function PalmResultPage() {
                         )}
                         <button
                             onClick={() => router.push('/palm')}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-foreground transition-all hover:scale-[1.02] active:scale-95"
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-background/5 hover:bg-background/10 border border-white/10 hover:border-white/20 text-foreground transition-all hover:scale-[1.02] active:scale-95"
                         >
                             <Hand className="w-5 h-5" />
                             再次分析

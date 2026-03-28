@@ -206,27 +206,27 @@ function TarotResultContent() {
         <div className="min-h-screen bg-background">
             <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部操作 */}
-                <div className="hidden md:flex items-center justify-between border-b border-gray-100 pb-6">
-                    <Link href="/tarot" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
+                <div className="hidden md:flex items-center justify-between border-b border-border/60 pb-6">
+                    <Link href="/tarot" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => router.push('/tarot')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCcw className="w-3.5 h-3.5" />重新抽牌</button>
-                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制</button>
+                        <button onClick={() => router.push('/tarot')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><RotateCcw className="w-3.5 h-3.5" />重新抽牌</button>
+                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制</button>
                     </div>
                 </div>
 
                 {/* 排盘信息 */}
-                <div className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6 space-y-4">
+                <div className="bg-background-secondary/30 border border-border rounded-md p-6 space-y-4">
                     <div className="flex items-center gap-3">
                         <Info className="w-4 h-4 text-foreground/30" />
                         <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">占卜信息</h2>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="bg-background border border-gray-100 rounded-md p-3">
+                        <div className="bg-background border border-border/60 rounded-md p-3">
                             <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">牌阵名称</div>
                             <div className="text-sm font-medium">{selectedSpread.name}</div>
                         </div>
                         {question && (
-                            <div className="bg-background border border-gray-100 rounded-md p-3">
+                            <div className="bg-background border border-border/60 rounded-md p-3">
                                 <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">所问事项</div>
                                 <div className="text-sm font-medium">{question}</div>
                             </div>
@@ -235,7 +235,7 @@ function TarotResultContent() {
                 </div>
 
                 {/* 牌面展示 */}
-                <div className="bg-background border border-gray-200 rounded-md p-8 md:p-12">
+                <div className="bg-background border border-border rounded-md p-8 md:p-12">
                     <div className={`grid gap-12 justify-items-center ${drawnCards.length === 1 ? 'grid-cols-1' : drawnCards.length <= 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
                         {drawnCards.map((card, index) => {
                             const isRevealed = revealedCards.includes(index);
@@ -249,14 +249,14 @@ function TarotResultContent() {
                                         className="relative w-28 h-48 sm:w-32 sm:h-52 transition-all duration-500"
                                         style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : undefined }}
                                     >
-                                        <div className={`absolute inset-0 w-full h-full rounded-md overflow-hidden border border-gray-200 shadow-sm transition-all ${isRevealed ? 'opacity-100' : 'bg-[#efedea] flex items-center justify-center'}`} style={{ backfaceVisibility: 'hidden' }}>
+                                        <div className={`absolute inset-0 w-full h-full rounded-md overflow-hidden border border-border shadow-sm transition-all ${isRevealed ? 'opacity-100' : 'bg-background-secondary flex items-center justify-center'}`} style={{ backfaceVisibility: 'hidden' }}>
                                             {isRevealed ? (
                                                 <Image src={card.card.image} alt={card.card.nameChinese} fill className={`object-cover ${card.orientation === 'reversed' ? 'rotate-180' : ''}`} />
                                             ) : (
-                                                <div className="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center opacity-20"><Sparkles className="w-6 h-6" /></div>
+                                                <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center opacity-20"><Sparkles className="w-6 h-6" /></div>
                                             )}
                                         </div>
-                                        <div className="absolute inset-0 w-full h-full rounded-md bg-white border border-gray-200 p-4 flex flex-col shadow-xl" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                                        <div className="absolute inset-0 w-full h-full rounded-md bg-background border border-border p-4 flex flex-col shadow-xl" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
                                             <h4 className="text-xs font-bold mb-2 truncate">{canonicalCard?.cardName || card.card.nameChinese}</h4>
                                             <div className="flex-1 overflow-y-auto text-[10px] text-foreground/60 leading-relaxed custom-scrollbar">
                                                 {canonicalCard?.meaning || (card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning)}
@@ -279,12 +279,12 @@ function TarotResultContent() {
                 </div>
 
                 {/* AI 解读 */}
-                <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="bg-background border border-border rounded-md p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
                             <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
-                            {interpretation && <button onClick={handleInterpret} disabled={isInterpreting} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isInterpreting ? 'animate-spin' : ''}`} /></button>}
+                            {interpretation && <button onClick={handleInterpret} disabled={isInterpreting} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isInterpreting ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
 
@@ -306,15 +306,15 @@ function TarotResultContent() {
 
                 {/* 数秘术 */}
                 {(birthDate || numerology) && (
-                    <section className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
-                        <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                    <section className="bg-background border border-border rounded-md p-6 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-border/60 pb-4">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">塔罗数秘术</h2>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             {[ { label: '人格牌', card: canonicalReading?.numerology?.personalityCard }, { label: '灵魂牌', card: canonicalReading?.numerology?.soulCard }, { label: '年度牌', card: canonicalReading?.numerology?.yearlyCard } ].map((item, idx) => (
                                 <div key={idx} className="flex flex-col items-center gap-3 text-center">
                                     <span className="text-[10px] font-bold text-foreground/30 uppercase">{item.label}</span>
-                                    <div className="relative w-full max-w-[100px] aspect-[2/3] rounded-md overflow-hidden border border-gray-100 bg-[#efedea]/50">
+                                    <div className="relative w-full max-w-[100px] aspect-[2/3] rounded-md overflow-hidden border border-border/60 bg-background-secondary/50">
                                         {(() => {
                                             const cardImage = item.card
                                                 ? TAROT_CARDS.find((card) => card.nameChinese === item.card?.name)?.image

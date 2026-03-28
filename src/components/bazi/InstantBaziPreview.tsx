@@ -87,9 +87,9 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
     }
 
     return (
-        <div className="bg-white rounded-lg md:p-6 p-4 shadow-sm border border-gray-200 animate-fade-in">
+        <div className="bg-background rounded-lg md:p-6 p-4 shadow-sm border border-border animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-[#37352f]">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
                     <Sparkles className="w-5 h-5 text-[#2383e2]" />
                     即时排盘
                 </h2>
@@ -113,13 +113,13 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
                 ].map(({ label, pillar }) => (
                     <div
                         key={label}
-                        className="bg-[#f7f6f3] rounded-md p-3 text-center border border-gray-100"
+                        className="bg-background rounded-md p-3 text-center border border-border/60"
                     >
-                        <div className="text-[11px] font-semibold text-[#37352f]/50 uppercase tracking-wider mb-1">{label}</div>
-                        <div className="text-2xl font-bold text-[#37352f]">
+                        <div className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider mb-1">{label}</div>
+                        <div className="text-2xl font-bold text-foreground">
                             {pillar.stem}
                         </div>
-                        <div className="text-2xl font-bold text-[#37352f]">
+                        <div className="text-2xl font-bold text-foreground">
                             {pillar.branch}
                         </div>
                     </div>
@@ -127,7 +127,7 @@ export function InstantBaziPreview({ onUseInstant }: InstantBaziPreviewProps) {
             </div>
 
             {/* 时间信息 */}
-            <div className="text-sm text-[#37352f]/60 space-y-1">
+            <div className="text-sm text-foreground/60 space-y-1">
                 <div>
                     农历：{lunarInfo.year}年
                     {['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月'][lunarInfo.month - 1]}

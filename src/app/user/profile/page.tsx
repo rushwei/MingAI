@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Camera, User as UserIcon } from 'lucide-react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/auth';
 import { ensureUserRecord, getUserProfile, updateNickname } from '@/lib/auth';
@@ -26,6 +25,7 @@ export default function ProfilePage() {
     const [nickname, setNickname] = useState('');
     const [originalNickname, setOriginalNickname] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState('');
@@ -78,6 +78,10 @@ export default function ProfilePage() {
 
         fetchProfile();
     }, [router]);
+
+    useEffect(() => {
+        setAvatarLoadFailed(false);
+    }, [avatarUrl]);
 
     const handleSave = async () => {
         if (!user || !nickname.trim()) return;
@@ -149,26 +153,26 @@ export default function ProfilePage() {
                 <div className="max-w-2xl mx-auto px-4 py-8">
                     {/* 标题骨架 */}
                     <div className="mb-8">
-                        <div className="h-7 w-24 rounded bg-gray-200 animate-pulse" />
-                        <div className="h-4 w-40 rounded bg-gray-200 animate-pulse mt-2" />
+                        <div className="h-7 w-24 rounded bg-foreground/10 animate-pulse" />
+                        <div className="h-4 w-40 rounded bg-foreground/5 animate-pulse mt-2" />
                     </div>
                     {/* 头像骨架 */}
                     <div className="flex justify-center mb-8">
-                        <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse" />
+                        <div className="w-24 h-24 rounded-full bg-foreground/10 animate-pulse" />
                     </div>
                     {/* 表单骨架 */}
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
-                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                            <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-foreground/5 animate-pulse" />
                         </div>
                         <div className="space-y-2">
-                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
-                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                            <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-foreground/5 animate-pulse" />
                         </div>
                         <div className="space-y-2">
-                            <div className="h-4 w-12 rounded bg-gray-200 animate-pulse" />
-                            <div className="h-11 w-full rounded-md bg-gray-200 animate-pulse" />
+                            <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse" />
+                            <div className="h-11 w-full rounded-md bg-foreground/5 animate-pulse" />
                         </div>
                     </div>
                 </div>
@@ -191,16 +195,16 @@ export default function ProfilePage() {
                     {/* 头像区域 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">头像设置</h2>
-                        <div className="bg-background border border-gray-200 rounded-md p-6 flex flex-col items-center gap-4">
+                        <div className="bg-background border border-border rounded-md p-6 flex flex-col items-center gap-4">
                             <div className="relative group">
-                                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#efedea] border border-gray-100">
-                                    {avatarUrl ? (
-                                        <Image
+                                <div className="w-24 h-24 rounded-full overflow-hidden bg-background-secondary border border-border/60">
+                                    {avatarUrl && !avatarLoadFailed ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
                                             src={avatarUrl}
                                             alt="Avatar"
-                                            width={96}
-                                            height={96}
                                             className="w-full h-full object-cover"
+                                            onError={() => setAvatarLoadFailed(true)}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-foreground/20">
@@ -232,7 +236,7 @@ export default function ProfilePage() {
                     {/* 基本信息 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">基本信息</h2>
-                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                        <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                             {/* 昵称 */}
                             <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="space-y-0.5">
@@ -244,7 +248,7 @@ export default function ProfilePage() {
                                         type="text"
                                         value={nickname}
                                         onChange={(e) => setNickname(e.target.value)}
-                                        className="px-3 py-1.5 bg-[#efedea] rounded-md text-sm border-none focus:outline-none w-48"
+                                        className="px-3 py-1.5 bg-background-secondary rounded-md text-sm border-none focus:outline-none w-48"
                                     />
                                     {hasNicknameChanges && (
                                         <button
@@ -264,7 +268,7 @@ export default function ProfilePage() {
                                     <p className="text-sm font-medium">电子邮箱</p>
                                     <p className="text-xs text-foreground/40">用于账户登录与重要通知</p>
                                 </div>
-                                <div className="px-3 py-1.5 bg-[#efedea]/50 rounded-md text-sm text-foreground/40 font-mono">
+                                <div className="px-3 py-1.5 bg-background-secondary/50 rounded-md text-sm text-foreground/40 font-mono">
                                     {displayEmail}
                                 </div>
                             </div>
@@ -274,7 +278,7 @@ export default function ProfilePage() {
                     {/* 账号安全 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">安全设置</h2>
-                        <div className="bg-background border border-gray-200 rounded-md p-4">
+                        <div className="bg-background border border-border rounded-md p-4">
                             <div className="mb-4 space-y-0.5">
                                 <p className="text-sm font-medium">重置密码</p>
                                 <p className="text-xs text-foreground/40">定期更新密码以保障账户安全</p>

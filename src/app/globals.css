@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* 
  * MingAI 全局样式
@@ -7,6 +8,8 @@
 
 /* ===== 主题变量定义 ===== */
 :root {
+  color-scheme: light;
+
   /* ios 安全区域 */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -15,8 +18,10 @@
   /* 浅色主题 - 参考 Notion 设计规范 */
   --background: #f7f6f3;
   --background-secondary: #efedea;
+  --background-tertiary: #e3e1db;
   --foreground: #37352f;
   --foreground-secondary: rgba(55, 53, 47, 0.65);
+  --foreground-tertiary: rgba(55, 53, 47, 0.45);
 
   /* 强调色 - Notion 蓝色 */
   --accent: #2eaadc;
@@ -33,7 +38,6 @@
 
   /* 侧边栏宽度 */
   --sidebar-width: 240px;
-  --sidebar-collapsed-width: 72px;
 }
 
 /* 安全区域工具类 */
@@ -56,10 +60,14 @@
 
 /* 深色主题 */
 .dark {
+  color-scheme: dark;
+
   --background: #0a0a0a;
   --background-secondary: #1a1a1a;
+  --background-tertiary: #262626;
   --foreground: #ffffff;
   --foreground-secondary: #a0a0a0;
+  --foreground-tertiary: #7a7a7a;
 
   --accent: #D4AF37;
   --accent-light: #3d3520;
@@ -76,8 +84,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
   --color-foreground: var(--foreground);
   --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
   --color-border: var(--border);

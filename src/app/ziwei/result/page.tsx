@@ -263,15 +263,15 @@ function ZiweiResultContent() {
             <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部操作栏 */}
                 <div className="hidden md:flex items-center justify-between">
-                    <Link href={chartId ? '/user/charts' : '/ziwei'} className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
+                    <Link href={chartId ? '/user/charts' : '/ziwei'} className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
                     <div className="flex items-center gap-2">
-                        <button onClick={handleEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><Edit3 className="w-3.5 h-3.5" />修改</button>
+                        <button onClick={handleEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><Edit3 className="w-3.5 h-3.5" />修改</button>
                         <button onClick={handleSave} disabled={saving || saved} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${saved ? 'text-[#0f7b6c] bg-[#0f7b6c]/5 border border-[#0f7b6c]/10' : 'bg-[#2383e2] text-white hover:bg-[#2383e2]/90'}`}>{saved ? <><Check className="w-3.5 h-3.5" />已保存</> : saving ? <><SoundWaveLoader variant="inline" />保存中</> : <><Save className="w-3.5 h-3.5" />保存</>}</button>
-                        <button onClick={handleShare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><Share2 className="w-3.5 h-3.5" />分享</button>
+                        <button onClick={handleShare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><Share2 className="w-3.5 h-3.5" />分享</button>
                     </div>
                 </div>
 
-                <div className="bg-background border border-gray-200 rounded-md px-5 py-4 shadow-sm">
+                <div className="bg-background border border-border rounded-md px-5 py-4 shadow-sm">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                             <h1 className="text-xl font-semibold tracking-tight truncate text-foreground">
@@ -282,7 +282,7 @@ function ZiweiResultContent() {
                             </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 lg:justify-end lg:min-w-0 lg:pl-6 lg:border-l lg:border-gray-100">
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 lg:justify-end lg:min-w-0 lg:pl-6 lg:border-l lg:border-border/60">
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
                                     出生时间
@@ -297,9 +297,9 @@ function ZiweiResultContent() {
                                     </span>
                                 )}
                                 {!isUnknownTime && (
-                                    <div className="flex items-center bg-[#efedea] rounded p-0.5 shrink-0">
-                                        <button onClick={() => setHourOffset(prev => prev - 1)} className="p-0.5 hover:bg-white rounded transition-colors"><Minus className="w-3 h-3" /></button>
-                                        <button onClick={() => setHourOffset(prev => prev + 1)} className="p-0.5 hover:bg-white rounded transition-colors"><Plus className="w-3 h-3" /></button>
+                                    <div className="flex items-center bg-background-secondary rounded p-0.5 shrink-0">
+                                        <button onClick={() => setHourOffset(prev => prev - 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Minus className="w-3 h-3" /></button>
+                                        <button onClick={() => setHourOffset(prev => prev + 1)} className="p-0.5 hover:bg-background rounded transition-colors"><Plus className="w-3 h-3" /></button>
                                         {hourOffset !== 0 && <button onClick={() => setHourOffset(0)} className="px-1 text-[10px] font-bold text-foreground/40 hover:text-foreground">RESET</button>}
                                     </div>
                                 )}
@@ -334,7 +334,7 @@ function ZiweiResultContent() {
                     </div>
                 </div>
 
-                <section className="bg-background border border-gray-200 rounded-md p-6">
+                <section className="bg-background border border-border rounded-md p-6">
                     <ZiweiChartGrid
                         canonicalChart={canonicalChart}
                         copyText={generateZiweiChartText(chart)}

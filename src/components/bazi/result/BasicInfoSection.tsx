@@ -70,7 +70,7 @@ export function BasicInfoSection({
     return (
         <div className="space-y-8 animate-fade-in">
             {/* 1. 日主特征 - 极简卡片 */}
-            <section className="bg-background border border-gray-200 rounded-md p-6">
+            <section className="bg-background border border-border rounded-md p-6">
                 <div className="flex items-center gap-2 mb-6">
                     <User className="w-4 h-4 text-foreground/30" />
                     <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">
@@ -99,9 +99,9 @@ export function BasicInfoSection({
             <div className="space-y-8">
                 {/* 五行分析 */}
                 {!isSaved ? (
-                    <section className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6">
+                    <section className="bg-background-secondary/30 border border-border rounded-md p-6">
                         <div className="flex items-start gap-4">
-                            <div className="p-2 rounded bg-white border border-gray-100 shrink-0">
+                            <div className="p-2 rounded bg-background border border-border/60 shrink-0">
                                 <Save className="w-5 h-5 text-[#2eaadc]" />
                             </div>
                             <div className="space-y-4 flex-1">
@@ -149,9 +149,9 @@ export function BasicInfoSection({
 
                 {/* 性格分析 */}
                 {!isSaved ? (
-                    <section className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6">
+                    <section className="bg-background-secondary/30 border border-border rounded-md p-6">
                         <div className="flex items-start gap-4">
-                            <div className="p-2 rounded bg-white border border-gray-100 shrink-0">
+                            <div className="p-2 rounded bg-background border border-border/60 shrink-0">
                                 <User className="w-5 h-5 text-[#a083ff]" />
                             </div>
                             <div className="space-y-4 flex-1">

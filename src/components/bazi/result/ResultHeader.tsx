@@ -33,7 +33,7 @@ export function ResultHeader({
         <div className="hidden md:flex items-center justify-between mb-6">
             <Link
                 href={backHref}
-                className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors"
+                className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
             >
                 返回
             </Link>
@@ -41,7 +41,7 @@ export function ResultHeader({
                 <button
                     onClick={onEdit}
                     disabled={saving}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors disabled:opacity-50"
                 >
                     <Edit3 className="w-3.5 h-3.5" />
                     修改
@@ -67,7 +67,7 @@ export function ResultHeader({
                 </button>
                 <button
                     onClick={onCopy}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"
                 >
                     {copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}
                     {copied ? '已复制' : '复制'}
@@ -75,7 +75,7 @@ export function ResultHeader({
                 {showJsonCopy && onCopyJson && (
                     <button
                         onClick={onCopyJson}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"
                     >
                         {jsonCopied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}
                         {jsonCopied ? 'JSON 已复制' : '复制 JSON'}
@@ -83,7 +83,7 @@ export function ResultHeader({
                 )}
                 <button
                     onClick={onShare}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"
                 >
                     <Share2 className="w-3.5 h-3.5" />
                     分享

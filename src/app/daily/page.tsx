@@ -34,7 +34,7 @@ import { getCalendarAlmanac } from '@/lib/divination/calendar';
 
 import type { BaziChart, FortuneLevel } from '@/types';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { loadUserChartBundle } from '@/lib/user/charts-client';
+import { loadFortuneBaziChart, loadUserChartBundle, toFortuneBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const scoreItems = [
@@ -76,24 +76,6 @@ function DailyPageContent() {
 
     const [showAuthModal, setShowAuthModal] = useState(false);
 
-    const toBaziChart = useCallback((row: Record<string, unknown>): BaziChart => {
-        const chartData = row.chart_data as Record<string, unknown> || {};
-        return {
-            id: row.id as string,
-            name: row.name as string,
-            gender: row.gender as string,
-            birthDate: row.birth_date as string,
-            birthTime: row.birth_time as string | null,
-            birthPlace: row.birth_place as string | null,
-            calendarType: row.calendar_type as string | null,
-            isLeapMonth: row.is_leap_month as boolean | null,
-            fourPillars: chartData.fourPillars,
-            dayMaster: chartData.dayMaster,
-            fiveElements: chartData.fiveElements,
-            createdAt: row.created_at as string,
-        } as BaziChart;
-    }, []);
-
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
         void uid;
@@ -101,17 +83,21 @@ function DailyPageContent() {
             const bundle = await loadUserChartBundle();
             const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
             if (rows.length > 0) {
-                const charts = rows.map(toBaziChart);
+                const charts = rows
+                    .map(toFortuneBaziChart)
+                    .filter((chart): chart is BaziChart => chart !== null);
                 const defaultId = bundle?.defaultChartIds?.bazi ?? null;
                 const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
-                setBaziChart(defaultChart || charts[0]);
+                if (charts.length > 0) {
+                    setBaziChart(defaultChart || charts[0]);
+                }
             }
         } catch (err) {
             console.error('加载命盘失败:', err);
         } finally {
             setLoading(false);
         }
-    }, [toBaziChart]);
+    }, []);
 
     // 初始化
     useEffect(() => {
@@ -169,14 +155,13 @@ function DailyPageContent() {
         setSelectedDate(new Date());
     };
 
-    const handleSelectChart = (chart: ChartItem) => {
-        setBaziChart({
-            id: chart.id,
-            name: chart.name,
-            gender: chart.gender ?? 'male',
-            birthDate: chart.birth_date,
-            birthTime: chart.birth_time,
-        } as BaziChart);
+    const handleSelectChart = async (chart: ChartItem) => {
+        const fullChart = await loadFortuneBaziChart(chart.id);
+        if (fullChart) {
+            setBaziChart(fullChart);
+        } else {
+            console.error('加载选中命盘失败:', chart.id);
+        }
         setShowChartSelector(false);
     };
 
@@ -227,7 +212,7 @@ function DailyPageContent() {
                 <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* 左侧黄历骨架 */}
-                        <div className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
+                        <div className="bg-background border border-border rounded-md p-6 space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="h-6 w-6 rounded bg-foreground/5 animate-pulse" />
                                 <div className="h-8 w-32 rounded bg-foreground/10 animate-pulse" />
@@ -237,7 +222,7 @@ function DailyPageContent() {
                         </div>
                         {/* 右侧运势骨架 */}
                         <div className="space-y-6">
-                            <div className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
+                            <div className="bg-background border border-border rounded-md p-6 space-y-4">
                                 <div className="h-5 w-24 rounded bg-foreground/10 animate-pulse" />
                                 <div className="space-y-3">
                                     {[1, 2, 3, 4].map(i => (
@@ -269,7 +254,7 @@ function DailyPageContent() {
                 {/* 分享卡片弹窗 - 采用 Notion 风格弹窗 */}
                 {showShareCard && (
                     <div className="fixed inset-0 bg-black/20 z-50 flex items-center justify-center p-4">
-                        <div className="bg-background border border-gray-200 rounded-lg p-6 max-w-md w-full shadow-md">
+                        <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full shadow-md">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-sm font-semibold flex items-center gap-2">
                                     <Share2 className="w-4 h-4 text-[#2eaadc]" />
@@ -277,7 +262,7 @@ function DailyPageContent() {
                                 </h2>
                                 <button
                                     onClick={() => setShowShareCard(false)}
-                                    className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"
+                                    className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -294,10 +279,10 @@ function DailyPageContent() {
                 )}
 
                 {/* 主要内容网格区域 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] gap-8 items-start">
 
                     {/* 左侧：黄历信息 - 纯白/米色卡片，细边框 */}
-                    <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                    <div className="bg-background border border-border rounded-md overflow-hidden">
                         <CalendarAlmanac
                             date={selectedDate}
                             onDateChange={changeDate}
@@ -316,7 +301,7 @@ function DailyPageContent() {
                     <div className="space-y-6">
                         {/* 1. 7日运势趋势 (仅个性化模式显示) */}
                         {isPersonalized && trendData.length > 0 && (
-                            <section className="bg-background border border-gray-200 rounded-md p-6">
+                            <section className="bg-background border border-border rounded-md p-6">
                                 <div className="w-full">
                                     <FortuneTrendChart
                                         data={trendData}
@@ -335,11 +320,10 @@ function DailyPageContent() {
                         )}
 
                         {/* 2. 详细运势评分与分析 */}
-                        <section className="bg-background border border-gray-200 rounded-md p-6 flex flex-col">
+                        <section className="bg-background border border-border rounded-md p-6 flex flex-col">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-sm font-semibold flex items-center gap-2">
-                                        <Star className="w-4 h-4 text-[#dfab01]" />
                                         运势分析
                                     </h2>
                                     {fortune.dayStem && fortune.dayBranch && (
@@ -350,7 +334,7 @@ function DailyPageContent() {
                                 </div>
                                 <button
                                     onClick={() => setShowShareCard(true)}
-                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-gray-200 hover:bg-[#efedea] active:bg-[#e3e1db] transition-colors"
+                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-border hover:bg-background-secondary active:bg-background-tertiary transition-colors"
                                 >
                                     <Share2 className="w-3.5 h-3.5" />
                                     分享
@@ -358,7 +342,7 @@ function DailyPageContent() {
                             </div>
 
                             {/* 评分条 - 移除渐变，使用 Notion 强调色 */}
-                            <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-8">
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-2">
                                 {scoreItems.map(item => {
                                     const level = fortune[item.key as keyof typeof fortune] as FortuneLevel;
                                     const chartValue = fortuneLevelToChartValue(level);
@@ -377,7 +361,7 @@ function DailyPageContent() {
                                                     {level}
                                                 </span>
                                             </div>
-                                            <div className="h-1 bg-[#efedea] rounded-full overflow-hidden">
+                                            <div className="h-1 bg-background-secondary rounded-full overflow-hidden">
                                                 <div
                                                     className={`h-full transition-all duration-1000 ease-out rounded-full ${isFavorable ? 'bg-[#0f7b6c]' :
                                                         isNeutral ? 'bg-[#dfab01]' :
@@ -394,7 +378,7 @@ function DailyPageContent() {
                             <div className="space-y-6">
                                 {/* 幸运信息 - 列表样式 */}
                                 {isPersonalized && fortune.luckyColor && (
-                                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100">
+                                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/60">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-[10px] uppercase tracking-wider text-foreground/40 font-semibold">幸运色</span>
                                             <span className="text-sm font-medium">{fortune.luckyColor}</span>
@@ -407,10 +391,9 @@ function DailyPageContent() {
                                 )}
 
                                 {/* 指引区域 - 纯文本/列表风格 */}
-                                <div className="pt-6 border-t border-gray-100">
+                                <div className="pt-1 border-t border-border/60">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-semibold flex items-center gap-2">
-                                            <Sparkles className="w-3.5 h-3.5 text-[#a083ff]" />
                                             运势指引
                                         </h3>
                                         {isPersonalized && (
@@ -424,7 +407,7 @@ function DailyPageContent() {
                                     <ul className="space-y-3">
                                         {interpretedAdvice.map((advice, index) => (
                                             <li key={index} className="flex gap-3 text-sm text-foreground/80 leading-relaxed group">
-                                                <span className="flex-shrink-0 w-5 h-5 rounded bg-[#efedea] text-[10px] font-bold flex items-center justify-center mt-0.5">
+                                                <span className="flex-shrink-0 w-5 h-5 rounded bg-background-secondary text-[10px] font-bold flex items-center justify-center mt-0.5">
                                                     {index + 1}
                                                 </span>
                                                 <span>{advice}</span>
@@ -438,14 +421,14 @@ function DailyPageContent() {
                 </div>
 
                 {/* AI Chat 模块 - 嵌入式极简设计 */}
-                <section className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                <section className="bg-background border border-border rounded-md overflow-hidden">
                     {userId ? (
                         <div className="p-1">
                             <DailyAIChat date={selectedDate} userId={userId} />
                         </div>
                     ) : (
                         <div className="p-12 text-center">
-                            <div className="w-12 h-12 bg-[#efedea] rounded-md flex items-center justify-center mx-auto mb-4">
+                            <div className="w-12 h-12 bg-background-secondary rounded-md flex items-center justify-center mx-auto mb-4">
                                 <Sparkles className="w-6 h-6 text-[#a083ff]" />
                             </div>
                             <h3 className="text-base font-semibold mb-2">AI 命理师在线解读</h3>

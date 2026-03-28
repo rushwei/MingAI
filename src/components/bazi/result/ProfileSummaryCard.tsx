@@ -31,7 +31,7 @@ export function ProfileSummaryCard({
     ].filter((item): item is { label: string; value: string } => Boolean(item));
 
     return (
-        <div className="bg-background border border-gray-200 rounded-md px-5 py-4 mb-6 shadow-sm">
+        <div className="bg-background border border-border rounded-md px-5 py-4 mb-6 shadow-sm">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <h1 className="text-xl font-semibold tracking-tight truncate text-foreground">
@@ -42,7 +42,7 @@ export function ProfileSummaryCard({
                     </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 lg:justify-end lg:min-w-0 lg:pl-6 lg:border-l lg:border-gray-100">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 lg:justify-end lg:min-w-0 lg:pl-6 lg:border-l lg:border-border/60">
                     {summaryItems.map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5 min-w-0">
                             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">

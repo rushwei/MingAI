@@ -202,7 +202,7 @@ export default function SelectHexagramPage() {
 
                 <div className="sm:space-y-6 space-y-3">
                     {requiresYongShenTargets && yongShenTargets.length === 0 && (
-                        <div className="bg-white/[0.02] border border-red-500/30 rounded-xl p-4">
+                        <div className="bg-background/[0.02] border border-red-500/30 rounded-xl p-4">
                             <div className="text-sm text-red-500 mb-2">必须先选择分析目标</div>
                             <YongShenTargetPicker
                                 value={yongShenTargets}
@@ -213,7 +213,7 @@ export default function SelectHexagramPage() {
                     )}
 
                     {/* 选择方式切换 */}
-                    <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
+                    <div className="flex gap-2 p-1 bg-background/5 rounded-lg">
                         <button
                             onClick={() => handleModeChange('list')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all
@@ -242,7 +242,7 @@ export default function SelectHexagramPage() {
                     </p>
 
                     {/* 卦选择区域 */}
-                    <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
+                    <div className="bg-background/[0.02] border border-white/10 rounded-xl p-4">
                         {selectMode === 'list' ? (
                             <HexagramSelector
                                 value={hexagramCode}
@@ -276,7 +276,7 @@ export default function SelectHexagramPage() {
                     </div>
 
                     {/* 变爻选择 */}
-                    <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
+                    <div className="bg-background/[0.02] border border-white/10 rounded-xl p-4">
                         <ChangingLinesSelector
                             hexagramCode={effectiveCode}
                             value={changedPositions}

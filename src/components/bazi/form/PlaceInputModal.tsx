@@ -54,9 +54,9 @@ export function PlaceInputModal({
             />
 
             {/* 模态框内容 */}
-            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 text-[#37352f]">
+            <div className="relative bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border text-foreground">
                 {/* 头部 */}
-                <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-background border-b border-border/60 px-6 py-4 flex items-center justify-between z-10">
                     <h2 className="text-lg font-bold flex items-center gap-2">
                         <MapPin className="w-5 h-5 text-[#2383e2]" />
                         出生地点
@@ -64,7 +64,7 @@ export function PlaceInputModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-[#37352f]/40 hover:text-[#37352f] hover:bg-[#efedea] p-1 rounded-md transition-all duration-150"
+                        className="text-foreground/40 hover:text-foreground hover:bg-background-secondary p-1 rounded-md transition-all duration-150"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -88,12 +88,12 @@ export function PlaceInputModal({
                 </div>
 
                 {/* 底部按钮 */}
-                <div className="sticky bottom-0 bg-[#f7f6f3]/80 backdrop-blur-md border-t border-gray-100 px-6 py-4 flex gap-3">
+                <div className="sticky bottom-0 bg-background/80 backdrop-blur-md border-t border-border/60 px-6 py-4 flex gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-semibold text-[#37352f]
-                            hover:bg-[#efedea] active:bg-[#e3e1db] transition-all duration-150"
+                        className="flex-1 px-4 py-2 bg-background border border-border rounded-md text-sm font-semibold text-foreground
+                            hover:bg-background-secondary active:bg-background-tertiary transition-all duration-150"
                     >
                         取消
                     </button>

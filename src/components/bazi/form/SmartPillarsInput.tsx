@@ -415,7 +415,7 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
                                                 ? `${ELEMENT_BG_COLORS[pillar.stem]} ${canClickStem ? 'cursor-pointer hover:ring-2 hover:ring-accent/50' : ''}`
                                                 : isCurrent
                                                     ? 'bg-accent/10 border-2 border-dashed border-accent'
-                                                    : 'bg-gray-100 border-2 border-transparent'
+                                                    : 'bg-background-secondary border-2 border-transparent'
                                             }
                                             disabled:cursor-default
                                         `}
@@ -434,7 +434,7 @@ export function SmartPillarsInput({ value, onChange }: SmartPillarsInputProps) {
                                                 ? `${ELEMENT_BG_COLORS[pillar.branch]} ${canClickBranch ? 'cursor-pointer hover:ring-2 hover:ring-accent/50' : ''}`
                                                 : isCurrent && hasStem
                                                     ? 'bg-accent/10 border-2 border-dashed border-accent'
-                                                    : 'bg-gray-100 border-2 border-transparent'
+                                                    : 'bg-background-secondary border-2 border-transparent'
                                             }
                                             disabled:cursor-default
                                         `}

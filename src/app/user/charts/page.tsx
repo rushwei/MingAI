@@ -89,12 +89,12 @@ function ChartList({
             </div>
 
             {list.length > 0 ? (
-                <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                     {list.map((chart) => (
                         <Link
                             key={`${chart.type}-${chart.id}`}
                             href={chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`}
-                            className="group flex items-center gap-3 px-4 p-2 transition-colors hover:bg-[#efedea]"
+                            className="group flex items-center gap-3 px-4 p-2 transition-colors hover:bg-background-secondary"
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
@@ -146,7 +146,7 @@ function ChartList({
                     ))}
                 </div>
             ) : (
-                <div className="bg-background border border-dashed border-gray-200 rounded-md py-12 text-center">
+                <div className="bg-background border border-dashed border-border rounded-md py-12 text-center">
                     <p className="text-sm text-foreground/40 mb-4">暂无{title}</p>
                     <Link
                         href={onCreateLink}
@@ -264,7 +264,7 @@ function ChartsContent() {
                         {[1, 2].map(i => (
                             <div key={i} className="space-y-4">
                                 <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse mb-2" />
-                                <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                                <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                                     {[1, 2].map(j => (
                                         <div key={j} className="p-4 flex gap-3 animate-pulse">
                                             <div className="flex-1 space-y-2">

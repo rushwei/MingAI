@@ -14,7 +14,7 @@ export function CompatibilityChart({ dimensions, overallScore }: CompatibilityCh
     const { level, color } = getCompatibilityLevel(overallScore);
 
     return (
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 sm:p-8">
+        <div className="bg-background/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 sm:p-8">
             {/* 总分 */}
             <div className="text-center mb-8 relative">
                 <div className="relative inline-flex items-center justify-center">
@@ -47,7 +47,7 @@ export function CompatibilityChart({ dimensions, overallScore }: CompatibilityCh
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                         <span className="text-4xl font-bold text-foreground tracking-tight">{overallScore}</span>
-                        <span className={`text-base font-medium mt-1 px-3 py-0.5 rounded-full bg-white/5 border border-white/10 ${color}`}>
+                        <span className={`text-base font-medium mt-1 px-3 py-0.5 rounded-full bg-background/5 border border-white/10 ${color}`}>
                             {level}
                         </span>
                     </div>
@@ -69,12 +69,12 @@ export function CompatibilityChart({ dimensions, overallScore }: CompatibilityCh
                             </div>
 
                             {/* 进度条轨道 */}
-                            <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                            <div className="h-2.5 bg-background/5 rounded-full overflow-hidden border border-white/5">
                                 <div
                                     className="h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
                                     style={{ width: `${dim.score}%` }}
                                 >
-                                    <div className="absolute inset-0 bg-white/20" />
+                                    <div className="absolute inset-0 bg-background/20" />
                                 </div>
                             </div>
 

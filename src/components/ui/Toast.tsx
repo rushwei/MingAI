@@ -120,14 +120,14 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
                         toast.action?.onClick();
                         onRemove(toast.id);
                     }}
-                    className="px-2 py-1 rounded-md text-xs font-medium bg-white/70 dark:bg-black/20 hover:bg-white dark:hover:bg-black/30 transition-colors"
+                    className="px-2 py-1 rounded-md text-xs font-medium bg-background/70 dark:bg-black/20 hover:bg-background dark:hover:bg-black/30 transition-colors"
                 >
                     {toast.action.label}
                 </button>
             )}
             <button
                 onClick={() => onRemove(toast.id)}
-                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
+                className="p-1 hover:bg-black/5 dark:hover:bg-background/5 rounded-full transition-colors"
             >
                 <X className="w-4 h-4 text-foreground-secondary" />
             </button>

@@ -51,7 +51,7 @@ export function MBTIProgressBar({
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
                         transition-all hover:scale-110 ${answered
                             ? 'bg-green-500 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            : 'bg-background-secondary dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         } ${isCurrent ? 'ring-2 ring-accent ring-offset-2 ring-offset-background' : ''}`}
                 >
                     {number}
@@ -94,7 +94,7 @@ export function MBTIProgressBar({
                     </span>
                 </div>
 
-                <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-24 h-2 bg-background-secondary dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-accent transition-all duration-300"
                         style={{ width: `${progress}%` }}

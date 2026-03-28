@@ -109,7 +109,7 @@ export function CompatibilityTrendChart({
     const trendColor = trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-rose-500' : 'text-amber-500';
 
     return (
-        <div className="bg-white/5 backdrop-blur-md rounded-3xl p-6 border border-white/10">
+        <div className="bg-background/5 backdrop-blur-md rounded-3xl p-6 border border-white/10">
             {/* 标题和时间选择 */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
@@ -125,7 +125,7 @@ export function CompatibilityTrendChart({
                 </div>
 
                 {onPeriodChange && (
-                    <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/5 self-start sm:self-auto">
+                    <div className="flex items-center bg-background/5 rounded-xl p-1 border border-white/5 self-start sm:self-auto">
                         <button
                             onClick={() => onPeriodChange(6)}
                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${period === 6
@@ -150,19 +150,19 @@ export function CompatibilityTrendChart({
 
             {/* 趋势概要 */}
             <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-white/10 transition-colors">
+                <div className="bg-background/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-background/10 transition-colors">
                     <span className="text-xs font-medium text-foreground-secondary mb-1">平均分</span>
                     <span className="text-2xl font-bold text-indigo-500 group-hover:scale-110 transition-transform">{averageScore}</span>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-white/10 transition-colors">
+                <div className="bg-background/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-background/10 transition-colors">
                     <span className="text-xs font-medium text-foreground-secondary mb-1">最高点</span>
                     <span className="text-2xl font-bold text-emerald-500 group-hover:scale-110 transition-transform">{maxPoint?.score}</span>
-                    <span className="text-[10px] text-foreground-secondary mt-1 bg-white/5 px-2 py-0.5 rounded-full">{maxPoint?.month}</span>
+                    <span className="text-[10px] text-foreground-secondary mt-1 bg-background/5 px-2 py-0.5 rounded-full">{maxPoint?.month}</span>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-white/10 transition-colors">
+                <div className="bg-background/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-background/10 transition-colors">
                     <span className="text-xs font-medium text-foreground-secondary mb-1">最低点</span>
                     <span className="text-2xl font-bold text-rose-500 group-hover:scale-110 transition-transform">{minPoint?.score}</span>
-                    <span className="text-[10px] text-foreground-secondary mt-1 bg-white/5 px-2 py-0.5 rounded-full">{minPoint?.month}</span>
+                    <span className="text-[10px] text-foreground-secondary mt-1 bg-background/5 px-2 py-0.5 rounded-full">{minPoint?.month}</span>
                 </div>
             </div>
 

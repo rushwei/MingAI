@@ -120,7 +120,7 @@ function ReminderToggle({
                 `}
             >
                 <div className={`
-                    w-4 h-4 rounded-full bg-white absolute top-1 transition-transform
+                    w-4 h-4 rounded-full bg-background absolute top-1 transition-transform
                     ${enabled ? 'translate-x-5' : 'translate-x-1'}
                 `} />
             </button>
@@ -199,7 +199,7 @@ export default function SettingsPage() {
                     {/* 设置列表骨架 */}
                     <div className="space-y-6">
                         {[1, 2].map(i => (
-                            <div key={i} className="bg-background border border-gray-200 rounded-md p-6 space-y-4">
+                            <div key={i} className="bg-background border border-border rounded-md p-6 space-y-4">
                                 <div className="h-4 w-20 rounded bg-foreground/10 animate-pulse mb-2" />
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
@@ -234,11 +234,11 @@ export default function SettingsPage() {
                     {/* 外观与语言 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">基础偏好</h2>
-                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                        <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                             {/* 主题选择 */}
                             <div className="p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded bg-[#efedea] text-foreground/70">
+                                    <div className="p-2 rounded bg-background-secondary text-foreground/70">
                                         {themeMode === 'system' ? <Monitor className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                                     </div>
                                     <div>
@@ -246,7 +246,7 @@ export default function SettingsPage() {
                                         <p className="text-xs text-foreground/40">选择应用显示主题</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center bg-[#efedea] p-1 rounded-md">
+                                <div className="flex items-center bg-background-secondary p-1 rounded-md">
                                     {(['light', 'dark', 'system'] as const).map((mode) => (
                                         <button
                                             key={mode}
@@ -266,7 +266,7 @@ export default function SettingsPage() {
                             {/* 语言设置 */}
                             <div className="p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded bg-[#efedea] text-foreground/70">
+                                    <div className="p-2 rounded bg-background-secondary text-foreground/70">
                                         <Globe className="w-4 h-4" />
                                     </div>
                                     <div>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                                         value={settings.language}
                                         onChange={(e) => updateSetting('language', e.target.value as 'zh' | 'en')}
                                         disabled={Boolean(loadError)}
-                                        className="appearance-none pl-3 pr-8 py-1.5 rounded-md bg-[#efedea] text-xs font-medium focus:outline-none transition-colors border-none"
+                                        className="appearance-none pl-3 pr-8 py-1.5 rounded-md bg-background-secondary text-xs font-medium focus:outline-none transition-colors border-none"
                                     >
                                         <option value="zh">简体中文</option>
                                         <option value="en" disabled>English (即将上线)</option>
@@ -293,10 +293,10 @@ export default function SettingsPage() {
                     {/* 通知与提醒 */}
                     <section className="space-y-4">
                         <h2 className="text-[11px] font-semibold text-foreground/40 uppercase tracking-widest px-1">通知与提醒</h2>
-                        <div className="bg-background border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-100">
+                        <div className="bg-background border border-border rounded-md overflow-hidden divide-y divide-border/60">
                             <div className="p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded ${settings.notifications ? 'bg-blue-50 text-[#2eaadc]' : 'bg-[#efedea] text-foreground/30'}`}>
+                                    <div className={`p-2 rounded ${settings.notifications ? 'bg-accent-light text-accent' : 'bg-background-secondary text-foreground/30'}`}>
                                         <Bell className="w-4 h-4" />
                                     </div>
                                     <div>
@@ -309,18 +309,18 @@ export default function SettingsPage() {
                                     disabled={Boolean(loadError)}
                                     className={`
                                         w-10 h-6 rounded-full transition-all duration-200 relative
-                                        ${settings.notifications ? 'bg-[#2eaadc]' : 'bg-gray-200'}
+                                        ${settings.notifications ? 'bg-accent' : 'bg-border'}
                                     `}
                                 >
                                     <div className={`
-                                        w-4.5 h-4.5 rounded-full bg-white absolute top-0.75 transition-transform duration-200
+                                        w-4.5 h-4.5 rounded-full bg-background absolute top-0.75 transition-transform duration-200
                                         ${settings.notifications ? 'translate-x-4.75' : 'translate-x-0.75'}
                                     `} />
                                 </button>
                             </div>
 
                             {/* 订阅管理子项 - 符合 Notion 风格的嵌套行 */}
-                            <div className="px-4 py-2 bg-gray-50/50">
+                            <div className="px-4 py-2 bg-background-secondary/40">
                                 <div className="space-y-1">
                                     <ReminderToggle
                                         type="solar_term"

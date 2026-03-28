@@ -133,7 +133,7 @@ export function HexagramDisplay({
                                     return (
                                         <tr
                                             key={yao.position}
-                                            className={`border-b border-gray-100 last:border-b-0 ${isYongShen ? 'bg-sky-50/60' : ''} ${isChanging ? 'bg-red-50/70' : ''}`}
+                                            className={`border-b border-border/60 last:border-b-0 ${isYongShen ? 'bg-sky-50/60' : ''} ${isChanging ? 'bg-red-50/70' : ''}`}
                                         >
                                             {/* 爻位 */}
                                             <td className={`px-2 py-2 text-center text-sm ${isChanging ? 'text-red-500 font-semibold' : 'text-foreground/45'}`}>
@@ -212,7 +212,7 @@ export function HexagramDisplay({
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleShenShaRow(yao.position)}
-                                                                    className="shrink-0 px-1 py-0.5 rounded border border-gray-200 text-[10px] text-foreground/40 hover:text-foreground hover:bg-[#efedea] transition-colors"
+                                                                    className="shrink-0 px-1 py-0.5 rounded border border-border text-[10px] text-foreground/40 hover:text-foreground hover:bg-background-secondary transition-colors"
                                                                 >
                                                                     {isShenShaExpanded ? '收起' : `+${remainingShenShaCount}`}
                                                                 </button>
@@ -259,7 +259,7 @@ export function HexagramDisplay({
                                                 ? { ...yao, type: yao.type === 1 ? 0 : 1, change: 'stable' }
                                                 : { ...yao, change: 'stable' };
                                             return (
-                                                <tr key={yao.position} className="border-b border-gray-100 last:border-b-0">
+                                                <tr key={yao.position} className="border-b border-border/60 last:border-b-0">
                                                     <td className="px-2 py-2 text-center text-sm text-foreground/45">
                                                         {YAO_LABELS[yao.position - 1]}
                                                     </td>

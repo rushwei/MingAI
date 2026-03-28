@@ -191,9 +191,9 @@ export default function ResultPage() {
                             <h1 className="text-3xl font-semibold tracking-tight text-foreground">六爻解卦结果</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => router.push('/liuyao')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCw className="w-3.5 h-3.5" />重新起卦</button>
-                            <button onClick={() => setShowTraditional(!showTraditional)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showTraditional ? 'text-[#2eaadc] bg-blue-50/50 border border-blue-100' : 'border border-gray-200 hover:bg-[#efedea]'}`}><BookOpen className="w-3.5 h-3.5" />传统分析</button>
-                            <button onClick={() => setShowTermsModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><Album className="w-3.5 h-3.5" />术语</button>
+                            <button onClick={() => router.push('/liuyao')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><RotateCw className="w-3.5 h-3.5" />重新起卦</button>
+                            <button onClick={() => setShowTraditional(!showTraditional)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showTraditional ? 'text-[#2eaadc] bg-blue-50/50 border border-blue-100' : 'border border-border hover:bg-background-secondary'}`}><BookOpen className="w-3.5 h-3.5" />传统分析</button>
+                            <button onClick={() => setShowTermsModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><Album className="w-3.5 h-3.5" />术语</button>
                         </div>
                     </div>
 
@@ -224,7 +224,7 @@ export default function ResultPage() {
 
                 {/* 卦象主舞台 */}
                 <section className="relative px-2 py-6 md:px-4">
-                    <button onClick={handleCopy} className="absolute top-4 right-4 p-2 rounded-md border border-gray-100 text-foreground/20 hover:text-foreground hover:bg-[#efedea] transition-all" title="复制卦象数据">
+                    <button onClick={handleCopy} className="absolute top-4 right-4 p-2 rounded-md border border-border/60 text-foreground/20 hover:text-foreground hover:bg-background-secondary transition-all" title="复制卦象数据">
                         {copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <div className="max-w-full overflow-x-auto">
@@ -240,12 +240,12 @@ export default function ResultPage() {
                 )}
 
                 {/* AI 解读 */}
-                <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="bg-background border border-border rounded-md p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
                             <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
-                            {(interpretation || streaming.isStreaming) && <button onClick={handleGetInterpretation} disabled={isLoading} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /></button>}
+                            {(interpretation || streaming.isStreaming) && <button onClick={handleGetInterpretation} disabled={isLoading} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
 
@@ -275,10 +275,10 @@ export default function ResultPage() {
             {showTermsModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/20" onClick={() => setShowTermsModal(false)} />
-                    <div className="relative w-full max-w-2xl bg-background border border-gray-200 rounded-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-[#efedea]/30">
+                    <div className="relative w-full max-w-2xl bg-background border border-border rounded-md shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 bg-background-secondary/30">
                             <div className="text-sm font-bold uppercase tracking-widest text-foreground/60">术语参考</div>
-                            <button onClick={() => setShowTermsModal(false)} className="p-1 rounded-md hover:bg-[#efedea] transition-colors"><X className="w-4 h-4" /></button>
+                            <button onClick={() => setShowTermsModal(false)} className="p-1 rounded-md hover:bg-background-secondary transition-colors"><X className="w-4 h-4" /></button>
                         </div>
                         <div className="max-h-[60vh] overflow-y-auto p-6 space-y-8">
                             {[ { label: '六亲', data: LIU_QIN_TIPS }, { label: '神系', data: SHEN_XI_TIPS }, { label: '其他', data: TERM_TIPS } ].map(group => (

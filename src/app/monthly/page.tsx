@@ -23,7 +23,7 @@ import { supabase } from '@/lib/auth';
 import { calculateMonthlyFortune, calculateDailyFortune, calculateGenericDailyFortune, calculateMonthlyTrend, isLevelFavorable, compareLevels, type MonthlyFortune } from '@/lib/divination/fortune';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 import type { BaziChart, FortuneLevel } from '@/types';
-import { loadUserChartBundle } from '@/lib/user/charts-client';
+import { loadFortuneBaziChart, loadUserChartBundle, toFortuneBaziChart } from '@/lib/user/charts-client';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
@@ -40,24 +40,6 @@ function MonthlyPageContent() {
     const [showChartSelector, setShowChartSelector] = useState(false);
     const [showTrendChart, setShowTrendChart] = useState(true);
 
-    const toBaziChart = useCallback((row: Record<string, unknown>): BaziChart => {
-        const chartData = row.chart_data as Record<string, unknown> || {};
-        return {
-            id: row.id as string,
-            name: row.name as string,
-            gender: row.gender as string,
-            birthDate: row.birth_date as string,
-            birthTime: row.birth_time as string | null,
-            birthPlace: row.birth_place as string | null,
-            calendarType: row.calendar_type as string | null,
-            isLeapMonth: row.is_leap_month as boolean | null,
-            fourPillars: chartData.fourPillars,
-            dayMaster: chartData.dayMaster,
-            fiveElements: chartData.fiveElements,
-            createdAt: row.created_at as string,
-        } as BaziChart;
-    }, []);
-
     // 加载用户所有八字命盘
     const loadUserCharts = useCallback(async (uid: string) => {
         void uid;
@@ -65,17 +47,21 @@ function MonthlyPageContent() {
             const bundle = await loadUserChartBundle();
             const rows = (bundle?.baziCharts || []) as Record<string, unknown>[];
             if (rows.length > 0) {
-                const charts = rows.map(toBaziChart);
+                const charts = rows
+                    .map(toFortuneBaziChart)
+                    .filter((chart): chart is BaziChart => chart !== null);
                 const defaultId = bundle?.defaultChartIds?.bazi ?? null;
                 const defaultChart = defaultId ? charts.find((c: { id: string }) => c.id === defaultId) : null;
-                setBaziChart(defaultChart || charts[0]);
+                if (charts.length > 0) {
+                    setBaziChart(defaultChart || charts[0]);
+                }
             }
         } catch (err) {
             console.error('加载命盘失败:', err);
         } finally {
             setLoading(false);
         }
-    }, [toBaziChart]);
+    }, []);
 
     // 初始化
     useEffect(() => {
@@ -176,14 +162,13 @@ function MonthlyPageContent() {
         return 'bg-red-500';
     };
 
-    const handleSelectChart = (chart: ChartItem) => {
-        setBaziChart({
-            id: chart.id,
-            name: chart.name,
-            gender: chart.gender ?? 'male',
-            birthDate: chart.birth_date,
-            birthTime: chart.birth_time,
-        } as BaziChart);
+    const handleSelectChart = async (chart: ChartItem) => {
+        const fullChart = await loadFortuneBaziChart(chart.id);
+        if (fullChart) {
+            setBaziChart(fullChart);
+        } else {
+            console.error('加载选中命盘失败:', chart.id);
+        }
         setShowChartSelector(false);
     };
 
@@ -328,7 +313,7 @@ function MonthlyPageContent() {
                                     className="group flex items-center gap-2 px-4 py-2 bg-background hover:bg-background-secondary rounded-full border border-border/60 hover:border-indigo-500/30 shadow-sm hover:shadow-md transition-all duration-300"
                                 >
                                     <span className="text-sm font-medium text-foreground-secondary group-hover:text-foreground">
-                                        当前命盘为: <span className="text-indigo-600 dark:text-indigo-400">{baziChart.name}</span>
+                                        命主: <span className="text-indigo-600 dark:text-indigo-400">{baziChart.name}</span>
                                     </span>
                                     <ChevronDown className="w-4 h-4 text-foreground-secondary group-hover:text-foreground transition-transform group-hover:rotate-180" />
                                 </button>

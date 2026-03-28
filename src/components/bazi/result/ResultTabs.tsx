@@ -10,7 +10,7 @@ export function ResultTabs({
     onChange: (tab: ResultTab) => void;
 }) {
     return (
-        <div className="flex gap-1 border-b border-gray-200 mb-8 overflow-hidden">
+        <div className="flex gap-1 border-b border-border mb-8 overflow-hidden">
             {[
                 { id: 'basic', label: '基本信息', icon: Sparkles },
                 { id: 'professional', label: '专业排盘', icon: Calendar },
@@ -23,7 +23,7 @@ export function ResultTabs({
                         flex items-center gap-2 py-2 px-4 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap
                         ${activeTab === tab.id
                             ? 'border-[#2eaadc] text-[#2eaadc]'
-                            : 'border-transparent text-foreground/40 hover:text-foreground hover:bg-[#efedea]'
+                            : 'border-transparent text-foreground/40 hover:text-foreground hover:bg-background-secondary'
                         }
                     `}
                 >

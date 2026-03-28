@@ -63,15 +63,15 @@ export function QuestionCard({
     };
 
     return (
-        <div className="w-full text-[#37352f]">
+        <div className="w-full text-foreground">
             {/* 进度条（可选） */}
             {showProgress && (
                 <div className="mb-6">
-                    <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-[#37352f]/40 mb-2">
+                    <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-foreground/40 mb-2">
                         <span>问题 {questionNumber}/{totalQuestions}</span>
                         <span>{Math.round((questionNumber / totalQuestions) * 100)}%</span>
                     </div>
-                    <div className="h-1 bg-[#efedea] rounded-full overflow-hidden">
+                    <div className="h-1 bg-background-secondary rounded-full overflow-hidden">
                         <div
                             className="h-full bg-[#2383e2] transition-all duration-300"
                             style={{ width: `${(questionNumber / totalQuestions) * 100}%` }}
@@ -84,7 +84,7 @@ export function QuestionCard({
             <div className="text-[11px] font-bold uppercase tracking-widest text-[#2383e2] mb-3">QUESTION {questionNumber}</div>
 
             {/* 问题 */}
-            <div className="bg-[#f7f6f3] rounded-md p-5 mb-8 border border-gray-100">
+            <div className="bg-background rounded-md p-5 mb-8 border border-border/60">
                 <p className="text-base font-bold text-center leading-relaxed">
                     {question.question}
                 </p>

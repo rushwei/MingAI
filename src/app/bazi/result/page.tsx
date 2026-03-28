@@ -588,12 +588,12 @@ function BaziResultContent() {
                 )}
 
                 {(hasMountedNotes || activeTab === 'notes') && (
-                    <div className={activeTab === 'notes' ? 'animate-fade-in bg-background border border-gray-200 rounded-md p-6 pt-2' : 'hidden'}>
+                    <div className={activeTab === 'notes' ? 'animate-fade-in bg-background border border-border rounded-md p-6 pt-2' : 'hidden'}>
                         <CaseNotesSection chartId={chartId} />
                     </div>
                 )}
 
-                <div className="mt-12 pt-12 border-t border-gray-100">
+                <div className="mt-12 pt-12 border-t border-border/60">
                     <ResultFooterLinks />
                 </div>
             </div>

@@ -39,7 +39,7 @@ function BirthInput({
     }[type];
 
     return (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-3xl group">
+        <div className="bg-background/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl transition-all duration-300 hover:border-white/20 hover:shadow-3xl group">
             <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
                     <div className={`w-1.5 h-6 rounded-full ${theme.bg} shadow-[0_0_10px_rgba(var(--theme-color),0.5)]`} />
@@ -49,7 +49,7 @@ function BirthInput({
                     <button
                         onClick={() => onPick(personIndex)}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground-secondary
-                            hover:text-foreground hover:bg-white/10 rounded-xl transition-all border border-transparent hover:border-white/10"
+                            hover:text-foreground hover:bg-background/10 rounded-xl transition-all border border-transparent hover:border-white/10"
                     >
                         <FolderOpen className="w-4 h-4" />
                         从命盘选择
@@ -67,7 +67,7 @@ function BirthInput({
                             value={value.name || ''}
                             onChange={(e) => onChange({ ...value, name: e.target.value })}
                             placeholder="请输入称呼"
-                            className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                            className={`w-full px-4 py-3 bg-background/5 border border-white/10 rounded-xl
                                 text-foreground placeholder:text-foreground-secondary/30
                                 focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
                         />
@@ -78,7 +78,7 @@ function BirthInput({
                             <select
                                 value={value.gender || ''}
                                 onChange={(e) => onChange({ ...value, gender: e.target.value as 'male' | 'female' || undefined })}
-                                className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                className={`w-full px-4 py-3 bg-background/5 border border-white/10 rounded-xl
                                     text-foreground appearance-none cursor-pointer
                                     focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
                             >
@@ -129,7 +129,7 @@ function BirthInput({
                                     placeholder={placeholder}
                                     min={min}
                                     max={max}
-                                    className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                                    className={`w-full px-4 py-3 bg-background/5 border border-white/10 rounded-xl
                                         text-foreground placeholder:text-foreground-secondary/30 text-center font-medium
                                         focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300
                                         [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
@@ -149,7 +149,7 @@ function BirthInput({
                         <select
                             value={value.hour ?? ''}
                             onChange={(e) => onChange({ ...value, hour: e.target.value ? parseInt(e.target.value) : undefined })}
-                            className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl
+                            className={`w-full px-4 py-3 bg-background/5 border border-white/10 rounded-xl
                                 text-foreground appearance-none cursor-pointer
                                 focus:outline-none ${theme.active} focus:ring-4 ${theme.ring} transition-all duration-300`}
                         >
@@ -304,7 +304,7 @@ function HepanCreateContent() {
                 {/* 返回 - 仅桌面端显示 */}
                 <Link
                     href="/hepan"
-                    className="hidden md:inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+                    className="hidden md:inline-flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-8 transition-colors px-3 py-1.5 rounded-lg hover:bg-background/5"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     <span className="text-sm font-medium">返回列表</span>
@@ -312,7 +312,7 @@ function HepanCreateContent() {
 
                 {/* 标题 */}
                 <div className="text-center sm:mb-10 mb-2">
-                    <div className="hidden md:inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 mb-4 shadow-xl backdrop-blur-sm">
+                    <div className="hidden md:inline-flex items-center justify-center p-3 rounded-2xl bg-background/5 border border-white/10 mb-4 shadow-xl backdrop-blur-sm">
                         <Sparkles className={`w-8 h-8 ${type === 'love' ? 'text-rose-500' :
                             type === 'business' ? 'text-blue-500' : 'text-emerald-500'
                             }`} />

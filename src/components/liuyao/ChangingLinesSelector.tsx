@@ -44,7 +44,7 @@ export function ChangingLinesSelector({ hexagramCode, value, onChange }: Changin
                     {value.length > 0 ? `已选 ${value.length} 个变爻` : '可选 0-6 个'}
                 </span>
             </div>
-            <div className="flex flex-col gap-1 bg-white/[0.02] border border-white/10 rounded-lg p-3">
+            <div className="flex flex-col gap-1 bg-background/[0.02] border border-white/10 rounded-lg p-3">
                 {yaosReversed.map(({ position, isYang }) => {
                     const isChanging = value.includes(position);
                     return (
@@ -54,7 +54,7 @@ export function ChangingLinesSelector({ hexagramCode, value, onChange }: Changin
                             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all
                                 ${isChanging
                                     ? 'bg-red-500/10 border border-red-500/30'
-                                    : 'hover:bg-white/5'
+                                    : 'hover:bg-background/5'
                                 }`}
                         >
                             {/* 勾选框 */}

@@ -22,7 +22,7 @@ function HepanCard({ item, actions }: { item: HistorySummaryItem; actions: CardA
 
     return (
         <div
-            className={`group relative bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10 hover:bg-white/10 hover:shadow-xl transition-all duration-300 cursor-pointer ${config.border}`}
+            className={`group relative bg-background/5 backdrop-blur-md rounded-2xl p-5 border border-white/10 hover:bg-background/10 hover:shadow-xl transition-all duration-300 cursor-pointer ${config.border}`}
             onClick={actions.onView}
         >
             <div className="flex items-start gap-5">
@@ -39,7 +39,7 @@ function HepanCard({ item, actions }: { item: HistorySummaryItem; actions: CardA
                     <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
                         <div className="flex items-center gap-3">
                             <span className="flex items-center gap-1.5 text-xs text-foreground-tertiary"><Clock className="w-3.5 h-3.5" />{actions.formatDate(item.createdAt)}</span>
-                            {item.modelName && <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-foreground-secondary border border-white/5">{item.modelName}</span>}
+                            {item.modelName && <span className="text-xs px-2 py-0.5 rounded-md bg-background/5 text-foreground-secondary border border-white/5">{item.modelName}</span>}
                         </div>
                         {item.metric && (
                             <div className="flex items-center gap-2">

@@ -56,17 +56,17 @@ export default function TarotPage() {
 
     return (
         <>
-            <div className="md:min-h-screen bg-[#f7f6f3] md:pb-12 text-[#37352f]">
+            <div className="md:min-h-screen bg-background md:pb-12 text-foreground">
                 {/* 页面标题 - 移动端隐藏（顶栏已显示） */}
                 <div className="hidden md:block text-center py-8">
                     <h1 className="text-2xl lg:text-3xl font-bold">塔罗占卜</h1>
-                    <p className="text-[#37352f]/60 mt-2">聆听内心的声音，探索命运的指引</p>
+                    <p className="text-foreground/60 mt-2">聆听内心的声音，探索命运的指引</p>
                 </div>
 
                 <div className="max-w-4xl mx-auto px-4 mt-4">
                     {/* 每日一牌 - 卡片样式增强 */}
                     {dailyCard && (
-                        <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm border border-gray-200 md:mb-10 mb-6 overflow-hidden relative group">
+                        <div className="bg-background rounded-lg p-4 md:p-6 shadow-sm border border-border md:mb-10 mb-6 overflow-hidden relative group">
                             <div className="flex flex-row items-center gap-4 md:gap-6 relative z-10">
                                 <div className="relative w-24 h-36 md:w-32 md:h-48 flex-shrink-0 rounded-md overflow-hidden shadow-md transition-all duration-150">
                                     <Image
@@ -94,13 +94,13 @@ export default function TarotPage() {
                                         </span>
                                     </h3>
 
-                                    <p className="text-sm md:text-base text-[#37352f]/70 leading-relaxed mb-2 md:mb-4 line-clamp-3 md:line-clamp-none">
+                                    <p className="text-sm md:text-base text-foreground/70 leading-relaxed mb-2 md:mb-4 line-clamp-3 md:line-clamp-none">
                                         {dailyCard.orientation === 'reversed'
                                             ? dailyCard.card.reversedMeaning
                                             : dailyCard.card.uprightMeaning}
                                     </p>
 
-                                    <div className="text-[10px] md:text-xs text-[#37352f]/40">
+                                    <div className="text-[10px] md:text-xs text-foreground/40">
                                         * 每日自动抽取，为您提供当天的运势指引
                                     </div>
                                 </div>
@@ -110,7 +110,7 @@ export default function TarotPage() {
 
                     {/* 问题输入 */}
                     <div className="mb-6 md:mb-10 text-center max-w-2xl mx-auto">
-                        <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
+                        <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
                             心中默念您的问题（选填）
                         </label>
                         <div className="relative group">
@@ -119,15 +119,15 @@ export default function TarotPage() {
                                 value={question}
                                 onChange={(e) => setQuestion(e.target.value)}
                                 placeholder="例如：我的事业发展会如何？"
-                                className="relative w-full px-4 md:px-6 py-3 md:py-4 bg-white rounded-lg border border-gray-200 shadow-sm 
+                                className="relative w-full px-4 md:px-6 py-3 md:py-4 bg-background rounded-lg border border-border shadow-sm 
                                     focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none 
-                                    text-center text-base md:text-lg text-[#37352f] placeholder:text-[#37352f]/30
+                                    text-center text-base md:text-lg text-foreground placeholder:text-foreground/30
                                     transition-all duration-150"
                             />
                         </div>
 
                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-[#37352f]/60 mb-3 uppercase tracking-wider">
+                            <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
                                 出生日期（选填，用于塔罗数秘术）
                             </label>
                             <div className="relative group">
@@ -135,7 +135,7 @@ export default function TarotPage() {
                                     type="date"
                                     value={birthDate}
                                     onChange={(e) => setBirthDate(e.target.value)}
-                                    className="relative w-full px-4 md:px-6 py-3 md:py-4 bg-white rounded-lg border border-gray-200 shadow-sm focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none text-center text-base md:text-lg text-[#37352f] transition-all duration-150"
+                                    className="relative w-full px-4 md:px-6 py-3 md:py-4 bg-background rounded-lg border border-border shadow-sm focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none text-center text-base md:text-lg text-foreground transition-all duration-150"
                                 />
                             </div>
                         </div>
@@ -155,14 +155,14 @@ export default function TarotPage() {
                                 <button
                                     key={spread.id}
                                     onClick={() => handleSelectSpread(spread)}
-                                    className="relative flex flex-col p-4 md:p-6 bg-white rounded-lg border border-gray-200 hover:bg-[#efedea] active:bg-[#e3e1db] text-left transition-all duration-150 group shadow-sm overflow-hidden"
+                                    className="relative flex flex-col p-4 md:p-6 bg-background rounded-lg border border-border hover:bg-background-secondary active:bg-background-tertiary text-left transition-all duration-150 group shadow-sm overflow-hidden"
                                 >
                                     <div className="relative z-10 w-full">
                                         <div className="flex items-center justify-between mb-2 md:mb-3">
-                                            <span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-md bg-[#f7f6f3] text-[#37352f]/70 group-hover:bg-[#2383e2] group-hover:text-white transition-colors duration-150">
+                                            <span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-md bg-background text-foreground/70 group-hover:bg-[#2383e2] group-hover:text-white transition-colors duration-150">
                                                 <Layers className="w-4 h-4 md:w-5 md:h-5" />
                                             </span>
-                                            <span className="text-[10px] md:text-xs font-bold text-[#37352f]/50 bg-[#f7f6f3] px-2 md:px-2.5 py-0.5 md:py-1 rounded-md uppercase tracking-wider group-hover:bg-white group-hover:text-[#2383e2] transition-colors">
+                                            <span className="text-[10px] md:text-xs font-bold text-foreground/50 bg-background px-2 md:px-2.5 py-0.5 md:py-1 rounded-md uppercase tracking-wider group-hover:bg-background group-hover:text-[#2383e2] transition-colors">
                                                 {spread.cardCount} 张牌
                                             </span>
                                         </div>
@@ -171,7 +171,7 @@ export default function TarotPage() {
                                             {spread.name}
                                         </h3>
 
-                                        <p className="text-xs md:text-sm text-[#37352f]/60 leading-relaxed line-clamp-2 mb-2 md:mb-4 h-8 md:h-10">
+                                        <p className="text-xs md:text-sm text-foreground/60 leading-relaxed line-clamp-2 mb-2 md:mb-4 h-8 md:h-10">
                                             {spread.description}
                                         </p>
 

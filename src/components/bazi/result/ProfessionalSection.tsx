@@ -49,7 +49,7 @@ export function ProfessionalSection({
 
     return (
         <div className="space-y-8">
-            <section className="bg-background border border-gray-200 rounded-md px-1 pb-4 pt-2">
+            <section className="bg-background border border-border rounded-md px-1 pb-4 pt-2">
                 {/* <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#2eaadc]" />
                     命盘详情
@@ -63,7 +63,7 @@ export function ProfessionalSection({
                     activeLiuYue={activeLiuYue ?? undefined}
                     activeLiuRi={activeLiuRi}
                 />
-                <div className="px-4 mt-4 border-t border-gray-100 space-y-2 text-xs text-foreground/45 font-medium">
+                <div className="px-4 mt-4 border-t border-border/60 space-y-2 text-xs text-foreground/45 font-medium">
                     <div>
                         起运：{proData.startAgeDetail}
                         {canonicalChart.basicInfo.taiYuan ? `　胎元：${canonicalChart.basicInfo.taiYuan}` : ''}
@@ -82,7 +82,7 @@ export function ProfessionalSection({
                 </div>
             </section>
 
-            <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+            <section className="bg-background border border-border rounded-md p-6 py-4">
                 <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-[#2eaadc]" />
                     大运排布
@@ -95,7 +95,7 @@ export function ProfessionalSection({
             </section>
 
             {currentLiuNian.length > 0 && (
-                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                <section className="bg-background border border-border rounded-md p-6 py-4">
                     <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-[#2eaadc]" />
                         流年运势
@@ -109,7 +109,7 @@ export function ProfessionalSection({
             )}
 
             {liuYue.length > 0 && (
-                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                <section className="bg-background border border-border rounded-md p-6 py-4">
                     <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-[#2eaadc]" />
                         {selectedLiuNianYear}年 流月
@@ -126,7 +126,7 @@ export function ProfessionalSection({
             )}
 
             {liuRi.length > 0 && activeLiuYue && (
-                <section className="bg-background border border-gray-200 rounded-md p-6 py-4">
+                <section className="bg-background border border-border rounded-md p-6 py-4">
                     <h2 className="text-sm font-semibold mb-6 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-[#2eaadc]" />
                         流日记录（{activeLiuYue.startDate} — {activeLiuYue.endDate}）
