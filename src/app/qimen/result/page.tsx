@@ -1,16 +1,14 @@
 /**
  * 奇门遁甲排盘结果页面
  *
- * 'use client' 标记说明：
- * - 使用 useState/useEffect 管理状态
- * - 使用 sessionStorage 读取排盘数据
+ * 对齐 Notion 风格：极简列表、柔和边框、线性图标、去除渐变
  */
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, RotateCw, RefreshCw, Copy, Check, BookOpenText } from 'lucide-react';
+import { Sparkles, RotateCw, RefreshCw, Copy, Check, Info } from 'lucide-react';
 import { renderQimenCanonicalJSON } from '@mingai/core/json';
 import { QimenGrid } from '@/components/qimen/QimenGrid';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -23,13 +21,11 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
-import { supabase } from '@/lib/auth';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { generateQimenResultText, toCoreQimenOutput, type QimenOutput } from '@/lib/divination/qimen-shared';
-import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
-import { resolveHistoryConversationId } from '@/lib/history/client';
+import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
 /** 五行旺衰图例 */
@@ -53,396 +49,179 @@ export default function QimenResultPage() {
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [result, setResult] = useState<QimenSessionData | null>(null);
-    const [user, setUser] = useState<{ id: string } | null | undefined>(undefined);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const [interpretation, setInterpretation] = useState<string | null>(null);
     const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'summary' | 'imagery' | 'notes'>('summary');
     const [showKbModal, setShowKbModal] = useState(false);
     const [copied, setCopied] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
-    const canonicalResult = useMemo(
-        () => (result ? renderQimenCanonicalJSON(toCoreQimenOutput(result)) : null),
-        [result]
-    );
+    const { session, user, membershipInfo, sessionLoading } = useSessionMembership();
+    const membershipType = membershipInfo?.type ?? 'free';
+    const currentUser = user ? { id: user.id } : null;
+    const canonicalResult = useMemo(() => (result ? renderQimenCanonicalJSON(toCoreQimenOutput(result)) : null), [result]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     useEffect(() => {
+        if (sessionLoading) return;
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const currentUser = session?.user ? { id: session.user.id } : null;
-            setUser(currentUser);
-            if (session?.user) {
-                const info = await getMembershipInfo(session.user.id);
-                if (info) setMembershipType(info.type);
-            }
-
             const parsed = readSessionJSON<QimenSessionData>('qimen_result');
-            if (!parsed) {
-                router.push('/qimen');
-                return;
-            }
+            if (!parsed) { router.push('/qimen'); return; }
             setResult(parsed);
-
-            // 若尚未保存过，自动保存排盘记录（拿到 chartId 后供 AI 解读关联）
             if (!parsed.chartId && session?.access_token && !hasSavedRef.current) {
                 hasSavedRef.current = true;
                 try {
-                    const res = await fetch('/api/qimen', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.access_token}`,
-                        },
-                        body: JSON.stringify({
-                            action: 'save',
-                            chartData: parsed,
-                            question: parsed.question,
-                        }),
-                    });
+                    const res = await fetch('/api/qimen', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ action: 'save', chartData: parsed, question: parsed.question }) });
                     const json = await res.json();
                     if (json?.success && json?.data?.chartId) {
-                        updateSessionJSON('qimen_result', (prev) => ({
-                            ...(prev || {}),
-                            chartId: json.data.chartId,
-                        }));
+                        updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), chartId: json.data.chartId }));
                         setResult(prev => prev ? { ...prev, chartId: json.data.chartId } : prev);
                     }
-                } catch (e) {
-                    console.error('[qimen] 自动保存排盘失败:', e);
-                }
+                } catch (e) { console.error(e); }
             }
         };
         void init();
-    }, [router]);
+    }, [router, session?.access_token, sessionLoading]);
 
     useEffect(() => {
         const items = [
-            {
-                id: 'restart',
-                label: '重新起课',
-                icon: <RotateCw className="w-4 h-4" />,
-                onClick: () => router.push('/qimen'),
-            },
-            ...(isAdmin && canonicalResult ? [{
-                id: 'copy-json',
-                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
-                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
-                onClick: () => { void copyJson(); },
-            }] : []),
+            { id: 'restart', label: '重新起课', icon: <RotateCw className="w-4 h-4" />, onClick: () => router.push('/qimen') },
         ];
+        if (isAdmin && canonicalResult) items.push({ id: 'copy-json', label: jsonCopied ? 'JSON 已复制' : 'JSON', icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />, onClick: () => { void copyJson(); } });
         setMenuItems(items);
         return () => clearMenuItems();
     }, [router, isAdmin, canonicalResult, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
 
-    // 从历史记录查看时，恢复之前的 AI 解读
-    useEffect(() => {
-        if ((!result?.conversationId && !result?.chartId) || interpretation) return;
-
-        const loadAnalysis = async () => {
-            let resolvedId = result.conversationId;
-            if (!resolvedId && result.chartId) {
-                resolvedId = (await resolveHistoryConversationId('qimen', result.chartId, 'qimen_result')) || undefined;
-                if (resolvedId) {
-                    setResult(prev => prev ? { ...prev, conversationId: resolvedId } : prev);
-                    updateSessionJSON('qimen_result', (prev) => ({
-                        ...(prev || {}),
-                        conversationId: resolvedId,
-                    }));
-                }
-            }
-            if (!resolvedId) return;
-
-            const snapshot = await loadConversationAnalysisSnapshot(resolvedId);
-            if (!snapshot) return;
-
-            if (snapshot.analysis) {
-                setInterpretation(snapshot.analysis);
-            }
-            if (snapshot.reasoning) {
-                setInterpretationReasoning(snapshot.reasoning);
-            }
-        };
-
-        void loadAnalysis();
-    }, [result?.conversationId, result?.chartId, interpretation]);
+    useAnalysisSnapshot({
+        conversationId: result?.conversationId,
+        recordId: result?.chartId,
+        divinationType: 'qimen',
+        sessionKey: 'qimen_result',
+        hasExistingAnalysis: !!interpretation,
+        skip: !result?.conversationId && !result?.chartId,
+        callbacks: {
+            onAnalysis: setInterpretation,
+            onReasoning: setInterpretationReasoning,
+            onConversationIdResolved: (resolvedId) => {
+                setResult(prev => prev ? { ...prev, conversationId: resolvedId } : prev);
+                updateSessionJSON('qimen_result', (prev) => ({ ...(prev || {}), conversationId: resolvedId }));
+            },
+        },
+    });
 
     const handleGetInterpretation = async () => {
-        if (!result || !user) return;
-        setIsLoading(true);
-        streaming.reset();
-        setError(null);
-        setInterpretationReasoning(null);
-        setInterpretation(null);
-
+        if (!result || !currentUser) return;
+        setIsLoading(true); streaming.reset(); setError(null); setInterpretationReasoning(null); setInterpretation(null);
         try {
             const streamResult = await streaming.startStream('/api/qimen', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-                },
-                body: JSON.stringify({
-                    action: 'analyze',
-                    chartData: result,
-                    question: result.question,
-                    modelId: selectedModel,
-                    reasoning: reasoningEnabled,
-                    stream: true,
-                    chartId: result.chartId || null,
-                }),
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
+                body: JSON.stringify({ action: 'analyze', chartData: result, question: result.question, modelId: selectedModel, reasoning: reasoningEnabled, stream: true, chartId: result.chartId || null }),
             });
-
-            if (streamResult?.error && isCreditsError(streamResult.error)) {
-                setShowCreditsModal(true);
-                return;
-            }
-            if (streamResult?.error) {
-                throw new Error(streamResult.error);
-            }
-            if (streamResult?.content) {
-                setInterpretation(streamResult.content);
-                if (streamResult.reasoning) {
-                    setInterpretationReasoning(streamResult.reasoning);
-                }
-            } else {
-                setInterpretation('解读失败，请重试');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : '解读失败');
-        } finally {
-            setIsLoading(false);
-        }
+            if (streamResult?.error && isCreditsError(streamResult.error)) setShowCreditsModal(true);
+            else if (streamResult?.content) { setInterpretation(streamResult.content); if (streamResult.reasoning) setInterpretationReasoning(streamResult.reasoning); }
+        } catch (err) { setError(err instanceof Error ? err.message : '解读失败'); } finally { setIsLoading(false); }
     };
 
     const handleCopy = async () => {
-        const text = result ? generateQimenResultText(result) : '';
-        if (!text) return;
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (!result) return;
+        await navigator.clipboard.writeText(generateQimenResultText(result));
+        setCopied(true); setTimeout(() => setCopied(false), 2000);
     };
 
-    if (!result) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <SoundWaveLoader variant="block" text="正在排盘..." className="animate-fade-in" />
-            </div>
-        );
-    }
+    if (!result) return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <SoundWaveLoader variant="block" text="正在排盘" />
+        </div>
+    );
 
     return (
-        <div className="min-h-screen bg-background pb-8 relative overflow-x-hidden">
-            <div className="max-w-4xl mx-auto px-4 py-4 relative z-10 animate-fade-in">
-                {/* Header Navigation - 桌面端 */}
-                <div className="hidden md:flex items-center justify-between mb-4">
-                    <Link
-                        href="/qimen"
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
-                    >
-                        <span className="text-sm">返回</span>
-                    </Link>
-                    <Link
-                        href="/qimen"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all border bg-white/5 border-white/10 text-foreground-secondary hover:bg-white/10"
-                    >
-                        <RotateCw className="w-3.5 h-3.5" />
-                        重新起课
-                    </Link>
+        <div className="min-h-screen bg-background">
+            <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-8">
+                {/* 头部操作 */}
+                <div className="hidden md:flex items-center justify-between border-b border-gray-100 pb-6">
+                    <Link href="/qimen" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => router.push('/qimen')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCw className="w-3.5 h-3.5" />重新起课</button>
+                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制排盘</button>
+                    </div>
                 </div>
 
-                {/* 占事 */}
+                {/* 占事信息 */}
                 {(canonicalResult?.basicInfo.question || result.question) && (
-                    <div className="text-center mb-4">
-                        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-                            <Sparkles className="w-4 h-4 text-indigo-400" />
-                            <span className="text-xs text-foreground-secondary">占事</span>
-                            <span className="text-foreground font-medium">{canonicalResult?.basicInfo.question || result.question}</span>
-                        </div>
+                    <div className="bg-background border border-gray-200 rounded-md p-4 flex items-center gap-3">
+                        <Sparkles className="w-4 h-4 text-[#a083ff]" />
+                        <span className="text-xs font-bold text-foreground/30 uppercase tracking-widest shrink-0">占事</span>
+                        <span className="text-sm font-medium text-foreground">{canonicalResult?.basicInfo.question || result.question}</span>
                     </div>
                 )}
 
-                {/* 顶部信息栏 */}
-                <div className="relative bg-white/[0.02] border border-white/10 rounded-xl p-3 md:p-4 mb-4">
-                    {/* 操作按钮 */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1">
-                        {knowledgeBaseEnabled && result.chartId && (
-                            <button
-                                onClick={() => setShowKbModal(true)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
-                                title="加入知识库"
-                            >
-                                <BookOpenText className="w-3.5 h-3.5" />
-                                <span>知识库</span>
-                            </button>
-                        )}
-                        <button
-                            onClick={handleCopy}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
-                            title="复制排盘数据"
-                        >
-                            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copied ? '已复制' : '复制'}</span>
-                        </button>
-                        {isAdmin && canonicalResult && (
-                            <button
-                                onClick={() => { void copyJson(); }}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-white/10 bg-white/5 hover:bg-white/10 text-foreground-secondary hover:text-foreground transition-colors"
-                                title="复制 canonical JSON"
-                            >
-                                {jsonCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                <span>{jsonCopied ? 'JSON 已复制' : '复制 JSON'}</span>
-                            </button>
-                        )}
+                {/* 排盘参数 */}
+                <div className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6 space-y-4 relative group">
+                    <div className="flex items-center gap-3">
+                        <Info className="w-4 h-4 text-foreground/30" />
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">排盘参数</h2>
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm text-foreground-secondary">
-                        <span>{canonicalResult?.basicInfo.solarDate}</span>
-                        <span>{canonicalResult?.basicInfo.lunarDate}</span>
-                        <span>{canonicalResult?.basicInfo.panType}</span>
-                        <span>{canonicalResult?.basicInfo.solarTermRange}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm mt-2">
-                        <span className="text-foreground">
-                            四柱：{canonicalResult?.basicInfo.fourPillars}
-                        </span>
-                        <span className="text-foreground-secondary">旬首：{canonicalResult?.basicInfo.xunShou}</span>
-                        <span className="text-foreground-secondary">
-                            {canonicalResult?.basicInfo.ju}
-                        </span>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                            { label: '公历时间', value: canonicalResult?.basicInfo.solarDate },
+                            { label: '农历时间', value: canonicalResult?.basicInfo.lunarDate },
+                            { label: '四柱干支', value: canonicalResult?.basicInfo.fourPillars },
+                            { label: '起局信息', value: `${canonicalResult?.basicInfo.ju} ${canonicalResult?.basicInfo.xunShou}` }
+                        ].map(item => (
+                            <div key={item.label} className="bg-background border border-gray-100 rounded-md p-3">
+                                <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">{item.label}</div>
+                                <div className="text-xs font-medium text-foreground/80">{item.value}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* 五行颜色图例 */}
-                <div className="flex items-center justify-center gap-3 mb-4">
+                {/* 图例 */}
+                <div className="flex items-center justify-center gap-4 py-2 border-y border-gray-50">
                     {PHASE_LEGEND.map(({ label, color }) => (
-                        <div key={label} className="flex items-center gap-1">
-                            <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                            <span className="text-[10px] md:text-xs text-foreground-secondary">{label}</span>
+                        <div key={label} className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${color}`} />
+                            <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-tighter">{label}</span>
                         </div>
                     ))}
                 </div>
 
                 {/* 九宫格 */}
-                <div className="mb-6">
-                    <QimenGrid
-                        palaces={canonicalResult?.palaces || []}
-                        monthPhaseMap={canonicalResult?.monthPhaseMap}
-                        ju={canonicalResult?.basicInfo.ju || ''}
-                    />
+                <div className="bg-background border border-gray-200 rounded-md overflow-hidden">
+                    <QimenGrid palaces={canonicalResult?.palaces || []} monthPhaseMap={canonicalResult?.monthPhaseMap} ju={canonicalResult?.basicInfo.ju || ''} />
                 </div>
 
-                {/* AI 解读区域 */}
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2 md:p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <h2 className="text-base font-bold flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-indigo-400" />
-                            AI 解读
-                        </h2>
+                {/* AI 解读 */}
+                <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                        <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
-                            {/* Tabs */}
-                            <div className="hidden md:flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
-                                {(['summary', 'imagery', 'notes'] as const).map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`px-2.5 py-1 rounded-md text-xs transition-all ${
-                                            activeTab === tab
-                                                ? 'bg-indigo-500/20 text-indigo-400'
-                                                : 'text-foreground-secondary hover:text-foreground'
-                                        }`}
-                                    >
-                                        {tab === 'summary' ? '概要' : tab === 'imagery' ? '意象' : '批注'}
-                                    </button>
-                                ))}
-                            </div>
-                            <ModelSelector
-                                compact
-                                selectedModel={selectedModel}
-                                onModelChange={setSelectedModel}
-                                reasoningEnabled={reasoningEnabled}
-                                onReasoningChange={setReasoningEnabled}
-                                userId={user?.id}
-                                membershipType={membershipType}
-                            />
-                            {(interpretation || streaming.isStreaming) && (
-                                <button
-                                    onClick={handleGetInterpretation}
-                                    disabled={isLoading}
-                                    className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
-                                    title="重新分析"
-                                >
-                                    {isLoading ? <SoundWaveLoader variant="inline" /> : <RefreshCw className="w-4 h-4" />}
-                                </button>
-                            )}
+                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={currentUser?.id} membershipType={membershipType} />
+                            {(interpretation || streaming.isStreaming) && <button onClick={handleGetInterpretation} disabled={isLoading} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
-
                     {error && (
-                        <div className="flex items-center justify-center gap-2 text-red-500 mb-4">
-                            <span className="text-sm">{error}</span>
+                        <div className="p-3 bg-red-50 text-[#eb5757] text-xs rounded-md border border-red-100">
+                            {error}
                         </div>
                     )}
 
-                    {(interpretation || streaming.isStreaming) ? (
-                        <div>
-                            {streaming.isStreaming && !streaming.content && !streaming.reasoning && !interpretation ? (
-                                <div className="flex items-center gap-2 py-6 justify-center text-foreground-secondary">
-                                    <SoundWaveLoader variant="inline" />
-                                    <span className="text-sm">正在解读天机...</span>
-                                </div>
-                            ) : (
-                                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary">
-                                    {(interpretationReasoning || streaming.reasoning) && (
-                                        <ThinkingBlock
-                                            content={interpretationReasoning || streaming.reasoning || ''}
-                                            isStreaming={streaming.isStreaming && !interpretation}
-                                            startTime={streaming.reasoningStartTime}
-                                            duration={streaming.reasoningDuration}
-                                        />
-                                    )}
-                                    <MarkdownContent
-                                        content={interpretation || streaming.content || ''}
-                                        className="text-sm text-foreground"
-                                    />
-                                </div>
-                            )}
+                    {interpretation ? (
+                        <div className="prose prose-sm max-w-none">
+                            {interpretationReasoning && <ThinkingBlock content={interpretationReasoning} isStreaming={streaming.isStreaming && !interpretation} startTime={streaming.reasoningStartTime} duration={streaming.reasoningDuration} />}
+                            <MarkdownContent content={interpretation} className="text-sm text-foreground leading-relaxed" />
                         </div>
                     ) : (
-                        <div className="text-center py-4">
-                            {user === null ? (
-                                <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/5 rounded-xl p-6 text-center max-w-sm mx-auto">
-                                    <div className="flex justify-center mb-3">
-                                        <div className="p-3 rounded-full bg-indigo-500/10 ring-1 ring-indigo-500/20">
-                                            <Sparkles className="w-6 h-6 text-indigo-400" />
-                                        </div>
-                                    </div>
-                                    <h3 className="text-lg font-bold mb-2 text-foreground">AI 深度分析</h3>
-                                    <p className="text-foreground-secondary mb-4 text-sm">
-                                        登录后解锁完整 AI 深度解读
-                                    </p>
-                                    <button
-                                        onClick={() => setShowAuthModal(true)}
-                                        className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95"
-                                    >
-                                        立即登录 / 注册
-                                    </button>
-                                </div>
+                        <div className="py-12 text-center space-y-6">
+                            {!currentUser ? (
+                                <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 深度解读</button>
                             ) : (
-                                <button
-                                    onClick={handleGetInterpretation}
-                                    disabled={isLoading}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                >
-                                    {isLoading ? <SoundWaveLoader variant="inline" /> : <Sparkles className="w-4 h-4" />}
-                                    <span>{isLoading ? '正在解读天机...' : '获取 AI 深度解读'}</span>
-                                </button>
+                                <button onClick={handleGetInterpretation} disabled={isLoading} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Sparkles className="w-4 h-4" />获取 AI 解读</button>
                             )}
                         </div>
                     )}
@@ -451,15 +230,7 @@ export default function QimenResultPage() {
 
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
-            {knowledgeBaseEnabled && result.chartId && (
-                <AddToKnowledgeBaseModal
-                    open={showKbModal}
-                    onClose={() => setShowKbModal(false)}
-                    sourceTitle={result.question || '奇门遁甲排盘'}
-                    sourceType="qimen_chart"
-                    sourceId={result.chartId}
-                />
-            )}
+            {knowledgeBaseEnabled && result.chartId && <AddToKnowledgeBaseModal open={showKbModal} onClose={() => setShowKbModal(false)} sourceTitle={result.question || '奇门遁甲排盘'} sourceType="qimen_chart" sourceId={result.chartId} />}
         </div>
     );
 }

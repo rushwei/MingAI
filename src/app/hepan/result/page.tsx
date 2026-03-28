@@ -20,25 +20,21 @@ import {
     calculateCompatibilityTrend,
     getRelationshipAdvice,
 } from '@/lib/divination/hepan';
-import { supabase } from '@/lib/auth';
 import { readSessionJSON } from '@/lib/cache';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
-import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
-import { resolveHistoryConversationId } from '@/lib/history/client';
-
+import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 export default function HepanResultPage() {
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
     const { knowledgeBaseEnabled } = useKnowledgeBaseFeatureEnabled();
     const [result, setResult] = useState<HepanResult | null>(null);
-    const [user, setUser] = useState<{ id: string } | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
     const [analysisReasoning, setAnalysisReasoning] = useState<string | null>(null);
     const [loadingAI, setLoadingAI] = useState(false);
@@ -46,7 +42,6 @@ export default function HepanResultPage() {
     const [trendPeriod, setTrendPeriod] = useState<6 | 12>(6);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
     const errorBanner = error ? (
         <p data-testid="analysis-error" className="text-red-500 text-sm mb-4 bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</p>
     ) : null;
@@ -56,24 +51,11 @@ export default function HepanResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
+    const { session, user, membershipInfo } = useSessionMembership();
+    const membershipType = membershipInfo?.type ?? 'free';
+    const currentUser = user ? { id: user.id } : null;
 
     useEffect(() => {
-        // 获取用户状态
-        const loadSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const currentUser = session?.user ? { id: session.user.id } : null;
-            setUser(currentUser);
-            if (session?.user) {
-                const info = await getMembershipInfo(session.user.id);
-                if (info) {
-                    setMembershipType(info.type);
-                }
-            } else {
-                setMembershipType('free');
-            }
-        };
-        loadSession();
-
         // 从 sessionStorage 获取结果
         type HepanSession = Omit<HepanResult, 'createdAt'> & {
             createdAt: string;
@@ -124,7 +106,7 @@ export default function HepanResultPage() {
     }, [result, rawTrendData]);
 
     const handleGetAIAnalysis = async () => {
-        if (!result || !user) return;
+        if (!result || !currentUser) return;
 
         setLoadingAI(true);
         streaming.reset();
@@ -137,7 +119,7 @@ export default function HepanResultPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+                    'Authorization': `Bearer ${session?.access_token || ''}`,
                 },
                 body: JSON.stringify({
                     action: 'analyze',
@@ -176,40 +158,21 @@ export default function HepanResultPage() {
         }
     };
 
-    useEffect(() => {
-        if (!result || aiAnalysis) return;
-
-        const loadAnalysis = async () => {
-            let resolvedConversationId = conversationId;
-            if (!resolvedConversationId) {
-                const chartId = (result as unknown as { chartId?: string }).chartId;
-                if (chartId) {
-                    resolvedConversationId = await resolveHistoryConversationId('hepan', chartId, 'hepan_result');
-                    if (resolvedConversationId) {
-                        setConversationId(resolvedConversationId);
-                    }
-                }
-            }
-
-            if (!resolvedConversationId) return;
-
-            const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
-            if (!snapshot) return;
-
-            if (snapshot.analysis) {
-                setAiAnalysis(snapshot.analysis);
-            }
-            if (snapshot.reasoning) {
-                setAnalysisReasoning(snapshot.reasoning);
-            }
-            if (snapshot.modelId) {
-                setSelectedModel(snapshot.modelId);
-            }
-            setReasoningEnabled(snapshot.reasoningEnabled);
-        };
-
-        void loadAnalysis();
-    }, [aiAnalysis, conversationId, result]);
+    useAnalysisSnapshot({
+        conversationId,
+        recordId: (result as unknown as { chartId?: string })?.chartId,
+        divinationType: 'hepan',
+        sessionKey: 'hepan_result',
+        hasExistingAnalysis: !!aiAnalysis,
+        skip: !result,
+        callbacks: {
+            onAnalysis: setAiAnalysis,
+            onReasoning: setAnalysisReasoning,
+            onModelId: setSelectedModel,
+            onReasoningEnabled: setReasoningEnabled,
+            onConversationIdResolved: setConversationId,
+        },
+    });
 
     // 从 result 中提取 chartId（在 early return 之前）
     const chartId = result ? (result as unknown as { chartId?: string }).chartId : undefined;
@@ -348,7 +311,7 @@ export default function HepanResultPage() {
                                 onModelChange={setSelectedModel}
                                 reasoningEnabled={reasoningEnabled}
                                 onReasoningChange={setReasoningEnabled}
-                                userId={user?.id}
+                                userId={currentUser?.id}
                                 membershipType={membershipType}
                             />
                             {aiAnalysis && (

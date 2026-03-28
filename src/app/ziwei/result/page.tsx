@@ -1,12 +1,14 @@
 /**
  * 紫微斗数结果页面
+ *
+ * 对齐 Notion 风格：极简列表、柔和边框、线性图标、去除渐变
  */
 'use client';
 
 import { useMemo, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Share2, Edit3, Save, Check, Copy, MapPinned, Clock, Plus, Minus } from 'lucide-react';
+import { Share2, Edit3, Save, Check, Copy, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { buildZiweiCanonicalJSON, calculateZiwei, generateZiweiChartText, type ZiweiFormData } from '@/lib/divination/ziwei';
 import type { Gender, CalendarType } from '@/types';
@@ -53,7 +55,7 @@ function ZiweiResultContent() {
         return params.some((key) => searchParams.has(key));
     }, [searchParams]);
 
-    // 编辑模式：优先使用 URL 参数，避免覆盖为数据库旧数据
+    // 编辑模式
     useEffect(() => {
         if (hasFormParams) {
             setChartFromDb(null);
@@ -61,7 +63,7 @@ function ZiweiResultContent() {
         }
     }, [hasFormParams]);
 
-    // useEffect 在有 chartId 时加载已保存的命盘数据，避免手动刷新。
+    // 加载已保存命盘
     useEffect(() => {
         if (!chartId || hasFormParams) return;
 
@@ -111,7 +113,7 @@ function ZiweiResultContent() {
             birthHour: isUnknownTime ? 12 : (Number(hourParam) || 12),
             birthMinute: isUnknownTime ? 0 : (Number(searchParams.get('minute')) || 0),
             calendarType: (searchParams.get('calendar') as CalendarType) || 'solar',
-            isLeapMonth: searchParams.get('leap') === '1', // 解析闰月参数
+            isLeapMonth: searchParams.get('leap') === '1',
             birthPlace: searchParams.get('place') || '',
             longitude: parseLongitude(searchParams.get('longitude')),
             isUnknownTime,
@@ -119,7 +121,7 @@ function ZiweiResultContent() {
     }, [searchParams]);
     const resolvedFormData = chartFromDb || formData;
 
-    // 应用时辰偏移后的数据
+    // 应用时辰偏移
     const adjustedFormData = useMemo(() => {
         if (hourOffset === 0 || resolvedFormData.isUnknownTime) return resolvedFormData;
 
@@ -128,59 +130,23 @@ function ZiweiResultContent() {
         let adjustedMonth = resolvedFormData.birthMonth;
         let adjustedYear = resolvedFormData.birthYear;
 
-        // 处理小时溢出（支持多次偏移）
-        while (adjustedHour >= 24) {
-            adjustedHour -= 24;
-            adjustedDay += 1;
-        }
-        while (adjustedHour < 0) {
-            adjustedHour += 24;
-            adjustedDay -= 1;
-        }
+        while (adjustedHour >= 24) { adjustedHour -= 24; adjustedDay += 1; }
+        while (adjustedHour < 0) { adjustedHour += 24; adjustedDay -= 1; }
 
-        // Fix 6: 使用 getDayCount 支持农历月天数计算
-        let daysInMonth = getDayCount(
-            resolvedFormData.calendarType,
-            adjustedYear,
-            adjustedMonth,
-            resolvedFormData.isLeapMonth,
-        );
+        let daysInMonth = getDayCount(resolvedFormData.calendarType, adjustedYear, adjustedMonth, resolvedFormData.isLeapMonth);
         while (adjustedDay > daysInMonth) {
-            adjustedDay -= daysInMonth;
-            adjustedMonth += 1;
-            if (adjustedMonth > 12) {
-                adjustedMonth = 1;
-                adjustedYear += 1;
-            }
-            daysInMonth = getDayCount(
-                resolvedFormData.calendarType,
-                adjustedYear,
-                adjustedMonth,
-                resolvedFormData.isLeapMonth,
-            );
+            adjustedDay -= daysInMonth; adjustedMonth += 1;
+            if (adjustedMonth > 12) { adjustedMonth = 1; adjustedYear += 1; }
+            daysInMonth = getDayCount(resolvedFormData.calendarType, adjustedYear, adjustedMonth, resolvedFormData.isLeapMonth);
         }
         while (adjustedDay < 1) {
             adjustedMonth -= 1;
-            if (adjustedMonth < 1) {
-                adjustedMonth = 12;
-                adjustedYear -= 1;
-            }
-            daysInMonth = getDayCount(
-                resolvedFormData.calendarType,
-                adjustedYear,
-                adjustedMonth,
-                resolvedFormData.isLeapMonth,
-            );
+            if (adjustedMonth < 1) { adjustedMonth = 12; adjustedYear -= 1; }
+            daysInMonth = getDayCount(resolvedFormData.calendarType, adjustedYear, adjustedMonth, resolvedFormData.isLeapMonth);
             adjustedDay += daysInMonth;
         }
 
-        return {
-            ...resolvedFormData,
-            birthYear: adjustedYear,
-            birthMonth: adjustedMonth,
-            birthDay: adjustedDay,
-            birthHour: adjustedHour,
-        };
+        return { ...resolvedFormData, birthYear: adjustedYear, birthMonth: adjustedMonth, birthDay: adjustedDay, birthHour: adjustedHour };
     }, [resolvedFormData, hourOffset]);
 
     const isUnknownTime = adjustedFormData.isUnknownTime ?? false;
@@ -188,38 +154,16 @@ function ZiweiResultContent() {
         ? '时辰未知'
         : `${String(adjustedFormData.birthHour).padStart(2, '0')}:${String(adjustedFormData.birthMinute || 0).padStart(2, '0')}`;
 
-    // 计算紫微命盘（使用调整后的数据）
+    // 计算紫微命盘
     const chart = useMemo(() => {
-        try {
-            return calculateZiwei(adjustedFormData);
-        } catch (error) {
-            console.error('紫微排盘错误:', error);
-            return null;
-        }
+        try { return calculateZiwei(adjustedFormData); } catch (error) { console.error('紫微排盘错误:', error); return null; }
     }, [adjustedFormData]);
     const canonicalChart = useMemo(() => {
         if (!chart) return null;
         return buildZiweiCanonicalJSON(chart);
     }, [chart]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalChart);
-    const chartCopyText = useMemo(() => {
-        if (!chart) return '';
-        let text = generateZiweiChartText(chart);
-        if (horoscopeInfo?.yearly) {
-            text += `\n\n【当前流年】${horoscopeInfo.yearly.heavenlyStem}${horoscopeInfo.yearly.earthlyBranch}`;
-        }
-        return text;
-    }, [chart, horoscopeInfo]);
-
-    const chartMetaItems = useMemo(() => {
-        if (!canonicalChart) return [];
-        return [
-            canonicalChart.basicInfo.douJun ? { label: '斗君', value: canonicalChart.basicInfo.douJun } : null,
-            canonicalChart.basicInfo.lifeMasterStar ? { label: '命主星', value: canonicalChart.basicInfo.lifeMasterStar } : null,
-            canonicalChart.basicInfo.bodyMasterStar ? { label: '身主星', value: canonicalChart.basicInfo.bodyMasterStar } : null,
-            canonicalChart.basicInfo.trueSolarTime ? { label: '真太阳时', value: canonicalChart.basicInfo.trueSolarTime.trueSolarTime } : null,
-        ].filter((item): item is { label: string; value: string } => Boolean(item));
-    }, [canonicalChart]);
+    const trueSolarTimeText = canonicalChart?.basicInfo.trueSolarTime?.trueSolarTime ?? null;
 
     // 修改命盘
     const handleEdit = useCallback(() => {
@@ -233,32 +177,17 @@ function ZiweiResultContent() {
             minute: String(resolvedFormData.birthMinute || 0),
             calendar: resolvedFormData.calendarType,
         });
-        // 保留闰月参数
-        if (resolvedFormData.calendarType === 'lunar' && resolvedFormData.isLeapMonth) {
-            params.set('leap', '1');
-        }
-        if (resolvedFormData.birthPlace) {
-            params.set('place', resolvedFormData.birthPlace);
-        }
-        if (resolvedFormData.longitude != null) {
-            params.set('longitude', String(resolvedFormData.longitude));
-        }
-        if (chartId) {
-            params.set('chart', chartId);
-        }
+        if (resolvedFormData.calendarType === 'lunar' && resolvedFormData.isLeapMonth) params.set('leap', '1');
+        if (resolvedFormData.birthPlace) params.set('place', resolvedFormData.birthPlace);
+        if (resolvedFormData.longitude != null) params.set('longitude', String(resolvedFormData.longitude));
+        if (chartId) params.set('chart', chartId);
         router.push(`/ziwei?${params.toString()}`);
     }, [resolvedFormData, chartId, router]);
 
     const handleSave = useCallback(async () => {
         if (saving || !chart) return;
-
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-            showToast('warning', '请先登录后再保存命盘');
-            setShowAuthModal(true);
-            return;
-        }
-
+        if (!session?.user) { showToast('warning', '请先登录后再保存命盘'); setShowAuthModal(true); return; }
         setSaving(true);
         try {
             const chartPayload = { ...chart };
@@ -267,302 +196,176 @@ function ZiweiResultContent() {
                 name: resolvedFormData.name,
                 gender: resolvedFormData.gender,
                 birth_date: `${resolvedFormData.birthYear}-${String(resolvedFormData.birthMonth).padStart(2, '0')}-${String(resolvedFormData.birthDay).padStart(2, '0')}`,
-                birth_time: resolvedFormData.isUnknownTime
-                    ? null
-                    : `${String(resolvedFormData.birthHour).padStart(2, '0')}:${String(resolvedFormData.birthMinute || 0).padStart(2, '0')}`,
+                birth_time: resolvedFormData.isUnknownTime ? null : `${String(resolvedFormData.birthHour).padStart(2, '0')}:${String(resolvedFormData.birthMinute || 0).padStart(2, '0')}`,
                 calendar_type: resolvedFormData.calendarType,
-                is_leap_month: resolvedFormData.isLeapMonth ?? false, // 保存闰月设置
+                is_leap_month: resolvedFormData.isLeapMonth ?? false,
                 birth_place: resolvedFormData.birthPlace || null,
                 chart_data: chartPayload,
             };
-            let error = null;
             if (chartId) {
                 const response = await fetch('/api/ziwei/charts/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${session.access_token}`,
-                    },
+                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
                     body: JSON.stringify({ chartId, payload }),
                 });
-                if (!response.ok) {
-                    const result = await response.json().catch(() => null);
-                    throw new Error(result?.error || '更新失败');
-                }
+                if (!response.ok) { const result = await response.json().catch(() => null); throw new Error(result?.error || '更新失败'); }
             } else {
                 const insertedId = await createSavedChart('ziwei', payload);
-                if (insertedId) {
-                    router.replace(`/ziwei/result?chart=${insertedId}`);
-                } else {
-                    error = new Error('保存失败');
-                }
+                if (insertedId) router.replace(`/ziwei/result?chart=${insertedId}`);
+                else throw new Error('保存失败');
             }
-
-            if (error) throw error;
             setSaved(true);
             setChartFromDb(resolvedFormData);
-            if (chartId) {
-                router.replace(`/ziwei/result?chart=${chartId}`);
-            }
-        } catch (error) {
-            console.error('保存失败:', error);
-            showToast('error', '保存失败，请重试');
-        } finally {
-            setSaving(false);
-        }
+        } catch (error) { console.error('保存失败:', error); showToast('error', '保存失败，请重试'); } finally { setSaving(false); }
     }, [saving, chart, resolvedFormData, chartId, router, showToast]);
 
     // 分享
     const handleShare = useCallback(async () => {
         const url = window.location.href;
         if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `${resolvedFormData.name}的紫微命盘 - MingAI`,
-                    text: `查看${resolvedFormData.name}的紫微斗数命盘`,
-                    url,
-                });
-            } catch {
-                // 用户取消
-            }
+            try { await navigator.share({ title: `${resolvedFormData.name}的紫微命盘 - MingAI`, text: `查看${resolvedFormData.name}的紫微斗数命盘`, url }); } catch { }
         } else {
-            // Fix 9: clipboard API 添加错误处理
-            try {
-                await navigator.clipboard.writeText(url);
-                showToast('success', '链接已复制到剪贴板');
-            } catch {
-                showToast('error', '复制链接失败，请手动复制');
-            }
+            try { await navigator.clipboard.writeText(url); showToast('success', '链接已复制到剪贴板'); } catch { showToast('error', '复制链接失败'); }
         }
     }, [resolvedFormData.name, showToast]);
 
-    // 设置移动端 Header 菜单项
+    // Header 菜单项
     useEffect(() => {
         const items = [
-            {
-                id: 'edit',
-                label: '修改',
-                icon: <Edit3 className="w-4 h-4" />,
-                onClick: handleEdit,
-            },
-            {
-                id: 'save',
-                label: saved ? '已保存' : '保存',
-                icon: <Save className="w-4 h-4" />,
-                onClick: handleSave,
-                disabled: saving || saved,
-            },
-            {
-                id: 'share',
-                label: '分享',
-                icon: <Share2 className="w-4 h-4" />,
-                onClick: handleShare,
-            },
-            ...(isAdmin && canonicalChart ? [{
-                id: 'copy-json',
-                label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
-                icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
-                onClick: () => { void copyJson(); },
-            }] : []),
+            { id: 'edit', label: '修改', icon: <Edit3 className="w-4 h-4" />, onClick: handleEdit },
+            { id: 'save', label: saved ? '已保存' : '保存', icon: <Save className="w-4 h-4" />, onClick: handleSave, disabled: saving || saved },
+            { id: 'share', label: '分享', icon: <Share2 className="w-4 h-4" />, onClick: handleShare },
+            ...(isAdmin && canonicalChart ? [{ id: 'copy-json', label: jsonCopied ? 'JSON 已复制' : '复制 JSON', icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />, onClick: () => { void copyJson(); } }] : []),
         ];
         setMenuItems(items);
         return () => clearMenuItems();
     }, [saving, saved, isAdmin, canonicalChart, jsonCopied, copyJson, setMenuItems, clearMenuItems, handleEdit, handleSave, handleShare]);
 
-    if (loading) {
-        return <SoundWaveLoader variant="block" text="正在加载命盘" />;
-    }
-
+    if (loading) return <SoundWaveLoader variant="block" text="" />;
     if (notFound) {
         return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <p className="text-foreground-secondary">未找到该命盘，请返回重新选择</p>
-                <Link href="/user/charts" className="mt-4 inline-block text-accent hover:underline">
-                    返回我的命盘
-                </Link>
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">未找到该命盘，请返回重新选择</p>
+                <Link href="/user/charts" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">返回我的命盘</Link>
             </div>
         );
     }
-
     if (!chart || !canonicalChart) {
         return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <p className="text-foreground-secondary">命盘计算出错，请返回重新输入</p>
-                <Link href="/ziwei" className="mt-4 inline-block text-accent hover:underline">
-                    返回重新输入
-                </Link>
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">命盘计算出错，请返回重新输入</p>
+                <Link href="/ziwei" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">返回重新输入</Link>
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto md:px-4 sm:py-6 py-2 animate-fade-in">
-            {/* 头部操作栏 - 仅桌面端显示 */}
-            <div className="hidden md:flex items-center justify-between mb-6">
-                <Link
-                    href={chartId ? '/user/charts' : '/ziwei'}
-                    className="flex items-center gap-2 text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                    返回
-                </Link>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleEdit}
-                        disabled={saving}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border"
-                    >
-                        <Edit3 className="w-4 h-4" />
-                        修改
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || saved}
-                        className={`
-                            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                            ${saved
-                                ? 'bg-green-500/10 text-green-500 cursor-default'
-                                : 'bg-accent text-white hover:bg-accent/90 disabled:opacity-50'
-                            }
-                        `}
-                    >
-                        {saved ? (
-                            <><Check className="w-4 h-4" />已保存</>
-                        ) : saving ? (
-                            <><SoundWaveLoader variant="inline" />保存中</>
-                        ) : (
-                            <><Save className="w-4 h-4" />保存</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleShare}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-border hover:border-accent transition-colors"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        分享
-                    </button>
-                </div>
-            </div>
-
-            {/* 命主信息卡片 */}
-            <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-2xl md:p-4 p-2 border border-accent/20 md:mb-4 mb-2">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                        <Star className="w-6 h-6 text-accent" />
+        <div className="min-h-screen bg-background">
+            <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
+                {/* 头部操作栏 */}
+                <div className="hidden md:flex items-center justify-between">
+                    <Link href={chartId ? '/user/charts' : '/ziwei'} className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handleEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><Edit3 className="w-3.5 h-3.5" />修改</button>
+                        <button onClick={handleSave} disabled={saving || saved} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${saved ? 'text-[#0f7b6c] bg-[#0f7b6c]/5 border border-[#0f7b6c]/10' : 'bg-[#2383e2] text-white hover:bg-[#2383e2]/90'}`}>{saved ? <><Check className="w-3.5 h-3.5" />已保存</> : saving ? <><SoundWaveLoader variant="inline" />保存中</> : <><Save className="w-3.5 h-3.5" />保存</>}</button>
+                        <button onClick={handleShare} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><Share2 className="w-3.5 h-3.5" />分享</button>
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <h1 className="text-lg font-bold truncate">{resolvedFormData.name}</h1>
-                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-sm text-foreground-secondary">
-                            <span>{resolvedFormData.gender === 'male' ? '男' : '女'}</span>
-                            <span>•</span>
-                            <span>
-                                {adjustedFormData.birthYear}年{adjustedFormData.birthMonth}月{adjustedFormData.birthDay}日
+                </div>
+
+                <div className="bg-background border border-gray-200 rounded-md px-5 py-4 shadow-sm">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <h1 className="text-xl font-semibold tracking-tight truncate text-foreground">
+                                {resolvedFormData.name}
+                            </h1>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-[0.18em] ${resolvedFormData.gender === 'male' ? 'text-blue-500/70 bg-blue-50' : 'text-pink-500/70 bg-pink-50'}`}>
+                                {resolvedFormData.gender === 'male' ? '男' : '女'}
                             </span>
                         </div>
-                        {/* 时辰调整区域 */}
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className="flex items-center gap-1 text-sm">
-                                <Clock className="w-4 h-4 text-foreground-secondary" />
-                                <span className={hourOffset !== 0 ? 'text-accent font-medium' : ''}>{timeText}</span>
+
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground/60 lg:justify-end lg:min-w-0 lg:pl-6 lg:border-l lg:border-gray-100">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
+                                    出生时间
+                                </span>
+                                <Clock className="w-3.5 h-3.5 text-foreground/35 shrink-0" />
+                                <span className="font-medium text-foreground/80 truncate">
+                                    {adjustedFormData.birthYear}年{adjustedFormData.birthMonth}月{adjustedFormData.birthDay}日 {timeText}
+                                </span>
                                 {hourOffset !== 0 && (
-                                    <span className="text-xs text-accent">({hourOffset > 0 ? '+' : ''}{hourOffset}h)</span>
+                                    <span className="text-xs font-medium text-[#2eaadc] shrink-0">
+                                        ({hourOffset > 0 ? '+' : ''}{hourOffset}h)
+                                    </span>
+                                )}
+                                {!isUnknownTime && (
+                                    <div className="flex items-center bg-[#efedea] rounded p-0.5 shrink-0">
+                                        <button onClick={() => setHourOffset(prev => prev - 1)} className="p-0.5 hover:bg-white rounded transition-colors"><Minus className="w-3 h-3" /></button>
+                                        <button onClick={() => setHourOffset(prev => prev + 1)} className="p-0.5 hover:bg-white rounded transition-colors"><Plus className="w-3 h-3" /></button>
+                                        {hourOffset !== 0 && <button onClick={() => setHourOffset(0)} className="px-1 text-[10px] font-bold text-foreground/40 hover:text-foreground">RESET</button>}
+                                    </div>
                                 )}
                             </div>
-                            {!isUnknownTime && (
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setHourOffset(prev => prev - 1)}
-                                        className="p-1 rounded hover:bg-accent/20 text-foreground-secondary hover:text-accent transition-colors"
-                                        title="减少1小时"
-                                    >
-                                        <Minus className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => setHourOffset(prev => prev + 1)}
-                                        className="p-1 rounded hover:bg-accent/20 text-foreground-secondary hover:text-accent transition-colors"
-                                        title="增加1小时"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                    </button>
-                                    {hourOffset !== 0 && (
-                                        <button
-                                            onClick={() => setHourOffset(0)}
-                                            className="text-xs text-foreground-secondary hover:text-accent ml-1"
-                                        >
-                                            重置
-                                        </button>
-                                    )}
+
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
+                                    农历
+                                </span>
+                                <span className="font-medium text-foreground/80 truncate">{canonicalChart.basicInfo.lunarDate}</span>
+                            </div>
+
+                            {trueSolarTimeText && (
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
+                                        真太阳时
+                                    </span>
+                                    <span className="font-medium text-foreground/80 truncate">{trueSolarTimeText}</span>
+                                </div>
+                            )}
+
+                            {resolvedFormData.birthPlace && (
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
+                                        出生地点
+                                    </span>
+                                    <MapPinned className="w-3.5 h-3.5 text-foreground/35 shrink-0" />
+                                    <span className="font-medium text-foreground/80 truncate">{resolvedFormData.birthPlace}</span>
                                 </div>
                             )}
                         </div>
-                        {resolvedFormData.birthPlace && (
-                            <div className="text-sm text-foreground-secondary mt-0.5">
-                                <span className="inline-flex items-center gap-1">
-                                    <MapPinned className="w-4 h-4 text-foreground-secondary" />
-                                    {resolvedFormData.birthPlace}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </div>
-            </div>
 
-            {chartMetaItems.length > 0 && (
-                <section className="mb-3 rounded-2xl border border-border bg-background-secondary p-3">
-                    <h2 className="mb-3 text-sm font-semibold">排盘元信息</h2>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {chartMetaItems.map((item) => (
-                            <div key={item.label} className="rounded-xl bg-background px-3 py-2 border border-border">
-                                <div className="text-xs text-foreground-secondary">{item.label}</div>
-                                <div className="mt-1 text-sm font-medium">{item.value}</div>
-                            </div>
-                        ))}
-                    </div>
+                <section className="bg-background border border-gray-200 rounded-md p-6">
+                    <ZiweiChartGrid
+                        canonicalChart={canonicalChart}
+                        copyText={generateZiweiChartText(chart)}
+                        showJsonCopy={isAdmin && !!canonicalChart}
+                        jsonCopied={jsonCopied}
+                        onCopyJson={() => { void copyJson(); }}
+                        horoscopeHighlight={horoscopeHighlight}
+                        horoscopeInfo={horoscopeInfo}
+                    />
                 </section>
-            )}
 
-            <section className="bg-background-secondary rounded-xl md:p-3 pt-2 md:border md:border-border overflow-x-hidden w-full sm:max-w-none mx-auto">
-                <h2 className="text-base font-semibold mb-3 flex items-center gap-2 md:pl-0 pl-3">
-                    <Star className="w-4 h-4 text-accent" />
-                    紫微斗数命盘
-                </h2>
-                <ZiweiChartGrid
-                    canonicalChart={canonicalChart}
-                    copyText={chartCopyText}
-                    showJsonCopy={isAdmin && !!canonicalChart}
-                    jsonCopied={jsonCopied}
-                    onCopyJson={() => { void copyJson(); }}
-                    horoscopeHighlight={horoscopeHighlight}
-                    horoscopeInfo={horoscopeInfo}
-                />
-            </section>
-
-            {/* 运限分析 */}
-            <section className="mt-4 max-w-[390px] sm:max-w-none mx-auto">
                 <ZiweiHoroscopePanel
                     chart={chart}
                     canonicalChart={canonicalChart}
                     onPalaceHighlight={setHoroscopeHighlight}
                     onHoroscopeChange={setHoroscopeInfo}
                 />
-            </section>
 
-            <div className="mt-6 text-center text-sm text-foreground-secondary">
-                <p>点击宫位可查看详细信息</p>
+                <footer className="py-12 text-center">
+                    <p className="text-[11px] text-foreground/30 font-medium italic">* 点击命盘宫位可查看三方四正与详细分析</p>
+                </footer>
             </div>
 
-            <AuthModal
-                isOpen={showAuthModal}
-                onClose={() => setShowAuthModal(false)}
-            />
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
         </div>
     );
 }
 
 export default function ZiweiResultPage() {
     return (
-        <Suspense fallback={
-            <SoundWaveLoader variant="block" text="正在排盘" />
-        }>
+        <Suspense fallback={<SoundWaveLoader variant="block" text="正在排盘" />}>
             <ZiweiResultContent />
         </Suspense>
     );

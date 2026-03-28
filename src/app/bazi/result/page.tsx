@@ -18,7 +18,6 @@ import {
     generateBaziChartText,
     getDayMasterDescription,
 } from '@/lib/divination/bazi';
-import { supabase } from '@/lib/auth';
 import type { BaziFormData, CalendarType, Gender } from '@/types';
 import { ResultHeader } from '@/components/bazi/result/ResultHeader';
 import { ProfileSummaryCard } from '@/components/bazi/result/ProfileSummaryCard';
@@ -32,7 +31,7 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CaseNotesSection } from '@/components/bazi/result/CaseNotesSection';
 import { loadLatestConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
-import { getMembershipInfo } from '@/lib/user/membership';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 
@@ -41,13 +40,11 @@ function BaziResultContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { setMenuItems, clearMenuItems } = useHeaderMenu();
-    // useState 管理页面交互状态，确保切换与保存流程可控
     const [activeTab, setActiveTab] = useState<ResultTab>('professional');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(false);
     const [chartFromDb, setChartFromDb] = useState<BaziFormData | null>(null);
-    const [userId, setUserId] = useState<string | null>(null);
     const [savedWuxingAnalysis, setSavedWuxingAnalysis] = useState<string | null>(null);
     const [savedWuxingReasoning, setSavedWuxingReasoning] = useState<string | null>(null);
     const [savedWuxingModelId, setSavedWuxingModelId] = useState<string | null>(null);
@@ -55,9 +52,10 @@ function BaziResultContent() {
     const [savedPersonalityReasoning, setSavedPersonalityReasoning] = useState<string | null>(null);
     const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [credits, setCredits] = useState<number | null>(null);
     const [copied, setCopied] = useState(false);
     const { showToast } = useToast();
+    const { session, userId, membershipInfo } = useSessionMembership();
+    const credits = membershipInfo?.aiChatCount ?? null;
 
     type SavedBaziChartRow = {
         name: string;
@@ -76,9 +74,9 @@ function BaziResultContent() {
     // 大运流年状态
     const [selectedDaYunIndex, setSelectedDaYunIndex] = useState<number>(0);
     const [selectedLiuNianYear, setSelectedLiuNianYear] = useState<number>(currentYear);
-    // useState 保持流月/流日选择，驱动下方明细展示
     const [selectedLiuYueMonth, setSelectedLiuYueMonth] = useState<number>(-1);
     const [selectedLiuRiDate, setSelectedLiuRiDate] = useState<string>('');
+    const [hasMountedNotes, setHasMountedNotes] = useState(false);
 
     const chartId = searchParams.get('chart');
     const hasFormParams = useMemo(() => {
@@ -149,15 +147,6 @@ function BaziResultContent() {
             });
         }
 
-        // 获取当前用户ID和积分
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            const uid = session?.user?.id || null;
-            setUserId(uid);
-            if (uid) {
-                const membershipInfo = await getMembershipInfo(uid);
-                setCredits(membershipInfo?.aiChatCount ?? null);
-            }
-        });
     }, [chartId, hasFormParams]);
 
     // 表单数据
@@ -219,6 +208,12 @@ function BaziResultContent() {
         }
     }, [proData, currentYear]);
 
+    useEffect(() => {
+        if (activeTab === 'notes' && !hasMountedNotes) {
+            setHasMountedNotes(true);
+        }
+    }, [activeTab, hasMountedNotes]);
+
     // 当前选中大运的流年列表
     const currentLiuNian = useMemo(() => {
         if (!proData || selectedDaYunIndex < 0 || selectedDaYunIndex >= proData.daYun.length) {
@@ -238,7 +233,6 @@ function BaziResultContent() {
         }
     }, [formData, selectedLiuNianYear]);
 
-    // useEffect 根据流年变化重置流月选中项
     useEffect(() => {
         if (liuYue.length === 0) {
             setSelectedLiuYueMonth(-1);
@@ -262,7 +256,6 @@ function BaziResultContent() {
         }
     }, [activeLiuYue, formData]);
 
-    // useEffect 在流月切换时同步默认流日
     useEffect(() => {
         if (!activeLiuYue) {
             setSelectedLiuRiDate('');
@@ -275,7 +268,6 @@ function BaziResultContent() {
     const handleSave = async () => {
         if (saving) return;
 
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
             showToast('warning', '请先登录后再保存命盘');
             setShowAuthModal(true);
@@ -483,14 +475,14 @@ function BaziResultContent() {
     };
 
     if (loading) {
-        return <SoundWaveLoader variant="block" text="正在加载命盘" />;
+        return <SoundWaveLoader variant="block" text="" />;
     }
 
     if (!baziResult || !proData || !canonicalBazi) {
         return (
-            <div className="max-w-4xl mx-auto px-4 sm:py-8 py-4 text-center">
-                <p className="text-foreground-secondary">八字计算出错，请返回重新输入</p>
-                <Link href="/bazi" className="mt-4 inline-block text-accent hover:underline">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">八字计算出错，请返回重新输入</p>
+                <Link href="/bazi" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">
                     返回重新输入
                 </Link>
             </div>
@@ -500,101 +492,111 @@ function BaziResultContent() {
     const dayMasterDescription = getDayMasterDescription(canonicalBazi.basicInfo.dayMaster as Parameters<typeof getDayMasterDescription>[0]);
 
     return (
-        <div className="max-w-4xl mx-auto md:px-2 md:py-6 py-2 animate-fade-in">
-            <ResultHeader
-                chartId={chartId}
-                saving={saving}
-                saved={saved}
-                copied={copied}
-                jsonCopied={jsonCopied}
-                showJsonCopy={isAdmin && !!canonicalBazi}
-                onEdit={handleEdit}
-                onSave={handleSave}
-                onCopy={handleCopy}
-                onCopyJson={() => { void copyJson(); }}
-                onShare={handleShare}
-            />
-
-            <ProfileSummaryCard
-                formData={formData}
-                isUnknownTime={isUnknownTime}
-                canonicalChart={canonicalBazi}
-            />
-
-            <ResultTabs activeTab={activeTab} onChange={setActiveTab} />
-
-            {/* 基本信息 */}
-            {activeTab === 'basic' && (
-                <BasicInfoSection
-                    canonicalChart={canonicalBazi}
-                    dayMasterDescription={dayMasterDescription}
+        <div className="min-h-screen bg-background">
+            <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
+                <ResultHeader
                     chartId={chartId}
-                    userId={userId}
-                    credits={credits}
-                    savedWuxingAnalysis={savedWuxingAnalysis}
-                    savedWuxingReasoning={savedWuxingReasoning}
-                    savedWuxingModelId={savedWuxingModelId}
-                    savedPersonalityAnalysis={savedPersonalityAnalysis}
-                    savedPersonalityReasoning={savedPersonalityReasoning}
-                    savedPersonalityModelId={savedPersonalityModelId}
-                    onSaveWuxingAnalysis={async (analysis) => {
-                        setSavedWuxingAnalysis(analysis);
-                        if (chartId) {
-                            await fetch('/api/bazi/charts/update', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({
-                                    chartId,
-                                    payload: { ai_wuxing_analysis: analysis },
-                                }),
-                            });
-                        }
-                    }}
-                    onSavePersonalityAnalysis={async (analysis) => {
-                        setSavedPersonalityAnalysis(analysis);
-                        if (chartId) {
-                            await fetch('/api/bazi/charts/update', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({
-                                    chartId,
-                                    payload: { ai_personality_analysis: analysis },
-                                }),
-                            });
-                        }
-                    }}
-                    onLoginRequired={() => setShowAuthModal(true)}
+                    saving={saving}
+                    saved={saved}
+                    copied={copied}
+                    jsonCopied={jsonCopied}
+                    showJsonCopy={isAdmin && !!canonicalBazi}
+                    onEdit={handleEdit}
+                    onSave={handleSave}
+                    onCopy={handleCopy}
+                    onCopyJson={() => { void copyJson(); }}
+                    onShare={handleShare}
                 />
-            )}
 
-            {/* 专业排盘 */}
-            {activeTab === 'professional' && (
-                <ProfessionalSection
-                    canonicalChart={canonicalBazi}
-                    proData={proData}
+                <ProfileSummaryCard
+                    formData={formData}
                     isUnknownTime={isUnknownTime}
-                    selectedDaYunIndex={selectedDaYunIndex}
-                    onSelectDaYun={handleSelectDaYun}
-                    currentLiuNian={currentLiuNian}
-                    selectedLiuNianYear={selectedLiuNianYear}
-                    onSelectLiuNian={handleSelectLiuNian}
-                    liuYue={liuYue}
-                    selectedLiuYueMonth={selectedLiuYueMonth}
-                    onSelectLiuYue={handleSelectLiuYue}
-                    liuRi={liuRi}
-                    selectedLiuRiDate={selectedLiuRiDate}
-                    onSelectLiuRi={handleSelectLiuRi}
-                    activeLiuYue={activeLiuYue}
+                    canonicalChart={canonicalBazi}
                 />
-            )}
 
-            {activeTab === 'notes' && (
-                <CaseNotesSection chartId={chartId} />
-            )}
+                <ResultTabs activeTab={activeTab} onChange={setActiveTab} />
 
-            <ResultFooterLinks />
+                {/* 基本信息 */}
+                {activeTab === 'basic' && (
+                    <div className="animate-fade-in">
+                        <BasicInfoSection
+                            canonicalChart={canonicalBazi}
+                            dayMasterDescription={dayMasterDescription}
+                            chartId={chartId}
+                            userId={userId}
+                            credits={credits}
+                            savedWuxingAnalysis={savedWuxingAnalysis}
+                            savedWuxingReasoning={savedWuxingReasoning}
+                            savedWuxingModelId={savedWuxingModelId}
+                            savedPersonalityAnalysis={savedPersonalityAnalysis}
+                            savedPersonalityReasoning={savedPersonalityReasoning}
+                            savedPersonalityModelId={savedPersonalityModelId}
+                            onSaveWuxingAnalysis={async (analysis) => {
+                                setSavedWuxingAnalysis(analysis);
+                                if (chartId) {
+                                    await fetch('/api/bazi/charts/update', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify({
+                                            chartId,
+                                            payload: { ai_wuxing_analysis: analysis },
+                                        }),
+                                    });
+                                }
+                            }}
+                            onSavePersonalityAnalysis={async (analysis) => {
+                                setSavedPersonalityAnalysis(analysis);
+                                if (chartId) {
+                                    await fetch('/api/bazi/charts/update', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify({
+                                            chartId,
+                                            payload: { ai_personality_analysis: analysis },
+                                        }),
+                                    });
+                                }
+                            }}
+                            onLoginRequired={() => setShowAuthModal(true)}
+                        />
+                    </div>
+                )}
+
+                {/* 专业排盘 */}
+                {activeTab === 'professional' && (
+                    <div className="animate-fade-in">
+                        <ProfessionalSection
+                            canonicalChart={canonicalBazi}
+                            proData={proData}
+                            isUnknownTime={isUnknownTime}
+                            selectedDaYunIndex={selectedDaYunIndex}
+                            onSelectDaYun={handleSelectDaYun}
+                            currentLiuNian={currentLiuNian}
+                            selectedLiuNianYear={selectedLiuNianYear}
+                            onSelectLiuNian={handleSelectLiuNian}
+                            liuYue={liuYue}
+                            selectedLiuYueMonth={selectedLiuYueMonth}
+                            onSelectLiuYue={handleSelectLiuYue}
+                            liuRi={liuRi}
+                            selectedLiuRiDate={selectedLiuRiDate}
+                            onSelectLiuRi={handleSelectLiuRi}
+                            activeLiuYue={activeLiuYue}
+                        />
+                    </div>
+                )}
+
+                {(hasMountedNotes || activeTab === 'notes') && (
+                    <div className={activeTab === 'notes' ? 'animate-fade-in bg-background border border-gray-200 rounded-md p-6 pt-2' : 'hidden'}>
+                        <CaseNotesSection chartId={chartId} />
+                    </div>
+                )}
+
+                <div className="mt-12 pt-12 border-t border-gray-100">
+                    <ResultFooterLinks />
+                </div>
+            </div>
 
             <AuthModal
                 isOpen={showAuthModal}

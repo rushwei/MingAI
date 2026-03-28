@@ -1,30 +1,22 @@
 /**
  * 塔罗结果页
  *
- * 负责抽牌展示、翻牌保存与 AI 解读
+ * 对齐 Notion 风格：极简卡片、文档流解读、线性图标
  */
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-    Sparkles,
-    RotateCcw,
-    RefreshCw,
-    Send,
-    BookOpenText,
-    Copy,
-    Check,
-} from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, RotateCcw, RefreshCw, Send, BookOpenText, Copy, Check, Info } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
 import { buildTarotCanonicalJSON, generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
 import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
-import { supabase } from '@/lib/auth';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
+import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
@@ -33,9 +25,20 @@ import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
-import { loadConversationAnalysisSnapshot } from '@/lib/chat/conversation-analysis';
-import { resolveHistoryConversationId } from '@/lib/history/client';
-import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
+
+type TarotSession = {
+    spread?: TarotSpread;
+    spreadId?: string;
+    cards?: DrawnCard[];
+    question?: string;
+    birthDate?: string;
+    numerology?: TarotNumerology | null;
+    seed?: string | null;
+    readingId?: string | null;
+    conversationId?: string | null;
+    createdAt?: string;
+};
 
 function TarotResultContent() {
     const router = useRouter();
@@ -60,166 +63,54 @@ function TarotResultContent() {
     const [isInterpreting, setIsInterpreting] = useState(false);
     const [revealedCards, setRevealedCards] = useState<number[]>([]);
     const [flippedToInterpretation, setFlippedToInterpretation] = useState<number[]>([]);
-    const [isShuffling, setIsShuffling] = useState(false);
-    const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [readingId, setReadingId] = useState<string | null>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [hasSaved, setHasSaved] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [historyMissing, setHistoryMissing] = useState(false);
     const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
-    const [userId, setUserId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [copied, setCopied] = useState(false);
-    // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
+    const { session, user, userId, membershipInfo } = useSessionMembership();
+    const membershipType = membershipInfo?.type ?? 'free';
+
     const canonicalReading = useMemo(() => {
         if (!selectedSpread || drawnCards.length === 0) return null;
-        return buildTarotCanonicalJSON({
-            spreadName: selectedSpread.name,
-            spreadId: selectedSpread.id,
-            question,
-            cards: drawnCards,
-            seed: seed || undefined,
-            numerology,
-            birthDate,
-        });
+        return buildTarotCanonicalJSON({ spreadName: selectedSpread.name, spreadId: selectedSpread.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate });
     }, [birthDate, drawnCards, numerology, question, seed, selectedSpread]);
-    const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalReading);
 
+    // 获取抽牌
     useEffect(() => {
-        const loadMembership = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const currentUserId = session?.user?.id || null;
-            setUserId(currentUserId);
-            if (!currentUserId) {
-                setMembershipType('free');
-                return;
-            }
-            const memberInfo = await getMembershipInfo(currentUserId);
-            if (memberInfo) {
-                setMembershipType(memberInfo.type);
-            }
-        };
-        loadMembership();
-    }, []);
-
-    // 处理新抽牌
-    useEffect(() => {
-        // 只有在有 spreadId 时才执行新抽牌
         if (!spreadId) return;
-
         const drawCards = async () => {
-            setIsLoading(true);
-            setIsViewingHistory(false);
-            setHasSaved(false);
-            setReadingId(null);
-            setConversationId(null);
-            setRevealedCards([]);
-            setInterpretation('');
-            setInterpretationReasoning(null);
-            setBirthDate(birthDateParam || '');
-            setNumerology(null);
-            setSeed(null);
-
+            setIsLoading(true); setRevealedCards([]); setInterpretation(''); setInterpretationReasoning(null);
             try {
-                const res = await fetch('/api/tarot', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'draw-only',
-                        spreadId,
-                        allowReversed: true,
-                        birthDate: birthDateParam || undefined,
-                    }),
-                });
+                const res = await fetch('/api/tarot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'draw-only', spreadId, allowReversed: true, birthDate: birthDateParam || undefined }) });
                 const data = await res.json();
-
                 if (data.success && data.data?.cards) {
-                    setSelectedSpread(data.data.spread);
-                    setDrawnCards(data.data.cards);
-                    setNumerology(data.data.numerology || null);
-                    setSeed(typeof data.data.seed === 'string' ? data.data.seed : null);
+                    setSelectedSpread(data.data.spread); setDrawnCards(data.data.cards); setNumerology(data.data.numerology || null); setSeed(data.data.seed);
                 }
-            } catch (error) {
-                console.error('抽牌失败:', error);
-            } finally {
-                setIsLoading(false);
-            }
+            } catch (e) { console.error(e); } finally { setIsLoading(false); }
         };
-
         drawCards();
     }, [birthDateParam, spreadId]);
 
-    type TarotSession = {
-        spread?: TarotSpread;
-        spreadId?: string;
-        cards?: DrawnCard[];
-        question?: string;
-        birthDate?: string;
-        numerology?: TarotNumerology | null;
-        seed?: string | null;
-        readingId?: string | null;
-        conversationId?: string | null;
-        createdAt?: string;
-    };
-
-    // 处理历史记录加载
+    // 加载历史
     useEffect(() => {
-        // 如果有 spreadId，说明是新占卜，跳过加载历史
         if (spreadId) return;
-
         const parsed = readSessionJSON<TarotSession>('tarot_result');
-        if (parsed) {
-            try {
-                if (parsed.cards) {
-                    const storedSpread = parsed.spread as TarotSpread | undefined;
-                    const fallbackSpreadId = parsed.spreadId as string | undefined;
-                    const fallbackSpread = fallbackSpreadId
-                        ? TAROT_SPREADS.find(s => s.id === fallbackSpreadId) || null
-                        : null;
-                    const resolvedSpread = storedSpread || fallbackSpread;
-                    if (!resolvedSpread) {
-                        throw new Error('Missing spread');
-                    }
-                    setSelectedSpread(resolvedSpread);
-                    setDrawnCards(parsed.cards);
-                    // 只有当 storage 中有 question 时才覆盖 (防止 null 覆盖空字符串)
-                    if (parsed.question !== undefined) {
-                        setQuestion(parsed.question);
-                    }
-                    if (parsed.birthDate !== undefined) {
-                        setBirthDate(parsed.birthDate);
-                    }
-                    setNumerology(parsed.numerology || null);
-                    setSeed(parsed.seed || null);
-                    setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i));
-                    setReadingId(parsed.readingId || null);
-                    setConversationId(parsed.conversationId || null);
-                    setHasSaved(true);
-                    setIsViewingHistory(true);
-                    setHistoryMissing(false);
-                    setIsLoading(false);
-                    // 不再移除 storage，以便页面刷新后能保持状态
-                    // sessionStorage.removeItem('tarot_result');
-                    return;
-                }
-            } catch {
-                // 解析失败也不清除，避免丢失数据，让用户可以手动刷新
-                console.error('Failed to parse tarot history');
+        if (parsed?.cards) {
+            const spread = TAROT_SPREADS.find(s => s.id === (parsed.spreadId || parsed.spread?.id)) || null;
+            if (spread) {
+                setSelectedSpread(spread); setDrawnCards(parsed.cards); setQuestion(parsed.question || ''); setBirthDate(parsed.birthDate || '');
+                setNumerology(parsed.numerology || null); setSeed(parsed.seed || null); setRevealedCards(parsed.cards.map((_: DrawnCard, i: number) => i));
+                setReadingId(parsed.readingId || null); setConversationId(parsed.conversationId || null);
+                setIsLoading(false); return;
             }
         }
-
-        // 没有 spreadId 且没有有效的 sessionStorage 数据
-        if (historyTimestamp) {
-            setHistoryMissing(true);
-            setIsLoading(false);
-            return;
-        }
+        if (historyTimestamp) { setHistoryMissing(true); setIsLoading(false); return; }
         router.push('/tarot');
     }, [historyTimestamp, router, spreadId]);
 
@@ -241,679 +132,219 @@ function TarotResultContent() {
         }));
     }, [birthDate, conversationId, drawnCards, numerology, question, readingId, seed, selectedSpread]);
 
-    const saveReading = async () => {
-        if (hasSaved || isSaving || isViewingHistory || !selectedSpread || !drawnCards.length) return;
-        setIsSaving(true);
-
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                return;
-            }
-
-            const res = await fetch('/api/tarot', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    action: 'save',
-                    spreadId: selectedSpread.id,
-                    question: question || undefined,
-                    birthDate: birthDate || undefined,
-                    numerology: numerology || undefined,
-                    seed: seed || undefined,
-                    cards: drawnCards,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                showToast('error', data.error || '保存记录失败');
-                return;
-            }
-
-            const nextReadingId = data.data?.readingId || null;
-            if (nextReadingId) {
-                setReadingId(nextReadingId);
-                setHasSaved(true);
-                updateSessionJSON('tarot_result', (prev) => ({
-                    ...(prev || {}),
-                    readingId: nextReadingId,
-                }));
-                return;
-            }
-
-            showToast('error', '保存记录失败');
-        } catch (error) {
-            console.error('保存记录失败:', error);
-            showToast('error', '保存记录失败');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const revealCard = async (index: number) => {
-        if (!revealedCards.includes(index)) {
-            setRevealedCards(prev => [...prev, index]);
-            void saveReading();
-        }
-    };
-
-    const revealAll = () => {
-        if (revealedCards.length < drawnCards.length) {
-            setRevealedCards(drawnCards.map((_, i) => i));
-            void saveReading();
-        }
-    };
-
-    const handleCopy = async () => {
-        if (!selectedSpread || drawnCards.length === 0) return;
-        try {
-            await navigator.clipboard.writeText(generateTarotReadingText({
-                spreadName: selectedSpread.name,
-                spreadId: selectedSpread.id,
-                question,
-                cards: drawnCards,
-                seed: seed || undefined,
-                numerology,
-                birthDate,
-            }));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            showToast('success', '结果已复制到剪贴板');
-        } catch {
-            showToast('error', '复制失败，请手动复制');
-        }
-    };
+    const handleCopy = useCallback(async () => {
+        if (!canonicalReading) return;
+        await navigator.clipboard.writeText(generateTarotReadingText({ spreadName: selectedSpread!.name, spreadId: selectedSpread!.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate }));
+        setCopied(true); setTimeout(() => setCopied(false), 2000);
+    }, [birthDate, canonicalReading, drawnCards, numerology, question, seed, selectedSpread]);
 
     const handleInterpret = async () => {
-        if (drawnCards.length === 0) return;
-
-        setIsInterpreting(true);
-        streaming.reset();
-        setInterpretationReasoning(null);
-        setInterpretation('');
-
+        if (drawnCards.length === 0 || !user) { if (!user) setShowAuthModal(true); return; }
+        setIsInterpreting(true); streaming.reset(); setInterpretationReasoning(null); setInterpretation('');
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                showToast('warning', '请先登录');
-                setIsInterpreting(false);
-                return;
-            }
-
             const result = await streaming.startStream('/api/tarot', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    action: 'interpret',
-                    cards: drawnCards,
-                    question: question || undefined,
-                    birthDate: birthDate || undefined,
-                    numerology: numerology || undefined,
-                    seed: seed || undefined,
-                    spreadId: selectedSpread?.id,
-                    readingId: readingId || undefined,
-                    modelId: selectedModel,
-                    reasoning: reasoningEnabled,
-                    stream: true,
-                }),
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
+                body: JSON.stringify({ action: 'interpret', cards: drawnCards, question: question || undefined, birthDate: birthDate || undefined, numerology: numerology || undefined, seed: seed || undefined, spreadId: selectedSpread?.id, readingId: readingId || undefined, modelId: selectedModel, reasoning: reasoningEnabled, stream: true }),
             });
-
-            // 检测积分不足错误（使用返回值而非状态，避免异步问题）
-            if (result?.error && isCreditsError(result.error)) {
-                setShowCreditsModal(true);
-            } else if (result?.error) {
-                showToast('error', result.error);
-            }
-
-            // 更新最终内容
-            if (result?.content) {
-                setInterpretation(result.content);
-                if (result.reasoning) {
-                    setInterpretationReasoning(result.reasoning);
-                }
-            } else if (!result?.error) {
-                setInterpretation('解读失败，请重试');
-            }
-
-        } catch (error) {
-            console.error('AI 解读失败:', error);
-        } finally {
-            setIsInterpreting(false);
-        }
+            if (result?.error && isCreditsError(result.error)) setShowCreditsModal(true);
+            else if (result?.error) showToast('error', result.error);
+            else if (result?.content) { setInterpretation(result.content); if (result.reasoning) setInterpretationReasoning(result.reasoning); }
+        } catch (e) { console.error(e); } finally { setIsInterpreting(false); }
     };
 
+    useAnalysisSnapshot({
+        conversationId,
+        recordId: readingId,
+        divinationType: 'tarot',
+        sessionKey: 'tarot_result',
+        hasExistingAnalysis: !!interpretation,
+        callbacks: {
+            onAnalysis: setInterpretation,
+            onReasoning: setInterpretationReasoning,
+            onModelId: setSelectedModel,
+            onReasoningEnabled: setReasoningEnabled,
+            onConversationIdResolved: setConversationId,
+        },
+    });
+
     useEffect(() => {
-        if (interpretation) return;
-
-        const loadAnalysis = async () => {
-            let resolvedConversationId = conversationId;
-            if (!resolvedConversationId && readingId) {
-                resolvedConversationId = await resolveHistoryConversationId('tarot', readingId, 'tarot_result');
-                if (resolvedConversationId) {
-                    setConversationId(resolvedConversationId);
-                }
-            }
-
-            if (!resolvedConversationId) return;
-
-            const snapshot = await loadConversationAnalysisSnapshot(resolvedConversationId);
-            if (!snapshot) return;
-
-            if (snapshot.analysis) {
-                setInterpretation(snapshot.analysis);
-            }
-            if (snapshot.reasoning) {
-                setInterpretationReasoning(snapshot.reasoning);
-            }
-            if (snapshot.modelId) {
-                setSelectedModel(snapshot.modelId);
-            }
-            setReasoningEnabled(snapshot.reasoningEnabled);
-        };
-
-        void loadAnalysis();
-    }, [conversationId, interpretation, readingId]);
-
-    const handleReshuffle = async () => {
-        if (!selectedSpread) return;
-        setIsShuffling(true);
-        setRevealedCards([]);
-        setInterpretation('');
-        setIsViewingHistory(false);
-        setHasSaved(false);
-        setReadingId(null);
-        setConversationId(null);
-        setNumerology(null);
-        setSeed(null);
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        try {
-            const res = await fetch('/api/tarot', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'draw-only',
-                    spreadId: selectedSpread.id,
-                    allowReversed: true,
-                    birthDate: birthDate || undefined,
-                }),
-            });
-            const data = await res.json();
-
-            if (data.success && data.data?.cards) {
-                setDrawnCards(data.data.cards);
-                setNumerology(data.data.numerology || null);
-                setSeed(typeof data.data.seed === 'string' ? data.data.seed : null);
-            }
-        } catch (error) {
-            console.error('重新抽牌失败:', error);
-        } finally {
-            setIsShuffling(false);
-        }
-    };
-
-    // 设置移动端 Header 菜单项
-    useEffect(() => {
-        const items = [];
-        if (knowledgeBaseEnabled && readingId) {
-            items.push({
-                id: 'add-to-kb',
-                label: '加入知识库',
-                icon: <BookOpenText className="w-4 h-4" />,
-                onClick: () => setKbModalOpen(true),
-            });
-        }
-        if (selectedSpread && drawnCards.length > 0) {
-            items.push({
-                id: 'copy',
-                label: copied ? '已复制' : '复制',
-                icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
-                onClick: () => { void handleCopy(); },
-            });
-            if (isAdmin && canonicalReading) {
-                items.push({
-                    id: 'copy-json',
-                    label: jsonCopied ? 'JSON 已复制' : '复制 JSON',
-                    icon: jsonCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />,
-                    onClick: () => { void copyJson(); },
-                });
-            }
-        }
-        items.push({
-            id: 'reshuffle',
-            label: isShuffling ? '洗牌中...' : '重新抽牌',
-            icon: <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />,
-            onClick: handleReshuffle,
-            disabled: isShuffling,
-        });
+        const items = [
+            { id: 'restart', label: '重新抽牌', icon: <RotateCcw className="w-4 h-4" />, onClick: () => router.push('/tarot') },
+        ];
+        if (drawnCards.length > 0) items.push({ id: 'copy', label: copied ? '已复制' : '复制', icon: copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />, onClick: handleCopy });
+        if (knowledgeBaseEnabled && readingId) items.push({ id: 'add-to-kb', label: '收藏', icon: <BookOpenText className="w-4 h-4" />, onClick: () => setKbModalOpen(true) });
         setMenuItems(items);
         return () => clearMenuItems();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [knowledgeBaseEnabled, readingId, isShuffling, selectedSpread, drawnCards.length, copied, isAdmin, canonicalReading, jsonCopied, copyJson, setMenuItems, clearMenuItems]);
+    }, [drawnCards.length, copied, readingId, knowledgeBaseEnabled, router, setMenuItems, clearMenuItems, handleCopy]);
 
-    if (isLoading) {
-        return (
-            <div className="max-w-2xl mx-auto px-4 py-8 text-center animate-fade-in">
-                <div className="text-5xl mb-4 animate-pulse">🃏</div>
-                <SoundWaveLoader variant="inline" />
-                <p className="text-foreground-secondary">正在洗牌抽取...</p>
+    if (isLoading) return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center animate-fade-in space-y-4">
+                <div className="text-4xl">🃏</div>
+                <SoundWaveLoader variant="block" text="正在洗牌抽取" />
             </div>
-        );
-    }
+        </div>
+    );
 
-    if (!selectedSpread) {
+    if (historyMissing || !selectedSpread) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-                <p className="text-foreground-secondary">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-foreground/40 mb-6">
                     {historyMissing ? '历史记录加载失败，请从历史列表重新进入' : '未找到牌阵信息'}
                 </p>
-                <button
-                    onClick={() => router.push(historyMissing ? '/tarot/history' : '/tarot')}
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background-secondary hover:bg-background-tertiary transition-colors"
+                <Link
+                    href={historyMissing ? '/tarot/history' : '/tarot'}
+                    className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors"
                 >
                     返回
-                </button>
+                </Link>
             </div>
         );
     }
 
     return (
-        <div className="bg-background relative overflow-x-hidden">
-            {/* Background Effects */}
-            {/* Background Effects Removed */}
-
-            <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 relative z-10 animate-fade-in">
-                {/* Header Navigation - 仅桌面端显示 */}
-                <div className="hidden md:flex items-center justify-between mb-8">
-                    <button
-                        onClick={() => router.push('/tarot')}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/5 transition-all"
-                    >
-                        <span className="text-sm font-medium">返回占卜</span>
-                    </button>
-
+        <div className="min-h-screen bg-background">
+            <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-8">
+                {/* 头部操作 */}
+                <div className="hidden md:flex items-center justify-between border-b border-gray-100 pb-6">
+                    <Link href="/tarot" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-[#efedea] px-2 py-1 rounded-md transition-colors">返回</Link>
                     <div className="flex items-center gap-2">
-                        {knowledgeBaseEnabled && !!readingId && (
-                            <button
-                                onClick={() => setKbModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                            >
-                                <BookOpenText className="w-4 h-4" />
-                                加入知识库
-                            </button>
-                        )}
-                        {selectedSpread && drawnCards.length > 0 && (
-                            <button
-                                onClick={handleCopy}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                            >
-                                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                                {copied ? '已复制' : '复制'}
-                            </button>
-                        )}
-                        {isAdmin && canonicalReading && (
-                            <button
-                                onClick={() => { void copyJson(); }}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                            >
-                                {jsonCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                                {jsonCopied ? 'JSON 已复制' : '复制 JSON'}
-                            </button>
-                        )}
-                        <button
-                            onClick={handleReshuffle}
-                            disabled={isShuffling}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
-                        >
-                            <RotateCcw className={`w-4 h-4 ${isShuffling ? 'animate-spin' : ''}`} />
-                            {isShuffling ? '洗牌中...' : '重新抽牌'}
-                        </button>
+                        <button onClick={() => router.push('/tarot')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors"><RotateCcw className="w-3.5 h-3.5" />重新抽牌</button>
+                        <button onClick={handleCopy} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 hover:bg-[#efedea] transition-colors">{copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}复制</button>
                     </div>
                 </div>
 
-                <section className="mb-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
-                    <div className="mb-4">
-                        <h2 className="text-base font-bold">排盘信息</h2>
-                        <p className="mt-1 text-sm text-foreground-secondary">复制文本、AI 解读与历史恢复共用同一份排盘正文。</p>
+                {/* 排盘信息 */}
+                <div className="bg-[#efedea]/30 border border-gray-200 rounded-md p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <Info className="w-4 h-4 text-foreground/30" />
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">占卜信息</h2>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                            <div className="text-xs text-foreground-secondary">牌阵</div>
-                            <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.spreadName || selectedSpread.name}</div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="bg-background border border-gray-100 rounded-md p-3">
+                            <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">牌阵名称</div>
+                            <div className="text-sm font-medium">{selectedSpread.name}</div>
                         </div>
                         {question && (
-                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                <div className="text-xs text-foreground-secondary">问题</div>
-                                <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.question || question}</div>
+                            <div className="bg-background border border-gray-100 rounded-md p-3">
+                                <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">所问事项</div>
+                                <div className="text-sm font-medium">{question}</div>
                             </div>
                         )}
                     </div>
-                </section>
+                </div>
 
-                {/* Card Table */}
-                <div className="relative py-2 bg-white/[0.02] border border-white/5 rounded-[2rem] backdrop-blur-sm">
-                    <div className={`grid gap-8 mb-8 px-4 justify-items-center relative z-10 ${drawnCards.length === 1 ? 'grid-cols-1' :
-                        drawnCards.length <= 3 ? 'grid-cols-3' :
-                            drawnCards.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' :
-                                'grid-cols-2 sm:grid-cols-5'
-                        }`}>
+                {/* 牌面展示 */}
+                <div className="bg-background border border-gray-200 rounded-md p-8 md:p-12">
+                    <div className={`grid gap-12 justify-items-center ${drawnCards.length === 1 ? 'grid-cols-1' : drawnCards.length <= 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
                         {drawnCards.map((card, index) => {
-                            const canonicalCard = canonicalReading?.cards[index];
                             const isRevealed = revealedCards.includes(index);
-                            const isFlippedToInterpretation = flippedToInterpretation.includes(index);
+                            const isFlipped = flippedToInterpretation.includes(index);
+                            const canonicalCard = canonicalReading?.cards[index];
                             return (
-                                <div key={index} className="flex flex-col items-center group" style={{ perspective: '1000px' }}>
-                                    <div className="text-xs font-bold text-foreground-secondary/70 uppercase tracking-widest mb-3">
-                                        {canonicalCard?.position || selectedSpread?.positions[index]?.name}
-                                    </div>
+                                <div key={index} className="flex flex-col items-center gap-4 group" style={{ perspective: '1000px' }}>
+                                    <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">{canonicalCard?.position || selectedSpread.positions[index]?.name}</span>
                                     <button
-                                        onClick={() => {
-                                            if (!isRevealed) {
-                                                void revealCard(index);
-                                            } else {
-                                                // 已揭示的卡片，点击翻转查看解读
-                                                setFlippedToInterpretation(prev =>
-                                                    prev.includes(index)
-                                                        ? prev.filter(i => i !== index)
-                                                        : [...prev, index]
-                                                );
-                                            }
-                                        }}
-                                        className={`relative w-28 h-48 sm:w-32 sm:h-52 rounded-xl transition-all duration-500 ${!isRevealed ? 'cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(168,85,247,0.2)]' : 'cursor-pointer hover:shadow-[0_5px_20px_rgba(168,85,247,0.15)]'}`}
-                                        style={{
-                                            transformStyle: 'preserve-3d',
-                                            transform: isFlippedToInterpretation ? 'rotateY(180deg)' : undefined,
-                                        }}
+                                        onClick={() => isRevealed ? setFlippedToInterpretation(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]) : setRevealedCards(prev => [...prev, index])}
+                                        className="relative w-28 h-48 sm:w-32 sm:h-52 transition-all duration-500"
+                                        style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : undefined }}
                                     >
-                                        {/* 卡片正面 - 牌面 */}
-                                        <div
-                                            className={`absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl transition-all duration-500 ${isRevealed ? 'opacity-100' : 'bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 border border-white/10'}`}
-                                            style={{ backfaceVisibility: 'hidden' }}
-                                        >
+                                        <div className={`absolute inset-0 w-full h-full rounded-md overflow-hidden border border-gray-200 shadow-sm transition-all ${isRevealed ? 'opacity-100' : 'bg-[#efedea] flex items-center justify-center'}`} style={{ backfaceVisibility: 'hidden' }}>
                                             {isRevealed ? (
-                                                <>
-                                                    <Image
-                                                        src={card.card.image}
-                                                        alt={card.card.nameChinese}
-                                                        fill
-                                                        className={`object-cover ${card.orientation === 'reversed' ? 'rotate-180' : ''}`}
-                                                    />
-                                                    {/* 点击提示 */}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-3">
-                                                        <span className="text-xs text-white/90 font-medium flex items-center gap-1">
-                                                            <RotateCcw className="w-3 h-3" />
-                                                            点击查看解读
-                                                        </span>
-                                                    </div>
-                                                </>
+                                                <Image src={card.card.image} alt={card.card.nameChinese} fill className={`object-cover ${card.orientation === 'reversed' ? 'rotate-180' : ''}`} />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center opacity-30 bg-[url('/noise.png')]">
-                                                    <div className="w-16 h-16 rounded-full border-2 border-white/20 flex items-center justify-center">
-                                                        <Sparkles className="w-8 h-8 text-white/40" />
-                                                    </div>
-                                                </div>
+                                                <div className="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center opacity-20"><Sparkles className="w-6 h-6" /></div>
                                             )}
                                         </div>
-
-                                        {/* 卡片背面 - 解读 */}
-                                        <div
-                                            className="absolute inset-0 w-full h-full rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-purple-900/90 via-indigo-900/90 to-purple-950/90 border border-purple-500/20 p-4 flex flex-col"
-                                            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                                        >
-                                            <div className="text-center mb-2 space-y-1">
-                                                <h4 className="text-sm font-bold text-white truncate">{canonicalCard?.cardName || card.card.nameChinese}</h4>
-                                                <div className="flex items-center justify-center gap-1 text-[10px] text-white/70">
-                                                    <span className={`px-1.5 py-0.5 rounded-full ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位' ? 'text-rose-300 bg-rose-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
-                                                        {canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}
-                                                    </span>
-                                                    {canonicalCard?.element && <span>元素 {canonicalCard.element}</span>}
-                                                    {canonicalCard?.astrologicalCorrespondence && <span>星象 {canonicalCard.astrologicalCorrespondence}</span>}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                                                <p className="text-[11px] sm:text-xs text-white/85 leading-relaxed">
-                                                    {canonicalCard?.meaning || (() => {
-                                                        const meaning = card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning;
-                                                        return meaning.replace(/^[^:：]+[：:]\s*/, '');
-                                                    })()}
-                                                </p>
-                                            </div>
-                                            <div className="mt-2 text-[10px] text-white/70 text-center">
-                                                {canonicalCard?.keywords?.length ? `关键词：${canonicalCard.keywords.slice(0, 4).join(' · ')}` : '关键词：无'}
+                                        <div className="absolute inset-0 w-full h-full rounded-md bg-white border border-gray-200 p-4 flex flex-col shadow-xl" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                                            <h4 className="text-xs font-bold mb-2 truncate">{canonicalCard?.cardName || card.card.nameChinese}</h4>
+                                            <div className="flex-1 overflow-y-auto text-[10px] text-foreground/60 leading-relaxed custom-scrollbar">
+                                                {canonicalCard?.meaning || (card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning)}
                                             </div>
                                         </div>
                                     </button>
-
-                                    <div className={`mt-4 text-center transition-opacity duration-500 ${isRevealed ? 'opacity-100' : 'opacity-0'}`}>
-                                        <h4 className="font-bold text-foreground">{canonicalCard?.cardName || card.card.nameChinese}</h4>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位'
-                                            ? 'text-rose-400 border-rose-400/20 bg-rose-400/5'
-                                            : 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
-                                            }`}>
-                                            {canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}
-                                        </span>
+                                    <div className={`text-center transition-opacity ${isRevealed ? 'opacity-100' : 'opacity-0'}`}>
+                                        <div className="text-sm font-bold">{canonicalCard?.cardName || card.card.nameChinese}</div>
+                                        <div className={`text-[10px] font-bold mt-1 ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位' ? 'text-[#eb5757]' : 'text-[#0f7b6c]'}`}>{canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}</div>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
-
-                    {/* Reveal Button */}
                     {revealedCards.length < drawnCards.length && (
-                        <div className="flex justify-center mt-8">
-                            <button
-                                onClick={revealAll}
-                                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl font-bold shadow-lg shadow-purple-600/10 transition-all hover:scale-[1.02] active:scale-95"
-                            >
-                                翻开所有牌面
-                            </button>
-                        </div>
-                    )}
-
-                    {/* 翻转提示 */}
-                    {revealedCards.length > 0 && revealedCards.length === drawnCards.length && (
-                        <div className="text-center mt-4 pb-4 animate-fade-in">
-                            <p className="text-xs text-foreground-secondary/60 flex items-center justify-center gap-2">
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                点击卡片可翻转查看牌面解读
-                            </p>
+                        <div className="mt-12 text-center">
+                            <button onClick={() => setRevealedCards(drawnCards.map((_, i) => i))} className="px-8 py-2 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all">翻开所有牌面</button>
                         </div>
                     )}
                 </div>
 
-                {(birthDate || canonicalReading?.numerology) && (
-                    <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-6">
-                        <div className="mb-4">
-                            <h2 className="text-base font-bold">塔罗数秘术</h2>
-                            <p className="mt-1 text-sm text-foreground-secondary">生日信息仅用于补充人格牌、灵魂牌与年度牌。</p>
+                {/* AI 解读 */}
+                <div className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                        <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
+                        <div className="flex items-center gap-2">
+                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
+                            {interpretation && <button onClick={handleInterpret} disabled={isInterpreting} className="p-1.5 rounded-md hover:bg-[#efedea] transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isInterpreting ? 'animate-spin' : ''}`} /></button>}
                         </div>
-                        {birthDate && (
-                            <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
-                                <div className="text-xs text-foreground-secondary">出生日期</div>
-                                <div className="mt-1 text-sm font-medium">{canonicalReading?.basicInfo.birthDate || birthDate}</div>
-                            </div>
-                        )}
-                        {canonicalReading?.numerology && (
-                            <div className="mt-4 grid grid-cols-3 gap-2 md:gap-3">
-                                {[
-                                    { label: '人格牌', card: canonicalReading.numerology.personalityCard },
-                                    { label: '灵魂牌', card: canonicalReading.numerology.soulCard },
-                                    { label: '年度牌', card: canonicalReading.numerology.yearlyCard },
-                                ].map((item) => {
-                                    const cardImage = TAROT_CARDS.find(card => card.nameChinese === item.card.name)?.image || '';
-                                    return (
-                                        <div key={item.label} className="rounded-2xl border border-white/10 bg-background/60 p-3 flex flex-col items-center text-center gap-2">
-                                            <div className="text-[11px] text-foreground-secondary">{item.label}</div>
-                                            <div className="relative w-full max-w-[120px] aspect-[2/3] rounded-lg overflow-hidden border border-white/10 bg-black/20">
-                                                {cardImage ? (
-                                                    <Image
-                                                        src={cardImage}
-                                                        alt={item.card.name}
-                                                        fill
-                                                        sizes="120px"
-                                                        className="object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-foreground-secondary">
-                                                        无图
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="text-sm font-medium text-foreground">
-                                                {item.card.name}
-                                            </div>
-                                            <div className="text-[10px] text-foreground-secondary">
-                                                {'year' in item.card && item.card.year ? `年度 ${item.card.year}` : item.card.keywords.slice(0, 3).join(' · ') || '关键词 -'}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        {!canonicalReading?.numerology && birthDate && (
-                            <div className="mt-3 rounded-2xl border border-white/10 bg-background/60 p-4">
-                                <div className="text-xs text-foreground-secondary">数秘牌提示</div>
-                                <div className="mt-1 text-sm font-medium text-foreground">当前未生成数秘牌</div>
-                                <div className="mt-1 text-xs text-foreground-secondary">补充完整出生日期即可生成。</div>
-                            </div>
-                        )}
-                    </section>
-                )}
+                    </div>
 
-                {/* Interpretation Section */}
-                {revealedCards.length === drawnCards.length && (
-                    <div className="space-y-6 animate-fade-in-up">
-                        {/* AI Deep Dive */}
-                        <div className="relative rounded-3xl p-1 group">
-                            {/* Background Effects Removed */}
+                    {interpretation ? (
+                        <div className="prose prose-sm max-w-none">
+                            {interpretationReasoning && <ThinkingBlock content={interpretationReasoning} isStreaming={streaming.isStreaming && !interpretation} startTime={streaming.reasoningStartTime} duration={streaming.reasoningDuration} />}
+                            <MarkdownContent content={interpretation} className="text-sm text-foreground leading-relaxed" />
+                        </div>
+                    ) : (
+                        <div className="py-12 text-center space-y-6">
+                            {!userId ? (
+                                <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 深度解读</button>
+                            ) : (
+                                <button onClick={handleInterpret} disabled={isInterpreting} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Send className="w-4 h-4" />获取 AI 深度洞察</button>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                            <div className="relative bg-background/80 rounded-[20px] p-2 md:p-6">
-                                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 relative z-20">
-                                    <div>
-                                        <h2 className="text-base font-bold flex items-center gap-3">
-                                            AI 深度洞察
-                                        </h2>
-                                        {/* <p className="text-sm text-foreground-secondary mt-1">
-                                            基于 {selectedSpread?.name} 的全方位综合解读
-                                        </p> */}
+                {/* 数秘术 */}
+                {(birthDate || numerology) && (
+                    <section className="bg-background border border-gray-200 rounded-md p-6 space-y-6">
+                        <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                            <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">塔罗数秘术</h2>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            {[ { label: '人格牌', card: canonicalReading?.numerology?.personalityCard }, { label: '灵魂牌', card: canonicalReading?.numerology?.soulCard }, { label: '年度牌', card: canonicalReading?.numerology?.yearlyCard } ].map((item, idx) => (
+                                <div key={idx} className="flex flex-col items-center gap-3 text-center">
+                                    <span className="text-[10px] font-bold text-foreground/30 uppercase">{item.label}</span>
+                                    <div className="relative w-full max-w-[100px] aspect-[2/3] rounded-md overflow-hidden border border-gray-100 bg-[#efedea]/50">
+                                        {(() => {
+                                            const cardImage = item.card
+                                                ? TAROT_CARDS.find((card) => card.nameChinese === item.card?.name)?.image
+                                                : null;
+                                            return cardImage ? (
+                                                <Image src={cardImage} alt={item.card!.name} fill className="object-cover" />
+                                            ) : null;
+                                        })()}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <ModelSelector
-                                            compact
-                                            selectedModel={selectedModel}
-                                            onModelChange={setSelectedModel}
-                                            reasoningEnabled={reasoningEnabled}
-                                            onReasoningChange={setReasoningEnabled}
-                                            userId={userId}
-                                            membershipType={membershipType}
-                                        />
-                                        {interpretation && (
-                                            <button
-                                                onClick={handleInterpret}
-                                                disabled={isInterpreting}
-                                                data-testid="reanalyze-button"
-                                                className="p-2 rounded-lg text-foreground-secondary hover:text-foreground hover:bg-white/10 transition-colors"
-                                            >
-                                                <RefreshCw className={`w-4 h-4 ${isInterpreting ? 'animate-spin' : ''}`} />
-                                            </button>
-                                        )}
+                                    <div className="space-y-1">
+                                        <div className="text-xs font-bold">{item.card?.name || '-'}</div>
+                                        <div className="text-[10px] text-foreground/40 italic">{item.card && 'year' in item.card && typeof item.card.year === 'number' ? `年度 ${item.card.year}` : ''}</div>
                                     </div>
                                 </div>
-
-
-                                {interpretation ? (
-                                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground-secondary prose-strong:text-purple-300 relative z-10">
-                                        {interpretationReasoning && (
-                                            <ThinkingBlock
-                                                content={interpretationReasoning}
-                                                isStreaming={streaming.isStreaming && !interpretation}
-                                                startTime={streaming.reasoningStartTime}
-                                                duration={streaming.reasoningDuration}
-                                            />
-                                        )}
-                                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-                                            <MarkdownContent content={interpretation} />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center sm:py-8 py-2">
-                                        {!userId ? (
-                                            <div className="max-w-sm mx-auto">
-                                                <Send className="w-12 h-12 text-purple-500/30 mx-auto mb-4" />
-                                                <button
-                                                    onClick={() => setShowAuthModal(true)}
-                                                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all"
-                                                >
-                                                    登录解锁 AI 深度解读
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="max-w-sm mx-auto">
-                                                <button
-                                                    onClick={handleInterpret}
-                                                    disabled={isInterpreting}
-                                                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2"
-                                                >
-                                                    {isInterpreting ? (
-                                                        <>
-                                                            <SoundWaveLoader variant="inline" />
-                                                            正在连接宇宙能量...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Send className="w-5 h-5" />
-                                                            获取 AI 深度指引
-                                                        </>
-                                                    )}
-                                                </button>
-                                                <p className="text-xs text-foreground-secondary mt-3">
-                                                    AI 将综合牌阵位置、正逆位关系为您提供专业解读
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                            ))}
                         </div>
-
-                    </div >
-                )
-                }
-
-                {knowledgeBaseEnabled && readingId && (
-                    <AddToKnowledgeBaseModal
-                        open={kbModalOpen}
-                        onClose={() => setKbModalOpen(false)}
-                        sourceTitle={question || selectedSpread?.name || '塔罗占卜'}
-                        sourceType="tarot_reading"
-                        sourceId={readingId}
-                    />
+                    </section>
                 )}
+            </div>
 
-                <AuthModal
-                    isOpen={showAuthModal}
-                    onClose={() => setShowAuthModal(false)}
-                />
-
-                <CreditsModal
-                    isOpen={showCreditsModal}
-                    onClose={() => setShowCreditsModal(false)}
-                />
-            </div >
-        </div >
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+            <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
+            {knowledgeBaseEnabled && readingId && <AddToKnowledgeBaseModal open={kbModalOpen} onClose={() => setKbModalOpen(false)} sourceTitle={question || selectedSpread?.name || '塔罗占卜'} sourceType="tarot_reading" sourceId={readingId} />}
+        </div>
     );
 }
 
 export default function TarotResultPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" /></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><SoundWaveLoader variant="block" /></div>}>
             <TarotResultContent />
         </Suspense>
     );
