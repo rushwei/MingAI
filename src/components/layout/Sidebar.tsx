@@ -17,7 +17,7 @@ import {
     PanelLeft,
     LogIn,
 } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, Suspense } from 'react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { SidebarUserCard } from '@/components/layout/UserMenu';
 import { SidebarConversations } from '@/components/layout/SidebarConversations';
@@ -33,6 +33,38 @@ const navItems = getSidebarNavItems().map(n => ({ ...n, available: true }));
 const toolItems = getSidebarToolItems().map(n => ({ ...n, available: true }));
 
 export function Sidebar() {
+    return (
+        <Suspense fallback={<SidebarSkeleton />}>
+            <SidebarInner />
+        </Suspense>
+    );
+}
+
+function SidebarSkeleton() {
+    return (
+        <aside className="
+            hidden lg:flex flex-col h-screen sticky top-0
+            bg-[#f7f6f3] border-r border-gray-200
+            transition-all duration-150 ease-in-out
+            w-[240px]
+        ">
+            <div className="flex items-center h-16 px-4 border-b border-gray-200 justify-between">
+                <Link href="/" className="flex items-center gap-2 min-w-0">
+                    <Image src="/Logo.svg" alt="MingAI Logo" width={28} height={28} className="rounded-md flex-shrink-0 dark:invert" />
+                    <span className="font-bold text-base text-[#37352f] whitespace-nowrap">MingAI</span>
+                </Link>
+                <div className="w-8 h-8 rounded-md bg-[#efedea] animate-pulse" />
+            </div>
+            <div className="flex-1 py-4 px-2 space-y-3">
+                {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="rounded-md bg-[#efedea] animate-pulse h-10 w-full" />
+                ))}
+            </div>
+        </aside>
+    );
+}
+
+function SidebarInner() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -63,43 +95,7 @@ export function Sidebar() {
     [isFeatureEnabled]);
 
     if (isNavLoading) {
-        return (
-            <aside
-                className={`
-                    hidden lg:flex flex-col h-screen sticky top-0
-                    bg-[#f7f6f3] border-r border-gray-200
-                    transition-all duration-150 ease-in-out
-                    ${collapsed ? 'w-[72px]' : 'w-[240px]'}
-                `}
-            >
-                <div className={`flex items-center h-16 px-4 border-b border-gray-200 ${collapsed ? 'justify-center' : 'justify-between'}`}>
-                    <Link href="/" className="flex items-center gap-2 min-w-0">
-                        <Image
-                            src="/Logo.svg"
-                            alt="MingAI Logo"
-                            width={28}
-                            height={28}
-                            className="rounded-md flex-shrink-0 dark:invert"
-                        />
-                        {!collapsed && (
-                            <span className="font-bold text-base text-[#37352f] whitespace-nowrap">
-                                MingAI
-                            </span>
-                        )}
-                    </Link>
-                    {!collapsed && <div className="w-8 h-8 rounded-md bg-[#efedea] animate-pulse" />}
-                </div>
-
-                <div className="flex-1 py-4 px-2 space-y-3">
-                    {Array.from({ length: collapsed ? 7 : 9 }).map((_, index) => (
-                        <div
-                            key={index}
-                            className={`rounded-md bg-[#efedea] animate-pulse ${collapsed ? 'h-10 w-10 mx-auto' : 'h-10 w-full'}`}
-                        />
-                    ))}
-                </div>
-            </aside>
-        );
+        return <SidebarSkeleton />;
     }
 
     return (

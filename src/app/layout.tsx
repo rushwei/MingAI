@@ -12,7 +12,6 @@
 
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Suspense } from "react";
 
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
@@ -103,9 +102,7 @@ export default function RootLayout({
                 <SidebarProvider>
                 <div className="flex min-h-screen">
                   {/* 左侧导航栏 - 仅桌面端显示 */}
-                  <Suspense>
                   <Sidebar />
-                  </Suspense>
 
                   {/* 主内容区 */}
                   <div className="flex-1 flex flex-col min-h-screen">
