@@ -1,6 +1,4 @@
 import { requestBrowserJson } from '@/lib/browser-api';
-import type { MembershipInfo } from '@/lib/user/membership';
-
 export interface ChatBootstrapKnowledgeBase {
   id: string;
   name: string;
@@ -9,14 +7,12 @@ export interface ChatBootstrapKnowledgeBase {
 
 export interface ChatBootstrapData {
   userId: string | null;
-  membership: MembershipInfo | null;
   promptKnowledgeBaseIds: string[];
   promptKnowledgeBases: ChatBootstrapKnowledgeBase[];
 }
 
 export const EMPTY_CHAT_BOOTSTRAP: ChatBootstrapData = {
   userId: null,
-  membership: null,
   promptKnowledgeBaseIds: [],
   promptKnowledgeBases: [],
 };

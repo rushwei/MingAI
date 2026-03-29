@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Edit3, Save, Check, Share2, Copy } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 
 export function ResultHeader({
     chartId,
@@ -27,16 +28,23 @@ export function ResultHeader({
     onCopyJson?: () => void;
     onShare: () => void;
 }) {
-    const backHref = chartId ? '/user/charts' : '/bazi';
-
     return (
         <div className="hidden md:flex items-center justify-between mb-6">
-            <Link
-                href={backHref}
-                className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
-            >
-                返回
-            </Link>
+            {chartId ? (
+                <SettingsCenterLink
+                    tab="charts"
+                    className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
+                >
+                    返回
+                </SettingsCenterLink>
+            ) : (
+                <Link
+                    href="/bazi"
+                    className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
+                >
+                    返回
+                </Link>
+            )}
             <div className="flex items-center gap-2">
                 <button
                     onClick={onEdit}

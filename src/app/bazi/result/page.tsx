@@ -54,8 +54,8 @@ function BaziResultContent() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [copied, setCopied] = useState(false);
     const { showToast } = useToast();
-    const { session, userId, membershipInfo } = useSessionMembership();
-    const credits = membershipInfo?.aiChatCount ?? null;
+    const { session, userId, membershipInfo, membershipResolved } = useSessionMembership();
+    const credits = membershipResolved ? (membershipInfo?.aiChatCount ?? null) : null;
 
     type SavedBaziChartRow = {
         name: string;

@@ -61,16 +61,43 @@ function SidebarSkeleton() {
     );
 }
 
+function SidebarLoadError({ onRetry }: { onRetry: () => void }) {
+    return (
+        <aside className="
+            hidden lg:flex flex-col h-screen sticky top-0
+            bg-[#f7f6f3] dark:bg-[#181715] border-r border-gray-200 dark:border-white/10
+            w-[var(--sidebar-width)]
+        ">
+            <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-white/10">
+                <Link href="/" className="flex items-center gap-2 min-w-0">
+                    <Image src="/Logo.svg" alt="MingAI Logo" width={28} height={28} className="rounded-md flex-shrink-0 dark:invert" />
+                    <span className="font-bold text-base text-[#37352f] dark:text-[#f5f3ee] whitespace-nowrap">MingAI</span>
+                </Link>
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+                <p className="text-sm text-[#37352f]/60 dark:text-[#f5f3ee]/60">导航状态加载失败</p>
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    className="rounded-md bg-[#37352f] px-3 py-2 text-sm text-white transition-colors hover:bg-[#2b2925] dark:bg-[#f5f3ee] dark:text-[#181715] dark:hover:bg-[#e8e4dd]"
+                >
+                    重试
+                </button>
+            </div>
+        </aside>
+    );
+}
+
 function SidebarInner() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { user } = useSessionSafe();
-    const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
+    const { isFeatureEnabled, isLoading: featureLoading, loaded: featureLoaded, error: featureError, refresh: refreshFeatures } = useFeatureToggles();
     const { handleNewChat } = useConversationList();
     const { openAnnouncementCenter, announcementPromptCount } = useAnnouncementCenterSafe();
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const isNavLoading = featureLoading || featureRefreshing;
+    const isNavLoading = featureLoading;
     const notificationsEnabled = isFeatureEnabled('notifications');
     const unreadCount = useNotificationUnreadCount(user?.id ?? null, {
         enabled: notificationsEnabled,
@@ -95,6 +122,10 @@ function SidebarInner() {
 
     if (isNavLoading) {
         return <SidebarSkeleton />;
+    }
+
+    if (!featureLoaded && featureError) {
+        return <SidebarLoadError onRetry={() => { void refreshFeatures(true, true); }} />;
     }
 
     return (

@@ -8,14 +8,12 @@
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';
-import { readLocalCache, writeLocalCache } from '@/lib/cache';
 import { ChevronDown, Lightbulb } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { registerClientModelNames } from '@/lib/ai/model-name-cache';
+import { useAvailableModels } from '@/lib/hooks/useAvailableModels';
 import type { AIVendor } from '@/types';
-import { supabase } from '@/lib/auth';
 import type { MembershipType } from '@/lib/user/membership';
 
 interface ClientModelConfig {
@@ -51,82 +49,13 @@ export function ModelSelector({
     compact = false,
 }: ModelSelectorProps) {
     const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-    const [models, setModels] = useState<ClientModelConfig[]>([]);
-    const [modelsLoading, setModelsLoading] = useState(true);
-    const [modelsError, setModelsError] = useState<string | null>(null);
-    const [refreshNonce, setRefreshNonce] = useState(0);
-
-    useEffect(() => {
-        const handleInvalidate = () => {
-            setRefreshNonce((value) => value + 1);
-        };
-        window.addEventListener('mingai:models:invalidate', handleInvalidate);
-        return () => {
-            window.removeEventListener('mingai:models:invalidate', handleInvalidate);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!onModelChange) return;
-        let isMounted = true;
-        const loadModels = async () => {
-            const cacheKey = userId
-                ? `mingai.models.${userId}.${membershipType}`
-                : 'mingai.models.guest';
-            const cached = refreshNonce === 0
-                ? readLocalCache<ClientModelConfig[]>(cacheKey, 10 * 60 * 1000)
-                : null;
-            const hasWarmCache = !!(cached && cached.length > 0);
-
-            try {
-                if (!isMounted) return;
-                setModelsLoading(!hasWarmCache);
-                setModelsError(null);
-
-                if (hasWarmCache && cached) {
-                    setModels(cached);
-                    registerClientModelNames(cached);
-                }
-
-                const { data: { session } } = await supabase.auth.getSession();
-                const resolvedUserId = userId || session?.user?.id || null;
-                const headers: HeadersInit = {};
-                if (session?.access_token) {
-                    headers.Authorization = `Bearer ${session.access_token}`;
-                }
-                if (membershipType) {
-                    headers['x-membership-type'] = membershipType;
-                }
-
-                const response = await fetch('/api/models', { headers });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to load models');
-                }
-                if (isMounted && data.models && data.models.length > 0) {
-                    setModels(data.models);
-                    registerClientModelNames(data.models);
-                    const effectiveCacheKey = resolvedUserId
-                        ? `mingai.models.${resolvedUserId}.${membershipType}`
-                        : cacheKey;
-                    writeLocalCache(effectiveCacheKey, data.models);
-                }
-            } catch (err) {
-                console.error('Failed to load models:', err);
-                if (isMounted) {
-                    setModelsError('模型加载失败');
-                }
-            } finally {
-                if (isMounted) {
-                    setModelsLoading(false);
-                }
-            }
-        };
-        loadModels();
-        return () => {
-            isMounted = false;
-        };
-    }, [membershipType, onModelChange, refreshNonce, userId]);
+    const modelsQuery = useAvailableModels(userId ?? null, {
+        enabled: !!onModelChange,
+        membershipType,
+    });
+    const models = useMemo(() => (modelsQuery.data ?? []) as ClientModelConfig[], [modelsQuery.data]);
+    const modelsLoading = modelsQuery.isLoading;
+    const modelsError = modelsQuery.error instanceof Error ? modelsQuery.error.message : null;
 
     useEffect(() => {
         if (!models.length || !onModelChange) return;

@@ -21,7 +21,7 @@ import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowle
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
-import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { generateQimenResultText, toCoreQimenOutput, type QimenOutput } from '@/lib/divination/qimen-shared';
@@ -61,8 +61,9 @@ export default function QimenResultPage() {
     const [copied, setCopied] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
-    const { session, user, membershipInfo, sessionLoading } = useSessionMembership();
-    const membershipType = membershipInfo?.type ?? 'free';
+    const { session, user, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
+    const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const currentUser = user ? { id: user.id } : null;
     const canonicalResult = useMemo(() => (result ? renderQimenCanonicalJSON(toCoreQimenOutput(result)) : null), [result]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
@@ -201,7 +202,7 @@ export default function QimenResultPage() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
-                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={currentUser?.id} membershipType={membershipType} />
+                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={currentUser?.id} membershipType={membershipType} disabled={membershipPending} />
                             {(interpretation || streaming.isStreaming) && <button onClick={handleGetInterpretation} disabled={isLoading} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
@@ -218,10 +219,12 @@ export default function QimenResultPage() {
                         </div>
                     ) : (
                         <div className="py-12 text-center space-y-6">
-                            {!currentUser ? (
+                            {sessionLoading || membershipPending ? (
+                                <SoundWaveLoader variant="inline" />
+                            ) : !currentUser ? (
                                 <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 深度解读</button>
                             ) : (
-                                <button onClick={handleGetInterpretation} disabled={isLoading} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Sparkles className="w-4 h-4" />获取 AI 解读</button>
+                                <button onClick={handleGetInterpretation} disabled={isLoading || membershipPending} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Sparkles className="w-4 h-4" />获取 AI 解读</button>
                             )}
                         </div>
                     )}

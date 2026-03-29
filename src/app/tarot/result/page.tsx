@@ -12,7 +12,7 @@ import { Sparkles, RotateCcw, RefreshCw, Send, BookOpenText, Copy, Check, Info }
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import Image from 'next/image';
 import { buildTarotCanonicalJSON, generateTarotReadingText, TAROT_CARDS, TAROT_SPREADS, type DrawnCard, type TarotNumerology, type TarotSpread } from '@/lib/divination/tarot';
-import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
@@ -73,8 +73,9 @@ function TarotResultContent() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [copied, setCopied] = useState(false);
     const streaming = useStreamingResponse();
-    const { session, user, userId, membershipInfo } = useSessionMembership();
-    const membershipType = membershipInfo?.type ?? 'free';
+    const { session, user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
+    const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
 
     const canonicalReading = useMemo(() => {
         if (!selectedSpread || drawnCards.length === 0) return null;
@@ -283,7 +284,7 @@ function TarotResultContent() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#a083ff]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
-                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
+                            <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} disabled={membershipPending} />
                             {interpretation && <button onClick={handleInterpret} disabled={isInterpreting} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${isInterpreting ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
@@ -298,7 +299,7 @@ function TarotResultContent() {
                             {!userId ? (
                                 <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 深度解读</button>
                             ) : (
-                                <button onClick={handleInterpret} disabled={isInterpreting} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Send className="w-4 h-4" />获取 AI 深度洞察</button>
+                                <button onClick={handleInterpret} disabled={isInterpreting || membershipPending} className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50"><Send className="w-4 h-4" />获取 AI 深度洞察</button>
                             )}
                         </div>
                     )}

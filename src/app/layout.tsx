@@ -21,6 +21,7 @@ import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
+import { SettingsCenterHost } from "@/components/settings/SettingsCenterHost";
 
 const themeInitScript = `
 (() => {
@@ -164,6 +165,7 @@ export default function RootLayout({
 
                 {/* 移动端底部导航 - 仅移动端显示 */}
                 <MobileNav />
+                <SettingsCenterHost />
             </HeaderMenuProvider>
           </ConversationListProvider>
           </ClientProviders>

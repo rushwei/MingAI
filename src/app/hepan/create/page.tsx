@@ -13,7 +13,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { type HepanType, type BirthInfo, getHepanTypeName, analyzeCompatibility } from '@/lib/divination/hepan';
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 
 function BirthInput({
     label,

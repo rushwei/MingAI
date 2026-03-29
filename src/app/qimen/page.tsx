@@ -14,7 +14,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 
 type TimeMode = 'now' | 'custom';
 type PanType = 'zhuan';

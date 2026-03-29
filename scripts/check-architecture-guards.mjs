@@ -314,8 +314,8 @@ mustNotMatch(
 );
 mustMatch(
   'src/app/page.tsx',
-  /redirect\('\/user'\)/u,
-  'home page should redirect visitors to /user after anonymous mode removal',
+  /redirect\('\/bazi'\)/u,
+  'home page should redirect visitors to /bazi as the default public entry',
 );
 mustNotMatch(
   'src/app/page.tsx',

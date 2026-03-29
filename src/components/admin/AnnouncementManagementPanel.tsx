@@ -5,9 +5,9 @@ import { Megaphone, PencilLine, Plus, RefreshCw, Save, Trash2, GripVertical } fr
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
-import { invalidateLatestAnnouncementCache } from '@/lib/announcement-latest-store';
 import { useToast } from '@/components/ui/Toast';
 import type { Announcement } from '@/lib/announcement';
+import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 
 type EditorMode = 'create' | 'edit';
 
@@ -169,7 +169,7 @@ export function AnnouncementManagementPanel() {
             setMode('edit');
             setSelectedId(saved.id);
             setForm(announcementToFormState(saved));
-            invalidateLatestAnnouncementCache();
+            invalidateQueriesForPath('/api/admin/announcements');
             showToast('success', form.id ? '公告已更新' : '公告已发布');
             await loadAnnouncements(saved.id);
         } catch (saveError) {
@@ -201,7 +201,7 @@ export function AnnouncementManagementPanel() {
             if (selectedId === announcement.id) {
                 startCreateAnnouncement();
             }
-            invalidateLatestAnnouncementCache();
+            invalidateQueriesForPath('/api/admin/announcements');
             showToast('success', '公告已删除');
             await loadAnnouncements(selectedId === announcement.id ? null : selectedId);
         } catch (deleteError) {

@@ -77,9 +77,10 @@ export function AIAnalysisSection({
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const streaming = useStreamingResponse();
-    const { userId: sessionUserId, membershipInfo } = useSessionMembership();
+    const { userId: sessionUserId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
     const membershipType: MembershipType = sessionUserId === userId
-        ? (membershipInfo?.type ?? 'free')
+        ? (membershipResolved ? (membershipInfo?.type ?? 'free') : 'free')
         : 'free';
 
     useEffect(() => {
@@ -182,6 +183,17 @@ export function AIAnalysisSection({
             />
         </div>
     );
+
+    if (sessionUserId === userId && membershipPending) {
+        return (
+            <div className="space-y-2">
+                {modelControls}
+                <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-border bg-background">
+                    <SoundWaveLoader variant="inline" />
+                </div>
+            </div>
+        );
+    }
 
     const content = (
         <div className="rounded-2xl border border-border">

@@ -15,6 +15,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { FeatureGate } from '@/components/layout/FeatureGate';
 
 import { ChartPickerModal, type ChartItem } from '@/components/common/ChartPickerModal';
@@ -257,12 +258,12 @@ function MonthlyPageContent() {
                                 <p className="text-xs text-amber-700/70 dark:text-amber-300/70">关联八字命盘，获取专属精准分析</p>
                             </div>
                         </div>
-                        <Link
-                            href="/user/charts"
+                        <SettingsCenterLink
+                            tab="charts"
                             className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg hover:shadow-amber-500/20"
                         >
                             去排盘
-                        </Link>
+                        </SettingsCenterLink>
                     </div>
                 )}
 

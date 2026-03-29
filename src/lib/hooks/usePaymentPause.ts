@@ -1,43 +1,27 @@
 /**
  * 支付暂停状态 Hook
- *
- * 'use client' 标记说明：
- * - 使用 React hooks 订阅客户端共享状态
  */
 'use client';
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import {
-    getPaymentPauseStoreSnapshot,
-    refreshPaymentPauseStore,
-    retainPaymentPauseStore,
-    subscribePaymentPauseStore,
-} from '@/lib/payment-status-store';
+import { useCallback } from 'react';
+import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
 
 type PaymentPauseState = {
-    isPaused: boolean;
-    isLoading: boolean;
-    refresh: () => Promise<void>;
+  isPaused: boolean;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
 };
 
 export function usePaymentPause(): PaymentPauseState {
-    const storeState = useSyncExternalStore(
-        subscribePaymentPauseStore,
-        getPaymentPauseStoreSnapshot,
-        getPaymentPauseStoreSnapshot,
-    );
+  const bootstrap = useAppBootstrap();
 
-    const refresh = useCallback(async () => {
-        await refreshPaymentPauseStore(true);
-    }, []);
+  const refresh = useCallback(async () => {
+    await bootstrap.refresh();
+  }, [bootstrap]);
 
-    useEffect(() => {
-        return retainPaymentPauseStore();
-    }, []);
-
-    return {
-        isPaused: storeState.isPaused,
-        isLoading: storeState.isLoading,
-        refresh,
-    };
+  return {
+    isPaused: bootstrap.data.paymentStatusLoaded ? bootstrap.data.paymentPaused : true,
+    isLoading: bootstrap.isLoading,
+    refresh,
+  };
 }

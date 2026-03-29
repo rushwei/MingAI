@@ -1,4 +1,5 @@
-import { invalidateLocalCaches, type LocalCacheScope } from '@/lib/cache';
+import { invalidateLocalCaches, type LocalCacheScope } from '@/lib/cache/local-storage';
+import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 
 export type BrowserApiError = {
   message: string;
@@ -32,7 +33,6 @@ function shouldHandleApiWrite(pathname: string, method: string) {
 }
 
 function resolveCacheScopesByPath(pathname: string): LocalCacheScope[] {
-  if (pathname.startsWith('/api/admin/ai-models')) return ['models'];
   if (pathname.startsWith('/api/knowledge-base')) return ['knowledge_bases', 'data_sources'];
   if (pathname.startsWith('/api/data-sources')) return ['data_sources', 'knowledge_bases'];
   if (pathname.startsWith('/api/records')) return ['data_sources'];
@@ -50,12 +50,7 @@ function resolveCacheScopesByPath(pathname: string): LocalCacheScope[] {
   ) {
     return ['data_sources'];
   }
-  if (pathname.startsWith('/api/membership')) return ['profile', 'membership', 'level'];
-  if (pathname.startsWith('/api/credits')) return ['membership', 'level'];
-  if (pathname.startsWith('/api/checkin')) return ['level'];
-  if (pathname.startsWith('/api/activation-keys')) return ['profile', 'membership', 'level'];
-  if (pathname.startsWith('/api/auth')) return ['profile', 'membership', 'level'];
-  if (pathname.startsWith('/api/user/settings')) return ['profile', 'default_bazi_chart'];
+  if (pathname.startsWith('/api/user/settings')) return ['default_bazi_chart'];
   return [];
 }
 
@@ -64,17 +59,12 @@ export function dispatchApiWriteEvents(pathname: string, method: string) {
     return;
   }
 
+  invalidateQueriesForPath(pathname);
+
   const cacheScopes = resolveCacheScopesByPath(pathname);
   if (cacheScopes.length > 0) {
     invalidateLocalCaches(cacheScopes);
   }
-
-  const table = pathname.startsWith('/api/notifications') ? 'notifications' : undefined;
-  window.dispatchEvent(
-    new CustomEvent('mingai:api-write', {
-      detail: { pathname, method, table, at: Date.now() },
-    }),
-  );
 
   if (
     pathname.startsWith('/api/knowledge-base')
@@ -93,27 +83,6 @@ export function dispatchApiWriteEvents(pathname: string, method: string) {
     || pathname.startsWith('/api/daliuren')
   ) {
     window.dispatchEvent(new CustomEvent('mingai:data-index:invalidate'));
-  }
-
-  if (
-    pathname.startsWith('/api/membership')
-    || pathname.startsWith('/api/credits')
-    || pathname.startsWith('/api/checkin')
-    || pathname.startsWith('/api/activation-keys')
-    || pathname.startsWith('/api/payment-status')
-    || pathname.startsWith('/api/auth')
-    || pathname.startsWith('/api/user/mcp-key')
-    || pathname.startsWith('/api/user/settings')
-  ) {
-    window.dispatchEvent(new CustomEvent('mingai:user-data:invalidate', { detail: { pathname } }));
-  }
-
-  if (pathname.startsWith('/api/admin/ai-models')) {
-    window.dispatchEvent(new CustomEvent('mingai:models:invalidate', { detail: { pathname } }));
-  }
-
-  if (pathname.startsWith('/api/notifications')) {
-    window.dispatchEvent(new CustomEvent('mingai:notifications:invalidate', { detail: { pathname } }));
   }
 }
 

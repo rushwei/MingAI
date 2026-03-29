@@ -1,31 +1,25 @@
-/**
- * 用户菜单组件
- *
- * 'use client' 标记说明：
- * - 使用 React hooks (useState, useRef, useEffect)
- * - 有下拉菜单交互功能
- */
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
+  CircleQuestionMark,
+  LayoutPanelTop,
+  LogOut,
+    MessageCircleHeart,
     Settings,
-    LogOut,
-    CircleStar,
     User,
-    Scroll,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { signOut, getUserProfile } from '@/lib/auth';
-import { buildMembershipInfo, type MembershipInfo } from '@/lib/user/membership';
-import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
+import { signOut } from '@/lib/auth';
+import { buildMembershipInfo } from '@/lib/user/membership';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
-import { getUserEmailDisplay } from '@/lib/user-email';
 import type { User as SupabaseUser } from '@/lib/auth';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
+import { useCurrentUserProfile } from '@/lib/hooks/useCurrentUserProfile';
 
 interface SidebarUserCardProps {
     user: SupabaseUser;
+    collapsed?: boolean;
 }
 
 const membershipLabels: Record<string, string> = {
@@ -34,20 +28,13 @@ const membershipLabels: Record<string, string> = {
     pro: 'Pro',
 };
 
-const membershipColors: Record<string, string> = {
-    free: 'text-gray-500',
-    plus: 'text-amber-500',
-    pro: 'text-purple-500',
-};
-
-// 头像组件 - 使用普通 img 标签避免 Next.js Image 配置问题
 function Avatar({ src, alt, size = 32 }: { src: string | null; alt: string; size?: number }) {
     const [error, setError] = useState(false);
 
     if (!src || error) {
         return (
             <div
-                className="rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-[#37352f] dark:text-[#f5f3ee] font-medium flex-shrink-0"
+                className="flex flex-shrink-0 items-center justify-center rounded-md bg-[#efedea] font-bold text-[#37352f]/40 border border-gray-200"
                 style={{ width: size, height: size, fontSize: size * 0.4 }}
             >
                 {alt[0]?.toUpperCase() || 'U'}
@@ -62,56 +49,46 @@ function Avatar({ src, alt, size = 32 }: { src: string | null; alt: string; size
             alt={alt}
             width={size}
             height={size}
-            className="rounded-full flex-shrink-0 object-cover border border-gray-100"
+            className="rounded-md border border-gray-200 object-cover flex-shrink-0"
             style={{ width: size, height: size }}
             onError={() => setError(true)}
         />
     );
 }
 
-export function SidebarUserCard({ user }: SidebarUserCardProps) {
+function useIsDesktopSidebar() {
+    return useSyncExternalStore(
+        (onStoreChange) => {
+            if (typeof window === 'undefined') {
+                return () => { };
+            }
+            const mediaQuery = window.matchMedia('(min-width: 1024px)');
+            mediaQuery.addEventListener('change', onStoreChange);
+            return () => mediaQuery.removeEventListener('change', onStoreChange);
+        },
+        () => (typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false),
+        () => false,
+    );
+}
+
+export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
-    const [nickname, setNickname] = useState<string | null>(null);
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [membership, setMembership] = useState<MembershipInfo | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const { isPaused: isPaymentPaused } = usePaymentPause();
+    const isDesktopSidebar = useIsDesktopSidebar();
     const { isFeatureEnabled } = useFeatureToggles();
-    const upgradeFeatureEnabled = isFeatureEnabled('upgrade');
-    const chartsFeatureEnabled = isFeatureEnabled('charts');
+    const { profile, loading: profileLoading, resolved: profileResolved } = useCurrentUserProfile({ enabled: isDesktopSidebar });
+    const personalizationEnabled = isFeatureEnabled('ai-personalization');
+    const helpEnabled = isFeatureEnabled('help');
 
-    const displayName = nickname || user.email?.split('@')[0] || '用户';
-    const handle = getUserEmailDisplay(user) || 'user';
+    const membership = profileResolved ? buildMembershipInfo(profile ?? null) : null;
+    const isAdmin = !!profile?.is_admin;
+    const avatarUrl = profile?.avatar_url ?? null;
+    const displayName = profile?.nickname || user.email?.split('@')[0] || '用户';
+    const membershipLabel = profileLoading || !profileResolved
+        ? '...'
+        : `${membershipLabels[membership?.type || 'free']} Plan`;
 
-    // 加载用户信息
-    useEffect(() => {
-        let isActive = true;
-        const load = async () => {
-            const profile = await getUserProfile(user.id);
-            if (!isActive) return;
-            if (profile) {
-                setNickname(profile.nickname ?? null);
-                setAvatarUrl(profile.avatar_url ?? null);
-                setMembership(buildMembershipInfo(profile));
-                return;
-            }
-            setMembership(buildMembershipInfo(null));
-        };
-        load();
-
-        const handleUserDataInvalidate = () => {
-            void load();
-        };
-        window.addEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
-
-        return () => {
-            isActive = false;
-            window.removeEventListener('mingai:user-data:invalidate', handleUserDataInvalidate);
-        };
-    }, [user.id]);
-
-    // 点击外部关闭菜单
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -128,7 +105,6 @@ export function SidebarUserCard({ user }: SidebarUserCardProps) {
         try {
             await signOut();
             setIsMenuOpen(false);
-            // 强制刷新整个页面以确保所有状态重置
             window.location.reload();
         } catch (error) {
             console.error('Sign out error:', error);
@@ -136,100 +112,130 @@ export function SidebarUserCard({ user }: SidebarUserCardProps) {
         }
     };
 
-    const membershipType = membership?.type || 'free';
-
     return (
         <div className="relative" ref={menuRef}>
-            {/* 用户信息卡片 - 始终显示 */}
             <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-colors duration-150 ${isMenuOpen ? 'bg-[#e3e1db] dark:bg-white/8' : 'hover:bg-[#efedea] dark:hover:bg-white/6'}`}
+                type="button"
+                onClick={() => setIsMenuOpen((prev) => !prev)}
+                className={`w-full rounded-md transition-colors duration-150 flex items-center ${
+                    collapsed ? 'justify-center p-1.5' : 'px-2 py-1.5'
+                } ${
+                    isMenuOpen ? 'bg-[#e3e1db]' : 'hover:bg-[#efedea]'
+                }`}
             >
-                <Avatar src={avatarUrl} alt={displayName} size={32} />
-                <div className="flex-1 min-w-0 text-left">
-                    <div className="text-sm font-medium truncate text-[#37352f] dark:text-[#f5f3ee]">{displayName}</div>
-                    <div className={`text-xs flex items-center gap-1 font-semibold ${membershipColors[membershipType]}`}>
-                        {/* <Crown className="w-3 h-3" /> */}
-                        {membershipLabels[membershipType]}
-                    </div>
+                <div className="flex items-center gap-2.5 w-full">
+                    <Avatar src={avatarUrl} alt={displayName} size={collapsed ? 28 : 32} />
+                    {!collapsed && (
+                        <div className="min-w-0 flex-1 text-left flex items-center justify-between">
+                            <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-[#37352f]">{displayName}</div>
+                                <div className="truncate text-[11px] font-medium text-[#37352f]/40">{membershipLabel}</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </button>
 
-            {/* 下拉菜单 */}
-            {isMenuOpen && (
-                <div className="absolute z-50 bottom-full mb-2 left-0 right-0 bg-white dark:bg-[#181715] border border-gray-200 dark:border-white/10 rounded-lg shadow-md py-1 animate-fade-in transition-all duration-150">
-                    {/* 用户信息头部 - 点击跳转到用户主页 */}
-                    <div className="px-1 pb-1 border-b border-gray-100 dark:border-white/8">
-                        <Link
-                            href="/user"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150"
-                        >
-                            <Avatar src={avatarUrl} alt={displayName} size={32} />
+            {isMenuOpen ? (
+                <div className={`absolute bottom-full mb-2 z-[100] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg animate-in fade-in zoom-in-95 duration-100 origin-bottom-left ${collapsed ? 'left-2 w-[240px]' : 'left-0 right-0'}`}>
+                    <div className="p-1 flex flex-col">
+                        {/* 用户信息头部 */}
+                        <div className="px-2 py-2 flex items-center gap-3">
+                            <Avatar src={avatarUrl} alt={displayName} size={36} />
                             <div className="min-w-0 flex-1">
-                                <div className="font-semibold text-sm truncate text-[#37352f] dark:text-[#f5f3ee]">{displayName}</div>
-                                <div className="text-xs text-[#37352f]/50 dark:text-[#f5f3ee]/50 truncate">{handle}</div>
+                                <div className="truncate text-sm font-bold text-[#37352f]">{displayName}</div>
+                                <div className="truncate text-[11px] text-[#37352f]/40 font-medium">
+                                    {user.email}
+                                </div>
                             </div>
-                        </Link>
-                    </div>
+                        </div>
 
-                    {/* 菜单项 */}
-                    <div className="px-1 py-1">
-                        <Link
-                            href="/user"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150 text-[#37352f] dark:text-[#f5f3ee]"
-                        >
-                            <User className="w-4 h-4 text-[#37352f]/70 dark:text-[#f5f3ee]/70" />
-                            <span>我的</span>
-                        </Link>
-                        {isPaymentPaused || !upgradeFeatureEnabled ? null : (
-                            <Link
-                                href="/user/upgrade"
-                                onClick={() => setIsMenuOpen(false)}
-                                className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150 text-[#37352f] dark:text-[#f5f3ee]"
-                            >
-                                <CircleStar className="w-4 h-4 text-[#37352f]/70 dark:text-[#f5f3ee]/70" />
-                                <span>订阅</span>
-                            </Link>
-                        )}
-                        {chartsFeatureEnabled && (
-                            <Link
-                                href="/user/charts"
-                                onClick={() => setIsMenuOpen(false)}
-                                className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150 text-[#37352f] dark:text-[#f5f3ee]"
-                            >
-                                <Scroll className="w-4 h-4 text-[#37352f]/70 dark:text-[#f5f3ee]/70" />
-                                <span>命盘</span>
-                            </Link>
-                        )}
-                        <Link
-                            href="/user/settings"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150 text-[#37352f] dark:text-[#f5f3ee]"
-                        >
-                            <Settings className="w-4 h-4 text-[#37352f]/70 dark:text-[#f5f3ee]/70" />
-                            <span>设置</span>
-                        </Link>
-                    </div>
+                        <div className="h-px bg-gray-100 my-1 mx-1" />
 
-                    {/* 退出登录 */}
-                    <div className="border-t border-gray-100 dark:border-white/8 px-1 pt-1">
-                        <button
-                            onClick={handleSignOut}
-                            disabled={signingOut}
-                            className="flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-[#efedea] dark:hover:bg-white/6 transition-colors duration-150 w-full disabled:opacity-50 text-[#37352f] dark:text-[#f5f3ee]"
-                        >
-                            {signingOut ? (
-                                <SoundWaveLoader variant="inline" />
-                            ) : (
-                                <LogOut className="w-4 h-4 text-[#37352f]/70 dark:text-[#f5f3ee]/70" />
+                        {/* 设置选项 */}
+                        <div className="flex flex-col">
+                            {personalizationEnabled && (
+                                <SettingsCenterLink
+                                    tab="personalization"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                                >
+                                    <MessageCircleHeart className="h-4 w-4 text-[#37352f]/40" />
+                                    <span>个性化</span>
+                                </SettingsCenterLink>
                             )}
-                            <span>{signingOut ? '退出中...' : '退出登录'}</span>
-                        </button>
+
+                            <SettingsCenterLink
+                                tab="profile"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                            >
+                                <User className="h-4 w-4 text-[#37352f]/40" />
+                                <span>个人资料</span>
+                            </SettingsCenterLink>
+
+                            <SettingsCenterLink
+                                tab="general"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                            >
+                                <Settings className="h-4 w-4 text-[#37352f]/40" />
+                                <span>设置</span>
+                            </SettingsCenterLink>
+                        </div>
+
+                        <div className="h-px bg-gray-100 my-1 mx-1" />
+
+                        {/* 帮助与管理 */}
+                        <div className="flex flex-col">
+                            {helpEnabled && (
+                                <SettingsCenterLink
+                                    tab="help"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <CircleQuestionMark className="h-4 w-4 text-[#37352f]/40" />
+                                        <span>帮助</span>
+                                    </span>
+                                </SettingsCenterLink>
+                            )}
+
+                            {isAdmin && (
+                                <SettingsCenterLink
+                                    tab="admin-announcements"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <LayoutPanelTop className="h-4 w-4 text-[#37352f]/40" />
+                                        <span>管理</span>
+                                    </span>
+                                </SettingsCenterLink>
+                            )}
+                        </div>
+
+                        <div className="h-px bg-gray-100 my-1 mx-1" />
+
+                        {/* 退出登录 */}
+                        <div className="flex flex-col">
+                            <button
+                                type="button"
+                                onClick={handleSignOut}
+                                disabled={signingOut}
+                                className="group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#eb5757] disabled:opacity-50"
+                            >
+                                {signingOut ? (
+                                    <SoundWaveLoader variant="inline" />
+                                ) : (
+                                    <LogOut className="h-4 w-4 text-[#37352f]/40 group-hover:text-[#eb5757] transition-colors" />
+                                )}
+                                <span>{signingOut ? '退出中...' : '退出登录'}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

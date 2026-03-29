@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Hand, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON } from '@/lib/cache/session-storage';
 import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';

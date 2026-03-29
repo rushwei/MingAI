@@ -20,6 +20,7 @@ import {
     Scroll,
 } from 'lucide-react';
 import Link from 'next/link';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { getCalendarAlmanac, getZhiShenDesc, isBlackDay } from '@/lib/divination/calendar';
 import { getBranchElement, getElementColor, getStemElement } from '@/lib/divination/bazi';
 
@@ -162,13 +163,13 @@ export function CalendarAlmanac({
                                     <ChevronDown className="w-3 h-3 text-foreground-secondary flex-shrink-0" />
                                 </button>
                             ) : !isPersonalized && (
-                                <Link
-                                    href="/user/charts"
+                                <SettingsCenterLink
+                                    tab="charts"
                                     className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-600 hover:bg-amber-500/20 transition-colors active:scale-95"
                                 >
                                     <Scroll className="w-3 h-3" />
                                     <span>设置默认八字命盘以获得个性化运势服务</span>
-                                </Link>
+                                </SettingsCenterLink>
                             )}
                         </div>
                     </div>

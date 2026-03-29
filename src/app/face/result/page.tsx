@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { ScanFace, MessageCircle } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON } from '@/lib/cache/session-storage';
 import { FACE_ANALYSIS_TYPES, FACE_DISCLAIMER } from '@/lib/divination/face';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';

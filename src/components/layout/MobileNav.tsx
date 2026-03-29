@@ -33,8 +33,8 @@ export function MobileNav() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { isPaused: isPaymentPaused } = usePaymentPause();
-    const { isFeatureEnabled, isLoading: featureLoading, isRefreshing: featureRefreshing } = useFeatureToggles();
-    const isNavLoading = featureLoading || featureRefreshing;
+    const { isFeatureEnabled, isLoading: featureLoading, loaded: featureLoaded, error: featureError, refresh: refreshFeatures } = useFeatureToggles();
+    const isNavLoading = featureLoading;
 
     // 底部导航栏项目（硬编码默认顺序）
     const mainNavItems = useMemo(() => {
@@ -86,6 +86,29 @@ export function MobileNav() {
                             <div className="w-8 h-3 rounded bg-background-secondary animate-pulse" />
                         </div>
                     ))}
+                </div>
+            </nav>
+        );
+    }
+
+    if (!featureLoaded && featureError) {
+        return (
+            <nav
+                className="
+                    lg:hidden fixed bottom-0 left-0 right-0 z-40
+                    bg-background/95 backdrop-blur-md
+                    border-t border-border
+                "
+            >
+                <div className="flex items-center justify-between px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                    <span className="text-xs text-foreground-secondary">导航状态加载失败</span>
+                    <button
+                        type="button"
+                        onClick={() => { void refreshFeatures(true, true); }}
+                        className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background"
+                    >
+                        重试
+                    </button>
                 </div>
             </nav>
         );

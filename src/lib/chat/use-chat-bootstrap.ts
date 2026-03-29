@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EMPTY_CHAT_BOOTSTRAP, loadChatBootstrap, type ChatBootstrapData } from '@/lib/chat/bootstrap';
+import { queryKeys } from '@/lib/query/keys';
 
 type ChatBootstrapParams = {
   user: { id: string } | null;
@@ -14,88 +16,54 @@ export function useChatBootstrap({
   sessionLoading,
   knowledgeBaseEnabled,
 }: ChatBootstrapParams) {
-  const [bootstrapLoading, setBootstrapLoading] = useState(true);
-  const [data, setData] = useState<ChatBootstrapData>(EMPTY_CHAT_BOOTSTRAP);
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.chatBootstrap(user?.id ?? null);
+  const cachedData = user?.id
+    ? queryClient.getQueryData<ChatBootstrapData>(queryKey)
+    : undefined;
 
-  const refreshBootstrap = useCallback(async (targetUserId?: string | null) => {
-    const effectiveUserId = targetUserId ?? user?.id ?? null;
-    if (!effectiveUserId) {
-      setData(EMPTY_CHAT_BOOTSTRAP);
-      setBootstrapLoading(false);
-      return EMPTY_CHAT_BOOTSTRAP;
-    }
+  const query = useQuery({
+    queryKey,
+    queryFn: loadChatBootstrap,
+    enabled: !sessionLoading && !!user?.id,
+    ...(cachedData ? { initialData: cachedData } : {}),
+    staleTime: 30_000,
+  });
 
-    setData((previous) => ({
-      ...previous,
-      userId: effectiveUserId,
-    }));
-    setBootstrapLoading(true);
-
-    const nextData = (await loadChatBootstrap()) ?? {
-      userId: effectiveUserId,
-      membership: null,
-      promptKnowledgeBaseIds: [],
-      promptKnowledgeBases: [],
-    };
-
-    const normalized: ChatBootstrapData = {
-      userId: nextData.userId ?? effectiveUserId,
-      membership: nextData.membership ?? null,
+  const data = useMemo<ChatBootstrapData>(() => {
+    const nextData: ChatBootstrapData = query.data ?? EMPTY_CHAT_BOOTSTRAP;
+    return {
+      userId: nextData.userId ?? user?.id ?? null,
       promptKnowledgeBaseIds: nextData.promptKnowledgeBaseIds ?? [],
       promptKnowledgeBases: knowledgeBaseEnabled
         ? (nextData.promptKnowledgeBases ?? [])
         : [],
     };
+  }, [knowledgeBaseEnabled, query.data, user?.id]);
 
-    setData(normalized);
-    setBootstrapLoading(false);
-    return normalized;
-  }, [knowledgeBaseEnabled, user?.id]);
+  const refreshBootstrap = useCallback(async (targetUserId?: string | null) => {
+    const effectiveUserId = targetUserId ?? user?.id ?? null;
+    if (!effectiveUserId) {
+      queryClient.setQueryData(queryKeys.chatBootstrap(null), EMPTY_CHAT_BOOTSTRAP);
+      return EMPTY_CHAT_BOOTSTRAP;
+    }
 
-  const markCreditsExhausted = useCallback(() => {
-    setData((previous) => ({
-      ...previous,
-      membership: previous.membership
-        ? {
-          ...previous.membership,
-          aiChatCount: 0,
-        }
-        : previous.membership,
-    }));
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
-    const run = async () => {
-      if (sessionLoading) return;
-      if (!user?.id) {
-        if (!isActive) return;
-        setData(EMPTY_CHAT_BOOTSTRAP);
-        setBootstrapLoading(false);
-        return;
-      }
-
-      const nextData = await refreshBootstrap(user.id);
-      if (!isActive) return;
-      setData(nextData);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.chatBootstrap(effectiveUserId) });
+    return (await queryClient.fetchQuery({
+      queryKey: queryKeys.chatBootstrap(effectiveUserId),
+      queryFn: loadChatBootstrap,
+      staleTime: 30_000,
+    })) ?? {
+      ...EMPTY_CHAT_BOOTSTRAP,
+      userId: effectiveUserId,
     };
-
-    void run();
-
-    return () => {
-      isActive = false;
-    };
-  }, [refreshBootstrap, sessionLoading, user?.id]);
+  }, [queryClient, user?.id]);
 
   return {
     userId: data.userId,
-    membership: data.membership,
-    credits: data.membership?.aiChatCount ?? null,
     promptKnowledgeBases: data.promptKnowledgeBases,
     promptKnowledgeBaseIds: data.promptKnowledgeBaseIds,
-    bootstrapLoading,
+    bootstrapLoading: sessionLoading || (!!user?.id && query.isLoading),
     refreshBootstrap,
-    markCreditsExhausted,
   };
 }

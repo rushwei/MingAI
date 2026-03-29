@@ -19,7 +19,9 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { supabase } from '@/lib/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { FeatureGate } from '@/components/layout/FeatureGate';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
+import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 
 interface McpKeyData {
   id: string;
@@ -53,8 +55,9 @@ function formatTime(iso: string | null): string {
   return new Date(iso).toLocaleString('zh-CN');
 }
 
-function McpPageContent() {
+export function McpPageContent({ embedded = false }: { embedded?: boolean }) {
   const { showToast } = useToast();
+  const { user, loading: sessionLoading } = useSessionSafe();
   const [keyData, setKeyData] = useState<McpKeyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [operating, setOperating] = useState(false);
@@ -95,7 +98,14 @@ function McpPageContent() {
     }
   }, [getAuthHeaders]);
 
-  useEffect(() => { fetchKey(); }, [fetchKey]);
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    void fetchKey();
+  }, [fetchKey, sessionLoading, user]);
 
   const handleCreate = async () => {
     setOperating(true);
@@ -161,7 +171,7 @@ function McpPageContent() {
     }
   };
 
-  if (loading) {
+  if (loading || sessionLoading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
         <SoundWaveLoader variant="block" />
@@ -169,15 +179,20 @@ function McpPageContent() {
     );
   }
 
+  if (!user) {
+    return <SettingsLoginRequired title="请先登录后使用 MCP 服务" />;
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 md:py-8 animate-fade-in">
-      {/* 顶部导航 */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/user" className="p-2 -ml-2 hover:bg-background-secondary rounded-lg transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-xl font-bold">MCP 服务</h1>
-      </div>
+      {!embedded ? (
+        <div className="mb-6 flex items-center gap-3">
+          <Link href="/user" className="rounded-lg p-2 -ml-2 transition-colors hover:bg-background-secondary">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold">MCP 服务</h1>
+        </div>
+      ) : null}
 
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-500 text-sm flex items-center gap-2">
@@ -393,9 +408,5 @@ function McpPageContent() {
 }
 
 export default function McpPage() {
-  return (
-    <FeatureGate featureId="mcp-service">
-      <McpPageContent />
-    </FeatureGate>
-  );
+  return <SettingsRouteLauncher tab="mcp-service" />;
 }

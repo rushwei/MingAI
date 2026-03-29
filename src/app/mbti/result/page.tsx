@@ -20,7 +20,7 @@ import { ThinkingBlock } from '@/components/chat/ThinkingBlock';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { useKnowledgeBaseFeatureEnabled } from '@/components/knowledge-base/useKnowledgeBaseFeatureEnabled';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON } from '@/lib/cache/session-storage';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
@@ -50,9 +50,10 @@ function MBTIResultContent() {
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const streaming = useStreamingResponse();
-    const { session, user, userId, sessionLoading, membershipInfo, membershipLoading } = useSessionMembership();
-    const membershipType = membershipInfo?.type ?? 'free';
-    const checkingAuth = sessionLoading || membershipLoading;
+    const { session, user, userId, sessionLoading, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
+    const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
+    const checkingAuth = sessionLoading || membershipPending;
 
     useEffect(() => {
         const stored = readSessionJSON<MBTIResultSession>('mbti_result');
@@ -133,7 +134,7 @@ function MBTIResultContent() {
                         <div className="flex items-center justify-between border-b border-border/60 pb-4">
                             <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Sparkles className="w-4 h-4 text-[#2eaadc]" />AI 深度分析</h3>
                             <div className="flex items-center gap-3">
-                                <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
+                                <ModelSelector compact selectedModel={selectedModel} onModelChange={setSelectedModel} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} disabled={membershipPending} />
                                 {aiAnalysis && <button onClick={handleGetAIAnalysis} disabled={loadingAI} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${loadingAI ? 'animate-spin' : ''}`} /></button>}
                             </div>
                         </div>

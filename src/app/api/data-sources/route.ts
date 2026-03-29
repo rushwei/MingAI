@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { getUserDataSourcesWithErrors } from '@/lib/data-sources';
 import { requireUserContext, jsonError, getAccessToken, createAuthedClient, jsonOk } from '@/lib/api-utils';
-import { createMemoryCache } from '@/lib/cache';
+import { createMemoryCache } from '@/lib/cache/memory';
 import { getFeatureToggles } from '@/lib/app-settings';
 import { getEnabledDataSourceTypes } from '@/lib/data-sources/catalog';
 

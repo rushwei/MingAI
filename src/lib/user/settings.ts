@@ -1,4 +1,5 @@
 import { requestBrowserJson, type BrowserApiError } from '@/lib/browser-api';
+import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 import {
   normalizeVisualizationSettings,
   type VisualizationSettings,
@@ -8,7 +9,7 @@ export type ExpressionStyle = 'direct' | 'gentle';
 export type AppLanguage = 'zh' | 'en';
 
 export const DEFAULT_NAV_ORDER = [
-  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti', 'daily', 'monthly',
+  'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti', 'daily', 'monthly',
 ] as const;
 
 export const DEFAULT_TOOL_ORDER = [
@@ -16,7 +17,7 @@ export const DEFAULT_TOOL_ORDER = [
 ] as const;
 
 export const DEFAULT_MOBILE_MAIN_ITEMS = [
-  'fortune-hub', 'liuyao', 'chat', 'daily',
+  'liuyao', 'chat', 'daily',
 ] as const;
 
 export const DEFAULT_MOBILE_DRAWER_ORDER = [
@@ -196,30 +197,6 @@ export function hasEffectiveUserSettingsUpdate(payload: Record<string, unknown>)
   return Object.keys(payload).some((key) => key !== 'user_id' && key !== 'updated_at');
 }
 
-export function dispatchUserDataInvalidate(pathname = '/api/user/settings') {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.dispatchEvent(
-    new CustomEvent('mingai:user-data:invalidate', {
-      detail: { pathname, at: Date.now() },
-    }),
-  );
-}
-
-export function dispatchPromptKnowledgeBaseUpdated() {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.dispatchEvent(
-    new CustomEvent('mingai:knowledge-base:prompt-updated', {
-      detail: { at: Date.now() },
-    }),
-  );
-}
-
 export async function getCurrentUserSettings(): Promise<UserSettingsLoadResult> {
   const result = await requestBrowserJson<{ settings: UserSettingsSnapshot }>('/api/user/settings', {
     method: 'GET',
@@ -239,10 +216,7 @@ export async function updateCurrentUserSettings(input: UserSettingsUpdateInput):
     return null;
   }
 
-  dispatchUserDataInvalidate('/api/user/settings');
-  if (input.promptKbIds !== undefined) {
-    dispatchPromptKnowledgeBaseUpdated();
-  }
+  invalidateQueriesForPath('/api/user/settings');
 
   return result.data?.settings ?? null;
 }

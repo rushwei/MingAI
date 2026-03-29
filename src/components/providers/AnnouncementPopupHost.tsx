@@ -9,11 +9,10 @@ import {
     getEndOfLocalDayIso,
     getAnnouncementPromptIdentity,
     shouldPromptLatestAnnouncement,
-    type Announcement,
     type AnnouncementCenterLocalState,
 } from '@/lib/announcement';
-import { loadLatestAnnouncement as loadLatestAnnouncementFromStore } from '@/lib/announcement-latest-store';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useLatestAnnouncement } from '@/lib/hooks/useLatestAnnouncement';
 
 export type AnnouncementCenterTab = 'notifications' | 'announcements';
 
@@ -76,10 +75,12 @@ export function AnnouncementPopupHost({
     const notificationsEnabled = isFeatureEnabled('notifications');
     const [open, setOpen] = useState(false);
     const [preferredTab, setPreferredTab] = useState<AnnouncementCenterTab>('announcements');
-    const [latestAnnouncement, setLatestAnnouncement] = useState<Announcement | null>(null);
-    const [announcementPromptCount, setAnnouncementPromptCount] = useState(0);
-    const requestSequenceRef = useRef(0);
+    const [localStateVersion, setLocalStateVersion] = useState(0);
     const openRef = useRef(false);
+    const latestAnnouncementQuery = useLatestAnnouncement({
+        enabled: !authLoading && !pathname.startsWith('/admin'),
+    });
+    const latestAnnouncement = latestAnnouncementQuery.data ?? null;
 
     useEffect(() => {
         openRef.current = open;
@@ -92,7 +93,7 @@ export function AnnouncementPopupHost({
                 latestPublishedAt: latestAnnouncement.publishedAt,
                 dismissedUntil: getEndOfLocalDayIso(new Date()),
             });
-            setAnnouncementPromptCount(0);
+            setLocalStateVersion((value) => value + 1);
         }
 
         setOpen(false);
@@ -104,68 +105,36 @@ export function AnnouncementPopupHost({
         setOpen(true);
     }, [notificationsEnabled, userId]);
 
-    const loadLatestAnnouncement = useCallback(async () => {
-        const requestId = ++requestSequenceRef.current;
+    const announcementPromptCount = useMemo(() => {
+        void localStateVersion;
 
-        if (pathname.startsWith('/admin')) {
-            setAnnouncementPromptCount(0);
-            setLatestAnnouncement(null);
-            setOpen(false);
-            return;
+        if (pathname.startsWith('/admin') || authLoading || latestAnnouncementQuery.isLoading) {
+            return 0;
         }
 
-        if (authLoading) {
-            return;
-        }
-
-        let announcement: Announcement | null = null;
-        try {
-            announcement = await loadLatestAnnouncementFromStore();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : '获取公告失败';
-            console.error('[announcement-center] failed to load latest announcement:', message);
-            return;
-        }
-
-        if (requestId !== requestSequenceRef.current) {
-            return;
-        }
-
-        setLatestAnnouncement(announcement);
-
-        const shouldPrompt = shouldPromptLatestAnnouncement({
-            announcementKey: getAnnouncementPromptIdentity(announcement),
+        return shouldPromptLatestAnnouncement({
+            announcementKey: getAnnouncementPromptIdentity(latestAnnouncement),
             state: readAnnouncementCenterLocalState(),
-        });
-        const nextPromptCount = shouldPrompt ? 1 : 0;
-        setAnnouncementPromptCount(nextPromptCount);
+        }) ? 1 : 0;
+    }, [authLoading, latestAnnouncement, latestAnnouncementQuery.isLoading, localStateVersion, pathname]);
 
-        if (shouldPrompt && !openRef.current) {
+    useEffect(() => {
+        if (pathname.startsWith('/admin') && openRef.current) {
+            queueMicrotask(() => {
+                setOpen(false);
+            });
+            return;
+        }
+
+        if (announcementPromptCount <= 0 || openRef.current) {
+            return;
+        }
+
+        queueMicrotask(() => {
             setPreferredTab('announcements');
             setOpen(true);
-        }
-    }, [authLoading, pathname]);
-
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            void loadLatestAnnouncement();
-        }, 0);
-
-        return () => {
-            window.clearTimeout(timer);
-        };
-    }, [loadLatestAnnouncement, pathname]);
-
-    useEffect(() => {
-        const handleAnnouncementsInvalidate = () => {
-            void loadLatestAnnouncement();
-        };
-
-        window.addEventListener('mingai:announcements:invalidate', handleAnnouncementsInvalidate);
-        return () => {
-            window.removeEventListener('mingai:announcements:invalidate', handleAnnouncementsInvalidate);
-        };
-    }, [loadLatestAnnouncement]);
+        });
+    }, [announcementPromptCount, pathname]);
 
     const contextValue = useMemo<AnnouncementCenterContextValue>(() => ({
         openAnnouncementCenter,

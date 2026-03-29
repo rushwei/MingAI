@@ -14,7 +14,7 @@ import { divine, yaosTpCode, findHexagram, calculateChangedHexagram, type LiuQin
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 
 export default function LiuyaoPage() {
     const router = useRouter();

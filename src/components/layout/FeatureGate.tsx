@@ -23,12 +23,35 @@ export function FeatureGate({ featureId, children }: FeatureGateProps) {
         () => true,
         () => false
     );
-    const { isFeatureEnabled, isLoading } = useFeatureToggles({ enabled: hydrated });
+    const { isFeatureEnabled, isLoading, loaded, error, refresh } = useFeatureToggles({ enabled: hydrated });
 
     if (!hydrated || isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh] bg-background">
                 <SoundWaveLoader variant="block" />
+            </div>
+        );
+    }
+
+    if (!loaded && error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <ShieldOff className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-medium text-foreground mb-2">
+                    功能状态加载失败
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                    暂时无法确认该功能是否开放，请稍后重试。
+                </p>
+                <button
+                    type="button"
+                    onClick={() => void refresh(true, true)}
+                    className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                    重试
+                </button>
             </div>
         );
     }

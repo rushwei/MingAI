@@ -1,732 +1,427 @@
 /**
- * AI 设置页面
+ * AI 个性化设置内容
  *
  * 'use client' 标记说明：
- * - 使用 React hooks (useState, useEffect)
- * - 使用 useRouter 进行客户端导航
+ * - 使用 hooks 管理用户偏好表单和保存状态
+ * - 该模块供统一设置中心复用，旧路由仅保留启动入口
  */
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { MessageCircleHeart, Save, SlidersHorizontal, User } from 'lucide-react';
 import {
-    ArrowLeft, Save, BookOpenText,
-    MessageSquare, User, Eye, Zap, Layers, TrendingUp
-} from 'lucide-react';
-import DimensionSelector from '@/components/visualization/shared/DimensionSelector';
-import { CORE_DIMENSIONS, type FortuneDimensionKey } from '@/lib/visualization/dimensions';
+  ADVANCED_DIMENSIONS,
+  CORE_DIMENSIONS,
+  type FortuneDimensionKey,
+} from '@/lib/visualization/dimensions';
 import { readLocalVisualizationSettings, type VisualizationChartStyle } from '@/lib/visualization/settings';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { FeatureGate } from '@/components/layout/FeatureGate';
-import { supabase } from '@/lib/auth';
-import { getMembershipInfo, type MembershipType } from '@/lib/user/membership';
-import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
+import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { useToast } from '@/components/ui/Toast';
+import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequired';
+import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
-import { formatPromptLayerLabel, groupPromptLayers } from '@/lib/chat/prompt-labels';
 
 type ExpressionStyle = 'direct' | 'gentle';
 
 const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string }> = [
-    { value: 'modern', label: '简约现代' },
-    { value: 'classic-chinese', label: '经典中式' },
-    { value: 'dark', label: '暗色系' },
+  { value: 'modern', label: '简约现代' },
+  { value: 'classic-chinese', label: '经典中式' },
+  { value: 'dark', label: '暗色高对比' },
 ];
 
 const USER_PROFILE_LIMIT = 120;
 const CUSTOM_INSTRUCTIONS_LIMIT = 4000;
 
-export default function AISettingsPage() {
-    return (
-        <FeatureGate featureId="ai-personalization">
-            <AISettingsContent />
-        </FeatureGate>
-    );
+function SectionTitle({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md text-foreground/70">
+          {icon}
+        </div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <p className="text-sm text-foreground-secondary">{description}</p>
+    </div>
+  );
 }
 
-function AISettingsContent() {
-    const router = useRouter();
-    const { isFeatureEnabled, isLoading: featureToggleLoading } = useFeatureToggles();
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [membershipType, setMembershipType] = useState<MembershipType>('free');
+function FieldLabel({ children }: { children: ReactNode }) {
+  return <label className="text-xs font-medium text-foreground/60">{children}</label>;
+}
 
-    const [expressionStyle, setExpressionStyle] = useState<ExpressionStyle>('direct');
-    const [customInstructions, setCustomInstructions] = useState('');
-    const [selectedDimensions, setSelectedDimensions] = useState<FortuneDimensionKey[]>(
-        () => CORE_DIMENSIONS.slice(0, 6).map(d => d.key)
-    );
-    const [dayunPeriods, setDayunPeriods] = useState(5);
-    const [chartStyle, setChartStyle] = useState<VisualizationChartStyle>('modern');
-    const [userProfile, setUserProfile] = useState({
-        identity: '',
-        occupation: '',
-        focus: '',
-        answerPreference: '',
-        avoid: ''
-    });
-    const [error, setError] = useState<string | null>(null);
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-sm transition-colors duration-150 ${
+        active
+          ? 'border-border bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
+          : 'border-border bg-transparent text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState<string | null>(null);
-    const [previewLayers, setPreviewLayers] = useState<Array<{ id: string; priority?: string; reason?: string; included: boolean; tokens: number; truncated: boolean }>>([]);
-    const [previewTotalTokens, setPreviewTotalTokens] = useState(0);
-    const [previewBudgetTotal, setPreviewBudgetTotal] = useState(0);
-    const [previewPromptKbs, setPreviewPromptKbs] = useState<Array<{ id: string; name: string }>>([]);
-    const knowledgeBaseFeatureEnabled = !featureToggleLoading && isFeatureEnabled('knowledge-base');
+export function AISettingsContent({ embedded = false }: { embedded?: boolean }) {
+  const { user, loading: sessionLoading } = useSessionSafe();
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
 
-    useEffect(() => {
-        const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) {
-                router.push('/user');
-                return;
-            }
-            setUserId(session.user.id);
-            const membership = await getMembershipInfo(session.user.id);
-            setMembershipType(membership?.type || 'free');
+  const [expressionStyle, setExpressionStyle] = useState<ExpressionStyle>('direct');
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [selectedDimensions, setSelectedDimensions] = useState<FortuneDimensionKey[]>(
+    () => CORE_DIMENSIONS.slice(0, 6).map((dimension) => dimension.key),
+  );
+  const [dayunPeriods, setDayunPeriods] = useState(5);
+  const [chartStyle, setChartStyle] = useState<VisualizationChartStyle>('modern');
+  const [userProfile, setUserProfile] = useState({
+    identity: '',
+    occupation: '',
+    focus: '',
+    answerPreference: '',
+    avoid: '',
+  });
+  const [error, setError] = useState<string | null>(null);
 
-            const { settings, error } = await getCurrentUserSettings();
-            if (error) {
-                setError(error.message || '加载个性化设置失败');
-                setSettingsLoadFailed(true);
-                setLoading(false);
-                return;
-            }
-            setSettingsLoadFailed(false);
-            setExpressionStyle((settings?.expressionStyle || 'direct') as ExpressionStyle);
-            setCustomInstructions((settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
+  useEffect(() => {
+    const init = async () => {
+      if (sessionLoading) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-            const visualizationSettings = settings?.visualizationSettings || readLocalVisualizationSettings(localStorage);
-            if (visualizationSettings?.selectedDimensions?.length) {
-                setSelectedDimensions(visualizationSettings.selectedDimensions);
-            }
-            if (typeof visualizationSettings?.dayunDisplayCount === 'number') {
-                setDayunPeriods(visualizationSettings.dayunDisplayCount);
-            }
-            if (visualizationSettings?.chartStyle) {
-                setChartStyle(visualizationSettings.chartStyle);
-            }
+      const { settings, error: loadError } = await getCurrentUserSettings();
+      if (loadError) {
+        setError(loadError.message || '加载个性化设置失败');
+        setSettingsLoadFailed(true);
+        setLoading(false);
+        return;
+      }
 
-            const profile = settings?.userProfile;
-            if (typeof profile === 'string') {
-                setUserProfile({
-                    identity: '',
-                    occupation: '',
-                    focus: profile.slice(0, USER_PROFILE_LIMIT),
-                    answerPreference: '',
-                    avoid: ''
-                });
-            } else if (profile && typeof profile === 'object') {
-                const typed = profile as Record<string, unknown>;
-                setUserProfile({
-                    identity: typeof typed.identity === 'string' ? typed.identity.slice(0, USER_PROFILE_LIMIT) : '',
-                    occupation: typeof typed.occupation === 'string' ? typed.occupation.slice(0, USER_PROFILE_LIMIT) : '',
-                    focus: typeof typed.focus === 'string' ? typed.focus.slice(0, USER_PROFILE_LIMIT) : '',
-                    answerPreference: typeof typed.answerPreference === 'string' ? typed.answerPreference.slice(0, USER_PROFILE_LIMIT) : '',
-                    avoid: typeof typed.avoid === 'string' ? typed.avoid.slice(0, USER_PROFILE_LIMIT) : ''
-                });
-            } else {
-                setUserProfile({
-                    identity: '',
-                    occupation: '',
-                    focus: '',
-                    answerPreference: '',
-                    avoid: ''
-                });
-            }
-            setLoading(false);
-        };
-        void init();
-    }, [router]);
+      setSettingsLoadFailed(false);
+      setExpressionStyle((settings?.expressionStyle || 'direct') as ExpressionStyle);
+      setCustomInstructions((settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
 
-    useEffect(() => {
-        let cancelled = false;
-        const handle = setTimeout(() => {
-            const run = async () => {
-                setPreviewLoading(true);
-                setPreviewError(null);
-                try {
-                    const profileForPrompt = {
-                        identity: userProfile.identity.trim(),
-                        occupation: userProfile.occupation.trim(),
-                        focus: userProfile.focus.trim(),
-                        answerPreference: userProfile.answerPreference.trim(),
-                        avoid: userProfile.avoid.trim()
-                    };
-                    const profilePayload = Object.values(profileForPrompt).some(v => v.length > 0)
-                        ? profileForPrompt
-                        : null;
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const accessToken = session?.access_token;
-                    const resp = await fetch('/api/chat/preview', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
-                        },
-                        body: JSON.stringify({
-                            reasoning: false,
-                            expressionStyle,
-                            customInstructions,
-                            userProfile: profilePayload,
-                            visualizationSettings: {
-                                selectedDimensions,
-                                dayunDisplayCount: dayunPeriods,
-                                chartStyle,
-                            },
-                        }),
-                    });
+      const visualizationSettings = settings?.visualizationSettings || readLocalVisualizationSettings(localStorage);
+      if (visualizationSettings?.selectedDimensions?.length) {
+        setSelectedDimensions(visualizationSettings.selectedDimensions);
+      }
+      if (typeof visualizationSettings?.dayunDisplayCount === 'number') {
+        setDayunPeriods(visualizationSettings.dayunDisplayCount);
+      }
+      if (visualizationSettings?.chartStyle) {
+        setChartStyle(visualizationSettings.chartStyle);
+      }
 
-                    if (!resp.ok) {
-                        const data = await resp.json().catch(() => ({} as Record<string, unknown>));
-                        if (!cancelled) {
-                            setPreviewError(typeof data.error === 'string' ? data.error : '生成预览失败');
-                            setPreviewLayers([]);
-                            setPreviewTotalTokens(0);
-                            setPreviewBudgetTotal(0);
-                        }
-                        return;
-                    }
-
-                    const data = await resp.json() as {
-                        totalTokens: number;
-                        budgetTotal: number;
-                        diagnostics: Array<{ id: string; priority?: string; reason?: string; included: boolean; tokens: number; truncated: boolean }>;
-                        promptKnowledgeBases?: Array<{ id: string; name: string }>;
-                    };
-
-                    if (cancelled) return;
-                    setPreviewLayers(data.diagnostics || []);
-                    setPreviewTotalTokens(data.totalTokens);
-                    setPreviewBudgetTotal(data.budgetTotal);
-                    setPreviewPromptKbs(data.promptKnowledgeBases || []);
-                } catch {
-                    if (!cancelled) {
-                        setPreviewError('生成预览失败');
-                        setPreviewLayers([]);
-                        setPreviewTotalTokens(0);
-                        setPreviewBudgetTotal(0);
-                        setPreviewPromptKbs([]);
-                    }
-                } finally {
-                    if (!cancelled) setPreviewLoading(false);
-                }
-            };
-            void run();
-        }, 300);
-
-        return () => {
-            cancelled = true;
-            clearTimeout(handle);
-        };
-    }, [chartStyle, customInstructions, dayunPeriods, expressionStyle, selectedDimensions, userProfile]);
-
-    const handleSave = async () => {
-        if (!userId) return;
-        if (settingsLoadFailed) return;
-        setError(null);
-
-        const profileValue = {
-            identity: userProfile.identity.trim(),
-            occupation: userProfile.occupation.trim(),
-            focus: userProfile.focus.trim(),
-            answerPreference: userProfile.answerPreference.trim(),
-            avoid: userProfile.avoid.trim()
-        };
-        const profilePayload = Object.values(profileValue).some(v => v.length > 0)
-            ? profileValue
-            : null;
-
-        setSaving(true);
-        const saved = await updateCurrentUserSettings({
-            expressionStyle,
-            customInstructions: customInstructions || null,
-            userProfile: profilePayload,
-            visualizationSettings: {
-                selectedDimensions,
-                dayunDisplayCount: dayunPeriods,
-                chartStyle,
-            },
+      const profile = settings?.userProfile;
+      if (typeof profile === 'string') {
+        setUserProfile({
+          identity: '',
+          occupation: '',
+          focus: profile.slice(0, USER_PROFILE_LIMIT),
+          answerPreference: '',
+          avoid: '',
         });
+      } else if (profile && typeof profile === 'object') {
+        const typed = profile as Record<string, unknown>;
+        setUserProfile({
+          identity: typeof typed.identity === 'string' ? typed.identity.slice(0, USER_PROFILE_LIMIT) : '',
+          occupation: typeof typed.occupation === 'string' ? typed.occupation.slice(0, USER_PROFILE_LIMIT) : '',
+          focus: typeof typed.focus === 'string' ? typed.focus.slice(0, USER_PROFILE_LIMIT) : '',
+          answerPreference: typeof typed.answerPreference === 'string' ? typed.answerPreference.slice(0, USER_PROFILE_LIMIT) : '',
+          avoid: typeof typed.avoid === 'string' ? typed.avoid.slice(0, USER_PROFILE_LIMIT) : '',
+        });
+      }
 
-        setSaving(false);
-        const synced = syncVisualizationPreferencesAfterSave(
-            localStorage,
-            {
-                selectedDimensions,
-                dayunDisplayCount: dayunPeriods,
-                chartStyle,
-            },
-            saved,
-        );
-        if (!synced) {
-            setError('保存失败');
-        }
+      setLoading(false);
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-background">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
-                    {/* 标题骨架 */}
-                    <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-foreground/5 animate-pulse" />
-                            <div className="space-y-1.5">
-                                <div className="h-6 w-36 rounded bg-foreground/10 animate-pulse" />
-                                <div className="h-4 w-56 rounded bg-foreground/5 animate-pulse" />
-                            </div>
-                        </div>
-                        <div className="h-10 w-28 rounded-full bg-foreground/10 animate-pulse" />
-                    </div>
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                        {/* 左侧设置区域骨架 */}
-                        <div className="xl:col-span-2 space-y-5">
-                            {/* 知识库卡片骨架 */}
-                            <div className="h-20 rounded-2xl bg-foreground/5 animate-pulse" />
-                            {/* 个人档案骨架 */}
-                            <div className="bg-background rounded-2xl p-5 border border-border">
-                                <div className="h-5 w-20 rounded bg-foreground/10 animate-pulse mb-4" />
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="h-16 rounded-lg bg-foreground/5 animate-pulse" />
-                                    <div className="h-16 rounded-lg bg-foreground/5 animate-pulse" />
-                                </div>
-                            </div>
-                            {/* 对话设置骨架 */}
-                            <div className="bg-background rounded-2xl p-5 border border-border">
-                                <div className="h-5 w-20 rounded bg-foreground/10 animate-pulse mb-4" />
-                                <div className="space-y-4">
-                                    <div className="h-10 rounded-lg bg-foreground/5 animate-pulse" />
-                                    <div className="h-24 rounded-lg bg-foreground/5 animate-pulse" />
-                                </div>
-                            </div>
-                        </div>
-                        {/* 右侧预览区域骨架 */}
-                        <div className="xl:col-span-1">
-                            <div className="bg-background rounded-3xl p-6 border border-border">
-                                <div className="h-6 w-32 rounded bg-foreground/10 animate-pulse mb-6" />
-                                <div className="space-y-4">
-                                    <div className="h-16 rounded-xl bg-foreground/5 animate-pulse" />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="h-24 rounded-2xl bg-foreground/5 animate-pulse" />
-                                        <div className="h-24 rounded-2xl bg-foreground/5 animate-pulse" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+    void init();
+  }, [sessionLoading, user]);
+
+  const allDimensions = useMemo(
+    () => [...CORE_DIMENSIONS, ...ADVANCED_DIMENSIONS],
+    [],
+  );
+
+  const handleToggleDimension = (key: FortuneDimensionKey) => {
+    const alreadySelected = selectedDimensions.includes(key);
+    if (alreadySelected) {
+      if (selectedDimensions.length <= 3) {
+        return;
+      }
+      setSelectedDimensions(selectedDimensions.filter((item) => item !== key));
+      return;
     }
 
-    return (
-        <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 md:py-6">
-                {/* 桌面端 Header */}
-                <div className="hidden md:flex md:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => router.back()}
-                            className="p-2 -ml-2 hover:bg-background rounded-full transition-colors text-foreground-secondary hover:text-foreground"
-                            type="button"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                                AI 个性化设置
-                            </h1>
-                            <p className="text-xs text-foreground-secondary mt-0.5">
-                                定制你的专属 AI 助手，让回答更符合你的期望
-                            </p>
-                        </div>
-                    </div>
+    if (selectedDimensions.length >= 12) {
+      return;
+    }
+    setSelectedDimensions([...selectedDimensions, key]);
+  };
 
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving || settingsLoadFailed}
-                        className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-md shadow-accent/20 font-medium text-sm"
-                    >
-                        {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-3.5 h-3.5" />}
-                        保存设置
-                    </button>
-                </div>
+  const handleSave = async () => {
+    if (!user || settingsLoadFailed) return;
 
-                <div className="grid grid-cols-1 xl:grid-cols-3 sm:gap-6 gap-2">
-                    {/* 左侧主要设置区域 */}
-                    <div className="xl:col-span-2 sm:space-y-5 space-y-2">
-                        {knowledgeBaseFeatureEnabled && (membershipType === 'free' ? (
-                            <div className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 rounded-2xl p-4 border border-border opacity-60 cursor-not-allowed shadow-sm">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                                    <BookOpenText className="w-5 h-5 text-emerald-500" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-sm font-semibold text-foreground">
-                                        知识库 (Plus+)
-                                    </h3>
-                                    <p className="text-xs text-foreground-secondary mt-0.5">
-                                        仅限 Plus 以上会员使用
-                                    </p>
-                                </div>
-                                <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50" />
-                            </div>
-                        ) : (
-                            <Link
-                                href="/user/knowledge-base"
-                                className="group relative overflow-hidden flex items-center gap-4 bg-gradient-to-br from-background-secondary to-background-secondary/50 hover:to-background-secondary rounded-2xl p-4 border border-border hover:border-emerald-500/30 transition-all duration-300 shadow-sm hover:shadow-md"
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                                    <BookOpenText className="w-5 h-5 text-emerald-500" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-sm font-semibold text-foreground group-hover:text-emerald-500 transition-colors">
-                                        知识库
-                                    </h3>
-                                    <p className="text-xs text-foreground-secondary mt-0.5">
-                                        管理已归档的对话和命理资料，AI 将自动引用这些内容
-                                    </p>
-                                </div>
-                                <ArrowLeft className="w-4 h-4 rotate-180 text-foreground-secondary/50 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
-                            </Link>
-                        ))}
+    setError(null);
+    setSaving(true);
 
-                        {/* 个人档案 */}
-                        <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <User className="w-4 h-4 text-amber-500" />
-                                <h2 className="text-sm font-semibold text-foreground">关于你</h2>
-                            </div>
+    const profileValue = {
+      identity: userProfile.identity.trim(),
+      occupation: userProfile.occupation.trim(),
+      focus: userProfile.focus.trim(),
+      answerPreference: userProfile.answerPreference.trim(),
+      avoid: userProfile.avoid.trim(),
+    };
+    const profilePayload = Object.values(profileValue).some((value) => value.length > 0) ? profileValue : null;
 
-                            <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-medium text-foreground-secondary ml-1">身份</label>
-                                        <input
-                                            value={userProfile.identity}
-                                            onChange={(e) => setUserProfile(prev => ({ ...prev, identity: e.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-                                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all placeholder:text-foreground-tertiary"
-                                            placeholder="例如：创业者"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-medium text-foreground-secondary ml-1">职业</label>
-                                        <input
-                                            value={userProfile.occupation}
-                                            onChange={(e) => setUserProfile(prev => ({ ...prev, occupation: e.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-                                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all placeholder:text-foreground-tertiary"
-                                            placeholder="例如：产品经理"
-                                        />
-                                    </div>
-                                </div>
+    const saved = await updateCurrentUserSettings({
+      expressionStyle,
+      customInstructions: customInstructions || null,
+      userProfile: profilePayload,
+      visualizationSettings: {
+        selectedDimensions,
+        dayunDisplayCount: dayunPeriods,
+        chartStyle,
+      },
+    });
 
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">当前关注点</label>
-                                    <input
-                                        value={userProfile.focus}
-                                        onChange={(e) => setUserProfile(prev => ({ ...prev, focus: e.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-                                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/50 transition-all placeholder:text-foreground-tertiary"
-                                        placeholder="例如：事业发展、人际关系..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
+    setSaving(false);
 
-                        {/* 对话设置 */}
-                        <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <MessageSquare className="w-4 h-4 text-blue-500" />
-                                <h2 className="text-sm font-semibold text-foreground">对话设置</h2>
-                            </div>
-
-                            <div className="space-y-4">
-                                {/* 表达风格 */}
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">表达风格</label>
-                                    <div className="flex bg-background p-1 rounded-lg border border-border">
-                                        <button
-                                            type="button"
-                                            onClick={() => setExpressionStyle('direct')}
-                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${expressionStyle === 'direct'
-                                                ? 'bg-accent text-white shadow-sm'
-                                                : 'text-foreground-secondary hover:text-foreground'
-                                                }`}
-                                        >
-                                            直接干练
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setExpressionStyle('gentle')}
-                                            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${expressionStyle === 'gentle'
-                                                ? 'bg-accent text-white shadow-sm'
-                                                : 'text-foreground-secondary hover:text-foreground'
-                                                }`}
-                                        >
-                                            温和委婉
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 回答偏好与禁忌 (Grid) */}
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-foreground-secondary ml-1">回答偏好</label>
-                                        <textarea
-                                            value={userProfile.answerPreference}
-                                            onChange={(e) => setUserProfile(prev => ({ ...prev, answerPreference: e.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-                                            className="w-full h-20 p-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none text-xs leading-relaxed transition-all placeholder:text-foreground-tertiary"
-                                            placeholder="例如：结论先行、提供具体案例..."
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-medium text-foreground-secondary ml-1">避讳与禁忌</label>
-                                        <textarea
-                                            value={userProfile.avoid}
-                                            onChange={(e) => setUserProfile(prev => ({ ...prev, avoid: e.target.value.slice(0, USER_PROFILE_LIMIT) }))}
-                                            className="w-full h-20 p-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 resize-none text-xs leading-relaxed transition-all placeholder:text-foreground-tertiary"
-                                            placeholder="例如：避免过于专业的术语..."
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* 自定义指令 */}
-                                <div className="space-y-1">
-                                    <div className="flex items-center justify-between gap-2 ml-1">
-                                        <label className="text-[10px] font-medium text-foreground-secondary">自定义指令（系统提示词）</label>
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${customInstructions.length >= CUSTOM_INSTRUCTIONS_LIMIT
-                                            ? 'bg-red-500/10 border-red-500/20 text-red-500'
-                                            : 'bg-background border-border text-foreground-tertiary'
-                                            }`}>
-                                            {customInstructions.length}/{CUSTOM_INSTRUCTIONS_LIMIT}
-                                        </span>
-                                    </div>
-                                    <div className="relative group">
-                                        <textarea
-                                            value={customInstructions}
-                                            onChange={(e) => setCustomInstructions(e.target.value.slice(0, CUSTOM_INSTRUCTIONS_LIMIT))}
-                                            className="w-full min-h-[80px] p-3 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all resize-y text-xs leading-relaxed placeholder:text-foreground-tertiary/50"
-                                            placeholder="在此输入你希望 AI 遵循的特殊指令..."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 运势可视化 */}
-                        <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <TrendingUp className="w-4 h-4 text-purple-500" />
-                                <h2 className="text-sm font-semibold text-foreground">运势可视化</h2>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">默认展示维度</label>
-                                    <DimensionSelector
-                                        selected={selectedDimensions}
-                                        onChange={setSelectedDimensions}
-                                        minCount={3}
-                                        maxCount={12}
-                                        compact
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">大运展示期数</label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="range"
-                                            min="3"
-                                            max="10"
-                                            value={dayunPeriods}
-                                            onChange={(e) => setDayunPeriods(Number(e.target.value))}
-                                            className="flex-1"
-                                        />
-                                        <span className="text-sm font-mono text-foreground w-8 text-center">{dayunPeriods}</span>
-                                    </div>
-                                    <p className="text-xs text-foreground-secondary">默认显示 {dayunPeriods} 个大运周期</p>
-                                </div>
-
-                                {/* 图表风格 */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-medium text-foreground-secondary ml-1">图表风格</label>
-                                    <div className="flex gap-2">
-                                        {CHART_STYLE_OPTIONS.map((style) => (
-                                            <button
-                                                key={style.value}
-                                                onClick={() => setChartStyle(style.value)}
-                                                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
-                                                    chartStyle === style.value
-                                                        ? 'border-accent bg-accent/10 text-accent font-medium'
-                                                        : 'border-border bg-background-secondary/50 text-foreground-secondary hover:border-accent/50'
-                                                }`}
-                                            >
-                                                {style.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 右侧预览区域 */}
-                    <div className="xl:col-span-1">
-                        <div className="bg-background rounded-3xl p-6 border border-border shadow-sm sticky top-6">
-                            <div className="flex items-center gap-3 mb-6">
-                                <Eye className="w-5 h-5 text-accent" />
-                                <h2 className="text-lg font-semibold text-foreground">上下文实时预览</h2>
-                            </div>
-
-                            <div className="space-y-6">
-                                {knowledgeBaseFeatureEnabled && (
-                                <div>
-                                    <label className="text-xs font-medium text-foreground-secondary mb-3 block">生效的知识库</label>
-                                    {membershipType === 'free' ? (
-                                        <div className="p-3 rounded-xl bg-background border border-border border-dashed text-xs text-foreground-secondary text-center">
-                                            仅限 Plus 以上会员使用
-                                        </div>
-                                    ) : previewPromptKbs.length === 0 ? (
-                                        <div className="p-3 rounded-xl bg-background border border-border border-dashed text-xs text-foreground-secondary text-center">
-                                            未启用知识库
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {previewPromptKbs.map(kb => (
-                                                <span
-                                                    key={kb.id}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 text-xs font-medium"
-                                                >
-                                                    <BookOpenText className="w-3 h-3" />
-                                                    <span className="max-w-[130px] truncate">{kb.name}</span>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    <div className="mt-3 text-[10px] text-foreground-tertiary">
-                                        启用大量提示词会损失算命精确度
-                                    </div>
-                                </div>
-                                )}
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-background rounded-2xl p-4 border border-border">
-                                        <div className="flex items-center gap-2 text-xs text-foreground-secondary mb-2">
-                                            <Zap className="w-3.5 h-3.5" />
-                                            Token 用量
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-2xl font-bold font-mono text-foreground">
-                                                {previewTotalTokens}
-                                            </span>
-                                            <span className="text-xs text-foreground-secondary font-medium">
-                                                / {previewBudgetTotal || '-'}
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-border/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div
-                                                className="h-full bg-accent transition-all duration-500"
-                                                style={{ width: `${Math.min((previewTotalTokens / (previewBudgetTotal || 1)) * 100, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="bg-background rounded-2xl p-4 border border-border">
-                                        <div className="flex items-center gap-2 text-xs text-foreground-secondary mb-2">
-                                            <Layers className="w-3.5 h-3.5" />
-                                            注入层级
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-2xl font-bold font-mono text-foreground">
-                                                {previewLayers.filter(l => l.included).length}
-                                            </span>
-                                            <span className="text-xs text-foreground-secondary font-medium">
-                                                / {previewLayers.length}
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-border/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div
-                                                className="h-full bg-blue-500 transition-all duration-500"
-                                                style={{ width: `${Math.min((previewLayers.filter(l => l.included).length / previewLayers.length) * 100, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {previewLoading && (
-                                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-foreground-secondary animate-pulse">
-                                        <SoundWaveLoader variant="inline" />
-                                        <span>正在计算上下文...</span>
-                                    </div>
-                                )}
-
-                                {previewError && (
-                                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500">
-                                        {previewError}
-                                    </div>
-                                )}
-
-                                <div className="space-y-2.5">
-                                    <label className="text-xs font-medium text-foreground-secondary block">提示词结构</label>
-                                    {groupPromptLayers(previewLayers).map((layer, index) => (
-                                        <div
-                                            key={layer.id}
-                                            className={`flex items-center justify-between gap-3 text-xs p-3 rounded-xl border transition-all ${layer.included
-                                                ? 'bg-background border-border shadow-sm'
-                                                : 'bg-background/50 border-border/50 opacity-60'
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                <span className="font-mono text-foreground-tertiary w-4 text-center">{index + 1}</span>
-                                                <span className="text-foreground font-medium truncate" title={formatPromptLayerLabel(layer.id)}>
-                                                    {formatPromptLayerLabel(layer.id)}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3 flex-shrink-0">
-                                                <span className="font-mono text-foreground-secondary bg-background px-1.5 py-0.5 rounded text-[10px]">
-                                                    {layer.tokens}
-                                                </span>
-                                                {layer.included ? (
-                                                    <div className={`w-2 h-2 rounded-full ring-2 ring-offset-1 ring-offset-background ${layer.truncated ? 'bg-amber-500 ring-amber-500/30' : 'bg-emerald-500 ring-emerald-500/30'}`} title={layer.truncated ? '截断' : '已注入'} />
-                                                ) : (
-                                                    <div className="w-2 h-2 rounded-full bg-border" title="未注入" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {error && (
-                    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 md:translate-x-0 md:static md:mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-500 flex items-center gap-2 shadow-lg backdrop-blur-md md:backdrop-blur-none md:shadow-none z-50">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            {/* Mobile Floating Save Button */}
-            <div className="md:hidden fixed bottom-6 left-4 right-4 z-40">
-                <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving || settingsLoadFailed}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-accent text-white hover:bg-accent/90 disabled:opacity-60 transition-all shadow-xl shadow-accent/20 font-bold text-base active:scale-[0.98]"
-                >
-                    {saving ? <SoundWaveLoader variant="inline" /> : <Save className="w-5 h-5" />}
-                    保存设置
-                </button>
-            </div>
-        </div>
+    const synced = syncVisualizationPreferencesAfterSave(
+      localStorage,
+      {
+        selectedDimensions,
+        dayunDisplayCount: dayunPeriods,
+        chartStyle,
+      },
+      saved,
     );
+
+    if (!synced || !saved) {
+      setError('保存失败');
+      showToast('error', '保存失败');
+      return;
+    }
+
+    showToast('success', '个性化设置已保存');
+  };
+
+  if (loading || sessionLoading) {
+    return (
+      <div className="flex min-h-[240px] items-center justify-center rounded-lg border border-border bg-background">
+        <SoundWaveLoader variant="inline" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <SettingsLoginRequired title="请先登录后配置 AI 个性化" />;
+  }
+
+  return (
+    <div className={embedded ? 'space-y-8' : 'mx-auto max-w-4xl space-y-8 px-4 py-6'}>
+      <header className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-start md:justify-between">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || settingsLoadFailed}
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
+        >
+          {saving ? <SoundWaveLoader variant="inline" /> : <Save className="h-4 w-4" />}
+          保存设置
+        </button>
+      </header>
+
+      {error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="space-y-4">
+        <SectionTitle
+          icon={<User className="h-4 w-4" />}
+          title="关于你"
+          description="这些信息会帮助 AI 更准确地理解你的背景和当前关注重点。"
+        />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <FieldLabel>身份</FieldLabel>
+            <input
+              value={userProfile.identity}
+              onChange={(event) => setUserProfile((prev) => ({ ...prev, identity: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：创业者"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel>职业</FieldLabel>
+            <input
+              value={userProfile.occupation}
+              onChange={(event) => setUserProfile((prev) => ({ ...prev, occupation: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：产品经理"
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <FieldLabel>当前关注点</FieldLabel>
+            <input
+              value={userProfile.focus}
+              onChange={(event) => setUserProfile((prev) => ({ ...prev, focus: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：事业发展、人际关系"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel>回答偏好</FieldLabel>
+            <textarea
+              value={userProfile.answerPreference}
+              onChange={(event) => setUserProfile((prev) => ({ ...prev, answerPreference: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              className="min-h-[96px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：结论先行、给出明确建议"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel>避讳与禁忌</FieldLabel>
+            <textarea
+              value={userProfile.avoid}
+              onChange={(event) => setUserProfile((prev) => ({ ...prev, avoid: event.target.value.slice(0, USER_PROFILE_LIMIT) }))}
+              className="min-h-[96px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：避免过于玄而不实、避免术语堆叠"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <SectionTitle
+          icon={<MessageCircleHeart className="h-4 w-4" />}
+          title="对话偏好"
+          description="设置 AI 的表达风格与系统级自定义指令。"
+        />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FieldLabel>表达风格</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              <ToggleButton active={expressionStyle === 'direct'} onClick={() => setExpressionStyle('direct')}>
+                直接干练
+              </ToggleButton>
+              <ToggleButton active={expressionStyle === 'gentle'} onClick={() => setExpressionStyle('gentle')}>
+                温和委婉
+              </ToggleButton>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <FieldLabel>自定义指令</FieldLabel>
+              <span className="text-xs text-foreground/50">
+                {customInstructions.length}/{CUSTOM_INSTRUCTIONS_LIMIT}
+              </span>
+            </div>
+            <textarea
+              value={customInstructions}
+              onChange={(event) => setCustomInstructions(event.target.value.slice(0, CUSTOM_INSTRUCTIONS_LIMIT))}
+              className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              placeholder="例如：先给结论，再给依据；对职业规划问题优先给可执行建议。"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <SectionTitle
+          icon={<SlidersHorizontal className="h-4 w-4" />}
+          title="运势可视化偏好"
+          description="控制 AI 输出时默认关注的维度、图表风格和大运展示数量。"
+        />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FieldLabel>维度选择（至少 3 个，最多 12 个）</FieldLabel>
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {allDimensions.map((dimension) => {
+                const active = selectedDimensions.includes(dimension.key);
+                return (
+                  <button
+                    key={dimension.key}
+                    type="button"
+                    onClick={() => handleToggleDimension(dimension.key)}
+                    className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors duration-150 ${
+                      active
+                        ? 'border-border bg-[#e3e1db] text-[#37352f] dark:bg-background-tertiary dark:text-foreground'
+                        : 'border-border bg-background text-foreground-secondary hover:bg-[#efedea] dark:hover:bg-background-secondary'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{dimension.icon}</span>
+                      <span>{dimension.label}</span>
+                    </span>
+                    {/* <span className="text-xs text-foreground/40">{active ? '已选' : '未选'}</span> */}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <FieldLabel>默认展示大运期数</FieldLabel>
+              <select
+                value={dayunPeriods}
+                onChange={(event) => setDayunPeriods(Number(event.target.value))}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              >
+                {[3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
+                  <option key={count} value={count}>{count} 期</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel>图表风格</FieldLabel>
+              <select
+                value={chartStyle}
+                onChange={(event) => setChartStyle(event.target.value as VisualizationChartStyle)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition-colors duration-150 focus:ring-2 focus:ring-blue-500/30"
+              >
+                {CHART_STYLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function AISettingsPage() {
+  return <SettingsRouteLauncher tab="personalization" />;
 }

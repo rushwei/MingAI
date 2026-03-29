@@ -6,7 +6,7 @@
  */
 'use client';
 
-import Link from 'next/link';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { X, BookOpenText, Check, Settings } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import type { Mention } from '@/types';
@@ -66,14 +66,14 @@ export function MentionManager({
                             <div className="flex items-center justify-between p-3 px-4 border-b border-border/50 bg-muted/30">
                                 <div className="flex items-center gap-2">
                                     <div className="text-sm font-semibold">启用知识库搜索</div>
-                                    <Link
-                                        href="/user/knowledge-base"
+                                    <SettingsCenterLink
+                                        tab="knowledge-base"
                                         className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                         onClick={() => setKnowledgeBaseOpen(false)}
                                     >
                                         <span>更多设置</span>
                                         <Settings className="w-3 h-3" />
-                                    </Link>
+                                    </SettingsCenterLink>
                                 </div>
                                 <button
                                     onClick={() => setKnowledgeBaseOpen(false)}
@@ -87,13 +87,13 @@ export function MentionManager({
                                     <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
                                         <BookOpenText className="w-8 h-8 opacity-20" />
                                         <div className="text-sm">暂无知识库</div>
-                                        <Link
-                                            href="/user/knowledge-base"
+                                        <SettingsCenterLink
+                                            tab="knowledge-base"
                                             className="text-xs text-primary hover:underline mt-1"
                                             onClick={() => setKnowledgeBaseOpen(false)}
                                         >
                                             去创建第一个知识库
-                                        </Link>
+                                        </SettingsCenterLink>
                                     </div>
                                 ) : (
                                     mentionKnowledgeBases.map((kb) => {

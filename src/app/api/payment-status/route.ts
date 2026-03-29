@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getPaymentsPaused, setPaymentsPaused } from "@/lib/app-settings";
 import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
-import { createMemoryCache } from "@/lib/cache";
+import { createMemoryCache } from '@/lib/cache/memory';
 
 const CACHE_TTL_MS = 30_000;
 const pausedCache = createMemoryCache<boolean>(CACHE_TTL_MS);

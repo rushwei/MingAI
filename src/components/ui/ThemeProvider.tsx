@@ -9,7 +9,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { writeLocalCache } from '@/lib/cache';
+import { writeLocalCache } from '@/lib/cache/local-storage';
 
 // 主题模式：light、dark 或 system（跟随系统）
 type ThemeMode = 'light' | 'dark' | 'system';

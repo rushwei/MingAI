@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { History, ChevronLeft, Calendar, X } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { loadHistoryRestore, loadHistorySummariesPage } from '@/lib/history/client';
 import {

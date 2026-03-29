@@ -1,11 +1,11 @@
 /**
  * 根页面
  *
- * 已取消匿名访问，所有用户统一进入用户中心。
+ * 默认进入八字页面。
  */
 
 import { redirect } from 'next/navigation';
 
 export default async function HomePage() {
-    redirect('/user');
+    redirect('/bazi');
 }

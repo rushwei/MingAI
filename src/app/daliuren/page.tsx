@@ -11,7 +11,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
 import { FeatureGate } from '@/components/layout/FeatureGate';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 
 type TimeMode = 'now' | 'custom';
 

@@ -27,6 +27,7 @@ import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
+import { invalidateQueriesForPath } from '@/lib/query/invalidation';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
 import { getVendorName, VENDOR_PRESETS as VENDOR_PRESET_KEYS } from '@/lib/ai/ai-config';
 
@@ -384,6 +385,7 @@ export function AIModelPanel() {
 
             // 刷新列表
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
         } catch (e) {
             console.error('Update model failed:', e);
             showToast('error', e instanceof Error ? e.message : '更新失败');
@@ -451,6 +453,7 @@ export function AIModelPanel() {
             setShowCreateAdvanced(false);
             resetNewModel();
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
         } catch (e) {
             showToast('error', e instanceof Error ? e.message : '创建模型失败');
         } finally {
@@ -580,6 +583,7 @@ export function AIModelPanel() {
             setEditingSourceId(null);
             setEditingDraft(null);
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
             showToast('success', '来源已更新');
         } catch (e) {
             showToast('error', e instanceof Error ? e.message : '保存来源失败');
@@ -618,6 +622,7 @@ export function AIModelPanel() {
             setAddingToModel(null);
             resetNewSource();
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
             showToast('success', '来源已添加');
         } catch (e) {
             showToast('error', e instanceof Error ? e.message : '添加来源失败');
@@ -646,6 +651,7 @@ export function AIModelPanel() {
             }
 
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
             setDeleteTarget(null);
             showToast('success', '来源已删除');
         } catch (e) {
@@ -676,6 +682,7 @@ export function AIModelPanel() {
             }
             setDeleteModelTarget(null);
             await loadModels();
+            invalidateQueriesForPath('/api/admin/ai-models');
             showToast('success', '模型已删除');
         } catch (e) {
             showToast('error', e instanceof Error ? e.message : '删除模型失败');
@@ -696,6 +703,7 @@ export function AIModelPanel() {
             });
 
             if (response.ok) {
+                invalidateQueriesForPath('/api/admin/ai-models/cache');
                 showToast('success', '缓存已清除');
             }
         } catch (e) {

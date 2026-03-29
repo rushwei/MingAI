@@ -8,6 +8,7 @@
 import { useMemo, useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 import { Share2, Edit3, Save, Check, Copy, MapPinned, Clock, Plus, Minus } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { buildZiweiCanonicalJSON, calculateZiwei, generateZiweiChartText, type ZiweiFormData } from '@/lib/divination/ziwei';
@@ -245,7 +246,7 @@ function ZiweiResultContent() {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-sm text-foreground/40 mb-6">未找到该命盘，请返回重新选择</p>
-                <Link href="/user/charts" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">返回我的命盘</Link>
+                <SettingsCenterLink tab="charts" className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md hover:bg-[#2383e2]/90 transition-colors">返回我的命盘</SettingsCenterLink>
             </div>
         );
     }
@@ -263,7 +264,11 @@ function ZiweiResultContent() {
             <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部操作栏 */}
                 <div className="hidden md:flex items-center justify-between">
-                    <Link href={chartId ? '/user/charts' : '/ziwei'} className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
+                    {chartId ? (
+                        <SettingsCenterLink tab="charts" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</SettingsCenterLink>
+                    ) : (
+                        <Link href="/ziwei" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
+                    )}
                     <div className="flex items-center gap-2">
                         <button onClick={handleEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><Edit3 className="w-3.5 h-3.5" />修改</button>
                         <button onClick={handleSave} disabled={saving || saved} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${saved ? 'text-[#0f7b6c] bg-[#0f7b6c]/5 border border-[#0f7b6c]/10' : 'bg-[#2383e2] text-white hover:bg-[#2383e2]/90'}`}>{saved ? <><Check className="w-3.5 h-3.5" />已保存</> : saving ? <><SoundWaveLoader variant="inline" />保存中</> : <><Save className="w-3.5 h-3.5" />保存</>}</button>

@@ -15,7 +15,7 @@ import { YongShenTargetPicker } from '@/components/liuyao/YongShenTargetPicker';
 import { useToast } from '@/components/ui/Toast';
 import { type Yao, type CoinTossResult, findHexagram, yaosTpCode, calculateChangedHexagram, type LiuQin } from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/auth';
-import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
+import { readSessionJSON, writeSessionJSON } from '@/lib/cache/session-storage';
 
 type LiuyaoQuestionSession = {
     question: string;

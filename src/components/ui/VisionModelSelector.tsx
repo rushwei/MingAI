@@ -10,10 +10,9 @@ import { useMemo, useState, useEffect } from 'react';
 import { ChevronDown, Eye, Lightbulb } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { getVendorIcon } from '@/lib/ai/vendor-config';
-import { registerClientModelNames } from '@/lib/ai/model-name-cache';
+import { useAvailableModels } from '@/lib/hooks/useAvailableModels';
 import type { AIVendor } from '@/types';
 import { DEFAULT_VISION_MODEL_ID, getVendorName } from '@/lib/ai/ai-config';
-import { supabase } from '@/lib/auth';
 
 interface VisionModelConfig {
     id: string;
@@ -44,55 +43,13 @@ export function VisionModelSelector({
     compact = false,
 }: VisionModelSelectorProps) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [models, setModels] = useState<VisionModelConfig[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!onModelChange) return;
-        let isMounted = true;
-
-        const loadModels = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-
-                const { data: { session } } = await supabase.auth.getSession();
-                const headers: HeadersInit = {};
-                if (session?.access_token) {
-                    headers.Authorization = `Bearer ${session.access_token}`;
-                }
-
-                const response = await fetch('/api/models?vision=true', { headers });
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to load models');
-                }
-
-                if (isMounted && data.models) {
-                    // 只保留视觉模型
-                    const visionModels = data.models.filter((m: VisionModelConfig) =>
-                        m.vendor === 'qwen-vl' || m.vendor === 'gemini-vl'
-                    );
-                    setModels(visionModels);
-                    registerClientModelNames(visionModels);
-                }
-            } catch (err) {
-                console.error('Failed to load vision models:', err);
-                if (isMounted) {
-                    setError('加载失败');
-                }
-            } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadModels();
-        return () => { isMounted = false; };
-    }, [onModelChange]);
+    const modelsQuery = useAvailableModels(null, {
+        enabled: !!onModelChange,
+        vision: true,
+    });
+    const models = useMemo(() => (modelsQuery.data ?? []) as VisionModelConfig[], [modelsQuery.data]);
+    const loading = modelsQuery.isLoading;
+    const error = modelsQuery.error instanceof Error ? modelsQuery.error.message : null;
 
     // 确保选中的模型存在
     useEffect(() => {

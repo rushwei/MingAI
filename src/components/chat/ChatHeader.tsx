@@ -6,8 +6,8 @@
  */
 'use client';
 
-import Link from 'next/link';
 import { MessageCircleHeart, BookOpenText } from 'lucide-react';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 
 interface ChatHeaderProps {
     membershipType: string;
@@ -23,8 +23,8 @@ export function ChatHeader({
     return (
         <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-wrap justify-end gap-2">
             {aiPersonalizationEnabled && (
-                <Link
-                    href="/user/settings/ai"
+                <SettingsCenterLink
+                    tab="personalization"
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
                     title="个性化"
                 >
@@ -32,12 +32,12 @@ export function ChatHeader({
                     <span className="text-sm font-medium text-foreground-secondary group-hover:text-accent transition-colors">
                         个性化
                     </span>
-                </Link>
+                </SettingsCenterLink>
             )}
 
             {membershipType !== 'free' && knowledgeBaseEnabled && (
-                <Link
-                    href="/user/knowledge-base"
+                <SettingsCenterLink
+                    tab="knowledge-base"
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-md border border-border shadow-sm hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all duration-300 group"
                     title="知识库"
                 >
@@ -45,7 +45,7 @@ export function ChatHeader({
                     <span className="text-sm font-medium text-foreground-secondary group-hover:text-accent transition-colors">
                         知识库
                     </span>
-                </Link>
+                </SettingsCenterLink>
             )}
         </div>
     );

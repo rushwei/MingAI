@@ -6,12 +6,14 @@
 'use client';
 
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import type { Session, User } from '@supabase/supabase-js';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { ChatTaskToastBridge } from '@/components/providers/ChatTaskToastBridge';
 import { AnnouncementPopupHost } from '@/components/providers/AnnouncementPopupHost';
 import { supabase } from '@/lib/auth';
 import { getLinuxDoAuthErrorMessage } from '@/lib/auth-feedback';
+import { createAppQueryClient, registerBrowserQueryClient } from '@/lib/query/client';
 
 interface ClientProvidersProps {
     children: ReactNode;
@@ -52,11 +54,16 @@ function AuthCallbackFeedback() {
 }
 
 export function ClientProviders({ children }: ClientProvidersProps) {
+    const [queryClient] = useState(() => createAppQueryClient());
     const [state, setState] = useState<SessionState>({
         session: null,
         user: null,
         loading: true,
     });
+
+    useEffect(() => {
+        registerBrowserQueryClient(queryClient);
+    }, [queryClient]);
 
     useEffect(() => {
         let isMounted = true;
@@ -87,13 +94,15 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
     return (
         <ToastProvider>
-            <AuthCallbackFeedback />
-            <ChatTaskToastBridge />
-            <SessionContext.Provider value={state}>
-                <AnnouncementPopupHost userId={state.user?.id ?? null} authLoading={state.loading}>
-                    {children}
-                </AnnouncementPopupHost>
-            </SessionContext.Provider>
+            <QueryClientProvider client={queryClient}>
+                <AuthCallbackFeedback />
+                <ChatTaskToastBridge />
+                <SessionContext.Provider value={state}>
+                    <AnnouncementPopupHost userId={state.user?.id ?? null} authLoading={state.loading}>
+                        {children}
+                    </AnnouncementPopupHost>
+                </SessionContext.Provider>
+            </QueryClientProvider>
         </ToastProvider>
     );
 }

@@ -3,7 +3,12 @@ import { IS_NODE_TEST_RUNTIME } from "@/lib/runtime";
 
 const PAYMENTS_PAUSED_KEY = "payments_paused";
 
-export async function getPaymentsPaused(): Promise<boolean> {
+export type PaymentsPausedReadResult = {
+    loaded: boolean;
+    paused: boolean;
+};
+
+export async function readPaymentsPausedState(): Promise<PaymentsPausedReadResult> {
     try {
         const supabase = getSystemAdminClient();
         const { data, error } = await supabase
@@ -14,14 +19,19 @@ export async function getPaymentsPaused(): Promise<boolean> {
 
         if (error) {
             console.error("[app-settings] Failed to read payments paused:", error.message);
-            return false;
+            return { loaded: false, paused: false };
         }
 
-        return !!data?.setting_value;
+        return { loaded: true, paused: !!data?.setting_value };
     } catch (error) {
         console.error("[app-settings] Failed to init service client:", error);
-        return false;
+        return { loaded: false, paused: false };
     }
+}
+
+export async function getPaymentsPaused(): Promise<boolean> {
+    const result = await readPaymentsPausedState();
+    return result.paused;
 }
 
 export async function setPaymentsPaused(paused: boolean): Promise<boolean> {
@@ -147,7 +157,7 @@ export async function setPurchaseLink(
 // ─── 功能模块开关 ───
 
 export const FEATURE_MODULE_IDS = [
-  'fortune-hub', 'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'qimen',
+  'bazi', 'hepan', 'ziwei', 'tarot', 'liuyao', 'qimen',
   'daliuren',
   'face', 'palm', 'mbti', 'chat', 'daily', 'monthly',
   'records', 'community', 'knowledge-base', 'mcp-service',
@@ -158,7 +168,6 @@ export const FEATURE_MODULE_IDS = [
 export type FeatureModuleId = typeof FEATURE_MODULE_IDS[number];
 
 export const FEATURE_MODULE_LABELS: Record<FeatureModuleId, string> = {
-  'fortune-hub': '运势中心',
   bazi: '八字',
   hepan: '八字合盘',
   ziwei: '紫微斗数',
@@ -199,6 +208,11 @@ type FeatureToggleCacheEntry = {
 };
 
 const featureToggleCache = new Map<FeatureModuleId, FeatureToggleCacheEntry>();
+
+export type FeatureTogglesReadResult = {
+  loaded: boolean;
+  toggles: Record<string, boolean>;
+};
 
 function normalizeFeatureToggleRows(rows: FeatureToggleRow[] | null | undefined): Record<string, boolean> {
   const toggleStates: Record<string, boolean> = {};
@@ -255,7 +269,7 @@ async function readFeatureToggleValue(
 }
 
 /** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
-export async function getFeatureToggles(): Promise<Record<string, boolean>> {
+export async function readFeatureTogglesState(): Promise<FeatureTogglesReadResult> {
   try {
     const supabase = getSystemAdminClient();
     const { data, error } = await readFeatureToggleRows(supabase);
@@ -264,16 +278,25 @@ export async function getFeatureToggles(): Promise<Record<string, boolean>> {
       if (!IS_NODE_TEST_RUNTIME) {
         console.error('[app-settings] Failed to read feature toggles:', error.message);
       }
-      return {};
+      return { loaded: false, toggles: {} };
     }
 
-    return normalizeFeatureToggleRows(data);
+    return {
+      loaded: true,
+      toggles: normalizeFeatureToggleRows(data),
+    };
   } catch (error) {
     if (!IS_NODE_TEST_RUNTIME) {
       console.error('[app-settings] Failed to read feature toggles:', error);
     }
-    return {};
+    return { loaded: false, toggles: {} };
   }
+}
+
+/** 批量读取所有功能模块开关状态。返回 Record<id, boolean>，true = 已关闭 */
+export async function getFeatureToggles(): Promise<Record<string, boolean>> {
+  const result = await readFeatureTogglesState();
+  return result.toggles;
 }
 
 /** 设置单个功能模块开关。disabled=true 表示关闭该功能 */

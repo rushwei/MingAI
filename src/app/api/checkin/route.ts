@@ -10,7 +10,7 @@ import {
 } from '@/lib/user/checkin';
 import { getUserLevel } from '@/lib/user/gamification';
 import { jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
-import { createMemoryCache, createSingleFlight } from '@/lib/cache';
+import { createMemoryCache, createSingleFlight } from '@/lib/cache/memory';
 
 const STATUS_CACHE_TTL_MS = 60_000;
 const statusCache = createMemoryCache<CheckinResponse['data']>(STATUS_CACHE_TTL_MS);

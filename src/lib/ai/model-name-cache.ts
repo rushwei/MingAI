@@ -1,4 +1,4 @@
-import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 
 type ClientModelNameMap = Record<string, string>;
 

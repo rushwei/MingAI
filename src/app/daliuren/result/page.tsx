@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Brain, RotateCcw, RefreshCw, Sparkles, Copy, Check, Info } from 'lucide-react';
 import { renderDaliurenCanonicalJSON } from '@mingai/core/json';
 import { useToast } from '@/components/ui/Toast';
-import { readSessionJSON, updateSessionJSON } from '@/lib/cache';
+import { readSessionJSON, updateSessionJSON } from '@/lib/cache/session-storage';
 import { TianDiPanGrid } from '@/components/daliuren/TianDiPanGrid';
 import { ModelSelector } from '@/components/ui/ModelSelector';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -60,8 +60,9 @@ export default function DaliurenResultPage() {
     const hasAutoSavedRef = useRef(false);
 
     const streaming = useStreamingResponse();
-    const { session, userId, membershipInfo, sessionLoading } = useSessionMembership();
-    const membershipType = membershipInfo?.type ?? 'free';
+    const { session, userId, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
+    const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const canonicalResult = useMemo(() => (result ? renderDaliurenCanonicalJSON(result) : null), [result]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
@@ -250,7 +251,7 @@ export default function DaliurenResultPage() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-4">
                         <h2 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-foreground/60"><Brain className="w-4 h-4 text-[#2eaadc]" />AI 深度解读</h2>
                         <div className="flex items-center gap-2">
-                            <ModelSelector compact selectedModel={modelId} onModelChange={setModelId} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} />
+                            <ModelSelector compact selectedModel={modelId} onModelChange={setModelId} reasoningEnabled={reasoningEnabled} onReasoningChange={setReasoningEnabled} userId={userId} membershipType={membershipType} disabled={membershipPending} />
                             {interpretation && <button onClick={handleInterpret} disabled={streaming.isStreaming} className="p-1.5 rounded-md hover:bg-background-secondary transition-colors"><RefreshCw className={`w-3.5 h-3.5 ${streaming.isStreaming ? 'animate-spin' : ''}`} /></button>}
                         </div>
                     </div>
@@ -266,7 +267,7 @@ export default function DaliurenResultPage() {
                         </div>
                     ) : (
                         <div className="py-12 text-center space-y-6">
-                            {!userId ? <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 解读</button> : <button onClick={handleInterpret} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 flex items-center gap-2 mx-auto"><Sparkles className="w-4 h-4" />获取 AI 解读</button>}
+                            {sessionLoading || membershipPending ? <SoundWaveLoader variant="inline" /> : !userId ? <button onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-colors">登录解锁 AI 解读</button> : <button onClick={handleInterpret} disabled={membershipPending} className="px-8 py-2.5 bg-[#2383e2] text-white text-sm font-bold rounded-md hover:bg-[#2383e2]/90 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 mx-auto"><Sparkles className="w-4 h-4" />获取 AI 解读</button>}
                         </div>
                     )}
                 </div>

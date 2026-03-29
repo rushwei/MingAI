@@ -1,5 +1,5 @@
 import { requestBrowserJson } from '@/lib/browser-api';
-import { updateSessionJSON, writeSessionJSON } from '@/lib/cache';
+import { updateSessionJSON, writeSessionJSON } from '@/lib/cache/session-storage';
 import type {
   HistoryRestorePayload,
   HistorySummaryItem,

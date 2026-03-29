@@ -8,7 +8,7 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import type { Mention, PromptLayerDiagnostic } from '@/types';
 import type { MembershipType } from '@/lib/user/membership';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
-import { readLocalCache, writeLocalCache } from '@/lib/cache';
+import { readLocalCache, writeLocalCache } from '@/lib/cache/local-storage';
 import { shouldRequestChatPreview } from '@/lib/chat/chat-preview';
 import { formatPromptLayerLabel } from '@/lib/chat/prompt-labels';
 import { supabase } from '@/lib/auth';

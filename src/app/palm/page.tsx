@@ -13,7 +13,7 @@ import { PALM_ANALYSIS_TYPES, type HandType } from '@/lib/divination/palm';
 import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { supabase } from '@/lib/auth';
-import { writeSessionJSON } from '@/lib/cache';
+import { writeSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_VISION_MODEL_ID } from '@/lib/ai/ai-config';
 import { VisionModelSelector } from '@/components/ui/VisionModelSelector';
 import dynamic from 'next/dynamic';

@@ -9,7 +9,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     User,
@@ -26,6 +25,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { useHeaderMenuSafe } from '@/components/layout/HeaderMenuContext';
 import { useAnnouncementCenterSafe } from '@/components/providers/AnnouncementPopupHost';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 
 // 路由到标题的映射
 const ROUTE_LABELS: Record<string, string> = {
@@ -55,7 +55,6 @@ const ROUTE_LABELS: Record<string, string> = {
     '/mbti': 'MBTI',
     '/daily': '每日运势',
     '/monthly': '每月运势',
-    '/fortune-hub': '运势中心',
     '/records': '命理记录',
     '/community': '命理社区',
     // 用户子页面
@@ -70,7 +69,7 @@ const ROUTE_LABELS: Record<string, string> = {
     '/user/annual-report': '年度报告',
     '/user/knowledge-base': '知识库',
     '/user/help': '帮助中心',
-    '/user': '个人中心',
+    '/user': '个人资料',
     '/chat': 'AI 对话',
     '/help': '帮助中心',
     // 六爻子页面
@@ -261,18 +260,18 @@ export function Header() {
                     {/* 用户状态 */}
                     {user ? (
                         // 已登录：显示用户头像链接
-                        <Link
-                            href="/user"
+                        <SettingsCenterLink
+                            tab="profile"
                             className="
                                 p-2 rounded-lg
                                 text-foreground-secondary
                                 hover:bg-background-secondary hover:text-foreground
                                 transition-all duration-200
                             "
-                            aria-label="个人中心"
+                            title="个人资料"
                         >
                             <User className="w-5 h-5" />
-                        </Link>
+                        </SettingsCenterLink>
                     ) : (
                         // 未登录：显示登录按钮
                         <button

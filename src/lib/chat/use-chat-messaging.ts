@@ -42,8 +42,8 @@ interface UseChatMessagingParams {
     user: { user_metadata?: { nickname?: string } } | null;
     membership: { type: string; isActive: boolean } | null;
     credits: number | null;
-    refreshBootstrap: (targetUserId?: string | null) => Promise<unknown>;
-    markBootstrapCreditsExhausted: () => void;
+    refreshViewerState: () => Promise<unknown>;
+    markViewerCreditsExhausted: () => void;
     showToast: ReturnType<typeof import('@/components/ui/Toast').useToast>['showToast'];
     router: ReturnType<typeof import('next/navigation').useRouter>;
     searchParams: ReturnType<typeof import('next/navigation').useSearchParams>;
@@ -55,8 +55,8 @@ export function useChatMessaging({
     user,
     membership: _membership, // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future credit checks
     credits: _credits, // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future credit checks
-    refreshBootstrap,
-    markBootstrapCreditsExhausted,
+    refreshViewerState,
+    markViewerCreditsExhausted,
     showToast,
     router,
     searchParams,
@@ -98,16 +98,16 @@ export function useChatMessaging({
         [featureToggleLoading, isFeatureEnabled]
     );
 
-    const refreshBootstrapTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const debouncedRefreshBootstrap = useCallback(() => {
-        if (refreshBootstrapTimerRef.current) {
-            clearTimeout(refreshBootstrapTimerRef.current);
+    const refreshViewerStateTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const debouncedRefreshViewerState = useCallback(() => {
+        if (refreshViewerStateTimerRef.current) {
+            clearTimeout(refreshViewerStateTimerRef.current);
         }
-        refreshBootstrapTimerRef.current = setTimeout(() => {
-            void refreshBootstrap();
-            refreshBootstrapTimerRef.current = null;
+        refreshViewerStateTimerRef.current = setTimeout(() => {
+            void refreshViewerState();
+            refreshViewerStateTimerRef.current = null;
         }, 300);
-    }, [refreshBootstrap]);
+    }, [refreshViewerState]);
 
     const sanitizeOutgoingMentions = useCallback(
         (rawMentions: Mention[] | undefined) => filterMentionsByFeature(rawMentions ?? [], {
@@ -118,12 +118,12 @@ export function useChatMessaging({
     );
 
     const markCreditsExhausted = useCallback((message?: string) => {
-        markBootstrapCreditsExhausted();
+        markViewerCreditsExhausted();
         setShowCreditsModal(true);
         if (message) {
             showToast('info', message);
         }
-    }, [markBootstrapCreditsExhausted, setShowCreditsModal, showToast]);
+    }, [markViewerCreditsExhausted, setShowCreditsModal, showToast]);
 
     // Scroll helpers
     const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -224,7 +224,7 @@ export function useChatMessaging({
             }
 
             if (event.type === 'task_billed' || event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed') {
-                debouncedRefreshBootstrap();
+                debouncedRefreshViewerState();
             }
             if (hasLoadedConversationsRef.current && (event.type === 'task_completed' || event.type === 'task_stopped' || event.type === 'task_failed')) {
                 void refreshConversationList();
@@ -237,7 +237,7 @@ export function useChatMessaging({
             }
         });
         return unsubscribe;
-    }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshBootstrap, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext]);
+    }, [cacheConversationMessages, markCreditsExhausted, debouncedRefreshViewerState, refreshConversationList, showToast, activeConversationIdRef, hasLoadedConversationsRef, setMessages, setStreamingConversationIds, setDreamContext]);
 
     // KB event listeners
     useEffect(() => {
@@ -246,13 +246,10 @@ export function useChatMessaging({
             if (detail?.sourceType === 'conversation') void refreshConversationList();
         };
         window.addEventListener('mingai:knowledge-base:ingested', handler as EventListener);
-        const onPromptUpdate = () => { debouncedRefreshBootstrap(); };
-        window.addEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
         return () => {
             window.removeEventListener('mingai:knowledge-base:ingested', handler as EventListener);
-            window.removeEventListener('mingai:knowledge-base:prompt-updated', onPromptUpdate as EventListener);
         };
-    }, [debouncedRefreshBootstrap, refreshConversationList]);
+    }, [refreshConversationList]);
 
     const handleArchiveMessage = useCallback((message: ChatMessage) => {
         if (!activeConversationId || !knowledgeBaseEnabled) return;

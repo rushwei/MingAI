@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getFeatureToggles, setFeatureToggle, FEATURE_MODULE_IDS, type FeatureModuleId } from "@/lib/app-settings";
 import { jsonError, jsonOk, requireAdminUser } from "@/lib/api-utils";
-import { createMemoryCache } from "@/lib/cache";
+import { createMemoryCache } from '@/lib/cache/memory';
 
 const CACHE_TTL_MS = 30_000;
 const togglesCache = createMemoryCache<Record<string, boolean>>(CACHE_TTL_MS);

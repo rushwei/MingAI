@@ -20,7 +20,7 @@ import {
     calculateCompatibilityTrend,
     getRelationshipAdvice,
 } from '@/lib/divination/hepan';
-import { readSessionJSON } from '@/lib/cache';
+import { readSessionJSON } from '@/lib/cache/session-storage';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -51,8 +51,9 @@ export default function HepanResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     // 使用共享的流式响应 hook
     const streaming = useStreamingResponse();
-    const { session, user, membershipInfo } = useSessionMembership();
-    const membershipType = membershipInfo?.type ?? 'free';
+    const { session, user, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
+    const membershipPending = membershipLoading || !membershipResolved;
+    const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const currentUser = user ? { id: user.id } : null;
 
     useEffect(() => {
@@ -313,12 +314,13 @@ export default function HepanResultPage() {
                                 onReasoningChange={setReasoningEnabled}
                                 userId={currentUser?.id}
                                 membershipType={membershipType}
+                                disabled={membershipPending}
                             />
                             {aiAnalysis && (
                                 <button
                                     data-testid="reanalyze-button"
                                     onClick={handleGetAIAnalysis}
-                                    disabled={loadingAI}
+                                    disabled={loadingAI || membershipPending}
                                     className="p-2 rounded-lg bg-background/5 text-foreground-secondary hover:text-foreground hover:bg-background/10 transition-colors disabled:opacity-50"
                                     title="重新分析"
                                 >
@@ -369,10 +371,14 @@ export default function HepanResultPage() {
                                         登录 / 注册
                                     </button>
                                 </div>
+                            ) : membershipPending ? (
+                                <div className="flex justify-center">
+                                    <SoundWaveLoader variant="inline" />
+                                </div>
                             ) : (
                                 <button
                                     onClick={handleGetAIAnalysis}
-                                    disabled={loadingAI}
+                                    disabled={loadingAI || membershipPending}
                                     className="inline-flex items-center gap-2.5 px-8 py-4 bg-accent text-white rounded-xl font-bold text-lg
                                         shadow-lg shadow-accent/20 hover:shadow-accent/30 hover:scale-[1.02] active:scale-[0.98]
                                         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none transition-all"

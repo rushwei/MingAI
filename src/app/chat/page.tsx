@@ -12,6 +12,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
+import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
 import { usePaymentPause } from '@/lib/hooks/usePaymentPause';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useHeaderMenu } from '@/components/layout/HeaderMenuContext';
@@ -21,6 +22,7 @@ import { useChatMessaging } from '@/lib/chat/use-chat-messaging';
 import { ChatLayout } from '@/components/chat/ChatLayout';
 import { AddToKnowledgeBaseModal } from '@/components/knowledge-base/AddToKnowledgeBaseModal';
 import { CreditsModal } from '@/components/ui/CreditsModal';
+import { openSettingsCenter } from '@/lib/settings-center';
 
 export default function ChatPage() {
     const router = useRouter();
@@ -30,19 +32,24 @@ export default function ChatPage() {
     const { isPaused: isPaymentPaused } = usePaymentPause();
     const { isFeatureEnabled } = useFeatureToggles();
     const { user, loading: sessionLoading } = useSessionSafe();
+    const appBootstrap = useAppBootstrap({ enabled: !sessionLoading });
     const knowledgeBaseEnabled = isFeatureEnabled('knowledge-base');
     const aiPersonalizationEnabled = isFeatureEnabled('ai-personalization');
 
     const {
-        userId, credits, membership, promptKnowledgeBases,
-        bootstrapLoading, refreshBootstrap, markCreditsExhausted: markBootstrapCreditsExhausted,
+        promptKnowledgeBases,
+        bootstrapLoading: promptKnowledgeBasesLoading,
     } = useChatBootstrap({ user, sessionLoading, knowledgeBaseEnabled });
+    const userId = user?.id ?? null;
+    const membership = appBootstrap.data.membership;
+    const credits = membership?.aiChatCount ?? null;
+    const bootstrapLoading = promptKnowledgeBasesLoading || appBootstrap.isLoading;
 
     const state = useChatState({ userId, sessionLoading, bootstrapLoading, router, searchParams });
 
     const messaging = useChatMessaging({
         state, userId, user, membership, credits,
-        refreshBootstrap, markBootstrapCreditsExhausted,
+        refreshViewerState: appBootstrap.refresh, markViewerCreditsExhausted: appBootstrap.markCreditsExhausted,
         showToast, router, searchParams,
     });
 
@@ -53,14 +60,14 @@ export default function ChatPage() {
             menuItems.push({
                 id: 'ai-settings', label: '个性化',
                 icon: <MessageCircleHeart className="w-4 h-4" />,
-                onClick: () => router.push('/user/settings/ai'),
+                onClick: () => openSettingsCenter('personalization'),
             });
         }
         if (membership?.type !== 'free' && knowledgeBaseEnabled) {
             menuItems.push({
                 id: 'knowledge-base', label: '知识库',
                 icon: <BookOpenText className="w-4 h-4" />,
-                onClick: () => router.push('/user/knowledge-base'),
+                onClick: () => openSettingsCenter('knowledge-base'),
             });
         }
         setMenuItems(menuItems);

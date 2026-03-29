@@ -9,7 +9,7 @@
 
 import { Solar } from 'lunar-javascript';
 import { STEM_ELEMENTS } from './bazi';
-import { createMemoryCache } from '@/lib/cache';
+import { createMemoryCache } from '@/lib/cache/memory';
 import type { BaziChart, HeavenlyStem, FiveElement, FortuneLevel } from '@/types';
 
 // 运势计算缓存（TTL 24h，按天不变）

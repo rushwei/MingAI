@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 
 export function ResultFooterLinks() {
     return (
@@ -7,9 +8,9 @@ export function ResultFooterLinks() {
                 新建排盘
             </Link>
             <span className="text-foreground-secondary">•</span>
-            <Link href="/user/charts" className="text-sm text-foreground-secondary hover:text-accent transition-colors">
+            <SettingsCenterLink tab="charts" className="text-sm text-foreground-secondary hover:text-accent transition-colors">
                 我的命盘
-            </Link>
+            </SettingsCenterLink>
             <span className="text-foreground-secondary">•</span>
             <Link href="/chat" className="text-sm text-foreground-secondary hover:text-accent transition-colors">
                 AI 对话

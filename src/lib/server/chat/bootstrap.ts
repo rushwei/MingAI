@@ -52,7 +52,6 @@ export async function buildChatBootstrap(
   if (membership?.type === 'free' || !knowledgeBaseFeatureEnabled || promptKbIds.length === 0) {
     return {
       userId,
-      membership,
       promptKnowledgeBaseIds: [],
       promptKnowledgeBases: [],
     };
@@ -70,7 +69,6 @@ export async function buildChatBootstrap(
 
   return {
     userId,
-    membership,
     promptKnowledgeBaseIds: promptKbIds,
     promptKnowledgeBases: promptKbIds
       .map((kbId) => kbMap.get(kbId))

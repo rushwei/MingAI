@@ -1,5 +1,5 @@
 import type { MembershipType } from '@/lib/user/membership';
-import { dispatchUserDataInvalidate, type UserSettingsSnapshot } from '@/lib/user/settings';
+import type { UserSettingsSnapshot } from '@/lib/user/settings';
 import { normalizeBrowserApiError, requestBrowserJson } from '@/lib/browser-api';
 
 export type UserProfile = {
@@ -94,12 +94,7 @@ export async function updateCurrentUserProfile(input: ProfileUpdateInput): Promi
     body: JSON.stringify(payload),
   });
 
-  const normalized = toProfileUpdateResult(result);
-  if (normalized.success) {
-    dispatchUserDataInvalidate('/api/user/profile');
-  }
-
-  return normalized;
+  return toProfileUpdateResult(result);
 }
 
 export async function updateAvatarUrl(avatarUrl: string | null) {

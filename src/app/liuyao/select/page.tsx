@@ -22,7 +22,7 @@ import {
     type LiuQin,
 } from '@/lib/divination/liuyao';
 import { supabase } from '@/lib/auth';
-import { readSessionJSON, writeSessionJSON } from '@/lib/cache';
+import { readSessionJSON, writeSessionJSON } from '@/lib/cache/session-storage';
 
 type SelectMode = 'list' | 'trigram';
 type LiuyaoQuestionSession = {

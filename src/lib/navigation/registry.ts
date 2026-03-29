@@ -9,7 +9,6 @@ import {
   HeartHandshake,
   BotMessageSquare,
   Brain,
-  Compass,
   Sun,
   User,
   ScanFace,
@@ -91,7 +90,6 @@ export interface NavItemDef {
 
 export const NAV_REGISTRY: readonly NavItemDef[] = [
   // ── Divination ──────────────────────────────────────────────────────────
-  { id: 'fortune-hub', href: '/fortune-hub', label: '运势中心', icon: Compass, category: 'divination' },
   { id: 'bazi', href: '/bazi', label: '八字', icon: PYinYang, emoji: '🔮', description: '四柱八字精批', category: 'divination' },
   { id: 'hepan', href: '/hepan', label: '八字合盘', icon: HeartHandshake, emoji: '💑', description: '八字合盘', category: 'divination' },
   { id: 'ziwei', href: '/ziwei', label: '紫微斗数', icon: PCompassRose, emoji: '⭐', description: '紫微命盘', category: 'divination' },
