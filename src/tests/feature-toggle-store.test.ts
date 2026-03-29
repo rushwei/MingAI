@@ -1,44 +1,75 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { QueryClient } from '@tanstack/react-query';
 
-test('feature toggle store refresh should publish updated state to all subscribers', async () => {
-  const originalFetch = global.fetch;
-  const featureTogglesModule = await import('../lib/hooks/useFeatureToggles');
-  const {
-    refreshFeatureToggleStore,
-    subscribeFeatureToggleStore,
-    getFeatureToggleStoreSnapshot,
-    resetFeatureToggleStoreForTests,
-  } = featureTogglesModule;
+test('query invalidation should refresh app bootstrap after feature toggle writes', async () => {
+  const originalWindow = (globalThis as { window?: unknown }).window;
+  const queryClient = new QueryClient();
+  const invalidated: Array<readonly unknown[] | undefined> = [];
+  const originalInvalidate = queryClient.invalidateQueries.bind(queryClient);
+  queryClient.invalidateQueries = (async (filters) => {
+    invalidated.push(filters?.queryKey);
+    return await originalInvalidate(filters);
+  }) as typeof queryClient.invalidateQueries;
 
-  resetFeatureToggleStoreForTests();
-  global.fetch = async () => new Response(JSON.stringify({
-    toggles: { chat: false, tarot: true },
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  }) as Response;
+  (globalThis as { window?: unknown }).window = {} as Window;
 
-  const seenA: Array<{ isLoading: boolean; chat?: boolean }> = [];
-  const seenB: Array<{ isLoading: boolean; chat?: boolean }> = [];
-  const unsubscribeA = subscribeFeatureToggleStore((state) => {
-    seenA.push({ isLoading: state.isLoading, chat: state.toggles?.chat });
-  });
-  const unsubscribeB = subscribeFeatureToggleStore((state) => {
-    seenB.push({ isLoading: state.isLoading, chat: state.toggles?.chat });
-  });
+  const { registerBrowserQueryClient } = await import('../lib/query/client');
+  const { invalidateQueriesForPath } = await import('../lib/query/invalidation');
 
   try {
-    await refreshFeatureToggleStore(true);
-    const snapshot = getFeatureToggleStoreSnapshot();
-    assert.equal(snapshot.toggles?.chat, false);
-    assert.equal(snapshot.isLoading, false);
-    assert.ok(seenA.some((entry) => entry.chat === false), 'subscriber A should receive refreshed toggles');
-    assert.ok(seenB.some((entry) => entry.chat === false), 'subscriber B should receive refreshed toggles');
+    registerBrowserQueryClient(queryClient);
+    invalidateQueriesForPath('/api/feature-toggles');
+    assert.deepEqual(invalidated, [['app', 'bootstrap']]);
   } finally {
-    unsubscribeA();
-    unsubscribeB();
-    resetFeatureToggleStoreForTests();
-    global.fetch = originalFetch;
+    (globalThis as { window?: unknown }).window = originalWindow;
+  }
+});
+
+test('query invalidation should refresh chat bootstrap after user settings writes', async () => {
+  const originalWindow = (globalThis as { window?: unknown }).window;
+  const queryClient = new QueryClient();
+  const invalidated: Array<readonly unknown[] | undefined> = [];
+  const originalInvalidate = queryClient.invalidateQueries.bind(queryClient);
+  queryClient.invalidateQueries = (async (filters) => {
+    invalidated.push(filters?.queryKey);
+    return await originalInvalidate(filters);
+  }) as typeof queryClient.invalidateQueries;
+
+  (globalThis as { window?: unknown }).window = {} as Window;
+
+  const { registerBrowserQueryClient } = await import('../lib/query/client');
+  const { invalidateQueriesForPath } = await import('../lib/query/invalidation');
+
+  try {
+    registerBrowserQueryClient(queryClient);
+    invalidateQueriesForPath('/api/user/settings');
+    assert.deepEqual(invalidated, [['chat', 'bootstrap']]);
+  } finally {
+    (globalThis as { window?: unknown }).window = originalWindow;
+  }
+});
+
+test('query invalidation should refresh models after membership-affecting writes', async () => {
+  const originalWindow = (globalThis as { window?: unknown }).window;
+  const queryClient = new QueryClient();
+  const invalidated: Array<readonly unknown[] | undefined> = [];
+  const originalInvalidate = queryClient.invalidateQueries.bind(queryClient);
+  queryClient.invalidateQueries = (async (filters) => {
+    invalidated.push(filters?.queryKey);
+    return await originalInvalidate(filters);
+  }) as typeof queryClient.invalidateQueries;
+
+  (globalThis as { window?: unknown }).window = {} as Window;
+
+  const { registerBrowserQueryClient } = await import('../lib/query/client');
+  const { invalidateQueriesForPath } = await import('../lib/query/invalidation');
+
+  try {
+    registerBrowserQueryClient(queryClient);
+    invalidateQueriesForPath('/api/membership/upgrade');
+    assert.deepEqual(invalidated, [['app', 'bootstrap'], ['chat', 'bootstrap'], ['models']]);
+  } finally {
+    (globalThis as { window?: unknown }).window = originalWindow;
   }
 });

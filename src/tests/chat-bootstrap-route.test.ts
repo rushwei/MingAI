@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 process.env.SUPABASE_URL = 'http://localhost';
 process.env.SUPABASE_ANON_KEY = 'test-anon';
 
-test('chat bootstrap route returns membership and ordered prompt knowledge bases', async (t) => {
+test('chat bootstrap route returns ordered prompt knowledge bases', async (t) => {
   const apiUtilsModule = require('../lib/api-utils') as typeof import('../lib/api-utils');
   type RequireUserContextResult = Awaited<ReturnType<typeof apiUtilsModule.requireUserContext>>;
 
@@ -78,7 +78,6 @@ test('chat bootstrap route returns membership and ordered prompt knowledge bases
   const payload = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(payload.data.membership.type, 'plus');
   assert.deepEqual(
     payload.data.promptKnowledgeBases.map((kb: { id: string }) => kb.id),
     ['kb-2', 'kb-1']
@@ -181,7 +180,6 @@ test('chat bootstrap route hides prompt knowledge bases for free membership', as
   const payload = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(payload.data.membership.type, 'free');
   assert.deepEqual(payload.data.promptKnowledgeBases, []);
   assert.deepEqual(payload.data.promptKnowledgeBaseIds, []);
 });
@@ -268,7 +266,6 @@ test('chat bootstrap route hides prompt knowledge bases when knowledge-base feat
   const payload = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(payload.data.membership.type, 'plus');
   assert.deepEqual(payload.data.promptKnowledgeBases, []);
   assert.deepEqual(payload.data.promptKnowledgeBaseIds, []);
 });

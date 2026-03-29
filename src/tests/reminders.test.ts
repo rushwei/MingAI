@@ -7,10 +7,10 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon';
 test('createNotification uses service client for inserts', async (t) => {
     const notificationModule = require('../lib/notification-server') as any;
     const supabaseModule = require('../lib/auth') as any;
-    const supabaseServerModule = require('../lib/supabase-server') as any;
+    const apiUtilsModule = require('../lib/api-utils') as any;
 
     const originalFrom = supabaseModule.supabase.from;
-    const originalGetServiceClient = supabaseServerModule.getSystemAdminClient;
+    const originalGetServiceClient = apiUtilsModule.getSystemAdminClient;
 
     let inserted: Record<string, unknown> | null = null;
 
@@ -18,8 +18,13 @@ test('createNotification uses service client for inserts', async (t) => {
         throw new Error('browser client should not be used');
     };
 
-    supabaseServerModule.getSystemAdminClient = () => ({
+    apiUtilsModule.getSystemAdminClient = () => ({
         from: (table: string) => ({
+            select: () => ({
+                lt: () => ({
+                    eq: async () => ({ count: 0, error: null }),
+                }),
+            }),
             insert: (payload: Record<string, unknown>) => {
                 if (table === 'notifications') {
                     inserted = payload;
@@ -32,7 +37,7 @@ test('createNotification uses service client for inserts', async (t) => {
 
     t.after(() => {
         supabaseModule.supabase.from = originalFrom;
-        supabaseServerModule.getSystemAdminClient = originalGetServiceClient;
+        apiUtilsModule.getSystemAdminClient = originalGetServiceClient;
     });
 
     const ok = await notificationModule.createNotification(
