@@ -49,6 +49,8 @@ function stopPolling() {
         window.removeEventListener('mingai:api-write', handleApiWrite);
         window.removeEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
         window.removeEventListener('mingai:notifications-unread', handleNotificationsUnreadUpdate);
+        window.removeEventListener('focus', handlePageVisible);
+        document.removeEventListener('visibilitychange', handlePageVisible);
         listenersAttached = false;
     }
 }
@@ -76,6 +78,15 @@ function handleNotificationsUnreadUpdate(event: Event) {
     }
 }
 
+function handlePageVisible() {
+    if (
+        activeUserId
+        && (typeof document === 'undefined' || document.visibilityState === 'visible')
+    ) {
+        void refreshUnreadCount(activeUserId, { bypassCache: true });
+    }
+}
+
 function startPolling(userId: string) {
     if (typeof window === 'undefined') {
         return;
@@ -85,11 +96,15 @@ function startPolling(userId: string) {
     setUnreadState({ userId, unreadCount: 0 });
     void refreshUnreadCount(userId);
     pollTimer = window.setInterval(() => {
-        void refreshUnreadCount(userId, { bypassCache: true });
+        if (document.visibilityState === 'visible') {
+            void refreshUnreadCount(userId, { bypassCache: true });
+        }
     }, 30_000);
     window.addEventListener('mingai:api-write', handleApiWrite);
     window.addEventListener('mingai:notifications:invalidate', handleNotificationsInvalidate);
     window.addEventListener('mingai:notifications-unread', handleNotificationsUnreadUpdate);
+    window.addEventListener('focus', handlePageVisible);
+    document.addEventListener('visibilitychange', handlePageVisible);
     listenersAttached = true;
 }
 

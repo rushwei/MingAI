@@ -81,6 +81,60 @@ test('notifications GET should use head count query for unread badge requests', 
   assert.deepEqual(queryState.gteCalls.map((item) => item.column), ['created_at']);
 });
 
+test('notifications GET should not prune expired rows for unread badge requests', async (t) => {
+  const apiUtils = require('../lib/api-utils') as {
+    requireUserContext: typeof import('../lib/api-utils').requireUserContext;
+  };
+  const notificationServer = require('../lib/notification-server') as {
+    pruneExpiredNotifications: typeof import('../lib/notification-server').pruneExpiredNotifications;
+  };
+  const originalRequireUserContext = apiUtils.requireUserContext;
+  const originalPruneExpiredNotifications = notificationServer.pruneExpiredNotifications;
+
+  let pruneCalled = false;
+
+  apiUtils.requireUserContext = (async () => ({
+    user: { id: 'user-1' },
+    supabase: {
+      from() {
+        return {
+          select() {
+            const query = {
+              eq() {
+                return query;
+              },
+              gte() {
+                return query;
+              },
+              then(resolve: (value: { data: null; error: null; count: number }) => unknown) {
+                return Promise.resolve(resolve({ data: null, error: null, count: 2 }));
+              },
+            };
+            return query;
+          },
+        };
+      },
+    },
+  })) as unknown as typeof apiUtils.requireUserContext;
+  notificationServer.pruneExpiredNotifications = (async () => {
+    pruneCalled = true;
+    return 0;
+  }) as typeof notificationServer.pruneExpiredNotifications;
+
+  t.after(() => {
+    apiUtils.requireUserContext = originalRequireUserContext;
+    notificationServer.pruneExpiredNotifications = originalPruneExpiredNotifications;
+  });
+
+  const { GET } = await import('../app/api/notifications/route');
+  const response = await GET(new NextRequest('http://localhost/api/notifications?count=1&unread=1'));
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.count, 2);
+  assert.equal(pruneCalled, false);
+});
+
 test('notifications GET list should filter notifications to the most recent 3 days', async (t) => {
   const apiUtils = require('../lib/api-utils') as {
     requireUserContext: typeof import('../lib/api-utils').requireUserContext;

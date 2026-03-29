@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { requestBrowserJson } from '@/lib/browser-api';
 import { SidebarAnnouncementCenter } from '@/components/layout/SidebarAnnouncementCenter';
 import {
     ANNOUNCEMENT_CENTER_STORAGE_KEY,
@@ -13,6 +12,7 @@ import {
     type Announcement,
     type AnnouncementCenterLocalState,
 } from '@/lib/announcement';
+import { loadLatestAnnouncement as loadLatestAnnouncementFromStore } from '@/lib/announcement-latest-store';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 
 export type AnnouncementCenterTab = 'notifications' | 'announcements';
@@ -118,12 +118,12 @@ export function AnnouncementPopupHost({
             return;
         }
 
-        const result = await requestBrowserJson<{ announcement?: Announcement | null }>('/api/announcements?latest=1', {
-            method: 'GET',
-        });
-
-        if (result.error) {
-            console.error('[announcement-center] failed to load latest announcement:', result.error.message);
+        let announcement: Announcement | null = null;
+        try {
+            announcement = await loadLatestAnnouncementFromStore();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '获取公告失败';
+            console.error('[announcement-center] failed to load latest announcement:', message);
             return;
         }
 
@@ -131,7 +131,6 @@ export function AnnouncementPopupHost({
             return;
         }
 
-        const announcement = result.data?.announcement ?? null;
         setLatestAnnouncement(announcement);
 
         const shouldPrompt = shouldPromptLatestAnnouncement({
@@ -155,7 +154,18 @@ export function AnnouncementPopupHost({
         return () => {
             window.clearTimeout(timer);
         };
-    }, [loadLatestAnnouncement, pathname, userId]);
+    }, [loadLatestAnnouncement, pathname]);
+
+    useEffect(() => {
+        const handleAnnouncementsInvalidate = () => {
+            void loadLatestAnnouncement();
+        };
+
+        window.addEventListener('mingai:announcements:invalidate', handleAnnouncementsInvalidate);
+        return () => {
+            window.removeEventListener('mingai:announcements:invalidate', handleAnnouncementsInvalidate);
+        };
+    }, [loadLatestAnnouncement]);
 
     const contextValue = useMemo<AnnouncementCenterContextValue>(() => ({
         openAnnouncementCenter,

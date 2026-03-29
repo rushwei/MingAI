@@ -11,8 +11,6 @@ export async function GET(request: NextRequest) {
   const auth = await requireUserContext(request);
   if ('error' in auth) return jsonError(auth.error.message, auth.error.status);
 
-  await pruneExpiredNotifications({ userId: auth.user.id });
-
   const unreadOnly = request.nextUrl.searchParams.get('unread') === '1';
   const countOnly = request.nextUrl.searchParams.get('count') === '1';
   const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit') || 20), 1), 100);
