@@ -5,6 +5,28 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { getAuthAdminClient as getPrivilegedAuthClient, getSystemAdminClient as getPrivilegedSystemAdminClient } from '@/lib/supabase-server';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { ACCESS_COOKIE, REFRESH_COOKIE, resolveSessionFromTokens, writeSessionCookies } from '@/lib/auth-session';
+
+type RequestSupabaseClient =
+    | Awaited<ReturnType<typeof createRequestSupabaseClient>>
+    | ReturnType<typeof createAuthedClient>;
+
+type WritableCookieStore = {
+    set: (name: string, value: string, options: {
+        httpOnly: boolean;
+        secure: boolean;
+        sameSite: 'lax';
+        path: string;
+        maxAge: number;
+    }) => unknown;
+    delete: (name: string) => unknown;
+};
+
+type GetAuthContextDependencies = {
+    authResolverClient?: ReturnType<typeof createAnonClient>;
+    authedClientFactory?: typeof createAuthedClient;
+    cookieStore?: WritableCookieStore | null;
+};
 
 export async function createRequestSupabaseClient() {
     let cookieValues: Array<{ name: string; value: string }> = [];
@@ -41,17 +63,48 @@ export async function createRequestSupabaseClient() {
 }
 
 // 统一从请求中解析用户身份，支持 Bearer 与 Cookie 会话
-export async function getAuthContext(request: NextRequest): Promise<{
-    supabase: Awaited<ReturnType<typeof createRequestSupabaseClient>>;
+export async function getAuthContext(
+    request: NextRequest,
+    dependencies: GetAuthContextDependencies = {},
+): Promise<{
+    supabase: RequestSupabaseClient;
     user: User | null;
 }> {
     const bearer = request.headers.get('authorization');
-    const bearerToken = bearer?.replace(/Bearer\s+/i, '');
-    const cookieToken = request.cookies.get('sb-access-token')?.value;
-    const token = bearerToken || cookieToken;
-    const supabase = token ? createAuthedClient(token) : await createRequestSupabaseClient();
+    const accessToken = bearer?.replace(/Bearer\s+/i, '') || request.cookies.get(ACCESS_COOKIE)?.value || null;
+    const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value || null;
+    const authResolverClient = dependencies.authResolverClient ?? createAnonClient();
+    const authedClientFactory = dependencies.authedClientFactory ?? createAuthedClient;
+    const { session, refreshed } = await resolveSessionFromTokens(authResolverClient, {
+        accessToken,
+        refreshToken,
+    });
+
+    if (session?.access_token) {
+        if (refreshed) {
+            const cookieStore = dependencies.cookieStore ?? await getWritableCookieStore();
+            if (cookieStore) {
+                writeSessionCookies(cookieStore, session);
+            }
+        }
+
+        return {
+            supabase: authedClientFactory(session.access_token),
+            user: session.user ?? null,
+        };
+    }
+
+    const supabase = await createRequestSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     return { supabase, user: user ?? null };
+}
+
+async function getWritableCookieStore(): Promise<WritableCookieStore | null> {
+    try {
+        return await cookies() as WritableCookieStore;
+    } catch {
+        return null;
+    }
 }
 
 // 仅用于必须使用 Bearer Token 的接口
@@ -81,7 +134,7 @@ export async function requireBearerUser(
 export async function requireUserContext(
     request: NextRequest
 ): Promise<
-    | { supabase: Awaited<ReturnType<typeof createRequestSupabaseClient>>; user: User }
+    | { supabase: RequestSupabaseClient; user: User }
     | { error: { message: string; status: number } }
 > {
     const { supabase, user } = await getAuthContext(request);
@@ -95,7 +148,7 @@ export async function requireUserContext(
  * 检查用户是否为管理员
  */
 async function checkIsAdmin(
-    supabase: Awaited<ReturnType<typeof createRequestSupabaseClient>>,
+    supabase: RequestSupabaseClient,
     userId: string
 ): Promise<boolean> {
     const { data: userData, error } = await supabase
@@ -128,7 +181,7 @@ export async function requireAdminUser(
 export async function requireAdminContext(
     request: NextRequest
 ): Promise<
-    | { supabase: Awaited<ReturnType<typeof createRequestSupabaseClient>>; user: User }
+    | { supabase: RequestSupabaseClient; user: User }
     | { error: { message: string; status: number } }
 > {
     const authResult = await requireUserContext(request);

@@ -9,6 +9,17 @@ import type { Session, User } from '@supabase/supabase-js';
 export const ACCESS_COOKIE = 'sb-access-token';
 export const REFRESH_COOKIE = 'sb-refresh-token';
 
+type SessionCookieWriter = {
+  set: (name: string, value: string, options: {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: 'lax';
+    path: string;
+    maxAge: number;
+  }) => unknown;
+  delete: (name: string) => unknown;
+};
+
 export function buildSessionFromUser(
   user: User,
   accessToken: string,
@@ -73,27 +84,35 @@ export async function resolveSessionFromTokens(
   return { session: null, refreshed: false };
 }
 
-export function setSessionCookies(response: NextResponse, session: Session | null) {
+function applySessionCookies(writer: SessionCookieWriter, session: Session | null) {
   const secure = process.env.NODE_ENV === 'production';
 
   if (!session) {
-    response.cookies.delete(ACCESS_COOKIE);
-    response.cookies.delete(REFRESH_COOKIE);
+    writer.delete(ACCESS_COOKIE);
+    writer.delete(REFRESH_COOKIE);
     return;
   }
 
-  response.cookies.set(ACCESS_COOKIE, session.access_token, {
+  writer.set(ACCESS_COOKIE, session.access_token, {
     httpOnly: true,
     secure,
     sameSite: 'lax',
     path: '/',
     maxAge: Math.max(60, session.expires_in ?? 3600),
   });
-  response.cookies.set(REFRESH_COOKIE, session.refresh_token, {
+  writer.set(REFRESH_COOKIE, session.refresh_token, {
     httpOnly: true,
     secure,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
   });
+}
+
+export function writeSessionCookies(cookieStore: SessionCookieWriter, session: Session | null) {
+  applySessionCookies(cookieStore, session);
+}
+
+export function setSessionCookies(response: NextResponse, session: Session | null) {
+  applySessionCookies(response.cookies, session);
 }
