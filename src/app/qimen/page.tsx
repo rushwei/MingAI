@@ -9,7 +9,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
@@ -45,7 +44,6 @@ export default function QimenPage() {
     const [day, setDay] = useState(now.day);
     const [hour, setHour] = useState(now.hour);
     const [minute, setMinute] = useState(now.minute);
-    const [showSettings, setShowSettings] = useState(false);
     const [panType] = useState<PanType>('zhuan');
     const [juMethod, setJuMethod] = useState<JuMethod>('chaibu');
     const [zhiFuJiGong, setZhiFuJiGong] = useState<ZhiFuJiGong>('jiLiuYi');
@@ -128,9 +126,6 @@ export default function QimenPage() {
 
                 {/* 时间模式 */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
-                        时间模式
-                    </label>
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setTimeMode('now')}
@@ -182,67 +177,61 @@ export default function QimenPage() {
 
                 {/* 高级设置 */}
                 <div className="mb-8">
-                    <button
-                        onClick={() => setShowSettings(!showSettings)}
-                        className="flex items-center gap-1 text-sm text-foreground/60 hover:text-foreground transition-colors"
-                    >
-                        {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
                         高级设置
-                    </button>
-                    {showSettings && (
-                        <div className="mt-3 space-y-4 p-4 rounded-lg border border-border bg-background shadow-sm animate-fade-in">
-                            {/* 盘式 */}
-                            <div>
-                                <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">盘式</label>
-                                <div className="flex gap-2">
-                                    <span className="px-3 py-1.5 rounded-md border border-[#2383e2] bg-blue-50 text-[#2eaadc] text-xs font-bold">
-                                        转盘
-                                    </span>
-                                    <span className="px-3 py-1.5 rounded-md border border-border/60 text-foreground/30 text-xs cursor-not-allowed">
-                                        飞盘（暂不支持）
-                                    </span>
-                                </div>
-                            </div>
-                            {/* 定局法 */}
-                            <div>
-                                <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">定局法</label>
-                                <div className="flex gap-2">
-                                    {(['chaibu', 'maoshan'] as const).map(m => (
-                                        <button
-                                            key={m}
-                                            onClick={() => setJuMethod(m)}
-                                            className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all duration-150 ${
-                                                juMethod === m
-                                                    ? 'border-[#2383e2] bg-blue-50 text-[#2eaadc]'
-                                                    : 'border-border bg-transparent text-foreground/60 hover:bg-background-secondary'
-                                            }`}
-                                        >
-                                            {m === 'chaibu' ? '拆补' : '茅山'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* 六甲直符寄宫 */}
-                            <div>
-                                <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">六甲直符寄宫</label>
-                                <div className="flex gap-2">
-                                    {(['jiLiuYi', 'jiWuGong'] as const).map(z => (
-                                        <button
-                                            key={z}
-                                            onClick={() => setZhiFuJiGong(z)}
-                                            className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all duration-150 ${
-                                                zhiFuJiGong === z
-                                                    ? 'border-[#2383e2] bg-blue-50 text-[#2eaadc]'
-                                                    : 'border-border bg-transparent text-foreground/60 hover:bg-background-secondary'
-                                            }`}
-                                        >
-                                            {z === 'jiLiuYi' ? '寄六仪' : '寄戊宫'}
-                                        </button>
-                                    ))}
-                                </div>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 rounded-lg border border-border bg-background shadow-sm">
+                        {/* 盘式 */}
+                        <div>
+                            <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">盘式</label>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1.5 rounded-md bg-blue-50 text-[#2eaadc] text-xs font-bold transition-all duration-150">
+                                    转盘
+                                </span>
+                                <span className="px-3 py-1.5 rounded-md border border-border/40 text-foreground/30 text-xs cursor-not-allowed">
+                                    飞盘（暂无）
+                                </span>
                             </div>
                         </div>
-                    )}
+                        {/* 定局法 */}
+                        <div>
+                            <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">定局法</label>
+                            <div className="flex gap-2">
+                                {(['chaibu', 'maoshan'] as const).map(m => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setJuMethod(m)}
+                                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
+                                            juMethod === m
+                                                ? 'bg-blue-50 text-[#2eaadc]'
+                                                : 'bg-transparent text-foreground/70 hover:bg-[#efedea]'
+                                        }`}
+                                    >
+                                        {m === 'chaibu' ? '拆补' : '茅山'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {/* 六甲直符寄宫 */}
+                        <div>
+                            <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">直符寄宫</label>
+                            <div className="flex gap-2">
+                                {(['jiLiuYi', 'jiWuGong'] as const).map(z => (
+                                    <button
+                                        key={z}
+                                        onClick={() => setZhiFuJiGong(z)}
+                                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
+                                            zhiFuJiGong === z
+                                                ? 'bg-blue-50 text-[#2eaadc]'
+                                                : 'bg-transparent text-foreground/70 hover:bg-[#efedea]'
+                                        }`}
+                                    >
+                                        {z === 'jiLiuYi' ? '寄六仪' : '寄戊宫'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* 起课按钮 */}

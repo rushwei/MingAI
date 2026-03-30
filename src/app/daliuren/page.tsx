@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { useToast } from '@/components/ui/Toast';
 import { HistoryDrawer } from '@/components/layout/HistoryDrawer';
@@ -48,7 +47,6 @@ export default function DaliurenPage() {
     const [minute, setMinute] = useState(DEFAULT_FORM_TIME.minute);
 
     // 高级设置
-    const [showAdvanced, setShowAdvanced] = useState(false);
     const [birthYear, setBirthYear] = useState('');
     const [gender, setGender] = useState<'male' | 'female' | ''>('');
 
@@ -119,9 +117,6 @@ export default function DaliurenPage() {
                     </div>
                     {/* 时间模式 */}
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-foreground/60 mb-3 uppercase tracking-wider">
-                            时间模式
-                        </label>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => setTimeMode('now')}
@@ -170,43 +165,34 @@ export default function DaliurenPage() {
                             ))}
                         </div>
                     )}
-                    {/* 高级设置 */}
+                    {/* 本命设置 */}
                     <div className="mb-8">
-                        <button
-                            onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="flex items-center gap-1 text-sm text-foreground/60 hover:text-foreground transition-colors"
-                        >
-                            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            本命设置（可选）
-                        </button>
-                        {showAdvanced && (
-                            <div className="mt-3 space-y-4 p-4 rounded-lg border border-border bg-background shadow-sm animate-fade-in">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">出生年份</label>
-                                        <input
-                                            type="number"
-                                            value={birthYear}
-                                            onChange={e => setBirthYear(e.target.value)}
-                                            placeholder="如 1990"
-                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">性别</label>
-                                        <select
-                                            value={gender}
-                                            onChange={e => setGender(e.target.value as 'male' | 'female' | '')}
-                                            className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
-                                        >
-                                            <option value="">不填</option>
-                                            <option value="male">男</option>
-                                            <option value="female">女</option>
-                                        </select>
-                                    </div>
+                        <div className="space-y-4 p-4 rounded-lg border border-border bg-background shadow-sm">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">出生年份</label>
+                                    <input
+                                        type="number"
+                                        value={birthYear}
+                                        onChange={e => setBirthYear(e.target.value)}
+                                        placeholder="如 1990"
+                                        className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-foreground/60 mb-2 uppercase tracking-wider">性别</label>
+                                    <select
+                                        value={gender}
+                                        onChange={e => setGender(e.target.value as 'male' | 'female' | '')}
+                                        className="w-full px-3 py-2 bg-transparent rounded-md border border-border text-sm text-foreground focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/10 focus:outline-none transition-all duration-150"
+                                    >
+                                        <option value="">不填</option>
+                                        <option value="male">男</option>
+                                        <option value="female">女</option>
+                                    </select>
                                 </div>
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* 起课按钮 */}
