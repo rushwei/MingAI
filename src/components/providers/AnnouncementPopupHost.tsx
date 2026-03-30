@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { SidebarAnnouncementCenter } from '@/components/layout/SidebarAnnouncementCenter';
+import { useToast } from '@/components/ui/Toast';
 import {
     ANNOUNCEMENT_CENTER_STORAGE_KEY,
     getAnnouncementCenterLocalState,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/announcement';
 import { useFeatureToggles } from '@/lib/hooks/useFeatureToggles';
 import { useLatestAnnouncement } from '@/lib/hooks/useLatestAnnouncement';
+import { useNotificationUnreadCount } from '@/lib/hooks/useNotificationUnreadCount';
 
 export type AnnouncementCenterTab = 'notifications' | 'announcements';
 
@@ -71,16 +73,21 @@ export function AnnouncementPopupHost({
     children: ReactNode;
 }) {
     const pathname = usePathname();
+    const { showToast } = useToast();
     const { isFeatureEnabled } = useFeatureToggles();
     const notificationsEnabled = isFeatureEnabled('notifications');
     const [open, setOpen] = useState(false);
     const [preferredTab, setPreferredTab] = useState<AnnouncementCenterTab>('announcements');
     const [localStateVersion, setLocalStateVersion] = useState(0);
     const openRef = useRef(false);
+    const previousUnreadCountRef = useRef<number | null>(null);
     const latestAnnouncementQuery = useLatestAnnouncement({
         enabled: !authLoading && !pathname.startsWith('/admin'),
     });
     const latestAnnouncement = latestAnnouncementQuery.data ?? null;
+    const unreadNotificationCount = useNotificationUnreadCount(userId, {
+        enabled: notificationsEnabled && !authLoading,
+    });
 
     useEffect(() => {
         openRef.current = open;
@@ -104,6 +111,47 @@ export function AnnouncementPopupHost({
         setPreferredTab(wantsNotifications ? 'notifications' : 'announcements');
         setOpen(true);
     }, [notificationsEnabled, userId]);
+
+    useEffect(() => {
+        if (!userId || authLoading || !notificationsEnabled) {
+            previousUnreadCountRef.current = null;
+            return;
+        }
+
+        if (previousUnreadCountRef.current == null) {
+            previousUnreadCountRef.current = unreadNotificationCount;
+            return;
+        }
+
+        if (
+            unreadNotificationCount > previousUnreadCountRef.current
+            && !pathname.startsWith('/user/notifications')
+            && !openRef.current
+        ) {
+            const addedCount = unreadNotificationCount - previousUnreadCountRef.current;
+            showToast(
+                'info',
+                addedCount > 1 ? `你有 ${addedCount} 条新通知` : '你收到 1 条新通知',
+                {
+                    duration: 5000,
+                    action: {
+                        label: '查看',
+                        onClick: () => openAnnouncementCenter({ tab: 'notifications' }),
+                    },
+                },
+            );
+        }
+
+        previousUnreadCountRef.current = unreadNotificationCount;
+    }, [
+        authLoading,
+        notificationsEnabled,
+        openAnnouncementCenter,
+        pathname,
+        showToast,
+        unreadNotificationCount,
+        userId,
+    ]);
 
     const announcementPromptCount = useMemo(() => {
         void localStateVersion;

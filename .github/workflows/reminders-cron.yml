@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Process scheduled reminders
         run: |
-          curl -sS -X GET "${{ secrets.CRON_BASE_URL }}/api/cron/process-reminders" \
+          curl --fail-with-body -sS -X GET "${{ secrets.CRON_BASE_URL }}/api/cron/process-reminders" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

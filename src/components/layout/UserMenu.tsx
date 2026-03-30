@@ -5,9 +5,10 @@ import {
   CircleQuestionMark,
   LayoutPanelTop,
   LogOut,
-    MessageCircleHeart,
-    Settings,
-    User,
+  MessageCircleHeart,
+  Scroll,
+  Settings,
+  User,
 } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
 import { signOut } from '@/lib/auth';
@@ -72,45 +73,46 @@ function useIsDesktopSidebar() {
 }
 
 export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProps) {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [signingOut, setSigningOut] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const isDesktopSidebar = useIsDesktopSidebar();
-    const { isFeatureEnabled } = useFeatureToggles();
-    const { profile, loading: profileLoading, resolved: profileResolved } = useCurrentUserProfile({ enabled: isDesktopSidebar });
-    const personalizationEnabled = isFeatureEnabled('ai-personalization');
-    const helpEnabled = isFeatureEnabled('help');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isDesktopSidebar = useIsDesktopSidebar();
+  const { isFeatureEnabled } = useFeatureToggles();
+  const { profile, loading: profileLoading, resolved: profileResolved } = useCurrentUserProfile({ enabled: isDesktopSidebar });
+  const personalizationEnabled = isFeatureEnabled('ai-personalization');
+  const chartsEnabled = isFeatureEnabled('charts');
+  const helpEnabled = isFeatureEnabled('help');
 
-    const membership = profileResolved ? buildMembershipInfo(profile ?? null) : null;
-    const isAdmin = !!profile?.is_admin;
-    const avatarUrl = profile?.avatar_url ?? null;
-    const displayName = profile?.nickname || user.email?.split('@')[0] || '用户';
-    const membershipLabel = profileLoading || !profileResolved
-        ? '...'
-        : `${membershipLabels[membership?.type || 'free']} Plan`;
+  const membership = profileResolved ? buildMembershipInfo(profile ?? null) : null;
+  const isAdmin = !!profile?.is_admin;
+  const avatarUrl = profile?.avatar_url ?? null;
+  const displayName = profile?.nickname || user.email?.split('@')[0] || '用户';
+  const membershipLabel = profileLoading || !profileResolved
+    ? '...'
+    : `${membershipLabels[membership?.type || 'free']} Plan`;
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setIsMenuOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleSignOut = async () => {
-        if (signingOut) return;
-        setSigningOut(true);
-        try {
-            await signOut();
-            setIsMenuOpen(false);
-            window.location.reload();
-        } catch (error) {
-            console.error('Sign out error:', error);
-            setSigningOut(false);
-        }
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      setIsMenuOpen(false);
+      window.location.reload();
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setSigningOut(false);
+    }
+  };
 
     return (
         <div className="relative" ref={menuRef}>
@@ -162,6 +164,17 @@ export function SidebarUserCard({ user, collapsed = false }: SidebarUserCardProp
                                 >
                                     <MessageCircleHeart className="h-4 w-4 text-[#37352f]/40" />
                                     <span>个性化</span>
+                                </SettingsCenterLink>
+                            )}
+
+                            {chartsEnabled && (
+                                <SettingsCenterLink
+                                    tab="charts"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-[#37352f]/80 transition-colors hover:bg-[#efedea] hover:text-[#37352f]"
+                                >
+                                    <Scroll className="h-4 w-4 text-[#37352f]/40" />
+                                    <span>命盘</span>
                                 </SettingsCenterLink>
                             )}
 

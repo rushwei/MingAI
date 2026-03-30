@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { MessageCircleHeart, Save, SlidersHorizontal, User } from 'lucide-react';
+import { MessageCircleHeart, Save, SlidersHorizontal, User, X } from 'lucide-react';
 import {
   ADVANCED_DIMENSIONS,
   CORE_DIMENSIONS,
@@ -25,6 +25,22 @@ import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/se
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
 
 type ExpressionStyle = 'direct' | 'gentle';
+type UserProfileDraft = {
+  identity: string;
+  occupation: string;
+  focus: string;
+  answerPreference: string;
+  avoid: string;
+};
+
+type AISettingsDraftSnapshot = {
+  expressionStyle: ExpressionStyle;
+  customInstructions: string;
+  selectedDimensions: FortuneDimensionKey[];
+  dayunPeriods: number;
+  chartStyle: VisualizationChartStyle;
+  userProfile: UserProfileDraft;
+};
 
 const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string }> = [
   { value: 'modern', label: '简约现代' },
@@ -34,6 +50,41 @@ const CHART_STYLE_OPTIONS: Array<{ value: VisualizationChartStyle; label: string
 
 const USER_PROFILE_LIMIT = 120;
 const CUSTOM_INSTRUCTIONS_LIMIT = 4000;
+const EMPTY_USER_PROFILE: UserProfileDraft = {
+  identity: '',
+  occupation: '',
+  focus: '',
+  answerPreference: '',
+  avoid: '',
+};
+
+function normalizeUserProfileDraft(userProfile: UserProfileDraft): UserProfileDraft {
+  return {
+    identity: userProfile.identity.trim(),
+    occupation: userProfile.occupation.trim(),
+    focus: userProfile.focus.trim(),
+    answerPreference: userProfile.answerPreference.trim(),
+    avoid: userProfile.avoid.trim(),
+  };
+}
+
+function buildDraftSnapshot(input: {
+  expressionStyle: ExpressionStyle;
+  customInstructions: string;
+  selectedDimensions: FortuneDimensionKey[];
+  dayunPeriods: number;
+  chartStyle: VisualizationChartStyle;
+  userProfile: UserProfileDraft;
+}): AISettingsDraftSnapshot {
+  return {
+    expressionStyle: input.expressionStyle,
+    customInstructions: input.customInstructions,
+    selectedDimensions: [...input.selectedDimensions],
+    dayunPeriods: input.dayunPeriods,
+    chartStyle: input.chartStyle,
+    userProfile: normalizeUserProfileDraft(input.userProfile),
+  };
+}
 
 function SectionTitle({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return (
@@ -91,25 +142,31 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
   );
   const [dayunPeriods, setDayunPeriods] = useState(5);
   const [chartStyle, setChartStyle] = useState<VisualizationChartStyle>('modern');
-  const [userProfile, setUserProfile] = useState({
-    identity: '',
-    occupation: '',
-    focus: '',
-    answerPreference: '',
-    avoid: '',
-  });
+  const [userProfile, setUserProfile] = useState<UserProfileDraft>(EMPTY_USER_PROFILE);
+  const [savedSnapshot, setSavedSnapshot] = useState<AISettingsDraftSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const applyDraftSnapshot = (snapshot: AISettingsDraftSnapshot) => {
+    setExpressionStyle(snapshot.expressionStyle);
+    setCustomInstructions(snapshot.customInstructions);
+    setSelectedDimensions(snapshot.selectedDimensions);
+    setDayunPeriods(snapshot.dayunPeriods);
+    setChartStyle(snapshot.chartStyle);
+    setUserProfile(snapshot.userProfile);
+  };
 
   useEffect(() => {
     const init = async () => {
       if (sessionLoading) return;
       if (!user) {
+        setSavedSnapshot(null);
         setLoading(false);
         return;
       }
 
       const { settings, error: loadError } = await getCurrentUserSettings();
       if (loadError) {
+        setSavedSnapshot(null);
         setError(loadError.message || '加载个性化设置失败');
         setSettingsLoadFailed(true);
         setLoading(false);
@@ -117,39 +174,52 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
       }
 
       setSettingsLoadFailed(false);
-      setExpressionStyle((settings?.expressionStyle || 'direct') as ExpressionStyle);
-      setCustomInstructions((settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT));
+      const nextExpressionStyle = (settings?.expressionStyle || 'direct') as ExpressionStyle;
+      const nextCustomInstructions = (settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT);
 
       const visualizationSettings = settings?.visualizationSettings || readLocalVisualizationSettings(localStorage);
+      let nextSelectedDimensions = CORE_DIMENSIONS.slice(0, 6).map((dimension) => dimension.key);
       if (visualizationSettings?.selectedDimensions?.length) {
-        setSelectedDimensions(visualizationSettings.selectedDimensions);
+        nextSelectedDimensions = visualizationSettings.selectedDimensions;
       }
+      let nextDayunPeriods = 5;
       if (typeof visualizationSettings?.dayunDisplayCount === 'number') {
-        setDayunPeriods(visualizationSettings.dayunDisplayCount);
+        nextDayunPeriods = visualizationSettings.dayunDisplayCount;
       }
+      let nextChartStyle: VisualizationChartStyle = 'modern';
       if (visualizationSettings?.chartStyle) {
-        setChartStyle(visualizationSettings.chartStyle);
+        nextChartStyle = visualizationSettings.chartStyle;
       }
 
       const profile = settings?.userProfile;
+      let nextUserProfile = EMPTY_USER_PROFILE;
       if (typeof profile === 'string') {
-        setUserProfile({
-          identity: '',
-          occupation: '',
+        nextUserProfile = {
+          ...EMPTY_USER_PROFILE,
           focus: profile.slice(0, USER_PROFILE_LIMIT),
-          answerPreference: '',
-          avoid: '',
-        });
+        };
       } else if (profile && typeof profile === 'object') {
         const typed = profile as Record<string, unknown>;
-        setUserProfile({
+        nextUserProfile = {
           identity: typeof typed.identity === 'string' ? typed.identity.slice(0, USER_PROFILE_LIMIT) : '',
           occupation: typeof typed.occupation === 'string' ? typed.occupation.slice(0, USER_PROFILE_LIMIT) : '',
           focus: typeof typed.focus === 'string' ? typed.focus.slice(0, USER_PROFILE_LIMIT) : '',
           answerPreference: typeof typed.answerPreference === 'string' ? typed.answerPreference.slice(0, USER_PROFILE_LIMIT) : '',
           avoid: typeof typed.avoid === 'string' ? typed.avoid.slice(0, USER_PROFILE_LIMIT) : '',
-        });
+        };
       }
+
+      const snapshot = buildDraftSnapshot({
+        expressionStyle: nextExpressionStyle,
+        customInstructions: nextCustomInstructions,
+        selectedDimensions: nextSelectedDimensions,
+        dayunPeriods: nextDayunPeriods,
+        chartStyle: nextChartStyle,
+        userProfile: nextUserProfile,
+      });
+
+      applyDraftSnapshot(snapshot);
+      setSavedSnapshot(snapshot);
 
       setLoading(false);
     };
@@ -161,6 +231,17 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
     () => [...CORE_DIMENSIONS, ...ADVANCED_DIMENSIONS],
     [],
   );
+  const draftSnapshot = useMemo(() => buildDraftSnapshot({
+    expressionStyle,
+    customInstructions,
+    selectedDimensions,
+    dayunPeriods,
+    chartStyle,
+    userProfile,
+  }), [chartStyle, customInstructions, dayunPeriods, expressionStyle, selectedDimensions, userProfile]);
+  const isDirty = useMemo(() => (
+    savedSnapshot ? JSON.stringify(draftSnapshot) !== JSON.stringify(savedSnapshot) : false
+  ), [draftSnapshot, savedSnapshot]);
 
   const handleToggleDimension = (key: FortuneDimensionKey) => {
     const alreadySelected = selectedDimensions.includes(key);
@@ -184,23 +265,18 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
     setError(null);
     setSaving(true);
 
-    const profileValue = {
-      identity: userProfile.identity.trim(),
-      occupation: userProfile.occupation.trim(),
-      focus: userProfile.focus.trim(),
-      answerPreference: userProfile.answerPreference.trim(),
-      avoid: userProfile.avoid.trim(),
-    };
+    const nextSavedSnapshot = draftSnapshot;
+    const profileValue = nextSavedSnapshot.userProfile;
     const profilePayload = Object.values(profileValue).some((value) => value.length > 0) ? profileValue : null;
 
     const saved = await updateCurrentUserSettings({
-      expressionStyle,
-      customInstructions: customInstructions || null,
+      expressionStyle: nextSavedSnapshot.expressionStyle,
+      customInstructions: nextSavedSnapshot.customInstructions || null,
       userProfile: profilePayload,
       visualizationSettings: {
-        selectedDimensions,
-        dayunDisplayCount: dayunPeriods,
-        chartStyle,
+        selectedDimensions: nextSavedSnapshot.selectedDimensions,
+        dayunDisplayCount: nextSavedSnapshot.dayunPeriods,
+        chartStyle: nextSavedSnapshot.chartStyle,
       },
     });
 
@@ -209,9 +285,9 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
     const synced = syncVisualizationPreferencesAfterSave(
       localStorage,
       {
-        selectedDimensions,
-        dayunDisplayCount: dayunPeriods,
-        chartStyle,
+        selectedDimensions: nextSavedSnapshot.selectedDimensions,
+        dayunDisplayCount: nextSavedSnapshot.dayunPeriods,
+        chartStyle: nextSavedSnapshot.chartStyle,
       },
       saved,
     );
@@ -222,7 +298,15 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
       return;
     }
 
+    applyDraftSnapshot(nextSavedSnapshot);
+    setSavedSnapshot(nextSavedSnapshot);
     showToast('success', '个性化设置已保存');
+  };
+
+  const handleCancel = () => {
+    if (!savedSnapshot || saving) return;
+    setError(null);
+    applyDraftSnapshot(savedSnapshot);
   };
 
   if (loading || sessionLoading) {
@@ -239,18 +323,6 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
   return (
     <div className={embedded ? 'space-y-8' : 'mx-auto max-w-4xl space-y-8 px-4 py-6'}>
-      <header className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-start md:justify-between">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || settingsLoadFailed}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
-        >
-          {saving ? <SoundWaveLoader variant="inline" /> : <Save className="h-4 w-4" />}
-          保存设置
-        </button>
-      </header>
-
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
@@ -418,6 +490,38 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
           </div>
         </div>
       </section>
+
+      {isDirty ? (
+        <div className="sticky bottom-0 z-20 pb-2">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-background/95 px-4 py-3 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">个性化设置已修改</p>
+              <p className="text-xs text-foreground-secondary">保存后才会影响后续 AI 对话和可视化偏好。</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground-secondary transition-colors duration-150 hover:bg-[#efedea] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-background-secondary"
+              >
+                <X className="h-4 w-4" />
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || settingsLoadFailed}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-[#e3e1db] px-3 py-2 text-sm font-medium text-[#37352f] transition-colors duration-150 hover:bg-[#d9d6ce] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-background-tertiary dark:text-foreground dark:hover:bg-background-secondary"
+              >
+                {saving ? <SoundWaveLoader variant="inline" /> : <Save className="h-4 w-4" />}
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
