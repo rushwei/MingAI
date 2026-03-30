@@ -41,5 +41,5 @@ test('settings center legacy paths stay stable for launch routes', () => {
   assert.equal(getSettingsCenterLegacyPath('admin-features'), '/admin/features');
   assert.equal(getSettingsCenterLegacyPath('admin-ai-services'), '/admin/ai-services');
   assert.equal(getSettingsCenterLegacyPath('admin-mcp'), '/admin/mcp');
-  assert.equal(getSettingsCenterRouteTarget('admin-features', { subpath: 'pause' }), '/#settings/admin-features/pause');
+  assert.equal(getSettingsCenterRouteTarget('admin-features', { subpath: 'pause' }), '/bazi#settings/admin-features/pause');
 });

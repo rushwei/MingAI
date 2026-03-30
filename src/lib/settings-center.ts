@@ -271,5 +271,5 @@ export function closeSettingsCenter() {
 }
 
 export function getSettingsCenterRouteTarget(tab: SettingsCenterTab, options?: { subpath?: string | null }): string {
-  return `/${buildSettingsCenterHash(tab, options)}`;
+  return `/bazi${buildSettingsCenterHash(tab, options)}`;
 }
