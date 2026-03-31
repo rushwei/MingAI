@@ -7,7 +7,7 @@ import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { findHexagram, type Yao, calculateDerivedHexagrams, calculateGuaShen } from '@/lib/divination/liuyao';
 import { drawForSpread, generateTarotReadingText } from '@/lib/divination/tarot';
 
-test('bazi shared chart text should include core-aligned metadata that is currently missing from web output', () => {
+test('bazi shared chart text should use the slimmer default layout while preserving key runtime facts', () => {
     const chart = calculateBazi({
         name: '测试',
         gender: 'male',
@@ -23,15 +23,17 @@ test('bazi shared chart text should include core-aligned metadata that is curren
 
     const text = generateBaziChartText(chart);
 
-    assert.match(text, /命主五行/u, 'bazi text should expose day-master element summary');
+    assert.match(text, /命局全盘/u, 'bazi text should expose the default chart overview section');
     assert.match(text, /真太阳时/u, 'bazi text should expose true solar time info when core provides it');
-    assert.match(text, /胎元/u, 'bazi text should expose taiYuan when core provides it');
-    assert.match(text, /命宫/u, 'bazi text should expose mingGong when core provides it');
     assert.match(text, /干支关系/u, 'bazi text should expose consolidated relations section');
+    assert.match(text, /大运轨迹/u, 'bazi text should expose the slim dayun summary by default');
     assert.match(text, /半合/u, 'bazi text should expose diZhiBanHe when data exists');
+    assert.doesNotMatch(text, /命主五行/u, 'bazi text should drop the old day-master element summary from default output');
+    assert.doesNotMatch(text, /胎元/u, 'bazi text should drop taiYuan from the slimmer default output');
+    assert.doesNotMatch(text, /命宫/u, 'bazi text should drop mingGong from the slimmer default output');
 });
 
-test('bazi chart text should include naYin/diShi and hidden stem details', () => {
+test('bazi chart text should keep hidden stem details, diShi, and kong markers in the new table layout', () => {
     const chart = calculateBazi({
         name: '测试',
         gender: 'male',
@@ -49,11 +51,13 @@ test('bazi chart text should include naYin/diShi and hidden stem details', () =>
     const qiType = chart.fourPillars.year.hiddenStemDetails?.[0]?.qiType;
 
     assert.ok(qiType, 'bazi hidden stem details should include qiType from core output');
-    assert.match(text, /纳音/u, 'bazi text should include naYin markers for pillars');
     assert.match(text, /地势/u, 'bazi text should include diShi markers for pillars');
+    assert.match(text, /空亡/u, 'bazi text should include kong markers for pillars');
+    assert.match(text, /地支藏干\(十神\)/u, 'bazi text should expose the hidden-stem column header');
     const firstHiddenStem = chart.fourPillars.year.hiddenStemDetails?.[0];
     assert.ok(firstHiddenStem, 'bazi hidden stem details should exist');
     assert.match(text, new RegExp(firstHiddenStem.stem), 'bazi text should surface hidden stem name');
+    assert.doesNotMatch(text, /纳音/u, 'bazi text should drop naYin from the slimmer default output');
 });
 
 test('web divination adapters should use explicit longitude instead of local fuzzy place matching', () => {

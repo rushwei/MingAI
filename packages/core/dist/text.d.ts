@@ -1,8 +1,12 @@
-import type { BaziPillarsResolveOutput, BaziOutput, DayunOutput, FortuneOutput, LiuyaoOutput, QimenOutput, TarotOutput, ZiweiFlyingStarOutput, ZiweiHoroscopeOutput, ZiweiOutput } from './types.js';
+import type { BaziPillarsResolveOutput, BaziOutput, DetailLevel, DayunOutput, FortuneOutput, LiuyaoOutput, QimenOutput, TarotOutput, ZiweiFlyingStarOutput, ZiweiHoroscopeOutput, ZiweiOutput } from './types.js';
 import type { DaliurenOutput } from './daliuren/types.js';
 export type BaziCanonicalTextOptions = {
     name?: string;
     dayun?: DayunOutput;
+    detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
+};
+export type DayunCanonicalTextOptions = {
+    detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
 };
 export type TarotCanonicalTextOptions = {
     birthDate?: string | null;
@@ -11,7 +15,7 @@ export declare function sortZiweiPalaces<T extends {
     name: string;
     index?: number;
 }>(palaces: T[]): T[];
-export declare function renderBaziCanonicalText(result: BaziOutput, options?: BaziCanonicalTextOptions): string;
+export declare function renderBaziCanonicalText(chart: BaziOutput, options?: BaziCanonicalTextOptions): string;
 export declare function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolveOutput): string;
 export type ZiweiCanonicalTextOptions = {
     horoscope?: {
@@ -37,9 +41,13 @@ export declare function renderZiweiCanonicalText(result: ZiweiOutput, options?: 
 export declare function renderZiweiHoroscopeCanonicalText(result: ZiweiHoroscopeOutput): string;
 export declare function renderZiweiFlyingStarCanonicalText(result: ZiweiFlyingStarOutput): string;
 export declare function renderLiuyaoCanonicalText(result: LiuyaoOutput): string;
+export declare function renderLiuyaoAISafeText(result: LiuyaoOutput): string;
+export declare function renderLiuyaoLevelText(result: LiuyaoOutput, options?: {
+    detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug';
+}): string;
 export declare function renderTarotCanonicalText(result: TarotOutput, options?: TarotCanonicalTextOptions): string;
 export declare function renderQimenCanonicalText(result: QimenOutput): string;
 export declare function renderDaliurenCanonicalText(result: DaliurenOutput): string;
 export declare function renderFortuneCanonicalText(result: FortuneOutput): string;
-export declare function renderDayunCanonicalText(result: DayunOutput): string;
+export declare function renderDayunCanonicalText(result: DayunOutput, options?: DayunCanonicalTextOptions): string;
 //# sourceMappingURL=text.d.ts.map

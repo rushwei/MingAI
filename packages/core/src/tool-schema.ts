@@ -95,6 +95,12 @@ export const toolDefinitions: ToolDefinition[] = [
           description: '响应格式：json=结构化数据，markdown=人类可读文本',
           default: 'json',
         },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'full'],
+          description: '输出细节级别：default=精简输出；full=完整输出',
+          default: 'default',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
       examples: [
@@ -472,6 +478,12 @@ export const toolDefinitions: ToolDefinition[] = [
         calendarType: { type: 'string', enum: ['solar', 'lunar'], description: '历法类型，默认 solar (阳历)' },
         isLeapMonth: { type: 'boolean', description: '是否闰月（仅农历有效），默认 false' },
         responseFormat: { type: 'string', enum: ['json', 'markdown'], description: '响应格式：json=结构化数据，markdown=人类可读文本', default: 'json' },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'full'],
+          description: '输出细节级别：default=精简输出；full=完整输出',
+          default: 'default',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
       examples: [

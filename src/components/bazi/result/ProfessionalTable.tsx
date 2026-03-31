@@ -141,21 +141,21 @@ export function ProfessionalTable({
         });
     }
 
-    const columns = canonicalChart.fourPillars.map((pillar, index) => {
-        const stem = pillar.ganZhi.charAt(0);
-        const branch = pillar.ganZhi.charAt(1);
+    const columns = canonicalChart.四柱.map((pillar, index) => {
+        const stem = pillar.干支.charAt(0);
+        const branch = pillar.干支.charAt(1);
         return {
             key: ['year', 'month', 'day', 'hour'][index] || `pillar-${index}`,
-            label: pillar.pillar,
+            label: pillar.柱,
             pillar,
             stem,
             branch,
-            shiShen: index === 2 ? (canonicalChart.basicInfo.gender === '男' ? '元男' : '元女') : (pillar.tenGod || ''),
+            shiShen: index === 2 ? (canonicalChart.基本信息.性别 === '男' ? '元男' : '元女') : (pillar.天干十神 || ''),
             hidden: isUnknownTime && index === 3,
         };
     });
 
-    const hasShenSha = columns.some(col => (col.pillar.shenSha || []).length > 0)
+    const hasShenSha = columns.some(col => (col.pillar.神煞 || []).length > 0)
         || fortuneColumns.some(col => col.shenSha.length > 0);
     const hasFortuneColumns = fortuneColumns.length > 0;
 
@@ -266,10 +266,10 @@ export function ProfessionalTable({
                             <td key={col.key} className={`py-3 px-1 ${col.hidden ? 'opacity-30 text-center' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border/60' : ''}`}>
                                 {col.hidden ? <span className="text-xs">*</span> : (
                                     <div className="flex flex-col items-center gap-1">
-                                        {(col.pillar.hiddenStems || []).map((stem, idx) => (
+                                        {(col.pillar.藏干 || []).map((stem, idx) => (
                                             <div key={idx} className="flex items-center gap-1">
-                                                <span className="text-[11px] font-bold" style={{ color: getStemColor(stem.stem) }}>{stem.stem}</span>
-                                                <span className="text-[10px] font-medium text-foreground/40">{stem.tenGod}</span>
+                                                <span className="text-[11px] font-bold" style={{ color: getStemColor(stem.天干) }}>{stem.天干}</span>
+                                                <span className="text-[10px] font-medium text-foreground/40">{stem.十神}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -285,7 +285,7 @@ export function ProfessionalTable({
                         ))}
                         {columns.map((col, idx) => (
                             <td key={col.key} className={`py-2.5 px-1 text-center text-[11px] font-medium text-foreground/50 ${col.hidden ? 'opacity-30' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border/60' : ''}`}>
-                                {col.hidden ? '?' : col.pillar.diShi}
+                                {col.hidden ? '?' : col.pillar.地势}
                             </td>
                         ))}
                     </tr>
@@ -296,7 +296,7 @@ export function ProfessionalTable({
                         ))}
                         {columns.map((col, idx) => (
                             <td key={col.key} className={`py-2.5 px-1 text-center text-[11px] font-medium text-foreground/50 ${col.hidden ? 'opacity-30' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border/60' : ''}`}>
-                                {col.hidden ? '?' : col.pillar.naYin}
+                                {col.hidden ? '?' : col.pillar.纳音}
                             </td>
                         ))}
                     </tr>
@@ -327,11 +327,11 @@ export function ProfessionalTable({
                                 <td key={col.key} className={`py-3 px-1 ${col.hidden ? 'opacity-30 text-center' : ''} ${idx === 0 && hasFortuneColumns ? 'border-l border-border/60' : ''}`}>
                                     {col.hidden ? <span className="text-xs">?</span> : (
                                         <div className="flex flex-col items-center gap-1">
-                                            {(shenShaExpanded ? (col.pillar.shenSha || []) : (col.pillar.shenSha?.slice(0, 1) || [])).map((sha, idx) => {
+                                            {(shenShaExpanded ? (col.pillar.神煞 || []) : (col.pillar.神煞?.slice(0, 1) || [])).map((sha, idx) => {
                                                 const style = getShenShaStyle(sha);
                                                 return <span key={idx} className={`text-[10px] font-bold px-1 py-0.5 rounded whitespace-nowrap ${style.text} ${style.bg}`}>{sha}</span>;
                                             })}
-                                            {!shenShaExpanded && (col.pillar.shenSha?.length || 0) > 1 && <span className="text-[9px] font-bold text-foreground/20">+{(col.pillar.shenSha?.length || 0) - 1}</span>}
+                                            {!shenShaExpanded && (col.pillar.神煞?.length || 0) > 1 && <span className="text-[9px] font-bold text-foreground/20">+{(col.pillar.神煞?.length || 0) - 1}</span>}
                                         </div>
                                     )}
                                 </td>

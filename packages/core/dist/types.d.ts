@@ -4,6 +4,7 @@
 export type Gender = 'male' | 'female';
 export type CalendarType = 'solar' | 'lunar';
 export type ResponseFormat = 'json' | 'markdown';
+export type DetailLevel = 'default' | 'more' | 'full';
 export interface BirthTimeInput {
     birthYear: number;
     birthMonth: number;
@@ -376,6 +377,7 @@ export interface LiuyaoInput {
     seed?: string;
     seedScope?: string;
     responseFormat?: ResponseFormat;
+    detailLevel?: DetailLevel;
 }
 export interface LiuyaoOutput {
     question: string;

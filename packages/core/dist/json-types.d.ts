@@ -8,36 +8,60 @@ export interface TrueSolarTimeJSON {
     longitude: number;
     correctionMinutes: number;
 }
+export interface HiddenStemJSON {
+    stem: string;
+    tenGod: string;
+    qiType?: string;
+}
+export interface BranchRelationJSON {
+    type: string;
+    branches: string[];
+    description: string;
+}
+export interface LiunianItemJSON {
+    year: number;
+    age: number;
+    ganZhi: string;
+    gan: string;
+    zhi: string;
+    tenGod: string;
+    nayin?: string;
+    hiddenStems: HiddenStemJSON[];
+    diShi?: string;
+    shenSha?: string[];
+    branchRelations?: BranchRelationJSON[];
+    taiSui?: string[];
+}
 export interface DayunItemJSON {
     startYear: number;
+    startAge?: number;
     ganZhi: string;
+    stem?: string;
+    branch?: string;
     tenGod: string;
-    hiddenStems: Array<{
-        stem: string;
-        tenGod: string;
-    }>;
-    diShi: string;
-    naYin: string;
-    shenSha: string[];
+    branchTenGod?: string;
+    hiddenStems: HiddenStemJSON[];
+    diShi?: string;
+    naYin?: string;
+    shenSha?: string[];
+    branchRelations?: BranchRelationJSON[];
+    liunianList?: LiunianItemJSON[];
 }
 export interface BaziPillarJSON {
     pillar: string;
     ganZhi: string;
     tenGod: string;
-    hiddenStems: Array<{
-        stem: string;
-        tenGod: string;
-    }>;
+    hiddenStems: HiddenStemJSON[];
     diShi: string;
-    naYin: string;
-    shenSha: string[];
+    naYin?: string;
+    shenSha?: string[];
     isKong?: boolean;
 }
 export interface BaziCanonicalJSON {
     basicInfo: {
         gender: string;
         dayMaster: string;
-        dayMasterElement: string;
+        dayMasterElement?: string;
         kongWang?: string[];
         birthPlace?: string;
         trueSolarTime?: TrueSolarTimeJSON;
@@ -154,7 +178,7 @@ export interface LiuyaoCanonicalJSON {
         guaShen?: {
             branch: string;
             position?: string;
-            absent: boolean;
+            state?: string;
         };
     };
     ganZhiTime: Array<{
@@ -167,6 +191,127 @@ export interface LiuyaoCanonicalJSON {
     guaLevelAnalysis: string[];
     warnings: string[];
     globalShenSha?: string[];
+}
+export interface LiuyaoAISafeLineJSON {
+    position?: string;
+    liuQin: string;
+    naJia?: string;
+    wuXing?: string;
+    shiYing?: 'shi' | 'ying';
+    shenSha?: string[];
+    wangShuai?: string;
+    movement?: string;
+    kongWang?: string;
+    changedTo?: {
+        liuQin: string;
+        naJia: string;
+        wuXing: string;
+    };
+    transformation?: string;
+}
+export interface LiuyaoAISafeParticipantJSON {
+    source: '动爻' | '变爻' | '月建' | '日建';
+    branch: string;
+    position?: string;
+}
+export interface LiuyaoAISafeBoardLineJSON {
+    position: string;
+    liuShen: string;
+    fuShen?: {
+        liuQin: string;
+        naJia: string;
+        wuXing: string;
+    };
+    mainLine: {
+        liuQin: string;
+        naJia: string;
+        wuXing: string;
+    };
+    changedTo?: {
+        liuQin: string;
+        naJia: string;
+        wuXing: string;
+    };
+    transformation?: string;
+    shiYing?: 'shi' | 'ying';
+}
+export interface LiuyaoAISafeLineFlagJSON {
+    position: string;
+    wangShuai: string;
+    movement: string;
+    kongWang?: string;
+    transformation?: string;
+}
+export interface LiuyaoAISafeCombinationJSON {
+    kind: '半合' | '三合';
+    resultElement: string;
+    participants?: LiuyaoAISafeParticipantJSON[];
+    name?: string;
+    positions?: string[];
+}
+export interface LiuyaoAISafeTransitionJSON {
+    kind: '冲转合' | '合转冲';
+}
+export interface LiuyaoAISafeResonanceJSON {
+    kind: '反吟' | '伏吟';
+}
+export interface LiuyaoAISafeJSON {
+    board: {
+        question?: string;
+        mainHexagram: {
+            name: string;
+            gong: string;
+            element: string;
+            guaCi?: string;
+        };
+        changedHexagram?: {
+            name: string;
+            gong?: string;
+            element?: string;
+            guaCi?: string;
+            changingYaos?: string[];
+            changingYaoCi?: Array<{
+                yaoName: string;
+                yaoCi: string;
+            }>;
+        };
+        ganZhiTime: Array<{
+            pillar: string;
+            ganZhi: string;
+            kongWang: string[];
+        }>;
+        guaShen?: {
+            branch: string;
+            position?: string;
+            state?: string;
+        };
+        derivedHexagrams?: {
+            nuclearHexagram?: {
+                name: string;
+            };
+            oppositeHexagram?: {
+                name: string;
+            };
+            reversedHexagram?: {
+                name: string;
+            };
+        };
+        globalShenSha?: string[];
+    };
+    fullBoard: {
+        lines: LiuyaoAISafeBoardLineJSON[];
+    };
+    globalInteractions: {
+        combinations: LiuyaoAISafeCombinationJSON[];
+        transitions?: LiuyaoAISafeTransitionJSON[];
+        resonances?: LiuyaoAISafeResonanceJSON[];
+        isLiuChongGua?: '是' | '否';
+        isLiuHeGua?: '是' | '否';
+        chongHeTransition?: '冲转合' | '合转冲';
+    };
+    meta: {
+        detailLevel: 'default' | 'more' | 'full';
+    };
 }
 export interface TarotCardJSON {
     position: string;
@@ -354,6 +499,11 @@ export interface DayunCanonicalJSON {
         startAge: number;
         detail: string;
     };
+    xiaoYun?: Array<{
+        age: number;
+        ganZhi: string;
+        tenGod: string;
+    }>;
     list: DayunItemJSON[];
 }
 export interface BaziPillarsResolveCanonicalJSON {

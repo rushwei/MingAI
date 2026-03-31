@@ -6,51 +6,84 @@
 // ===== 共用子类型 =====
 
 export interface TrueSolarTimeJSON {
-  clockTime: string;
-  trueSolarTime: string;
-  longitude: number;
-  correctionMinutes: number;
+  钟表时间: string;
+  真太阳时: string;
+  经度: number;
+  校正分钟: number;
+}
+
+export interface HiddenStemJSON {
+  天干: string;
+  十神: string;
+  气性?: string;
+}
+
+export interface BranchRelationJSON {
+  类型: string;
+  地支: string[];
+  描述: string;
+}
+
+export interface LiunianItemJSON {
+  流年: number;
+  年龄: number;
+  干支: string;
+  天干: string;
+  地支: string;
+  十神: string;
+  纳音?: string;
+  藏干: HiddenStemJSON[];
+  地势?: string;
+  神煞?: string[];
+  原局关系?: BranchRelationJSON[];
+  太岁关系?: string[];
 }
 
 export interface DayunItemJSON {
-  startYear: number;
-  ganZhi: string;
-  tenGod: string;
-  hiddenStems: Array<{ stem: string; tenGod: string }>;
-  diShi: string;
-  naYin: string;
-  shenSha: string[];
+  起运年份: number;
+  起运年龄?: number;
+  干支: string;
+  天干?: string;
+  地支?: string;
+  十神: string;
+  地支主气十神?: string;
+  藏干: HiddenStemJSON[];
+  地势?: string;
+  纳音?: string;
+  神煞?: string[];
+  原局关系?: BranchRelationJSON[];
+  流年列表?: LiunianItemJSON[];
 }
 
 // ===== 八字 =====
 
 export interface BaziPillarJSON {
-  pillar: string;
-  ganZhi: string;
-  tenGod: string;
-  hiddenStems: Array<{ stem: string; tenGod: string }>;
-  diShi: string;
-  naYin: string;
-  shenSha: string[];
-  isKong?: boolean;
+  柱: string;
+  干支: string;
+  天干十神: string;
+  藏干: HiddenStemJSON[];
+  地势: string;
+  纳音?: string;
+  神煞?: string[];
+  空亡?: '是';
 }
 
 export interface BaziCanonicalJSON {
-  basicInfo: {
-    gender: string;
-    dayMaster: string;
-    dayMasterElement: string;
-    kongWang?: string[];
-    birthPlace?: string;
-    trueSolarTime?: TrueSolarTimeJSON;
-    taiYuan?: string;
-    mingGong?: string;
+  基本信息: {
+    性别: string;
+    日主: string;
+    命主五行?: string;
+    空亡?: string[];
+    出生地?: string;
+    真太阳时?: TrueSolarTimeJSON;
+    胎元?: string;
+    命宫?: string;
   };
-  fourPillars: BaziPillarJSON[];
-  relations: string[];
-  dayun?: {
-    startInfo: string;
-    list: DayunItemJSON[];
+  四柱: BaziPillarJSON[];
+  干支关系: string[];
+  大运?: {
+    起运信息: string;
+    大运列表: DayunItemJSON[];
   };
 }
 
@@ -492,11 +525,16 @@ export interface FortuneCanonicalJSON {
 // ===== 大运 =====
 
 export interface DayunCanonicalJSON {
-  startInfo: {
-    startAge: number;
-    detail: string;
+  起运信息: {
+    起运年龄: number;
+    起运详情: string;
   };
-  list: DayunItemJSON[];
+  小运?: Array<{
+    年龄: number;
+    干支: string;
+    十神: string;
+  }>;
+  大运列表: DayunItemJSON[];
 }
 
 // ===== 四柱反推 =====

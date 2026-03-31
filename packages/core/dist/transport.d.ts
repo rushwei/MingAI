@@ -16,5 +16,7 @@ export declare function buildListToolsPayload(): {
         annotations: import("./tool-schema.js").ToolAnnotation | undefined;
     }[];
 };
-export declare function buildToolSuccessPayload(toolName: string, result: unknown, responseFormat?: ToolResponseFormat): import("./tool-output.js").RenderedToolResult;
+export declare function buildToolSuccessPayload(toolName: string, result: unknown, responseFormat?: ToolResponseFormat, options?: {
+    detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug';
+}): import("./tool-output.js").RenderedToolResult;
 //# sourceMappingURL=transport.d.ts.map

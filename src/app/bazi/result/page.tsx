@@ -489,7 +489,7 @@ function BaziResultContent() {
         );
     }
 
-    const dayMasterDescription = getDayMasterDescription(canonicalBazi.basicInfo.dayMaster as Parameters<typeof getDayMasterDescription>[0]);
+    const dayMasterDescription = getDayMasterDescription(canonicalBazi.基本信息.日主 as Parameters<typeof getDayMasterDescription>[0]);
 
     return (
         <div className="min-h-screen bg-background">

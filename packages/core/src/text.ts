@@ -1,6 +1,7 @@
 import type {
   BaziPillarsResolveOutput,
   BaziOutput,
+  DetailLevel,
   DayunOutput,
   FlyingStarResult,
   FortuneOutput,
@@ -28,6 +29,11 @@ import { GAN_WUXING } from './utils.js';
 export type BaziCanonicalTextOptions = {
   name?: string;
   dayun?: DayunOutput;
+  detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
+};
+
+export type DayunCanonicalTextOptions = {
+  detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug';
 };
 
 export type TarotCanonicalTextOptions = {
@@ -35,6 +41,13 @@ export type TarotCanonicalTextOptions = {
 };
 
 const ZIWEI_PALACE_TEXT_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
+
+function normalizeBaziDetailLevel(detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
 
 function formatTrueSolarBlock(info: { clockTime: string; trueSolarTime: string; longitude: number; correctionMinutes: number; trueTimeIndex: number; dayOffset: number }): string[] {
   const dayOffsetLabel = info.dayOffset > 0
@@ -44,18 +57,33 @@ function formatTrueSolarBlock(info: { clockTime: string; trueSolarTime: string; 
       : '当日';
 
   return [
-    `- **钟表时间**: ${info.clockTime}`,
-    `- **真太阳时**: ${info.trueSolarTime}（经度 ${info.longitude}°，校正 ${info.correctionMinutes > 0 ? '+' : ''}${info.correctionMinutes} 分钟）`,
-    `- **真太阳时索引**: ${info.trueTimeIndex}`,
-    `- **跨日偏移**: ${dayOffsetLabel}`,
+    `- 钟表时间: ${info.clockTime}`,
+    `- 真太阳时: ${info.trueSolarTime}（经度 ${info.longitude}°，校正 ${info.correctionMinutes > 0 ? '+' : ''}${info.correctionMinutes} 分钟）`,
+    `- 真太阳时索引: ${info.trueTimeIndex}`,
+    `- 跨日偏移: ${dayOffsetLabel}`,
   ];
 }
 
-function buildBaziCanonicalPillarShenSha(item: { shenSha?: string[] }): string[] {
-  return item.shenSha?.length ? [...item.shenSha] : [];
+function buildBaziCanonicalStemRelations(result: Pick<BaziOutput, 'tianGanChongKe' | 'tianGanWuHe'>): string[] {
+  const relationParts: string[] = [];
+  const seen = new Set<string>();
+  const pushUnique = (value: string) => {
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    relationParts.push(value);
+  };
+
+  for (const item of result.tianGanWuHe) {
+    pushUnique(`${item.stemA}${item.stemB}合${item.resultElement}`);
+  }
+  for (const item of result.tianGanChongKe) {
+    pushUnique(`${item.stemA}${item.stemB}冲克`);
+  }
+
+  return relationParts;
 }
 
-function buildBaziCanonicalRelations(result: Pick<BaziOutput, 'fourPillars' | 'relations' | 'tianGanChongKe' | 'tianGanWuHe' | 'diZhiBanHe' | 'diZhiSanHui'>): string[] {
+function buildBaziCanonicalBranchRelations(result: Pick<BaziOutput, 'fourPillars' | 'relations' | 'diZhiBanHe' | 'diZhiSanHui'>): string[] {
   const posBranchMap: Record<string, string> = {
     '年支': result.fourPillars.year.branch,
     '月支': result.fourPillars.month.branch,
@@ -77,12 +105,6 @@ function buildBaziCanonicalRelations(result: Pick<BaziOutput, 'fourPillars' | 'r
     } else {
       pushUnique(relation.description);
     }
-  }
-  for (const item of result.tianGanChongKe) {
-    pushUnique(`${item.stemA}${item.stemB}冲克`);
-  }
-  for (const item of result.tianGanWuHe) {
-    pushUnique(`${item.stemA}${item.stemB}合${item.resultElement}`);
   }
   for (const item of result.diZhiBanHe) {
     pushUnique(`${item.branches.join('')}半合${item.resultElement}`);
@@ -126,56 +148,126 @@ export function sortZiweiPalaces<T extends { name: string; index?: number }>(pal
   });
 }
 
-export function renderBaziCanonicalText(result: BaziOutput, options: BaziCanonicalTextOptions = {}): string {
-  const lines: string[] = ['# 八字命盘', '', '## 基本信息'];
-  if (options.name) lines.push(`- **姓名**: ${options.name}`);
-  lines.push(`- **性别**: ${result.gender === 'male' ? '男' : '女'}`);
-  lines.push(`- **日主**: ${result.dayMaster}`);
-  lines.push(`- **命主五行**: ${result.dayMaster}${GAN_WUXING[result.dayMaster.charAt(0)] || ''}`);
-  if (result.birthPlace) lines.push(`- **出生地**: ${result.birthPlace}`);
-  if (result.trueSolarTimeInfo) {
-    lines.push(...formatTrueSolarBlock(result.trueSolarTimeInfo));
+export function renderBaziCanonicalText(chart: BaziOutput, options: BaziCanonicalTextOptions = {}): string {
+  const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+  if (detailLevel === 'full') {
+    return renderBaziCanonicalFullText(chart, options);
   }
-  if (result.taiYuan) lines.push(`- **胎元**: ${result.taiYuan}`);
-  if (result.mingGong) lines.push(`- **命宫**: ${result.mingGong}`);
+
+  return renderBaziCanonicalDefaultText(chart, options);
+}
+
+function renderBaziCanonicalDefaultText(chart: BaziOutput, options: BaziCanonicalTextOptions = {}): string {
+  const { dayun } = options;
+  const lines: string[] = ['# 八字命盘', '', '## 命局全盘'];
+  if (options.name) lines.push(`- 姓名: ${options.name}`);
+  lines.push(`- 性别: ${chart.gender === 'male' ? '男' : '女'}`);
+  lines.push(`- 日主: ${chart.dayMaster}`);
+  if (chart.birthPlace) lines.push(`- 出生地: ${chart.birthPlace}`);
+  if (chart.trueSolarTimeInfo) {
+    lines.push(...formatTrueSolarBlock(chart.trueSolarTimeInfo));
+  }
   lines.push('');
-  lines.push('## 四柱');
-  lines.push('| 柱 | 干支 | 天干十神 | 藏干 | 地势 | 纳音 | 神煞 |');
-  lines.push('|---|------|----------|------|------|------|------|');
+  lines.push('| 柱 | 干支 | 天干(十神) | 地支藏干(十神) | 地势 | 空亡 |');
+  lines.push('|---|------|------------|----------------|------|------|');
   for (const [label, pillar] of [
-    ['年柱', result.fourPillars.year],
-    ['月柱', result.fourPillars.month],
-    ['日柱', result.fourPillars.day],
-    ['时柱', result.fourPillars.hour],
+    ['年柱', chart.fourPillars.year],
+    ['月柱', chart.fourPillars.month],
+    ['日柱', chart.fourPillars.day],
+    ['时柱', chart.fourPillars.hour],
   ] as const) {
     const hiddenStemsText = pillar.hiddenStems.length > 0
-      ? pillar.hiddenStems.map((item) => `${item.stem}(${item.tenGod || '-'})`).join('、')
+      ? pillar.hiddenStems.map((item) => `${item.stem}(${item.tenGod || '-'})`).join(' ')
       : '-';
-    const shenShaParts = buildBaziCanonicalPillarShenSha(pillar);
-    lines.push(`| ${label} | ${pillar.stem}${pillar.branch} | ${pillar.tenGod || '-'} | ${hiddenStemsText} | ${pillar.diShi || '-'} | ${pillar.naYin || '-'} | ${shenShaParts.length > 0 ? shenShaParts.join('、') : '-'} |`);
+    const stemText = label === '日柱'
+      ? `${pillar.stem}(日主)`
+      : `${pillar.stem}(${pillar.tenGod || '-'})`;
+    lines.push(`| ${label} | ${pillar.stem}${pillar.branch} | ${stemText} | ${hiddenStemsText} | ${pillar.diShi || '-'} | ${pillar.kongWang?.isKong ? '空' : '-'} |`);
   }
   lines.push('');
 
-  const relationParts = buildBaziCanonicalRelations(result);
-  if (relationParts.length > 0) {
+  const stemRelationParts = buildBaziCanonicalStemRelations(chart);
+  const branchRelationParts = buildBaziCanonicalBranchRelations(chart);
+  if (stemRelationParts.length > 0 || branchRelationParts.length > 0) {
     lines.push('## 干支关系');
-    lines.push(relationParts.join('；'));
+    if (stemRelationParts.length > 0) lines.push(`- 天干: ${stemRelationParts.join('；')}`);
+    if (branchRelationParts.length > 0) lines.push(`- 地支: ${branchRelationParts.join('；')}`);
   }
 
-  if (options.dayun) {
-    const { dayun } = options;
+  if (dayun) {
     lines.push('');
-    lines.push('## 大运');
-    lines.push(`- **起运**: ${dayun.startAge}岁（${dayun.startAgeDetail}）`);
+    lines.push('## 大运轨迹');
+    lines.push(`- 起运: ${dayun.startAge}岁（${dayun.startAgeDetail}）`);
     lines.push('');
-    lines.push('| 起运年 | 干支 | 天干十神 | 藏干 | 地势 | 纳音 | 神煞 |');
-    lines.push('|--------|------|----------|------|------|------|------|');
+    lines.push('| 起运年份 | 年龄 | 大运干支 | 天干(十神) | 地支藏干(十神) |');
+    lines.push('|----------|------|----------|------------|----------------|');
+    for (const item of dayun.list) {
+      const hiddenStemsText = item.hiddenStems?.length
+        ? item.hiddenStems.map((hs) => `${hs.stem}(${hs.tenGod})`).join(' ')
+        : '-';
+      lines.push(`| ${item.startYear} | ${item.startAge}岁 | ${item.ganZhi} | ${item.stem}(${item.tenGod || '-'}) | ${hiddenStemsText} |`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function renderBaziCanonicalFullText(chart: BaziOutput, options: BaziCanonicalTextOptions = {}): string {
+  const { dayun } = options;
+  const lines: string[] = ['# 八字命盘', '', '## 基本信息'];
+  if (options.name) lines.push(`- 姓名: ${options.name}`);
+  lines.push(`- 性别: ${chart.gender === 'male' ? '男' : '女'}`);
+  lines.push(`- 日主: ${chart.dayMaster}`);
+  lines.push(`- 命主五行: ${chart.dayMaster}${GAN_WUXING[chart.dayMaster.charAt(0)] || ''}`);
+  if (chart.birthPlace) lines.push(`- 出生地: ${chart.birthPlace}`);
+  if (chart.trueSolarTimeInfo) {
+    lines.push(...formatTrueSolarBlock(chart.trueSolarTimeInfo));
+  }
+  if (chart.kongWang?.kongZhi?.length) lines.push(`- 空亡: ${chart.kongWang.kongZhi.join('')}`);
+  if (chart.taiYuan) lines.push(`- 胎元: ${chart.taiYuan}`);
+  if (chart.mingGong) lines.push(`- 命宫: ${chart.mingGong}`);
+  lines.push('');
+  lines.push('## 四柱');
+  lines.push('| 柱 | 干支 | 天干(十神) | 地支藏干(十神) | 地势 | 纳音 | 神煞 |');
+  lines.push('|---|------|------------|----------------|------|------|------|');
+  for (const [label, pillar] of [
+    ['年柱', chart.fourPillars.year],
+    ['月柱', chart.fourPillars.month],
+    ['日柱', chart.fourPillars.day],
+    ['时柱', chart.fourPillars.hour],
+  ] as const) {
+    const hiddenStemsText = pillar.hiddenStems.length > 0
+      ? pillar.hiddenStems.map((item) => `${item.stem}(${item.tenGod || '-'})`).join(' ')
+      : '-';
+    const stemText = label === '日柱'
+      ? `${pillar.stem}(日主)`
+      : `${pillar.stem}(${pillar.tenGod || '-'})`;
+    const shenShaText = pillar.shenSha?.length ? pillar.shenSha.join('、') : '-';
+    lines.push(`| ${label} | ${pillar.stem}${pillar.branch} | ${stemText} | ${hiddenStemsText} | ${pillar.diShi || '-'} | ${pillar.naYin || '-'} | ${shenShaText} |`);
+  }
+  lines.push('');
+
+  const stemRelationParts = buildBaziCanonicalStemRelations(chart);
+  const branchRelationParts = buildBaziCanonicalBranchRelations(chart);
+  if (stemRelationParts.length > 0 || branchRelationParts.length > 0) {
+    lines.push('## 干支关系');
+    if (stemRelationParts.length > 0) lines.push(`- 天干: ${stemRelationParts.join('；')}`);
+    if (branchRelationParts.length > 0) lines.push(`- 地支: ${branchRelationParts.join('；')}`);
+  }
+
+  if (dayun) {
+    lines.push('');
+    lines.push('## 大运轨迹');
+    lines.push(`- 起运: ${dayun.startAge}岁（${dayun.startAgeDetail}）`);
+    lines.push('');
+    lines.push('| 起运年份 | 年龄 | 大运干支 | 天干(十神) | 地支藏干(十神) | 地势 | 纳音 | 神煞 |');
+    lines.push('|----------|------|----------|------------|----------------|------|------|------|');
     for (const item of dayun.list) {
       const hiddenStemsText = item.hiddenStems?.length
         ? item.hiddenStems.map((hs) => `${hs.stem}(${hs.tenGod})`).join('、')
         : '-';
       const shenShaText = item.shenSha?.length ? item.shenSha.join('、') : '-';
-      lines.push(`| ${item.startYear} | ${item.ganZhi} | ${item.tenGod || '-'} | ${hiddenStemsText} | ${item.diShi || '-'} | ${item.naYin || '-'} | ${shenShaText} |`);
+      lines.push(`| ${item.startYear} | ${item.startAge}岁 | ${item.ganZhi} | ${item.stem}(${item.tenGod || '-'}) | ${hiddenStemsText} | ${item.diShi || '-'} | ${item.naYin || '-'} | ${shenShaText} |`);
     }
   }
 
@@ -970,7 +1062,16 @@ export function renderFortuneCanonicalText(result: FortuneOutput): string {
   return lines.join('\n');
 }
 
-export function renderDayunCanonicalText(result: DayunOutput): string {
+export function renderDayunCanonicalText(result: DayunOutput, options: DayunCanonicalTextOptions = {}): string {
+  const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+  if (detailLevel === 'full') {
+    return renderDayunCanonicalFullText(result);
+  }
+
+  return renderDayunCanonicalDefaultText(result);
+}
+
+function renderDayunCanonicalDefaultText(result: DayunOutput): string {
   const lines: string[] = [
     '# 大运流年',
     '',
@@ -981,18 +1082,75 @@ export function renderDayunCanonicalText(result: DayunOutput): string {
     '',
     '## 大运列表',
     '',
-    '| 年龄 | 干支 | 天干十神 | 藏干 | 地势 | 纳音 | 神煞 |',
-    '|------|------|----------|------|------|------|------|',
+    '| 起运年份 | 起运年龄 | 干支 | 天干十神 | 藏干 |',
+    '|----------|----------|------|----------|------|',
   ];
 
   for (const dayun of result.list) {
     const hiddenStemsText = dayun.hiddenStems && dayun.hiddenStems.length > 0
+      ? dayun.hiddenStems.map((hs) => `${hs.stem}(${hs.tenGod})`).join(' ')
+      : '-';
+    lines.push(`| ${dayun.startYear} | ${dayun.startAge}岁 | ${dayun.ganZhi} | ${dayun.tenGod || '-'} | ${hiddenStemsText} |`);
+  }
+
+  return lines.join('\n');
+}
+
+function renderDayunCanonicalFullText(result: DayunOutput): string {
+  const lines: string[] = [
+    '# 大运流年',
+    '',
+    '## 起运信息',
+    '',
+    `- 起运年龄：${result.startAge}岁`,
+    `- 起运详情：${result.startAgeDetail}`,
+  ];
+
+  if (result.xiaoYun.length > 0) {
+    lines.push('');
+    lines.push('## 小运');
+    lines.push('');
+    lines.push('| 年龄 | 干支 | 天干十神 |');
+    lines.push('|------|------|----------|');
+    for (const item of result.xiaoYun) {
+      lines.push(`| ${item.age}岁 | ${item.ganZhi} | ${item.tenGod || '-'} |`);
+    }
+  }
+
+  lines.push('');
+  lines.push('## 大运列表');
+  lines.push('');
+  lines.push('| 起运年份 | 起运年龄 | 干支 | 天干十神 | 地支主气十神 | 藏干 | 地势 | 纳音 | 神煞 | 原局关系 |');
+  lines.push('|----------|----------|------|----------|--------------|------|------|------|------|----------|');
+  for (const dayun of result.list) {
+    const hiddenStemsText = dayun.hiddenStems.length > 0
       ? dayun.hiddenStems.map((hs) => `${hs.stem}(${hs.tenGod})`).join('、')
       : '-';
-    const shenShaText = dayun.shenSha && dayun.shenSha.length > 0
-      ? dayun.shenSha.join('、')
-      : '-';
-    lines.push(`| ${dayun.startYear} | ${dayun.ganZhi} | ${dayun.tenGod || '-'} | ${hiddenStemsText} | ${dayun.diShi || '-'} | ${dayun.naYin || '-'} | ${shenShaText} |`);
+    const shenShaText = dayun.shenSha.length > 0 ? dayun.shenSha.join('、') : '-';
+    const relationText = dayun.branchRelations.length > 0 ? dayun.branchRelations.map((item) => item.description).join('；') : '-';
+    lines.push(`| ${dayun.startYear} | ${dayun.startAge}岁 | ${dayun.ganZhi} | ${dayun.tenGod || '-'} | ${dayun.branchTenGod || '-'} | ${hiddenStemsText} | ${dayun.diShi || '-'} | ${dayun.naYin || '-'} | ${shenShaText} | ${relationText} |`);
+  }
+
+  for (const [index, dayun] of result.list.entries()) {
+    const endYear = result.list[index + 1]?.startYear ? result.list[index + 1]!.startYear - 1 : dayun.startYear + 9;
+    lines.push('');
+    lines.push(`### ${dayun.startYear}-${endYear} ${dayun.ganZhi}`);
+    lines.push(`- 起运年龄: ${dayun.startAge}岁`);
+    if (dayun.branchRelations.length > 0) {
+      lines.push(`- 原局关系: ${dayun.branchRelations.map((item) => item.description).join('；')}`);
+    }
+    lines.push('');
+    lines.push('| 流年 | 年龄 | 干支 | 天干十神 | 藏干 | 地势 | 纳音 | 神煞 | 地支关系 | 太岁 |');
+    lines.push('|------|------|------|----------|------|------|------|------|----------|------|');
+    for (const liunian of dayun.liunianList) {
+      const hiddenStemsText = liunian.hiddenStems.length > 0
+        ? liunian.hiddenStems.map((hs) => `${hs.stem}(${hs.tenGod})`).join('、')
+        : '-';
+      const shenShaText = liunian.shenSha.length > 0 ? liunian.shenSha.join('、') : '-';
+      const relationText = liunian.branchRelations.length > 0 ? liunian.branchRelations.map((item) => item.description).join('；') : '-';
+      const taiSuiText = liunian.taiSui.length > 0 ? liunian.taiSui.join('、') : '-';
+      lines.push(`| ${liunian.year} | ${liunian.age}岁 | ${liunian.ganZhi} | ${liunian.tenGod || '-'} | ${hiddenStemsText} | ${liunian.diShi || '-'} | ${liunian.nayin || '-'} | ${shenShaText} | ${relationText} | ${taiSuiText} |`);
+    }
   }
 
   return lines.join('\n');

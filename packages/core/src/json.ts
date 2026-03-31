@@ -65,10 +65,10 @@ function buildTrueSolarTimeJSON(info: {
   clockTime: string; trueSolarTime: string; longitude: number; correctionMinutes: number;
 }): TrueSolarTimeJSON {
   return {
-    clockTime: info.clockTime,
-    trueSolarTime: info.trueSolarTime,
-    longitude: info.longitude,
-    correctionMinutes: info.correctionMinutes,
+    钟表时间: info.clockTime,
+    真太阳时: info.trueSolarTime,
+    经度: info.longitude,
+    校正分钟: info.correctionMinutes,
   };
 }
 
@@ -98,21 +98,102 @@ function buildShenSystemJSON(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+function buildHiddenStemJSON(item: { stem: string; tenGod: string; qiType?: string }): HiddenStemJSON {
+  return {
+    天干: item.stem,
+    十神: item.tenGod,
+    ...(item.qiType ? { 气性: item.qiType } : {}),
+  };
+}
+
+function buildBranchRelationJSON(item: { type: string; branches: string[]; description: string }): BranchRelationJSON {
+  return {
+    类型: item.type,
+    地支: [...item.branches],
+    描述: item.description,
+  };
+}
+
+function buildLiunianItemJSON(item: {
+  year: number;
+  age: number;
+  ganZhi: string;
+  gan: string;
+  zhi: string;
+  tenGod: string;
+  nayin?: string;
+  hiddenStems?: Array<{ stem: string; tenGod: string; qiType?: string }>;
+  diShi?: string;
+  shenSha?: string[];
+  branchRelations?: Array<{ type: string; branches: string[]; description: string }>;
+  taiSui?: string[];
+}): LiunianItemJSON {
+  return {
+    流年: item.year,
+    年龄: item.age,
+    干支: item.ganZhi,
+    天干: item.gan,
+    地支: item.zhi,
+    十神: item.tenGod || '-',
+    ...(item.nayin ? { 纳音: item.nayin } : {}),
+    藏干: item.hiddenStems?.length
+      ? item.hiddenStems.map(buildHiddenStemJSON)
+      : [],
+    ...(item.diShi ? { 地势: item.diShi } : {}),
+    ...(item.shenSha?.length ? { 神煞: [...item.shenSha] } : {}),
+    ...(item.branchRelations?.length ? { 原局关系: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+    ...(item.taiSui?.length ? { 太岁关系: [...item.taiSui] } : {}),
+  };
+}
+
+function buildLeanHiddenStemItems(items: Array<{ stem: string; tenGod: string; qiType?: string }> | undefined) {
+  return items?.map((item) => ({ stem: item.stem, tenGod: item.tenGod })) || [];
+}
+
 function buildDayunItemJSON(item: {
-  startYear: number; ganZhi: string; tenGod: string;
-  hiddenStems?: Array<{ stem: string; tenGod: string }>;
-  naYin?: string; diShi?: string; shenSha?: string[];
+  startYear: number;
+  startAge?: number;
+  ganZhi: string;
+  stem?: string;
+  branch?: string;
+  tenGod: string;
+  branchTenGod?: string;
+  hiddenStems?: Array<{ stem: string; tenGod: string; qiType?: string }>;
+  naYin?: string;
+  diShi?: string;
+  shenSha?: string[];
+  branchRelations?: Array<{ type: string; branches: string[]; description: string }>;
+  liunianList?: Array<{
+    year: number;
+    age: number;
+    ganZhi: string;
+    gan: string;
+    zhi: string;
+    tenGod: string;
+    nayin?: string;
+    hiddenStems?: Array<{ stem: string; tenGod: string; qiType?: string }>;
+    diShi?: string;
+    shenSha?: string[];
+    branchRelations?: Array<{ type: string; branches: string[]; description: string }>;
+    taiSui?: string[];
+  }>;
 }): DayunItemJSON {
   return {
-    startYear: item.startYear,
-    ganZhi: item.ganZhi,
-    tenGod: item.tenGod || '-',
-    hiddenStems: item.hiddenStems?.length
-      ? item.hiddenStems.map((hs) => ({ stem: hs.stem, tenGod: hs.tenGod }))
+    起运年份: item.startYear,
+    ...(typeof item.startAge === 'number' ? { 起运年龄: item.startAge } : {}),
+    干支: item.ganZhi,
+    ...(item.stem ? { 天干: item.stem } : {}),
+    ...(item.branch ? { 地支: item.branch } : {}),
+    十神: item.tenGod || '-',
+    ...(item.branchTenGod ? { 地支主气十神: item.branchTenGod } : {}),
+    藏干: item.hiddenStems?.length
+      ? item.hiddenStems.map(buildHiddenStemJSON)
       : [],
-    diShi: item.diShi || '-',
-    naYin: item.naYin || '-',
-    shenSha: item.shenSha?.length ? item.shenSha : [],
+    ...(item.diShi ? { 地势: item.diShi } : {}),
+    ...(item.naYin ? { 纳音: item.naYin } : {}),
+    ...(item.shenSha?.length ? { 神煞: [...item.shenSha] } : {}),
+    ...(item.branchRelations?.length ? { 原局关系: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+    ...(item.liunianList?.length ? { 流年列表: item.liunianList.map(buildLiunianItemJSON) } : {}),
   };
 }
 
@@ -279,48 +360,67 @@ function buildBaziCanonicalRelations(result: Pick<BaziOutput, 'fourPillars' | 'r
 // ===== 八字 =====
 
 export function renderBaziCanonicalJSON(
-  result: BaziOutput,
+  chart: BaziOutput,
   options: BaziCanonicalTextOptions = {},
 ): BaziCanonicalJSON {
+  const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+  const { dayun } = options;
   const basicInfo: BaziCanonicalJSON['basicInfo'] = {
-    gender: result.gender === 'male' ? '男' : '女',
-    dayMaster: result.dayMaster,
-    dayMasterElement: `${result.dayMaster}${GAN_WUXING[result.dayMaster.charAt(0)] || ''}`,
+    gender: chart.gender === 'male' ? '男' : '女',
+    dayMaster: chart.dayMaster,
+    ...(detailLevel === 'full' ? { dayMasterElement: `${chart.dayMaster}${GAN_WUXING[chart.dayMaster.charAt(0)] || ''}` } : {}),
   };
-  if (result.kongWang?.kongZhi?.length) basicInfo.kongWang = [...result.kongWang.kongZhi];
-  if (result.birthPlace) basicInfo.birthPlace = result.birthPlace;
-  if (result.trueSolarTimeInfo) basicInfo.trueSolarTime = buildTrueSolarTimeJSON(result.trueSolarTimeInfo);
-  if (result.taiYuan) basicInfo.taiYuan = result.taiYuan;
-  if (result.mingGong) basicInfo.mingGong = result.mingGong;
+  if (detailLevel === 'full' && chart.kongWang?.kongZhi?.length) basicInfo.kongWang = [...chart.kongWang.kongZhi];
+  if (chart.birthPlace) basicInfo.birthPlace = chart.birthPlace;
+  if (chart.trueSolarTimeInfo) basicInfo.trueSolarTime = buildTrueSolarTimeJSON(chart.trueSolarTimeInfo);
+  if (detailLevel === 'full' && chart.taiYuan) basicInfo.taiYuan = chart.taiYuan;
+  if (detailLevel === 'full' && chart.mingGong) basicInfo.mingGong = chart.mingGong;
 
   const fourPillars = ([
-    ['年柱', result.fourPillars.year],
-    ['月柱', result.fourPillars.month],
-    ['日柱', result.fourPillars.day],
-    ['时柱', result.fourPillars.hour],
+    ['年柱', chart.fourPillars.year],
+    ['月柱', chart.fourPillars.month],
+    ['日柱', chart.fourPillars.day],
+    ['时柱', chart.fourPillars.hour],
   ] as const).map(([label, pillar]) => {
-    const entry: BaziCanonicalJSON['fourPillars'][number] = {
-      pillar: label,
-      ganZhi: `${pillar.stem}${pillar.branch}`,
-      tenGod: pillar.tenGod || '-',
-      hiddenStems: pillar.hiddenStems.map((item) => ({ stem: item.stem, tenGod: item.tenGod || '-' })),
-      diShi: pillar.diShi || '-',
-      naYin: pillar.naYin || '-',
-      shenSha: buildBaziCanonicalPillarShenSha(pillar),
+    const entry: BaziCanonicalJSON['四柱'][number] = {
+      柱: label,
+      干支: `${pillar.stem}${pillar.branch}`,
+      天干十神: pillar.tenGod || '-',
+      藏干: pillar.hiddenStems.map((item) => buildHiddenStemJSON({
+        stem: item.stem,
+        tenGod: item.tenGod || '-',
+        ...(detailLevel === 'full' ? { qiType: item.qiType } : {}),
+      })),
+      地势: pillar.diShi || '-',
+      ...(detailLevel === 'full' && pillar.naYin ? { 纳音: pillar.naYin } : {}),
+      ...(detailLevel === 'full' && pillar.shenSha?.length ? { 神煞: buildBaziCanonicalPillarShenSha(pillar) } : {}),
     };
-    if (pillar.kongWang?.isKong) entry.isKong = true;
+    if (pillar.kongWang?.isKong) entry.空亡 = '是';
     return entry;
   });
 
-  const relations = buildBaziCanonicalRelations(result);
+  const relations = buildBaziCanonicalRelations(chart);
 
-  const json: BaziCanonicalJSON = { basicInfo, fourPillars, relations };
+  const json: BaziCanonicalJSON = { 基本信息: basicInfo, 四柱: fourPillars, 干支关系: relations };
 
-  if (options.dayun) {
-    const { dayun } = options;
-    json.dayun = {
-      startInfo: `${dayun.startAge}岁（${dayun.startAgeDetail}）`,
-      list: dayun.list.map(buildDayunItemJSON),
+  if (dayun) {
+    json.大运 = {
+      起运信息: `${dayun.startAge}岁（${dayun.startAgeDetail}）`,
+      大运列表: dayun.list.map((item) => buildDayunItemJSON({
+        startYear: item.startYear,
+        startAge: item.startAge,
+        ganZhi: item.ganZhi,
+        stem: detailLevel === 'full' ? item.stem : undefined,
+        branch: detailLevel === 'full' ? item.branch : undefined,
+        tenGod: item.tenGod,
+        branchTenGod: detailLevel === 'full' ? item.branchTenGod : undefined,
+        hiddenStems: detailLevel === 'full' ? item.hiddenStems : buildLeanHiddenStemItems(item.hiddenStems),
+        diShi: detailLevel === 'full' ? item.diShi : undefined,
+        naYin: detailLevel === 'full' ? item.naYin : undefined,
+        shenSha: detailLevel === 'full' ? item.shenSha : undefined,
+        branchRelations: detailLevel === 'full' ? item.branchRelations : undefined,
+        liunianList: detailLevel === 'full' ? item.liunianList : undefined,
+      })),
     };
   }
 
@@ -528,13 +628,13 @@ export function renderLiuyaoCanonicalJSON(result: LiuyaoOutput): LiuyaoCanonical
   });
 
   return {
-    hexagramInfo,
-    ganZhiTime,
-    yaos,
-    yongShenAnalysis,
-    guaLevelAnalysis: formatGuaLevelLines(result),
-    warnings: result.warnings || [],
-    globalShenSha: result.globalShenSha || [],
+    卦盘: hexagramInfo,
+    干支时间: ganZhiTime,
+    六爻: yaos,
+    用神分析: yongShenAnalysis,
+    卦级分析: formatGuaLevelLines(result),
+    提示: result.warnings || [],
+    全局神煞: result.globalShenSha || [],
   };
 }
 
@@ -912,14 +1012,39 @@ export function renderFortuneCanonicalJSON(result: FortuneOutput): FortuneCanoni
 
 // ===== 大运 =====
 
-export function renderDayunCanonicalJSON(result: DayunOutput): DayunCanonicalJSON {
-  return {
+export function renderDayunCanonicalJSON(result: DayunOutput, options: { detailLevel?: BaziCanonicalTextOptions['detailLevel'] } = {}): DayunCanonicalJSON {
+  const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+  const json: DayunCanonicalJSON = {
     startInfo: {
       startAge: result.startAge,
       detail: result.startAgeDetail,
     },
-    list: result.list.map(buildDayunItemJSON),
+    list: result.list.map((item) => buildDayunItemJSON({
+      startYear: item.startYear,
+      startAge: item.startAge,
+      ganZhi: item.ganZhi,
+      stem: detailLevel === 'full' ? item.stem : undefined,
+      branch: detailLevel === 'full' ? item.branch : undefined,
+      tenGod: item.tenGod,
+      branchTenGod: detailLevel === 'full' ? item.branchTenGod : undefined,
+      hiddenStems: detailLevel === 'full' ? item.hiddenStems : buildLeanHiddenStemItems(item.hiddenStems),
+      diShi: detailLevel === 'full' ? item.diShi : undefined,
+      naYin: detailLevel === 'full' ? item.naYin : undefined,
+      shenSha: detailLevel === 'full' ? item.shenSha : undefined,
+      branchRelations: detailLevel === 'full' ? item.branchRelations : undefined,
+      liunianList: detailLevel === 'full' ? item.liunianList : undefined,
+    })),
   };
+
+  if (detailLevel === 'full' && result.xiaoYun.length > 0) {
+    json.xiaoYun = result.xiaoYun.map((item) => ({
+      age: item.age,
+      ganZhi: item.ganZhi,
+      tenGod: item.tenGod,
+    }));
+  }
+
+  return json;
 }
 
 // ===== 四柱反推 =====

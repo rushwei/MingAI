@@ -58,11 +58,11 @@ export function BasicInfoSection({
 }: BasicInfoSectionProps) {
     // 获取命盘中出现的十神
     const highlightedTenGods: TenGod[] = [
-        canonicalChart.fourPillars[0]?.tenGod,
-        canonicalChart.fourPillars[1]?.tenGod,
-        canonicalChart.fourPillars[3]?.tenGod,
+        canonicalChart.四柱[0]?.天干十神,
+        canonicalChart.四柱[1]?.天干十神,
+        canonicalChart.四柱[3]?.天干十神,
     ].filter((g): g is TenGod => !!g);
-    const dayMasterElement = canonicalChart.basicInfo.dayMasterElement.slice(-1);
+    const dayMasterElement = canonicalChart.基本信息.命主五行?.slice(-1) || '';
 
     // 是否已保存命盘
     const isSaved = Boolean(chartId);
@@ -82,11 +82,11 @@ export function BasicInfoSection({
                         className="w-14 h-14 rounded-md flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow-sm"
                         style={{ backgroundColor: getElementColor(dayMasterElement as FiveElement) }}
                     >
-                        {canonicalChart.basicInfo.dayMaster}
+                        {canonicalChart.基本信息.日主}
                     </div>
                     <div className="space-y-2">
                         <div className="font-bold text-base">
-                            日主「{canonicalChart.basicInfo.dayMaster}」，五行属{dayMasterElement}
+                            日主「{canonicalChart.基本信息.日主}」，五行属{dayMasterElement}
                         </div>
                         <p className="text-sm text-foreground/60 leading-relaxed max-w-2xl">
                             {dayMasterDescription}

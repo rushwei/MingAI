@@ -44,7 +44,7 @@ export function ProfessionalSection({
     const activeDaYun: DaYunInfo | undefined = proData.daYun[selectedDaYunIndex];
     const activeLiuNian: LiuNianInfo | undefined = currentLiuNian.find(ln => ln.year === selectedLiuNianYear);
     const activeLiuRi: LiuRiInfo | undefined = liuRi.find(lr => lr.date === selectedLiuRiDate);
-    const relationHighlights = isUnknownTime ? [] : canonicalChart.relations;
+    const relationHighlights = isUnknownTime ? [] : canonicalChart.干支关系;
     const hasGanZhiHighlights = relationHighlights.length > 0;
 
     return (
@@ -64,19 +64,19 @@ export function ProfessionalSection({
                     activeLiuRi={activeLiuRi}
                 />
                 <div className="px-4 mt-4 border-t border-border/60 space-y-2 text-xs text-foreground/45 font-medium">
-                    <div>
-                        起运：{proData.startAgeDetail}
-                        {canonicalChart.basicInfo.taiYuan ? `　胎元：${canonicalChart.basicInfo.taiYuan}` : ''}
-                        {canonicalChart.basicInfo.mingGong ? `　命宫：${canonicalChart.basicInfo.mingGong}` : ''}
+                        <div>
+                            起运：{proData.startAgeDetail}
+                        {canonicalChart.基本信息.胎元 ? `　胎元：${canonicalChart.基本信息.胎元}` : ''}
+                        {canonicalChart.基本信息.命宫 ? `　命宫：${canonicalChart.基本信息.命宫}` : ''}
                     </div>
                     {hasGanZhiHighlights ? (
                         <div>
                             干支关系：{relationHighlights.join('、')}
                         </div>
                     ) : null}
-                    {canonicalChart.basicInfo.trueSolarTime ? (
+                    {canonicalChart.基本信息.真太阳时 ? (
                         <div>
-                            真太阳时：{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}（钟表 {canonicalChart.basicInfo.trueSolarTime.clockTime}）
+                            真太阳时：{canonicalChart.基本信息.真太阳时.真太阳时}（钟表 {canonicalChart.基本信息.真太阳时.钟表时间}）
                         </div>
                     ) : null}
                 </div>

@@ -782,23 +782,16 @@ function toCoreBaziOutput(chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>)
 export function buildBaziCanonicalJSON(
     chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
 ) {
-    return renderBaziCanonicalJSON(toCoreBaziOutput(chart));
+    return renderBaziCanonicalJSON(toCoreBaziOutput(chart), { detailLevel: 'full' });
 }
 
-/**
- * 生成八字命盘文字版本（用于AI分析和复制）
- * @param chart 八字命盘数据（自动计算大运）
- */
-export function generateBaziChartText(
+function buildCanonicalDayun(
     chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
-): string {
-    const coreChart = toCoreBaziOutput(chart);
-
-    let dayun;
+) {
     try {
         const [year, month, day] = chart.birthDate.split('-').map(Number);
         const [hour, minute] = chart.birthTime.split(':').map(Number);
-        dayun = calculateDayunData({
+        return calculateDayunData({
             gender: chart.gender,
             birthYear: year,
             birthMonth: month,
@@ -809,8 +802,17 @@ export function generateBaziChartText(
             isLeapMonth: chart.isLeapMonth,
         });
     } catch {
-        // dayun calculation may fail for edge-case birth times; skip silently
+        return undefined;
     }
+}
 
-    return renderBaziCanonicalText(coreChart, { name: chart.name, dayun });
+/**
+ * 生成八字命盘文字版本（用于AI分析和复制）
+ * @param chart 八字命盘数据（自动计算大运）
+ */
+export function generateBaziChartText(
+    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+): string {
+    const coreChart = toCoreBaziOutput(chart);
+    return renderBaziCanonicalText(coreChart, { name: chart.name, dayun: buildCanonicalDayun(chart) });
 }

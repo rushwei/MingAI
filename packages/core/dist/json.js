@@ -41,21 +41,162 @@ function buildShenSystemJSON(system) {
         result.chouShen = `${system.chouShen.liuQin}（${system.chouShen.wuXing}）`;
     return Object.keys(result).length > 0 ? result : undefined;
 }
+function buildHiddenStemJSON(item) {
+    return {
+        stem: item.stem,
+        tenGod: item.tenGod,
+        ...(item.qiType ? { qiType: item.qiType } : {}),
+    };
+}
+function buildBranchRelationJSON(item) {
+    return {
+        type: item.type,
+        branches: [...item.branches],
+        description: item.description,
+    };
+}
+function buildLiunianItemJSON(item) {
+    return {
+        year: item.year,
+        age: item.age,
+        ganZhi: item.ganZhi,
+        gan: item.gan,
+        zhi: item.zhi,
+        tenGod: item.tenGod || '-',
+        ...(item.nayin ? { nayin: item.nayin } : {}),
+        hiddenStems: item.hiddenStems?.length
+            ? item.hiddenStems.map(buildHiddenStemJSON)
+            : [],
+        ...(item.diShi ? { diShi: item.diShi } : {}),
+        ...(item.shenSha?.length ? { shenSha: [...item.shenSha] } : {}),
+        ...(item.branchRelations?.length ? { branchRelations: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+        ...(item.taiSui?.length ? { taiSui: [...item.taiSui] } : {}),
+    };
+}
+function buildLeanHiddenStemItems(items) {
+    return items?.map((item) => ({ stem: item.stem, tenGod: item.tenGod })) || [];
+}
 function buildDayunItemJSON(item) {
     return {
         startYear: item.startYear,
+        ...(typeof item.startAge === 'number' ? { startAge: item.startAge } : {}),
         ganZhi: item.ganZhi,
+        ...(item.stem ? { stem: item.stem } : {}),
+        ...(item.branch ? { branch: item.branch } : {}),
         tenGod: item.tenGod || '-',
+        ...(item.branchTenGod ? { branchTenGod: item.branchTenGod } : {}),
         hiddenStems: item.hiddenStems?.length
-            ? item.hiddenStems.map((hs) => ({ stem: hs.stem, tenGod: hs.tenGod }))
+            ? item.hiddenStems.map(buildHiddenStemJSON)
             : [],
-        diShi: item.diShi || '-',
-        naYin: item.naYin || '-',
-        shenSha: item.shenSha?.length ? item.shenSha : [],
+        ...(item.diShi ? { diShi: item.diShi } : {}),
+        ...(item.naYin ? { naYin: item.naYin } : {}),
+        ...(item.shenSha?.length ? { shenSha: [...item.shenSha] } : {}),
+        ...(item.branchRelations?.length ? { branchRelations: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+        ...(item.liunianList?.length ? { liunianList: item.liunianList.map(buildLiunianItemJSON) } : {}),
     };
 }
 function buildBaziCanonicalPillarShenSha(item) {
     return item.shenSha?.length ? [...item.shenSha] : [];
+}
+function normalizeDetailLevel(detailLevel) {
+    if (detailLevel === 'more' || detailLevel === 'facts')
+        return 'more';
+    if (detailLevel === 'full' || detailLevel === 'debug')
+        return 'full';
+    return 'default';
+}
+function normalizeBaziDetailLevel(detailLevel) {
+    if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+        return 'full';
+    }
+    return 'default';
+}
+function mapLiuyaoRelationLabel(label) {
+    if (!label)
+        return undefined;
+    return label === '平' ? undefined : label;
+}
+function buildLiuyaoPositionLabel(position, fullYaos) {
+    if (!position)
+        return undefined;
+    const attached = fullYaos.find((yao) => yao.position === position);
+    return attached ? `${traditionalYaoName(position, attached.type)}爻` : `${position}爻`;
+}
+function buildLiuyaoInteractionSources(result) {
+    const participants = [];
+    for (const yao of result.fullYaos || []) {
+        if (yao.isChanging) {
+            participants.push({
+                source: '动爻',
+                branch: yao.naJia,
+                position: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
+            });
+        }
+        if (yao.changedYao) {
+            participants.push({
+                source: '变爻',
+                branch: yao.changedYao.naJia,
+                position: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
+            });
+        }
+    }
+    participants.push({ source: '月建', branch: result.ganZhiTime.month.zhi });
+    participants.push({ source: '日建', branch: result.ganZhiTime.day.zhi });
+    return participants;
+}
+function buildBanHeParticipants(branches, sources) {
+    const priority = {
+        变爻: 0,
+        动爻: 1,
+        月建: 2,
+        日建: 3,
+    };
+    return branches.map((branch) => {
+        const matches = sources.filter((source) => source.branch === branch);
+        matches.sort((left, right) => priority[left.source] - priority[right.source]);
+        return matches[0] || { source: '日建', branch };
+    });
+}
+function buildLiuyaoAISafeBoardLines(result, detailLevel) {
+    return sortYaosDescending(result.fullYaos || []).map((yao) => {
+        const line = {
+            position: traditionalYaoName(yao.position, yao.type),
+            liuShen: yao.liuShen,
+            ...(detailLevel !== 'default' && yao.shenSha?.length ? { shenSha: [...yao.shenSha] } : {}),
+            mainLine: {
+                liuQin: yao.liuQin,
+                naJia: yao.naJia,
+                wuXing: yao.wuXing,
+                ...(detailLevel === 'full' ? { wangShuai: WANG_SHUAI_LABELS[yao.strength.wangShuai] } : {}),
+            },
+            ...(detailLevel === 'full' ? { movement: yao.movementLabel } : {}),
+            ...(detailLevel === 'full' && yao.kongWangState && yao.kongWangState !== 'not_kong'
+                ? { kongWang: KONG_WANG_LABELS[yao.kongWangState] || yao.kongWangState }
+                : {}),
+        };
+        if (yao.fuShen) {
+            line.fuShen = {
+                liuQin: yao.fuShen.liuQin,
+                naJia: yao.fuShen.naJia,
+                wuXing: yao.fuShen.wuXing,
+            };
+        }
+        if (yao.changedYao) {
+            line.changedTo = {
+                liuQin: yao.changedYao.liuQin,
+                naJia: yao.changedYao.naJia,
+                wuXing: yao.changedYao.wuXing,
+            };
+            if (detailLevel === 'full' && mapLiuyaoRelationLabel(yao.changedYao.relation)) {
+                line.transformation = mapLiuyaoRelationLabel(yao.changedYao.relation);
+            }
+        }
+        if (yao.isShiYao)
+            line.shiYing = 'shi';
+        else if (yao.isYingYao)
+            line.shiYing = 'ying';
+        return line;
+    });
 }
 function buildBaziCanonicalRelations(result) {
     const posBranchMap = {
@@ -96,48 +237,67 @@ function buildBaziCanonicalRelations(result) {
     return relationParts;
 }
 // ===== 八字 =====
-export function renderBaziCanonicalJSON(result, options = {}) {
+export function renderBaziCanonicalJSON(chart, options = {}) {
+    const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+    const { dayun } = options;
     const basicInfo = {
-        gender: result.gender === 'male' ? '男' : '女',
-        dayMaster: result.dayMaster,
-        dayMasterElement: `${result.dayMaster}${GAN_WUXING[result.dayMaster.charAt(0)] || ''}`,
+        gender: chart.gender === 'male' ? '男' : '女',
+        dayMaster: chart.dayMaster,
+        ...(detailLevel === 'full' ? { dayMasterElement: `${chart.dayMaster}${GAN_WUXING[chart.dayMaster.charAt(0)] || ''}` } : {}),
     };
-    if (result.kongWang?.kongZhi?.length)
-        basicInfo.kongWang = [...result.kongWang.kongZhi];
-    if (result.birthPlace)
-        basicInfo.birthPlace = result.birthPlace;
-    if (result.trueSolarTimeInfo)
-        basicInfo.trueSolarTime = buildTrueSolarTimeJSON(result.trueSolarTimeInfo);
-    if (result.taiYuan)
-        basicInfo.taiYuan = result.taiYuan;
-    if (result.mingGong)
-        basicInfo.mingGong = result.mingGong;
+    if (detailLevel === 'full' && chart.kongWang?.kongZhi?.length)
+        basicInfo.kongWang = [...chart.kongWang.kongZhi];
+    if (chart.birthPlace)
+        basicInfo.birthPlace = chart.birthPlace;
+    if (chart.trueSolarTimeInfo)
+        basicInfo.trueSolarTime = buildTrueSolarTimeJSON(chart.trueSolarTimeInfo);
+    if (detailLevel === 'full' && chart.taiYuan)
+        basicInfo.taiYuan = chart.taiYuan;
+    if (detailLevel === 'full' && chart.mingGong)
+        basicInfo.mingGong = chart.mingGong;
     const fourPillars = [
-        ['年柱', result.fourPillars.year],
-        ['月柱', result.fourPillars.month],
-        ['日柱', result.fourPillars.day],
-        ['时柱', result.fourPillars.hour],
+        ['年柱', chart.fourPillars.year],
+        ['月柱', chart.fourPillars.month],
+        ['日柱', chart.fourPillars.day],
+        ['时柱', chart.fourPillars.hour],
     ].map(([label, pillar]) => {
         const entry = {
             pillar: label,
             ganZhi: `${pillar.stem}${pillar.branch}`,
             tenGod: pillar.tenGod || '-',
-            hiddenStems: pillar.hiddenStems.map((item) => ({ stem: item.stem, tenGod: item.tenGod || '-' })),
+            hiddenStems: pillar.hiddenStems.map((item) => buildHiddenStemJSON({
+                stem: item.stem,
+                tenGod: item.tenGod || '-',
+                ...(detailLevel === 'full' ? { qiType: item.qiType } : {}),
+            })),
             diShi: pillar.diShi || '-',
-            naYin: pillar.naYin || '-',
-            shenSha: buildBaziCanonicalPillarShenSha(pillar),
+            ...(detailLevel === 'full' && pillar.naYin ? { naYin: pillar.naYin } : {}),
+            ...(detailLevel === 'full' && pillar.shenSha?.length ? { shenSha: buildBaziCanonicalPillarShenSha(pillar) } : {}),
         };
         if (pillar.kongWang?.isKong)
             entry.isKong = true;
         return entry;
     });
-    const relations = buildBaziCanonicalRelations(result);
+    const relations = buildBaziCanonicalRelations(chart);
     const json = { basicInfo, fourPillars, relations };
-    if (options.dayun) {
-        const { dayun } = options;
+    if (dayun) {
         json.dayun = {
             startInfo: `${dayun.startAge}岁（${dayun.startAgeDetail}）`,
-            list: dayun.list.map(buildDayunItemJSON),
+            list: dayun.list.map((item) => buildDayunItemJSON({
+                startYear: item.startYear,
+                startAge: item.startAge,
+                ganZhi: item.ganZhi,
+                stem: detailLevel === 'full' ? item.stem : undefined,
+                branch: detailLevel === 'full' ? item.branch : undefined,
+                tenGod: item.tenGod,
+                branchTenGod: detailLevel === 'full' ? item.branchTenGod : undefined,
+                hiddenStems: detailLevel === 'full' ? item.hiddenStems : buildLeanHiddenStemItems(item.hiddenStems),
+                diShi: detailLevel === 'full' ? item.diShi : undefined,
+                naYin: detailLevel === 'full' ? item.naYin : undefined,
+                shenSha: detailLevel === 'full' ? item.shenSha : undefined,
+                branchRelations: detailLevel === 'full' ? item.branchRelations : undefined,
+                liunianList: detailLevel === 'full' ? item.liunianList : undefined,
+            })),
         };
     }
     return json;
@@ -204,7 +364,6 @@ export function renderLiuyaoCanonicalJSON(result) {
             : undefined;
         hexagramInfo.guaShen = {
             branch: result.guaShen.branch,
-            absent: !!result.guaShen.absent,
         };
         if (posLabel)
             hexagramInfo.guaShen.position = posLabel;
@@ -363,6 +522,110 @@ export function renderLiuyaoCanonicalJSON(result) {
         warnings: result.warnings || [],
         globalShenSha: result.globalShenSha || [],
     };
+}
+export function renderLiuyaoAISafeJSON(result, options) {
+    const detailLevel = normalizeDetailLevel(options?.detailLevel);
+    const raw = renderLiuyaoCanonicalJSON(result);
+    const interactionSources = buildLiuyaoInteractionSources(result);
+    const combinations = [];
+    if (result.sanHeAnalysis?.banHe?.length) {
+        for (const item of result.sanHeAnalysis.banHe) {
+            combinations.push({
+                kind: '半合',
+                resultElement: item.result,
+                participants: buildBanHeParticipants(item.branches, interactionSources),
+            });
+        }
+    }
+    if (result.sanHeAnalysis?.fullSanHeList?.length) {
+        for (const item of result.sanHeAnalysis.fullSanHeList) {
+            combinations.push({
+                kind: '三合',
+                resultElement: item.result,
+                name: item.name,
+                positions: item.positions?.map((position) => buildLiuyaoPositionLabel(position, result.fullYaos) || `${position}爻`) || [],
+            });
+        }
+    }
+    const transitions = [];
+    if (result.chongHeTransition && (result.chongHeTransition.type === 'chong_to_he' || result.chongHeTransition.type === 'he_to_chong')) {
+        transitions.push({ kind: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' });
+    }
+    const resonances = [];
+    if (result.guaFanFuYin?.isFuYin)
+        resonances.push({ kind: '伏吟' });
+    if (result.guaFanFuYin?.isFanYin)
+        resonances.push({ kind: '反吟' });
+    const payload = {
+        board: {
+            ...(result.question ? { question: result.question } : {}),
+            mainHexagram: {
+                name: result.hexagramName,
+                gong: result.hexagramGong,
+                element: result.hexagramElement,
+                ...(result.guaCi ? { guaCi: result.guaCi } : {}),
+            },
+            ...(result.changedHexagramName
+                ? {
+                    changedHexagram: {
+                        name: result.changedHexagramName,
+                        ...(result.changedHexagramGong ? { gong: result.changedHexagramGong } : {}),
+                        ...(result.changedHexagramElement ? { element: result.changedHexagramElement } : {}),
+                        ...(result.changedGuaCi ? { guaCi: result.changedGuaCi } : {}),
+                        changingYaos: (result.fullYaos || [])
+                            .filter((item) => item.isChanging)
+                            .map((yao) => traditionalYaoName(yao.position, yao.type)),
+                        ...(((result.fullYaos || [])
+                            .filter((item) => item.isChanging && item.yaoCi)
+                            .map((yao) => ({ yaoName: traditionalYaoName(yao.position, yao.type), yaoCi: yao.yaoCi }))).length > 0
+                            ? {
+                                changingYaoCi: (result.fullYaos || [])
+                                    .filter((item) => item.isChanging && item.yaoCi)
+                                    .map((yao) => ({ yaoName: traditionalYaoName(yao.position, yao.type), yaoCi: yao.yaoCi })),
+                            }
+                            : {}),
+                    },
+                }
+                : {}),
+            ganZhiTime: raw.ganZhiTime,
+        },
+        fullBoard: {
+            lines: buildLiuyaoAISafeBoardLines(result, detailLevel),
+        },
+        globalInteractions: {
+            combinations,
+            ...(detailLevel === 'full' && transitions.length > 0 ? { transitions } : {}),
+            ...(detailLevel === 'full' && resonances.length > 0 ? { resonances } : {}),
+            ...(detailLevel === 'full' ? { isLiuChongGua: result.liuChongGuaInfo?.isLiuChongGua ? '是' : '否' } : {}),
+            ...(detailLevel === 'full' ? { isLiuHeGua: result.liuHeGuaInfo?.isLiuHeGua ? '是' : '否' } : {}),
+            ...(detailLevel === 'full' && result.chongHeTransition && result.chongHeTransition.type !== 'none'
+                ? { chongHeTransition: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' }
+                : {}),
+        },
+        meta: {
+            detailLevel,
+        },
+    };
+    if (detailLevel === 'more' || detailLevel === 'full') {
+        if (result.guaShen) {
+            payload.board.guaShen = {
+                branch: result.guaShen.branch,
+                ...(result.guaShen.linePosition ? { position: buildLiuyaoPositionLabel(result.guaShen.linePosition, result.fullYaos) } : {}),
+                ...(result.guaShen.absent ? { state: '飞伏' } : {}),
+            };
+        }
+        if (result.nuclearHexagram || result.oppositeHexagram || result.reversedHexagram) {
+            payload.board.derivedHexagrams = {
+                ...(result.nuclearHexagram ? { nuclearHexagram: { name: result.nuclearHexagram.name } } : {}),
+                ...(result.oppositeHexagram ? { oppositeHexagram: { name: result.oppositeHexagram.name } } : {}),
+                ...(result.reversedHexagram ? { reversedHexagram: { name: result.reversedHexagram.name } } : {}),
+            };
+        }
+        if (result.globalShenSha?.length) {
+            payload.board.globalShenSha = [...result.globalShenSha];
+        }
+    }
+    return payload;
 }
 // ===== 塔罗 =====
 export function renderTarotCanonicalJSON(result, options = {}) {
@@ -612,14 +875,37 @@ export function renderFortuneCanonicalJSON(result) {
     return json;
 }
 // ===== 大运 =====
-export function renderDayunCanonicalJSON(result) {
-    return {
+export function renderDayunCanonicalJSON(result, options = {}) {
+    const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
+    const json = {
         startInfo: {
             startAge: result.startAge,
             detail: result.startAgeDetail,
         },
-        list: result.list.map(buildDayunItemJSON),
+        list: result.list.map((item) => buildDayunItemJSON({
+            startYear: item.startYear,
+            startAge: item.startAge,
+            ganZhi: item.ganZhi,
+            stem: detailLevel === 'full' ? item.stem : undefined,
+            branch: detailLevel === 'full' ? item.branch : undefined,
+            tenGod: item.tenGod,
+            branchTenGod: detailLevel === 'full' ? item.branchTenGod : undefined,
+            hiddenStems: detailLevel === 'full' ? item.hiddenStems : buildLeanHiddenStemItems(item.hiddenStems),
+            diShi: detailLevel === 'full' ? item.diShi : undefined,
+            naYin: detailLevel === 'full' ? item.naYin : undefined,
+            shenSha: detailLevel === 'full' ? item.shenSha : undefined,
+            branchRelations: detailLevel === 'full' ? item.branchRelations : undefined,
+            liunianList: detailLevel === 'full' ? item.liunianList : undefined,
+        })),
     };
+    if (detailLevel === 'full' && result.xiaoYun.length > 0) {
+        json.xiaoYun = result.xiaoYun.map((item) => ({
+            age: item.age,
+            ganZhi: item.ganZhi,
+            tenGod: item.tenGod,
+        }));
+    }
+    return json;
 }
 // ===== 四柱反推 =====
 export function renderBaziPillarsResolveCanonicalJSON(result) {

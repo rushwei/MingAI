@@ -16,17 +16,28 @@ function attachStructuredRuntimeExtras(canonicalJSON, result) {
         placeResolutionInfo: result.placeResolutionInfo,
     };
 }
-export function renderToolResult(toolName, result, responseFormat = 'json') {
+export function renderToolResult(toolName, result, responseFormat = 'json', options) {
     const entry = getToolRegistryEntry(toolName);
     const canonicalJSON = entry?.jsonFormatter
-        ? entry.jsonFormatter(result)
+        ? entry.jsonFormatter(result, options)
         : undefined;
-    const structuredContent = canonicalJSON !== undefined
+    let structuredContent = canonicalJSON !== undefined
         ? attachStructuredRuntimeExtras(canonicalJSON, result)
         : (typeof result === 'object' && result !== null && !!entry?.definition.outputSchema ? result : undefined);
     const textContent = entry?.markdownFormatter
-        ? entry.markdownFormatter(result)
+        ? entry.markdownFormatter(result, options)
         : stringifyResult(result);
+    if (options?.detailLevel === 'debug' && structuredContent && entry?.debugJsonFormatter) {
+        const rawCanonical = entry.debugJsonFormatter(result, options);
+        const rawText = entry.debugMarkdownFormatter?.(result, options);
+        structuredContent = {
+            ...(typeof structuredContent === 'object' && structuredContent !== null ? structuredContent : { value: structuredContent }),
+            debug: {
+                rawCanonical,
+                ...(rawText ? { rawText } : {}),
+            },
+        };
+    }
     if (responseFormat === 'markdown' && entry?.markdownFormatter) {
         return {
             content: [{ type: 'text', text: textContent }],

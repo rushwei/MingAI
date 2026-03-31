@@ -114,7 +114,7 @@ test('daliuren canonical json should not expose fields omitted by canonical text
 test('bazi canonical json should de-duplicate branch relation summaries without showing missing banhe branches', () => {
   const json = renderBaziCanonicalJSON(createBaziResult());
 
-  assert.deepEqual(json.relations, ['子辰半合水', '寅卯辰三会木']);
+  assert.deepEqual(json.干支关系, ['子辰半合水', '寅卯辰三会木']);
 });
 
 test('daliuren canonical json keeps full tianjiang names for palace grid color mapping', async () => {

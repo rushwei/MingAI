@@ -18,15 +18,15 @@ export function ProfileSummaryCard({
     const summaryItems = [
         {
             label: '日主',
-            value: canonicalChart.basicInfo.dayMaster,
+            value: canonicalChart.基本信息.日主,
         },
         {
             label: '出生时间',
             value: `${formData.birthYear}年${formData.birthMonth}月${formData.birthDay}日 ${timeText}`,
         },
-        canonicalChart.basicInfo.birthPlace ? {
+        canonicalChart.基本信息.出生地 ? {
             label: '出生地点',
-            value: canonicalChart.basicInfo.birthPlace,
+            value: canonicalChart.基本信息.出生地,
         } : null,
     ].filter((item): item is { label: string; value: string } => Boolean(item));
 

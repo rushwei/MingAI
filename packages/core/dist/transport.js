@@ -11,8 +11,8 @@ export function buildListToolsPayload() {
         })),
     };
 }
-export function buildToolSuccessPayload(toolName, result, responseFormat = 'json') {
-    const rendered = renderToolResult(toolName, result, responseFormat);
+export function buildToolSuccessPayload(toolName, result, responseFormat = 'json', options) {
+    const rendered = renderToolResult(toolName, result, responseFormat, options);
     if (rendered.structuredContent !== undefined) {
         return {
             structuredContent: rendered.structuredContent,
