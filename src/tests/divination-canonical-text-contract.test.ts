@@ -5,6 +5,7 @@ import {
   renderBaziCanonicalText,
   renderBaziPillarsResolveCanonicalText,
   renderLiuyaoCanonicalText,
+  renderQimenCanonicalText,
   renderZiweiFlyingStarCanonicalText,
   renderZiweiHoroscopeCanonicalText,
   renderZiweiCanonicalText,
@@ -207,6 +208,59 @@ test('ziwei full text should keep full age arrays instead of truncating them whi
   assert.match(text, /106/u, 'full web ziwei copy text should keep full smallLimit ages in dedicated column');
   assert.match(text, /时辰索引|真太阳时索引/u, 'full web ziwei copy text should expose trueTimeIndex');
   assert.match(text, /跨日/u, 'full web ziwei copy text should expose dayOffset');
+});
+
+test('qimen canonical text should keep default compact while full appends supplements', () => {
+  const chart = {
+    dateInfo: {
+      solarDate: '2003-09-02',
+      lunarDate: '二〇〇三年八月初六',
+      solarTerm: '处暑',
+      solarTermRange: '2003-08-23 21:09 ~ 2003-09-08 09:21',
+    },
+    siZhu: {
+      year: '癸未',
+      month: '庚申',
+      day: '戊寅',
+      hour: '丁巳',
+    },
+    dunType: 'yin' as const,
+    juNumber: 7,
+    yuan: '下元',
+    xunShou: '甲寅',
+    zhiFu: { star: '天芮星', palace: 1 },
+    zhiShi: { gate: '死门', palace: 8 },
+    palaces: [
+      { palaceIndex: 1, palaceName: '坎', direction: '正北', element: '水', earthStem: '丁', heavenStem: '癸', star: '天芮星', starElement: '土', gate: '景门', gateElement: '火', deity: '值符', formations: ['腾蛇夭矫'], elementState: '相' },
+      { palaceIndex: 2, palaceName: '坤', direction: '西南', element: '土', earthStem: '癸', heavenStem: '壬', star: '天冲星', starElement: '木', gate: '生门', gateElement: '土', deity: '六合', formations: [], elementState: '休', isYiMa: true },
+      { palaceIndex: 3, palaceName: '震', direction: '正东', element: '木', earthStem: '壬', heavenStem: '己', star: '天心星', starElement: '金', gate: '惊门', gateElement: '金', deity: '九地', formations: [], elementState: '死' },
+      { palaceIndex: 4, palaceName: '巽', direction: '东南', element: '木', earthStem: '辛', heavenStem: '丁', star: '天蓬星', starElement: '水', gate: '开门', gateElement: '金', deity: '玄武', formations: [], elementState: '死' },
+      { palaceIndex: 5, palaceName: '中', direction: '中央', element: '土', earthStem: '庚', heavenStem: '', star: '', starElement: '', gate: '', gateElement: '', deity: '', formations: [], elementState: '休' },
+      { palaceIndex: 6, palaceName: '乾', direction: '西北', element: '金', earthStem: '己', heavenStem: '丙', star: '天英星', starElement: '火', gate: '杜门', gateElement: '木', deity: '螣蛇', formations: [], elementState: '旺', isRuMu: true },
+      { palaceIndex: 7, palaceName: '兑', direction: '正西', element: '金', earthStem: '戊', heavenStem: '辛', star: '天辅星', starElement: '木', gate: '伤门', gateElement: '木', deity: '太阴', formations: [], elementState: '旺' },
+      { palaceIndex: 8, palaceName: '艮', direction: '东北', element: '土', earthStem: '乙', heavenStem: '戊', star: '天柱星', starElement: '金', gate: '死门', gateElement: '土', deity: '九天', formations: ['日出扶桑'], elementState: '休' },
+      { palaceIndex: 9, palaceName: '离', direction: '正南', element: '火', earthStem: '丙', heavenStem: '乙', star: '天任星', starElement: '土', gate: '休门', gateElement: '水', deity: '白虎', formations: ['奇仪相佐'], elementState: '囚' },
+    ],
+    kongWang: {
+      dayKong: { branches: ['戌', '亥'], palaces: [2, 7] },
+      hourKong: { branches: ['子', '丑'], palaces: [1, 8] },
+    },
+    yiMa: { branch: '申', palace: 2 },
+    globalFormations: ['坎宫: 腾蛇夭矫', '艮宫: 日出扶桑', '离宫: 奇仪相佐'],
+    panType: '转盘',
+    juMethod: '拆补法',
+    monthPhase: { 甲: '死', 乙: '死', 丙: '囚', 丁: '囚', 戊: '休', 己: '休', 庚: '旺', 辛: '旺', 壬: '相', 癸: '相' },
+  };
+
+  const defaultText = renderQimenCanonicalText(chart);
+  const fullText = renderQimenCanonicalText(chart, { detailLevel: 'full' });
+
+  assert.match(defaultText, /值符 \(大局趋势\): 天芮星/u);
+  assert.match(defaultText, /\| 宫位\(五行\) \| 八神 \| 九星\(五行\) \| 八门\(五行\) \| 天盘天干 \| 地盘天干 \| 宫位状态 \|/u);
+  assert.doesNotMatch(defaultText, /## 补充信息/u);
+  assert.match(fullText, /## 补充信息/u);
+  assert.match(fullText, /## 全局格局/u);
+  assert.match(fullText, /方位/u);
 });
 
 test('web ziwei text should include horoscope block when caller explicitly requests it', () => {

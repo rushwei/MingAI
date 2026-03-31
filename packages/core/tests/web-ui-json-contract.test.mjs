@@ -81,17 +81,19 @@ test('qimen canonical json should preserve machine-readable fields needed by web
   });
 
   const json = renderQimenCanonicalJSON(result);
+  const fullJson = renderQimenCanonicalJSON(result, { detailLevel: 'full' });
 
-  assert.equal(json.palaces.length, 9);
-  assert.equal(typeof json.palaces[0]?.palaceIndex, 'number');
-  assert.equal(typeof json.palaces[0]?.palaceName, 'string');
-  assert.equal(typeof json.palaces[0]?.element, 'string');
-  assert.equal('dunType' in json.basicInfo, false);
-  assert.equal('juNumber' in json.basicInfo, false);
-  assert.equal('juMethod' in json.basicInfo, false);
-  assert.equal('zhiFu' in json.basicInfo, false);
-  assert.equal('zhiShi' in json.basicInfo, false);
-  assert.equal(typeof json.monthPhaseMap, 'object');
+  assert.equal(json.九宫盘.length, 9);
+  assert.equal(typeof json.九宫盘[0]?.宫位序号, 'number');
+  assert.equal(typeof json.九宫盘[0]?.宫名, 'string');
+  assert.equal(typeof json.九宫盘[0]?.宫位五行, 'string');
+  assert.equal('公历' in json.基本信息, false);
+  assert.equal('农历' in json.基本信息, false);
+  assert.equal('盘式' in json.基本信息, false);
+  assert.equal('定局法' in json.基本信息, false);
+  assert.equal('空亡信息' in json, false);
+  assert.equal(typeof fullJson.空亡信息?.日空?.地支?.[0], 'string');
+  assert.equal(typeof fullJson.十干月令旺衰?.甲, 'string');
 });
 
 test('daliuren canonical json should not expose fields omitted by canonical text spec', async () => {

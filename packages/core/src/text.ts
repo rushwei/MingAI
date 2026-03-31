@@ -50,6 +50,10 @@ export type ZiweiCanonicalTextOptions = {
   };
 };
 
+export type QimenCanonicalTextOptions = {
+  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+};
+
 const ZIWEI_PALACE_TEXT_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
 
 function normalizeBaziDetailLevel(detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
@@ -60,6 +64,13 @@ function normalizeBaziDetailLevel(detailLevel?: DetailLevel | 'more' | 'safe' | 
 }
 
 function normalizeZiweiDetailLevel(detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
+
+function normalizeQimenDetailLevel(detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
   if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
     return 'full';
   }
@@ -947,84 +958,114 @@ export function renderTarotCanonicalText(result: TarotOutput, options: TarotCano
   return lines.join('\n');
 }
 
-export function renderQimenCanonicalText(result: QimenOutput): string {
+function formatQimenPalaceStateText(palace: QimenOutput['palaces'][number], dayKongPalaces: Set<number>, hourKongPalaces: Set<number>): string {
+  if (palace.palaceIndex === 5) return '(寄宫参看对应宫位)';
+  const states = [
+    dayKongPalaces.has(palace.palaceIndex) ? '日空' : null,
+    hourKongPalaces.has(palace.palaceIndex) ? '时空' : null,
+    palace.isYiMa ? '驿马' : null,
+    palace.isRuMu ? '入墓' : null,
+  ].filter(Boolean).join('、');
+  return states || '-';
+}
+
+function formatQimenMonthPhaseLine(monthPhase: Record<string, string>): string | null {
+  const phaseGroups = new Map<string, string[]>();
+  for (const [stem, phase] of Object.entries(monthPhase)) {
+    if (!phase) continue;
+    phaseGroups.set(phase, [...(phaseGroups.get(phase) || []), stem]);
+  }
+  if (phaseGroups.size === 0) return null;
+
+  const parts: string[] = [];
+  for (const [phase, stems] of phaseGroups.entries()) {
+    const stemsWithElement = stems.map((stem) => `${stem}${GAN_WUXING[stem] || ''}`).join('');
+    parts.push(`${phase}：${stemsWithElement}`);
+  }
+  return parts.join('、');
+}
+
+function formatQimenPalaceName(palace: QimenOutput['palaces'][number]): string {
+  return `${palace.palaceName}${palace.palaceIndex}(${palace.element || '-'})`;
+}
+
+export function renderQimenCanonicalText(result: QimenOutput, options: QimenCanonicalTextOptions = {}): string {
+  const detailLevel = normalizeQimenDetailLevel(options.detailLevel);
   const dunText = result.dunType === 'yang' ? '阳遁' : '阴遁';
+  const juLabel = `${dunText}${result.juNumber}局`;
+  const dayKongPalaces = new Set(result.kongWang.dayKong.palaces);
+  const hourKongPalaces = new Set(result.kongWang.hourKong.palaces);
   const lines: string[] = [
     '# 奇门遁甲排盘',
     '',
     '## 基本信息',
-    `- **公历**: ${result.dateInfo.solarDate}`,
-    `- **农历**: ${result.dateInfo.lunarDate}`,
-    `- **节气**: ${result.dateInfo.solarTerm}${result.dateInfo.solarTermRange ? `（${result.dateInfo.solarTermRange}）` : ''}`,
-    `- **四柱**: ${result.siZhu.year} ${result.siZhu.month} ${result.siZhu.day} ${result.siZhu.hour}`,
-    `- **局**: ${dunText}${result.juNumber}局`,
-    `- **三元**: ${result.yuan}`,
-    `- **旬首**: ${result.xunShou}`,
-    `- **盘式**: ${result.panType}（${result.juMethod}）`,
+    ...(result.question ? [`- 占问: ${result.question}`] : []),
+    `- 四柱: ${result.siZhu.year} ${result.siZhu.month} ${result.siZhu.day} ${result.siZhu.hour}`,
+    `- 节气: ${result.dateInfo.solarTerm} (${juLabel} · ${result.yuan})`,
+    `- 旬首: ${result.xunShou}`,
+    `- 值符 (大局趋势): ${result.zhiFu.star}`,
+    `- 值使 (执行枢纽): ${result.zhiShi.gate}`,
   ];
-  if (result.question) lines.push(`- **占问**: ${result.question}`);
+  if (detailLevel === 'full') {
+    lines.push(`- 公历: ${result.dateInfo.solarDate}`);
+    lines.push(`- 农历: ${result.dateInfo.lunarDate}`);
+    if (result.dateInfo.solarTermRange) lines.push(`- 节气范围: ${result.dateInfo.solarTermRange}`);
+    lines.push(`- 盘式: ${result.panType}`);
+    lines.push(`- 定局法: ${result.juMethod}`);
+  }
   lines.push('');
   lines.push('## 九宫盘');
   lines.push('');
-  // 宫五行/星五行/门五行/heavenStemElement/earthStemElement inline in table columns
-  lines.push('| 宫 | 八神 | 天盘 | 地盘 | 九星 | 八门 | 格局 | 标记 |');
-  lines.push('|------|------|------|------|------|------|------|------|');
-
-  const dayKongPalaces = new Set(result.kongWang.dayKong.palaces);
-  const hourKongPalaces = new Set(result.kongWang.hourKong.palaces);
-
-  for (const palace of result.palaces) {
-    // Palace: name + index + element (no wangShuai)
-    const palaceElement = palace.element || '';
-    const palaceLabel = `${palace.palaceName}${palace.palaceIndex}${palaceElement}`;
-
-    // Heaven/Earth stem: 丁火 style, no parentheses
-    const hElement = palace.heavenStemElement || GAN_WUXING[palace.heavenStem] || '';
-    const heavenLabel = palace.heavenStem ? `${palace.heavenStem}${hElement}` : '-';
-
-    const eElement = palace.earthStemElement || GAN_WUXING[palace.earthStem] || '';
-    const earthLabel = palace.earthStem ? `${palace.earthStem}${eElement}` : '-';
-
-    // Star/Gate with element in parentheses
-    const starLabel = palace.star ? `${palace.star}(${palace.starElement || ''})` : '-';
-    const gateLabel = palace.gate ? `${palace.gate}(${palace.gateElement || ''})` : '-';
-
-    // Formations
-    const formationStr = palace.formations.length > 0 ? palace.formations.join(',') : '-';
-
-    // Marks: 值符/值使/日空/时空/驿马/入墓
-    const isDayKong = dayKongPalaces.has(palace.palaceIndex);
-    const isHourKong = hourKongPalaces.has(palace.palaceIndex);
-    const marks = [
-      result.zhiFu.palace === palace.palaceIndex ? `值符${result.zhiFu.star}` : null,
-      result.zhiShi.palace === palace.palaceIndex ? `值使${result.zhiShi.gate}` : null,
-      isDayKong ? '日空' : null,
-      isHourKong ? '时空' : null,
-      palace.isYiMa ? '驿马' : null,
-      palace.isRuMu ? '入墓' : null,
-    ].filter(Boolean).join(',');
-    const markStr = marks || '-';
-
-    lines.push(`| ${palaceLabel} | ${palace.deity} | ${heavenLabel} | ${earthLabel} | ${starLabel} | ${gateLabel} | ${formationStr} | ${markStr} |`);
+  if (detailLevel === 'full') {
+    lines.push('| 宫位(五行) | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 地盘天干 | 宫位状态 | 方位 | 格局 |');
+    lines.push('|------------|------|------------|------------|----------|----------|----------|------|------|');
+  } else {
+    lines.push('| 宫位(五行) | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 地盘天干 | 宫位状态 |');
+    lines.push('|------------|------|------------|------------|----------|----------|----------|');
   }
 
-  // 月令旺衰：group stems by wangShuai state
-  if (result.monthPhase && Object.keys(result.monthPhase).length > 0) {
-    const phaseGroups = new Map<string, string[]>();
-    for (const [stem, phase] of Object.entries(result.monthPhase)) {
-      if (!phase) continue;
-      phaseGroups.set(phase, [...(phaseGroups.get(phase) || []), stem]);
+  for (const palace of result.palaces) {
+    const starLabel = palace.star ? `${palace.star}(${palace.starElement || ''})` : '-';
+    const gateLabel = palace.gate ? `${palace.gate}(${palace.gateElement || ''})` : '-';
+    const row = [
+      formatQimenPalaceName(palace),
+      palace.deity || '-',
+      starLabel,
+      gateLabel,
+      palace.heavenStem || '-',
+      palace.earthStem || '-',
+      formatQimenPalaceStateText(palace, dayKongPalaces, hourKongPalaces),
+    ];
+    if (detailLevel === 'full') {
+      row.push(palace.direction || '-');
+      row.push(palace.formations.length > 0 ? palace.formations.join('、') : '-');
     }
-    if (phaseGroups.size > 0) {
+    lines.push(`| ${row.join(' | ')} |`);
+  }
+
+  if (detailLevel === 'full') {
+    lines.push('');
+    lines.push('## 补充信息');
+    lines.push('');
+    lines.push(`- 日空: ${result.kongWang.dayKong.branches.join('、') || '-'} (${result.kongWang.dayKong.palaces.map((index) => `${result.palaces[index - 1]?.palaceName || ''}${index}`).join('、') || '-'})`);
+    lines.push(`- 时空: ${result.kongWang.hourKong.branches.join('、') || '-'} (${result.kongWang.hourKong.palaces.map((index) => `${result.palaces[index - 1]?.palaceName || ''}${index}`).join('、') || '-'})`);
+    lines.push(`- 驿马: ${result.yiMa.branch || '-'}${result.yiMa.palace ? ` (${result.palaces[result.yiMa.palace - 1]?.palaceName || ''}${result.yiMa.palace})` : ''}`);
+
+    const monthPhaseLine = result.monthPhase ? formatQimenMonthPhaseLine(result.monthPhase) : null;
+    if (monthPhaseLine) {
       lines.push('');
       lines.push('## 月令旺衰');
       lines.push('');
-      const parts: string[] = [];
-      for (const [phase, stems] of phaseGroups.entries()) {
-        const stemsWithElement = stems.map((s) => `${s}${GAN_WUXING[s] || ''}`).join('');
-        parts.push(`${phase}：${stemsWithElement}`);
+      lines.push(monthPhaseLine);
+    }
+
+    if (result.globalFormations.length > 0) {
+      lines.push('');
+      lines.push('## 全局格局');
+      lines.push('');
+      for (const formation of result.globalFormations) {
+        lines.push(`- ${formation}`);
       }
-      lines.push(parts.join('、'));
     }
   }
 

@@ -63,6 +63,14 @@ function getSeason(monthBranch) {
 function getWangShuai(element, season) {
     return SEASON_WANG_SHUAI[season]?.[element] || '';
 }
+function buildMonthPhaseMap(season) {
+    const result = {};
+    for (const stem of TIAN_GAN) {
+        const element = GAN_WUXING[stem] || '';
+        result[stem] = element ? getWangShuai(element, season) : '';
+    }
+    return result;
+}
 // 格局判断（天盘干+地盘干组合）
 function getFormations(heavenStem, earthStem) {
     const formations = [];
@@ -185,6 +193,7 @@ export function handleQimenCalculate(input) {
         const zhiShiGate = DOOR_NAMES[mandateIdx] || '';
         // 月支季节
         const season = getSeason(monthZhi);
+        const monthPhase = buildMonthPhaseMap(season);
         // 空亡计算
         const dayKong = getKongWang(dayGan, dayZhi);
         const hourKong = getKongWang(hourGan, hourZhi);
@@ -296,6 +305,7 @@ export function handleQimenCalculate(input) {
             panType: '转盘',
             juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
             question: input.question,
+            monthPhase,
         });
     }
     finally {

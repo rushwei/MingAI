@@ -65,7 +65,8 @@ export default function QimenResultPage() {
     const membershipPending = membershipLoading || !membershipResolved;
     const membershipType = membershipResolved ? (membershipInfo?.type ?? 'free') : 'free';
     const currentUser = user ? { id: user.id } : null;
-    const canonicalResult = useMemo(() => (result ? renderQimenCanonicalJSON(toCoreQimenOutput(result)) : null), [result]);
+    const coreResult = useMemo(() => (result ? toCoreQimenOutput(result) : null), [result]);
+    const canonicalResult = useMemo(() => (coreResult ? renderQimenCanonicalJSON(coreResult) : null), [coreResult]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalResult);
 
     useEffect(() => {
@@ -153,11 +154,11 @@ export default function QimenResultPage() {
                 </div>
 
                 {/* 占事信息 */}
-                {(canonicalResult?.basicInfo.question || result.question) && (
+                {(canonicalResult?.基本信息.占问 || result.question) && (
                     <div className="bg-background border border-border rounded-md p-4 flex items-center gap-3">
                         <Sparkles className="w-4 h-4 text-[#a083ff]" />
                         <span className="text-xs font-bold text-foreground/30 uppercase tracking-widest shrink-0">占事</span>
-                        <span className="text-sm font-medium text-foreground">{canonicalResult?.basicInfo.question || result.question}</span>
+                        <span className="text-sm font-medium text-foreground">{canonicalResult?.基本信息.占问 || result.question}</span>
                     </div>
                 )}
 
@@ -169,10 +170,10 @@ export default function QimenResultPage() {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {[
-                            { label: '公历时间', value: canonicalResult?.basicInfo.solarDate },
-                            { label: '农历时间', value: canonicalResult?.basicInfo.lunarDate },
-                            { label: '四柱干支', value: canonicalResult?.basicInfo.fourPillars },
-                            { label: '起局信息', value: `${canonicalResult?.basicInfo.ju} ${canonicalResult?.basicInfo.xunShou}` }
+                            { label: '公历时间', value: coreResult?.dateInfo.solarDate },
+                            { label: '农历时间', value: coreResult?.dateInfo.lunarDate },
+                            { label: '四柱干支', value: canonicalResult?.基本信息.四柱 },
+                            { label: '起局信息', value: canonicalResult ? `${canonicalResult.基本信息.局式} ${canonicalResult.基本信息.旬首}` : '' }
                         ].map(item => (
                             <div key={item.label} className="bg-background border border-border/60 rounded-md p-3">
                                 <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">{item.label}</div>
@@ -194,7 +195,7 @@ export default function QimenResultPage() {
 
                 {/* 九宫格 */}
                 <div className="bg-background border border-border rounded-md overflow-hidden">
-                    <QimenGrid palaces={canonicalResult?.palaces || []} monthPhaseMap={canonicalResult?.monthPhaseMap} ju={canonicalResult?.basicInfo.ju || ''} />
+                    <QimenGrid palaces={canonicalResult?.九宫盘 || []} monthPhaseMap={coreResult?.monthPhase} ju={canonicalResult?.基本信息.局式 || ''} />
                 </div>
 
                 {/* AI 解读 */}

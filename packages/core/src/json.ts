@@ -45,7 +45,7 @@ import type {
   ZiweiHoroscopeCanonicalJSON,
   ZiweiStarJSON,
 } from './json-types.js';
-import type { BaziCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
+import type { BaziCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
 import { sortZiweiPalaces } from './text.js';
 import {
   formatGuaLevelLines,
@@ -210,6 +210,13 @@ function normalizeBaziDetailLevel(detailLevel?: BaziCanonicalTextOptions['detail
 }
 
 function normalizeZiweiDetailLevel(detailLevel?: ZiweiCanonicalTextOptions['detailLevel']): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
+
+function normalizeQimenDetailLevel(detailLevel?: QimenCanonicalTextOptions['detailLevel']): 'default' | 'full' {
   if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
     return 'full';
   }
@@ -931,56 +938,98 @@ export function renderZiweiCanonicalJSON(
 
 // ===== 奇门遁甲 =====
 
-export function renderQimenCanonicalJSON(result: QimenOutput): QimenCanonicalJSON {
+function buildQimenPalaceStatusList(palace: QimenOutput['palaces'][number], dayKongPalaces: Set<number>, hourKongPalaces: Set<number>): string[] {
+  if (palace.palaceIndex === 5) return ['寄宫参看对应宫位'];
+  return [
+    dayKongPalaces.has(palace.palaceIndex) ? '日空' : null,
+    hourKongPalaces.has(palace.palaceIndex) ? '时空' : null,
+    palace.isYiMa ? '驿马' : null,
+    palace.isRuMu ? '入墓' : null,
+  ].filter((value): value is string => !!value);
+}
+
+function buildQimenPalaceRef(result: QimenOutput, index: number): string {
+  const palace = result.palaces[index - 1];
+  return palace ? `${palace.palaceName}${index}` : String(index);
+}
+
+export function renderQimenCanonicalJSON(result: QimenOutput, options: { detailLevel?: QimenCanonicalTextOptions['detailLevel'] } = {}): QimenCanonicalJSON {
+  const detailLevel = normalizeQimenDetailLevel(options.detailLevel);
   const dunText = result.dunType === 'yang' ? '阳遁' : '阴遁';
-  const basicInfo: QimenCanonicalJSON['basicInfo'] = {
-    solarDate: result.dateInfo.solarDate,
-    lunarDate: result.dateInfo.lunarDate,
-    solarTerm: result.dateInfo.solarTerm,
-    fourPillars: `${result.siZhu.year} ${result.siZhu.month} ${result.siZhu.day} ${result.siZhu.hour}`,
-    ju: `${dunText}${result.juNumber}局`,
-    yuan: result.yuan,
-    xunShou: result.xunShou,
-    panType: `${result.panType}（${result.juMethod}）`,
+  const basicInfo: QimenCanonicalJSON['基本信息'] = {
+    四柱: `${result.siZhu.year} ${result.siZhu.month} ${result.siZhu.day} ${result.siZhu.hour}`,
+    节气: result.dateInfo.solarTerm,
+    局式: `${dunText}${result.juNumber}局`,
+    三元: result.yuan,
+    旬首: result.xunShou,
+    值符: result.zhiFu.star,
+    值使: result.zhiShi.gate,
   };
-  if (result.dateInfo.solarTermRange) basicInfo.solarTermRange = result.dateInfo.solarTermRange;
-  if (result.question) basicInfo.question = result.question;
+  if (result.question) basicInfo.占问 = result.question;
+  if (detailLevel === 'full') {
+    basicInfo.公历 = result.dateInfo.solarDate;
+    basicInfo.农历 = result.dateInfo.lunarDate;
+    if (result.dateInfo.solarTermRange) basicInfo.节气范围 = result.dateInfo.solarTermRange;
+    basicInfo.盘式 = result.panType;
+    basicInfo.定局法 = result.juMethod;
+  }
 
   const dayKongPalaces = new Set(result.kongWang.dayKong.palaces);
   const hourKongPalaces = new Set(result.kongWang.hourKong.palaces);
 
   const palaces = result.palaces.map((palace) => {
-    const palaceElement = palace.element || '';
-    const hElement = palace.heavenStemElement || GAN_WUXING[palace.heavenStem] || '';
-    const eElement = palace.earthStemElement || GAN_WUXING[palace.earthStem] || '';
-    const isDayKong = dayKongPalaces.has(palace.palaceIndex);
-    const isHourKong = hourKongPalaces.has(palace.palaceIndex);
-
-    return {
-      palaceName: palace.palaceName,
-      palaceIndex: palace.palaceIndex,
-      element: palaceElement,
-      elementState: palace.elementState,
-      deity: palace.deity,
-      heavenStem: palace.heavenStem ? `${palace.heavenStem}${hElement}` : '-',
-      earthStem: palace.earthStem ? `${palace.earthStem}${eElement}` : '-',
-      star: palace.star ? `${palace.star}(${palace.starElement || ''})` : '-',
-      gate: palace.gate ? `${palace.gate}(${palace.gateElement || ''})` : '-',
-      starElement: palace.starElement || undefined,
-      gateElement: palace.gateElement || undefined,
-      formations: palace.formations,
-      isDayKong,
-      isHourKong,
-      isYiMa: palace.isYiMa || undefined,
-      isRuMu: palace.isRuMu || undefined,
+    const item: QimenCanonicalJSON['九宫盘'][number] = {
+      宫名: palace.palaceName,
+      宫位序号: palace.palaceIndex,
+      宫位: `${palace.palaceName}${palace.palaceIndex}`,
+      宫位五行: palace.element || '-',
+      八神: palace.deity || '-',
+      九星: palace.star || '-',
+      ...(palace.starElement ? { 九星五行: palace.starElement } : {}),
+      八门: palace.gate || '-',
+      ...(palace.gateElement ? { 八门五行: palace.gateElement } : {}),
+      天盘天干: palace.heavenStem || '-',
+      地盘天干: palace.earthStem || '-',
+      宫位状态: buildQimenPalaceStatusList(palace, dayKongPalaces, hourKongPalaces),
     };
+    if (detailLevel === 'full') {
+      item.方位 = palace.direction || '-';
+      if (palace.formations.length > 0) item.格局 = [...palace.formations];
+      if (palace.elementState) item.宫旺衰 = palace.elementState;
+      if (palace.heavenStemElement) item.天盘天干五行 = palace.heavenStemElement;
+      if (palace.earthStemElement) item.地盘天干五行 = palace.earthStemElement;
+    }
+    return item;
   });
 
   const json: QimenCanonicalJSON = {
-    basicInfo,
-    palaces,
-    monthPhaseMap: result.monthPhase ? { ...result.monthPhase } : {},
+    基本信息: basicInfo,
+    九宫盘: palaces,
   };
+  if (detailLevel === 'full') {
+    json.空亡信息 = {
+      日空: {
+        地支: [...result.kongWang.dayKong.branches],
+        宫位: result.kongWang.dayKong.palaces.map((index) => buildQimenPalaceRef(result, index)),
+      },
+      时空: {
+        地支: [...result.kongWang.hourKong.branches],
+        宫位: result.kongWang.hourKong.palaces.map((index) => buildQimenPalaceRef(result, index)),
+      },
+    };
+    if (result.yiMa.branch && result.yiMa.palace) {
+      json.驿马 = {
+        地支: result.yiMa.branch,
+        宫位: buildQimenPalaceRef(result, result.yiMa.palace),
+      };
+    }
+    if (result.monthPhase && Object.keys(result.monthPhase).length > 0) {
+      json.十干月令旺衰 = { ...result.monthPhase };
+    }
+    if (result.globalFormations.length > 0) {
+      json.全局格局 = [...result.globalFormations];
+    }
+  }
 
   return json;
 }

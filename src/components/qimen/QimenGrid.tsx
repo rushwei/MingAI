@@ -6,7 +6,7 @@
  */
 'use client';
 
-import type { QimenCanonicalJSON, QimenPalaceJSON } from '@mingai/core/json';
+import type { QimenPalaceJSON } from '@mingai/core/json';
 
 /** 五行旺衰颜色映射 */
 const PHASE_COLORS: Record<string, string> = {
@@ -46,7 +46,7 @@ const LUOSHU_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6];
 
 interface QimenGridProps {
     palaces: QimenPalaceJSON[];
-    monthPhaseMap?: QimenCanonicalJSON['monthPhaseMap'];
+    monthPhaseMap?: Record<string, string>;
     ju: string;
 }
 
@@ -57,7 +57,7 @@ function PalaceCell({
     ju,
 }: {
     palace: QimenPalaceJSON;
-    monthPhaseMap?: QimenCanonicalJSON['monthPhaseMap'];
+    monthPhaseMap?: Record<string, string>;
     isCenterPalace: boolean;
     ju: string;
 }) {
@@ -74,58 +74,58 @@ function PalaceCell({
         );
     }
 
-    const earthColor = getStemColorClass(palace.earthStem, monthPhaseMap || {});
-    const heavenColor = getStemColorClass(palace.heavenStem, monthPhaseMap || {});
+    const earthColor = getStemColorClass(palace.地盘天干, monthPhaseMap || {});
+    const heavenColor = getStemColorClass(palace.天盘天干, monthPhaseMap || {});
 
     return (
         <div className="flex flex-col h-full gap-1.5 pt-4 pb-2 px-1.5 md:px-2.5 md:pt-4 md:pb-2.5">
             {/* 格局标注 */}
             <div className="min-h-[1.75rem] md:min-h-[2.25rem]">
-                {palace.formations.length > 0 && (
+                {palace.格局 && palace.格局.length > 0 && (
                     <span className="text-[9px] md:text-[11px] text-purple-400/90 break-words leading-snug">
-                        {palace.formations.join('、')}
+                        {palace.格局.join('、')}
                     </span>
                 )}
             </div>
             {/* 地盘天干 + 八神 */}
             <div className="flex items-center justify-between">
                 <span className={`text-sm md:text-base font-medium ${earthColor}`}>
-                    {palace.earthStem}
+                    {palace.地盘天干}
                 </span>
                 <span className="text-[10px] md:text-xs text-foreground-secondary">
-                    {palace.deity}
+                    {palace.八神}
                 </span>
             </div>
             {/* 九星 + 天盘天干 */}
             <div className="flex items-center justify-between">
                 <span className="text-xs md:text-sm text-foreground-secondary">
-                    {palace.star}
+                    {palace.九星}
                 </span>
                 <span className={`text-sm md:text-base font-medium ${heavenColor}`}>
-                    {palace.heavenStem}
+                    {palace.天盘天干}
                 </span>
             </div>
             {/* 八门 */}
             <div className="flex items-center justify-between">
                 <span className="text-xs md:text-sm text-foreground-secondary">
-                    {palace.gate}
+                    {palace.八门}
                 </span>
             </div>
             {/* 星五行 / 门五行 / 宫五行 */}
             <div className="flex items-center justify-between text-[10px] md:text-[11px] text-foreground-tertiary">
-                <span>星{palace.starElement || '-'}</span>
-                <span>门{palace.gateElement || '-'}</span>
+                <span>星{palace.九星五行 || '-'}</span>
+                <span>门{palace.八门五行 || '-'}</span>
             </div>
             <div className="text-[10px] md:text-[11px] text-foreground-tertiary">
-                宫{palace.element || '-'}{palace.elementState ? `·${palace.elementState}` : ''}
+                宫{palace.宫位五行 || '-'}{palace.宫旺衰 ? `·${palace.宫旺衰}` : ''}
             </div>
             {/* 空亡/驿马标记 */}
-            {(palace.isDayKong || palace.isHourKong || palace.isYiMa) && (
+            {(palace.宫位状态.includes('日空') || palace.宫位状态.includes('时空') || palace.宫位状态.includes('驿马')) && (
                 <div className="flex items-center gap-1 mt-auto">
-                    {(palace.isDayKong || palace.isHourKong) && (
+                    {(palace.宫位状态.includes('日空') || palace.宫位状态.includes('时空')) && (
                         <span className="text-[10px] text-amber-400" title="空亡">◎</span>
                     )}
-                    {palace.isYiMa && (
+                    {palace.宫位状态.includes('驿马') && (
                         <span className="text-[10px] text-cyan-400" title="驿马">马</span>
                     )}
                 </div>
@@ -135,7 +135,7 @@ function PalaceCell({
 }
 
 export function QimenGrid({ palaces, monthPhaseMap, ju }: QimenGridProps) {
-    const palaceMap = new Map(palaces.map(p => [p.palaceIndex, p]));
+    const palaceMap = new Map(palaces.map(p => [p.宫位序号, p]));
 
     return (
         <div className="grid grid-cols-3 gap-[1px] bg-border/40 rounded-xl overflow-hidden border-border/60">
@@ -150,7 +150,7 @@ export function QimenGrid({ palaces, monthPhaseMap, ju }: QimenGridProps) {
                     >
                         {/* 宫名角标 */}
                         <span className="absolute top-0.5 left-1 text-[9px] md:text-[10px] text-foreground-tertiary/60">
-                            {palace.palaceName}
+                            {palace.宫名}
                         </span>
                         <PalaceCell
                             palace={palace}

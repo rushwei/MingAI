@@ -37,7 +37,7 @@ export const toolRegistry = [
     createRegistryEntry(requireDefinition('tarot'), adaptToolHandler(handleTarotDraw), (result) => renderTarotCanonicalText(result), (result) => renderTarotCanonicalJSON(result)),
     createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result) => renderFortuneCanonicalText(result), (result) => renderFortuneCanonicalJSON(result)),
     createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result, options) => renderDayunCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderDayunCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result) => renderQimenCanonicalText(result), (result) => renderQimenCanonicalJSON(result)),
+    createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result, options) => renderQimenCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderQimenCanonicalJSON(result, { detailLevel: options?.detailLevel })),
     createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result) => renderDaliurenCanonicalText(result), (result) => renderDaliurenCanonicalJSON(result)),
 ];
 export const toolRegistryMap = new Map(toolRegistry.map((entry) => [entry.definition.name, entry]));
