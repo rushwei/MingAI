@@ -38,7 +38,7 @@ export const toolRegistry = [
     createRegistryEntry(requireDefinition('almanac'), adaptToolHandler(handleDailyFortune), (result) => renderFortuneCanonicalText(result), (result) => renderFortuneCanonicalJSON(result)),
     createRegistryEntry(requireDefinition('bazi_dayun'), adaptToolHandler(handleDayunCalculate), (result, options) => renderDayunCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderDayunCanonicalJSON(result, { detailLevel: options?.detailLevel })),
     createRegistryEntry(requireDefinition('qimen_calculate'), adaptToolHandler(handleQimenCalculate), (result, options) => renderQimenCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderQimenCanonicalJSON(result, { detailLevel: options?.detailLevel })),
-    createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result) => renderDaliurenCanonicalText(result), (result) => renderDaliurenCanonicalJSON(result)),
+    createRegistryEntry(requireDefinition('daliuren'), adaptToolHandler(handleDaliurenCalculate), (result, options) => renderDaliurenCanonicalText(result, { detailLevel: options?.detailLevel }), (result, options) => renderDaliurenCanonicalJSON(result, { detailLevel: options?.detailLevel })),
 ];
 export const toolRegistryMap = new Map(toolRegistry.map((entry) => [entry.definition.name, entry]));
 export function getToolRegistryEntry(name) {

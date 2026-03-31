@@ -1790,6 +1790,18 @@ export const toolDefinitions = [
                 question: { type: 'string', description: '占事（可选）' },
                 birthYear: { type: 'number', description: '出生年（可选，用于计算本命和行年）' },
                 gender: { type: 'string', enum: ['male', 'female'], description: '性别（可选，用于计算行年）' },
+                responseFormat: {
+                    type: 'string',
+                    enum: ['json', 'markdown'],
+                    description: '响应格式：json=结构化数据，markdown=人类可读文本',
+                    default: 'json',
+                },
+                detailLevel: {
+                    type: 'string',
+                    enum: ['default', 'full'],
+                    description: '输出细节级别：default=精简主证据；full=在默认基础上补充完整细节',
+                    default: 'default',
+                },
             },
             required: ['date', 'hour'],
             examples: [

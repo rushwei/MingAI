@@ -45,7 +45,7 @@ import type {
   ZiweiHoroscopeCanonicalJSON,
   ZiweiStarJSON,
 } from './json-types.js';
-import type { BaziCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
+import type { BaziCanonicalTextOptions, DaliurenCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
 import { sortZiweiPalaces } from './text.js';
 import {
   formatGuaLevelLines,
@@ -217,6 +217,13 @@ function normalizeZiweiDetailLevel(detailLevel?: ZiweiCanonicalTextOptions['deta
 }
 
 function normalizeQimenDetailLevel(detailLevel?: QimenCanonicalTextOptions['detailLevel']): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
+
+function normalizeDaliurenDetailLevel(detailLevel?: DaliurenCanonicalTextOptions['detailLevel']): 'default' | 'full' {
   if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
     return 'full';
   }
@@ -1036,71 +1043,66 @@ export function renderQimenCanonicalJSON(result: QimenOutput, options: { detailL
 
 // ===== 大六壬 =====
 
-export function renderDaliurenCanonicalJSON(result: DaliurenOutput): DaliurenCanonicalJSON {
-  const basicInfo: DaliurenCanonicalJSON['basicInfo'] = {
-    date: result.dateInfo.solarDate,
-    bazi: result.dateInfo.bazi,
-    ganZhi: {
-      year: result.dateInfo.ganZhi.year,
-      month: result.dateInfo.ganZhi.month,
-      day: result.dateInfo.ganZhi.day,
-      hour: result.dateInfo.ganZhi.hour,
-    },
-    yueJiang: `${result.dateInfo.yueJiang}（${result.dateInfo.yueJiangName}）`,
-    kongWang: [...result.dateInfo.kongWang],
-    yiMa: result.dateInfo.yiMa,
-    dingMa: result.dateInfo.dingMa,
-    tianMa: result.dateInfo.tianMa,
-    diurnal: result.dateInfo.diurnal ? '昼' : '夜',
-    keTi: {
-      method: result.keTi.method,
-      subTypes: result.keTi.subTypes,
-      extraTypes: result.keTi.extraTypes,
+export function renderDaliurenCanonicalJSON(result: DaliurenOutput, options: { detailLevel?: DaliurenCanonicalTextOptions['detailLevel'] } = {}): DaliurenCanonicalJSON {
+  const detailLevel = normalizeDaliurenDetailLevel(options.detailLevel);
+  const basicInfo: DaliurenCanonicalJSON['基本信息'] = {
+    占测时间: result.dateInfo.solarDate,
+    昼夜: result.dateInfo.diurnal ? '昼占' : '夜占',
+    四柱: result.dateInfo.bazi,
+    课式: `${result.keName} / ${result.keTi.method}课`,
+    月将: result.dateInfo.yueJiang,
+    关键状态: {
+      空亡: [...result.dateInfo.kongWang],
+      驿马: result.dateInfo.yiMa,
+      丁马: result.dateInfo.dingMa,
+      天马: result.dateInfo.tianMa,
     },
   };
-  if (result.dateInfo.lunarDate) basicInfo.lunarDate = result.dateInfo.lunarDate;
-  if (result.keName) basicInfo.keName = result.keName;
-  if (result.benMing) basicInfo.benMing = result.benMing;
-  if (result.xingNian) basicInfo.xingNian = result.xingNian;
-  if (result.question) basicInfo.question = result.question;
+  if (result.question) basicInfo.占事 = result.question;
+  if (detailLevel === 'full') {
+    if (result.dateInfo.lunarDate) basicInfo.农历 = result.dateInfo.lunarDate;
+    basicInfo.月将名称 = result.dateInfo.yueJiangName;
+    if (result.benMing) basicInfo.本命 = result.benMing;
+    if (result.xingNian) basicInfo.行年 = result.xingNian;
+    if (result.keTi.extraTypes.length > 0) basicInfo.附加课体 = [...result.keTi.extraTypes];
+  }
 
-  const keLabels = ['一课', '二课', '三课', '四课'] as const;
+  const keLabels = ['一课 (干上)', '二课 (干阴)', '三课 (支上)', '四课 (支阴)'] as const;
   const keData = [result.siKe.yiKe, result.siKe.erKe, result.siKe.sanKe, result.siKe.siKe];
   const siKe = keLabels.map((label, i) => ({
-    ke: label,
-    upper: keData[i][0]?.[0] || '-',
-    lower: keData[i][0]?.[1] || '-',
-    tianJiang: keData[i][1] || '-',
+    课别: label,
+    乘将: keData[i][1] || '-',
+    上神: keData[i][0]?.[0] || '-',
+    下神: keData[i][0]?.[1] || '-',
   }));
 
-  const chuanLabels = ['初传', '中传', '末传'] as const;
+  const chuanLabels = ['初传 (发端)', '中传 (移易)', '末传 (归计)'] as const;
   const chuanData = [result.sanChuan.chu, result.sanChuan.zhong, result.sanChuan.mo];
   const sanChuan = chuanLabels.map((label, i) => ({
-    chuan: label,
-    branch: chuanData[i][0] || '-',
-    tianJiang: chuanData[i][1] || '-',
-    liuQin: chuanData[i][2] || '-',
-    dunGan: chuanData[i][3] || '-',
+    传序: label,
+    地支: chuanData[i][0] || '-',
+    天将: chuanData[i][1] || '-',
+    六亲: chuanData[i][2] || '-',
+    遁干: chuanData[i][3] || '-',
   }));
 
   const gongInfos = result.gongInfos.map((item) => ({
-    diZhi: item.diZhi,
-    wuXing: item.wuXing || undefined,
-    wangShuai: item.wangShuai || undefined,
-    tianZhi: item.tianZhi,
-    tianJiang: item.tianJiang,
-    dunGan: item.dunGan || '-',
-    changSheng: item.changSheng || '-',
-    jianChu: item.jianChu || '-',
+    地盘: item.diZhi,
+    ...(item.wuXing ? { 五行: item.wuXing } : {}),
+    ...(item.wangShuai ? { 旺衰: item.wangShuai } : {}),
+    天盘: item.tianZhi,
+    天将: item.tianJiang,
+    遁干: item.dunGan || '-',
+    长生十二神: item.changSheng || '-',
+    ...(detailLevel === 'full' ? { 建除: item.jianChu || '-' } : {}),
   }));
 
-  const shenSha: Record<string, string[]> = {};
-  for (const item of result.shenSha) {
-    if (!shenSha[item.value]) shenSha[item.value] = [];
-    shenSha[item.value].push(item.name);
-  }
-
-  return { basicInfo, siKe, sanChuan, gongInfos, shenSha };
+  return {
+    基本信息: basicInfo,
+    四课: siKe,
+    三传: sanChuan,
+    天地盘: gongInfos,
+  };
 }
 
 // ===== 每日运势 =====

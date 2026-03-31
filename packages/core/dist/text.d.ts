@@ -35,6 +35,9 @@ export type ZiweiCanonicalTextOptions = {
 export type QimenCanonicalTextOptions = {
     detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
 };
+export type DaliurenCanonicalTextOptions = {
+    detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+};
 export declare function sortZiweiPalaces<T extends {
     name: string;
     index?: number;
@@ -51,7 +54,7 @@ export declare function renderLiuyaoLevelText(result: LiuyaoOutput, options?: {
 }): string;
 export declare function renderTarotCanonicalText(result: TarotOutput, options?: TarotCanonicalTextOptions): string;
 export declare function renderQimenCanonicalText(result: QimenOutput, options?: QimenCanonicalTextOptions): string;
-export declare function renderDaliurenCanonicalText(result: DaliurenOutput): string;
+export declare function renderDaliurenCanonicalText(result: DaliurenOutput, options?: DaliurenCanonicalTextOptions): string;
 export declare function renderFortuneCanonicalText(result: FortuneOutput): string;
 export declare function renderDayunCanonicalText(result: DayunOutput, options?: DayunCanonicalTextOptions): string;
 //# sourceMappingURL=text.d.ts.map

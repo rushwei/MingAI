@@ -54,6 +54,10 @@ export type QimenCanonicalTextOptions = {
   detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
 };
 
+export type DaliurenCanonicalTextOptions = {
+  detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+};
+
 const ZIWEI_PALACE_TEXT_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
 
 function normalizeBaziDetailLevel(detailLevel?: DetailLevel | 'more' | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
@@ -71,6 +75,13 @@ function normalizeZiweiDetailLevel(detailLevel?: DetailLevel | 'safe' | 'facts' 
 }
 
 function normalizeQimenDetailLevel(detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
+
+function normalizeDaliurenDetailLevel(detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug'): 'default' | 'full' {
   if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
     return 'full';
   }
@@ -1072,69 +1083,79 @@ export function renderQimenCanonicalText(result: QimenOutput, options: QimenCano
   return lines.join('\n');
 }
 
-export function renderDaliurenCanonicalText(result: DaliurenOutput): string {
+function formatDaliurenCoreStatus(result: DaliurenOutput): string {
+  return `空亡(${result.dateInfo.kongWang.join(', ')}) / 驿马(${result.dateInfo.yiMa}) / 丁马(${result.dateInfo.dingMa}) / 天马(${result.dateInfo.tianMa})`;
+}
+
+function formatDaliurenDiPanLabel(item: DaliurenOutput['gongInfos'][number]): string {
+  const suffix = [item.wuXing, item.wangShuai].filter(Boolean).join('·');
+  return suffix ? `${item.diZhi}(${suffix})` : item.diZhi;
+}
+
+export function renderDaliurenCanonicalText(result: DaliurenOutput, options: DaliurenCanonicalTextOptions = {}): string {
+  const detailLevel = normalizeDaliurenDetailLevel(options.detailLevel);
+  const diurnalLabel = result.dateInfo.diurnal ? '昼占' : '夜占';
+  const siKeLabels = ['一课 (干上)', '二课 (干阴)', '三课 (支上)', '四课 (支阴)'] as const;
+  const siKeData = [result.siKe.yiKe, result.siKe.erKe, result.siKe.sanKe, result.siKe.siKe];
+  const sanChuanLabels = ['初传 (发端)', '中传 (移易)', '末传 (归计)'] as const;
+  const sanChuanData = [result.sanChuan.chu, result.sanChuan.zhong, result.sanChuan.mo];
   const lines: string[] = [
     '# 大六壬排盘',
     '',
     '## 基本信息',
-    `- **日期**: ${result.dateInfo.solarDate}`,
-    ...(result.dateInfo.lunarDate ? [`- **农历**: ${result.dateInfo.lunarDate}`] : []),
-    `- **八字**: ${result.dateInfo.bazi}`,
-    `- **月将**: ${result.dateInfo.yueJiang}（${result.dateInfo.yueJiangName}）`,
-    `- **空亡**: ${result.dateInfo.kongWang.join('、')}`,
-    `- **驿马**: ${result.dateInfo.yiMa}`,
-    `- **丁马**: ${result.dateInfo.dingMa}`,
-    `- **天马**: ${result.dateInfo.tianMa}`,
-    `- **昼夜**: ${result.dateInfo.diurnal ? '昼' : '夜'}`,
-    `- **取传法**: ${result.keTi.method}`,
+    ...(result.question ? [`- 占事: ${result.question}`] : []),
+    `- 占测时间: ${result.dateInfo.solarDate} (${diurnalLabel})`,
+    `- 四柱: ${result.dateInfo.bazi}`,
+    `- 课式: ${result.keName} / ${result.keTi.method}课`,
+    `- 月将: ${result.dateInfo.yueJiang}`,
+    `- 关键状态: ${formatDaliurenCoreStatus(result)}`,
   ];
-  if (result.keTi.subTypes.length > 0) lines.push(`- **课体**: ${result.keTi.subTypes.join('、')}`);
-  if (result.keTi.extraTypes.length > 0) lines.push(`- **附加**: ${result.keTi.extraTypes.join('、')}`);
-  if (result.keName) lines.push(`- **课名**: ${result.keName}`);
-  if (result.benMing) lines.push(`- **本命**: ${result.benMing}`);
-  if (result.xingNian) lines.push(`- **行年**: ${result.xingNian}`);
-  if (result.question) lines.push(`- **占事**: ${result.question}`);
+  if (detailLevel === 'full') {
+    if (result.dateInfo.lunarDate) lines.push(`- 农历: ${result.dateInfo.lunarDate}`);
+    lines.push(`- 月将名称: ${result.dateInfo.yueJiangName}`);
+    if (result.benMing) lines.push(`- 本命: ${result.benMing}`);
+    if (result.xingNian) lines.push(`- 行年: ${result.xingNian}`);
+    if (result.keTi.extraTypes.length > 0) lines.push(`- 附加课体: ${result.keTi.extraTypes.join('、')}`);
+  }
   lines.push('');
-  lines.push('## 四课');
+  lines.push('## 四课 (主客对立)');
   lines.push('');
-  lines.push('| 课 | 上神 | 下神 | 天将 |');
-  lines.push('|---|------|------|------|');
-  lines.push(`| 一课 | ${result.siKe.yiKe[0]?.[0] || '-'} | ${result.siKe.yiKe[0]?.[1] || '-'} | ${result.siKe.yiKe[1] || '-'} |`);
-  lines.push(`| 二课 | ${result.siKe.erKe[0]?.[0] || '-'} | ${result.siKe.erKe[0]?.[1] || '-'} | ${result.siKe.erKe[1] || '-'} |`);
-  lines.push(`| 三课 | ${result.siKe.sanKe[0]?.[0] || '-'} | ${result.siKe.sanKe[0]?.[1] || '-'} | ${result.siKe.sanKe[1] || '-'} |`);
-  lines.push(`| 四课 | ${result.siKe.siKe[0]?.[0] || '-'} | ${result.siKe.siKe[0]?.[1] || '-'} | ${result.siKe.siKe[1] || '-'} |`);
+  lines.push('| 课别 | 乘将 | 上神 (天盘) | 下神 (地盘) |');
+  lines.push('|---|---|---|---|');
+  for (let index = 0; index < siKeLabels.length; index += 1) {
+    const item = siKeData[index];
+    lines.push(`| ${siKeLabels[index]} | ${item[1] || '-'} | ${item[0]?.[0] || '-'} | ${item[0]?.[1] || '-'} |`);
+  }
   lines.push('');
-  lines.push('## 三传');
+  lines.push('## 三传 (事态推演)');
   lines.push('');
-  lines.push('| 传 | 地支 | 天将 | 六亲 | 遁干 |');
-  lines.push('|---|------|------|------|------|');
-  lines.push(`| 初传 | ${result.sanChuan.chu[0] || '-'} | ${result.sanChuan.chu[1] || '-'} | ${result.sanChuan.chu[2] || '-'} | ${result.sanChuan.chu[3] || '-'} |`);
-  lines.push(`| 中传 | ${result.sanChuan.zhong[0] || '-'} | ${result.sanChuan.zhong[1] || '-'} | ${result.sanChuan.zhong[2] || '-'} | ${result.sanChuan.zhong[3] || '-'} |`);
-  lines.push(`| 末传 | ${result.sanChuan.mo[0] || '-'} | ${result.sanChuan.mo[1] || '-'} | ${result.sanChuan.mo[2] || '-'} | ${result.sanChuan.mo[3] || '-'} |`);
+  lines.push('| 传序 | 地支 | 天将 | 六亲 | 遁干 |');
+  lines.push('|---|---|---|---|---|');
+  for (let index = 0; index < sanChuanLabels.length; index += 1) {
+    const item = sanChuanData[index];
+    lines.push(`| ${sanChuanLabels[index]} | ${item[0] || '-'} | ${item[1] || '-'} | ${item[2] || '-'} | ${item[3] || '-'} |`);
+  }
   lines.push('');
   if (result.gongInfos.length > 0) {
-    lines.push('## 十二宫');
+    lines.push('## 天地盘全图 (十二宫)');
     lines.push('');
-    lines.push('| 地盘 | 天盘 | 天将 | 遁干 | 长生 | 建除 |');
-    lines.push('|------|------|------|------|------|------|');
+    if (detailLevel === 'full') {
+      lines.push('| 地盘 (五行·状态) | 天盘 (月将) | 天将 | 遁干 | 长生十二神 | 建除 |');
+      lines.push('|---|---|---|---|---|---|');
+    } else {
+      lines.push('| 地盘 (五行·状态) | 天盘 (月将) | 天将 | 遁干 | 长生十二神 |');
+      lines.push('|---|---|---|---|---|');
+    }
     for (const item of result.gongInfos) {
-      const inlineParts = [item.wuXing, item.wangShuai].filter(Boolean).join('·');
-      const diZhiLabel = inlineParts ? `${item.diZhi}(${inlineParts})` : item.diZhi;
-      lines.push(`| ${diZhiLabel} | ${item.tianZhi} | ${item.tianJiangShort || item.tianJiang} | ${item.dunGan || '-'} | ${item.changSheng || '-'} | ${item.jianChu || '-'} |`);
-    }
-    lines.push('');
-  }
-  if (result.shenSha.length > 0) {
-    lines.push('## 神煞');
-    lines.push('');
-    const shaByValue = new Map<string, string[]>();
-    for (const item of result.shenSha) {
-      const names = shaByValue.get(item.value) || [];
-      names.push(item.name);
-      shaByValue.set(item.value, names);
-    }
-    for (const [value, names] of shaByValue) {
-      lines.push(`- ${value}: ${names.join('、')}`);
+      const row = [
+        formatDaliurenDiPanLabel(item),
+        item.tianZhi || '-',
+        item.tianJiang || '-',
+        item.dunGan || '-',
+        item.changSheng || '-',
+      ];
+      if (detailLevel === 'full') row.push(item.jianChu || '-');
+      lines.push(`| ${row.join(' | ')} |`);
     }
   }
   return lines.join('\n');

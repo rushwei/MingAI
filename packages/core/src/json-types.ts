@@ -491,52 +491,48 @@ export interface QimenCanonicalJSON {
 // ===== 大六壬 =====
 
 export interface DaliurenCanonicalJSON {
-  basicInfo: {
-    date: string;
-    lunarDate?: string;
-    bazi: string;
-    ganZhi: {
-      year: string;
-      month: string;
-      day: string;
-      hour: string;
+  基本信息: {
+    占事?: string;
+    占测时间: string;
+    昼夜: string;
+    四柱: string;
+    课式: string;
+    月将: string;
+    关键状态: {
+      空亡: string[];
+      驿马: string;
+      丁马: string;
+      天马: string;
     };
-    yueJiang: string;
-    kongWang: string[];
-    yiMa: string;
-    dingMa: string;
-    tianMa: string;
-    diurnal: string;
-    keTi: { method: string; subTypes: string[]; extraTypes: string[] };
-    keName?: string;
-    benMing?: string;
-    xingNian?: string;
-    question?: string;
+    农历?: string;
+    月将名称?: string;
+    本命?: string;
+    行年?: string;
+    附加课体?: string[];
   };
-  siKe: Array<{
-    ke: string;
-    upper: string;
-    lower: string;
-    tianJiang: string;
+  四课: Array<{
+    课别: string;
+    乘将: string;
+    上神: string;
+    下神: string;
   }>;
-  sanChuan: Array<{
-    chuan: string;
-    branch: string;
-    tianJiang: string;
-    liuQin: string;
-    dunGan: string;
+  三传: Array<{
+    传序: string;
+    地支: string;
+    天将: string;
+    六亲: string;
+    遁干: string;
   }>;
-  gongInfos: Array<{
-    diZhi: string;
-    wuXing?: string;
-    wangShuai?: string;
-    tianZhi: string;
-    tianJiang: string;
-    dunGan: string;
-    changSheng: string;
-    jianChu: string;
+  天地盘: Array<{
+    地盘: string;
+    五行?: string;
+    旺衰?: string;
+    天盘: string;
+    天将: string;
+    遁干: string;
+    长生十二神: string;
+    建除?: string;
   }>;
-  shenSha: Record<string, string[]>;
 }
 
 // ===== 每日运势 =====

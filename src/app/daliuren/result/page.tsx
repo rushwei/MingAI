@@ -171,7 +171,8 @@ export default function DaliurenResultPage() {
     if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><SoundWaveLoader variant="block" text="正在起课" /></div>;
     if (!result) return <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center"><p className="text-sm text-foreground/40 mb-6">排盘失败</p><button onClick={() => router.back()} className="px-4 py-2 bg-[#2383e2] text-white text-sm font-medium rounded-md transition-colors">返回重试</button></div>;
 
-    const { basicInfo, siKe, sanChuan } = canonicalResult!;
+    const { 基本信息: coreInfo, 四课: siKe, 三传: sanChuan } = canonicalResult!;
+    const [keNameLabel, keTypeLabel] = coreInfo.课式.split(' / ');
 
     return (
         <div className="min-h-screen bg-background">
@@ -181,8 +182,8 @@ export default function DaliurenResultPage() {
                     <div className="flex items-center gap-4">
                         <Link href="/daliuren" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
                         <div className="flex flex-col">
-                            <span className="text-sm font-bold">{basicInfo.keName}</span>
-                            <span className="text-[10px] font-bold text-[#2eaadc] uppercase tracking-wider">{basicInfo.keTi.subTypes.join(' · ')}</span>
+                            <span className="text-sm font-bold">{keNameLabel}</span>
+                            {keTypeLabel && <span className="text-[10px] font-bold text-[#2eaadc] uppercase tracking-wider">{keTypeLabel}</span>}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -198,7 +199,7 @@ export default function DaliurenResultPage() {
                         <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">排盘参数</h2>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {[ { label: '公历时间', value: basicInfo.date }, { label: '农历时间', value: basicInfo.lunarDate }, { label: '四柱干支', value: basicInfo.bazi }, { label: '月将信息', value: `${basicInfo.yueJiang} (旬空：${basicInfo.kongWang.join('')})` } ].map(item => (
+                        {[ { label: '公历时间', value: coreInfo.占测时间 }, { label: '农历时间', value: result.dateInfo.lunarDate || coreInfo.农历 || '-' }, { label: '四柱干支', value: coreInfo.四柱 }, { label: '月将信息', value: `${coreInfo.月将} (空亡：${coreInfo.关键状态.空亡.join('')})` } ].map(item => (
                             <div key={item.label} className="bg-background border border-border/60 rounded-md p-3">
                                 <div className="text-[10px] font-bold text-foreground/30 uppercase mb-1">{item.label}</div>
                                 <div className="text-xs font-medium text-foreground/80">{item.value}</div>
@@ -212,12 +213,12 @@ export default function DaliurenResultPage() {
                     <section className="bg-background border border-border rounded-md p-6">
                         <h3 className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest mb-6">三传分析</h3>
                         <div className="grid grid-cols-3 gap-3">
-                            {sanChuan.map((data, i) => (
+                            {sanChuan.map((data: typeof sanChuan[number], i: number) => (
                                 <div key={i} className="flex flex-col items-center p-3 rounded-md bg-background-secondary/30 border border-border/60">
                                     <span className="text-[10px] text-foreground/40 font-bold mb-2">{['初传', '中传', '末传'][i]}</span>
-                                    <span className="text-xl font-bold mb-1">{data?.branch}</span>
-                                    <span className="text-xs font-medium text-foreground/60">{data?.tianJiang}</span>
-                                    <span className="text-[10px] font-bold text-[#2eaadc] uppercase">{data?.liuQin}</span>
+                                    <span className="text-xl font-bold mb-1">{data?.地支}</span>
+                                    <span className="text-xs font-medium text-foreground/60">{data?.天将}</span>
+                                    <span className="text-[10px] font-bold text-[#2eaadc] uppercase">{data?.六亲}</span>
                                 </div>
                             ))}
                         </div>
@@ -226,13 +227,13 @@ export default function DaliurenResultPage() {
                         <h3 className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest mb-6">四课排布</h3>
                         <div className="grid grid-cols-4 gap-2">
                             {['四课', '三课', '二课', '一课'].map(label => {
-                                const data = siKe.find(item => item.ke === label);
+                                const data = siKe.find((item: typeof siKe[number]) => item.课别.startsWith(label));
                                 return (
                                     <div key={label} className="flex flex-col items-center p-2 rounded-md bg-background-secondary/30 border border-border/60">
-                                        <span className="text-[10px] font-bold text-[#2eaadc] mb-1">{data?.tianJiang}</span>
-                                        <span className="text-lg font-bold">{data?.upper}</span>
+                                        <span className="text-[10px] font-bold text-[#2eaadc] mb-1">{data?.乘将}</span>
+                                        <span className="text-lg font-bold">{data?.上神}</span>
                                         <div className="w-4 h-px bg-background-secondary my-1" />
-                                        <span className="text-xs font-medium text-foreground/60">{data?.lower}</span>
+                                        <span className="text-xs font-medium text-foreground/60">{data?.下神}</span>
                                     </div>
                                 );
                             })}

@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 import {
   renderBaziCanonicalText,
   renderBaziPillarsResolveCanonicalText,
+  renderDaliurenCanonicalText,
   renderLiuyaoCanonicalText,
   renderQimenCanonicalText,
   renderZiweiFlyingStarCanonicalText,
   renderZiweiHoroscopeCanonicalText,
   renderZiweiCanonicalText,
 } from '../../packages/core/src/text';
+import type { DaliurenOutput } from '../../packages/core/src/daliuren/types';
 import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { calculateZiwei, generateZiweiChartText } from '@/lib/divination/ziwei';
 
@@ -261,6 +263,77 @@ test('qimen canonical text should keep default compact while full appends supple
   assert.match(fullText, /## 补充信息/u);
   assert.match(fullText, /## 全局格局/u);
   assert.match(fullText, /方位/u);
+});
+
+test('daliuren canonical text should keep default focused while full only appends deterministic details', () => {
+  const chart: DaliurenOutput = {
+    dateInfo: {
+      solarDate: '2003年9月2日 10时20分',
+      lunarDate: '二〇〇三年八月初六',
+      bazi: '癸未 庚申 戊寅 丁巳',
+      ganZhi: { year: '癸未', month: '庚申', day: '戊寅', hour: '丁巳' },
+      yueJiang: '巳',
+      yueJiangName: '太乙',
+      xun: '甲子旬',
+      kongWang: ['申', '酉'] as [string, string],
+      yiMa: '申',
+      dingMa: '丑',
+      tianMa: '午',
+      diurnal: true,
+    },
+    tianDiPan: { diPan: {}, tianPan: {}, tianJiang: {} },
+    siKe: {
+      yiKe: ['巳戊', '勾陈'],
+      erKe: ['巳巳', '勾陈'],
+      sanKe: ['寅寅', '腾蛇'],
+      siKe: ['寅寅', '腾蛇'],
+    },
+    sanChuan: {
+      chu: ['巳', '勾陈', '父母', '辛'],
+      zhong: ['申', '白虎', '子孙', ''],
+      mo: ['寅', '腾蛇', '官鬼', '戊'],
+      method: '伏吟',
+    },
+    keTi: {
+      method: '伏吟',
+      subTypes: ['伏吟'],
+      extraTypes: ['自任'],
+    },
+    keName: '戊寅日第七局',
+    shenSha: [],
+    gongInfos: [
+      { diZhi: '子', tianZhi: '子', tianJiang: '天后', tianJiangShort: '后', dunGan: '丙', changSheng: '胎', wuXing: '水', wangShuai: '相', jianChu: '定' },
+      { diZhi: '丑', tianZhi: '丑', tianJiang: '贵人', tianJiangShort: '贵', dunGan: '丁', changSheng: '养', wuXing: '土', wangShuai: '休', jianChu: '执' },
+      { diZhi: '寅', tianZhi: '寅', tianJiang: '腾蛇', tianJiangShort: '蛇', dunGan: '戊', changSheng: '长生', wuXing: '木', wangShuai: '死', jianChu: '破' },
+      { diZhi: '卯', tianZhi: '卯', tianJiang: '朱雀', tianJiangShort: '雀', dunGan: '己', changSheng: '沐浴', wuXing: '木', wangShuai: '死', jianChu: '危' },
+      { diZhi: '辰', tianZhi: '辰', tianJiang: '六合', tianJiangShort: '合', dunGan: '庚', changSheng: '冠带', wuXing: '土', wangShuai: '休', jianChu: '成' },
+      { diZhi: '巳', tianZhi: '巳', tianJiang: '勾陈', tianJiangShort: '勾', dunGan: '辛', changSheng: '临官', wuXing: '火', wangShuai: '囚', jianChu: '收' },
+      { diZhi: '午', tianZhi: '午', tianJiang: '青龙', tianJiangShort: '龙', dunGan: '壬', changSheng: '帝旺', wuXing: '火', wangShuai: '囚', jianChu: '开' },
+      { diZhi: '未', tianZhi: '未', tianJiang: '天空', tianJiangShort: '空', dunGan: '癸', changSheng: '衰', wuXing: '土', wangShuai: '休', jianChu: '闭' },
+      { diZhi: '申', tianZhi: '申', tianJiang: '白虎', tianJiangShort: '虎', dunGan: '', changSheng: '病', wuXing: '金', wangShuai: '旺', jianChu: '建' },
+      { diZhi: '酉', tianZhi: '酉', tianJiang: '太常', tianJiangShort: '常', dunGan: '', changSheng: '死', wuXing: '金', wangShuai: '旺', jianChu: '除' },
+      { diZhi: '戌', tianZhi: '戌', tianJiang: '玄武', tianJiangShort: '玄', dunGan: '甲', changSheng: '墓', wuXing: '土', wangShuai: '休', jianChu: '满' },
+      { diZhi: '亥', tianZhi: '亥', tianJiang: '太阴', tianJiangShort: '阴', dunGan: '乙', changSheng: '绝', wuXing: '水', wangShuai: '相', jianChu: '平' },
+    ],
+    dunGan: {},
+    jianChu: {},
+    benMing: '癸未',
+    xingNian: '乙酉',
+    question: '事业如何',
+  };
+
+  const defaultText = renderDaliurenCanonicalText(chart);
+  const fullText = renderDaliurenCanonicalText(chart, { detailLevel: 'full' });
+
+  assert.match(defaultText, /# 大六壬排盘/u);
+  assert.match(defaultText, /## 基本信息/u);
+  assert.match(defaultText, /关键状态: 空亡\(申, 酉\)/u);
+  assert.match(defaultText, /## 天地盘全图 \(十二宫\)/u);
+  assert.doesNotMatch(defaultText, /神煞/u);
+  assert.doesNotMatch(defaultText, /建除/u);
+  assert.match(fullText, /本命: 癸未/u);
+  assert.match(fullText, /附加课体: 自任/u);
+  assert.match(fullText, /\| 地盘 \(五行·状态\) \| 天盘 \(月将\) \| 天将 \| 遁干 \| 长生十二神 \| 建除 \|/u);
 });
 
 test('web ziwei text should include horoscope block when caller explicitly requests it', () => {

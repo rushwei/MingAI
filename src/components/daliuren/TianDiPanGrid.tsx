@@ -42,14 +42,14 @@ const GRID_POSITIONS: Record<number, { row: number; col: number }> = {
 };
 
 interface PalaceCellProps {
-    gong: DaliurenCanonicalJSON['gongInfos'][number];
+    gong: DaliurenCanonicalJSON['天地盘'][number];
     isKong: boolean;
     isSanChuan?: 'chu' | 'zhong' | 'mo';
 }
 
 function PalaceCell({ gong, isKong, isSanChuan }: PalaceCellProps) {
-    const wangColor = gong.wangShuai ? WANGSUAI_COLORS[gong.wangShuai] || 'text-foreground' : 'text-foreground';
-    const jiangColor = gong.tianJiang ? TIANJIANG_COLORS[gong.tianJiang] || 'text-foreground' : 'text-foreground';
+    const wangColor = gong.旺衰 ? WANGSUAI_COLORS[gong.旺衰] || 'text-foreground' : 'text-foreground';
+    const jiangColor = gong.天将 ? TIANJIANG_COLORS[gong.天将] || 'text-foreground' : 'text-foreground';
     const kongStyle = isKong ? 'opacity-50' : '';
 
     const sanChuanBorder = isSanChuan
@@ -61,15 +61,15 @@ function PalaceCell({ gong, isKong, isSanChuan }: PalaceCellProps) {
     return (
         <div className={`flex flex-col items-center justify-center p-1 min-h-[64px] bg-background-secondary/50 rounded-lg border border-border/30 ${sanChuanBorder} ${kongStyle}`}>
             {/* 天将 */}
-            <span className={`text-xs leading-tight ${jiangColor}`}>{gong.tianJiang}</span>
+            <span className={`text-xs leading-tight ${jiangColor}`}>{gong.天将}</span>
             {/* 天盘地支 */}
             <span className={`text-sm font-bold leading-tight ${wangColor}`}>
-                {gong.tianZhi}{isKong ? '⊙' : ''}
+                {gong.天盘}{isKong ? '⊙' : ''}
             </span>
             {/* 地盘地支 */}
-            <span className="text-xs text-foreground-secondary leading-tight">{gong.diZhi}</span>
+            <span className="text-xs text-foreground-secondary leading-tight">{gong.地盘}</span>
             {/* 十二长生 */}
-            <span className="text-[10px] text-foreground-tertiary leading-tight">{gong.changSheng}</span>
+            <span className="text-[10px] text-foreground-tertiary leading-tight">{gong.长生十二神}</span>
         </div>
     );
 }
@@ -79,16 +79,17 @@ interface TianDiPanGridProps {
 }
 
 export function TianDiPanGrid({ result }: TianDiPanGridProps) {
-    const kongSet = new Set(result.basicInfo.kongWang);
-    const chuZhi = result.sanChuan[0]?.branch;
-    const zhongZhi = result.sanChuan[1]?.branch;
-    const moZhi = result.sanChuan[2]?.branch;
+    const kongSet = new Set(result.基本信息.关键状态.空亡);
+    const chuZhi = result.三传[0]?.地支;
+    const zhongZhi = result.三传[1]?.地支;
+    const moZhi = result.三传[2]?.地支;
+    const [centerTitle, centerSubtitle] = result.基本信息.课式.split(' / ');
 
     // 确定三传所在宫位（天盘地支匹配）
-    const getSanChuanMark = (gong: DaliurenCanonicalJSON['gongInfos'][number]): 'chu' | 'zhong' | 'mo' | undefined => {
-        if (gong.tianZhi === chuZhi) return 'chu';
-        if (gong.tianZhi === zhongZhi) return 'zhong';
-        if (gong.tianZhi === moZhi) return 'mo';
+    const getSanChuanMark = (gong: DaliurenCanonicalJSON['天地盘'][number]): 'chu' | 'zhong' | 'mo' | undefined => {
+        if (gong.天盘 === chuZhi) return 'chu';
+        if (gong.天盘 === zhongZhi) return 'zhong';
+        if (gong.天盘 === moZhi) return 'mo';
         return undefined;
     };
 
@@ -105,16 +106,13 @@ export function TianDiPanGrid({ result }: TianDiPanGridProps) {
                             // 中心格：课名
                             return (
                                 <div key={idx} className="col-span-2 row-span-2 flex flex-col items-center justify-center bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 rounded-lg p-2">
-                                    <div className="text-xs text-foreground-secondary mb-1">课名</div>
+                                    <div className="text-xs text-foreground-secondary mb-1">课式</div>
                                     <div className="text-sm font-bold text-foreground text-center leading-tight">
-                                        {result.basicInfo.ganZhi.day}日
+                                        {centerTitle}
                                     </div>
-                                    <div className="text-xs text-cyan-500 text-center leading-tight mt-0.5">
-                                        {result.basicInfo.keTi.subTypes.join('·')}
-                                    </div>
-                                    {result.basicInfo.keTi.extraTypes.length > 0 && (
+                                    {centerSubtitle && (
                                         <div className="text-xs text-teal-500 text-center">
-                                            {result.basicInfo.keTi.extraTypes.join('·')}
+                                            {centerSubtitle}
                                         </div>
                                     )}
                                 </div>
@@ -130,14 +128,14 @@ export function TianDiPanGrid({ result }: TianDiPanGridProps) {
 
                     if (zhiIdx === undefined) return <div key={idx} />;
 
-                    const gong = result.gongInfos[parseInt(zhiIdx)];
+                    const gong = result.天地盘[parseInt(zhiIdx)];
                     if (!gong) return <div key={idx} />;
 
                     return (
                         <PalaceCell
                             key={idx}
                             gong={gong}
-                            isKong={kongSet.has(gong.tianZhi)}
+                            isKong={kongSet.has(gong.天盘)}
                             isSanChuan={getSanChuanMark(gong)}
                         />
                     );

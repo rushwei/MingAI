@@ -106,11 +106,18 @@ test('daliuren canonical json should not expose fields omitted by canonical text
   });
 
   const json = renderDaliurenCanonicalJSON(result);
+  const fullJson = renderDaliurenCanonicalJSON(result, { detailLevel: 'full' });
 
   assert.equal('yinYangGuiRen' in result, false);
-  assert.equal(json.siKe.length, 4);
-  assert.equal(json.sanChuan.length, 3);
-  assert.equal('yinYangGuiRen' in json.basicInfo, false);
+  assert.equal(json.四课.length, 4);
+  assert.equal(json.三传.length, 3);
+  assert.equal(Array.isArray(json.天地盘), true);
+  assert.equal('农历' in json.基本信息, false);
+  assert.equal('本命' in json.基本信息, false);
+  assert.equal('附加课体' in json.基本信息, false);
+  assert.equal('建除' in json.天地盘[0], false);
+  assert.equal('神煞' in json, false);
+  assert.equal(typeof fullJson.天地盘[0]?.建除, 'string');
 });
 
 test('bazi canonical json should de-duplicate branch relation summaries without showing missing banhe branches', () => {
@@ -131,7 +138,7 @@ test('daliuren canonical json keeps full tianjiang names for palace grid color m
   const json = renderDaliurenCanonicalJSON(result);
 
   assert.deepEqual(
-    json.gongInfos.map((item) => item.tianJiang),
+    json.天地盘.map((item) => item.天将),
     result.gongInfos.map((item) => item.tianJiang),
   );
 });
