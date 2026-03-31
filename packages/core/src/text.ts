@@ -540,6 +540,188 @@ export function renderLiuyaoCanonicalText(result: LiuyaoOutput): string {
   return lines.join('\n');
 }
 
+function buildLiuyaoSafeTextPosition(
+  position: number | undefined,
+  fullYaos: LiuyaoOutput['fullYaos'],
+): string | undefined {
+  if (!position) return undefined;
+  const attached = fullYaos.find((yao) => yao.position === position);
+  return attached ? `${traditionalYaoName(position, attached.type)}爻` : `${position}爻`;
+}
+
+function buildLiuyaoSafeInteractionText(result: LiuyaoOutput): string[] {
+  const lines: string[] = [];
+  const sourceIndex = new Map<string, string>();
+  for (const yao of result.fullYaos || []) {
+    const positionLabel = buildLiuyaoSafeTextPosition(yao.position, result.fullYaos) || `${yao.position}爻`;
+    if (yao.isChanging) {
+      sourceIndex.set(`moving:${yao.naJia}`, `${yao.naJia}(动爻 ${positionLabel})`);
+    }
+    if (yao.changedYao) {
+      sourceIndex.set(`changed:${yao.changedYao.naJia}`, `${yao.changedYao.naJia}(变爻 ${positionLabel})`);
+    }
+  }
+  sourceIndex.set(`month:${result.ganZhiTime.month.zhi}`, `${result.ganZhiTime.month.zhi}(月建)`);
+  sourceIndex.set(`day:${result.ganZhiTime.day.zhi}`, `${result.ganZhiTime.day.zhi}(日建)`);
+
+  if (result.sanHeAnalysis?.banHe?.length) {
+    for (const item of result.sanHeAnalysis.banHe) {
+      const participants = item.branches.map((branch) =>
+        sourceIndex.get(`changed:${branch}`)
+        || sourceIndex.get(`moving:${branch}`)
+        || sourceIndex.get(`month:${branch}`)
+        || sourceIndex.get(`day:${branch}`)
+        || branch,
+      );
+      lines.push(`- 半合: ${participants.join(' + ')} -> ${item.result}`);
+    }
+  }
+
+  if (result.sanHeAnalysis?.fullSanHeList?.length) {
+    for (const item of result.sanHeAnalysis.fullSanHeList) {
+      const positions = item.positions?.map((position) => buildLiuyaoSafeTextPosition(position, result.fullYaos) || `${position}爻`) || [];
+      lines.push(`- 三合: ${item.name} -> ${item.result}${positions.length ? ` (${positions.join('、')})` : ''}`);
+    }
+  }
+
+  if (result.chongHeTransition?.type === 'chong_to_he') {
+    lines.push('- 转换: 冲转合');
+  } else if (result.chongHeTransition?.type === 'he_to_chong') {
+    lines.push('- 转换: 合转冲');
+  }
+
+  if (result.guaFanFuYin?.isFuYin) lines.push('- 共振: 伏吟');
+  if (result.guaFanFuYin?.isFanYin) lines.push('- 共振: 反吟');
+
+  return lines;
+}
+
+function mapLiuyaoRelationLabel(label: string | undefined): string | undefined {
+  if (!label || label === '平') return undefined;
+  return label;
+}
+
+export function renderLiuyaoAISafeText(result: LiuyaoOutput): string {
+  return renderLiuyaoLevelText(result, { detailLevel: 'default' });
+}
+
+export function renderLiuyaoLevelText(
+  result: LiuyaoOutput,
+  options?: { detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug' },
+): string {
+  const requested = options?.detailLevel;
+  const detailLevel = requested === 'more' || requested === 'facts'
+    ? 'more'
+    : requested === 'full' || requested === 'debug'
+      ? 'full'
+      : 'default';
+
+  const lines: string[] = ['# 六爻盘面', '', '## 卦盘总览'];
+  if (result.question) lines.push(`- 问题: ${result.question}`);
+  lines.push(`- 本卦: ${result.hexagramName}（${result.hexagramGong || '?'}宫·${result.hexagramElement || '?'}）`);
+  if (result.guaCi) {
+    lines.push(`- 本卦卦辞: ${result.guaCi}`);
+  }
+  if (result.changedHexagramName) {
+    const changedMeta = result.changedHexagramGong || result.changedHexagramElement
+      ? `（${result.changedHexagramGong || ''}宫·${result.changedHexagramElement || ''}）`
+      : '';
+    lines.push(`- 变卦: ${result.changedHexagramName}${changedMeta}`);
+    if (result.changedGuaCi) {
+      lines.push(`- 变卦卦辞: ${result.changedGuaCi}`);
+    }
+  }
+  const changing = (result.fullYaos || [])
+    .filter((item) => item.isChanging)
+    .map((yao) => traditionalYaoName(yao.position, yao.type));
+  if (changing.length > 0) {
+    lines.push(`- 动爻: ${changing.join('、')}`);
+  }
+  for (const yao of (result.fullYaos || []).filter((item) => item.isChanging && item.yaoCi)) {
+    lines.push(`- ${traditionalYaoName(yao.position, yao.type)}爻辞: ${yao.yaoCi}`);
+  }
+
+  if (detailLevel === 'more' || detailLevel === 'full') {
+    if (result.guaShen) {
+      const guaShenPos = result.guaShen.linePosition ? buildLiuyaoSafeTextPosition(result.guaShen.linePosition, result.fullYaos) : '';
+      lines.push(`- 卦身: ${result.guaShen.branch}${guaShenPos ? `（${guaShenPos}）` : ''}`);
+    }
+    if (result.nuclearHexagram) lines.push(`- 互卦: ${result.nuclearHexagram.name}`);
+    if (result.oppositeHexagram) lines.push(`- 错卦: ${result.oppositeHexagram.name}`);
+    if (result.reversedHexagram) lines.push(`- 综卦: ${result.reversedHexagram.name}`);
+    if (result.globalShenSha?.length) lines.push(`- 全局神煞: ${result.globalShenSha.join('、')}`);
+    lines.push('');
+  }
+
+  const gz = result.ganZhiTime;
+  lines.push('## 时间信息');
+  lines.push('| 柱 | 干支 | 空亡 |');
+  lines.push('|------|------|------|');
+  lines.push(`| 年 | ${gz.year.gan}${gz.year.zhi} | ${result.kongWangByPillar.year.kongDizhi.join(' ')} |`);
+  lines.push(`| 月 | ${gz.month.gan}${gz.month.zhi} | ${result.kongWangByPillar.month.kongDizhi.join(' ')} |`);
+  lines.push(`| 日 | ${gz.day.gan}${gz.day.zhi} | ${result.kongWang.kongDizhi.join(' ')} |`);
+  lines.push(`| 时 | ${gz.hour.gan}${gz.hour.zhi} | ${result.kongWangByPillar.hour.kongDizhi.join(' ')} |`);
+  lines.push('');
+
+  const boardLines = sortYaosDescending(result.fullYaos || []);
+  if (boardLines.length > 0) {
+    lines.push('## 六爻排盘');
+    const header = ['爻位', '六神'];
+    if (detailLevel === 'more' || detailLevel === 'full') header.push('神煞');
+    header.push('伏神', '本卦六亲/干支');
+    if (detailLevel === 'full') header.push('旺衰', '动静', '空亡');
+    header.push('变出');
+    if (detailLevel === 'full') header.push('化变');
+    header.push('世应');
+    lines.push(`| ${header.join(' | ')} |`);
+    lines.push(`|${header.map(() => '------').join('|')}|`);
+    for (const yao of boardLines) {
+      const fuShen = yao.fuShen ? `${yao.fuShen.liuQin} ${yao.fuShen.naJia}${yao.fuShen.wuXing}` : '-';
+      const mainLine = `${yao.liuQin} ${yao.naJia}${yao.wuXing}`;
+      const changedTo = yao.changedYao ? `${yao.changedYao.liuQin} ${yao.changedYao.naJia}${yao.changedYao.wuXing}` : '-';
+      const shiYing = yao.isShiYao ? '世' : yao.isYingYao ? '应' : '-';
+      const row = [traditionalYaoName(yao.position, yao.type), yao.liuShen];
+      if (detailLevel === 'more' || detailLevel === 'full') row.push(yao.shenSha?.length ? yao.shenSha.join('、') : '-');
+      row.push(fuShen, mainLine);
+      if (detailLevel === 'full') {
+        row.push(
+          WANG_SHUAI_LABELS[yao.strength.wangShuai],
+          yao.movementLabel,
+          yao.kongWangState && yao.kongWangState !== 'not_kong' ? (KONG_WANG_LABELS[yao.kongWangState] || yao.kongWangState) : '-',
+        );
+      }
+      row.push(changedTo);
+      if (detailLevel === 'full') row.push(mapLiuyaoRelationLabel(yao.changedYao?.relation) || '-');
+      row.push(shiYing);
+      lines.push(`| ${row.join(' | ')} |`);
+    }
+    lines.push('');
+  }
+
+  const interactions = buildLiuyaoSafeInteractionText(result);
+  if (interactions.length > 0) {
+    lines.push('## 卦象关系', '');
+    lines.push(...interactions);
+    if (detailLevel === 'full') {
+      if (result.liuChongGuaInfo) lines.push(`- 六冲卦: ${result.liuChongGuaInfo.isLiuChongGua ? '是' : '否'}`);
+      if (result.liuHeGuaInfo) lines.push(`- 六合卦: ${result.liuHeGuaInfo.isLiuHeGua ? '是' : '否'}`);
+      if (result.chongHeTransition?.type && result.chongHeTransition.type !== 'none') {
+        lines.push(`- 冲合转换: ${result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲'}`);
+      }
+      const resonanceFlags = [
+        ...(result.guaFanFuYin?.isFanYin ? ['反吟'] : []),
+        ...(result.guaFanFuYin?.isFuYin ? ['伏吟'] : []),
+      ];
+      if (resonanceFlags.length > 0) {
+        lines.push(`- 反吟伏吟: ${resonanceFlags.join('、')}`);
+      }
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
 export function renderTarotCanonicalText(result: TarotOutput, options: TarotCanonicalTextOptions = {}): string {
   const lines: string[] = ['# 塔罗占卜', '', '## 基本信息', `- **牌阵**: ${result.spreadName}`];
   if (result.question) lines.push(`- **问题**: ${result.question}`);

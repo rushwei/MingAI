@@ -446,7 +446,14 @@ function createMcpServer(auth: McpAuthInfo) {
       const rawResult = await handleToolCall(name, toolArgs);
       const result = attachPlaceResolutionInfoToResult(rawResult, placeResolutionInfo);
       const responseFormat = args?.responseFormat === 'markdown' ? 'markdown' : 'json';
-      const payload = buildToolSuccessPayload(name, result, responseFormat) as Record<string, unknown>;
+      const detailLevel = args?.detailLevel === 'full'
+        ? 'full'
+        : args?.detailLevel === 'more' || args?.detailLevel === 'facts'
+          ? 'more'
+          : args?.detailLevel === 'debug'
+            ? 'full'
+            : 'default';
+      const payload = buildToolSuccessPayload(name, result, responseFormat, { detailLevel }) as Record<string, unknown>;
       return attachPlaceResolutionNoteToPayload(payload, placeResolutionInfo, responseFormat);
     } catch (error) {
       const internalMessage = error instanceof Error ? error.message : String(error);

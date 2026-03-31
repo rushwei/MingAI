@@ -19,8 +19,9 @@ export function buildToolSuccessPayload(
   toolName: string,
   result: unknown,
   responseFormat: ToolResponseFormat = 'json',
+  options?: { detailLevel?: 'default' | 'more' | 'full' | 'safe' | 'facts' | 'debug' },
 ) {
-  const rendered = renderToolResult(toolName, result, responseFormat);
+  const rendered = renderToolResult(toolName, result, responseFormat, options);
 
   if (rendered.structuredContent !== undefined) {
     return {

@@ -57,101 +57,101 @@ export interface BaziCanonicalJSON {
 // ===== 六爻 =====
 
 export interface DerivedHexagramJSON {
-  name: string;
-  guaCi?: string;
-  xiangCi?: string;
+  卦名: string;
+  卦辞?: string;
+  象辞?: string;
 }
 
 export interface LiuyaoYaoJSON {
-  position: string;
-  shiYing?: string;
-  liuQin: string;
-  liuShen: string;
-  naJia: string;
-  wuXing: string;
-  wangShuai: string;
-  movementState?: string;
-  movementLabel: string;
-  kongWang?: string;
-  changSheng?: string;
-  shenSha?: string[];
-  changedYao?: {
-    liuQin: string;
-    naJia: string;
-    wuXing: string;
-    relation: string;
+  爻位: string;
+  世应?: string;
+  六亲: string;
+  六神: string;
+  纳甲: string;
+  五行: string;
+  旺衰: string;
+  动静状态?: string;
+  动静: string;
+  空亡?: string;
+  长生?: string;
+  神煞?: string[];
+  变爻?: {
+    六亲: string;
+    纳甲: string;
+    五行: string;
+    关系: string;
   };
-  fuShen?: {
-    liuQin: string;
-    naJia: string;
-    wuXing: string;
-    relation: string;
+  伏神?: {
+    六亲: string;
+    纳甲: string;
+    五行: string;
+    关系: string;
   };
 }
 
 export interface LiuyaoYongShenJSON {
-  targetLiuQin: string;
-  selectionStatus: string;
-  selectionNote?: string;
-  selected: {
-    position?: string;
-    liuQin: string;
-    naJia?: string;
-    changedNaJia?: string;
-    huaType?: string;
-    element?: string;
-    source?: string;
-    movementState?: string;
-    isShiYao?: boolean;
-    isYingYao?: boolean;
-    kongWangState?: string;
-    strengthLabel: string;
-    movementLabel: string;
-    evidence?: string[];
+  目标六亲: string;
+  取用状态: string;
+  取用说明?: string;
+  已选用神: {
+    爻位?: string;
+    六亲: string;
+    纳甲?: string;
+    变爻纳甲?: string;
+    化变类型?: string;
+    五行?: string;
+    来源?: string;
+    动静状态?: string;
+    是否世爻?: '是';
+    是否应爻?: '是';
+    空亡状态?: string;
+    强弱: string;
+    动静: string;
+    依据?: string[];
   };
-  candidates?: Array<{
-    position?: string;
-    liuQin: string;
-    naJia?: string;
-    changedNaJia?: string;
-    huaType?: string;
-    element?: string;
-    source?: string;
-    movementState?: string;
-    isShiYao?: boolean;
-    isYingYao?: boolean;
-    kongWangState?: string;
-    evidence?: string[];
+  候选用神?: Array<{
+    爻位?: string;
+    六亲: string;
+    纳甲?: string;
+    变爻纳甲?: string;
+    化变类型?: string;
+    五行?: string;
+    来源?: string;
+    动静状态?: string;
+    是否世爻?: '是';
+    是否应爻?: '是';
+    空亡状态?: string;
+    依据?: string[];
   }>;
-  shenSystem?: {
-    yuanShen?: string;
-    jiShen?: string;
-    chouShen?: string;
+  神煞系统?: {
+    原神?: string;
+    忌神?: string;
+    仇神?: string;
   };
-  timeRecommendations?: Array<{
-    trigger: string;
-    basis: string[];
-    description: string;
+  应期提示?: Array<{
+    触发: string;
+    依据: string[];
+    说明: string;
   }>;
 }
 
 export interface LiuyaoCanonicalJSON {
-  hexagramInfo: {
-    question?: string;
-    mainHexagram: {
-      name: string;
-      gong: string;
-      element: string;
-      guaCi?: string;
-      xiangCi?: string;
+  卦盘: {
+    问题?: string;
+    本卦: {
+      卦名: string;
+      卦宫: string;
+      五行: string;
+      卦辞?: string;
+      象辞?: string;
     };
-    changedHexagram?: {
-      name: string;
-      gong?: string;
-      element?: string;
-      guaCi?: string;
-      xiangCi?: string;
-      changingYaoCi?: Array<{ yaoName: string; yaoCi: string }>;
+    变卦?: {
+      卦名: string;
+      卦宫?: string;
+      五行?: string;
+      卦辞?: string;
+      象辞?: string;
+      动爻爻辞?: Array<{ 爻名: string; 爻辞: string }>;
     };
     nuclearHexagram?: DerivedHexagramJSON;
     oppositeHexagram?: DerivedHexagramJSON;
@@ -159,7 +159,7 @@ export interface LiuyaoCanonicalJSON {
     guaShen?: {
       branch: string;
       position?: string;
-      absent: boolean;
+      state?: string;
     };
   };
   ganZhiTime: Array<{
@@ -172,6 +172,129 @@ export interface LiuyaoCanonicalJSON {
   guaLevelAnalysis: string[];
   warnings: string[];
   globalShenSha?: string[];
+}
+
+export interface LiuyaoAISafeLineJSON {
+  position?: string;
+  liuQin: string;
+  naJia?: string;
+  wuXing?: string;
+  shiYing?: 'shi' | 'ying';
+  shenSha?: string[];
+  wangShuai?: string;
+  movement?: string;
+  kongWang?: string;
+  changedTo?: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+  };
+  transformation?: string;
+}
+
+export interface LiuyaoAISafeParticipantJSON {
+  source: '动爻' | '变爻' | '月建' | '日建';
+  branch: string;
+  position?: string;
+}
+
+export interface LiuyaoAISafeBoardLineJSON {
+  position: string;
+  liuShen: string;
+  fuShen?: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+  };
+  mainLine: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+  };
+  changedTo?: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+  };
+  transformation?: string;
+  shiYing?: 'shi' | 'ying';
+}
+
+export interface LiuyaoAISafeLineFlagJSON {
+  position: string;
+  wangShuai: string;
+  movement: string;
+  kongWang?: string;
+  transformation?: string;
+}
+
+export interface LiuyaoAISafeCombinationJSON {
+  kind: '半合' | '三合';
+  resultElement: string;
+  participants?: LiuyaoAISafeParticipantJSON[];
+  name?: string;
+  positions?: string[];
+}
+
+export interface LiuyaoAISafeTransitionJSON {
+  kind: '冲转合' | '合转冲';
+}
+
+export interface LiuyaoAISafeResonanceJSON {
+  kind: '反吟' | '伏吟';
+}
+
+export interface LiuyaoAISafeJSON {
+  board: {
+    question?: string;
+    mainHexagram: {
+      name: string;
+      gong: string;
+      element: string;
+      guaCi?: string;
+    };
+    changedHexagram?: {
+      name: string;
+      gong?: string;
+      element?: string;
+      guaCi?: string;
+      changingYaos?: string[];
+      changingYaoCi?: Array<{
+        yaoName: string;
+        yaoCi: string;
+      }>;
+    };
+    ganZhiTime: Array<{
+      pillar: string;
+      ganZhi: string;
+      kongWang: string[];
+    }>;
+    guaShen?: {
+      branch: string;
+      position?: string;
+      state?: string;
+    };
+    derivedHexagrams?: {
+      nuclearHexagram?: { name: string };
+      oppositeHexagram?: { name: string };
+      reversedHexagram?: { name: string };
+    };
+    globalShenSha?: string[];
+  };
+  fullBoard: {
+    lines: LiuyaoAISafeBoardLineJSON[];
+  };
+  globalInteractions: {
+    combinations: LiuyaoAISafeCombinationJSON[];
+    transitions?: LiuyaoAISafeTransitionJSON[];
+    resonances?: LiuyaoAISafeResonanceJSON[];
+    isLiuChongGua?: '是' | '否';
+    isLiuHeGua?: '是' | '否';
+    chongHeTransition?: '冲转合' | '合转冲';
+  };
+  meta: {
+    detailLevel: 'default' | 'more' | 'full';
+  };
 }
 
 // ===== 塔罗 =====

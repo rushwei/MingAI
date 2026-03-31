@@ -229,7 +229,7 @@ export default function ResultPage() {
                         {copied ? <Check className="w-3.5 h-3.5 text-[#0f7b6c]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <div className="max-w-full overflow-x-auto">
-                        <HexagramDisplay yaos={result.yaos} hexagram={result.hexagram} changedHexagram={result.changedHexagram} changedLines={result.changedLines} showDetails={true} fullYaos={traditionalCanonical?.yaos} showTraditional={showTraditional} yongShenPositions={traditionalYongShenPositions} />
+                        <HexagramDisplay yaos={result.yaos} hexagram={result.hexagram} changedHexagram={result.changedHexagram} changedLines={result.changedLines} showDetails={true} fullYaos={traditionalCanonical?.六爻} showTraditional={showTraditional} yongShenPositions={traditionalYongShenPositions} />
                     </div>
                 </section>
 

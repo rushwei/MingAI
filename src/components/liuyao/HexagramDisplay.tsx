@@ -59,8 +59,10 @@ export function HexagramDisplay({
     const displayYaos = useMemo(() => [...yaos].reverse(), [yaos]);
     const displayFullYaos = useMemo(() => fullYaos ? [...fullYaos].reverse() : undefined, [fullYaos]);
     const getYaoShenSha = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string[] => {
-        if (!yao || !('shenSha' in yao) || !Array.isArray(yao.shenSha)) return [];
-        return yao.shenSha;
+        if (!yao) return [];
+        if ('神煞' in yao && Array.isArray(yao.神煞)) return yao.神煞;
+        if ('shenSha' in yao && Array.isArray(yao.shenSha)) return yao.shenSha;
+        return [];
     };
     const normalizePosition = (position: unknown): number | null => {
         if (typeof position === 'number') return position;
@@ -73,6 +75,39 @@ export function HexagramDisplay({
         if (position.includes('上')) return 6;
         return null;
     };
+    const getYaoPosition = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string | number | undefined => {
+        if (!yao) return undefined;
+        if ('爻位' in yao) return yao.爻位;
+        if ('position' in yao) return yao.position;
+        return undefined;
+    };
+    const getYaoLiuQin = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string => {
+        if (!yao) return '';
+        if ('六亲' in yao) return yao.六亲;
+        if ('liuQin' in yao) return yao.liuQin;
+        return '';
+    };
+    const getYaoNaJia = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string => {
+        if (!yao) return '';
+        if ('纳甲' in yao) return yao.纳甲;
+        if ('naJia' in yao) return yao.naJia;
+        return '';
+    };
+    const getYaoWuXing = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string => {
+        if (!yao) return '';
+        if ('五行' in yao) return yao.五行;
+        if ('wuXing' in yao) return yao.wuXing;
+        return '';
+    };
+    const getYaoLiuShen = (yao: FullYaoInfo | FullYaoInfoExtended | LiuyaoYaoJSON | undefined): string => {
+        if (!yao) return '';
+        if ('六神' in yao) return yao.六神;
+        if ('liuShen' in yao) return yao.liuShen;
+        return '';
+    };
+    const getYaoShiYing = (yao: LiuyaoYaoJSON | undefined): string | undefined => yao?.世应;
+    const getYaoWangShuai = (yao: LiuyaoYaoJSON | undefined): string | undefined => yao?.旺衰;
+    const getYaoKongWang = (yao: LiuyaoYaoJSON | undefined): string | undefined => yao?.空亡;
 
     // 检查是否有扩展信息
     const hasExtendedInfo = useMemo(() =>
@@ -122,7 +157,7 @@ export function HexagramDisplay({
                                     const fullYao = displayFullYaos?.[index];
                                     const extYao = fullYao as FullYaoInfoExtended | undefined;
                                     const canonicalYao = fullYao as LiuyaoYaoJSON | undefined;
-                                    const normalizedPosition = normalizePosition(fullYao?.position);
+                                    const normalizedPosition = normalizePosition(getYaoPosition(fullYao));
                                     const isYongShen = typeof normalizedPosition === 'number' ? yongShenPositions.includes(normalizedPosition) : false;
                                     const isChanging = yao.change === 'changing';
                                     const yaoShenSha = getYaoShenSha(fullYao);
@@ -144,7 +179,7 @@ export function HexagramDisplay({
                                             {/* 六亲 + 用神标记 */}
                                             {showTraditional && fullYao && (
                                                 <td className={`px-2 py-2 text-center ${isYongShen ? 'text-[#2eaadc] font-bold' : 'text-foreground'}`}>
-                                                    {fullYao.liuQin}
+                                                    {getYaoLiuQin(fullYao)}
                                                     {isYongShen && <span className="text-[#2eaadc] ml-0.5">★</span>}
                                                 </td>
                                             )}
@@ -152,7 +187,7 @@ export function HexagramDisplay({
                                             {/* 纳甲 + 五行 */}
                                             {showTraditional && fullYao && (
                                                 <td className="px-2 py-2 text-center text-foreground/55">
-                                                    {fullYao.naJia}{fullYao.wuXing}
+                                                    {getYaoNaJia(fullYao)}{getYaoWuXing(fullYao)}
                                                 </td>
                                             )}
 
@@ -166,15 +201,15 @@ export function HexagramDisplay({
                                             {/* 世应 */}
                                             {showTraditional && fullYao && (
                                                 <td className="px-1 py-2 text-center w-5">
-                                                    {('isShiYao' in fullYao && fullYao.isShiYao) || canonicalYao?.shiYing === '世' ? <span className="text-[#2eaadc] font-bold">世</span> : null}
-                                                    {('isYingYao' in fullYao && fullYao.isYingYao) || canonicalYao?.shiYing === '应' ? <span className="text-blue-500 font-bold">应</span> : null}
+                                                    {('isShiYao' in fullYao && fullYao.isShiYao) || getYaoShiYing(canonicalYao) === '世' ? <span className="text-[#2eaadc] font-bold">世</span> : null}
+                                                    {('isYingYao' in fullYao && fullYao.isYingYao) || getYaoShiYing(canonicalYao) === '应' ? <span className="text-blue-500 font-bold">应</span> : null}
                                                 </td>
                                             )}
 
                                             {/* 六神 */}
                                             {showTraditional && fullYao && (
-                                                <td className={`px-2 py-2 text-center ${LIU_SHEN_COLORS[fullYao.liuShen] || 'text-foreground/45'}`}>
-                                                    {fullYao.liuShen}
+                                                <td className={`px-2 py-2 text-center ${LIU_SHEN_COLORS[getYaoLiuShen(fullYao)] || 'text-foreground/45'}`}>
+                                                    {getYaoLiuShen(fullYao)}
                                                 </td>
                                             )}
 
@@ -193,9 +228,9 @@ export function HexagramDisplay({
                                             )}
                                             {showTraditional && !hasExtendedInfo && canonicalYao && (
                                                 <td className="px-2 py-2 text-center">
-                                                    <span>{canonicalYao.wangShuai}</span>
-                                                    {canonicalYao.kongWang && (
-                                                        <span className="text-red-400 ml-1">{canonicalYao.kongWang}</span>
+                                                    <span>{getYaoWangShuai(canonicalYao)}</span>
+                                                    {getYaoKongWang(canonicalYao) && (
+                                                        <span className="text-red-400 ml-1">{getYaoKongWang(canonicalYao)}</span>
                                                     )}
                                                 </td>
                                             )}

@@ -45,6 +45,11 @@ MingAI 的本地 `stdio` MCP Server，适合直接接入 Claude Desktop、Cursor
 - `json`: `content[0].text` 返回 canonical text
 - `markdown`: `content[0].text` 返回适合直接展示给 AI 的规范文本
 
+`liuyao` 额外支持 `detailLevel`：
+
+- `safe`（默认）：返回 AI-safe 降噪结构
+- `debug`：在 safe 结构外附带 `debug.rawCanonical` 与 `debug.rawText`
+
 当工具定义存在 `outputSchema` 时，本地 MCP 响应会统一返回：
 
 - `structuredContent`: canonical JSON，并与工具 `outputSchema` 对齐

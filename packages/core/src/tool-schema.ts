@@ -1064,6 +1064,12 @@ export const toolDefinitions: ToolDefinition[] = [
           description: '响应格式：json=结构化数据，markdown=人类可读文本',
           default: 'json',
         },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'more', 'full'],
+          description: '输出细节级别：default=默认精简输出；more=追加确定性事实扩展；full=再追加确定性规则分类',
+          default: 'default',
+        },
       },
       required: ['question', 'yongShenTargets', 'date'],
       examples: [

@@ -117,6 +117,11 @@ const rendered = renderToolResult('bazi_calculate', result, 'json');
 - `json`: `content[0].text` 返回 canonical text
 - `markdown`: `content[0].text` 返回 canonical text / markdown
 
+`liuyao` 额外支持 `detailLevel`：
+
+- `safe`（默认）：返回面向外部 AI 的降噪结构化输出
+- `debug`：在 safe 输出外追加 `debug.rawCanonical` 与 `debug.rawText`
+
 当工具定义包含 `outputSchema` 时：
 
 - `renderToolResult(...)` 始终产出 `content`

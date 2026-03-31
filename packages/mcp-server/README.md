@@ -37,6 +37,11 @@ npm install @mingai/mcp-server
   - `responseFormat=json` 时，`content[0].text` 是 canonical text
   - `responseFormat=markdown` 时，`content[0].text` 是 canonical text / markdown
 
+`liuyao` 额外支持 `detailLevel`：
+
+- `safe`（默认）：返回 AI-safe 降噪结构
+- `debug`：在 safe 结构外附带 `debug.rawCanonical` 与 `debug.rawText`
+
 注意：
 
 - `structuredContent` 与 Web 结果页使用的是同源 canonical JSON

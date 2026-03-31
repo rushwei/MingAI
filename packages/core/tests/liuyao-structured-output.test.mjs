@@ -15,6 +15,7 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
   assert.equal(inputProps?.yongShenTargets?.type, 'array');
   assert.deepEqual(inputProps?.yongShenTargets?.items?.enum, LIU_QIN);
   assert.equal(tool.inputSchema?.required?.includes('yongShenTargets'), true);
+  assert.deepEqual(inputProps?.detailLevel?.enum, ['default', 'more', 'full']);
 
   const outputProps = tool.outputSchema?.properties;
   assert.equal(outputProps?.changedLines, undefined, 'changedLines should be removed');
@@ -22,23 +23,35 @@ test('liuyao schema removes deprecated top-level fields and exposes refactored s
   assert.equal(outputProps?.changedYaos, undefined, 'changedYaos should be removed');
   assert.equal(outputProps?.summary, undefined, 'summary should be removed');
   assert.equal(outputProps?.rankScoreNote, undefined, 'rankScoreNote should be removed');
+  assert.equal(outputProps?.卦盘?.type, 'object');
+  assert.equal(outputProps?.六爻全盘?.type, 'object');
+  assert.equal(outputProps?.全局互动?.type, 'object');
+  assert.equal(outputProps?.元信息?.type, 'object');
+  assert.equal(outputProps?.卦盘?.properties?.卦身?.type, 'object');
+  assert.equal(outputProps?.卦盘?.properties?.衍生卦?.type, 'object');
+  assert.equal(outputProps?.卦盘?.properties?.全局神煞?.type, 'array');
+  assert.equal(outputProps?.globalShenSha, undefined);
+  assert.equal(outputProps?.warnings, undefined);
+  assert.equal(outputProps?.guaLevelAnalysis, undefined);
+  assert.equal(outputProps?.yaos, undefined);
+  assert.equal(outputProps?.targets, undefined);
 
-  assert.equal(outputProps?.globalShenSha?.type, 'array');
-  assert.equal(outputProps?.yongShenAnalysis?.type, 'array');
-  assert.equal(outputProps?.shenSystemByYongShen, undefined);
-  const yongShenSelected = outputProps?.yongShenAnalysis?.items?.properties?.selected?.properties;
-  assert.equal(yongShenSelected?.changedNaJia?.type, 'string');
-  assert.equal(yongShenSelected?.huaType?.type, 'string');
-  assert.equal(yongShenSelected?.source?.type, 'string');
-  assert.equal(yongShenSelected?.element?.type, 'string');
-  assert.equal(yongShenSelected?.movementState?.type, 'string');
+  const fullBoardLine = outputProps?.六爻全盘?.properties?.爻列表?.items?.properties;
+  assert.equal(fullBoardLine?.六神?.type, 'string');
+  assert.equal(fullBoardLine?.本爻?.type, 'object');
+  assert.equal(fullBoardLine?.变爻?.type, 'object');
+  assert.equal(fullBoardLine?.世应?.type, 'string');
+  assert.equal(fullBoardLine?.神煞?.type, 'array');
+  assert.equal(fullBoardLine?.动静?.type, 'string');
+  assert.equal(fullBoardLine?.空亡?.type, 'string');
+  assert.equal(fullBoardLine?.化变?.type, 'string');
 
-  const fullYao = outputProps?.yaos?.items?.properties;
-  assert.equal(fullYao?.position?.type, 'string');
-  assert.deepEqual(fullYao?.movementState?.enum, MOVEMENT_STATES);
-  assert.equal(fullYao?.movementLabel?.type, 'string');
-  assert.equal(fullYao?.shenSha?.type, 'array');
-  assert.equal(fullYao?.changedYao?.type, 'object');
+  const combination = outputProps?.全局互动?.properties?.组合关系?.items?.properties;
+  assert.equal(combination?.类型?.type, 'string');
+  assert.equal(combination?.参与者?.type, 'array');
+  assert.equal(outputProps?.全局互动?.properties?.是否六冲卦?.type, 'string');
+  assert.equal(outputProps?.全局互动?.properties?.是否六合卦?.type, 'string');
+  assert.equal(outputProps?.computedFlags, undefined);
 });
 
 test('liuyao output uses refactored yao/yongshen/time structures', async () => {

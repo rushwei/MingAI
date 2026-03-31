@@ -7,6 +7,7 @@
 export type Gender = 'male' | 'female';
 export type CalendarType = 'solar' | 'lunar';
 export type ResponseFormat = 'json' | 'markdown';
+export type DetailLevel = 'default' | 'more' | 'full';
 
 // ===== 公共出生时间类型 =====
 export interface BirthTimeInput {
@@ -407,6 +408,7 @@ export interface LiuyaoInput {
   seed?: string;
   seedScope?: string;
   responseFormat?: ResponseFormat;
+  detailLevel?: DetailLevel;
 }
 
 export interface LiuyaoOutput {

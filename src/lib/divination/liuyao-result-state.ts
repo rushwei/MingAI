@@ -69,18 +69,18 @@ export function resolveResultYongShenState(
 }
 
 export function resolveTraditionalYongShenPositions(
-    analysis?: Pick<LiuyaoCanonicalJSON, 'yaos' | 'yongShenAnalysis'> | null,
+    analysis?: Pick<LiuyaoCanonicalJSON, '六爻' | '用神分析'> | null,
 ): number[] {
     if (!analysis) return [];
 
     const positions = new Set<number>();
 
-    for (const group of analysis.yongShenAnalysis) {
-        const normalizedPosition = normalizeTraditionalYaoPositionLabel(group.selected.position);
+    for (const group of analysis.用神分析) {
+        const normalizedPosition = normalizeTraditionalYaoPositionLabel(group.已选用神.爻位);
         if (!normalizedPosition) continue;
 
-        const visibleYao = analysis.yaos.find((yao) => normalizeTraditionalYaoPositionLabel(yao.position) === normalizedPosition);
-        if (!visibleYao || visibleYao.liuQin !== group.selected.liuQin) continue;
+        const visibleYao = analysis.六爻.find((yao) => normalizeTraditionalYaoPositionLabel(yao.爻位) === normalizedPosition);
+        if (!visibleYao || visibleYao.六亲 !== group.已选用神.六亲) continue;
 
         const numericPosition = parseTraditionalYaoPosition(normalizedPosition);
         if (numericPosition) positions.add(numericPosition);
