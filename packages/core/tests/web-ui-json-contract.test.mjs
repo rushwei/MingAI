@@ -134,7 +134,7 @@ test('daliuren canonical json keeps full tianjiang names for palace grid color m
   );
 });
 
-test('ziwei canonical json should preserve smallLimit order while omitting removable helper fields', async () => {
+test('ziwei canonical json should expose compact default output while keeping full detail opt-in', async () => {
   const result = await handleZiweiCalculate({
     gender: 'male',
     birthYear: 1990,
@@ -146,13 +146,27 @@ test('ziwei canonical json should preserve smallLimit order while omitting remov
   });
 
   const json = renderZiweiCanonicalJSON(result);
+  const fullJson = renderZiweiCanonicalJSON(result, { detailLevel: 'full' });
 
-  assert.equal(Array.isArray(json.palaces), true);
+  assert.equal(Array.isArray(json.十二宫位), true);
   assert.equal('decadalList' in json, false);
-  assert.equal(Array.isArray(json.smallLimit), true);
+  assert.equal(Array.isArray(json.小限), false);
+  assert.equal(typeof json.基本信息.生年四化?.天干, 'string');
+  assert.equal(Array.isArray(json.基本信息.生年四化?.四化星曜), true);
+  assert.equal(Array.isArray(json.十二宫位[0]?.杂曜), false);
+  assert.equal(Array.isArray(json.十二宫位[0]?.神煞), false);
+  assert.equal(Array.isArray(json.十二宫位[0]?.小限虚岁), false);
+  assert.equal(Array.isArray(json.十二宫位[0]?.流年虚岁), false);
+  assert.equal('currentTransit' in json, false);
+
+  assert.equal(Array.isArray(fullJson.小限), true);
   assert.deepEqual(
-    json.smallLimit?.slice(0, 4).map((item) => item.palaceName),
+    fullJson.小限?.slice(0, 4).map((item) => item.宫位),
     ['命宫', '父母', '福德', '田宅'],
   );
-  assert.equal('currentTransit' in json, false);
+  assert.ok(Array.isArray(fullJson.十二宫位[0]?.杂曜));
+  assert.ok(Array.isArray(fullJson.十二宫位[0]?.神煞));
+  assert.ok(Array.isArray(fullJson.十二宫位[0]?.小限虚岁));
+  assert.ok(Array.isArray(fullJson.十二宫位[0]?.流年虚岁));
+  assert.equal('currentTransit' in fullJson, false);
 });

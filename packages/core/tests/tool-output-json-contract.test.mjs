@@ -113,10 +113,107 @@ test('bazi_dayun should expose slim default output and detailed full output', as
   assert.match(fullPayload.content[0].text, /### 2012-2021/u);
   assert.match(fullPayload.content[0].text, /\| 流年 \| 年龄 \| 干支 \|/u);
 
-  assert.equal(defaultPayload.structuredContent.xiaoYun, undefined);
-  assert.equal(defaultPayload.structuredContent.list[0].liunianList, undefined);
-  assert.equal(defaultPayload.structuredContent.list[0].branchRelations, undefined);
-  assert.ok(Array.isArray(fullPayload.structuredContent.xiaoYun));
-  assert.ok(Array.isArray(fullPayload.structuredContent.list[0].liunianList));
-  assert.ok(fullPayload.structuredContent.list.some((item) => Array.isArray(item.branchRelations) && item.branchRelations.length > 0));
+  assert.equal(defaultPayload.structuredContent.小运, undefined);
+  assert.equal(defaultPayload.structuredContent.大运列表[0].流年列表, undefined);
+  assert.equal(defaultPayload.structuredContent.大运列表[0].原局关系, undefined);
+  assert.ok(Array.isArray(fullPayload.structuredContent.小运));
+  assert.ok(Array.isArray(fullPayload.structuredContent.大运列表[0].流年列表));
+  assert.ok(fullPayload.structuredContent.大运列表.some((item) => Array.isArray(item.原局关系) && item.原局关系.length > 0));
+});
+
+test('ziwei_calculate should expose compact default output and preserve full detail on demand', async () => {
+  const rawResult = await mcpCore.handleToolCall('ziwei_calculate', {
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /## 十二宫位全盘/u);
+  assert.match(defaultPayload.content[0].text, /生年四化/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /子年斗君/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /命主星/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /身主星/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /\| 流年 \| 小限 \|/u);
+
+  assert.match(fullPayload.content[0].text, /## 十二宫位/u);
+  assert.match(fullPayload.content[0].text, /斗君/u);
+  assert.match(fullPayload.content[0].text, /命主星/u);
+  assert.match(fullPayload.content[0].text, /身主星/u);
+  assert.match(fullPayload.content[0].text, /\| 宫位 \| 干支 \| 大限 \| 主星及四化 \| 辅星 \| 杂曜 \| 神煞 \| 流年 \| 小限 \|/u);
+
+  assert.equal(typeof defaultPayload.structuredContent.基本信息.生年四化?.天干, 'string');
+  assert.equal(defaultPayload.structuredContent.基本信息.斗君, undefined);
+  assert.equal(defaultPayload.structuredContent.基本信息.命主星, undefined);
+  assert.equal(defaultPayload.structuredContent.基本信息.身主星, undefined);
+  assert.equal(defaultPayload.structuredContent.小限, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].杂曜, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].神煞, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].小限虚岁, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].流年虚岁, undefined);
+
+  assert.equal(typeof fullPayload.structuredContent.基本信息.斗君, 'string');
+  assert.equal(typeof fullPayload.structuredContent.基本信息.命主星, 'string');
+  assert.equal(typeof fullPayload.structuredContent.基本信息.身主星, 'string');
+  assert.ok(Array.isArray(fullPayload.structuredContent.小限));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].杂曜));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].神煞));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].小限虚岁));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].流年虚岁));
+});
+
+test('ziwei_calculate should expose compact default output and keep full board behind detailLevel full', async () => {
+  const rawResult = await mcpCore.handleToolCall('ziwei_calculate', {
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('ziwei_calculate', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /生年四化/u);
+  assert.match(defaultPayload.content[0].text, /主星及四化/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /子年斗君/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /命主星/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /身主星/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /杂曜/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /神煞/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /\| 流年 \| 小限 \|/u);
+
+  assert.match(fullPayload.content[0].text, /斗君/u);
+  assert.match(fullPayload.content[0].text, /命主星/u);
+  assert.match(fullPayload.content[0].text, /身主星/u);
+  assert.match(fullPayload.content[0].text, /杂曜/u);
+  assert.match(fullPayload.content[0].text, /神煞/u);
+
+  assert.equal(typeof defaultPayload.structuredContent.基本信息.生年四化?.天干, 'string');
+  assert.equal(defaultPayload.structuredContent.基本信息.斗君, undefined);
+  assert.equal(defaultPayload.structuredContent.基本信息.命主星, undefined);
+  assert.equal(defaultPayload.structuredContent.基本信息.身主星, undefined);
+  assert.equal(defaultPayload.structuredContent.基本信息.真太阳时, undefined);
+  assert.equal(defaultPayload.structuredContent.小限, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].杂曜, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].神煞, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].小限虚岁, undefined);
+  assert.equal(defaultPayload.structuredContent.十二宫位[0].流年虚岁, undefined);
+
+  assert.equal(typeof fullPayload.structuredContent.基本信息.斗君, 'string');
+  assert.equal(typeof fullPayload.structuredContent.基本信息.命主星, 'string');
+  assert.equal(typeof fullPayload.structuredContent.基本信息.身主星, 'string');
+  assert.ok(Array.isArray(fullPayload.structuredContent.小限));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].杂曜));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].神煞));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].小限虚岁));
+  assert.ok(Array.isArray(fullPayload.structuredContent.十二宫位[0].流年虚岁));
 });

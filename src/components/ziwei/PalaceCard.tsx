@@ -47,7 +47,18 @@ export function PalaceCard({
     flowInfo,
     onClick
 }: PalaceCardProps) {
-    const shenSha = palace.shenSha.join('、');
+    const shenSha = palace.神煞?.join('、') || '';
+    const toStarInfo = (
+        star: ZiweiPalaceJSON['主星及四化'][number],
+        type: 'major' | 'minor' | 'auxiliary',
+    ) => ({
+        name: star.星名,
+        brightness: star.亮度,
+        mutagen: star.四化,
+        selfMutagen: star.离心自化,
+        oppositeMutagen: star.向心自化,
+        type,
+    });
     // 获取边框样式（支持多色）
     const getBorderClasses = () => {
         if (isSelected) return 'border-accent bg-accent/5 shadow-md';
@@ -99,35 +110,35 @@ export function PalaceCard({
             {/* 宫名和干支 */}
             <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs font-semibold ${isLifePalace ? 'text-accent' : 'text-foreground'}`}>
-                    {palace.name}
-                    {palace.isBodyPalace && (
+                    {palace.宫位}
+                    {palace.是否身宫 === '是' && (
                         <span className="md:ml-1 ml-0 px-1 py-0.5 text-[9px] bg-amber-500/20 text-amber-500 rounded font-medium">
                             身宫
                         </span>
                     )}
-                    {palace.isOriginalPalace && (
+                    {palace.是否来因宫 === '是' && (
                         <span className="ml-1 px-1 py-0.5 text-[9px] bg-sky-500/15 text-sky-600 rounded font-medium">
                             来因宫
                         </span>
                     )}
                 </span>
                 <span className="text-[10px] text-foreground-secondary">
-                    {palace.ganZhi}
+                    {palace.干支}
                 </span>
             </div>
             {/* 星曜列表 - 主内容区 */}
             <div className="flex-1 flex flex-wrap gap-0.5 content-start">
                 {/* 主星全部显示 */}
-                {palace.majorStars.map((star, idx) => (
-                    <StarBadge key={`major-${idx}`} star={{ ...star, type: 'major' }} size="sm" />
+                {palace.主星及四化.map((star, idx) => (
+                    <StarBadge key={`major-${idx}`} star={toStarInfo(star, 'major')} size="sm" />
                 ))}
                 {/* 辅星全部显示 */}
-                {palace.minorStars.map((star, idx) => (
-                    <StarBadge key={`minor-${idx}`} star={{ ...star, type: 'minor' }} size="sm" />
+                {palace.辅星.map((star, idx) => (
+                    <StarBadge key={`minor-${idx}`} star={toStarInfo(star, 'minor')} size="sm" />
                 ))}
                 {/* 杂曜全部显示（受showAdjStars控制） */}
-                {showAdjStars && palace.adjStars?.map((star, idx) => (
-                    <StarBadge key={`adj-${idx}`} star={{ ...star, type: 'auxiliary' }} size="sm" />
+                {showAdjStars && palace.杂曜?.map((star, idx) => (
+                    <StarBadge key={`adj-${idx}`} star={toStarInfo(star, 'auxiliary')} size="sm" />
                 ))}
             </div>
 

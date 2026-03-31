@@ -186,25 +186,25 @@ export interface LiuyaoCanonicalJSON {
       象辞?: string;
       动爻爻辞?: Array<{ 爻名: string; 爻辞: string }>;
     };
-    nuclearHexagram?: DerivedHexagramJSON;
-    oppositeHexagram?: DerivedHexagramJSON;
-    reversedHexagram?: DerivedHexagramJSON;
-    guaShen?: {
-      branch: string;
-      position?: string;
-      state?: string;
+    互卦?: DerivedHexagramJSON;
+    错卦?: DerivedHexagramJSON;
+    综卦?: DerivedHexagramJSON;
+    卦身?: {
+      地支: string;
+      位置?: string;
+      状态?: string;
     };
   };
-  ganZhiTime: Array<{
-    pillar: string;
-    ganZhi: string;
-    kongWang: string[];
+  干支时间: Array<{
+    柱: string;
+    干支: string;
+    空亡: string[];
   }>;
-  yaos: LiuyaoYaoJSON[];
-  yongShenAnalysis: LiuyaoYongShenJSON[];
-  guaLevelAnalysis: string[];
-  warnings: string[];
-  globalShenSha?: string[];
+  六爻: LiuyaoYaoJSON[];
+  用神分析: LiuyaoYongShenJSON[];
+  卦级分析: string[];
+  提示: string[];
+  全局神煞?: string[];
 }
 
 export interface LiuyaoAISafeLineJSON {
@@ -226,31 +226,35 @@ export interface LiuyaoAISafeLineJSON {
 }
 
 export interface LiuyaoAISafeParticipantJSON {
-  source: '动爻' | '变爻' | '月建' | '日建';
-  branch: string;
-  position?: string;
+  来源: '动爻' | '变爻' | '月建' | '日建';
+  地支: string;
+  位置?: string;
 }
 
 export interface LiuyaoAISafeBoardLineJSON {
-  position: string;
-  liuShen: string;
-  fuShen?: {
-    liuQin: string;
-    naJia: string;
-    wuXing: string;
+  爻位: string;
+  六神: string;
+  神煞?: string[];
+  伏神?: {
+    六亲: string;
+    纳甲: string;
+    五行: string;
   };
-  mainLine: {
-    liuQin: string;
-    naJia: string;
-    wuXing: string;
+  本爻: {
+    六亲: string;
+    纳甲: string;
+    五行: string;
+    旺衰?: string;
   };
-  changedTo?: {
-    liuQin: string;
-    naJia: string;
-    wuXing: string;
+  动静?: string;
+  空亡?: string;
+  变爻?: {
+    六亲: string;
+    纳甲: string;
+    五行: string;
   };
-  transformation?: string;
-  shiYing?: 'shi' | 'ying';
+  化变?: string;
+  世应?: '世' | '应';
 }
 
 export interface LiuyaoAISafeLineFlagJSON {
@@ -262,71 +266,71 @@ export interface LiuyaoAISafeLineFlagJSON {
 }
 
 export interface LiuyaoAISafeCombinationJSON {
-  kind: '半合' | '三合';
-  resultElement: string;
-  participants?: LiuyaoAISafeParticipantJSON[];
-  name?: string;
-  positions?: string[];
+  类型: '半合' | '三合';
+  结果五行: string;
+  参与者?: LiuyaoAISafeParticipantJSON[];
+  名称?: string;
+  位置?: string[];
 }
 
 export interface LiuyaoAISafeTransitionJSON {
-  kind: '冲转合' | '合转冲';
+  类型: '冲转合' | '合转冲';
 }
 
 export interface LiuyaoAISafeResonanceJSON {
-  kind: '反吟' | '伏吟';
+  类型: '反吟' | '伏吟';
 }
 
 export interface LiuyaoAISafeJSON {
-  board: {
-    question?: string;
-    mainHexagram: {
-      name: string;
-      gong: string;
-      element: string;
-      guaCi?: string;
+  卦盘: {
+    问题?: string;
+    本卦: {
+      卦名: string;
+      卦宫: string;
+      五行: string;
+      卦辞?: string;
     };
-    changedHexagram?: {
-      name: string;
-      gong?: string;
-      element?: string;
-      guaCi?: string;
-      changingYaos?: string[];
-      changingYaoCi?: Array<{
-        yaoName: string;
-        yaoCi: string;
+    变卦?: {
+      卦名: string;
+      卦宫?: string;
+      五行?: string;
+      卦辞?: string;
+      动爻?: string[];
+      动爻爻辞?: Array<{
+        爻名: string;
+        爻辞: string;
       }>;
     };
-    ganZhiTime: Array<{
-      pillar: string;
-      ganZhi: string;
-      kongWang: string[];
+    干支时间: Array<{
+      柱: string;
+      干支: string;
+      空亡: string[];
     }>;
-    guaShen?: {
-      branch: string;
-      position?: string;
-      state?: string;
+    卦身?: {
+      地支: string;
+      位置?: string;
+      状态?: string;
     };
-    derivedHexagrams?: {
-      nuclearHexagram?: { name: string };
-      oppositeHexagram?: { name: string };
-      reversedHexagram?: { name: string };
+    衍生卦?: {
+      互卦?: { 卦名: string };
+      错卦?: { 卦名: string };
+      综卦?: { 卦名: string };
     };
-    globalShenSha?: string[];
+    全局神煞?: string[];
   };
-  fullBoard: {
-    lines: LiuyaoAISafeBoardLineJSON[];
+  六爻全盘: {
+    爻列表: LiuyaoAISafeBoardLineJSON[];
   };
-  globalInteractions: {
-    combinations: LiuyaoAISafeCombinationJSON[];
-    transitions?: LiuyaoAISafeTransitionJSON[];
-    resonances?: LiuyaoAISafeResonanceJSON[];
-    isLiuChongGua?: '是' | '否';
-    isLiuHeGua?: '是' | '否';
-    chongHeTransition?: '冲转合' | '合转冲';
+  全局互动: {
+    组合关系: LiuyaoAISafeCombinationJSON[];
+    冲合转换?: LiuyaoAISafeTransitionJSON[];
+    反伏信息?: LiuyaoAISafeResonanceJSON[];
+    是否六冲卦?: '是' | '否';
+    是否六合卦?: '是' | '否';
+    冲合趋势?: '冲转合' | '合转冲';
   };
-  meta: {
-    detailLevel: 'default' | 'more' | 'full';
+  元信息: {
+    细节级别: '默认' | '扩展' | '完整';
   };
 }
 
@@ -366,47 +370,64 @@ export interface TarotCanonicalJSON {
 // ===== 紫微 =====
 
 export interface ZiweiStarJSON {
-  name: string;
-  brightness?: string;
-  mutagen?: string;
-  selfMutagen?: string;
-  oppositeMutagen?: string;
+  星名: string;
+  亮度?: string;
+  四化?: string;
+  离心自化?: string;
+  向心自化?: string;
+}
+
+export interface ZiweiBirthYearMutagenJSON {
+  四化: '禄' | '权' | '科' | '忌';
+  星曜: string;
+  宫位: string;
 }
 
 export interface ZiweiPalaceJSON {
-  name: string;
-  index?: number;
-  ganZhi: string;
-  isBodyPalace: boolean;
-  isOriginalPalace?: boolean;
-  majorStars: ZiweiStarJSON[];
-  minorStars: ZiweiStarJSON[];
-  adjStars: ZiweiStarJSON[];
-  shenSha: string[];
-  decadalRange?: string;
-  liuNianAges: number[];
-  ages: number[];
+  宫位: string;
+  宫位索引?: number;
+  干支: string;
+  是否身宫: '是' | '否';
+  是否来因宫: '是' | '否';
+  大限?: string;
+  主星及四化: ZiweiStarJSON[];
+  辅星: ZiweiStarJSON[];
+  杂曜?: ZiweiStarJSON[];
+  神煞?: string[];
+  流年虚岁?: number[];
+  小限虚岁?: number[];
 }
 
 export interface ZiweiCanonicalJSON {
-  basicInfo: {
-    gender?: string;
-    solarDate: string;
-    lunarDate: string;
-    fourPillars: string;
-    soul: string;
-    body: string;
-    fiveElement: string;
-    time?: string;
-    douJun?: string;
-    lifeMasterStar?: string;
-    bodyMasterStar?: string;
-    trueSolarTime?: TrueSolarTimeJSON;
+  基本信息: {
+    性别?: string;
+    阳历: string;
+    农历: string;
+    四柱: string;
+    命主: string;
+    身主: string;
+    五行局: string;
+    生年四化?: {
+      天干: string;
+      四化星曜: ZiweiBirthYearMutagenJSON[];
+    };
+    时辰?: string;
+    斗君?: string;
+    命主星?: string;
+    身主星?: string;
+    真太阳时?: {
+      钟表时间: string;
+      真太阳时: string;
+      经度: number;
+      校正分钟: number;
+      真太阳时索引: number;
+      跨日偏移: string;
+    };
   };
-  palaces: ZiweiPalaceJSON[];
-  smallLimit?: Array<{
-    palaceName: string;
-    ages: number[];
+  十二宫位: ZiweiPalaceJSON[];
+  小限?: Array<{
+    宫位: string;
+    虚岁: number[];
   }>;
 }
 

@@ -620,7 +620,7 @@ function toCoreZiweiOutput(chart: ZiweiChart): CoreZiweiOutput {
 
 export function buildZiweiCanonicalJSON(chart: ZiweiChart) {
     const coreOutput = toCoreZiweiOutput(chart);
-    return renderZiweiCanonicalJSON(coreOutput);
+    return renderZiweiCanonicalJSON(coreOutput, { detailLevel: 'full' });
 }
 
 /**
@@ -628,20 +628,22 @@ export function buildZiweiCanonicalJSON(chart: ZiweiChart) {
  */
 export function generateZiweiChartText(
     chart: ZiweiChart,
-    options: { includeHoroscope?: boolean } = {},
+    options: { includeHoroscope?: boolean; detailLevel?: 'default' | 'full' } = {},
 ): string {
     const coreOutput = toCoreZiweiOutput(chart);
+    const detailLevel = options.detailLevel ?? 'default';
 
     if (!options.includeHoroscope) {
-        return renderZiweiCanonicalText(coreOutput);
+        return renderZiweiCanonicalText(coreOutput, { detailLevel });
     }
 
     const horoscope = getHoroscope(chart, new Date());
     if (!horoscope) {
-        return renderZiweiCanonicalText(coreOutput);
+        return renderZiweiCanonicalText(coreOutput, { detailLevel });
     }
 
     return renderZiweiCanonicalText(coreOutput, {
+        detailLevel,
         horoscope: {
             decadal: { palaceName: horoscope.decadal.palace.name, ageRange: `${horoscope.decadal.startAge}-${horoscope.decadal.endAge}岁` },
             yearly: { palaceName: horoscope.yearly.palace.name, period: horoscope.yearly.period },

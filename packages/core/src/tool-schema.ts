@@ -658,6 +658,12 @@ export const toolDefinitions: ToolDefinition[] = [
           description: '响应格式：json=结构化数据，markdown=人类可读文本',
           default: 'json',
         },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'full'],
+          description: '输出细节级别：default=精简命盘；full=完整命盘',
+          default: 'default',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
       examples: [

@@ -164,7 +164,7 @@ function ZiweiResultContent() {
         return buildZiweiCanonicalJSON(chart);
     }, [chart]);
     const { isAdmin, jsonCopied, copyJson } = useAdminJsonCopy(canonicalChart);
-    const trueSolarTimeText = canonicalChart?.basicInfo.trueSolarTime?.trueSolarTime ?? null;
+    const trueSolarTimeText = canonicalChart?.基本信息.真太阳时?.真太阳时 ?? null;
 
     // 修改命盘
     const handleEdit = useCallback(() => {
@@ -314,7 +314,7 @@ function ZiweiResultContent() {
                                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 shrink-0">
                                     农历
                                 </span>
-                                <span className="font-medium text-foreground/80 truncate">{canonicalChart.basicInfo.lunarDate}</span>
+                                <span className="font-medium text-foreground/80 truncate">{canonicalChart.基本信息.农历}</span>
                             </div>
 
                             {trueSolarTimeText && (

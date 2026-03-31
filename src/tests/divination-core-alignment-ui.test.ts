@@ -89,7 +89,7 @@ test('web divination adapters should use explicit longitude instead of local fuz
     assert.equal(ziweiChart.trueSolarTimeInfo?.longitude, 121.47);
 });
 
-test('ziwei web contract and copy text should preserve richer core metadata and stable palace ordering', () => {
+test('ziwei web contract should keep core metadata while default copy text stays compact and ordered', () => {
     const chart = calculateZiwei({
         name: '测试',
         gender: 'male',
@@ -108,18 +108,19 @@ test('ziwei web contract and copy text should preserve richer core metadata and 
     assert.ok(Array.isArray((chart as unknown as Record<string, unknown>).scholarStars), 'ziwei chart should preserve scholarStars from core output');
 
     const text = generateZiweiChartText(chart);
-    assert.match(text, /子年斗君/u, 'ziwei text should include douJun');
-    assert.match(text, /命主星/u, 'ziwei text should include life master star');
-    assert.match(text, /身主星/u, 'ziwei text should include body master star');
-    assert.match(text, /小限/u, 'ziwei text should include smallLimit summary');
-    assert.match(text, /博士/u, 'ziwei text should include scholar stars in shensha column');
+    assert.match(text, /生年四化/u, 'ziwei default text should include birth-year mutagen summary');
+    assert.doesNotMatch(text, /子年斗君/u, 'ziwei default text should omit douJun');
+    assert.doesNotMatch(text, /命主星/u, 'ziwei default text should omit life master star');
+    assert.doesNotMatch(text, /身主星/u, 'ziwei default text should omit body master star');
+    assert.doesNotMatch(text, /小限/u, 'ziwei default text should omit small-limit arrays');
+    assert.doesNotMatch(text, /博士/u, 'ziwei default text should omit shensha column');
 
     const headingLines = text
         .split('\n')
         .filter((line) => /^\| [^|]+ \|/u.test(line) && !line.includes('宫位') && !line.includes('------') && !line.includes('年柱') && !line.includes('月柱') && !line.includes('日柱') && !line.includes('时柱') && !line.includes('柱 |'))
         .slice(0, 6);
     assert.deepEqual(
-        headingLines.map((line) => line.split('|')[1]?.trim().replace(/\(身宫\)$/u, '').replace(/\(来因宫\)$/u, '') || ''),
+        headingLines.map((line) => line.split('|')[1]?.trim().replace(/\(身宫\)$/u, '').replace(/\(来因\)$/u, '') || ''),
         ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄'],
         'ziwei text should render palace sections in the traditional reading order instead of raw storage order',
     );

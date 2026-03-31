@@ -129,30 +129,30 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
 
     // 获取大限列表
     const decadalList = useMemo(() => (
-        canonicalChart.palaces
+        canonicalChart.十二宫位
             .map((palace) => {
-                if (typeof palace.index !== 'number' || !palace.decadalRange) return null;
-                const match = palace.decadalRange.match(/^(\d+)~(\d+)$/u);
+                if (typeof palace.宫位索引 !== 'number' || !palace.大限) return null;
+                const match = palace.大限.match(/^(\d+)~(\d+)$/u);
                 if (!match) return null;
                 return {
-                    index: palace.index,
+                    index: palace.宫位索引,
                     startAge: Number(match[1]),
                     endAge: Number(match[2]),
                     palace: {
-                        index: palace.index,
-                        name: palace.name,
-                        heavenlyStem: palace.ganZhi.charAt(0),
-                        earthlyBranch: palace.ganZhi.charAt(1),
+                        index: palace.宫位索引,
+                        name: palace.宫位,
+                        heavenlyStem: palace.干支.charAt(0),
+                        earthlyBranch: palace.干支.charAt(1),
                     },
-                    heavenlyStem: palace.ganZhi.charAt(0),
+                    heavenlyStem: palace.干支.charAt(0),
                 };
             })
             .filter((item): item is DecadalInfo => Boolean(item))
             .sort((a, b) => a.startAge - b.startAge)
-    ), [canonicalChart.palaces]);
+    ), [canonicalChart.十二宫位]);
 
     // Fix 3: birthYear 提取为 useMemo 常量
-    const birthYear = useMemo(() => parseInt(canonicalChart.basicInfo.solarDate.split('-')[0]), [canonicalChart.basicInfo.solarDate]);
+    const birthYear = useMemo(() => parseInt(canonicalChart.基本信息.阳历.split('-')[0]), [canonicalChart.基本信息.阳历]);
 
     // Fix 4: 去掉 useMemo，直接在 render 中获取当前日期
     const today = new Date();

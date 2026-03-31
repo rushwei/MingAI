@@ -8,23 +8,14 @@ import { GAN_WUXING } from './utils.js';
 // ===== 内部工具函数 =====
 function buildTrueSolarTimeJSON(info) {
     return {
-        clockTime: info.clockTime,
-        trueSolarTime: info.trueSolarTime,
-        longitude: info.longitude,
-        correctionMinutes: info.correctionMinutes,
+        钟表时间: info.clockTime,
+        真太阳时: info.trueSolarTime,
+        经度: info.longitude,
+        校正分钟: info.correctionMinutes,
     };
 }
 function buildStarJSON(star) {
-    const result = { name: star.name };
-    if (star.brightness)
-        result.brightness = star.brightness;
-    if (star.mutagen)
-        result.mutagen = star.mutagen;
-    if (star.selfMutagen)
-        result.selfMutagen = star.selfMutagen;
-    if (star.oppositeMutagen)
-        result.oppositeMutagen = star.oppositeMutagen;
-    return result;
+    return buildZiweiStarJSON(star);
 }
 function buildShenSystemMap(systems) {
     return new Map(systems.map((system) => [system.targetLiuQin, system]));
@@ -43,34 +34,34 @@ function buildShenSystemJSON(system) {
 }
 function buildHiddenStemJSON(item) {
     return {
-        stem: item.stem,
-        tenGod: item.tenGod,
-        ...(item.qiType ? { qiType: item.qiType } : {}),
+        天干: item.stem,
+        十神: item.tenGod,
+        ...(item.qiType ? { 气性: item.qiType } : {}),
     };
 }
 function buildBranchRelationJSON(item) {
     return {
-        type: item.type,
-        branches: [...item.branches],
-        description: item.description,
+        类型: item.type,
+        地支: [...item.branches],
+        描述: item.description,
     };
 }
 function buildLiunianItemJSON(item) {
     return {
-        year: item.year,
-        age: item.age,
-        ganZhi: item.ganZhi,
-        gan: item.gan,
-        zhi: item.zhi,
-        tenGod: item.tenGod || '-',
-        ...(item.nayin ? { nayin: item.nayin } : {}),
-        hiddenStems: item.hiddenStems?.length
+        流年: item.year,
+        年龄: item.age,
+        干支: item.ganZhi,
+        天干: item.gan,
+        地支: item.zhi,
+        十神: item.tenGod || '-',
+        ...(item.nayin ? { 纳音: item.nayin } : {}),
+        藏干: item.hiddenStems?.length
             ? item.hiddenStems.map(buildHiddenStemJSON)
             : [],
-        ...(item.diShi ? { diShi: item.diShi } : {}),
-        ...(item.shenSha?.length ? { shenSha: [...item.shenSha] } : {}),
-        ...(item.branchRelations?.length ? { branchRelations: item.branchRelations.map(buildBranchRelationJSON) } : {}),
-        ...(item.taiSui?.length ? { taiSui: [...item.taiSui] } : {}),
+        ...(item.diShi ? { 地势: item.diShi } : {}),
+        ...(item.shenSha?.length ? { 神煞: [...item.shenSha] } : {}),
+        ...(item.branchRelations?.length ? { 原局关系: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+        ...(item.taiSui?.length ? { 太岁关系: [...item.taiSui] } : {}),
     };
 }
 function buildLeanHiddenStemItems(items) {
@@ -78,21 +69,21 @@ function buildLeanHiddenStemItems(items) {
 }
 function buildDayunItemJSON(item) {
     return {
-        startYear: item.startYear,
-        ...(typeof item.startAge === 'number' ? { startAge: item.startAge } : {}),
-        ganZhi: item.ganZhi,
-        ...(item.stem ? { stem: item.stem } : {}),
-        ...(item.branch ? { branch: item.branch } : {}),
-        tenGod: item.tenGod || '-',
-        ...(item.branchTenGod ? { branchTenGod: item.branchTenGod } : {}),
-        hiddenStems: item.hiddenStems?.length
+        起运年份: item.startYear,
+        ...(typeof item.startAge === 'number' ? { 起运年龄: item.startAge } : {}),
+        干支: item.ganZhi,
+        ...(item.stem ? { 天干: item.stem } : {}),
+        ...(item.branch ? { 地支: item.branch } : {}),
+        十神: item.tenGod || '-',
+        ...(item.branchTenGod ? { 地支主气十神: item.branchTenGod } : {}),
+        藏干: item.hiddenStems?.length
             ? item.hiddenStems.map(buildHiddenStemJSON)
             : [],
-        ...(item.diShi ? { diShi: item.diShi } : {}),
-        ...(item.naYin ? { naYin: item.naYin } : {}),
-        ...(item.shenSha?.length ? { shenSha: [...item.shenSha] } : {}),
-        ...(item.branchRelations?.length ? { branchRelations: item.branchRelations.map(buildBranchRelationJSON) } : {}),
-        ...(item.liunianList?.length ? { liunianList: item.liunianList.map(buildLiunianItemJSON) } : {}),
+        ...(item.diShi ? { 地势: item.diShi } : {}),
+        ...(item.naYin ? { 纳音: item.naYin } : {}),
+        ...(item.shenSha?.length ? { 神煞: [...item.shenSha] } : {}),
+        ...(item.branchRelations?.length ? { 原局关系: item.branchRelations.map(buildBranchRelationJSON) } : {}),
+        ...(item.liunianList?.length ? { 流年列表: item.liunianList.map(buildLiunianItemJSON) } : {}),
     };
 }
 function buildBaziCanonicalPillarShenSha(item) {
@@ -111,6 +102,74 @@ function normalizeBaziDetailLevel(detailLevel) {
     }
     return 'default';
 }
+function normalizeZiweiDetailLevel(detailLevel) {
+    if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+        return 'full';
+    }
+    return 'default';
+}
+function formatZiweiCanonicalLunarDate(result) {
+    const raw = result.lunarDate?.trim();
+    if (!raw)
+        return '';
+    const yearLabel = `${result.fourPillars.year.gan}${result.fourPillars.year.zhi}年`;
+    if (!raw.includes('年'))
+        return raw;
+    const [, ...rest] = raw.split('年');
+    const suffix = rest.join('年').trim();
+    return suffix ? `${yearLabel}${suffix}` : yearLabel;
+}
+function buildZiweiTrueSolarTimeJSON(info) {
+    const 跨日偏移 = info.dayOffset > 0
+        ? `后${info.dayOffset}日`
+        : info.dayOffset < 0
+            ? `前${Math.abs(info.dayOffset)}日`
+            : '当日';
+    return {
+        钟表时间: info.clockTime,
+        真太阳时: info.trueSolarTime,
+        经度: info.longitude,
+        校正分钟: info.correctionMinutes,
+        真太阳时索引: info.trueTimeIndex,
+        跨日偏移,
+    };
+}
+function buildZiweiStarJSON(star) {
+    const result = { 星名: star.name };
+    if (star.brightness)
+        result.亮度 = star.brightness;
+    if (star.mutagen)
+        result.四化 = star.mutagen;
+    if (star.selfMutagen)
+        result.离心自化 = star.selfMutagen;
+    if (star.oppositeMutagen)
+        result.向心自化 = star.oppositeMutagen;
+    return result;
+}
+function buildZiweiBirthYearMutagensJSON(result) {
+    if (!result.mutagenSummary?.length)
+        return undefined;
+    const order = new Map([
+        ['禄', 0],
+        ['权', 1],
+        ['科', 2],
+        ['忌', 3],
+    ]);
+    return {
+        天干: result.fourPillars.year.gan,
+        四化星曜: [...result.mutagenSummary]
+            .sort((left, right) => {
+            const leftOrder = order.get(left.mutagen) ?? Number.MAX_SAFE_INTEGER;
+            const rightOrder = order.get(right.mutagen) ?? Number.MAX_SAFE_INTEGER;
+            return leftOrder - rightOrder;
+        })
+            .map((item) => ({
+            四化: item.mutagen,
+            星曜: item.starName,
+            宫位: item.palaceName,
+        })),
+    };
+}
 function mapLiuyaoRelationLabel(label) {
     if (!label)
         return undefined;
@@ -127,21 +186,21 @@ function buildLiuyaoInteractionSources(result) {
     for (const yao of result.fullYaos || []) {
         if (yao.isChanging) {
             participants.push({
-                source: '动爻',
-                branch: yao.naJia,
-                position: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
+                来源: '动爻',
+                地支: yao.naJia,
+                位置: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
             });
         }
         if (yao.changedYao) {
             participants.push({
-                source: '变爻',
-                branch: yao.changedYao.naJia,
-                position: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
+                来源: '变爻',
+                地支: yao.changedYao.naJia,
+                位置: buildLiuyaoPositionLabel(yao.position, result.fullYaos),
             });
         }
     }
-    participants.push({ source: '月建', branch: result.ganZhiTime.month.zhi });
-    participants.push({ source: '日建', branch: result.ganZhiTime.day.zhi });
+    participants.push({ 来源: '月建', 地支: result.ganZhiTime.month.zhi });
+    participants.push({ 来源: '日建', 地支: result.ganZhiTime.day.zhi });
     return participants;
 }
 function buildBanHeParticipants(branches, sources) {
@@ -152,49 +211,49 @@ function buildBanHeParticipants(branches, sources) {
         日建: 3,
     };
     return branches.map((branch) => {
-        const matches = sources.filter((source) => source.branch === branch);
-        matches.sort((left, right) => priority[left.source] - priority[right.source]);
-        return matches[0] || { source: '日建', branch };
+        const matches = sources.filter((source) => source.地支 === branch);
+        matches.sort((left, right) => priority[left.来源] - priority[right.来源]);
+        return matches[0] || { 来源: '日建', 地支: branch };
     });
 }
 function buildLiuyaoAISafeBoardLines(result, detailLevel) {
     return sortYaosDescending(result.fullYaos || []).map((yao) => {
         const line = {
-            position: traditionalYaoName(yao.position, yao.type),
-            liuShen: yao.liuShen,
-            ...(detailLevel !== 'default' && yao.shenSha?.length ? { shenSha: [...yao.shenSha] } : {}),
-            mainLine: {
-                liuQin: yao.liuQin,
-                naJia: yao.naJia,
-                wuXing: yao.wuXing,
-                ...(detailLevel === 'full' ? { wangShuai: WANG_SHUAI_LABELS[yao.strength.wangShuai] } : {}),
+            爻位: traditionalYaoName(yao.position, yao.type),
+            六神: yao.liuShen,
+            ...(detailLevel !== 'default' && yao.shenSha?.length ? { 神煞: [...yao.shenSha] } : {}),
+            本爻: {
+                六亲: yao.liuQin,
+                纳甲: yao.naJia,
+                五行: yao.wuXing,
+                ...(detailLevel === 'full' ? { 旺衰: WANG_SHUAI_LABELS[yao.strength.wangShuai] } : {}),
             },
-            ...(detailLevel === 'full' ? { movement: yao.movementLabel } : {}),
+            ...(detailLevel === 'full' ? { 动静: yao.movementLabel } : {}),
             ...(detailLevel === 'full' && yao.kongWangState && yao.kongWangState !== 'not_kong'
-                ? { kongWang: KONG_WANG_LABELS[yao.kongWangState] || yao.kongWangState }
+                ? { 空亡: KONG_WANG_LABELS[yao.kongWangState] || yao.kongWangState }
                 : {}),
         };
         if (yao.fuShen) {
-            line.fuShen = {
-                liuQin: yao.fuShen.liuQin,
-                naJia: yao.fuShen.naJia,
-                wuXing: yao.fuShen.wuXing,
+            line.伏神 = {
+                六亲: yao.fuShen.liuQin,
+                纳甲: yao.fuShen.naJia,
+                五行: yao.fuShen.wuXing,
             };
         }
         if (yao.changedYao) {
-            line.changedTo = {
-                liuQin: yao.changedYao.liuQin,
-                naJia: yao.changedYao.naJia,
-                wuXing: yao.changedYao.wuXing,
+            line.变爻 = {
+                六亲: yao.changedYao.liuQin,
+                纳甲: yao.changedYao.naJia,
+                五行: yao.changedYao.wuXing,
             };
             if (detailLevel === 'full' && mapLiuyaoRelationLabel(yao.changedYao.relation)) {
-                line.transformation = mapLiuyaoRelationLabel(yao.changedYao.relation);
+                line.化变 = mapLiuyaoRelationLabel(yao.changedYao.relation);
             }
         }
         if (yao.isShiYao)
-            line.shiYing = 'shi';
+            line.世应 = '世';
         else if (yao.isYingYao)
-            line.shiYing = 'ying';
+            line.世应 = '应';
         return line;
     });
 }
@@ -241,20 +300,20 @@ export function renderBaziCanonicalJSON(chart, options = {}) {
     const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
     const { dayun } = options;
     const basicInfo = {
-        gender: chart.gender === 'male' ? '男' : '女',
-        dayMaster: chart.dayMaster,
-        ...(detailLevel === 'full' ? { dayMasterElement: `${chart.dayMaster}${GAN_WUXING[chart.dayMaster.charAt(0)] || ''}` } : {}),
+        性别: chart.gender === 'male' ? '男' : '女',
+        日主: chart.dayMaster,
+        ...(detailLevel === 'full' ? { 命主五行: `${chart.dayMaster}${GAN_WUXING[chart.dayMaster.charAt(0)] || ''}` } : {}),
     };
     if (detailLevel === 'full' && chart.kongWang?.kongZhi?.length)
-        basicInfo.kongWang = [...chart.kongWang.kongZhi];
+        basicInfo.空亡 = [...chart.kongWang.kongZhi];
     if (chart.birthPlace)
-        basicInfo.birthPlace = chart.birthPlace;
+        basicInfo.出生地 = chart.birthPlace;
     if (chart.trueSolarTimeInfo)
-        basicInfo.trueSolarTime = buildTrueSolarTimeJSON(chart.trueSolarTimeInfo);
+        basicInfo.真太阳时 = buildTrueSolarTimeJSON(chart.trueSolarTimeInfo);
     if (detailLevel === 'full' && chart.taiYuan)
-        basicInfo.taiYuan = chart.taiYuan;
+        basicInfo.胎元 = chart.taiYuan;
     if (detailLevel === 'full' && chart.mingGong)
-        basicInfo.mingGong = chart.mingGong;
+        basicInfo.命宫 = chart.mingGong;
     const fourPillars = [
         ['年柱', chart.fourPillars.year],
         ['月柱', chart.fourPillars.month],
@@ -262,28 +321,28 @@ export function renderBaziCanonicalJSON(chart, options = {}) {
         ['时柱', chart.fourPillars.hour],
     ].map(([label, pillar]) => {
         const entry = {
-            pillar: label,
-            ganZhi: `${pillar.stem}${pillar.branch}`,
-            tenGod: pillar.tenGod || '-',
-            hiddenStems: pillar.hiddenStems.map((item) => buildHiddenStemJSON({
+            柱: label,
+            干支: `${pillar.stem}${pillar.branch}`,
+            天干十神: pillar.tenGod || '-',
+            藏干: pillar.hiddenStems.map((item) => buildHiddenStemJSON({
                 stem: item.stem,
                 tenGod: item.tenGod || '-',
                 ...(detailLevel === 'full' ? { qiType: item.qiType } : {}),
             })),
-            diShi: pillar.diShi || '-',
-            ...(detailLevel === 'full' && pillar.naYin ? { naYin: pillar.naYin } : {}),
-            ...(detailLevel === 'full' && pillar.shenSha?.length ? { shenSha: buildBaziCanonicalPillarShenSha(pillar) } : {}),
+            地势: pillar.diShi || '-',
+            ...(detailLevel === 'full' && pillar.naYin ? { 纳音: pillar.naYin } : {}),
+            ...(detailLevel === 'full' && pillar.shenSha?.length ? { 神煞: buildBaziCanonicalPillarShenSha(pillar) } : {}),
         };
         if (pillar.kongWang?.isKong)
-            entry.isKong = true;
+            entry.空亡 = '是';
         return entry;
     });
     const relations = buildBaziCanonicalRelations(chart);
-    const json = { basicInfo, fourPillars, relations };
+    const json = { 基本信息: basicInfo, 四柱: fourPillars, 干支关系: relations };
     if (dayun) {
-        json.dayun = {
-            startInfo: `${dayun.startAge}岁（${dayun.startAgeDetail}）`,
-            list: dayun.list.map((item) => buildDayunItemJSON({
+        json.大运 = {
+            起运信息: `${dayun.startAge}岁（${dayun.startAgeDetail}）`,
+            大运列表: dayun.list.map((item) => buildDayunItemJSON({
                 startYear: item.startYear,
                 startAge: item.startAge,
                 ganZhi: item.ganZhi,
@@ -305,56 +364,56 @@ export function renderBaziCanonicalJSON(chart, options = {}) {
 // ===== 六爻 =====
 export function renderLiuyaoCanonicalJSON(result) {
     const hexagramInfo = {
-        mainHexagram: {
-            name: result.hexagramName,
-            gong: result.hexagramGong,
-            element: result.hexagramElement,
+        本卦: {
+            卦名: result.hexagramName,
+            卦宫: result.hexagramGong,
+            五行: result.hexagramElement,
         },
     };
     if (result.question)
-        hexagramInfo.question = result.question;
+        hexagramInfo.问题 = result.question;
     if (result.guaCi)
-        hexagramInfo.mainHexagram.guaCi = result.guaCi;
+        hexagramInfo.本卦.卦辞 = result.guaCi;
     if (result.xiangCi)
-        hexagramInfo.mainHexagram.xiangCi = result.xiangCi;
+        hexagramInfo.本卦.象辞 = result.xiangCi;
     if (result.changedHexagramName) {
         const changed = {
-            name: result.changedHexagramName,
+            卦名: result.changedHexagramName,
         };
         if (result.changedHexagramGong)
-            changed.gong = result.changedHexagramGong;
+            changed.卦宫 = result.changedHexagramGong;
         if (result.changedHexagramElement)
-            changed.element = result.changedHexagramElement;
+            changed.五行 = result.changedHexagramElement;
         if (result.changedGuaCi)
-            changed.guaCi = result.changedGuaCi;
+            changed.卦辞 = result.changedGuaCi;
         if (result.changedXiangCi)
-            changed.xiangCi = result.changedXiangCi;
+            changed.象辞 = result.changedXiangCi;
         const changingYaoCi = (result.fullYaos || [])
             .filter((item) => item.isChanging && item.yaoCi)
-            .map((yao) => ({ yaoName: traditionalYaoName(yao.position, yao.type), yaoCi: yao.yaoCi }));
+            .map((yao) => ({ 爻名: traditionalYaoName(yao.position, yao.type), 爻辞: yao.yaoCi }));
         if (changingYaoCi.length > 0)
-            changed.changingYaoCi = changingYaoCi;
-        hexagramInfo.changedHexagram = changed;
+            changed.动爻爻辞 = changingYaoCi;
+        hexagramInfo.变卦 = changed;
     }
     if (result.nuclearHexagram) {
-        hexagramInfo.nuclearHexagram = {
-            name: result.nuclearHexagram.name,
-            guaCi: result.nuclearHexagram.guaCi,
-            xiangCi: result.nuclearHexagram.xiangCi,
+        hexagramInfo.互卦 = {
+            卦名: result.nuclearHexagram.name,
+            卦辞: result.nuclearHexagram.guaCi,
+            象辞: result.nuclearHexagram.xiangCi,
         };
     }
     if (result.oppositeHexagram) {
-        hexagramInfo.oppositeHexagram = {
-            name: result.oppositeHexagram.name,
-            guaCi: result.oppositeHexagram.guaCi,
-            xiangCi: result.oppositeHexagram.xiangCi,
+        hexagramInfo.错卦 = {
+            卦名: result.oppositeHexagram.name,
+            卦辞: result.oppositeHexagram.guaCi,
+            象辞: result.oppositeHexagram.xiangCi,
         };
     }
     if (result.reversedHexagram) {
-        hexagramInfo.reversedHexagram = {
-            name: result.reversedHexagram.name,
-            guaCi: result.reversedHexagram.guaCi,
-            xiangCi: result.reversedHexagram.xiangCi,
+        hexagramInfo.综卦 = {
+            卦名: result.reversedHexagram.name,
+            卦辞: result.reversedHexagram.guaCi,
+            象辞: result.reversedHexagram.xiangCi,
         };
     }
     if (result.guaShen) {
@@ -362,62 +421,64 @@ export function renderLiuyaoCanonicalJSON(result) {
         const posLabel = typeof result.guaShen.linePosition === 'number'
             ? (guaShenYao ? `${traditionalYaoName(result.guaShen.linePosition, guaShenYao.type)}爻` : `${result.guaShen.linePosition}爻`)
             : undefined;
-        hexagramInfo.guaShen = {
-            branch: result.guaShen.branch,
+        hexagramInfo.卦身 = {
+            地支: result.guaShen.branch,
         };
         if (posLabel)
-            hexagramInfo.guaShen.position = posLabel;
+            hexagramInfo.卦身.位置 = posLabel;
+        if (result.guaShen.absent)
+            hexagramInfo.卦身.状态 = '飞伏';
     }
     // 干支时间
     const gz = result.ganZhiTime;
     const ganZhiTime = [
-        { pillar: '年', ganZhi: `${gz.year.gan}${gz.year.zhi}`, kongWang: [...result.kongWangByPillar.year.kongDizhi] },
-        { pillar: '月', ganZhi: `${gz.month.gan}${gz.month.zhi}`, kongWang: [...result.kongWangByPillar.month.kongDizhi] },
-        { pillar: '日', ganZhi: `${gz.day.gan}${gz.day.zhi}`, kongWang: [...result.kongWang.kongDizhi] },
-        { pillar: '时', ganZhi: `${gz.hour.gan}${gz.hour.zhi}`, kongWang: [...result.kongWangByPillar.hour.kongDizhi] },
+        { 柱: '年', 干支: `${gz.year.gan}${gz.year.zhi}`, 空亡: [...result.kongWangByPillar.year.kongDizhi] },
+        { 柱: '月', 干支: `${gz.month.gan}${gz.month.zhi}`, 空亡: [...result.kongWangByPillar.month.kongDizhi] },
+        { 柱: '日', 干支: `${gz.day.gan}${gz.day.zhi}`, 空亡: [...result.kongWang.kongDizhi] },
+        { 柱: '时', 干支: `${gz.hour.gan}${gz.hour.zhi}`, 空亡: [...result.kongWangByPillar.hour.kongDizhi] },
     ];
     // 六爻
     const sortedYaos = sortYaosDescending(result.fullYaos || []);
     const globalShenShaSet = new Set(result.globalShenSha || []);
     const yaos = sortedYaos.map((yao) => {
         const yaoJSON = {
-            position: traditionalYaoName(yao.position, yao.type),
-            liuQin: yao.liuQin,
-            liuShen: yao.liuShen,
-            naJia: yao.naJia,
-            wuXing: yao.wuXing,
-            wangShuai: WANG_SHUAI_LABELS[yao.strength.wangShuai],
-            movementState: yao.movementState,
-            movementLabel: yao.movementLabel,
+            爻位: traditionalYaoName(yao.position, yao.type),
+            六亲: yao.liuQin,
+            六神: yao.liuShen,
+            纳甲: yao.naJia,
+            五行: yao.wuXing,
+            旺衰: WANG_SHUAI_LABELS[yao.strength.wangShuai],
+            动静状态: yao.movementState,
+            动静: yao.movementLabel,
         };
         if (yao.isShiYao)
-            yaoJSON.shiYing = '世';
+            yaoJSON.世应 = '世';
         else if (yao.isYingYao)
-            yaoJSON.shiYing = '应';
+            yaoJSON.世应 = '应';
         if (yao.kongWangState && yao.kongWangState !== 'not_kong') {
             const kl = KONG_WANG_LABELS[yao.kongWangState];
             if (kl)
-                yaoJSON.kongWang = kl;
+                yaoJSON.空亡 = kl;
         }
         if (yao.changSheng?.stage)
-            yaoJSON.changSheng = yao.changSheng.stage;
+            yaoJSON.长生 = yao.changSheng.stage;
         const localShenSha = yao.shenSha?.filter((s) => !globalShenShaSet.has(s)) || [];
         if (localShenSha.length > 0)
-            yaoJSON.shenSha = localShenSha;
+            yaoJSON.神煞 = localShenSha;
         if (yao.isChanging && yao.changedYao) {
-            yaoJSON.changedYao = {
-                liuQin: yao.changedYao.liuQin,
-                naJia: yao.changedYao.naJia,
-                wuXing: yao.changedYao.wuXing,
-                relation: yao.changedYao.relation,
+            yaoJSON.变爻 = {
+                六亲: yao.changedYao.liuQin,
+                纳甲: yao.changedYao.naJia,
+                五行: yao.changedYao.wuXing,
+                关系: yao.changedYao.relation,
             };
         }
         if (yao.fuShen) {
-            yaoJSON.fuShen = {
-                liuQin: yao.fuShen.liuQin,
-                naJia: yao.fuShen.naJia,
-                wuXing: yao.fuShen.wuXing,
-                relation: yao.fuShen.relation,
+            yaoJSON.伏神 = {
+                六亲: yao.fuShen.liuQin,
+                纳甲: yao.fuShen.naJia,
+                五行: yao.fuShen.wuXing,
+                关系: yao.fuShen.relation,
             };
         }
         return yaoJSON;
@@ -437,90 +498,95 @@ export function renderLiuyaoCanonicalJSON(result) {
     const yongShenAnalysis = result.yongShen.map((group) => {
         const selected = group.selected;
         const entry = {
-            targetLiuQin: group.targetLiuQin,
-            selectionStatus: YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus,
-            selected: {
-                liuQin: selected.liuQin,
-                strengthLabel: selected.strengthLabel,
-                movementLabel: selected.movementLabel,
+            目标六亲: group.targetLiuQin,
+            取用状态: YONG_SHEN_STATUS_LABELS[group.selectionStatus] || group.selectionStatus,
+            已选用神: {
+                六亲: selected.liuQin,
+                强弱: selected.strengthLabel,
+                动静: selected.movementLabel,
             },
         };
         const selectedPos = posLabel(selected.position);
         if (selectedPos)
-            entry.selected.position = selectedPos;
+            entry.已选用神.爻位 = selectedPos;
         if (selected.naJia)
-            entry.selected.naJia = selected.naJia;
+            entry.已选用神.纳甲 = selected.naJia;
         if (selected.changedNaJia)
-            entry.selected.changedNaJia = selected.changedNaJia;
+            entry.已选用神.变爻纳甲 = selected.changedNaJia;
         if (selected.huaType)
-            entry.selected.huaType = selected.huaType;
+            entry.已选用神.化变类型 = selected.huaType;
         if (selected.element)
-            entry.selected.element = selected.element;
+            entry.已选用神.五行 = selected.element;
         if (selected.source)
-            entry.selected.source = selected.source;
+            entry.已选用神.来源 = selected.source;
         if (selected.movementState)
-            entry.selected.movementState = selected.movementState;
+            entry.已选用神.动静状态 = selected.movementState;
         if (selected.isShiYao)
-            entry.selected.isShiYao = true;
+            entry.已选用神.是否世爻 = '是';
         if (selected.isYingYao)
-            entry.selected.isYingYao = true;
+            entry.已选用神.是否应爻 = '是';
         if (selected.kongWangState)
-            entry.selected.kongWangState = selected.kongWangState;
+            entry.已选用神.空亡状态 = selected.kongWangState;
         if (selected.evidence?.length)
-            entry.selected.evidence = selected.evidence;
+            entry.已选用神.依据 = selected.evidence;
         if (group.selectionNote && group.selectionStatus !== 'resolved') {
-            entry.selectionNote = group.selectionNote;
+            entry.取用说明 = group.selectionNote;
         }
         if (group.candidates?.length) {
-            entry.candidates = group.candidates.map((candidate) => {
-                const c = { liuQin: candidate.liuQin };
+            entry.候选用神 = group.candidates.map((candidate) => {
+                const c = { 六亲: candidate.liuQin };
                 const cPos = posLabel(candidate.position);
                 if (cPos)
-                    c.position = cPos;
+                    c.爻位 = cPos;
                 if (candidate.naJia)
-                    c.naJia = candidate.naJia;
+                    c.纳甲 = candidate.naJia;
                 if (candidate.changedNaJia)
-                    c.changedNaJia = candidate.changedNaJia;
+                    c.变爻纳甲 = candidate.changedNaJia;
                 if (candidate.huaType)
-                    c.huaType = candidate.huaType;
+                    c.化变类型 = candidate.huaType;
                 if (candidate.element)
-                    c.element = candidate.element;
+                    c.五行 = candidate.element;
                 if (candidate.source)
-                    c.source = candidate.source;
+                    c.来源 = candidate.source;
                 if (candidate.movementState)
-                    c.movementState = candidate.movementState;
+                    c.动静状态 = candidate.movementState;
                 if (candidate.isShiYao)
-                    c.isShiYao = true;
+                    c.是否世爻 = '是';
                 if (candidate.isYingYao)
-                    c.isYingYao = true;
+                    c.是否应爻 = '是';
                 if (candidate.kongWangState)
-                    c.kongWangState = candidate.kongWangState;
+                    c.空亡状态 = candidate.kongWangState;
                 if (candidate.evidence?.length)
-                    c.evidence = candidate.evidence;
+                    c.依据 = candidate.evidence;
                 return c;
             });
         }
         const shenSystem = buildShenSystemJSON(shenSystemMap.get(group.targetLiuQin));
-        if (shenSystem)
-            entry.shenSystem = shenSystem;
+        if (shenSystem) {
+            entry.神煞系统 = {
+                ...(shenSystem.yuanShen ? { 原神: shenSystem.yuanShen } : {}),
+                ...(shenSystem.jiShen ? { 忌神: shenSystem.jiShen } : {}),
+                ...(shenSystem.chouShen ? { 仇神: shenSystem.chouShen } : {}),
+            };
+        }
         const recs = timeRecMap.get(group.targetLiuQin);
         if (recs?.length) {
-            entry.timeRecommendations = recs.map((item) => ({
-                trigger: item.trigger,
-                basis: item.basis || [],
-                description: item.description,
+            entry.应期提示 = recs.map((item) => ({
+                触发: item.trigger,
+                依据: item.basis || [],
+                说明: item.description,
             }));
         }
         return entry;
     });
     return {
-        hexagramInfo,
-        ganZhiTime,
-        yaos,
-        yongShenAnalysis,
-        guaLevelAnalysis: formatGuaLevelLines(result),
-        warnings: result.warnings || [],
-        globalShenSha: result.globalShenSha || [],
+        卦盘: hexagramInfo,
+        干支时间: ganZhiTime,
+        六爻: yaos,
+        用神分析: yongShenAnalysis,
+        卦级分析: formatGuaLevelLines(result),
+        提示: result.warnings || [],
+        全局神煞: result.globalShenSha || [],
     };
 }
 export function renderLiuyaoAISafeJSON(result, options) {
@@ -531,98 +597,98 @@ export function renderLiuyaoAISafeJSON(result, options) {
     if (result.sanHeAnalysis?.banHe?.length) {
         for (const item of result.sanHeAnalysis.banHe) {
             combinations.push({
-                kind: '半合',
-                resultElement: item.result,
-                participants: buildBanHeParticipants(item.branches, interactionSources),
+                类型: '半合',
+                结果五行: item.result,
+                参与者: buildBanHeParticipants(item.branches, interactionSources),
             });
         }
     }
     if (result.sanHeAnalysis?.fullSanHeList?.length) {
         for (const item of result.sanHeAnalysis.fullSanHeList) {
             combinations.push({
-                kind: '三合',
-                resultElement: item.result,
-                name: item.name,
-                positions: item.positions?.map((position) => buildLiuyaoPositionLabel(position, result.fullYaos) || `${position}爻`) || [],
+                类型: '三合',
+                结果五行: item.result,
+                名称: item.name,
+                位置: item.positions?.map((position) => buildLiuyaoPositionLabel(position, result.fullYaos) || `${position}爻`) || [],
             });
         }
     }
     const transitions = [];
     if (result.chongHeTransition && (result.chongHeTransition.type === 'chong_to_he' || result.chongHeTransition.type === 'he_to_chong')) {
-        transitions.push({ kind: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' });
+        transitions.push({ 类型: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' });
     }
     const resonances = [];
     if (result.guaFanFuYin?.isFuYin)
-        resonances.push({ kind: '伏吟' });
+        resonances.push({ 类型: '伏吟' });
     if (result.guaFanFuYin?.isFanYin)
-        resonances.push({ kind: '反吟' });
+        resonances.push({ 类型: '反吟' });
     const payload = {
-        board: {
-            ...(result.question ? { question: result.question } : {}),
-            mainHexagram: {
-                name: result.hexagramName,
-                gong: result.hexagramGong,
-                element: result.hexagramElement,
-                ...(result.guaCi ? { guaCi: result.guaCi } : {}),
+        卦盘: {
+            ...(result.question ? { 问题: result.question } : {}),
+            本卦: {
+                卦名: result.hexagramName,
+                卦宫: result.hexagramGong,
+                五行: result.hexagramElement,
+                ...(result.guaCi ? { 卦辞: result.guaCi } : {}),
             },
             ...(result.changedHexagramName
                 ? {
-                    changedHexagram: {
-                        name: result.changedHexagramName,
-                        ...(result.changedHexagramGong ? { gong: result.changedHexagramGong } : {}),
-                        ...(result.changedHexagramElement ? { element: result.changedHexagramElement } : {}),
-                        ...(result.changedGuaCi ? { guaCi: result.changedGuaCi } : {}),
-                        changingYaos: (result.fullYaos || [])
+                    变卦: {
+                        卦名: result.changedHexagramName,
+                        ...(result.changedHexagramGong ? { 卦宫: result.changedHexagramGong } : {}),
+                        ...(result.changedHexagramElement ? { 五行: result.changedHexagramElement } : {}),
+                        ...(result.changedGuaCi ? { 卦辞: result.changedGuaCi } : {}),
+                        动爻: (result.fullYaos || [])
                             .filter((item) => item.isChanging)
                             .map((yao) => traditionalYaoName(yao.position, yao.type)),
                         ...(((result.fullYaos || [])
                             .filter((item) => item.isChanging && item.yaoCi)
-                            .map((yao) => ({ yaoName: traditionalYaoName(yao.position, yao.type), yaoCi: yao.yaoCi }))).length > 0
+                            .map((yao) => ({ 爻名: traditionalYaoName(yao.position, yao.type), 爻辞: yao.yaoCi }))).length > 0
                             ? {
-                                changingYaoCi: (result.fullYaos || [])
+                                动爻爻辞: (result.fullYaos || [])
                                     .filter((item) => item.isChanging && item.yaoCi)
-                                    .map((yao) => ({ yaoName: traditionalYaoName(yao.position, yao.type), yaoCi: yao.yaoCi })),
+                                    .map((yao) => ({ 爻名: traditionalYaoName(yao.position, yao.type), 爻辞: yao.yaoCi })),
                             }
                             : {}),
                     },
                 }
                 : {}),
-            ganZhiTime: raw.ganZhiTime,
+            干支时间: raw.干支时间,
         },
-        fullBoard: {
-            lines: buildLiuyaoAISafeBoardLines(result, detailLevel),
+        六爻全盘: {
+            爻列表: buildLiuyaoAISafeBoardLines(result, detailLevel),
         },
-        globalInteractions: {
-            combinations,
-            ...(detailLevel === 'full' && transitions.length > 0 ? { transitions } : {}),
-            ...(detailLevel === 'full' && resonances.length > 0 ? { resonances } : {}),
-            ...(detailLevel === 'full' ? { isLiuChongGua: result.liuChongGuaInfo?.isLiuChongGua ? '是' : '否' } : {}),
-            ...(detailLevel === 'full' ? { isLiuHeGua: result.liuHeGuaInfo?.isLiuHeGua ? '是' : '否' } : {}),
+        全局互动: {
+            组合关系: combinations,
+            ...(detailLevel === 'full' && transitions.length > 0 ? { 冲合转换: transitions } : {}),
+            ...(detailLevel === 'full' && resonances.length > 0 ? { 反伏信息: resonances } : {}),
+            ...(detailLevel === 'full' ? { 是否六冲卦: result.liuChongGuaInfo?.isLiuChongGua ? '是' : '否' } : {}),
+            ...(detailLevel === 'full' ? { 是否六合卦: result.liuHeGuaInfo?.isLiuHeGua ? '是' : '否' } : {}),
             ...(detailLevel === 'full' && result.chongHeTransition && result.chongHeTransition.type !== 'none'
-                ? { chongHeTransition: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' }
+                ? { 冲合趋势: result.chongHeTransition.type === 'chong_to_he' ? '冲转合' : '合转冲' }
                 : {}),
         },
-        meta: {
-            detailLevel,
+        元信息: {
+            细节级别: detailLevel === 'default' ? '默认' : detailLevel === 'more' ? '扩展' : '完整',
         },
     };
     if (detailLevel === 'more' || detailLevel === 'full') {
         if (result.guaShen) {
-            payload.board.guaShen = {
-                branch: result.guaShen.branch,
-                ...(result.guaShen.linePosition ? { position: buildLiuyaoPositionLabel(result.guaShen.linePosition, result.fullYaos) } : {}),
-                ...(result.guaShen.absent ? { state: '飞伏' } : {}),
+            payload.卦盘.卦身 = {
+                地支: result.guaShen.branch,
+                ...(result.guaShen.linePosition ? { 位置: buildLiuyaoPositionLabel(result.guaShen.linePosition, result.fullYaos) } : {}),
+                ...(result.guaShen.absent ? { 状态: '飞伏' } : {}),
             };
         }
         if (result.nuclearHexagram || result.oppositeHexagram || result.reversedHexagram) {
-            payload.board.derivedHexagrams = {
-                ...(result.nuclearHexagram ? { nuclearHexagram: { name: result.nuclearHexagram.name } } : {}),
-                ...(result.oppositeHexagram ? { oppositeHexagram: { name: result.oppositeHexagram.name } } : {}),
-                ...(result.reversedHexagram ? { reversedHexagram: { name: result.reversedHexagram.name } } : {}),
+            payload.卦盘.衍生卦 = {
+                ...(result.nuclearHexagram ? { 互卦: { 卦名: result.nuclearHexagram.name } } : {}),
+                ...(result.oppositeHexagram ? { 错卦: { 卦名: result.oppositeHexagram.name } } : {}),
+                ...(result.reversedHexagram ? { 综卦: { 卦名: result.reversedHexagram.name } } : {}),
             };
         }
         if (result.globalShenSha?.length) {
-            payload.board.globalShenSha = [...result.globalShenSha];
+            payload.卦盘.全局神煞 = [...result.globalShenSha];
         }
     }
     return payload;
@@ -677,48 +743,63 @@ export function renderTarotCanonicalJSON(result, options = {}) {
 }
 // ===== 紫微 =====
 export function renderZiweiCanonicalJSON(result, options = {}) {
-    void options;
+    const detailLevel = normalizeZiweiDetailLevel(options.detailLevel);
     const basicInfo = {
-        solarDate: result.solarDate,
-        lunarDate: result.lunarDate,
-        fourPillars: `${result.fourPillars.year.gan}${result.fourPillars.year.zhi} ${result.fourPillars.month.gan}${result.fourPillars.month.zhi} ${result.fourPillars.day.gan}${result.fourPillars.day.zhi} ${result.fourPillars.hour.gan}${result.fourPillars.hour.zhi}`,
-        soul: result.soul,
-        body: result.body,
-        fiveElement: result.fiveElement,
+        阳历: result.solarDate,
+        农历: formatZiweiCanonicalLunarDate(result) || result.lunarDate,
+        四柱: `${result.fourPillars.year.gan}${result.fourPillars.year.zhi} ${result.fourPillars.month.gan}${result.fourPillars.month.zhi} ${result.fourPillars.day.gan}${result.fourPillars.day.zhi} ${result.fourPillars.hour.gan}${result.fourPillars.hour.zhi}`,
+        命主: result.soul,
+        身主: result.body,
+        五行局: result.fiveElement,
     };
     if (result.gender === 'male' || result.gender === 'female') {
-        basicInfo.gender = result.gender === 'male' ? '男' : '女';
+        basicInfo.性别 = result.gender === 'male' ? '男' : '女';
     }
-    if (result.time)
-        basicInfo.time = result.time + (result.timeRange ? `（${result.timeRange}）` : '');
-    if (result.douJun)
-        basicInfo.douJun = result.douJun;
-    if (result.lifeMasterStar)
-        basicInfo.lifeMasterStar = result.lifeMasterStar;
-    if (result.bodyMasterStar)
-        basicInfo.bodyMasterStar = result.bodyMasterStar;
-    if (result.trueSolarTimeInfo)
-        basicInfo.trueSolarTime = buildTrueSolarTimeJSON(result.trueSolarTimeInfo);
+    const birthYearMutagens = buildZiweiBirthYearMutagensJSON(result);
+    if (birthYearMutagens)
+        basicInfo.生年四化 = birthYearMutagens;
+    if (detailLevel === 'full') {
+        if (result.time)
+            basicInfo.时辰 = result.time + (result.timeRange ? `（${result.timeRange}）` : '');
+        if (result.douJun)
+            basicInfo.斗君 = result.douJun;
+        if (result.lifeMasterStar)
+            basicInfo.命主星 = result.lifeMasterStar;
+        if (result.bodyMasterStar)
+            basicInfo.身主星 = result.bodyMasterStar;
+        if (result.trueSolarTimeInfo)
+            basicInfo.真太阳时 = buildZiweiTrueSolarTimeJSON(result.trueSolarTimeInfo);
+    }
     const palaces = sortZiweiPalaces(result.palaces).map((palace) => {
+        const base = {
+            宫位: palace.name,
+            干支: `${palace.heavenlyStem}${palace.earthlyBranch}`,
+            是否身宫: palace.isBodyPalace ? '是' : '否',
+            是否来因宫: palace.isOriginalPalace ? '是' : '否',
+            主星及四化: palace.majorStars.map(buildZiweiStarJSON),
+            辅星: palace.minorStars.map(buildZiweiStarJSON),
+            大限: palace.decadalRange ? `${palace.decadalRange[0]}~${palace.decadalRange[1]}` : undefined,
+        };
+        if (detailLevel !== 'full') {
+            return base;
+        }
         const shensha = [palace.changsheng12, palace.boshi12, palace.jiangqian12, palace.suiqian12].filter(Boolean);
         return {
-            name: palace.name,
-            index: palace.index,
-            ganZhi: `${palace.heavenlyStem}${palace.earthlyBranch}`,
-            isBodyPalace: palace.isBodyPalace,
-            isOriginalPalace: palace.isOriginalPalace,
-            majorStars: palace.majorStars.map(buildStarJSON),
-            minorStars: palace.minorStars.map(buildStarJSON),
-            adjStars: (palace.adjStars || []).map(buildStarJSON),
-            shenSha: shensha,
-            decadalRange: palace.decadalRange ? `${palace.decadalRange[0]}~${palace.decadalRange[1]}` : undefined,
-            liuNianAges: palace.liuNianAges || [],
-            ages: palace.ages || [],
+            ...base,
+            宫位索引: palace.index,
+            杂曜: (palace.adjStars || []).map(buildZiweiStarJSON),
+            神煞: shensha,
+            流年虚岁: palace.liuNianAges || [],
+            小限虚岁: palace.ages || [],
         };
     });
-    const json = { basicInfo, palaces };
-    if (result.smallLimit?.length)
-        json.smallLimit = result.smallLimit;
+    const json = { 基本信息: basicInfo, 十二宫位: palaces };
+    if (detailLevel === 'full' && result.smallLimit?.length) {
+        json.小限 = result.smallLimit.map((item) => ({
+            宫位: item.palaceName,
+            虚岁: item.ages,
+        }));
+    }
     return json;
 }
 // ===== 奇门遁甲 =====
@@ -878,11 +959,11 @@ export function renderFortuneCanonicalJSON(result) {
 export function renderDayunCanonicalJSON(result, options = {}) {
     const detailLevel = normalizeBaziDetailLevel(options.detailLevel);
     const json = {
-        startInfo: {
-            startAge: result.startAge,
-            detail: result.startAgeDetail,
+        起运信息: {
+            起运年龄: result.startAge,
+            起运详情: result.startAgeDetail,
         },
-        list: result.list.map((item) => buildDayunItemJSON({
+        大运列表: result.list.map((item) => buildDayunItemJSON({
             startYear: item.startYear,
             startAge: item.startAge,
             ganZhi: item.ganZhi,
@@ -899,10 +980,10 @@ export function renderDayunCanonicalJSON(result, options = {}) {
         })),
     };
     if (detailLevel === 'full' && result.xiaoYun.length > 0) {
-        json.xiaoYun = result.xiaoYun.map((item) => ({
-            age: item.age,
-            ganZhi: item.ganZhi,
-            tenGod: item.tenGod,
+        json.小运 = result.xiaoYun.map((item) => ({
+            年龄: item.age,
+            干支: item.ganZhi,
+            十神: item.tenGod,
         }));
     }
     return json;

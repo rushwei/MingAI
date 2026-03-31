@@ -127,7 +127,7 @@ test('core and web bazi text should surface full true-solar metadata details', (
   assert.match(text, /跨日/u, 'web bazi copy text should expose dayOffset');
 });
 
-test('core and web ziwei text should keep full age arrays instead of truncating them', () => {
+test('ziwei full text should keep full age arrays instead of truncating them while default stays compact', () => {
   const markdown = renderZiweiCanonicalText({
     solarDate: '1990-1-1',
     lunarDate: '1989-12-5',
@@ -165,7 +165,7 @@ test('core and web ziwei text should keep full age arrays instead of truncating 
       dayOffset: -1,
     },
     smallLimit: [{ palaceName: '命宫', ages: [301, 302, 303, 304, 305, 306] }],
-  });
+  }, { detailLevel: 'full' });
 
   assert.match(markdown, /206/u, 'mcp ziwei markdown should keep full liuNian ages');
   assert.match(markdown, /106/u, 'mcp ziwei markdown should keep full smallLimit ages in dedicated column');
@@ -196,11 +196,17 @@ test('core and web ziwei text should keep full age arrays instead of truncating 
   chart.palaces[0].liuNianAges = [201, 202, 203, 204, 205, 206];
   chart.smallLimit = [{ palaceName: '命宫', ages: [301, 302, 303, 304, 305, 306] }];
 
-  const text = generateZiweiChartText(chart);
-  assert.match(text, /206/u, 'web ziwei copy text should keep full liuNian ages');
-  assert.match(text, /106/u, 'web ziwei copy text should keep full smallLimit ages in dedicated column');
-  assert.match(text, /时辰索引|真太阳时索引/u, 'web ziwei copy text should expose trueTimeIndex');
-  assert.match(text, /跨日/u, 'web ziwei copy text should expose dayOffset');
+  const defaultText = generateZiweiChartText(chart);
+  assert.doesNotMatch(defaultText, /206/u, 'default web ziwei copy text should omit full liuNian age arrays');
+  assert.doesNotMatch(defaultText, /106/u, 'default web ziwei copy text should omit full smallLimit age arrays');
+  assert.doesNotMatch(defaultText, /时辰索引|真太阳时索引/u, 'default web ziwei copy text should keep true-solar detail compact');
+  assert.doesNotMatch(defaultText, /跨日/u, 'default web ziwei copy text should keep true-solar detail compact');
+
+  const text = generateZiweiChartText(chart, { detailLevel: 'full' });
+  assert.match(text, /206/u, 'full web ziwei copy text should keep full liuNian ages');
+  assert.match(text, /106/u, 'full web ziwei copy text should keep full smallLimit ages in dedicated column');
+  assert.match(text, /时辰索引|真太阳时索引/u, 'full web ziwei copy text should expose trueTimeIndex');
+  assert.match(text, /跨日/u, 'full web ziwei copy text should expose dayOffset');
 });
 
 test('web ziwei text should include horoscope block when caller explicitly requests it', () => {

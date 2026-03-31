@@ -11,13 +11,8 @@ export type DayunCanonicalTextOptions = {
 export type TarotCanonicalTextOptions = {
     birthDate?: string | null;
 };
-export declare function sortZiweiPalaces<T extends {
-    name: string;
-    index?: number;
-}>(palaces: T[]): T[];
-export declare function renderBaziCanonicalText(chart: BaziOutput, options?: BaziCanonicalTextOptions): string;
-export declare function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolveOutput): string;
 export type ZiweiCanonicalTextOptions = {
+    detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
     horoscope?: {
         decadal: {
             palaceName: string;
@@ -37,6 +32,12 @@ export type ZiweiCanonicalTextOptions = {
         };
     };
 };
+export declare function sortZiweiPalaces<T extends {
+    name: string;
+    index?: number;
+}>(palaces: T[]): T[];
+export declare function renderBaziCanonicalText(chart: BaziOutput, options?: BaziCanonicalTextOptions): string;
+export declare function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolveOutput): string;
 export declare function renderZiweiCanonicalText(result: ZiweiOutput, options?: ZiweiCanonicalTextOptions): string;
 export declare function renderZiweiHoroscopeCanonicalText(result: ZiweiHoroscopeOutput): string;
 export declare function renderZiweiFlyingStarCanonicalText(result: ZiweiFlyingStarOutput): string;

@@ -53,7 +53,7 @@ export function ZiweiChartGrid({
     horoscopeHighlight = {},
     horoscopeInfo,
 }: ZiweiChartProps) {
-    const lifePalaceIndex = canonicalChart.palaces.find(p => p.name === '命宫')?.index ?? null;
+    const lifePalaceIndex = canonicalChart.十二宫位.find(p => p.宫位 === '命宫')?.宫位索引 ?? null;
     // 默认选中命宫，显示三方四正
     const [selectedPalace, setSelectedPalace] = useState<number | null | undefined>(undefined);
     const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
@@ -64,7 +64,7 @@ export function ZiweiChartGrid({
     const activeSelectedPalace = selectedPalace === undefined ? defaultSelectedPalace : selectedPalace;
 
     const getCanonicalPalaceByBranch = (branchIndex: number) => {
-        return canonicalChart.palaces.find((p) => getBranchIndex(p.ganZhi.slice(-1)) === branchIndex);
+        return canonicalChart.十二宫位.find((p) => getBranchIndex(p.干支.slice(-1)) === branchIndex);
     };
 
     // 计算三方四正高亮
@@ -131,8 +131,8 @@ export function ZiweiChartGrid({
         [2, 1, 0, 11],
     ];
 
-    const lifePalaceBranch = canonicalChart.palaces.find((p) => p.name === '命宫')?.ganZhi.slice(-1) || '';
-    const bodyPalaceBranch = canonicalChart.palaces.find((p) => p.isBodyPalace)?.ganZhi.slice(-1) || '';
+    const lifePalaceBranch = canonicalChart.十二宫位.find((p) => p.宫位 === '命宫')?.干支.slice(-1) || '';
+    const bodyPalaceBranch = canonicalChart.十二宫位.find((p) => p.是否身宫 === '是')?.干支.slice(-1) || '';
     return (
         <div className="w-full">
             {/* 工具栏 */}
@@ -177,7 +177,7 @@ export function ZiweiChartGrid({
                         preserveAspectRatio="none"
                     >
                         {(() => {
-                            const selectedPalaceInfo = canonicalChart.palaces.find((palace) => palace.index === activeSelectedPalace);
+                            const selectedPalaceInfo = canonicalChart.十二宫位.find((palace) => palace.宫位索引 === activeSelectedPalace);
                             if (!selectedPalaceInfo) return null;
                             // 宫位在网格中的位置映射 (branchIndex -> {row, col})
                             const positionMap: Record<number, { row: number; col: number }> = {
@@ -187,7 +187,7 @@ export function ZiweiChartGrid({
                                 2: { row: 3, col: 0 }, 1: { row: 3, col: 1 }, 0: { row: 3, col: 2 }, 11: { row: 3, col: 3 },
                             };
 
-                            const selectedBranch = getBranchIndex(selectedPalaceInfo.ganZhi.slice(-1));
+                            const selectedBranch = getBranchIndex(selectedPalaceInfo.干支.slice(-1));
                             const selectedPos = positionMap[selectedBranch];
                             if (!selectedPos) return null;
 
@@ -223,9 +223,9 @@ export function ZiweiChartGrid({
                             const startPoint = getAnchorPoint(selectedPos);
                             sanFangIndexes.forEach((palaceIdx, i) => {
                                 if (palaceIdx === activeSelectedPalace) return;
-                                const palaceInfo = canonicalChart.palaces.find((palace) => palace.index === palaceIdx);
+                                const palaceInfo = canonicalChart.十二宫位.find((palace) => palace.宫位索引 === palaceIdx);
                                 if (!palaceInfo) return;
-                                const branch = getBranchIndex(palaceInfo.ganZhi.slice(-1));
+                                const branch = getBranchIndex(palaceInfo.干支.slice(-1));
                                 const targetPos = positionMap[branch];
                                 if (!targetPos) return;
 
@@ -266,29 +266,29 @@ export function ZiweiChartGrid({
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">年柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(0) || '*'}</span>
-                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[0]?.charAt(1) || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.基本信息.四柱.split(' ')[0]?.charAt(0))}>{canonicalChart.基本信息.四柱.split(' ')[0]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.基本信息.四柱.split(' ')[0]?.charAt(1))}>{canonicalChart.基本信息.四柱.split(' ')[0]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">月柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(0) || '*'}</span>
-                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[1]?.charAt(1) || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.基本信息.四柱.split(' ')[1]?.charAt(0))}>{canonicalChart.基本信息.四柱.split(' ')[1]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.基本信息.四柱.split(' ')[1]?.charAt(1))}>{canonicalChart.基本信息.四柱.split(' ')[1]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">日柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(0) || '*'}</span>
-                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[2]?.charAt(1) || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.基本信息.四柱.split(' ')[2]?.charAt(0))}>{canonicalChart.基本信息.四柱.split(' ')[2]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.基本信息.四柱.split(' ')[2]?.charAt(1))}>{canonicalChart.基本信息.四柱.split(' ')[2]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-foreground-secondary text-[10px]">时柱</div>
                                                         <div className="font-semibold">
-                                                            <span style={getStemElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(0))}>{canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(0) || '*'}</span>
-                                                            <span style={getBranchElementStyle(canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(1))}>{canonicalChart.basicInfo.fourPillars.split(' ')[3]?.charAt(1) || '*'}</span>
+                                                            <span style={getStemElementStyle(canonicalChart.基本信息.四柱.split(' ')[3]?.charAt(0))}>{canonicalChart.基本信息.四柱.split(' ')[3]?.charAt(0) || '*'}</span>
+                                                            <span style={getBranchElementStyle(canonicalChart.基本信息.四柱.split(' ')[3]?.charAt(1))}>{canonicalChart.基本信息.四柱.split(' ')[3]?.charAt(1) || '*'}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -297,18 +297,18 @@ export function ZiweiChartGrid({
 
                                                 <div className="flex justify-center gap-2 text-xs">
                                                     <span className="text-foreground-secondary">阳历</span>
-                                                    <span>{canonicalChart.basicInfo.solarDate}</span>
+                                                    <span>{canonicalChart.基本信息.阳历}</span>
                                                 </div>
                                                 <div className="flex justify-center gap-2 text-xs">
                                                     <span className="text-foreground-secondary">农历</span>
-                                                    <span>{canonicalChart.basicInfo.lunarDate}</span>
+                                                    <span>{canonicalChart.基本信息.农历}</span>
                                                 </div>
 
                                                 <div className="border-t border-border my-1" />
 
                                                 <div className="flex justify-center gap-4 text-xs">
-                                                    <span>命主：<span className="font-semibold text-purple-500">{canonicalChart.basicInfo.soul}</span></span>
-                                                    <span>身主：<span className="font-semibold">{canonicalChart.basicInfo.body}</span></span>
+                                                    <span>命主：<span className="font-semibold text-purple-500">{canonicalChart.基本信息.命主}</span></span>
+                                                    <span>身主：<span className="font-semibold">{canonicalChart.基本信息.身主}</span></span>
                                                 </div>
 
                                                 <div className="flex justify-center gap-4 text-xs">
@@ -316,24 +316,24 @@ export function ZiweiChartGrid({
                                                     <span>身宫：<span className="text-amber-500">{bodyPalaceBranch}</span></span>
                                                 </div>
 
-                                                {(canonicalChart.basicInfo.douJun || canonicalChart.basicInfo.lifeMasterStar || canonicalChart.basicInfo.bodyMasterStar) && (
+                                                {(canonicalChart.基本信息.斗君 || canonicalChart.基本信息.命主星 || canonicalChart.基本信息.身主星) && (
                                                     <div className="flex flex-wrap justify-center gap-4 text-xs">
-                                                        {canonicalChart.basicInfo.douJun && <span>斗君：<span className="font-semibold">{canonicalChart.basicInfo.douJun}</span></span>}
-                                                        {canonicalChart.basicInfo.lifeMasterStar && <span>命主星：<span className="font-semibold">{canonicalChart.basicInfo.lifeMasterStar}</span></span>}
-                                                        {canonicalChart.basicInfo.bodyMasterStar && <span>身主星：<span className="font-semibold">{canonicalChart.basicInfo.bodyMasterStar}</span></span>}
+                                                        {canonicalChart.基本信息.斗君 && <span>斗君：<span className="font-semibold">{canonicalChart.基本信息.斗君}</span></span>}
+                                                        {canonicalChart.基本信息.命主星 && <span>命主星：<span className="font-semibold">{canonicalChart.基本信息.命主星}</span></span>}
+                                                        {canonicalChart.基本信息.身主星 && <span>身主星：<span className="font-semibold">{canonicalChart.基本信息.身主星}</span></span>}
                                                     </div>
                                                 )}
 
-                                                {canonicalChart.basicInfo.trueSolarTime && (
+                                                {canonicalChart.基本信息.真太阳时 && (
                                                     <div className="flex justify-center gap-2 text-xs">
                                                         <span className="text-foreground-secondary">真太阳时</span>
-                                                        <span>{canonicalChart.basicInfo.trueSolarTime.trueSolarTime}</span>
+                                                        <span>{canonicalChart.基本信息.真太阳时.真太阳时}</span>
                                                     </div>
                                                 )}
 
                                                 <div className="text-center">
                                                     <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-xs font-medium">
-                                                        {canonicalChart.basicInfo.fiveElement}
+                                                        {canonicalChart.基本信息.五行局}
                                                     </span>
                                                 </div>
                                             </div>
@@ -344,9 +344,9 @@ export function ZiweiChartGrid({
                             }
 
                             const palace = getCanonicalPalaceByBranch(branchIdx);
-                            if (!palace || typeof palace.index !== 'number') return null;
+                            if (!palace || typeof palace.宫位索引 !== 'number') return null;
 
-                            const palaceIndex = palace.index;
+                            const palaceIndex = palace.宫位索引;
                             const isLifePalace = palaceIndex === lifePalaceIndex;
                             const highlightTypes = getHighlightTypes(palaceIndex);
                             const isHighlighted = highlightTypes.length > 0 || sanFangSiZhengPalaces.includes(palaceIndex);
