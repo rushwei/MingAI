@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   handleDailyFortune,
+  handleBaziPillarsResolve,
   renderBaziCanonicalJSON,
   handleDaliurenCalculate,
   handleQimenCalculate,
@@ -11,6 +12,7 @@ import {
   handleZiweiHoroscope,
   handleZiweiCalculate,
   renderDaliurenCanonicalJSON,
+  renderBaziPillarsResolveCanonicalJSON,
   renderFortuneCanonicalJSON,
   renderQimenCanonicalJSON,
   renderTarotCanonicalJSON,
@@ -158,6 +160,31 @@ test('bazi canonical json should de-duplicate branch relation summaries without 
   const json = renderBaziCanonicalJSON(createBaziResult());
 
   assert.deepEqual(json.干支关系, ['子辰半合水', '寅卯辰三会木']);
+});
+
+test('bazi_pillars_resolve canonical json should expose Chinese keys and next-call guidance', async () => {
+  const result = await handleBaziPillarsResolve({
+    yearPillar: '癸未',
+    monthPillar: '庚申',
+    dayPillar: '戊寅',
+    hourPillar: '丁巳',
+  });
+
+  const json = renderBaziPillarsResolveCanonicalJSON(result);
+
+  assert.equal(typeof json.原始四柱.年柱, 'string');
+  assert.equal(typeof json.候选数量, 'number');
+  if (json.候选列表.length > 0) {
+    assert.equal(typeof json.候选列表[0].候选序号, 'number');
+    assert.equal(typeof json.候选列表[0].农历, 'string');
+    assert.equal(typeof json.候选列表[0].公历, 'string');
+    assert.equal(typeof json.候选列表[0].下一步排盘建议.工具, 'string');
+    assert.equal(typeof json.候选列表[0].下一步排盘建议.参数.出生年, 'number');
+    assert.equal(Array.isArray(json.候选列表[0].下一步排盘建议.缺少信息), true);
+  }
+  assert.equal('originalPillars' in json, false);
+  assert.equal('count' in json, false);
+  assert.equal('candidates' in json, false);
 });
 
 test('daliuren canonical json keeps full tianjiang names for palace grid color mapping', async () => {

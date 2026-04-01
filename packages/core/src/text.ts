@@ -369,11 +369,12 @@ export function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolve
   lines.push('## 候选列表');
   for (const [index, candidate] of result.candidates.entries()) {
     lines.push('');
-    lines.push(`### 候选 ${index + 1}（${candidate.candidateId}）`);
+    lines.push(`### 候选 ${index + 1}`);
     lines.push(`- **农历**: ${candidate.lunarText}`);
     lines.push(`- **公历**: ${candidate.solarText}`);
     lines.push(`- **出生时间**: ${candidate.birthHour}:${String(candidate.birthMinute).padStart(2, '0')}`);
     if (candidate.isLeapMonth) lines.push('- **闰月**: 是');
+    lines.push('- **下一步**: 使用 `bazi_calculate` 并补充 gender');
   }
 
   return lines.join('\n');
