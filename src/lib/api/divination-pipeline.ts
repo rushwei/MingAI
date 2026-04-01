@@ -23,6 +23,7 @@ import type { AIModelConfig } from '@/types';
 import type { AIPersonality } from '@/types';
 import type { ChartType } from '@/lib/visualization/chart-types';
 import { buildVisualizationOutputContractPrompt } from '@/lib/visualization/prompt';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 // ─── Types ───
 
@@ -36,6 +37,11 @@ export interface InterpretPrompts {
   userPrompt: string;
 }
 
+export interface InterpretPromptContext {
+  userId: string;
+  chartPromptDetailLevel: ChartTextDetailLevel;
+}
+
 export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput> {
   /** conversations.source_type */
   sourceType: string;
@@ -44,7 +50,9 @@ export interface DivinationRouteConfig<T extends InterpretInput = InterpretInput
   /** Parse & validate the request body. Return parsed input or an error. */
   parseInput: (body: unknown) => T | { error: string; status: number };
   /** Build system + user prompts from parsed input. */
-  buildPrompts: (input: T) => InterpretPrompts;
+  buildPrompts: (input: T, context?: InterpretPromptContext) => InterpretPrompts | Promise<InterpretPrompts>;
+  /** Optional prompt context resolver (used for user settings such as chart prompt detail level). */
+  resolvePromptContext?: (input: T, userId: string) => Promise<InterpretPromptContext> | InterpretPromptContext;
   /** Build source_data for createAIAnalysisConversation. */
   buildSourceData: (input: T, modelId: string, reasoningEnabled: boolean) => Record<string, unknown>;
   /** Generate conversation title. */
@@ -154,6 +162,7 @@ export function createInterpretHandler<T extends InterpretInput>(
     tag,
     parseInput,
     buildPrompts,
+    resolvePromptContext,
     buildSourceData,
     generateTitle,
     defaultModelId = DEFAULT_MODEL_ID,
@@ -204,7 +213,10 @@ export function createInterpretHandler<T extends InterpretInput>(
     const { modelId: resolvedModelId, modelConfig, reasoningEnabled } = access;
 
     // Build prompts, optionally appending visualization output contract
-    const { systemPrompt: rawSystemPrompt, userPrompt } = buildPrompts(input);
+    const promptContext = resolvePromptContext
+      ? await resolvePromptContext(input, user.id)
+      : undefined;
+    const { systemPrompt: rawSystemPrompt, userPrompt } = await buildPrompts(input, promptContext);
     const systemPrompt = allowedChartTypes?.length
       ? `${rawSystemPrompt}\n\n${buildVisualizationOutputContractPrompt(allowedChartTypes)}`
       : rawSystemPrompt;

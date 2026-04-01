@@ -14,6 +14,7 @@ import { getUserAuthInfo, useCredit, addCredits } from '@/lib/user/credits';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import { formatBaziPromptText } from '@/lib/bazi-prompt';
+import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import { getBaziCaseProfileByChartId } from '@/lib/server/bazi-case-profile';
 import { USER_SETTINGS_SELECT, normalizeUserSettings } from '@/lib/user/settings';
 import {
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
         };
 
         const caseProfile = await getBaziCaseProfileByChartId(supabase, chartId, user.id);
+        const promptDetailLevel = await loadResolvedChartPromptDetailLevel(user.id, 'bazi');
         const chartSummary = formatBaziPromptText({
             id: resolvedChart.id,
             name: resolvedChart.name || '命盘',
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
             calendarType: (resolvedChart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
             isLeapMonth: resolvedChart.is_leap_month || false,
             chartData: resolvedChart.chart_data || undefined,
-        }, caseProfile);
+        }, caseProfile, promptDetailLevel);
         const { data: userSettingsRow } = await supabase
             .from('user_settings')
             .select(USER_SETTINGS_SELECT)

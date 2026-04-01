@@ -7,6 +7,7 @@ import {
 
 export type ExpressionStyle = 'direct' | 'gentle';
 export type AppLanguage = 'zh' | 'en';
+export type ChartPromptDetailLevel = 'default' | 'more' | 'full';
 
 export const DEFAULT_NAV_ORDER = [
   'bazi', 'hepan', 'ziwei', 'liuyao', 'qimen', 'daliuren', 'tarot', 'face', 'palm', 'mbti', 'daily', 'monthly',
@@ -31,6 +32,7 @@ export const DEFAULT_MOBILE_DRAWER_ORDER = [
 type UserSettingsRow = {
   expression_style?: unknown;
   custom_instructions?: unknown;
+  chart_prompt_detail_level?: unknown;
   user_profile?: unknown;
   prompt_kb_ids?: unknown;
   visualization_settings?: unknown;
@@ -60,6 +62,7 @@ type UserSettingsReader = {
 export type UserSettingsSnapshot = {
   expressionStyle: ExpressionStyle;
   customInstructions: string;
+  chartPromptDetailLevel: ChartPromptDetailLevel;
   userProfile: unknown;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | undefined;
@@ -79,6 +82,7 @@ export type UserSettingsLoadResult = {
 export type UserSettingsUpdateInput = Partial<{
   expressionStyle: ExpressionStyle;
   customInstructions: string | null;
+  chartPromptDetailLevel: ChartPromptDetailLevel;
   userProfile: unknown;
   promptKbIds: string[];
   visualizationSettings: VisualizationSettings | null;
@@ -91,6 +95,7 @@ export type UserSettingsUpdateInput = Partial<{
 export const USER_SETTINGS_SELECT = `
   expression_style,
   custom_instructions,
+  chart_prompt_detail_level,
   user_profile,
   prompt_kb_ids,
   visualization_settings,
@@ -106,6 +111,11 @@ export function normalizeUserSettings(row: UserSettingsRow | null | undefined): 
   return {
     expressionStyle: row?.expression_style === 'gentle' ? 'gentle' : 'direct',
     customInstructions: typeof row?.custom_instructions === 'string' ? row.custom_instructions : '',
+    chartPromptDetailLevel: row?.chart_prompt_detail_level === 'full'
+      ? 'full'
+      : row?.chart_prompt_detail_level === 'more'
+        ? 'more'
+        : 'default',
     userProfile: row?.user_profile ?? {},
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
       ? row.prompt_kb_ids.filter((value): value is string => typeof value === 'string' && value.length > 0)
@@ -142,6 +152,14 @@ export async function getUserSettingsSnapshot(
   };
 }
 
+export async function getChartPromptDetailLevel(
+  client: UserSettingsReader,
+  userId: string,
+): Promise<ChartPromptDetailLevel> {
+  const { settings } = await getUserSettingsSnapshot(client, userId);
+  return settings.chartPromptDetailLevel;
+}
+
 export function buildUserSettingsUpdatePayload(
   userId: string,
   body: UserSettingsUpdateInput,
@@ -156,6 +174,9 @@ export function buildUserSettingsUpdatePayload(
   }
   if (body.customInstructions === null || typeof body.customInstructions === 'string') {
     payload.custom_instructions = body.customInstructions;
+  }
+  if (body.chartPromptDetailLevel === 'default' || body.chartPromptDetailLevel === 'more' || body.chartPromptDetailLevel === 'full') {
+    payload.chart_prompt_detail_level = body.chartPromptDetailLevel;
   }
   if (body.userProfile !== undefined) {
     payload.user_profile = body.userProfile;

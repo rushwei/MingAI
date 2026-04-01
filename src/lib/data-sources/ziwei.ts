@@ -53,7 +53,7 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
         return (data as ZiweiRow) || null;
     },
 
-    formatForAI(chart: ZiweiRow): string {
+    formatForAI(chart: ZiweiRow, ctx?: DataSourceQueryContext): string {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birth = `${chart.birth_date}${chart.birth_time ? ` ${chart.birth_time}` : ''}`;
@@ -67,25 +67,9 @@ export const ziweiProvider: DataSourceProvider<ZiweiRow> = {
             calendarType: (chart.calendar_type as 'solar' | 'lunar' | undefined) || 'solar',
             isLeapMonth: chart.is_leap_month ?? false,
             chartData,
-        });
+        }, ctx?.chartPromptDetailLevel);
         if (canonicalText) return canonicalText;
-
-        // Fallback: 尝试提取更多有用信息
-        const lines = [`## 紫微命盘：${name}`, `- 出生时间：${birth}`];
-        if (chart.gender) lines.push(`- 性别：${chart.gender}`);
-        if (chart.calendar_type) lines.push(`- 历法：${chart.calendar_type === 'lunar' ? '农历' : '阳历'}`);
-        if (chart.is_leap_month) lines.push(`- 闰月：是`);
-        if (chart.birth_place) lines.push(`- 出生地：${chart.birth_place}`);
-
-        // 尝试从 chartData 中提取关键字段
-        const cd = chartData as Record<string, unknown>;
-        if (cd.fiveElement) lines.push(`- 五行局：${cd.fiveElement}`);
-        if (cd.soul) lines.push(`- 命主：${cd.soul}`);
-        if (cd.body) lines.push(`- 身主：${cd.body}`);
-        if (cd.solarDate) lines.push(`- 阳历：${cd.solarDate}`);
-        if (cd.lunarDate) lines.push(`- 农历：${cd.lunarDate}`);
-
-        return lines.join('\n');
+        return `紫微命盘：${name}\n出生时间：${birth}\n命盘数据不完整，无法重建标准命盘文本。`;
     },
 
     summarize(chart: ZiweiRow): string {

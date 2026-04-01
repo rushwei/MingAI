@@ -23,6 +23,7 @@ import { SettingsLoginRequired } from '@/components/settings/SettingsLoginRequir
 import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLauncher';
 import { getCurrentUserSettings, updateCurrentUserSettings } from '@/lib/user/settings';
 import { syncVisualizationPreferencesAfterSave } from '@/lib/user/ai-settings-local-sync';
+import { CHART_TEXT_DETAIL_OPTIONS, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type ExpressionStyle = 'direct' | 'gentle';
 type UserProfileDraft = {
@@ -35,6 +36,7 @@ type UserProfileDraft = {
 
 type AISettingsDraftSnapshot = {
   expressionStyle: ExpressionStyle;
+  chartPromptDetailLevel: ChartTextDetailLevel;
   customInstructions: string;
   selectedDimensions: FortuneDimensionKey[];
   dayunPeriods: number;
@@ -70,6 +72,7 @@ function normalizeUserProfileDraft(userProfile: UserProfileDraft): UserProfileDr
 
 function buildDraftSnapshot(input: {
   expressionStyle: ExpressionStyle;
+  chartPromptDetailLevel: ChartTextDetailLevel;
   customInstructions: string;
   selectedDimensions: FortuneDimensionKey[];
   dayunPeriods: number;
@@ -78,6 +81,7 @@ function buildDraftSnapshot(input: {
 }): AISettingsDraftSnapshot {
   return {
     expressionStyle: input.expressionStyle,
+    chartPromptDetailLevel: input.chartPromptDetailLevel,
     customInstructions: input.customInstructions,
     selectedDimensions: [...input.selectedDimensions],
     dayunPeriods: input.dayunPeriods,
@@ -136,6 +140,7 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
   const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
 
   const [expressionStyle, setExpressionStyle] = useState<ExpressionStyle>('direct');
+  const [chartPromptDetailLevel, setChartPromptDetailLevel] = useState<ChartTextDetailLevel>('default');
   const [customInstructions, setCustomInstructions] = useState('');
   const [selectedDimensions, setSelectedDimensions] = useState<FortuneDimensionKey[]>(
     () => CORE_DIMENSIONS.slice(0, 6).map((dimension) => dimension.key),
@@ -148,6 +153,7 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
   const applyDraftSnapshot = (snapshot: AISettingsDraftSnapshot) => {
     setExpressionStyle(snapshot.expressionStyle);
+    setChartPromptDetailLevel(snapshot.chartPromptDetailLevel);
     setCustomInstructions(snapshot.customInstructions);
     setSelectedDimensions(snapshot.selectedDimensions);
     setDayunPeriods(snapshot.dayunPeriods);
@@ -175,6 +181,7 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
       setSettingsLoadFailed(false);
       const nextExpressionStyle = (settings?.expressionStyle || 'direct') as ExpressionStyle;
+      const nextChartPromptDetailLevel = settings?.chartPromptDetailLevel || 'default';
       const nextCustomInstructions = (settings?.customInstructions || '').slice(0, CUSTOM_INSTRUCTIONS_LIMIT);
 
       const visualizationSettings = settings?.visualizationSettings || readLocalVisualizationSettings(localStorage);
@@ -211,6 +218,7 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
       const snapshot = buildDraftSnapshot({
         expressionStyle: nextExpressionStyle,
+        chartPromptDetailLevel: nextChartPromptDetailLevel,
         customInstructions: nextCustomInstructions,
         selectedDimensions: nextSelectedDimensions,
         dayunPeriods: nextDayunPeriods,
@@ -233,12 +241,13 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
   );
   const draftSnapshot = useMemo(() => buildDraftSnapshot({
     expressionStyle,
+    chartPromptDetailLevel,
     customInstructions,
     selectedDimensions,
     dayunPeriods,
     chartStyle,
     userProfile,
-  }), [chartStyle, customInstructions, dayunPeriods, expressionStyle, selectedDimensions, userProfile]);
+  }), [chartPromptDetailLevel, chartStyle, customInstructions, dayunPeriods, expressionStyle, selectedDimensions, userProfile]);
   const isDirty = useMemo(() => (
     savedSnapshot ? JSON.stringify(draftSnapshot) !== JSON.stringify(savedSnapshot) : false
   ), [draftSnapshot, savedSnapshot]);
@@ -271,6 +280,7 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
 
     const saved = await updateCurrentUserSettings({
       expressionStyle: nextSavedSnapshot.expressionStyle,
+      chartPromptDetailLevel: nextSavedSnapshot.chartPromptDetailLevel,
       customInstructions: nextSavedSnapshot.customInstructions || null,
       userProfile: profilePayload,
       visualizationSettings: {
@@ -407,6 +417,24 @@ export function AISettingsContent({ embedded = false }: { embedded?: boolean }) 
                 温和委婉
               </ToggleButton>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel>命盘注入详细级别</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {CHART_TEXT_DETAIL_OPTIONS.map((option) => (
+                <ToggleButton
+                  key={option.value}
+                  active={chartPromptDetailLevel === option.value}
+                  onClick={() => setChartPromptDetailLevel(option.value)}
+                >
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </div>
+            <p className="text-xs text-foreground-secondary">
+              用于聊天命盘注入与结果页 AI 解读 prompt。建议保留默认，默认经过微调能降低噪音。
+            </p>
           </div>
 
           <div className="space-y-2">

@@ -32,6 +32,7 @@ function injectToLastUserMessage(messages: ChatMessage[], prefix: string): ChatM
 
 type UserSettingsContext = {
   expressionStyle: 'direct' | 'gentle';
+  chartPromptDetailLevel: 'default' | 'more' | 'full';
   userProfile: unknown;
   customInstructions: string;
   promptKbIds: string[];
@@ -71,13 +72,15 @@ async function resolveMentionsForPrompt(
   mentions: Mention[],
   userId: string,
   supabase: ReturnType<typeof getSystemAdminClient>,
-  maxTokens: number
+  maxTokens: number,
+  chartPromptDetailLevel: 'default' | 'more' | 'full',
 ): Promise<ResolvedMention[]> {
   return await Promise.all(mentions.map(async (mention) => {
     console.log(`[mention-resolve] type=${mention.type} id=${mention.id ?? 'MISSING'} name=${mention.name}`);
     const resolvedContent = await resolveMention(mention, userId, {
       client: supabase,
       maxTokens,
+      chartPromptDetailLevel,
     });
     console.log(`[mention-resolve] result: type=${mention.type} contentLen=${resolvedContent?.length ?? 0}`);
     return { ...mention, resolvedContent };
@@ -90,11 +93,12 @@ async function loadUserSettingsContext(
 ): Promise<UserSettingsContext> {
   const { data } = await supabase
     .from('user_settings')
-    .select('expression_style, user_profile, custom_instructions, prompt_kb_ids, visualization_settings')
+    .select('expression_style, chart_prompt_detail_level, user_profile, custom_instructions, prompt_kb_ids, visualization_settings')
     .eq('user_id', userId)
     .maybeSingle();
   const row = data as null | {
     expression_style: 'direct' | 'gentle' | null;
+    chart_prompt_detail_level?: 'default' | 'more' | 'full' | null;
     user_profile: unknown;
     custom_instructions: string | null;
     prompt_kb_ids?: unknown;
@@ -103,6 +107,11 @@ async function loadUserSettingsContext(
 
   return {
     expressionStyle: (row?.expression_style ?? 'direct') as 'direct' | 'gentle',
+    chartPromptDetailLevel: row?.chart_prompt_detail_level === 'full'
+      ? 'full'
+      : row?.chart_prompt_detail_level === 'more'
+        ? 'more'
+        : 'default',
     userProfile: row?.user_profile || {},
     customInstructions: row?.custom_instructions || '',
     promptKbIds: Array.isArray(row?.prompt_kb_ids)
@@ -120,6 +129,7 @@ function applyUserSettingsOverrides(
     expressionStyle: overrides.expressionStyle === 'gentle' ? 'gentle' : (
       overrides.expressionStyle === 'direct' ? 'direct' : settings.expressionStyle
     ),
+    chartPromptDetailLevel: settings.chartPromptDetailLevel,
     customInstructions: typeof overrides.customInstructions === 'string'
       ? overrides.customInstructions
       : settings.customInstructions,
@@ -154,15 +164,17 @@ export async function buildChatPromptContext(
     : mergedMentions.filter((mention) => mention.type !== 'knowledge_base');
 
   const mentionBudget = await calculatePromptBudget(requestedModelId, reasoningEnabled);
-  const [resolvedMentions, userSettings] = await Promise.all([
-    userId ? resolveMentionsForPrompt(effectiveMentions, userId, supabase, mentionBudget) : [],
-    userId ? loadUserSettingsContext(supabase, userId) : {
-      expressionStyle: 'direct' as const,
-      userProfile: {},
-      customInstructions: '',
-      promptKbIds: [] as string[],
-    },
-  ]);
+  const userSettings = userId ? await loadUserSettingsContext(supabase, userId) : {
+    expressionStyle: 'direct' as const,
+    chartPromptDetailLevel: 'default' as const,
+    userProfile: {},
+    customInstructions: '',
+    promptKbIds: [] as string[],
+  };
+
+  const resolvedMentions = userId
+    ? await resolveMentionsForPrompt(effectiveMentions, userId, supabase, mentionBudget, userSettings.chartPromptDetailLevel)
+    : [];
 
   const effectiveUserSettings = applyUserSettingsOverrides(userSettings, {
     expressionStyle: body.expressionStyle,

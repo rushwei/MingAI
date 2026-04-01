@@ -25,7 +25,8 @@ import {
 } from '@/lib/divination/liuyao';
 import { getHexagramText } from '@/lib/divination/hexagram-texts';
 import { renderLiuyaoCanonicalJSON } from '@mingai/core/json';
-import { renderLiuyaoCanonicalText } from '@mingai/core/text';
+import { renderLiuyaoCanonicalText, renderLiuyaoLevelText } from '@mingai/core/text';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 // 从 core 导入并 re-export 共享常量
 export {
@@ -169,10 +170,11 @@ export function buildTraditionalInfo(
     yongShenTargets: LiuQin[],
     hexagram: Hexagram,
     changedHexagram?: Hexagram,
+    detailLevel?: ChartTextDetailLevel,
 ): string {
     if (!yaos || yaos.length !== 6) return '';
 
-    return renderLiuyaoCanonicalText(buildTraditionalCoreResult(
+    const coreResult = buildTraditionalCoreResult(
         yaos,
         hexagramCode,
         changedCode,
@@ -181,7 +183,18 @@ export function buildTraditionalInfo(
         yongShenTargets,
         hexagram,
         changedHexagram,
-    ));
+    );
+
+    if (detailLevel === undefined) {
+        return renderLiuyaoCanonicalText(coreResult);
+    }
+
+    const resolvedLevel = resolveChartTextDetailLevel('liuyao', detailLevel);
+    if (resolvedLevel === 'default' || resolvedLevel === 'more' || resolvedLevel === 'full') {
+        return renderLiuyaoLevelText(coreResult, { detailLevel: resolvedLevel });
+    }
+
+    return renderLiuyaoCanonicalText(coreResult);
 }
 
 export function buildTraditionalCanonicalJSON(

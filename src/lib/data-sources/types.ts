@@ -17,6 +17,7 @@ export const DATA_SOURCE_TYPES = [
 export type DataSourceType = typeof DATA_SOURCE_TYPES[number];
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export interface DataSourceSummary {
     id: string;
@@ -34,6 +35,7 @@ export type DataSourceQueryContext = {
     limit?: number;
     maxTokens?: number;
     maxChars?: number;
+    chartPromptDetailLevel?: ChartTextDetailLevel;
 };
 
 export interface DataSourceProvider<T = unknown> {
@@ -41,6 +43,6 @@ export interface DataSourceProvider<T = unknown> {
     displayName: string;
     list(userId: string, ctx?: DataSourceQueryContext): Promise<DataSourceSummary[]>;
     get(id: string, userId: string, ctx?: DataSourceQueryContext): Promise<T | null>;
-    formatForAI(data: T): string;
+    formatForAI(data: T, ctx?: DataSourceQueryContext): string;
     summarize(data: T): string;
 }

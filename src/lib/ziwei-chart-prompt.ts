@@ -1,5 +1,6 @@
 import { calculateZiwei, generateZiweiChartText, type ZiweiChart, type ZiweiFormData } from '@/lib/divination/ziwei';
 import { extractLongitudeFromChartData } from '@/lib/divination/place-resolution';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type ZiweiPromptInput = Partial<ZiweiChart> & {
     id?: string;
@@ -66,8 +67,8 @@ export function resolveZiweiPromptData(chart?: ZiweiPromptInput): ZiweiChart | n
     return null;
 }
 
-export function formatZiweiPromptText(chart?: ZiweiPromptInput): string {
+export function formatZiweiPromptText(chart?: ZiweiPromptInput, detailLevel?: ChartTextDetailLevel): string {
     const resolved = resolveZiweiPromptData(chart);
     if (!resolved) return '';
-    return generateZiweiChartText(resolved);
+    return generateZiweiChartText(resolved, { detailLevel: resolveChartTextDetailLevel('ziwei', detailLevel) });
 }

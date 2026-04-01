@@ -10,6 +10,7 @@ import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-cas
 import { formatBaziPromptText } from '@/lib/bazi-prompt';
 import { formatZiweiPromptText, type ZiweiPromptInput } from '@/lib/ziwei-chart-prompt';
 import { extractDayPillar, getMangpaiByDayPillar } from '@/lib/divination/mangpai';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 import {
     type VisualizationSettings,
 } from '@/lib/visualization/settings';
@@ -45,6 +46,7 @@ export interface PromptContext {
     knowledgeHits: KnowledgeHit[];
     userSettings: {
         expressionStyle?: 'direct' | 'gentle';
+        chartPromptDetailLevel?: ChartTextDetailLevel;
         userProfile?: unknown;
         customInstructions?: string | null;
         visualizationSettings?: VisualizationSettings;
@@ -267,25 +269,31 @@ function formatUserProfile(profile?: unknown): string {
 }
 
 function formatZiweiFallback(chart: ZiweiPromptInput): string {
-    const gender = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : (chart.gender || '');
     return [
         '【紫微命盘】',
-        `姓名：${chart.name || ''}`,
-        `性别：${gender}`,
+        `姓名：${chart.name || '未命名'}`,
         `出生日期：${chart.birthDate || ''}${chart.birthTime ? ` ${chart.birthTime}` : ''}`,
+        '命盘数据不完整，无法重建标准命盘文本。',
     ].filter(Boolean).join('\n');
 }
 
 // 格式化命盘上下文
-function formatChartContextPrompt(chartContext: NonNullable<PromptContext['chartContext']>): string {
+function formatChartContextPrompt(
+    chartContext: NonNullable<PromptContext['chartContext']>,
+    detailLevel?: ChartTextDetailLevel,
+): string {
     const parts: string[] = ['--- 用户已选择以下命盘作为对话参考 ---'];
 
     if (chartContext.baziChart) {
-        parts.push(formatBaziPromptText(chartContext.baziChart, chartContext.baziChart.caseProfile));
+        parts.push(formatBaziPromptText(
+            chartContext.baziChart,
+            chartContext.baziChart.caseProfile,
+            detailLevel,
+        ));
     }
 
     if (chartContext.ziweiChart) {
-        const ziweiText = formatZiweiPromptText(chartContext.ziweiChart);
+        const ziweiText = formatZiweiPromptText(chartContext.ziweiChart, detailLevel);
         if (ziweiText) {
             parts.push(ziweiText);
         } else {
@@ -398,7 +406,7 @@ export async function buildPromptWithSources(context: PromptContext): Promise<{
     tryInject(`personality_role:${personalityTag}`, 'P0', buildPersonalityPrompt(personalityResolution.personalities));
 
     if (context.chartContext && (context.chartContext.baziChart || context.chartContext.ziweiChart)) {
-        const chartPrompt = formatChartContextPrompt(context.chartContext);
+        const chartPrompt = formatChartContextPrompt(context.chartContext, context.userSettings?.chartPromptDetailLevel);
         if (tryInject('chart_context', 'P1', chartPrompt)) {
             if (context.chartContext.baziChart) {
                 const baziChart = context.chartContext.baziChart;

@@ -23,3 +23,11 @@ test('buildUserSettingsUpdatePayload should allow explicit clearing of visualiza
 
   assert.equal(payload.visualization_settings, null);
 });
+
+test('buildUserSettingsUpdatePayload should persist chart prompt detail level when valid', () => {
+  const payload = buildUserSettingsUpdatePayload('user-1', {
+    chartPromptDetailLevel: 'more',
+  });
+
+  assert.equal(payload.chart_prompt_detail_level, 'more');
+});

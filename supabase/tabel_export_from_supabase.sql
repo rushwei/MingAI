@@ -591,6 +591,7 @@ CREATE TABLE public.user_settings (
   default_bazi_chart_id uuid,
   default_ziwei_chart_id uuid,
   custom_instructions text,
+  chart_prompt_detail_level text DEFAULT 'default'::text CHECK (chart_prompt_detail_level = ANY (ARRAY['default'::text, 'more'::text, 'full'::text])),
   expression_style text DEFAULT 'direct'::text CHECK (expression_style = ANY (ARRAY['direct'::text, 'gentle'::text])),
   user_profile jsonb DEFAULT '{}'::jsonb,
   prompt_kb_ids jsonb DEFAULT '[]'::jsonb,

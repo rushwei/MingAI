@@ -53,13 +53,13 @@ export const qimenProvider: DataSourceProvider<QimenRow> = {
         return (data as QimenRow) || null;
     },
 
-    formatForAI(r: QimenRow): string {
+    formatForAI(r: QimenRow, ctx?: DataSourceQueryContext): string {
         const c = r.chart_data;
         if (!c) return '奇门遁甲排盘数据缺失';
         return generateQimenResultText({
             ...c,
             question: r.question || undefined,
-        });
+        }, { detailLevel: ctx?.chartPromptDetailLevel });
     },
 
     summarize(r: QimenRow): string {

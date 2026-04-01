@@ -108,7 +108,7 @@ export async function resolveMention(mention: Mention, userId: string, ctx?: Dat
         if (!data) {
             console.warn(`[mention-resolve] provider.get returned null for type=${mention.type} id=${mention.id}`);
         }
-        return data ? provider.formatForAI(data) : '';
+        return data ? provider.formatForAI(data, ctx) : '';
     } catch (err) {
         console.error(`[mention-resolve] ERROR for type=${mention.type} id=${mention.id}:`, err);
         return '';

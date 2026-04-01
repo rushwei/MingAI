@@ -17,6 +17,7 @@ import {
 } from '@/lib/divination/liuyao';
 import { createAIAnalysisConversation } from '@/lib/ai/ai-analysis';
 import { buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
+import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 import { buildVisualizationOutputContractPrompt } from '@/lib/visualization/prompt';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { createPersistentStreamResponse } from '@/lib/api/divination-pipeline';
@@ -201,7 +202,8 @@ async function handleInterpret(request: NextRequest, body: LiuyaoRequest): Promi
     const changedCode = computeChangedCode(yaos, changedLines, Boolean(changedHexagram));
 
     // Build traditional analysis
-    const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, resolvedHexagram, changedHexagram);
+    const promptDetailLevel = await loadResolvedChartPromptDetailLevel(user.id, 'liuyao');
+    const traditionalInfo = buildTraditionalInfo(yaos, hexagramCode, changedCode, effectiveQuestion, analysisDate, parsedTargets.targets, resolvedHexagram, changedHexagram, promptDetailLevel);
 
     const userPrompt = `${traditionalInfo}\n\n请根据以上卦象信息，为求卦者详细解读此卦。`;
 

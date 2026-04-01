@@ -9,6 +9,7 @@ import { createInterpretHandler, type InterpretInput } from '@/lib/api/divinatio
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
 import { handleDaliurenCalculate, type DaliurenOutput } from '@mingai/core/daliuren';
 import { generateDaliurenResultText } from '@/lib/divination/daliuren';
+import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface DaliurenRequest {
     action: 'calculate' | 'interpret' | 'save';
@@ -33,11 +34,11 @@ interface DaliurenInterpretInput extends InterpretInput {
     divinationId?: string;
 }
 
-function buildDaliurenPrompt(result: DaliurenOutput, question?: string): string {
+function buildDaliurenPrompt(result: DaliurenOutput, question?: string, detailLevel?: 'default' | 'more' | 'full'): string {
     return `${generateDaliurenResultText({
         ...result,
         question: question || result.question,
-    })}\n\n请详细解读。`;
+    }, { detailLevel })}\n\n请详细解读。`;
 }
 
 const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
@@ -56,9 +57,13 @@ const handleInterpret = createInterpretHandler<DaliurenInterpretInput>({
             divinationId: b.divinationId,
         };
     },
-    buildPrompts: (input) => ({
+    resolvePromptContext: async (_input, userId) => ({
+        userId,
+        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'daliuren'),
+    }),
+    buildPrompts: (input, promptContext) => ({
         systemPrompt: '',
-        userPrompt: buildDaliurenPrompt(input.resultData, input.question as string | undefined),
+        userPrompt: buildDaliurenPrompt(input.resultData, input.question as string | undefined, promptContext?.chartPromptDetailLevel),
     }),
     buildSourceData: (input, modelId) => ({
         ke_name: input.resultData.keName,

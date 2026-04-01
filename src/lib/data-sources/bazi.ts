@@ -62,7 +62,7 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
         };
     },
 
-    formatForAI(chart: BaziRow): string {
+    formatForAI(chart: BaziRow, ctx?: DataSourceQueryContext): string {
         const chartData = chart.chart_data || {};
         const name = chart.name || '未命名';
         const birthDate = chart.birth_date;
@@ -86,7 +86,7 @@ export const baziProvider: DataSourceProvider<BaziRow> = {
             birthDate,
             birthTime,
             chartData,
-        }, chart.caseProfile || null);
+        }, chart.caseProfile || null, ctx?.chartPromptDetailLevel);
     },
 
     summarize(chart: BaziRow): string {

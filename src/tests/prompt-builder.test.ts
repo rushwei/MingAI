@@ -196,6 +196,32 @@ test('buildPromptWithSources should enrich minimal bazi chart data before render
     assert.ok(!res.systemPrompt.includes('庚(-)、壬(-)、戊(-)'));
 });
 
+test('buildPromptWithSources should honor chartPromptDetailLevel for selected bazi chart injection', async () => {
+    const pb = require('../lib/ai/prompt-builder') as any;
+    const chart = buildMinimalBaziChart();
+
+    const defaultRes = await pb.buildPromptWithSources({
+        modelId: 'deepseek-chat',
+        userMessage: '结合命盘分析',
+        mentions: [],
+        knowledgeHits: [],
+        userSettings: { expressionStyle: 'direct', chartPromptDetailLevel: 'default', userProfile: {}, customInstructions: '' },
+        chartContext: { baziChart: chart },
+    });
+
+    const fullRes = await pb.buildPromptWithSources({
+        modelId: 'deepseek-chat',
+        userMessage: '结合命盘分析',
+        mentions: [],
+        knowledgeHits: [],
+        userSettings: { expressionStyle: 'direct', chartPromptDetailLevel: 'full', userProfile: {}, customInstructions: '' },
+        chartContext: { baziChart: chart },
+    });
+
+    assert.ok(!defaultRes.systemPrompt.includes('命主五行'));
+    assert.ok(fullRes.systemPrompt.includes('命主五行'));
+});
+
 test('buildPromptWithSources skips P2 layers when budget exceeded', async () => {
     const pb = require('../lib/ai/prompt-builder') as any;
     const hugeContent = 'a'.repeat(20000);

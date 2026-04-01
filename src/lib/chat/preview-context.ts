@@ -106,6 +106,7 @@ function mergeUserSettings(base: UserSettingsSnapshot, body: PreviewRequestBody)
         customInstructions,
         userProfile,
         visualizationSettings,
+        chartPromptDetailLevel: base.chartPromptDetailLevel,
     };
 }
 

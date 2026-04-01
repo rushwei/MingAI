@@ -8,6 +8,7 @@ import { drawCards, drawForSpread, generateTarotReadingText, getDailyCard, TAROT
 import { getAuthContext, getSystemAdminClient, jsonError, jsonOk, requireBearerUser } from '@/lib/api-utils';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
+import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface TarotRequest {
     action: 'draw' | 'daily' | 'spread' | 'draw-only' | 'save' | 'interpret' | 'list-spreads' | 'list-cards';
@@ -139,7 +140,11 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
             numerology: b.numerology,
         };
     },
-    buildPrompts: (input) => {
+    resolvePromptContext: async (_input, userId) => ({
+        userId,
+        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'tarot'),
+    }),
+    buildPrompts: (input, promptContext) => {
         const spreadName = TAROT_SPREADS.find((spread) => spread.id === input.spreadId)?.name || input.spreadId || '自定义牌阵';
         const userPrompt = generateTarotReadingText({
             spreadName,
@@ -149,6 +154,7 @@ const handleInterpret = createInterpretHandler<TarotInterpretInput>({
             seed: input.seed,
             numerology: input.numerology,
             birthDate: input.birthDate,
+            detailLevel: promptContext?.chartPromptDetailLevel,
         });
 
         return { systemPrompt: '', userPrompt };

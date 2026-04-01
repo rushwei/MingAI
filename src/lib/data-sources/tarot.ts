@@ -52,7 +52,7 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
         return (data as TarotRow) || null;
     },
 
-    formatForAI(reading: TarotRow): string {
+    formatForAI(reading: TarotRow, ctx?: DataSourceQueryContext): string {
         const spreadName = TAROT_SPREADS.find(spread => spread.id === reading.spread_id)?.name || reading.spread_id || '塔罗占卜';
         const birthDate = typeof reading.metadata?.birthDate === 'string' ? reading.metadata.birthDate : undefined;
         const seed = typeof reading.metadata?.seed === 'string' ? reading.metadata.seed : undefined;
@@ -64,6 +64,7 @@ export const tarotProvider: DataSourceProvider<TarotRow> = {
             seed,
             numerology: (reading.metadata?.numerology || null) as Parameters<typeof generateTarotReadingText>[0]['numerology'],
             birthDate,
+            detailLevel: ctx?.chartPromptDetailLevel,
         });
     },
 

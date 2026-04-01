@@ -1,5 +1,6 @@
 import type { QimenOutput as CoreQimenOutput } from '@mingai/core';
 import { renderQimenCanonicalText } from '@mingai/core/text';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export interface QimenPalaceInfo {
     palaceNumber: number;
@@ -100,6 +101,8 @@ export function toCoreQimenOutput(result: QimenOutput & { question?: string }): 
     };
 }
 
-export function generateQimenResultText(result: QimenOutput & { question?: string }): string {
-    return renderQimenCanonicalText(toCoreQimenOutput(result));
+export function generateQimenResultText(result: QimenOutput & { question?: string }, options: { detailLevel?: ChartTextDetailLevel } = {}): string {
+    return renderQimenCanonicalText(toCoreQimenOutput(result), {
+        detailLevel: resolveChartTextDetailLevel('qimen', options.detailLevel),
+    });
 }

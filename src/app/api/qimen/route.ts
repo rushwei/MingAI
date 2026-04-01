@@ -11,6 +11,7 @@ import { handleQimenCalculate } from '@/lib/divination/qimen';
 import { generateQimenResultText, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { createInterpretHandler, type InterpretInput } from '@/lib/api/divination-pipeline';
 import { SOURCE_CHART_TYPE_MAP } from '@/lib/visualization/chart-types';
+import { loadResolvedChartPromptDetailLevel } from '@/lib/ai/chart-prompt-detail';
 
 interface QimenRequest {
     action: 'calculate' | 'analyze' | 'save';
@@ -40,11 +41,11 @@ interface QimenInterpretInput extends InterpretInput {
 }
 
 /** 构建排盘信息文本供 AI 解读 */
-function buildChartInfoText(chart: QimenOutput, question?: string): string {
+function buildChartInfoText(chart: QimenOutput, question?: string, detailLevel?: 'default' | 'more' | 'full'): string {
     return generateQimenResultText({
         ...chart,
         question,
-    });
+    }, { detailLevel });
 }
 
 const handleInterpret = createInterpretHandler<QimenInterpretInput>({
@@ -57,8 +58,12 @@ const handleInterpret = createInterpretHandler<QimenInterpretInput>({
         if (!b.chartData) return { error: '请提供排盘数据', status: 400 };
         return { chart: b.chartData, question: b.question, chartId: b.chartId };
     },
-    buildPrompts: (input) => {
-        const chartInfo = buildChartInfoText(input.chart, input.question);
+    resolvePromptContext: async (_input, userId) => ({
+        userId,
+        chartPromptDetailLevel: await loadResolvedChartPromptDetailLevel(userId, 'qimen'),
+    }),
+    buildPrompts: (input, promptContext) => {
+        const chartInfo = buildChartInfoText(input.chart, input.question, promptContext?.chartPromptDetailLevel);
         return {
             systemPrompt: '',
             userPrompt: `${chartInfo}\n\n请根据以上奇门遁甲排盘信息，为求测者详细解读此局。`,

@@ -8,6 +8,7 @@ import type { TarotOutput as CoreTarotOutput } from '@mingai/core';
 import { renderTarotCanonicalJSON } from '@mingai/core/json';
 import { renderTarotCanonicalText } from '@mingai/core/text';
 import { handleTarotDraw, type TarotCardResult } from '@mingai/core/tarot';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 // 牌的类型
 export type TarotSuit = 'major' | 'wands' | 'cups' | 'swords' | 'pentacles';
@@ -98,11 +99,14 @@ export function generateTarotReadingText(input: {
     seed?: string;
     numerology?: TarotNumerology | null;
     birthDate?: string | null;
+    detailLevel?: ChartTextDetailLevel;
 }): string {
     const { result, birthDate: normalizedBirthText } = buildTarotCanonicalPayload(input);
     return renderTarotCanonicalText(result, {
         birthDate: normalizedBirthText || undefined,
-        detailLevel: normalizedBirthText || input.numerology ? 'full' : 'default',
+        detailLevel: input.detailLevel
+            ? resolveChartTextDetailLevel('tarot', input.detailLevel)
+            : (normalizedBirthText || input.numerology ? 'full' : 'default'),
     });
 }
 

@@ -53,7 +53,7 @@ export const daliurenProvider: DataSourceProvider<DaliurenRow> = {
         return data as DaliurenRow | null;
     },
 
-    formatForAI(row: DaliurenRow): string {
+    formatForAI(row: DaliurenRow, ctx?: DataSourceQueryContext): string {
         const result = row.result_data as Record<string, unknown>;
         if (!result || typeof result !== 'object') {
             return '大六壬排盘记录缺失';
@@ -62,7 +62,7 @@ export const daliurenProvider: DataSourceProvider<DaliurenRow> = {
         return generateDaliurenResultText({
             ...payload,
             question: row.question || (result.question as string | undefined),
-        });
+        }, { detailLevel: ctx?.chartPromptDetailLevel });
     },
 
     summarize(row: DaliurenRow): string {

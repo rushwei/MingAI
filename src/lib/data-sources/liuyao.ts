@@ -77,7 +77,7 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
         return (data as LiuyaoRow) || null;
     },
 
-    formatForAI(r: LiuyaoRow): string {
+    formatForAI(r: LiuyaoRow, ctx?: DataSourceQueryContext): string {
         const changedLines = Array.isArray(r.changed_lines) ? r.changed_lines.filter((v): v is number => typeof v === 'number') : [];
         const yongShenTargets = Array.isArray(r.yongshen_targets)
             ? r.yongshen_targets.filter((item): item is '父母' | '兄弟' | '子孙' | '妻财' | '官鬼' =>
@@ -101,6 +101,7 @@ export const liuyaoProvider: DataSourceProvider<LiuyaoRow> = {
                 yongShenTargets,
                 baseHexagram,
                 changedHexagram,
+                ctx?.chartPromptDetailLevel,
             );
         } else {
             effectiveGanZhiTime = calculateGanZhiTime(new Date(r.created_at));

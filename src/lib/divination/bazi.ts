@@ -26,6 +26,7 @@ import {
     ZHI_WUXING as CORE_BRANCH_ELEMENTS,
     calculateTenGod as calculateTenGodCore,
 } from '@mingai/core/utils';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 import {
     HIDDEN_STEM_DETAILS,
     LIU_CHONG as CORE_LIU_CHONG,
@@ -811,8 +812,13 @@ function buildCanonicalDayun(
  * @param chart 八字命盘数据（自动计算大运）
  */
 export function generateBaziChartText(
-    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>
+    chart: Omit<BaziChart, 'id' | 'createdAt' | 'userId'>,
+    options: { detailLevel?: ChartTextDetailLevel } = {},
 ): string {
     const coreChart = toCoreBaziOutput(chart);
-    return renderBaziCanonicalText(coreChart, { name: chart.name, dayun: buildCanonicalDayun(chart) });
+    return renderBaziCanonicalText(coreChart, {
+        name: chart.name,
+        dayun: buildCanonicalDayun(chart),
+        detailLevel: resolveChartTextDetailLevel('bazi', options.detailLevel),
+    });
 }

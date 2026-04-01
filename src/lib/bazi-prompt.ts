@@ -2,6 +2,7 @@ import type { BaziChart } from '@/types';
 import { calculateBazi, generateBaziChartText } from '@/lib/divination/bazi';
 import { formatBaziCaseProfileForAI, type BaziCaseProfile } from '@/lib/bazi-case-profile';
 import { extractLongitudeFromChartData } from '@/lib/divination/place-resolution';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 export type BaziPromptInput = Partial<Omit<BaziChart, 'id' | 'createdAt' | 'userId' | 'gender'>> & {
     id?: string;
@@ -86,22 +87,23 @@ function resolveBaziChartData(chart?: BaziPromptInput): Omit<BaziChart, 'id' | '
 }
 
 function formatBaziFallback(chart: BaziPromptInput): string {
-    const gender = chart.gender === 'male' ? '男' : chart.gender === 'female' ? '女' : (chart.gender || '');
     return [
         '【八字命盘】',
-        `姓名：${chart.name || ''}`,
-        `性别：${gender}`,
+        `姓名：${chart.name || '未命名'}`,
         `出生日期：${chart.birthDate || ''}${chart.birthTime ? ` ${chart.birthTime}` : ''}`,
+        '命盘数据不完整，无法重建标准命盘文本。',
     ].filter(Boolean).join('\n');
 }
 
 export function formatBaziPromptText(
     chart: BaziPromptInput,
     profile?: Pick<BaziCaseProfile, 'masterReview' | 'ownerFeedback' | 'events'> | null,
+    detailLevel?: ChartTextDetailLevel,
 ): string {
+    const resolvedLevel = resolveChartTextDetailLevel('bazi', detailLevel);
     const resolvedChart = resolveBaziChartData(chart);
     const chartText = resolvedChart
-        ? generateBaziChartText(resolvedChart)
+        ? generateBaziChartText(resolvedChart, { detailLevel: resolvedLevel })
         : formatBaziFallback(chart);
     const caseText = formatBaziCaseProfileForAI(profile);
     return caseText ? `${chartText}\n\n${caseText}` : chartText;

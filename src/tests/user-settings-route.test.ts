@@ -22,6 +22,7 @@ test('user settings route should return normalized settings bundle for the curre
                 data: {
                   expression_style: 'gentle',
                   custom_instructions: 'keep calm',
+                  chart_prompt_detail_level: 'more',
                   user_profile: { career: 'engineer' },
                   prompt_kb_ids: ['kb-2', 'kb-1'],
                   visualization_settings: {
@@ -49,6 +50,7 @@ test('user settings route should return normalized settings bundle for the curre
 
   assert.equal(response.status, 200);
   assert.equal(payload.settings.expressionStyle, 'gentle');
+  assert.equal(payload.settings.chartPromptDetailLevel, 'more');
   assert.deepEqual(payload.settings.promptKbIds, ['kb-2', 'kb-1']);
   assert.deepEqual(payload.settings.visualizationSettings, {
     selectedDimensions: ['career', 'wealth'],
@@ -78,6 +80,7 @@ test('user settings route PATCH should update only user_settings without touchin
                   notifications_enabled: false,
                   notify_email: false,
                   notify_site: false,
+                  chart_prompt_detail_level: 'full',
                   visualization_settings: {
                     selectedDimensions: ['career', 'health'],
                     dayunDisplayCount: 4,
@@ -103,6 +106,7 @@ test('user settings route PATCH should update only user_settings without touchin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       notificationsEnabled: false,
+      chartPromptDetailLevel: 'full',
       visualizationSettings: {
         selectedDimensions: ['career', 'health'],
         dayunDisplayCount: 4,
@@ -114,6 +118,7 @@ test('user settings route PATCH should update only user_settings without touchin
 
   assert.equal(response.status, 200);
   assert.equal(payload.settings.notificationsEnabled, false);
+  assert.equal(payload.settings.chartPromptDetailLevel, 'full');
   assert.deepEqual(payload.settings.visualizationSettings, {
     selectedDimensions: ['career', 'health'],
     dayunDisplayCount: 4,

@@ -14,6 +14,7 @@ import type { ZiweiOutput as CoreZiweiOutput, ZiweiHoroscopeOutput as CoreZiweiH
 import { renderZiweiCanonicalJSON, renderZiweiHoroscopeCanonicalJSON } from '@mingai/core/json';
 import { renderZiweiCanonicalText } from '@mingai/core/text';
 import type { Gender, CalendarType, TrueSolarTimeInfo } from '@/types';
+import { resolveChartTextDetailLevel, type ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type Astrolabe = ReturnType<typeof createAstrolabeWithTrueSolar>['astrolabe'];
 
@@ -628,10 +629,10 @@ export function buildZiweiCanonicalJSON(chart: ZiweiChart) {
  */
 export function generateZiweiChartText(
     chart: ZiweiChart,
-    options: { includeHoroscope?: boolean; detailLevel?: 'default' | 'full' } = {},
+    options: { includeHoroscope?: boolean; detailLevel?: ChartTextDetailLevel } = {},
 ): string {
     const coreOutput = toCoreZiweiOutput(chart);
-    const detailLevel = options.detailLevel ?? 'default';
+    const detailLevel = resolveChartTextDetailLevel('ziwei', options.detailLevel);
 
     if (!options.includeHoroscope) {
         return renderZiweiCanonicalText(coreOutput, { detailLevel });
