@@ -7,8 +7,9 @@
  */
 'use client';
 
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Calendar, ChevronRight, MapPin, Plus, Star, Trash2 } from 'lucide-react';
 import { useSessionSafe } from '@/components/providers/ClientProviders';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -19,6 +20,7 @@ import { SettingsRouteLauncher } from '@/components/settings/SettingsRouteLaunch
 import { writeLocalCache } from '@/lib/cache/local-storage';
 import { getNavItemById } from '@/lib/navigation/registry';
 import { deleteUserChart, getUserCharts, setDefaultUserChart } from '@/lib/user-charts';
+import { closeSettingsCenter, getSettingsCenterCloseMode, parseSettingsCenterHash } from '@/lib/settings-center';
 
 type ChartType = 'bazi' | 'ziwei';
 
@@ -38,16 +40,22 @@ function getGenderLabel(gender: ChartItem['gender']) {
   return gender === 'female' ? '女' : '男';
 }
 
+function isModifiedEvent(event: MouseEvent<HTMLElement>) {
+  return event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
+}
+
 function SectionTitle({
   type,
   title,
   createHref,
   createText,
+  onNavigate,
 }: {
   type: ChartType;
   title: string;
   createHref: string;
   createText: string;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   const Icon = getNavItemById(type)?.icon;
 
@@ -62,6 +70,7 @@ function SectionTitle({
 
       <Link
         href={createHref}
+        onClick={(event) => onNavigate?.(event, createHref)}
         className="inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
       >
         <Plus className="h-4 w-4" />
@@ -75,16 +84,19 @@ function ChartRow({
   chart,
   onDelete,
   onSetDefault,
+  onNavigate,
 }: {
   chart: ChartItem;
   onDelete: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
   onSetDefault: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   const href = chart.type === 'bazi' ? `/bazi/result?chart=${chart.id}` : `/ziwei/result?chart=${chart.id}`;
 
   return (
     <Link
       href={href}
+      onClick={(event) => onNavigate?.(event, href)}
       className="group relative flex items-center justify-between gap-4 rounded-md border border-border bg-background px-4 py-3 transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
     >
       <div className="absolute left-[6px] top-1/2 -translate-y-1/2 select-none text-foreground/20 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
@@ -152,6 +164,7 @@ function ChartSection({
   createText,
   onDelete,
   onSetDefault,
+  onNavigate,
 }: {
   title: string;
   list: ChartItem[];
@@ -160,15 +173,22 @@ function ChartSection({
   createText: string;
   onDelete: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
   onSetDefault: (id: string, type: ChartType, event: MouseEvent<HTMLButtonElement>) => void;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
   return (
     <section className="space-y-3">
-      <SectionTitle type={type} title={title} createHref={createHref} createText={createText} />
+      <SectionTitle type={type} title={title} createHref={createHref} createText={createText} onNavigate={onNavigate} />
 
       {list.length > 0 ? (
         <div className="space-y-2">
           {list.map((chart) => (
-            <ChartRow key={`${chart.type}-${chart.id}`} chart={chart} onDelete={onDelete} onSetDefault={onSetDefault} />
+            <ChartRow
+              key={`${chart.type}-${chart.id}`}
+              chart={chart}
+              onDelete={onDelete}
+              onSetDefault={onSetDefault}
+              onNavigate={onNavigate}
+            />
           ))}
         </div>
       ) : (
@@ -176,6 +196,7 @@ function ChartSection({
           <p className="text-sm text-foreground-secondary">暂无{title}</p>
           <Link
             href={createHref}
+            onClick={(event) => onNavigate?.(event, createHref)}
             className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-[#efedea] active:bg-[#e3e1db] dark:hover:bg-background-secondary dark:active:bg-background-tertiary"
           >
             <Plus className="h-4 w-4" />
@@ -188,6 +209,7 @@ function ChartSection({
 }
 
 export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
+  const router = useRouter();
   const { user, loading: sessionLoading } = useSessionSafe();
   const { showToast } = useToast();
   const [baziCharts, setBaziCharts] = useState<ChartItem[]>([]);
@@ -251,6 +273,37 @@ export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
 
     void fetchCharts();
   }, [sessionLoading, showToast, user]);
+
+  const handleNavigate = useCallback((event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!embedded) return;
+    if (event.defaultPrevented || event.button !== 0 || isModifiedEvent(event)) return;
+
+    event.preventDefault();
+
+    if (typeof window === 'undefined') {
+      router.push(href);
+      return;
+    }
+
+    const isSettingsCenterOpen = parseSettingsCenterHash(window.location.hash) !== null;
+    if (!isSettingsCenterOpen) {
+      router.push(href);
+      return;
+    }
+
+    if (getSettingsCenterCloseMode() === 'replace') {
+      closeSettingsCenter();
+      router.push(href);
+      return;
+    }
+
+    const handlePopState = () => {
+      router.push(href);
+    };
+
+    window.addEventListener('popstate', handlePopState, { once: true });
+    closeSettingsCenter();
+  }, [embedded, router]);
 
   const handleDelete = async (id: string, type: ChartType) => {
     try {
@@ -318,6 +371,7 @@ export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
           setPendingDelete({ id, type });
         }}
         onSetDefault={handleSetDefault}
+        onNavigate={handleNavigate}
       />
 
       <ChartSection
@@ -332,6 +386,7 @@ export function ChartsContent({ embedded = false }: { embedded?: boolean }) {
           setPendingDelete({ id, type });
         }}
         onSetDefault={handleSetDefault}
+        onNavigate={handleNavigate}
       />
 
       <ConfirmDialog

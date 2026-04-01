@@ -282,11 +282,7 @@ function ZiweiResultContent() {
             <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in space-y-8">
                 {/* 头部操作栏 */}
                 <div className="hidden md:flex items-center justify-between">
-                    {chartId ? (
-                        <SettingsCenterLink tab="charts" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</SettingsCenterLink>
-                    ) : (
-                        <Link href="/ziwei" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
-                    )}
+                    <Link href="/ziwei" className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors">返回</Link>
                     <div className="flex items-center gap-2">
                         <button onClick={handleEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-background-secondary transition-colors"><Edit3 className="w-3.5 h-3.5" />修改</button>
                         <button onClick={handleSave} disabled={saving || saved} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${saved ? 'text-[#0f7b6c] bg-[#0f7b6c]/5 border border-[#0f7b6c]/10' : 'bg-[#2383e2] text-white hover:bg-[#2383e2]/90'}`}>{saved ? <><Check className="w-3.5 h-3.5" />已保存</> : saving ? <><SoundWaveLoader variant="inline" />保存中</> : <><Save className="w-3.5 h-3.5" />保存</>}</button>

@@ -129,6 +129,7 @@ export function getSettingsCenterDisabledState(
 
 export const SETTINGS_CENTER_EVENT = 'mingai:settings-center:change';
 const SETTINGS_CENTER_STATE_KEY = '__mingaiSettingsCenter';
+export type SettingsCenterCloseMode = 'back' | 'replace';
 
 export function isSettingsCenterTab(value: unknown): value is SettingsCenterTab {
   return typeof value === 'string' && SETTINGS_CENTER_TABS.includes(value as SettingsCenterTab);
@@ -219,6 +220,13 @@ function emitSettingsCenterChange() {
   window.dispatchEvent(new CustomEvent(SETTINGS_CENTER_EVENT));
 }
 
+export function getSettingsCenterCloseMode(
+  state: unknown = typeof window !== 'undefined' ? window.history.state : null,
+): SettingsCenterCloseMode {
+  const currentState = state as Record<string, unknown> | null;
+  return currentState?.[SETTINGS_CENTER_STATE_KEY] === true ? 'back' : 'replace';
+}
+
 function buildCurrentUrlWithHash(hash: string) {
   const url = new URL(window.location.href);
   url.hash = hash.replace(/^#/, '');
@@ -254,7 +262,7 @@ export function closeSettingsCenter() {
   if (typeof window === 'undefined') return;
 
   const currentState = window.history.state as Record<string, unknown> | null;
-  if (currentState?.[SETTINGS_CENTER_STATE_KEY] === true) {
+  if (getSettingsCenterCloseMode(currentState) === 'back') {
     window.history.back();
     return;
   }

@@ -1,10 +1,9 @@
 import Link from 'next/link';
 import { Edit3, Save, Check, Share2, Copy } from 'lucide-react';
 import { SoundWaveLoader } from '@/components/ui/SoundWaveLoader';
-import { SettingsCenterLink } from '@/components/settings/SettingsCenterLink';
 
 export function ResultHeader({
-    chartId,
+    chartId: _chartId,
     saving,
     saved,
     copied,
@@ -30,21 +29,12 @@ export function ResultHeader({
 }) {
     return (
         <div className="hidden md:flex items-center justify-between mb-6">
-            {chartId ? (
-                <SettingsCenterLink
-                    tab="charts"
-                    className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
-                >
-                    返回
-                </SettingsCenterLink>
-            ) : (
-                <Link
-                    href="/bazi"
-                    className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
-                >
-                    返回
-                </Link>
-            )}
+            <Link
+                href="/bazi"
+                className="text-sm font-medium text-foreground/40 hover:text-foreground hover:bg-background-secondary px-2 py-1 rounded-md transition-colors"
+            >
+                返回
+            </Link>
             <div className="flex items-center gap-2">
                 <button
                     onClick={onEdit}

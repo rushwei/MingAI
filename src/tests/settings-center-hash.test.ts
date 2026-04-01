@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildSettingsCenterHash,
+  getSettingsCenterCloseMode,
   getSettingsCenterLegacyPath,
   getSettingsCenterRouteTarget,
   parseSettingsCenterHash,
@@ -42,4 +43,10 @@ test('settings center legacy paths stay stable for launch routes', () => {
   assert.equal(getSettingsCenterLegacyPath('admin-ai-services'), '/admin/ai-services');
   assert.equal(getSettingsCenterLegacyPath('admin-mcp'), '/admin/mcp');
   assert.equal(getSettingsCenterRouteTarget('admin-features', { subpath: 'pause' }), '/bazi#settings/admin-features/pause');
+});
+
+test('settings center close mode distinguishes pushed state from hash-only route state', () => {
+  assert.equal(getSettingsCenterCloseMode({ __mingaiSettingsCenter: true }), 'back');
+  assert.equal(getSettingsCenterCloseMode({}), 'replace');
+  assert.equal(getSettingsCenterCloseMode(null), 'replace');
 });

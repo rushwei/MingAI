@@ -124,8 +124,12 @@ function SidebarInner() {
         return <SidebarSkeleton />;
     }
 
-    if (!featureLoaded && featureError) {
+    if (featureError && !featureLoading) {
         return <SidebarLoadError onRetry={() => { void refreshFeatures(true, true); }} />;
+    }
+
+    if (!featureLoaded) {
+        return <SidebarSkeleton />;
     }
 
     return (

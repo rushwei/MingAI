@@ -56,6 +56,14 @@ export function FeatureGate({ featureId, children }: FeatureGateProps) {
         );
     }
 
+    if (!loaded) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh] bg-background">
+                <SoundWaveLoader variant="block" />
+            </div>
+        );
+    }
+
     if (!isFeatureEnabled(featureId)) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
