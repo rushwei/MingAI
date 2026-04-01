@@ -25,20 +25,20 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: pnpm
           scope: '@hhszzzz'
           registry-url: https://npm.pkg.github.com
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -57,18 +57,39 @@ jobs:
       - name: Read package versions
         id: versions
         run: |
-          echo "core_version=$(node -p 'require(\"./.release/github-packages/core/package.json\").version')" >> "$GITHUB_OUTPUT"
-          echo "mcp_version=$(node -p 'require(\"./.release/github-packages/mcp/package.json\").version')" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          core_version=$(node -p "require('./.release/github-packages/core/package.json').version")
+          mcp_version=$(node -p "require('./.release/github-packages/mcp/package.json').version")
+
+          if [[ -z "$core_version" || "$core_version" == "undefined" ]]; then
+            echo "Failed to read core package version from prepared artifact." >&2
+            exit 1
+          fi
+
+          if [[ -z "$mcp_version" || "$mcp_version" == "undefined" ]]; then
+            echo "Failed to read mcp package version from prepared artifact." >&2
+            exit 1
+          fi
+
+          echo "core_version=$core_version" >> "$GITHUB_OUTPUT"
+          echo "mcp_version=$mcp_version" >> "$GITHUB_OUTPUT"
 
       - name: Check published GitHub Packages versions
         id: published
         run: |
+          set -euo pipefail
+
+          core_version="${{ steps.versions.outputs.core_version }}"
+          mcp_version="${{ steps.versions.outputs.mcp_version }}"
+
+          echo "Checking @hhszzzz/mingai-core@$core_version"
           if npm view "@hhszzzz/mingai-core@${{ steps.versions.outputs.core_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "core_exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "core_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+          echo "Checking @hhszzzz/mingai-mcp@$mcp_version"
           if npm view "@hhszzzz/mingai-mcp@${{ steps.versions.outputs.mcp_version }}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "mcp_exists=true" >> "$GITHUB_OUTPUT"
           else
