@@ -680,6 +680,7 @@ export interface TarotOutput {
   spreadName: string;
   question?: string;
   seed: string;
+  birthDate?: string;
   cards: TarotCardResult[];
   numerology?: TarotNumerology;
 }

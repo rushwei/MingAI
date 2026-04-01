@@ -5,11 +5,13 @@ import {
   renderBaziCanonicalJSON,
   handleDaliurenCalculate,
   handleQimenCalculate,
+  handleTarotDraw,
   handleZiweiFlyingStar,
   handleZiweiHoroscope,
   handleZiweiCalculate,
   renderDaliurenCanonicalJSON,
   renderQimenCanonicalJSON,
+  renderTarotCanonicalJSON,
   renderZiweiFlyingStarCanonicalJSON,
   renderZiweiHoroscopeCanonicalJSON,
   renderZiweiCanonicalJSON,
@@ -245,4 +247,37 @@ test('ziwei_flying_star canonical json should expose Chinese keys and readable q
   assert.equal(typeof json.查询结果[2]?.本宫, 'string');
   assert.equal(typeof json.查询结果[2]?.矩阵宫位?.三合1, 'string');
   assert.equal('results' in json, false);
+});
+
+test('tarot canonical json should expose slim default output and full numerology detail on demand', async () => {
+  const result = await handleTarotDraw({
+    spreadType: 'three-card',
+    question: '接下来会怎样',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    seed: 'tarot-contract',
+  });
+
+  const json = renderTarotCanonicalJSON(result);
+  const fullJson = renderTarotCanonicalJSON(result, { detailLevel: 'full' });
+
+  assert.equal(typeof json.问卜设定.牌阵, 'string');
+  assert.equal(typeof json.问卜设定.问题, 'string');
+  assert.equal(json.问卜设定.出生日期, undefined);
+  assert.equal(json.问卜设定.随机种子, undefined);
+  assert.equal(Array.isArray(json.牌阵展开), true);
+  assert.equal(typeof json.牌阵展开[0]?.位置, 'string');
+  assert.equal(typeof json.牌阵展开[0]?.塔罗牌, 'string');
+  assert.equal(typeof json.牌阵展开[0]?.状态, 'string');
+  assert.equal(Array.isArray(json.牌阵展开[0]?.核心基调), true);
+  assert.equal(typeof json.牌阵展开[0]?.元素, 'string');
+  assert.equal(json.求问者生命数字, undefined);
+
+  assert.equal(typeof fullJson.问卜设定.出生日期, 'string');
+  assert.equal(typeof fullJson.问卜设定.随机种子, 'string');
+  assert.equal(typeof fullJson.牌阵展开[0]?.元素, 'string');
+  assert.equal(typeof fullJson.求问者生命数字?.人格牌?.对应塔罗, 'string');
+  assert.equal('basicInfo' in json, false);
+  assert.equal('cards' in json, false);
 });

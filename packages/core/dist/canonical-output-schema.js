@@ -417,39 +417,39 @@ export const canonicalOutputSchemas = {
         }),
     }),
     tarot: obj({
-        basicInfo: obj({
-            spreadName: str('牌阵'),
-            question: str('问题'),
-            birthDate: str('出生日期'),
+        问卜设定: obj({
+            牌阵: str('牌阵'),
+            问题: str('问题'),
+            出生日期: str('出生日期'),
+            随机种子: str('随机种子'),
         }),
-        cards: arr(obj({
-            position: str('位置'),
-            cardName: str('牌名'),
-            direction: str('正逆位'),
-            keywords: arr(str(), '关键词'),
-            meaning: str('牌义'),
-            element: str('元素'),
-            astrologicalCorrespondence: str('星象对应'),
+        牌阵展开: arr(obj({
+            位置: str('位置'),
+            塔罗牌: str('塔罗牌'),
+            状态: str('状态'),
+            核心基调: arr(str(), '核心基调'),
+            元素: str('元素'),
+            星象: str('星象对应'),
         })),
-        numerology: obj({
-            personalityCard: obj({
-                name: str('人格牌'),
-                keywords: arr(str(), '关键词'),
-                element: str('元素'),
-                astrologicalCorrespondence: str('星象对应'),
+        求问者生命数字: obj({
+            人格牌: obj({
+                对应塔罗: str('人格牌'),
+                背景基调: arr(str(), '背景基调'),
+                元素: str('元素'),
+                星象: str('星象对应'),
             }),
-            soulCard: obj({
-                name: str('灵魂牌'),
-                keywords: arr(str(), '关键词'),
-                element: str('元素'),
-                astrologicalCorrespondence: str('星象对应'),
+            灵魂牌: obj({
+                对应塔罗: str('灵魂牌'),
+                背景基调: arr(str(), '背景基调'),
+                元素: str('元素'),
+                星象: str('星象对应'),
             }),
-            yearlyCard: obj({
-                name: str('年度牌'),
-                year: num('年份'),
-                keywords: arr(str(), '关键词'),
-                element: str('元素'),
-                astrologicalCorrespondence: str('星象对应'),
+            年度牌: obj({
+                对应塔罗: str('年度牌'),
+                年份: num('年份'),
+                背景基调: arr(str(), '背景基调'),
+                元素: str('元素'),
+                星象: str('星象对应'),
             }),
         }),
     }),

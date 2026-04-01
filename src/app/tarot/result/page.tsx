@@ -79,7 +79,7 @@ function TarotResultContent() {
 
     const canonicalReading = useMemo(() => {
         if (!selectedSpread || drawnCards.length === 0) return null;
-        return buildTarotCanonicalJSON({ spreadName: selectedSpread.name, spreadId: selectedSpread.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate });
+        return buildTarotCanonicalJSON({ spreadName: selectedSpread.name, spreadId: selectedSpread.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate, detailLevel: 'full' });
     }, [birthDate, drawnCards, numerology, question, seed, selectedSpread]);
 
     // 获取抽牌
@@ -241,10 +241,11 @@ function TarotResultContent() {
                         {drawnCards.map((card, index) => {
                             const isRevealed = revealedCards.includes(index);
                             const isFlipped = flippedToInterpretation.includes(index);
-                            const canonicalCard = canonicalReading?.cards[index];
+                            const canonicalCard = canonicalReading?.牌阵展开[index];
                             return (
                                 <div key={index} className="flex flex-col items-center gap-4 group" style={{ perspective: '1000px' }}>
-                                    <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">{canonicalCard?.position || selectedSpread.positions[index]?.name}</span>
+                                    <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">{canonicalCard?.位置 || selectedSpread.positions[index]?.name}</span>
+
                                     <button
                                         onClick={() => isRevealed ? setFlippedToInterpretation(prev => prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]) : setRevealedCards(prev => [...prev, index])}
                                         className="relative w-28 h-48 sm:w-32 sm:h-52 transition-all duration-500"
@@ -258,15 +259,15 @@ function TarotResultContent() {
                                             )}
                                         </div>
                                         <div className="absolute inset-0 w-full h-full rounded-md bg-background border border-border p-4 flex flex-col shadow-xl" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                                            <h4 className="text-xs font-bold mb-2 truncate">{canonicalCard?.cardName || card.card.nameChinese}</h4>
+                                            <h4 className="text-xs font-bold mb-2 truncate">{canonicalCard?.塔罗牌 || card.card.nameChinese}</h4>
                                             <div className="flex-1 overflow-y-auto text-[10px] text-foreground/60 leading-relaxed custom-scrollbar">
-                                                {canonicalCard?.meaning || (card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning)}
+                                                {card.orientation === 'reversed' ? card.card.reversedMeaning : card.card.uprightMeaning}
                                             </div>
                                         </div>
                                     </button>
                                     <div className={`text-center transition-opacity ${isRevealed ? 'opacity-100' : 'opacity-0'}`}>
-                                        <div className="text-sm font-bold">{canonicalCard?.cardName || card.card.nameChinese}</div>
-                                        <div className={`text-[10px] font-bold mt-1 ${(canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位' ? 'text-[#eb5757]' : 'text-[#0f7b6c]'}`}>{canonicalCard?.direction || (card.orientation === 'reversed' ? '逆位' : '正位')}</div>
+                                        <div className="text-sm font-bold">{canonicalCard?.塔罗牌 || card.card.nameChinese}</div>
+                                        <div className={`text-[10px] font-bold mt-1 ${(canonicalCard?.状态 || (card.orientation === 'reversed' ? '逆位' : '正位')) === '逆位' ? 'text-[#eb5757]' : 'text-[#0f7b6c]'}`}>{canonicalCard?.状态 || (card.orientation === 'reversed' ? '逆位' : '正位')}</div>
                                     </div>
                                 </div>
                             );
@@ -312,21 +313,21 @@ function TarotResultContent() {
                             <h2 className="text-sm font-bold uppercase tracking-widest text-foreground/60">塔罗数秘术</h2>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
-                            {[ { label: '人格牌', card: canonicalReading?.numerology?.personalityCard }, { label: '灵魂牌', card: canonicalReading?.numerology?.soulCard }, { label: '年度牌', card: canonicalReading?.numerology?.yearlyCard } ].map((item, idx) => (
+                            {[ { label: '人格牌', card: numerology?.personalityCard }, { label: '灵魂牌', card: numerology?.soulCard }, { label: '年度牌', card: numerology?.yearlyCard } ].map((item, idx) => (
                                 <div key={idx} className="flex flex-col items-center gap-3 text-center">
                                     <span className="text-[10px] font-bold text-foreground/30 uppercase">{item.label}</span>
                                     <div className="relative w-full max-w-[100px] aspect-[2/3] rounded-md overflow-hidden border border-border/60 bg-background-secondary/50">
                                         {(() => {
                                             const cardImage = item.card
-                                                ? TAROT_CARDS.find((card) => card.nameChinese === item.card?.name)?.image
+                                                ? TAROT_CARDS.find((card) => card.nameChinese === item.card?.nameChinese)?.image
                                                 : null;
                                             return cardImage ? (
-                                                <Image src={cardImage} alt={item.card!.name} fill className="object-cover" />
+                                                <Image src={cardImage} alt={item.card!.nameChinese} fill className="object-cover" />
                                             ) : null;
                                         })()}
                                     </div>
                                     <div className="space-y-1">
-                                        <div className="text-xs font-bold">{item.card?.name || '-'}</div>
+                                        <div className="text-xs font-bold">{item.card?.nameChinese || '-'}</div>
                                         <div className="text-[10px] text-foreground/40 italic">{item.card && 'year' in item.card && typeof item.card.year === 'number' ? `年度 ${item.card.year}` : ''}</div>
                                     </div>
                                 </div>

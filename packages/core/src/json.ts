@@ -231,6 +231,13 @@ function normalizeDaliurenDetailLevel(detailLevel?: DaliurenCanonicalTextOptions
   return 'default';
 }
 
+function normalizeTarotDetailLevel(detailLevel?: TarotCanonicalTextOptions['detailLevel']): 'default' | 'full' {
+  if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+    return 'full';
+  }
+  return 'default';
+}
+
 function normalizeZiweiHoroscopeDetailLevel(detailLevel?: ZiweiHoroscopeCanonicalTextOptions['detailLevel']): 'default' | 'full' {
   if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
     return 'full';
@@ -842,46 +849,48 @@ export function renderTarotCanonicalJSON(
   result: TarotOutput,
   options: TarotCanonicalTextOptions = {},
 ): TarotCanonicalJSON {
-  const basicInfo: TarotCanonicalJSON['basicInfo'] = { spreadName: result.spreadName };
-  if (result.question) basicInfo.question = result.question;
-  if (options.birthDate?.trim()) basicInfo.birthDate = options.birthDate.trim();
+  const detailLevel = normalizeTarotDetailLevel(options.detailLevel);
+  const birthDate = options.birthDate?.trim() || result.birthDate;
+  const basicInfo: TarotCanonicalJSON['问卜设定'] = { 牌阵: result.spreadName };
+  if (result.question) basicInfo.问题 = result.question;
+  if (detailLevel === 'full' && birthDate) basicInfo.出生日期 = birthDate;
+  if (detailLevel === 'full' && result.seed) basicInfo.随机种子 = result.seed;
 
   const cards = result.cards.map((card) => {
     const isReversed = card.orientation === 'reversed';
-    const entry: TarotCanonicalJSON['cards'][number] = {
-      position: card.position,
-      cardName: card.card.nameChinese,
-      direction: isReversed ? '逆位' : '正位',
-      keywords: isReversed && card.reversedKeywords?.length ? card.reversedKeywords : card.card.keywords,
-      meaning: card.meaning,
+    const entry: TarotCanonicalJSON['牌阵展开'][number] = {
+      位置: card.position,
+      塔罗牌: card.card.nameChinese,
+      状态: isReversed ? '逆位' : '正位',
+      核心基调: isReversed && card.reversedKeywords?.length ? card.reversedKeywords : card.card.keywords,
     };
-    if (card.element) entry.element = card.element;
-    if (card.astrologicalCorrespondence) entry.astrologicalCorrespondence = card.astrologicalCorrespondence;
+    if (card.element) entry.元素 = card.element;
+    if (card.astrologicalCorrespondence) entry.星象 = card.astrologicalCorrespondence;
     return entry;
   });
 
-  const json: TarotCanonicalJSON = { basicInfo, cards };
+  const json: TarotCanonicalJSON = { 问卜设定: basicInfo, 牌阵展开: cards };
 
-  if (result.numerology) {
-    json.numerology = {
-      personalityCard: {
-        name: result.numerology.personalityCard.nameChinese,
-        keywords: result.numerology.personalityCard.keywords || [],
-        element: result.numerology.personalityCard.element,
-        astrologicalCorrespondence: result.numerology.personalityCard.astrologicalCorrespondence,
+  if (detailLevel === 'full' && result.numerology) {
+    json.求问者生命数字 = {
+      人格牌: {
+        对应塔罗: result.numerology.personalityCard.nameChinese,
+        背景基调: result.numerology.personalityCard.keywords || [],
+        元素: result.numerology.personalityCard.element,
+        星象: result.numerology.personalityCard.astrologicalCorrespondence,
       },
-      soulCard: {
-        name: result.numerology.soulCard.nameChinese,
-        keywords: result.numerology.soulCard.keywords || [],
-        element: result.numerology.soulCard.element,
-        astrologicalCorrespondence: result.numerology.soulCard.astrologicalCorrespondence,
+      灵魂牌: {
+        对应塔罗: result.numerology.soulCard.nameChinese,
+        背景基调: result.numerology.soulCard.keywords || [],
+        元素: result.numerology.soulCard.element,
+        星象: result.numerology.soulCard.astrologicalCorrespondence,
       },
-      yearlyCard: {
-        year: result.numerology.yearlyCard.year!,
-        name: result.numerology.yearlyCard.nameChinese,
-        keywords: result.numerology.yearlyCard.keywords || [],
-        element: result.numerology.yearlyCard.element,
-        astrologicalCorrespondence: result.numerology.yearlyCard.astrologicalCorrespondence,
+      年度牌: {
+        年份: result.numerology.yearlyCard.year!,
+        对应塔罗: result.numerology.yearlyCard.nameChinese,
+        背景基调: result.numerology.yearlyCard.keywords || [],
+        元素: result.numerology.yearlyCard.element,
+        星象: result.numerology.yearlyCard.astrologicalCorrespondence,
       },
     };
   }
@@ -1366,7 +1375,10 @@ export function renderZiweiFlyingStarCanonicalJSON(
         }
         entry.结果 = (r.result as boolean) ? '是' : '否';
       } else if (r.type === 'mutagedPlaces') {
-        if (r.queryTarget?.palace) entry.发射宫位 = formatPalace(r.queryTarget.palace);
+        if (r.queryTarget?.palace) {
+          const sourcePalace = formatPalace(r.queryTarget.palace);
+          if (sourcePalace) entry.发射宫位 = sourcePalace;
+        }
         if (r.sourcePalaceGanZhi) entry.发射宫干支 = r.sourcePalaceGanZhi;
         const flights = r.actualFlights || (r.result as MutagedPlaceInfo[]).map((item) => ({
           mutagen: item.mutagen,
@@ -1380,7 +1392,8 @@ export function renderZiweiFlyingStarCanonicalJSON(
         }));
       } else if (r.type === 'surroundedPalaces') {
         const s = r.result as SurroundedPalaceInfo;
-        entry.本宫 = formatPalace(s.target.name);
+        const targetPalace = formatPalace(s.target.name);
+        if (targetPalace) entry.本宫 = targetPalace;
         entry.矩阵宫位 = {
           对宫: formatPalace(s.opposite.name) || '-',
           三合1: formatPalace(s.wealth.name) || '-',

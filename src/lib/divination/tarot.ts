@@ -102,6 +102,7 @@ export function generateTarotReadingText(input: {
     const { result, birthDate: normalizedBirthText } = buildTarotCanonicalPayload(input);
     return renderTarotCanonicalText(result, {
         birthDate: normalizedBirthText || undefined,
+        detailLevel: normalizedBirthText || input.numerology ? 'full' : 'default',
     });
 }
 
@@ -159,10 +160,12 @@ export function buildTarotCanonicalJSON(input: {
     seed?: string;
     numerology?: TarotNumerology | null;
     birthDate?: string | null;
+    detailLevel?: 'default' | 'full';
 }) {
     const { result, birthDate } = buildTarotCanonicalPayload(input);
     return renderTarotCanonicalJSON(result, {
         birthDate: birthDate || undefined,
+        detailLevel: input.detailLevel ?? (birthDate || input.numerology ? 'full' : 'default'),
     });
 }
 

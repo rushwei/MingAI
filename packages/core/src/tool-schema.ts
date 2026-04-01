@@ -913,6 +913,12 @@ export const toolDefinitions: ToolDefinition[] = [
           description: '响应格式：json=结构化数据，markdown=人类可读文本',
           default: 'json',
         },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'full'],
+          description: '输出细节级别：default=精简牌面；full=在默认基础上补充完整信息',
+          default: 'default',
+        },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour'],
       examples: [
@@ -1001,6 +1007,12 @@ export const toolDefinitions: ToolDefinition[] = [
           enum: ['json', 'markdown'],
           description: '响应格式：json=结构化数据，markdown=人类可读文本',
           default: 'json',
+        },
+        detailLevel: {
+          type: 'string',
+          enum: ['default', 'full'],
+          description: '输出细节级别：default=精简牌面；full=在默认基础上补充出生日期、随机种子、元素星象与数秘术',
+          default: 'default',
         },
       },
       required: ['gender', 'birthYear', 'birthMonth', 'birthDay', 'birthHour', 'queries'],

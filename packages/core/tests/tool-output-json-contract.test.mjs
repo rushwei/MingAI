@@ -45,6 +45,39 @@ test('markdown response should still keep schema-aligned structuredContent', () 
   assert.doesNotMatch(payload.content[0].text, /"basicInfo"/u, 'markdown content should remain human-readable text');
 });
 
+test('tarot default/full should split slim card text from detailed numerology metadata', async () => {
+  const rawResult = await mcpCore.handleToolCall('tarot', {
+    spreadType: 'single',
+    question: '今天如何',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    seed: 'tarot-detail',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('tarot', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('tarot', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /## 牌阵展开/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /塔罗数秘术/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /出生日期/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /随机种子/u);
+  assert.match(defaultPayload.content[0].text, /元素/u);
+  assert.match(fullPayload.content[0].text, /求问者生命数字/u);
+  assert.match(fullPayload.content[0].text, /出生日期/u);
+  assert.match(fullPayload.content[0].text, /随机种子/u);
+  assert.match(fullPayload.content[0].text, /元素 \| 星象/u);
+
+  assert.equal(defaultPayload.structuredContent.问卜设定.出生日期, undefined);
+  assert.equal(defaultPayload.structuredContent.问卜设定.随机种子, undefined);
+  assert.equal(typeof defaultPayload.structuredContent.牌阵展开[0].元素, 'string');
+  assert.equal(defaultPayload.structuredContent.求问者生命数字, undefined);
+  assert.equal(typeof fullPayload.structuredContent.问卜设定.出生日期, 'string');
+  assert.equal(typeof fullPayload.structuredContent.问卜设定.随机种子, 'string');
+  assert.equal(typeof fullPayload.structuredContent.牌阵展开[0].元素, 'string');
+  assert.equal(typeof fullPayload.structuredContent.求问者生命数字.人格牌.对应塔罗, 'string');
+});
+
 test('bazi_calculate tool output should keep chart-only boundaries without implicit dayun summary', async () => {
   const rawResult = await mcpCore.handleToolCall('bazi_calculate', {
     gender: 'male',

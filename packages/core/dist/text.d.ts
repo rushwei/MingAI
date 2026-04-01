@@ -10,6 +10,7 @@ export type DayunCanonicalTextOptions = {
 };
 export type TarotCanonicalTextOptions = {
     birthDate?: string | null;
+    detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
 };
 export type ZiweiCanonicalTextOptions = {
     detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';

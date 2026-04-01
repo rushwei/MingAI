@@ -217,7 +217,7 @@ test('tarot shared reading text should include core-aligned card metadata and nu
     assert.match(text, /太阳/u, 'tarot text should include chinese card name');
     assert.match(text, /元素/u, 'tarot text should include card element');
     assert.match(text, /星象/u, 'tarot text should include astrological correspondence when provided');
-    assert.match(text, /数秘术/u, 'tarot text should include numerology section when provided');
+    assert.match(text, /求问者生命数字/u, 'tarot text should include numerology section when provided');
     assert.match(text, /人格牌/u, 'tarot numerology section should include personality card');
 });
 

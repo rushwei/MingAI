@@ -251,6 +251,10 @@ export async function handleTarotDraw(input: TarotInput): Promise<TarotOutput> {
     cards,
   };
 
+  if (input.birthYear && input.birthMonth && input.birthDay) {
+    output.birthDate = `${input.birthYear}-${String(input.birthMonth).padStart(2, '0')}-${String(input.birthDay).padStart(2, '0')}`;
+  }
+
   // 如果提供了生日信息，计算生命牌/灵魂牌/年度牌
   if (input.birthMonth && input.birthDay && input.birthYear) {
     const { personalityCard, soulCard } = calculatePersonalityAndSoulCards(input.birthYear, input.birthMonth, input.birthDay);
