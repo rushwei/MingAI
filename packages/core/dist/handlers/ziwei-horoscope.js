@@ -98,6 +98,8 @@ function mapPeriod(item) {
         earthlyBranch: item.earthlyBranch ?? '',
         palaceNames: item.palaceNames ?? [],
         mutagen: item.mutagen ?? [],
+        ...(typeof item.startAge === 'number' ? { startAge: item.startAge } : {}),
+        ...(typeof item.endAge === 'number' ? { endAge: item.endAge } : {}),
     };
 }
 function resolveTargetDateLabel(targetDate) {
@@ -135,6 +137,10 @@ export function calculateZiweiHoroscopeDataWithAstrolabe(astrolabe, options = {}
             };
         }
     }
+    const nominalAge = horoscope.age?.nominalAge ?? 0;
+    const decadalAgeRange = astrolabe.palaces
+        .map((palace) => palace.decadal?.range)
+        .find((range) => Array.isArray(range) && range.length === 2 && nominalAge >= range[0] && nominalAge <= range[1]);
     return {
         solarDate: astrolabe.solarDate || '',
         lunarDate: astrolabe.lunarDate || '',
@@ -142,7 +148,12 @@ export function calculateZiweiHoroscopeDataWithAstrolabe(astrolabe, options = {}
         body: astrolabe.body || '',
         fiveElement: astrolabe.fiveElementsClass || '',
         targetDate: targetDateLabel,
-        decadal: mapPeriod(horoscope.decadal ?? {}),
+        hasExplicitTargetTime: typeof targetTimeIndex === 'number',
+        decadal: mapPeriod({
+            ...(horoscope.decadal ?? {}),
+            startAge: decadalAgeRange?.[0],
+            endAge: decadalAgeRange?.[1],
+        }),
         age: { ...mapPeriod(horoscope.age ?? {}), nominalAge: horoscope.age?.nominalAge ?? 0 },
         yearly: mapPeriod(horoscope.yearly ?? {}),
         monthly: mapPeriod(horoscope.monthly ?? {}),

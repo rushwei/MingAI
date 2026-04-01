@@ -275,46 +275,54 @@ export const canonicalOutputSchemas = {
         }), '小限'),
     }),
     ziwei_horoscope: obj({
-        basicInfo: obj({
-            solarDate: str('阳历'),
-            lunarDate: str('农历'),
-            soul: str('命主'),
-            body: str('身主'),
-            fiveElement: str('五行局'),
-            targetDate: str('目标日期'),
+        基本信息: obj({
+            目标日期: str('目标日期'),
+            五行局: str('五行局'),
+            阳历: str('阳历'),
+            农历: str('农历'),
+            命主: str('命主'),
+            身主: str('身主'),
         }),
-        periods: arr(obj({
-            label: str('类型'),
-            palaceIndex: num('宫位索引'),
-            name: str('宫位'),
-            ganZhi: str('干支'),
-            mutagen: arr(str(), '四化'),
-            palaceNames: arr(str(), '十二宫重排'),
-            nominalAge: num('虚岁'),
+        运限叠宫: arr(obj({
+            层次: str('层次'),
+            时间段备注: str('时间段或备注'),
+            宫位索引: num('宫位索引'),
+            干支: str('干支'),
+            落入本命宫位: str('落入本命宫位'),
+            运限四化: arr(str(), '运限四化'),
+            十二宫重排: arr(str(), '十二宫重排'),
         })),
-        transitStars: arr(obj({
-            starName: str('星名'),
-            palaceName: str('宫位'),
-        })),
-        yearlyDecStar: obj({
-            suiqian12: arr(str(), '岁前十二星'),
-            jiangqian12: arr(str(), '将前十二星'),
+        流年星曜: obj({
+            吉星分布: arr(str(), '吉星分布'),
+            煞星分布: arr(str(), '煞星分布'),
+            '桃花/文星': arr(str(), '桃花/文星'),
         }),
+        岁前十二星: arr(str(), '岁前十二星'),
+        将前十二星: arr(str(), '将前十二星'),
     }),
     ziwei_flying_star: obj({
-        results: arr(obj({
-            queryIndex: num('查询索引'),
-            type: str('查询类型'),
-            booleanResult: bool('布尔结果'),
-            mutagedPlaces: arr(obj({
-                mutagen: str('四化'),
-                targetPalace: str('目标宫位'),
+        查询结果: arr(obj({
+            查询序号: num('查询序号'),
+            查询类型: str('查询类型'),
+            判断目标: str('判断目标'),
+            结果: str('结果'),
+            发射宫位: str('发射宫位'),
+            发射宫干支: str('发射宫干支'),
+            实际飞化: arr(obj({
+                四化: str('四化'),
+                宫位: str('目标宫位'),
+                星曜: str('星曜'),
             })),
-            surroundedPalaces: obj({
-                target: str('本宫'),
-                opposite: str('对宫'),
-                wealth: str('财帛宫'),
-                career: str('官禄宫'),
+            四化落宫: arr(obj({
+                四化: str('四化'),
+                宫位: str('目标宫位'),
+                星曜: str('星曜'),
+            })),
+            本宫: str('本宫'),
+            矩阵宫位: obj({
+                对宫: str('对宫'),
+                三合1: str('三合宫1'),
+                三合2: str('三合宫2'),
             }),
         })),
     }),

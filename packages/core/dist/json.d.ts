@@ -5,7 +5,7 @@
 import type { BaziOutput, BaziPillarsResolveOutput, DetailLevel, DayunOutput, FortuneOutput, LiuyaoOutput, QimenOutput, TarotOutput, ZiweiFlyingStarOutput, ZiweiHoroscopeOutput, ZiweiOutput } from './types.js';
 import type { DaliurenOutput } from './daliuren/types.js';
 import type { BaziCanonicalJSON, BaziPillarsResolveCanonicalJSON, DaliurenCanonicalJSON, DayunCanonicalJSON, FortuneCanonicalJSON, LiuyaoAISafeJSON, LiuyaoCanonicalJSON, QimenCanonicalJSON, TarotCanonicalJSON, ZiweiCanonicalJSON, ZiweiFlyingStarCanonicalJSON, ZiweiHoroscopeCanonicalJSON } from './json-types.js';
-import type { BaziCanonicalTextOptions, DaliurenCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions } from './text.js';
+import type { BaziCanonicalTextOptions, DaliurenCanonicalTextOptions, QimenCanonicalTextOptions, TarotCanonicalTextOptions, ZiweiCanonicalTextOptions, ZiweiHoroscopeCanonicalTextOptions } from './text.js';
 export type * from './json-types.js';
 export declare function renderBaziCanonicalJSON(chart: BaziOutput, options?: BaziCanonicalTextOptions): BaziCanonicalJSON;
 export declare function renderLiuyaoCanonicalJSON(result: LiuyaoOutput): LiuyaoCanonicalJSON;
@@ -25,6 +25,8 @@ export declare function renderDayunCanonicalJSON(result: DayunOutput, options?: 
     detailLevel?: BaziCanonicalTextOptions['detailLevel'];
 }): DayunCanonicalJSON;
 export declare function renderBaziPillarsResolveCanonicalJSON(result: BaziPillarsResolveOutput): BaziPillarsResolveCanonicalJSON;
-export declare function renderZiweiHoroscopeCanonicalJSON(result: ZiweiHoroscopeOutput): ZiweiHoroscopeCanonicalJSON;
+export declare function renderZiweiHoroscopeCanonicalJSON(result: ZiweiHoroscopeOutput, options?: {
+    detailLevel?: ZiweiHoroscopeCanonicalTextOptions['detailLevel'];
+}): ZiweiHoroscopeCanonicalJSON;
 export declare function renderZiweiFlyingStarCanonicalJSON(result: ZiweiFlyingStarOutput): ZiweiFlyingStarCanonicalJSON;
 //# sourceMappingURL=json.d.ts.map

@@ -1,1 +1,1 @@
-{"version":3,"file":"ziwei-flying-star.d.ts","sourceRoot":"","sources":["../../src/handlers/ziwei-flying-star.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,OAAO,KAAK,EACV,oBAAoB,EACpB,qBAAqB,EAKtB,MAAM,aAAa,CAAC;AAiDrB,wBAAsB,qBAAqB,CAAC,KAAK,EAAE,oBAAoB,GAAG,OAAO,CAAC,qBAAqB,CAAC,CASvG"}
+{"version":3,"file":"ziwei-flying-star.d.ts","sourceRoot":"","sources":["../../src/handlers/ziwei-flying-star.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,OAAO,KAAK,EACV,oBAAoB,EACpB,qBAAqB,EAMtB,MAAM,aAAa,CAAC;AA6GrB,wBAAsB,qBAAqB,CAAC,KAAK,EAAE,oBAAoB,GAAG,OAAO,CAAC,qBAAqB,CAAC,CASvG"}

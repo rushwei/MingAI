@@ -595,40 +595,47 @@ export interface BaziPillarsResolveCanonicalJSON {
 // ===== 紫微运限 =====
 
 export interface ZiweiHoroscopeCanonicalJSON {
-  basicInfo: {
-    solarDate: string;
-    lunarDate: string;
-    soul: string;
-    body: string;
-    fiveElement: string;
-    targetDate: string;
+  基本信息: {
+    目标日期: string;
+    五行局: string;
+    阳历?: string;
+    农历?: string;
+    命主?: string;
+    身主?: string;
   };
-  periods: Array<{
-    label: string;
-    palaceIndex: number;
-    name: string;
-    ganZhi: string;
-    mutagen: string[];
-    palaceNames: string[];
-    nominalAge?: number;
+  运限叠宫: Array<{
+    层次: string;
+    时间段备注: string;
+    宫位索引: number;
+    干支: string;
+    落入本命宫位: string;
+    运限四化: string[];
+    十二宫重排?: string[];
   }>;
-  transitStars?: Array<{ starName: string; palaceName: string }>;
-  yearlyDecStar?: {
-    suiqian12: string[];
-    jiangqian12: string[];
+  流年星曜?: {
+    吉星分布: string[];
+    煞星分布: string[];
+    '桃花/文星': string[];
   };
+  岁前十二星?: string[];
+  将前十二星?: string[];
 }
 
 // ===== 紫微飞星 =====
 
 export interface ZiweiFlyingStarResultJSON {
-  queryIndex: number;
-  type: string;
-  booleanResult?: boolean;
-  mutagedPlaces?: Array<{ mutagen: string; targetPalace: string | null }>;
-  surroundedPalaces?: { target: string; opposite: string; wealth: string; career: string };
+  查询序号: number;
+  查询类型: string;
+  判断目标?: string;
+  结果?: '是' | '否';
+  发射宫位?: string;
+  发射宫干支?: string;
+  实际飞化?: Array<{ 四化: string; 宫位: string | null; 星曜?: string | null }>;
+  四化落宫?: Array<{ 四化: string; 宫位: string | null; 星曜?: string | null }>;
+  本宫?: string;
+  矩阵宫位?: { 对宫: string; 三合1: string; 三合2: string };
 }
 
 export interface ZiweiFlyingStarCanonicalJSON {
-  results: ZiweiFlyingStarResultJSON[];
+  查询结果: ZiweiFlyingStarResultJSON[];
 }

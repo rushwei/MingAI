@@ -59,26 +59,63 @@ test('specialized core canonical text renderers should cover non-mainline tools'
     body: '天相',
     fiveElement: '金四局',
     targetDate: '2026-03-22',
-    decadal: { index: 0, name: '命宫', heavenlyStem: '甲', earthlyBranch: '子', mutagen: ['禄'], palaceNames: ['命宫'] },
+    hasExplicitTargetTime: false,
+    decadal: { index: 0, name: '命宫', heavenlyStem: '甲', earthlyBranch: '子', mutagen: ['廉贞', '破军', '武曲', '太阳'], palaceNames: ['命宫'], startAge: 31, endAge: 40 },
     age: { index: 1, name: '兄弟', heavenlyStem: '乙', earthlyBranch: '丑', mutagen: [], palaceNames: ['兄弟'], nominalAge: 37 },
     yearly: { index: 2, name: '夫妻', heavenlyStem: '丙', earthlyBranch: '寅', mutagen: ['权'], palaceNames: ['夫妻'] },
     monthly: { index: 3, name: '子女', heavenlyStem: '丁', earthlyBranch: '卯', mutagen: [], palaceNames: ['子女'] },
     daily: { index: 4, name: '财帛', heavenlyStem: '戊', earthlyBranch: '辰', mutagen: [], palaceNames: ['财帛'] },
     hourly: { index: 5, name: '疾厄', heavenlyStem: '己', earthlyBranch: '巳', mutagen: [], palaceNames: ['疾厄'] },
-    transitStars: [{ starName: '文昌', palaceName: '命宫' }],
+    transitStars: [{ starName: '流昌', palaceName: '命宫' }, { starName: '流禄', palaceName: '财帛' }],
     yearlyDecStar: { suiqian12: ['岁建'], jiangqian12: ['将星'] },
   });
+  const horoscopeFullText = renderZiweiHoroscopeCanonicalText({
+    solarDate: '1990-01-01',
+    lunarDate: '1989-12-05',
+    soul: '廉贞',
+    body: '天相',
+    fiveElement: '金四局',
+    targetDate: '2026-03-22',
+    hasExplicitTargetTime: true,
+    decadal: { index: 0, name: '命宫', heavenlyStem: '甲', earthlyBranch: '子', mutagen: ['廉贞', '破军', '武曲', '太阳'], palaceNames: ['命宫'], startAge: 31, endAge: 40 },
+    age: { index: 1, name: '兄弟', heavenlyStem: '乙', earthlyBranch: '丑', mutagen: [], palaceNames: ['兄弟'], nominalAge: 37 },
+    yearly: { index: 2, name: '夫妻', heavenlyStem: '丙', earthlyBranch: '寅', mutagen: ['权'], palaceNames: ['夫妻'] },
+    monthly: { index: 3, name: '子女', heavenlyStem: '丁', earthlyBranch: '卯', mutagen: [], palaceNames: ['子女'] },
+    daily: { index: 4, name: '财帛', heavenlyStem: '戊', earthlyBranch: '辰', mutagen: [], palaceNames: ['财帛'] },
+    hourly: { index: 5, name: '疾厄', heavenlyStem: '己', earthlyBranch: '巳', mutagen: [], palaceNames: ['疾厄'] },
+    transitStars: [{ starName: '流昌', palaceName: '命宫' }, { starName: '流禄', palaceName: '财帛' }],
+    yearlyDecStar: { suiqian12: ['岁建'], jiangqian12: ['将星'] },
+  }, { detailLevel: 'full' });
   assert.match(horoscopeText, /紫微运限/u);
-  assert.match(horoscopeText, /流年星曜|岁前十二星|将前十二星/u);
+  assert.match(horoscopeText, /## 运限叠宫与四化/u);
+  assert.match(horoscopeText, /目标日期/u);
+  assert.match(horoscopeText, /流年星曜/u);
+  assert.doesNotMatch(horoscopeText, /岁前十二星/u);
+  assert.doesNotMatch(horoscopeText, /流时/u);
+  assert.match(horoscopeFullText, /流时/u);
+  assert.match(horoscopeFullText, /岁前十二星|将前十二星/u);
 
   const flyingStarText = renderZiweiFlyingStarCanonicalText({
     results: [
-      { queryIndex: 0, type: 'fliesTo', result: true },
-      { queryIndex: 1, type: 'mutagedPlaces', result: [{ mutagen: '禄', targetPalace: '财帛' }] },
+      {
+        queryIndex: 0,
+        type: 'fliesTo',
+        result: true,
+        queryTarget: { fromPalace: '命宫', toPalace: '财帛宫', mutagens: ['禄'] },
+        actualFlights: [{ mutagen: '禄', targetPalace: '夫妻宫', starName: '天同' }],
+      },
+      {
+        queryIndex: 1,
+        type: 'mutagedPlaces',
+        result: [{ mutagen: '禄', targetPalace: '财帛' }],
+        queryTarget: { palace: '命宫' },
+        sourcePalaceGanZhi: '丙辰',
+        actualFlights: [{ mutagen: '禄', targetPalace: '财帛宫', starName: '天同' }],
+      },
     ],
   });
-  assert.match(flyingStarText, /紫微飞星分析/u);
-  assert.match(flyingStarText, /化禄|结果/u);
+  assert.match(flyingStarText, /紫微飞星/u);
+  assert.match(flyingStarText, /实际落点|本宫干支|化禄|结果|查询类型/u);
 });
 
 test('core and web bazi text should surface full true-solar metadata details', () => {

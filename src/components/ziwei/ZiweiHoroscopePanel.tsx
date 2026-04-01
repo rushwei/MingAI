@@ -174,9 +174,9 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         return getCachedHoroscopeCanonical(chart, new Date(selectedYear, selectedMonth - 1, selectedDay));
     }, [chart, selectedYear, selectedMonth, selectedDay]);
 
-    const yearlyPeriod = yearlyHoroscope?.periods.find((period) => period.label === '流年');
-    const monthlyPeriod = monthlyHoroscope?.periods.find((period) => period.label === '流月');
-    const dailyPeriod = dailyHoroscope?.periods.find((period) => period.label === '流日');
+    const yearlyPeriod = yearlyHoroscope?.运限叠宫.find((period) => period.层次 === '流年');
+    const monthlyPeriod = monthlyHoroscope?.运限叠宫.find((period) => period.层次 === '流月');
+    const dailyPeriod = dailyHoroscope?.运限叠宫.find((period) => period.层次 === '流日');
 
     // 获取选中的大限
     const selectedDecadal = useMemo(() =>
@@ -195,27 +195,27 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         }
 
         if (yearlySelected && yearlyPeriod) {
-            highlights.yearlyIndex = yearlyPeriod.palaceIndex;
+            highlights.yearlyIndex = yearlyPeriod.宫位索引;
             info.yearly = {
-                heavenlyStem: yearlyPeriod.ganZhi.charAt(0),
-                earthlyBranch: yearlyPeriod.ganZhi.charAt(1),
-                palaceIndex: yearlyPeriod.palaceIndex,
+                heavenlyStem: yearlyPeriod.干支.charAt(0),
+                earthlyBranch: yearlyPeriod.干支.charAt(1),
+                palaceIndex: yearlyPeriod.宫位索引,
             };
         }
         if (monthlySelected && monthlyPeriod) {
-            highlights.monthlyIndex = monthlyPeriod.palaceIndex;
+            highlights.monthlyIndex = monthlyPeriod.宫位索引;
             info.monthly = {
-                heavenlyStem: monthlyPeriod.ganZhi.charAt(0),
-                earthlyBranch: monthlyPeriod.ganZhi.charAt(1),
-                palaceIndex: monthlyPeriod.palaceIndex,
+                heavenlyStem: monthlyPeriod.干支.charAt(0),
+                earthlyBranch: monthlyPeriod.干支.charAt(1),
+                palaceIndex: monthlyPeriod.宫位索引,
             };
         }
         if (dailySelected && dailyPeriod) {
-            highlights.dailyIndex = dailyPeriod.palaceIndex;
+            highlights.dailyIndex = dailyPeriod.宫位索引;
             info.daily = {
-                heavenlyStem: dailyPeriod.ganZhi.charAt(0),
-                earthlyBranch: dailyPeriod.ganZhi.charAt(1),
-                palaceIndex: dailyPeriod.palaceIndex,
+                heavenlyStem: dailyPeriod.干支.charAt(0),
+                earthlyBranch: dailyPeriod.干支.charAt(1),
+                palaceIndex: dailyPeriod.宫位索引,
             };
         }
 
@@ -249,13 +249,13 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         for (let year = startYear; year <= endYear; year++) {
             const yearDate = new Date(year, 5, 15);
             const yearHoroscope = getCachedHoroscopeCanonical(chart, yearDate);
-            const yearly = yearHoroscope?.periods.find((period) => period.label === '流年');
+            const yearly = yearHoroscope?.运限叠宫.find((period) => period.层次 === '流年');
             if (yearly) {
                 years.push({
                     year,
-                    stem: yearly.ganZhi.charAt(0),
-                    branch: yearly.ganZhi.charAt(1),
-                    palace: yearly.name,
+                    stem: yearly.干支.charAt(0),
+                    branch: yearly.干支.charAt(1),
+                    palace: yearly.落入本命宫位.replace(/宫$/u, ''),
                 });
             }
         }
@@ -269,13 +269,13 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         for (let m = 1; m <= 12; m++) {
             const monthDate = new Date(viewYear, m - 1, 15);
             const monthHoroscope = getCachedHoroscopeCanonical(chart, monthDate);
-            const monthly = monthHoroscope?.periods.find((period) => period.label === '流月');
+            const monthly = monthHoroscope?.运限叠宫.find((period) => period.层次 === '流月');
             if (monthly) {
                 months.push({
                     month: m,
-                    stem: monthly.ganZhi.charAt(0),
-                    branch: monthly.ganZhi.charAt(1),
-                    palace: monthly.name,
+                    stem: monthly.干支.charAt(0),
+                    branch: monthly.干支.charAt(1),
+                    palace: monthly.落入本命宫位.replace(/宫$/u, ''),
                 });
             }
         }
@@ -293,13 +293,13 @@ export function ZiweiHoroscopePanel({ chart, canonicalChart, onPalaceHighlight, 
         for (let d = 1; d <= daysInMonth; d++) {
             const dayDate = new Date(year, month, d);
             const dayHoroscope = getCachedHoroscopeCanonical(chart, dayDate);
-            const daily = dayHoroscope?.periods.find((period) => period.label === '流日');
+            const daily = dayHoroscope?.运限叠宫.find((period) => period.层次 === '流日');
             if (daily) {
                 days.push({
                     day: d,
-                    stem: daily.ganZhi.charAt(0),
-                    branch: daily.ganZhi.charAt(1),
-                    palace: daily.name,
+                    stem: daily.干支.charAt(0),
+                    branch: daily.干支.charAt(1),
+                    palace: daily.落入本命宫位.replace(/宫$/u, ''),
                 });
             }
         }

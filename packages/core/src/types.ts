@@ -330,6 +330,8 @@ export interface HoroscopePeriodInfo {
   earthlyBranch: string;
   palaceNames: string[];
   mutagen: string[];
+  startAge?: number;
+  endAge?: number;
 }
 
 export interface TransitStarEntry {
@@ -349,6 +351,7 @@ export interface ZiweiHoroscopeOutput {
   body: string;
   fiveElement: string;
   targetDate: string;
+  hasExplicitTargetTime: boolean;
   decadal: HoroscopePeriodInfo;
   age: HoroscopePeriodInfo & { nominalAge: number };
   yearly: HoroscopePeriodInfo;
@@ -377,10 +380,24 @@ export interface ZiweiFlyingStarOutput {
   results: FlyingStarResult[];
 }
 
+export interface FlyingStarActualFlight {
+  mutagen: string;
+  targetPalace: string | null;
+  starName?: string | null;
+}
+
 export interface FlyingStarResult {
   queryIndex: number;
   type: string;
   result: boolean | MutagedPlaceInfo[] | SurroundedPalaceInfo;
+  queryTarget?: {
+    fromPalace?: string;
+    toPalace?: string;
+    palace?: string;
+    mutagens?: string[];
+  };
+  sourcePalaceGanZhi?: string;
+  actualFlights?: FlyingStarActualFlight[];
 }
 
 export interface MutagedPlaceInfo {

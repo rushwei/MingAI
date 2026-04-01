@@ -2,6 +2,7 @@
  * CanonicalJSON 渲染层
  * 与 text.ts 的 render*CanonicalText() 平行，输出结构化 JSON 对象。
  */
+import { Solar } from 'lunar-javascript';
 import { sortZiweiPalaces } from './text.js';
 import { formatGuaLevelLines, KONG_WANG_LABELS, sortYaosDescending, traditionalYaoName, WANG_SHUAI_LABELS, YONG_SHEN_STATUS_LABELS, } from './liuyao-core.js';
 import { GAN_WUXING } from './utils.js';
@@ -115,6 +116,12 @@ function normalizeQimenDetailLevel(detailLevel) {
     return 'default';
 }
 function normalizeDaliurenDetailLevel(detailLevel) {
+    if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+        return 'full';
+    }
+    return 'default';
+}
+function normalizeZiweiHoroscopeDetailLevel(detailLevel) {
     if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
         return 'full';
     }
@@ -1056,80 +1063,182 @@ export function renderBaziPillarsResolveCanonicalJSON(result) {
     };
 }
 // ===== 紫微运限 =====
-export function renderZiweiHoroscopeCanonicalJSON(result) {
+export function renderZiweiHoroscopeCanonicalJSON(result, options = {}) {
+    const detailLevel = normalizeZiweiHoroscopeDetailLevel(options.detailLevel);
+    const parsedTargetDate = (() => {
+        const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/u.exec(result.targetDate.trim());
+        if (!match)
+            return null;
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        return {
+            year,
+            month,
+            day,
+            lunarMonthLabel: `农历${Solar.fromYmd(year, month, day).getLunar().getMonthInChinese()}月`,
+        };
+    })();
+    const zodiacMap = {
+        子: '鼠', 丑: '牛', 寅: '虎', 卯: '兔', 辰: '龙', 巳: '蛇',
+        午: '马', 未: '羊', 申: '猴', 酉: '鸡', 戌: '狗', 亥: '猪',
+    };
+    const mutagenOrder = ['禄', '权', '科', '忌'];
+    const formatTimeNote = (layer) => {
+        switch (layer) {
+            case '大限':
+                if (typeof result.decadal.startAge === 'number' && typeof result.decadal.endAge === 'number') {
+                    return `虚岁 ${result.decadal.startAge}~${result.decadal.endAge}`;
+                }
+                return '-';
+            case '流年': {
+                const fallbackYear = Number(result.targetDate.slice(0, 4));
+                const year = typeof parsedTargetDate?.year === 'number'
+                    ? parsedTargetDate.year
+                    : (Number.isFinite(fallbackYear) ? fallbackYear : 0);
+                const zodiac = zodiacMap[result.yearly.earthlyBranch] || '';
+                return zodiac ? `${year}年 (${zodiac}年)` : `${year}年`;
+            }
+            case '小限':
+                return `虚岁 ${result.age.nominalAge}`;
+            case '流月':
+                return parsedTargetDate?.lunarMonthLabel || '-';
+            case '流日':
+                return parsedTargetDate ? `${parsedTargetDate.day}日` : '-';
+            case '流时':
+                return result.hourly.earthlyBranch ? `${result.hourly.earthlyBranch}时` : '-';
+            default:
+                return '-';
+        }
+    };
+    const formatMutagen = (stars) => mutagenOrder
+        .map((mutagen, index) => stars[index] ? `${stars[index]}[化${mutagen}]` : null)
+        .filter((value) => !!value);
+    const transitGroups = (() => {
+        const entries = result.transitStars || [];
+        const formatPalace = (palaceName) => palaceName.endsWith('宫') ? palaceName : `${palaceName}宫`;
+        const pick = (names) => entries.filter((entry) => names.includes(entry.starName)).map((entry) => `${entry.starName}(${formatPalace(entry.palaceName)})`);
+        return {
+            吉星分布: pick(['流禄', '流魁', '流钺', '流马']),
+            煞星分布: pick(['流羊', '流陀']),
+            '桃花/文星': pick(['流昌', '流曲', '流鸾', '流喜']),
+        };
+    })();
     const periodEntries = [
-        { label: '大限', data: result.decadal },
-        { label: '小限', data: result.age, nominalAge: result.age.nominalAge },
-        { label: '流年', data: result.yearly },
-        { label: '流月', data: result.monthly },
-        { label: '流日', data: result.daily },
-        { label: '流时', data: result.hourly },
+        { layer: '大限', data: result.decadal },
+        { layer: '流年', data: result.yearly },
+        { layer: '小限', data: result.age },
+        { layer: '流月', data: result.monthly },
+        { layer: '流日', data: result.daily },
+        ...(detailLevel === 'full' && result.hasExplicitTargetTime && result.hourly.heavenlyStem && result.hourly.earthlyBranch
+            ? [{ layer: '流时', data: result.hourly }]
+            : []),
     ];
     const json = {
-        basicInfo: {
-            solarDate: result.solarDate,
-            lunarDate: result.lunarDate,
-            soul: result.soul,
-            body: result.body,
-            fiveElement: result.fiveElement,
-            targetDate: result.targetDate,
+        基本信息: {
+            目标日期: result.targetDate,
+            五行局: result.fiveElement,
         },
-        periods: periodEntries.map(({ label, data, nominalAge }) => {
+        运限叠宫: periodEntries.map(({ layer, data }) => {
             const entry = {
-                label,
-                palaceIndex: data.index,
-                name: data.name,
-                ganZhi: `${data.heavenlyStem}${data.earthlyBranch}`,
-                mutagen: data.mutagen,
-                palaceNames: data.palaceNames,
+                层次: layer,
+                时间段备注: formatTimeNote(layer),
+                宫位索引: data.index,
+                干支: `${data.heavenlyStem}${data.earthlyBranch}`,
+                落入本命宫位: data.palaceNames[0] ? `${data.palaceNames[0]}宫` : '-',
+                运限四化: formatMutagen(data.mutagen),
             };
-            if (nominalAge !== undefined)
-                entry.nominalAge = nominalAge;
+            if (detailLevel === 'full' && data.palaceNames.length > 0)
+                entry.十二宫重排 = [...data.palaceNames];
             return entry;
         }),
     };
-    if (result.transitStars?.length) {
-        json.transitStars = result.transitStars.map((e) => ({
-            starName: e.starName,
-            palaceName: e.palaceName,
-        }));
+    if (detailLevel === 'full') {
+        json.基本信息.阳历 = result.solarDate;
+        json.基本信息.农历 = result.lunarDate;
+        json.基本信息.命主 = result.soul;
+        json.基本信息.身主 = result.body;
     }
-    if (result.yearlyDecStar) {
-        const hasSuiqian = result.yearlyDecStar.suiqian12.length > 0;
-        const hasJiangqian = result.yearlyDecStar.jiangqian12.length > 0;
-        if (hasSuiqian || hasJiangqian) {
-            json.yearlyDecStar = {
-                suiqian12: result.yearlyDecStar.suiqian12,
-                jiangqian12: result.yearlyDecStar.jiangqian12,
-            };
-        }
+    if (transitGroups.吉星分布.length || transitGroups.煞星分布.length || transitGroups['桃花/文星'].length) {
+        json.流年星曜 = transitGroups;
+    }
+    if (detailLevel === 'full' && result.yearlyDecStar) {
+        if (result.yearlyDecStar.suiqian12.length)
+            json.岁前十二星 = result.yearlyDecStar.suiqian12;
+        if (result.yearlyDecStar.jiangqian12.length)
+            json.将前十二星 = result.yearlyDecStar.jiangqian12;
     }
     return json;
 }
 // ===== 紫微飞星 =====
+function mapZiweiFlyingStarQueryType(type) {
+    switch (type) {
+        case 'fliesTo':
+            return '飞化判断';
+        case 'selfMutaged':
+            return '自化判断';
+        case 'mutagedPlaces':
+            return '四化落宫';
+        case 'surroundedPalaces':
+            return '三方四正';
+        default:
+            return type;
+    }
+}
 export function renderZiweiFlyingStarCanonicalJSON(result) {
+    const formatPalace = (name) => {
+        if (!name)
+            return null;
+        return name.endsWith('宫') ? name : `${name}宫`;
+    };
     return {
-        results: result.results.map((r) => {
+        查询结果: result.results.map((r) => {
             const entry = {
-                queryIndex: r.queryIndex,
-                type: r.type,
+                查询序号: r.queryIndex + 1,
+                查询类型: mapZiweiFlyingStarQueryType(r.type),
             };
-            if (r.type === 'fliesTo' || r.type === 'selfMutaged') {
-                entry.booleanResult = r.result;
+            if (r.type === 'fliesTo') {
+                if (r.queryTarget?.fromPalace && r.queryTarget?.toPalace && r.queryTarget?.mutagens?.length) {
+                    entry.判断目标 = `${formatPalace(r.queryTarget.fromPalace)} -> ${formatPalace(r.queryTarget.toPalace)} [${r.queryTarget.mutagens.join('、')}]`;
+                }
+                entry.结果 = r.result ? '是' : '否';
+                if (r.actualFlights?.length) {
+                    entry.实际飞化 = r.actualFlights.map((item) => ({
+                        四化: item.mutagen,
+                        宫位: formatPalace(item.targetPalace),
+                        ...(item.starName ? { 星曜: item.starName } : {}),
+                    }));
+                }
+            }
+            else if (r.type === 'selfMutaged') {
+                if (r.queryTarget?.palace && r.queryTarget?.mutagens?.length) {
+                    entry.判断目标 = `${formatPalace(r.queryTarget.palace)} [${r.queryTarget.mutagens.join('、')}]`;
+                }
+                entry.结果 = r.result ? '是' : '否';
             }
             else if (r.type === 'mutagedPlaces') {
-                entry.mutagedPlaces = r.result.map((p) => ({
-                    mutagen: p.mutagen,
-                    targetPalace: p.targetPalace,
+                if (r.queryTarget?.palace)
+                    entry.发射宫位 = formatPalace(r.queryTarget.palace);
+                if (r.sourcePalaceGanZhi)
+                    entry.发射宫干支 = r.sourcePalaceGanZhi;
+                const flights = r.actualFlights || r.result.map((item) => ({
+                    mutagen: item.mutagen,
+                    targetPalace: item.targetPalace,
+                    starName: null,
+                }));
+                entry.四化落宫 = flights.map((p) => ({
+                    四化: p.mutagen,
+                    宫位: formatPalace(p.targetPalace),
+                    ...(p.starName ? { 星曜: p.starName } : {}),
                 }));
             }
             else if (r.type === 'surroundedPalaces') {
                 const s = r.result;
-                entry.surroundedPalaces = {
-                    target: s.target.name,
-                    opposite: s.opposite.name,
-                    wealth: s.wealth.name,
-                    career: s.career.name,
+                entry.本宫 = formatPalace(s.target.name);
+                entry.矩阵宫位 = {
+                    对宫: formatPalace(s.opposite.name) || '-',
+                    三合1: formatPalace(s.wealth.name) || '-',
+                    三合2: formatPalace(s.career.name) || '-',
                 };
             }
             return entry;

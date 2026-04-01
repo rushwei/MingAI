@@ -38,6 +38,9 @@ export type QimenCanonicalTextOptions = {
 export type DaliurenCanonicalTextOptions = {
     detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
 };
+export type ZiweiHoroscopeCanonicalTextOptions = {
+    detailLevel?: DetailLevel | 'safe' | 'facts' | 'debug';
+};
 export declare function sortZiweiPalaces<T extends {
     name: string;
     index?: number;
@@ -45,7 +48,7 @@ export declare function sortZiweiPalaces<T extends {
 export declare function renderBaziCanonicalText(chart: BaziOutput, options?: BaziCanonicalTextOptions): string;
 export declare function renderBaziPillarsResolveCanonicalText(result: BaziPillarsResolveOutput): string;
 export declare function renderZiweiCanonicalText(result: ZiweiOutput, options?: ZiweiCanonicalTextOptions): string;
-export declare function renderZiweiHoroscopeCanonicalText(result: ZiweiHoroscopeOutput): string;
+export declare function renderZiweiHoroscopeCanonicalText(result: ZiweiHoroscopeOutput, options?: ZiweiHoroscopeCanonicalTextOptions): string;
 export declare function renderZiweiFlyingStarCanonicalText(result: ZiweiFlyingStarOutput): string;
 export declare function renderLiuyaoCanonicalText(result: LiuyaoOutput): string;
 export declare function renderLiuyaoAISafeText(result: LiuyaoOutput): string;

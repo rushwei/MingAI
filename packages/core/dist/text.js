@@ -1,3 +1,4 @@
+import { Solar } from 'lunar-javascript';
 import { formatGuaLevelLines, KONG_WANG_LABELS, sortYaosDescending, traditionalYaoName, WANG_SHUAI_LABELS, YONG_SHEN_STATUS_LABELS, } from './liuyao-core.js';
 import { GAN_WUXING } from './utils.js';
 const ZIWEI_PALACE_TEXT_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
@@ -20,6 +21,12 @@ function normalizeQimenDetailLevel(detailLevel) {
     return 'default';
 }
 function normalizeDaliurenDetailLevel(detailLevel) {
+    if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+        return 'full';
+    }
+    return 'default';
+}
+function normalizeZiweiHoroscopeDetailLevel(detailLevel) {
     if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
         return 'full';
     }
@@ -407,82 +414,215 @@ function renderZiweiCanonicalFullText(result, options = {}) {
     appendZiweiHoroscopeBlock(lines, options);
     return lines.join('\n');
 }
-export function renderZiweiHoroscopeCanonicalText(result) {
+const ZIWEI_HOROSCOPE_MUTAGEN_ORDER = ['禄', '权', '科', '忌'];
+const ZIWEI_BRANCH_ZODIAC = {
+    子: '鼠', 丑: '牛', 寅: '虎', 卯: '兔', 辰: '龙', 巳: '蛇',
+    午: '马', 未: '羊', 申: '猴', 酉: '鸡', 戌: '狗', 亥: '猪',
+};
+const ZIWEI_TRANSIT_STAR_GROUPS = {
+    吉星分布: ['流禄', '流魁', '流钺', '流马'],
+    煞星分布: ['流羊', '流陀'],
+    '桃花/文星': ['流昌', '流曲', '流鸾', '流喜'],
+};
+function parseZiweiHoroscopeTargetDate(targetDate) {
+    const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/u.exec(targetDate.trim());
+    if (!match)
+        return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const lunarMonthLabel = `农历${Solar.fromYmd(year, month, day).getLunar().getMonthInChinese()}月`;
+    return { year, month, day, lunarMonthLabel };
+}
+function formatZiweiHoroscopeMutagen(stars) {
+    return ZIWEI_HOROSCOPE_MUTAGEN_ORDER
+        .map((mutagen, index) => stars[index] ? `${stars[index]}[化${mutagen}]` : null)
+        .filter(Boolean)
+        .join(' ');
+}
+function formatZiweiHoroscopeLandingPalace(palaceNames) {
+    return palaceNames[0] ? `${palaceNames[0]}宫` : '-';
+}
+function formatZiweiHoroscopeTimeNote(layer, result, parsedTargetDate) {
+    switch (layer) {
+        case '大限':
+            if (typeof result.decadal.startAge === 'number' && typeof result.decadal.endAge === 'number') {
+                return `虚岁 ${result.decadal.startAge}~${result.decadal.endAge}`;
+            }
+            return '-';
+        case '流年': {
+            const fallbackYear = Number(result.targetDate.slice(0, 4));
+            const year = typeof parsedTargetDate?.year === 'number'
+                ? parsedTargetDate.year
+                : (Number.isFinite(fallbackYear) ? fallbackYear : 0);
+            const zodiac = ZIWEI_BRANCH_ZODIAC[result.yearly.earthlyBranch] || '';
+            return zodiac ? `${year}年 (${zodiac}年)` : `${year}年`;
+        }
+        case '小限':
+            return `虚岁 ${result.age.nominalAge}`;
+        case '流月':
+            return parsedTargetDate?.lunarMonthLabel || '-';
+        case '流日':
+            return parsedTargetDate ? `${parsedTargetDate.day}日` : '-';
+        case '流时':
+            return result.hourly.earthlyBranch ? `${result.hourly.earthlyBranch}时` : '-';
+        default:
+            return '-';
+    }
+}
+function buildZiweiHoroscopeTransitGroups(result) {
+    const transitStars = result.transitStars || [];
+    const formatPalace = (palaceName) => palaceName.endsWith('宫') ? palaceName : `${palaceName}宫`;
+    return [
+        {
+            label: '吉星分布',
+            items: transitStars
+                .filter((entry) => ZIWEI_TRANSIT_STAR_GROUPS.吉星分布.includes(entry.starName))
+                .map((entry) => `${entry.starName}(${formatPalace(entry.palaceName)})`),
+        },
+        {
+            label: '煞星分布',
+            items: transitStars
+                .filter((entry) => ZIWEI_TRANSIT_STAR_GROUPS.煞星分布.includes(entry.starName))
+                .map((entry) => `${entry.starName}(${formatPalace(entry.palaceName)})`),
+        },
+        {
+            label: '桃花/文星',
+            items: transitStars
+                .filter((entry) => ZIWEI_TRANSIT_STAR_GROUPS['桃花/文星'].includes(entry.starName))
+                .map((entry) => `${entry.starName}(${formatPalace(entry.palaceName)})`),
+        },
+    ];
+}
+export function renderZiweiHoroscopeCanonicalText(result, options = {}) {
+    const detailLevel = normalizeZiweiHoroscopeDetailLevel(options.detailLevel);
+    const parsedTargetDate = parseZiweiHoroscopeTargetDate(result.targetDate);
     const lines = [
         '# 紫微运限',
         '',
         '## 基本信息',
-        `- **阳历**: ${result.solarDate}`,
-        `- **农历**: ${result.lunarDate}`,
-        `- **命主**: ${result.soul}`,
-        `- **身主**: ${result.body}`,
-        `- **五行局**: ${result.fiveElement}`,
-        `- **目标日期**: ${result.targetDate}`,
-        '',
-        '## 运限列表',
-        '| 类型 | 宫位 | 干支 | 四化 | 十二宫重排 | 附加 |',
-        '|------|------|------|------|------------|------|',
+        `- 目标日期: ${result.targetDate}`,
+        `- 五行局: ${result.fiveElement}`,
     ];
-    const periods = [
-        { label: '大限', data: result.decadal },
-        { label: '小限', data: result.age, extra: `虚岁${result.age.nominalAge}` },
-        { label: '流年', data: result.yearly },
-        { label: '流月', data: result.monthly },
-        { label: '流日', data: result.daily },
-        { label: '流时', data: result.hourly },
-    ];
-    for (const { label, data, extra } of periods) {
-        lines.push(`| ${label} | ${data.name} | ${data.heavenlyStem}${data.earthlyBranch} | ${data.mutagen.join('、') || '-'} | ${data.palaceNames.join('、') || '-'} | ${extra || '-'} |`);
+    if (detailLevel === 'full') {
+        lines.push(`- 阳历: ${result.solarDate}`);
+        lines.push(`- 农历: ${result.lunarDate}`);
+        lines.push(`- 命主: ${result.soul}`);
+        lines.push(`- 身主: ${result.body}`);
     }
-    if (result.transitStars?.length) {
+    lines.push('');
+    lines.push('## 运限叠宫与四化');
+    lines.push('| 层次 | 时间段/备注 | 干支 | 落入本命宫位 | 运限四化 (禄/权/科/忌) |');
+    lines.push('|------|-------------|------|--------------|-------------------------|');
+    const periodRows = [
+        { layer: '大限', data: result.decadal },
+        { layer: '流年', data: result.yearly },
+        { layer: '小限', data: result.age },
+        { layer: '流月', data: result.monthly },
+        { layer: '流日', data: result.daily },
+        ...(detailLevel === 'full' && result.hasExplicitTargetTime && result.hourly.heavenlyStem && result.hourly.earthlyBranch
+            ? [{ layer: '流时', data: result.hourly }]
+            : []),
+    ];
+    for (const { layer, data } of periodRows) {
+        lines.push(`| ${layer} | ${formatZiweiHoroscopeTimeNote(layer, result, parsedTargetDate)} | ${data.heavenlyStem}${data.earthlyBranch} | ${formatZiweiHoroscopeLandingPalace(data.palaceNames)} | ${formatZiweiHoroscopeMutagen(data.mutagen) || '-'} |`);
+    }
+    const transitGroups = buildZiweiHoroscopeTransitGroups(result);
+    if (transitGroups.some((group) => group.items.length > 0)) {
         lines.push('');
         lines.push('## 流年星曜');
-        for (const entry of result.transitStars) {
-            lines.push(`- ${entry.starName} → ${entry.palaceName}`);
+        for (const group of transitGroups) {
+            if (group.items.length > 0) {
+                lines.push(`- ${group.label}: ${group.items.join('、')}`);
+            }
         }
     }
-    if (result.yearlyDecStar?.suiqian12.length) {
-        lines.push('');
-        lines.push('## 岁前十二星');
-        lines.push(result.yearlyDecStar.suiqian12.join('、'));
-    }
-    if (result.yearlyDecStar?.jiangqian12.length) {
-        lines.push('');
-        lines.push('## 将前十二星');
-        lines.push(result.yearlyDecStar.jiangqian12.join('、'));
+    if (detailLevel === 'full') {
+        if (result.yearlyDecStar?.suiqian12.length) {
+            lines.push('');
+            lines.push('## 岁前十二星');
+            lines.push(result.yearlyDecStar.suiqian12.join('、'));
+        }
+        if (result.yearlyDecStar?.jiangqian12.length) {
+            lines.push('');
+            lines.push('## 将前十二星');
+            lines.push(result.yearlyDecStar.jiangqian12.join('、'));
+        }
     }
     return lines.join('\n');
 }
 function formatZiweiFlyingStarResult(r, lines) {
-    if (r.type === 'fliesTo' || r.type === 'selfMutaged') {
-        lines.push(`- **结果**: ${r.result ? '是' : '否'}`);
+    const formatPalace = (name) => {
+        if (!name)
+            return '无';
+        return name.endsWith('宫') ? name : `${name}宫`;
+    };
+    if (r.type === 'fliesTo') {
+        if (r.queryTarget?.fromPalace && r.queryTarget?.toPalace && r.queryTarget?.mutagens?.length) {
+            lines.push(`- 判断目标: ${formatPalace(r.queryTarget.fromPalace)} -> ${formatPalace(r.queryTarget.toPalace)} [${r.queryTarget.mutagens.join('、')}]`);
+        }
+        lines.push(`- 结果: ${r.result ? '是' : '否'}`);
+        if (r.actualFlights?.length) {
+            for (const item of r.actualFlights) {
+                const starSuffix = item.starName ? ` [${item.starName}星]` : '';
+                lines.push(`- 实际落点: 化[${item.mutagen}] 飞入 -> ${formatPalace(item.targetPalace)}${starSuffix}`);
+            }
+        }
+        return;
+    }
+    if (r.type === 'selfMutaged') {
+        if (r.queryTarget?.palace && r.queryTarget?.mutagens?.length) {
+            lines.push(`- 判断目标: ${formatPalace(r.queryTarget.palace)} [${r.queryTarget.mutagens.join('、')}]`);
+        }
+        lines.push(`- 结果: ${r.result ? '是' : '否'}`);
         return;
     }
     if (r.type === 'mutagedPlaces') {
-        const places = r.result;
+        if (r.queryTarget?.palace)
+            lines.push(`- 查询宫位: ${formatPalace(r.queryTarget.palace)}`);
+        if (r.sourcePalaceGanZhi)
+            lines.push(`- 本宫干支: ${r.sourcePalaceGanZhi}`);
+        const places = r.actualFlights || r.result.map((item) => ({ mutagen: item.mutagen, targetPalace: item.targetPalace, starName: null }));
         if (places.length === 0) {
-            lines.push('- **结果**: 无');
+            lines.push('- 结果: 无');
             return;
         }
         for (const p of places) {
-            lines.push(`- **化${p.mutagen}**: ${p.targetPalace ?? '无'}`);
+            const starSuffix = p.starName ? ` [${p.starName}星]` : '';
+            lines.push(`- 化${p.mutagen}: ${formatPalace(p.targetPalace)}${starSuffix}`);
         }
         return;
     }
     if (r.type === 'surroundedPalaces') {
         const s = r.result;
-        lines.push(`- **本宫**: ${s.target.name}`);
-        lines.push(`- **对宫**: ${s.opposite.name}`);
-        lines.push(`- **财帛**: ${s.wealth.name}`);
-        lines.push(`- **官禄**: ${s.career.name}`);
+        if (r.queryTarget?.palace)
+            lines.push(`- 查询宫位: ${formatPalace(r.queryTarget.palace)}`);
+        lines.push(`- 本宫: ${formatPalace(s.target.name)}`);
+        lines.push(`- 对宫: ${formatPalace(s.opposite.name)}`);
+        lines.push(`- 三合宫 1: ${formatPalace(s.wealth.name)}`);
+        lines.push(`- 三合宫 2: ${formatPalace(s.career.name)}`);
+    }
+}
+function mapZiweiFlyingStarQueryType(type) {
+    switch (type) {
+        case 'fliesTo':
+            return '飞化判断';
+        case 'selfMutaged':
+            return '自化判断';
+        case 'mutagedPlaces':
+            return '四化落宫';
+        case 'surroundedPalaces':
+            return '三方四正';
+        default:
+            return type;
     }
 }
 export function renderZiweiFlyingStarCanonicalText(result) {
-    const lines = ['# 紫微飞星分析'];
+    const lines = ['# 紫微飞星'];
     for (const r of result.results) {
         lines.push('');
         lines.push(`## 查询 ${r.queryIndex + 1}`);
-        lines.push(`- **类型**: ${r.type}`);
+        lines.push(`- 查询类型: ${mapZiweiFlyingStarQueryType(r.type)}`);
         formatZiweiFlyingStarResult(r, lines);
     }
     return lines.join('\n');

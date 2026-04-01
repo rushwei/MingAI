@@ -5,9 +5,13 @@ import {
   renderBaziCanonicalJSON,
   handleDaliurenCalculate,
   handleQimenCalculate,
+  handleZiweiFlyingStar,
+  handleZiweiHoroscope,
   handleZiweiCalculate,
   renderDaliurenCanonicalJSON,
   renderQimenCanonicalJSON,
+  renderZiweiFlyingStarCanonicalJSON,
+  renderZiweiHoroscopeCanonicalJSON,
   renderZiweiCanonicalJSON,
 } from '@mingai/core';
 
@@ -178,4 +182,67 @@ test('ziwei canonical json should expose compact default output while keeping fu
   assert.ok(Array.isArray(fullJson.十二宫位[0]?.小限虚岁));
   assert.ok(Array.isArray(fullJson.十二宫位[0]?.流年虚岁));
   assert.equal('currentTransit' in fullJson, false);
+});
+
+test('ziwei_horoscope canonical json should expose Chinese keys for horoscope periods', async () => {
+  const result = await handleZiweiHoroscope({
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+    targetDate: '2026-03-22',
+  });
+
+  const json = renderZiweiHoroscopeCanonicalJSON(result);
+  const fullJson = renderZiweiHoroscopeCanonicalJSON(result, { detailLevel: 'full' });
+
+  assert.equal(typeof json.基本信息.目标日期, 'string');
+  assert.equal(typeof json.基本信息.五行局, 'string');
+  assert.equal(json.基本信息.阳历, undefined);
+  assert.equal(Array.isArray(json.运限叠宫), true);
+  assert.equal(typeof json.运限叠宫[0]?.层次, 'string');
+  assert.equal(typeof json.运限叠宫[0]?.宫位索引, 'number');
+  assert.equal(typeof json.运限叠宫[0]?.落入本命宫位, 'string');
+  assert.equal(Array.isArray(json.运限叠宫[0]?.运限四化), true);
+  assert.equal(typeof json.流年星曜?.吉星分布?.[0], 'string');
+  assert.equal(fullJson.基本信息.阳历?.length > 0, true);
+  assert.equal(Array.isArray(fullJson.岁前十二星), true);
+  assert.equal(Array.isArray(fullJson.将前十二星), true);
+  assert.equal('basicInfo' in json, false);
+  assert.equal('periods' in json, false);
+});
+
+test('ziwei_flying_star canonical json should expose Chinese keys and readable query labels', async () => {
+  const result = await handleZiweiFlyingStar({
+    gender: 'male',
+    birthYear: 2003,
+    birthMonth: 9,
+    birthDay: 2,
+    birthHour: 10,
+    birthMinute: 20,
+    calendarType: 'solar',
+    queries: [
+      { type: 'fliesTo', from: '命宫', to: '财帛宫', mutagens: ['禄'] },
+      { type: 'mutagedPlaces', palace: '命宫' },
+      { type: 'surroundedPalaces', palace: '命宫' },
+    ],
+  });
+
+  const json = renderZiweiFlyingStarCanonicalJSON(result);
+
+  assert.equal(Array.isArray(json.查询结果), true);
+  assert.equal(typeof json.查询结果[0]?.查询序号, 'number');
+  assert.equal(typeof json.查询结果[0]?.查询类型, 'string');
+  assert.equal(typeof json.查询结果[0]?.判断目标, 'string');
+  assert.equal(['是', '否'].includes(json.查询结果[0]?.结果), true);
+  assert.equal(Array.isArray(json.查询结果[0]?.实际飞化), true);
+  assert.equal(Array.isArray(json.查询结果[1]?.四化落宫), true);
+  assert.equal(typeof json.查询结果[1]?.发射宫干支, 'string');
+  assert.equal(typeof json.查询结果[1]?.四化落宫?.[0]?.星曜, 'string');
+  assert.equal(typeof json.查询结果[2]?.本宫, 'string');
+  assert.equal(typeof json.查询结果[2]?.矩阵宫位?.三合1, 'string');
+  assert.equal('results' in json, false);
 });
