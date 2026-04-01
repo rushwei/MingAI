@@ -127,6 +127,12 @@ function normalizeTarotDetailLevel(detailLevel) {
     }
     return 'default';
 }
+function normalizeFortuneDetailLevel(detailLevel) {
+    if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
+        return 'full';
+    }
+    return 'default';
+}
 function normalizeZiweiHoroscopeDetailLevel(detailLevel) {
     if (detailLevel === 'full' || detailLevel === 'more' || detailLevel === 'facts' || detailLevel === 'debug') {
         return 'full';
@@ -991,36 +997,73 @@ export function renderDaliurenCanonicalJSON(result, options = {}) {
     };
 }
 // ===== 每日运势 =====
-export function renderFortuneCanonicalJSON(result) {
+export function renderFortuneCanonicalJSON(result, options = {}) {
+    const detailLevel = normalizeFortuneDetailLevel(options.detailLevel);
     const { date, dayInfo, tenGod, almanac } = result;
     const json = {
-        basicInfo: {
-            date,
-            dayGanZhi: dayInfo.ganZhi,
-            tenGod: tenGod ?? '-',
+        基础与个性化坐标: {
+            日期: date,
+            日干支: dayInfo.ganZhi,
         },
-        almanac: {
-            lunarDate: almanac.lunarDate || `${almanac.lunarMonth}${almanac.lunarDay}`,
-            zodiac: almanac.zodiac,
-            suitable: almanac.suitable,
-            avoid: almanac.avoid,
-            jishen: almanac.jishen || [],
-            xiongsha: almanac.xiongsha || [],
+        传统黄历基调: {
+            农历: almanac.lunarDate || `${almanac.lunarMonth}${almanac.lunarDay}`,
+            生肖: almanac.zodiac,
         },
+        择日宜忌: {
+            宜: almanac.suitable,
+            忌: almanac.avoid,
+        },
+        神煞参考: {},
     };
+    if (tenGod)
+        json.基础与个性化坐标.流日十神 = tenGod;
     if (almanac.solarTerm)
-        json.almanac.solarTerm = almanac.solarTerm;
+        json.传统黄历基调.节气 = almanac.solarTerm;
     if (almanac.chongSha)
-        json.almanac.chongSha = almanac.chongSha;
+        json.传统黄历基调.冲煞 = almanac.chongSha;
     if (almanac.pengZuBaiJi)
-        json.almanac.pengZuBaiJi = almanac.pengZuBaiJi;
+        json.传统黄历基调.彭祖百忌 = almanac.pengZuBaiJi;
     if (almanac.taiShen)
-        json.almanac.taiShen = almanac.taiShen;
+        json.传统黄历基调.胎神占方 = almanac.taiShen;
     if (almanac.dayNineStar) {
-        json.almanac.dayNineStar = {
-            description: almanac.dayNineStar.description,
-            position: almanac.dayNineStar.position,
+        json.传统黄历基调.日九星 = {
+            描述: almanac.dayNineStar.description,
+            方位: almanac.dayNineStar.position,
         };
+    }
+    if (almanac.jishen?.length)
+        json.神煞参考.吉神宜趋 = almanac.jishen;
+    if (almanac.xiongsha?.length)
+        json.神煞参考.凶煞宜忌 = almanac.xiongsha;
+    if (detailLevel === 'full') {
+        json.方位信息 = {
+            财神: almanac.directions.caiShen,
+            喜神: almanac.directions.xiShen,
+            福神: almanac.directions.fuShen,
+            阳贵人: almanac.directions.yangGui,
+            阴贵人: almanac.directions.yinGui,
+        };
+        json.值日信息 = {
+            ...(almanac.dayOfficer ? { 建除十二值星: almanac.dayOfficer } : {}),
+            ...(almanac.tianShen ? { 天神: almanac.tianShen } : {}),
+            ...(almanac.tianShenType ? { 天神类型: almanac.tianShenType } : {}),
+            ...(almanac.tianShenLuck ? { 天神吉凶: almanac.tianShenLuck } : {}),
+            ...(almanac.lunarMansion ? { 二十八星宿: almanac.lunarMansion } : {}),
+            ...(almanac.lunarMansionLuck ? { 星宿吉凶: almanac.lunarMansionLuck } : {}),
+            ...(almanac.lunarMansionSong ? { 星宿歌诀: almanac.lunarMansionSong } : {}),
+            ...(almanac.nayin ? { 日柱纳音: almanac.nayin } : {}),
+        };
+        if (almanac.hourlyFortune.length > 0) {
+            json.时辰吉凶 = almanac.hourlyFortune.map((hour) => ({
+                时辰: hour.ganZhi,
+                ...(hour.tianShen ? { 天神: hour.tianShen } : {}),
+                ...(hour.tianShenType ? { 天神类型: hour.tianShenType } : {}),
+                ...(hour.tianShenLuck ? { 天神吉凶: hour.tianShenLuck } : {}),
+                ...([hour.chong, hour.sha].filter(Boolean).length ? { 冲煞: [hour.chong, hour.sha].filter(Boolean).join(' / ') } : {}),
+                ...(hour.suitable.length ? { 宜: hour.suitable } : {}),
+                ...(hour.avoid.length ? { 忌: hour.avoid } : {}),
+            }));
+        }
     }
     return json;
 }

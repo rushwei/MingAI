@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  handleDailyFortune,
   renderBaziCanonicalJSON,
   handleDaliurenCalculate,
   handleQimenCalculate,
@@ -10,6 +11,7 @@ import {
   handleZiweiHoroscope,
   handleZiweiCalculate,
   renderDaliurenCanonicalJSON,
+  renderFortuneCanonicalJSON,
   renderQimenCanonicalJSON,
   renderTarotCanonicalJSON,
   renderZiweiFlyingStarCanonicalJSON,
@@ -124,6 +126,32 @@ test('daliuren canonical json should not expose fields omitted by canonical text
   assert.equal('建除' in json.天地盘[0], false);
   assert.equal('神煞' in json, false);
   assert.equal(typeof fullJson.天地盘[0]?.建除, 'string');
+});
+
+test('almanac canonical json should expose Chinese grouped keys and keep full-only calendrical extensions opt-in', async () => {
+  const result = await handleDailyFortune({
+    date: '2026-04-01',
+    dayMaster: '戊',
+  });
+
+  const json = renderFortuneCanonicalJSON(result);
+  const fullJson = renderFortuneCanonicalJSON(result, { detailLevel: 'full' });
+
+  assert.equal(typeof json.基础与个性化坐标.日期, 'string');
+  assert.equal(typeof json.基础与个性化坐标.日干支, 'string');
+  assert.equal(typeof json.基础与个性化坐标.流日十神, 'string');
+  assert.equal(Array.isArray(json.择日宜忌.宜), true);
+  assert.equal(Array.isArray(json.择日宜忌.忌), true);
+  assert.equal(typeof json.神煞参考.吉神宜趋?.[0], 'string');
+  assert.equal(json.方位信息, undefined);
+  assert.equal(json.值日信息, undefined);
+  assert.equal(json.时辰吉凶, undefined);
+
+  assert.equal(typeof fullJson.方位信息?.财神, 'string');
+  assert.equal(typeof fullJson.值日信息?.建除十二值星, 'string');
+  assert.ok(Array.isArray(fullJson.时辰吉凶));
+  assert.equal('basicInfo' in json, false);
+  assert.equal('almanac' in json, false);
 });
 
 test('bazi canonical json should de-duplicate branch relation summaries without showing missing banhe branches', () => {

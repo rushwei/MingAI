@@ -78,6 +78,34 @@ test('tarot default/full should split slim card text from detailed numerology me
   assert.equal(typeof fullPayload.structuredContent.求问者生命数字.人格牌.对应塔罗, 'string');
 });
 
+test('almanac default/full should keep default compact and full append complete calendrical details', async () => {
+  const rawResult = await mcpCore.handleToolCall('almanac', {
+    date: '2026-04-01',
+    dayMaster: '戊',
+  });
+
+  const defaultPayload = buildToolSuccessPayload('almanac', rawResult, 'markdown', { detailLevel: 'default' });
+  const fullPayload = buildToolSuccessPayload('almanac', rawResult, 'markdown', { detailLevel: 'full' });
+
+  assert.match(defaultPayload.content[0].text, /# 每日黄历/u);
+  assert.match(defaultPayload.content[0].text, /## 基础与个性化坐标/u);
+  assert.match(defaultPayload.content[0].text, /## 择日宜忌/u);
+  assert.match(defaultPayload.content[0].text, /吉神宜趋/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /## 方位信息/u);
+  assert.doesNotMatch(defaultPayload.content[0].text, /## 时辰吉凶/u);
+
+  assert.match(fullPayload.content[0].text, /## 方位信息/u);
+  assert.match(fullPayload.content[0].text, /## 值日信息/u);
+  assert.match(fullPayload.content[0].text, /## 时辰吉凶/u);
+
+  assert.equal(defaultPayload.structuredContent.方位信息, undefined);
+  assert.equal(defaultPayload.structuredContent.值日信息, undefined);
+  assert.equal(defaultPayload.structuredContent.时辰吉凶, undefined);
+  assert.equal(typeof fullPayload.structuredContent.方位信息.财神, 'string');
+  assert.equal(typeof fullPayload.structuredContent.值日信息.日柱纳音, 'string');
+  assert.ok(Array.isArray(fullPayload.structuredContent.时辰吉凶));
+});
+
 test('bazi_calculate tool output should keep chart-only boundaries without implicit dayun summary', async () => {
   const rawResult = await mcpCore.handleToolCall('bazi_calculate', {
     gender: 'male',

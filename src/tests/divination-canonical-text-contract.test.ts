@@ -5,6 +5,7 @@ import {
   renderBaziCanonicalText,
   renderBaziPillarsResolveCanonicalText,
   renderDaliurenCanonicalText,
+  renderFortuneCanonicalText,
   renderLiuyaoCanonicalText,
   renderQimenCanonicalText,
   renderZiweiFlyingStarCanonicalText,
@@ -371,6 +372,105 @@ test('daliuren canonical text should keep default focused while full only append
   assert.match(fullText, /本命: 癸未/u);
   assert.match(fullText, /附加课体: 自任/u);
   assert.match(fullText, /\| 地盘 \(五行·状态\) \| 天盘 \(月将\) \| 天将 \| 遁干 \| 长生十二神 \| 建除 \|/u);
+});
+
+test('almanac canonical text should keep default compact while full appends calendrical details', () => {
+  const text = renderFortuneCanonicalText({
+    date: '2026-04-01',
+    dayInfo: { stem: '乙', branch: '巳', ganZhi: '乙巳' },
+    tenGod: '正官',
+    almanac: {
+      lunarDate: '二〇二六年二月十四',
+      lunarMonth: '二月',
+      lunarDay: '十四',
+      zodiac: '马',
+      solarTerm: '',
+      suitable: ['纳财', '开市'],
+      avoid: ['移徙', '入宅'],
+      chongSha: '冲(己亥)猪 煞东',
+      pengZuBaiJi: '乙不栽植千株不长 巳不远行财物伏藏',
+      jishen: ['相日', '驿马'],
+      xiongsha: ['五虚', '大煞'],
+      directions: {
+        caiShen: '东北',
+        xiShen: '西北',
+        fuShen: '西南',
+        yangGui: '正北',
+        yinGui: '西南',
+      },
+      dayOfficer: '定',
+      tianShen: '司命',
+      tianShenType: '黄道',
+      tianShenLuck: '吉',
+      lunarMansion: '毕月乌',
+      lunarMansionLuck: '吉',
+      lunarMansionSong: '毕星造作主光前',
+      nayin: '佛灯火',
+      dayNineStar: {
+        number: 3,
+        description: '三碧木 震(正东) 天玑',
+        color: '碧',
+        wuXing: '木',
+        position: '正东',
+      },
+      taiShen: '碓磨床 房内东',
+      hourlyFortune: [
+        { ganZhi: '丙子', tianShen: '青龙', tianShenType: '黄道', tianShenLuck: '吉', chong: '冲马', sha: '煞南', suitable: ['祭祀'], avoid: ['出行'] },
+      ],
+    },
+  });
+  const fullText = renderFortuneCanonicalText({
+    date: '2026-04-01',
+    dayInfo: { stem: '乙', branch: '巳', ganZhi: '乙巳' },
+    tenGod: '正官',
+    almanac: {
+      lunarDate: '二〇二六年二月十四',
+      lunarMonth: '二月',
+      lunarDay: '十四',
+      zodiac: '马',
+      solarTerm: '',
+      suitable: ['纳财', '开市'],
+      avoid: ['移徙', '入宅'],
+      chongSha: '冲(己亥)猪 煞东',
+      pengZuBaiJi: '乙不栽植千株不长 巳不远行财物伏藏',
+      jishen: ['相日', '驿马'],
+      xiongsha: ['五虚', '大煞'],
+      directions: {
+        caiShen: '东北',
+        xiShen: '西北',
+        fuShen: '西南',
+        yangGui: '正北',
+        yinGui: '西南',
+      },
+      dayOfficer: '定',
+      tianShen: '司命',
+      tianShenType: '黄道',
+      tianShenLuck: '吉',
+      lunarMansion: '毕月乌',
+      lunarMansionLuck: '吉',
+      lunarMansionSong: '毕星造作主光前',
+      nayin: '佛灯火',
+      dayNineStar: {
+        number: 3,
+        description: '三碧木 震(正东) 天玑',
+        color: '碧',
+        wuXing: '木',
+        position: '正东',
+      },
+      taiShen: '碓磨床 房内东',
+      hourlyFortune: [
+        { ganZhi: '丙子', tianShen: '青龙', tianShenType: '黄道', tianShenLuck: '吉', chong: '冲马', sha: '煞南', suitable: ['祭祀'], avoid: ['出行'] },
+      ],
+    },
+  }, { detailLevel: 'full' });
+
+  assert.match(text, /# 每日黄历/u);
+  assert.match(text, /## 择日宜忌/u);
+  assert.match(text, /宜: 纳财, 开市/u);
+  assert.doesNotMatch(text, /## 方位信息/u);
+  assert.match(fullText, /## 方位信息/u);
+  assert.match(fullText, /## 值日信息/u);
+  assert.match(fullText, /## 时辰吉凶/u);
 });
 
 test('web ziwei text should include horoscope block when caller explicitly requests it', () => {
