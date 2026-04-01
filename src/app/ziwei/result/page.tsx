@@ -23,6 +23,8 @@ import { getDayCount } from '@/lib/date-utils';
 import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 function ZiweiResultContent() {
     const searchParams = useSearchParams();
@@ -36,6 +38,9 @@ function ZiweiResultContent() {
     const [horoscopeHighlight, setHoroscopeHighlight] = useState<HoroscopeHighlight>({});
     const [horoscopeInfo, setHoroscopeInfo] = useState<HoroscopeInfo | undefined>(undefined);
     const [hourOffset, setHourOffset] = useState(0); // 时辰调整偏移
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [copied, setCopied] = useState(false);
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const { showToast } = useToast();
 
@@ -229,6 +234,19 @@ function ZiweiResultContent() {
         }
     }, [resolvedFormData.name, showToast]);
 
+    const handleConfirmCopy = useCallback(async (level: ChartTextDetailLevel) => {
+        if (!chart) return;
+        try {
+            setCopyDetailLevel(level);
+            await navigator.clipboard.writeText(generateZiweiChartText(chart, { detailLevel: level }));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            setShowCopyModal(false);
+        } catch {
+            showToast('error', '复制失败，请手动复制');
+        }
+    }, [chart, showToast]);
+
     // Header 菜单项
     useEffect(() => {
         const items = [
@@ -342,7 +360,8 @@ function ZiweiResultContent() {
                 <section className="bg-background border border-border rounded-md p-6">
                     <ZiweiChartGrid
                         canonicalChart={canonicalChart}
-                        copyText={generateZiweiChartText(chart)}
+                        copied={copied}
+                        onCopy={() => setShowCopyModal(true)}
                         showJsonCopy={isAdmin && !!canonicalChart}
                         jsonCopied={jsonCopied}
                         onCopyJson={() => { void copyJson(); }}
@@ -363,6 +382,13 @@ function ZiweiResultContent() {
                 </footer>
             </div>
 
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
         </div>
     );

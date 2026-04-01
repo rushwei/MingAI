@@ -20,7 +20,7 @@ test('ZiweiChartGrid renders core identity rows without static small-limit summa
     const markup = renderToString(
         <ZiweiChartGrid
             canonicalChart={canonicalChart}
-            copyText="test"
+            onCopy={() => {}}
         />
     );
 

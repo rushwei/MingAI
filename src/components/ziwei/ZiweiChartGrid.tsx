@@ -19,7 +19,8 @@ import { useToast } from '@/components/ui/Toast';
 
 interface ZiweiChartProps {
     canonicalChart: ZiweiCanonicalJSON;
-    copyText: string;
+    copied?: boolean;
+    onCopy?: () => void;
     showJsonCopy?: boolean;
     jsonCopied?: boolean;
     onCopyJson?: () => void;
@@ -46,7 +47,8 @@ function getBranchElementStyle(branch: string | undefined): { color: string } | 
  */
 export function ZiweiChartGrid({
     canonicalChart,
-    copyText,
+    copied = false,
+    onCopy,
     showJsonCopy = false,
     jsonCopied = false,
     onCopyJson,
@@ -57,7 +59,6 @@ export function ZiweiChartGrid({
     // 默认选中命宫，显示三方四正
     const [selectedPalace, setSelectedPalace] = useState<number | null | undefined>(undefined);
     const [showAdjStars, setShowAdjStars] = useState(true); // 默认显示杂曜
-    const [copied, setCopied] = useState(false);
     const { showToast } = useToast();
 
     const defaultSelectedPalace = typeof lifePalaceIndex === 'number' && lifePalaceIndex >= 0 ? lifePalaceIndex : null;
@@ -80,12 +81,9 @@ export function ZiweiChartGrid({
         return types;
     };
 
-    // 复制命盘
-    const handleCopy = async () => {
+    const handleCopy = () => {
         try {
-            await navigator.clipboard.writeText(copyText);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            onCopy?.();
         } catch {
             showToast('error', '复制失败，请手动复制');
         }

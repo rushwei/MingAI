@@ -26,6 +26,8 @@ import { useToast } from '@/components/ui/Toast';
 import { CreditsModal } from '@/components/ui/CreditsModal';
 import { useStreamingResponse, isCreditsError } from '@/lib/hooks/useStreamingResponse';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type TarotSession = {
     spread?: TarotSpread;
@@ -72,6 +74,8 @@ function TarotResultContent() {
     const [kbModalOpen, setKbModalOpen] = useState(false);
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const streaming = useStreamingResponse();
     const { session, user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
     const membershipPending = membershipLoading || !membershipResolved;
@@ -134,9 +138,15 @@ function TarotResultContent() {
     }, [birthDate, conversationId, drawnCards, numerology, question, readingId, seed, selectedSpread]);
 
     const handleCopy = useCallback(async () => {
+        setShowCopyModal(true);
+    }, []);
+
+    const handleConfirmCopy = useCallback(async (level: ChartTextDetailLevel) => {
         if (!canonicalReading) return;
-        await navigator.clipboard.writeText(generateTarotReadingText({ spreadName: selectedSpread!.name, spreadId: selectedSpread!.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate }));
+        setCopyDetailLevel(level);
+        await navigator.clipboard.writeText(generateTarotReadingText({ spreadName: selectedSpread!.name, spreadId: selectedSpread!.id, question, cards: drawnCards, seed: seed || undefined, numerology, birthDate, detailLevel: level }));
         setCopied(true); setTimeout(() => setCopied(false), 2000);
+        setShowCopyModal(false);
     }, [birthDate, canonicalReading, drawnCards, numerology, question, seed, selectedSpread]);
 
     const handleInterpret = async () => {
@@ -340,6 +350,13 @@ function TarotResultContent() {
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
             {knowledgeBaseEnabled && readingId && <AddToKnowledgeBaseModal open={kbModalOpen} onClose={() => setKbModalOpen(false)} sourceTitle={question || selectedSpread?.name || '塔罗占卜'} sourceType="tarot_reading" sourceId={readingId} />}
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
         </div>
     );
 }

@@ -28,6 +28,8 @@ import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
 import { resolveHistoryConversationId } from '@/lib/history/client';
 import { DEFAULT_MODEL_ID } from '@/lib/ai/ai-config';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type DaliurenSessionParams = Record<string, unknown> & {
     date?: string;
@@ -57,6 +59,8 @@ export default function DaliurenResultPage() {
     const [interpretationReasoning, setInterpretationReasoning] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const hasAutoSavedRef = useRef(false);
 
     const streaming = useStreamingResponse();
@@ -95,12 +99,18 @@ export default function DaliurenResultPage() {
     }, [router, saveDivinationRecord, session?.access_token, sessionLoading]);
 
     const handleCopy = async () => {
+        setShowCopyModal(true);
+    };
+
+    const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
         if (!result) return;
         try {
-            await navigator.clipboard.writeText(generateDaliurenResultText(result));
+            setCopyDetailLevel(level);
+            await navigator.clipboard.writeText(generateDaliurenResultText(result, { detailLevel: level }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             showToast('success', '结果已复制到剪贴板');
+            setShowCopyModal(false);
         } catch {
             showToast('error', '复制失败，请重试');
         }
@@ -275,6 +285,13 @@ export default function DaliurenResultPage() {
             </div>
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
         </div>
     );
 }

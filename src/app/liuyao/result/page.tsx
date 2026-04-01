@@ -40,6 +40,8 @@ import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { buildTraditionalCanonicalJSON, buildTraditionalInfo } from '@/lib/divination/liuyao-format-utils';
 import { LIU_QIN_TIPS, SHEN_XI_TIPS, TERM_TIPS } from '@/lib/divination/liuyao-term-tips';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 type LiuyaoResultSession = Omit<DivinationResult, 'createdAt'> & {
     createdAt: string;
@@ -70,6 +72,8 @@ export default function ResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [pendingYongShenTargets, setPendingYongShenTargets] = useState<LiuQin[]>([]);
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const streaming = useStreamingResponse();
     const [copied, setCopied] = useState(false);
     const { session, user, userId, membershipInfo, membershipLoading, membershipResolved } = useSessionMembership();
@@ -97,10 +101,16 @@ export default function ResultPage() {
     const traditionalYongShenPositions = useMemo(() => resolveTraditionalYongShenPositions(traditionalCanonical), [traditionalCanonical]);
 
     const handleCopy = async () => {
-        const text = buildTraditionalInfo(result!.yaos, yaosTpCode(result!.yaos), result!.changedHexagram ? yaosTpCode(result!.yaos.map(y => ({ ...y, type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type }))) : undefined, result!.question, result!.createdAt, appliedYongShenTargets, result!.hexagram, result!.changedHexagram);
+        setShowCopyModal(true);
+    };
+
+    const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
+        setCopyDetailLevel(level);
+        const text = buildTraditionalInfo(result!.yaos, yaosTpCode(result!.yaos), result!.changedHexagram ? yaosTpCode(result!.yaos.map(y => ({ ...y, type: y.change === 'changing' ? (y.type === 1 ? 0 : 1) as 0 | 1 : y.type }))) : undefined, result!.question, result!.createdAt, appliedYongShenTargets, result!.hexagram, result!.changedHexagram, level);
         await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+        setShowCopyModal(false);
     };
 
     useEffect(() => {
@@ -300,6 +310,13 @@ export default function ResultPage() {
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
             {knowledgeBaseEnabled && divinationId && <AddToKnowledgeBaseModal open={kbModalOpen} onClose={() => setKbModalOpen(false)} sourceTitle={result.question || '六爻占卜'} sourceType="liuyao_divination" sourceId={divinationId} />}
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
         </div>
     );
 }

@@ -27,6 +27,8 @@ import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { generateQimenResultText, toCoreQimenOutput, type QimenOutput } from '@/lib/divination/qimen-shared';
 import { useAnalysisSnapshot } from '@/lib/hooks/useAnalysisSnapshot';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 /** 五行旺衰图例 */
 const PHASE_LEGEND = [
@@ -59,6 +61,8 @@ export default function QimenResultPage() {
     const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [showKbModal, setShowKbModal] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const hasSavedRef = useRef(false);
     const streaming = useStreamingResponse();
     const { session, user, membershipInfo, sessionLoading, membershipLoading, membershipResolved } = useSessionMembership();
@@ -130,9 +134,15 @@ export default function QimenResultPage() {
     };
 
     const handleCopy = async () => {
+        setShowCopyModal(true);
+    };
+
+    const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
         if (!result) return;
-        await navigator.clipboard.writeText(generateQimenResultText(result));
+        setCopyDetailLevel(level);
+        await navigator.clipboard.writeText(generateQimenResultText(result, { detailLevel: level }));
         setCopied(true); setTimeout(() => setCopied(false), 2000);
+        setShowCopyModal(false);
     };
 
     if (!result) return (
@@ -235,6 +245,13 @@ export default function QimenResultPage() {
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <CreditsModal isOpen={showCreditsModal} onClose={() => setShowCreditsModal(false)} />
             {knowledgeBaseEnabled && result.chartId && <AddToKnowledgeBaseModal open={showKbModal} onClose={() => setShowKbModal(false)} sourceTitle={result.question || '奇门遁甲排盘'} sourceType="qimen_chart" sourceId={result.chartId} />}
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
         </div>
     );
 }

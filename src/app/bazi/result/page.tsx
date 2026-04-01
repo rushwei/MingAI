@@ -34,6 +34,8 @@ import { createSavedChart, loadSavedChart } from '@/lib/user/charts-client';
 import { useSessionMembership } from '@/lib/hooks/useSessionMembership';
 import { extractLongitudeFromChartData, parseLongitude } from '@/lib/divination/place-resolution';
 import { useAdminJsonCopy } from '@/lib/admin/useAdminJsonCopy';
+import { CopyTextModal } from '@/components/divination/CopyTextModal';
+import type { ChartTextDetailLevel } from '@/lib/divination/detail-level';
 
 // 结果内容组件
 function BaziResultContent() {
@@ -53,6 +55,8 @@ function BaziResultContent() {
     const [savedPersonalityModelId, setSavedPersonalityModelId] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [copyDetailLevel, setCopyDetailLevel] = useState<ChartTextDetailLevel>('default');
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const { showToast } = useToast();
     const { session, userId, membershipInfo, membershipResolved } = useSessionMembership();
     const credits = membershipResolved ? (membershipInfo?.aiChatCount ?? null) : null;
@@ -345,12 +349,18 @@ function BaziResultContent() {
     };
 
     const handleCopy = async () => {
+        setShowCopyModal(true);
+    };
+
+    const handleConfirmCopy = async (level: ChartTextDetailLevel) => {
         if (!baziResult) return;
         try {
-            await navigator.clipboard.writeText(generateBaziChartText(baziResult));
+            setCopyDetailLevel(level);
+            await navigator.clipboard.writeText(generateBaziChartText(baziResult, { detailLevel: level }));
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             showToast('success', '命盘已复制到剪贴板');
+            setShowCopyModal(false);
         } catch {
             showToast('error', '复制失败，请手动复制');
         }
@@ -598,6 +608,13 @@ function BaziResultContent() {
                 </div>
             </div>
 
+            <CopyTextModal
+                isOpen={showCopyModal}
+                value={copyDetailLevel}
+                onChange={setCopyDetailLevel}
+                onClose={() => setShowCopyModal(false)}
+                onConfirm={handleConfirmCopy}
+            />
             <AuthModal
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
